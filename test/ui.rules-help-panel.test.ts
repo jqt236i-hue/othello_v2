@@ -1317,7 +1317,6 @@ describe('rules help panel', () => {
   test('lazy template includes stone marker help tab and key legend texts', () => {
     const template = readRulesHelpTemplateSource();
     const boardCss = readDomCompatBoardCssSurface();
-    const rawBoardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board-dom-compat.css'), 'utf8');
     const layoutCss = readRulesHelpLayoutCssSurface();
     expect(template).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
     expect(template).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
@@ -1336,16 +1335,16 @@ describe('rules help panel', () => {
     expect(template).toMatch(/stone-regen-badge/);
     expect(template).toMatch(/右上の数字/);
     expect(template).not.toMatch(/右側の縦寄り数字/);
-    expect(boardCss).toMatch(/\.guard-timer,[\s\S]*?\.rules-help-counter-demo \.guard-timer\s*\{[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).toMatch(/\.bomb-timer,\s*\.countdown-timer,[\s\S]*?\.rules-help-counter-demo \.countdown-timer\s*\{[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.guard-timer\s*\{[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.countdown-timer\s*\{[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
     expect(boardCss).toMatch(/\.cell\.has-disc\.has-regen-badge\s*\{[\s\S]*?z-index:\s*calc\(var\(--board-layer-expanded-cell\) \+ 12\);/);
-    expect(boardCss).toMatch(/\.stone-regen-badge\s*\{[\s\S]*?left:\s*calc\(-7px \* var\(--layout-stage-scale\)\);[\s\S]*?right:\s*auto;[\s\S]*?top:\s*50%;/);
-    expect(boardCss).toMatch(/\.stone-regen-badge::before\s*\{[\s\S]*?content:\s*'♥';/);
-    expect(boardCss).toMatch(/\.stone-regen-badge-value\s*\{[\s\S]*?z-index:\s*1;/);
-    expect(boardCss).toMatch(/\.stone-flip-protection-badge\s*\{[\s\S]*?left:\s*auto;[\s\S]*?right:\s*calc\(-2px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(-3px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(-3px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).toMatch(/\.stone-timer\.destroy-evade-timer,[\s\S]*?left:\s*calc\(-3px \* var\(--layout-stage-scale\)\);[\s\S]*?bottom:\s*calc\(-3px \* var\(--layout-stage-scale\)\);/);
-    expect(boardCss).not.toMatch(/\.stone-timer\.flip-evade-timer,[\s\S]*?top:\s*50%;[\s\S]*?transform:\s*translateY\(-50%\);/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.stone-regen-badge\s*\{[\s\S]*?left:\s*calc\(-7px \* var\(--layout-stage-scale\)\);[\s\S]*?right:\s*auto;[\s\S]*?top:\s*50%;/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.stone-regen-badge::before\s*\{[\s\S]*?content:\s*'♥';/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.stone-regen-badge-value\s*\{[\s\S]*?z-index:\s*1;/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.stone-flip-protection-badge\s*\{[\s\S]*?left:\s*auto;[\s\S]*?right:\s*calc\(-2px \* var\(--layout-stage-scale\)\);/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.stone-timer\.flip-evade-timer,[\s\S]*?right:\s*calc\(-3px \* var\(--layout-stage-scale\)\);[\s\S]*?top:\s*calc\(-3px \* var\(--layout-stage-scale\)\);/);
+    expect(layoutCss).toMatch(/\.rules-help-counter-demo \.stone-timer\.destroy-evade-timer,[\s\S]*?left:\s*calc\(-3px \* var\(--layout-stage-scale\)\);[\s\S]*?bottom:\s*calc\(-3px \* var\(--layout-stage-scale\)\);/);
+    expect(layoutCss).not.toMatch(/\.rules-help-counter-demo \.stone-timer\.flip-evade-timer,[\s\S]*?top:\s*50%;[\s\S]*?transform:\s*translateY\(-50%\);/);
     for (const selector of [
       'guard-timer',
       'special-timer',
@@ -1355,7 +1354,7 @@ describe('rules help panel', () => {
       'flip-evade-timer',
       'destroy-evade-timer'
     ]) {
-      expect(rawBoardCss).toContain(`.rules-help-counter-demo .${selector}`);
+      expect(layoutCss).toContain(`.rules-help-counter-demo .${selector}`);
     }
     expect(layoutCss).toMatch(/\.rules-help-counter-demo \.disc\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?overflow:\s*visible;/);
     expect(layoutCss).toMatch(/\.rules-help-counter-demo \.disc__face\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?border-radius:\s*50%;/);

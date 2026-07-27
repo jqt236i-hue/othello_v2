@@ -1123,6 +1123,247 @@
     z-index: 40;
 }
 
+/* The counter examples are part of the rules-help surface, not the DOM board.
+ * Keep their marker presentation available on the normal Pixi lane as well. */
+.rules-help-counter-demo .bomb-timer,
+.rules-help-counter-demo .countdown-timer {
+    position: absolute;
+    bottom: calc(-5px * var(--layout-stage-scale));
+    left: 50%;
+    transform: translateX(-50%);
+    line-height: 1;
+    min-width: calc(20px * var(--layout-stage-scale));
+    height: calc(20px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(10px * var(--layout-stage-scale));
+    font-weight: bold;
+    color: #ffffff;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0) 42%),
+        rgba(172, 28, 28, 0.88);
+    padding: calc(4px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) 0;
+    border: var(--layout-size-border-thin) solid rgba(255, 184, 184, 0.72);
+    box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    text-align: center;
+    z-index: 70;
+    pointer-events: none;
+}
+
+.rules-help-counter-demo .guard-timer {
+    position: absolute;
+    top: calc(-5px * var(--layout-stage-scale));
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    min-width: calc(16px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(10px * var(--layout-stage-scale));
+    line-height: 1;
+    font-weight: bold;
+    white-space: nowrap;
+    padding: 0 calc(1px * var(--layout-stage-scale));
+    color: #f6fbff;
+    background: linear-gradient(180deg, rgba(64, 114, 184, 0.95), rgba(20, 46, 92, 0.95));
+    border: var(--layout-size-border-thin) solid rgba(168, 212, 255, 0.72);
+    box-shadow:
+        0 0 4px rgba(0, 0, 0, 0.55),
+        inset 0 1px 1px rgba(255, 255, 255, 0.32);
+    clip-path: polygon(50% 0%, 100% 24%, 84% 100%, 16% 100%, 0% 24%);
+    z-index: 72;
+    pointer-events: none;
+}
+
+.rules-help-counter-demo .guard-timer.timer-double-digit {
+    min-width: calc(20px * var(--layout-stage-scale));
+    font-size: calc(9px * var(--layout-stage-scale));
+    z-index: 76;
+}
+
+.rules-help-counter-demo .stone-timer,
+.rules-help-counter-demo .special-timer {
+    position: absolute;
+    bottom: calc(3px * var(--layout-stage-scale));
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: bold;
+    line-height: 1;
+    height: calc(14px * var(--layout-stage-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 0 calc(4px * var(--layout-stage-scale));
+    border-radius: calc(4px * var(--layout-stage-scale));
+    min-width: calc(14px * var(--layout-stage-scale));
+    text-align: center;
+    pointer-events: none;
+    z-index: 70;
+}
+
+.rules-help-counter-demo .stone-timer.timer-double-digit,
+.rules-help-counter-demo .special-timer.timer-double-digit,
+.rules-help-counter-demo .bomb-timer.timer-double-digit,
+.rules-help-counter-demo .countdown-timer.timer-double-digit {
+    z-index: 73;
+}
+
+.rules-help-counter-demo .special-timer {
+    bottom: calc(1px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 46%),
+        rgba(40, 86, 60, 0.64);
+    border: var(--layout-size-border-thin) solid rgba(184, 236, 208, 0.60);
+    box-shadow: 0 0 calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+}
+
+.rules-help-counter-demo .stone-flip-protection-badge {
+    position: absolute;
+    left: auto;
+    right: calc(-2px * var(--layout-stage-scale));
+    top: 50%;
+    transform: translateY(-50%);
+    width: calc(18px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f4f6f8;
+    font-size: calc(10px * var(--layout-stage-scale));
+    line-height: 1;
+    font-weight: 800;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0) 48%),
+        rgba(92, 96, 104, 0.86);
+    border: var(--layout-size-border-thin) solid rgba(226, 230, 236, 0.72);
+    box-shadow:
+        0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        inset 0 calc(1px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.30);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    z-index: 72;
+    pointer-events: none;
+}
+
+.rules-help-counter-demo .stone-regen-badge {
+    position: absolute;
+    left: calc(-7px * var(--layout-stage-scale));
+    right: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    width: calc(20px * var(--layout-stage-scale));
+    height: calc(20px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff7fb;
+    font-size: calc(9px * var(--layout-stage-scale));
+    line-height: 1;
+    font-weight: 900;
+    background: transparent;
+    border: 0;
+    isolation: isolate;
+    z-index: 92;
+    pointer-events: none;
+}
+
+.rules-help-counter-demo .stone-regen-badge::before {
+    content: '♥';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ff3f98;
+    font-size: calc(21px * var(--layout-stage-scale));
+    line-height: 1;
+    text-shadow:
+        0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.88),
+        0 0 calc(5px * var(--layout-stage-scale)) rgba(255, 64, 150, 0.88),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72);
+    z-index: 0;
+}
+
+.rules-help-counter-demo .stone-regen-badge--zombie::before {
+    color: #8739d6;
+    text-shadow:
+        0 0 calc(2px * var(--layout-stage-scale)) rgba(245, 226, 255, 0.92),
+        0 0 calc(5px * var(--layout-stage-scale)) rgba(135, 57, 214, 0.92),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.76);
+}
+
+.rules-help-counter-demo .stone-regen-badge-value {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: calc(10px * var(--layout-stage-scale));
+    color: #ffffff;
+    text-shadow:
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(65, 0, 34, 0.9),
+        calc(1px * var(--layout-stage-scale)) 0 calc(1px * var(--layout-stage-scale)) rgba(65, 0, 34, 0.82),
+        calc(-1px * var(--layout-stage-scale)) 0 calc(1px * var(--layout-stage-scale)) rgba(65, 0, 34, 0.82);
+}
+
+.rules-help-counter-demo .stone-regen-badge.timer-double-digit {
+    font-size: calc(7px * var(--layout-stage-scale));
+}
+
+.rules-help-counter-demo .stone-timer.flip-evade-timer,
+.rules-help-counter-demo .flip-evade-timer {
+    left: auto;
+    right: calc(-3px * var(--layout-stage-scale));
+    top: calc(-3px * var(--layout-stage-scale));
+    bottom: auto;
+    transform: none;
+    line-height: 1;
+    height: calc(16px * var(--layout-stage-scale));
+    min-width: calc(16px * var(--layout-stage-scale));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(4px * var(--layout-stage-scale));
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 56%),
+        rgba(92, 58, 171, 0.62);
+    border: var(--layout-size-border-thin) solid rgba(210, 193, 255, 0.68);
+    box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+}
+
+.rules-help-counter-demo .stone-timer.destroy-evade-timer,
+.rules-help-counter-demo .destroy-evade-timer {
+    left: calc(-3px * var(--layout-stage-scale));
+    right: auto;
+    top: auto;
+    bottom: calc(-3px * var(--layout-stage-scale));
+    transform: none;
+    line-height: 1;
+    width: calc(18px * var(--layout-stage-scale));
+    height: calc(16px * var(--layout-stage-scale));
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: calc(1px * var(--layout-stage-scale)) 0 calc(3px * var(--layout-stage-scale));
+    border-radius: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 44%),
+        rgba(151, 40, 40, 0.70);
+    border: var(--layout-size-border-thin) solid rgba(255, 211, 211, 0.72);
+    box-shadow: 0 0 calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
 #rules-help-panel {
     --rail-panel-accent: #53d6d1;
     --rail-panel-gold: #f2c95f;
