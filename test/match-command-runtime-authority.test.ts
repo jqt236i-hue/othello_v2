@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as LocalMatchServer from '../scripts/local-match-server';
+import * as LocalMatchRuntime from '../scripts/local-match-runtime';
 
 type ScenarioCoverage = {
   scenario: string;
@@ -95,7 +96,7 @@ describe('match command runtime authority characterization', () => {
     expect(readRepositoryFile(file)).toContain(testName);
   });
 
-  test('current migration baseline has duplicated command and turn-start authority in Worker and local runtimes', () => {
+  test('local runtime delegates command authority while Worker remains on the migration baseline', () => {
     const workerSource = readRepositoryFile('workers/match-worker.ts');
     const localSource = readRepositoryFile('scripts/local-match-server.ts');
     const localTimeoutSource = readRepositoryFile('scripts/local-match-server.ts');
@@ -104,11 +105,12 @@ describe('match command runtime authority characterization', () => {
     expect(workerSource).toContain('async function applyCommandPublishToSnapshot(');
     expect(localSource).toContain('function applyCommandPublishToSnapshot(');
     expect(workerSource).toContain('TurnPipeline.applyTurnSafe(');
-    expect(localSource).toContain('TurnPipeline.applyTurnSafe(');
+    expect(localSource).not.toContain('const result = TurnPipeline.applyTurnSafe(');
     expect(workerSource).toContain('validateAuthoritativePendingSelectionResult(');
-    expect(localSource).toContain('validateAuthoritativePendingSelectionResult(');
-    expect(localSource).toContain('reconcileTurnStartAndCollectPlayback(room, nextSnapshot)');
-    expect(localTimeoutSource).toContain('Core.applyPass(');
+    expect(localSource).not.toContain('const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(');
+    expect(localSource).not.toContain('reconcileTurnStartAndCollectPlayback(room, nextSnapshot)');
+    expect(localTimeoutSource).not.toContain('nextSnapshot.gameState = Core.applyPass(');
+    expect(localSource).toContain('MatchCommandRuntime.executeMatchCommand({');
     expect(workerTimeoutSource).toContain('cfg.loadCoreLogicModule()');
     expect(workerTimeoutSource).toContain('cfg.reconcileTurnStartAndCollectPlayback(room, nextSnapshot)');
   });
@@ -137,5 +139,48 @@ describe('match command runtime authority characterization', () => {
       ok: false,
       rejectedReason: 'NETWORK_DEBUG_DISABLED'
     });
+  });
+
+  test('local command facade and direct runtime remain strictly synchronous', () => {
+    const snapshot = LocalMatchServer.makeInitialSnapshot(43);
+    const room: any = {
+      snapshot,
+      seed: 43,
+      stateVersion: 0,
+      networkAutoEnabled: false
+    };
+    const turnIndex = Number(snapshot.cardState.turnIndex) || 0;
+    const facadeResult: any = LocalMatchServer.applyCommandPublishToSnapshot(room, {
+      actionType: 'pass',
+      actor: 'black',
+      turnIndex,
+      action: {
+        type: 'pass',
+        playerKey: 'black',
+        turnIndex,
+        forcePass: true
+      }
+    }, 'black');
+    expect(facadeResult && typeof facadeResult.then).not.toBe('function');
+
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 47 });
+    const runtimeSnapshot = runtime.getSnapshot();
+    const runtimeTurnIndex = Number(runtimeSnapshot.cardState.turnIndex) || 0;
+    const publicResult: any = runtime.applyCommand({
+      seatKey: 'black',
+      playerKey: 'black',
+      baseVersion: runtime.getRoom().stateVersion,
+      operationId: 'op_sync_contract_1',
+      actionType: 'pass',
+      actor: 'black',
+      turnIndex: runtimeTurnIndex,
+      action: {
+        type: 'pass',
+        playerKey: 'black',
+        turnIndex: runtimeTurnIndex,
+        forcePass: true
+      }
+    });
+    expect(publicResult && typeof publicResult.then).not.toBe('function');
   });
 });

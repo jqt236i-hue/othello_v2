@@ -19,6 +19,7 @@ const MatchAutoCommand = require('../utils/match-auto-command');
 const CpuNetworkCommandPlanner = require('../game/cpu-network-command-planner');
 const PendingCoordinator = require('../game/turn/pending-coordinator');
 const PendingSelectionRegistry = require('../game/logic/cards-internal/pending-selection-registry');
+const DebugActions = require('../game/debug/debug-actions');
 const { createMatchJoinController } = require('../utils/match-join-controller');
 const { createMatchLeaveController } = require('../utils/match-leave-controller');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
@@ -475,103 +476,9 @@ function assignRoomDeckSelection(room: any, seatKey: any, deckSelection: any) {
     return true;
 }
 
-function mergeWithDefaultShape(defaultValue: any, overrideValue: any) {
-    return MatchAuthority.mergeWithDefaultShape(defaultValue, overrideValue);
-}
-
-function createTurnStartSeed(room: any, snapshot: any, playerKey: any) {
-    return MatchAuthority.createTurnStartSeed(room, snapshot, playerKey);
-}
-
-function createTurnStartPrng(room: any, snapshot: any, playerKey: any) {
-    const savedState = snapshot && snapshot.cardState && snapshot.cardState.prngState;
-    if (
-        savedState
-        && typeof savedState === 'object'
-        && Number.isFinite(Number(savedState.seed))
-        && Number.isFinite(Number(savedState.calls))
-        && typeof SeededPRNG.fromState === 'function'
-    ) {
-        try {
-            return SeededPRNG.fromState({
-                seed: Math.trunc(Number(savedState.seed)),
-                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
-            });
-        } catch (e) {
-            // Fall through to derived seed.
-        }
-    }
-    return SeededPRNG.createPRNG(createTurnStartSeed(room, snapshot, playerKey));
-}
-
-function normalizeCardStateForTurnStart(room: any, snapshot: any) {
-    if (!snapshot || typeof snapshot !== 'object') return null;
-    const currentCardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? snapshot.cardState
-        : {};
-    const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
-    const baselinePrng = SeededPRNG.createPRNG(createTurnStartSeed(room, snapshot, currentPlayerKey));
-    const baselineCardState = CardLogic.createCardState(baselinePrng, buildInitialDeckSnapshotOptions(room));
-    snapshot.cardState = mergeWithDefaultShape(baselineCardState, currentCardState);
-    if (!Array.isArray(snapshot.cardState.presentationEvents)) {
-        snapshot.cardState.presentationEvents = [];
-    }
-    if (!Array.isArray(snapshot.cardState._presentationEventsPersist)) {
-        snapshot.cardState._presentationEventsPersist = [];
-    }
-    return snapshot.cardState;
-}
-
 function persistTurnStartPrngState(cardState: any, prng: any) {
     if (!cardState || !prng || typeof prng.getState !== 'function') return;
     cardState.prngState = prng.getState();
-}
-
-function reconcileTurnStartIfNeeded(room: any, snapshot: any, options: any) {
-    const opts = (options && typeof options === 'object') ? options : {};
-    if (!snapshot || !snapshot.gameState || !snapshot.cardState) return opts.includeRawEvents ? [] : snapshot;
-
-    const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
-    const lastTurnStartedFor = parseSeatKeyOptional(snapshot.cardState.lastTurnStartedFor);
-    if (lastTurnStartedFor === currentPlayerKey) {
-        return opts.includeRawEvents ? [] : snapshot;
-    }
-    if (Core.isGameOver(snapshot.gameState)) {
-        return opts.includeRawEvents ? [] : snapshot;
-    }
-
-    normalizeCardStateForTurnStart(room, snapshot);
-    const prng = createTurnStartPrng(room, snapshot, currentPlayerKey);
-    const turnStartEvents: any[] = [];
-    TurnPipelinePhases.applyTurnStartPhase(
-        CardLogic,
-        Core,
-        snapshot.cardState,
-        snapshot.gameState,
-        currentPlayerKey,
-        turnStartEvents,
-        prng
-    );
-    persistTurnStartPrngState(snapshot.cardState, prng);
-    return opts.includeRawEvents ? turnStartEvents : snapshot;
-}
-
-function collectServerPlaybackEvents(snapshot: any, rawEvents: any) {
-    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
-    const assembly = PlaybackEventHelpers.collectServerPlaybackEvents({
-        rawEvents,
-        snapshot,
-        playerKey,
-        fallbackPlayerKey: playerKey,
-        adapter: TurnPipelineUIAdapter,
-        normalizePlayerKey
-    });
-    return Object.assign({}, assembly || {}, {
-        playbackEvents: Array.isArray(assembly && assembly.playbackEvents) ? assembly.playbackEvents : [],
-        diagnostics: assembly ? assembly.diagnostics || null : null,
-        presentationEvents: Array.isArray(assembly && assembly.presentationEvents) ? assembly.presentationEvents : [],
-        playerKey
-    });
 }
 
 function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
@@ -631,64 +538,181 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
     return withPublicRatedMatchMetadata(MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions), room);
 }
 
-function captureTurnStartHandState(snapshot: any) {
-    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
-    const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
-        ? snapshot.cardState.hands
-        : {};
+function createLocalMatchCommandCapabilities() {
     return {
-        playerKey,
-        hand: playerKey && Array.isArray(hands[playerKey]) ? hands[playerKey].slice() : []
-    };
-}
-
-function appendTurnStartDrawPlaybackEvents(playbackAssembly: any, snapshot: any, handState: any) {
-    return PlaybackEventHelpers.appendTurnStartDrawPlaybackEvents({
-        playbackAssembly,
-        snapshot,
-        handState,
-        adapter: TurnPipelineUIAdapter,
-        normalizePlayerKey
-    });
-}
-
-function reconcileTurnStartAndCollectPlayback(room: any, snapshot: any) {
-    const handState = captureTurnStartHandState(snapshot);
-    MatchAuthority.stripTransientPresentationState(snapshot);
-    const rawEvents = reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
-    const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents);
-    const effectLogs = MatchAuthority.collectPipelineEffectLogMessages(
-        rawEvents,
-        playbackAssembly && Array.isArray(playbackAssembly.presentationEvents) ? playbackAssembly.presentationEvents : [],
-        playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshot && snapshot.gameState),
-        TurnPipelineUIAdapter
-    );
-    return appendTurnStartDrawPlaybackEvents(
-        Object.assign({}, playbackAssembly, { effectLogs }),
-        snapshot,
-        handState
-    );
-}
-
-function createCommandActionPrng(room: any, snapshot: any) {
-    const savedState = snapshot && snapshot.cardState && snapshot.cardState.prngState;
-    if (
-        savedState
-        && typeof savedState === 'object'
-        && Number.isFinite(Number(savedState.seed))
-        && Number.isFinite(Number(savedState.calls))
-        && typeof SeededPRNG.fromState === 'function'
-    ) {
-        try {
-            return SeededPRNG.fromState({
-                seed: Math.trunc(Number(savedState.seed)),
-                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
-            });
-        } catch (e) {
-            // Fall through to derived seed.
+        snapshot: {
+            cloneSnapshot: (snapshot: any) => deepClone(snapshot),
+            stripTransientChargeDeltaState: (snapshot: any) => MatchAuthority.stripTransientChargeDeltaState(snapshot),
+            stripTransientPresentationState: (snapshot: any) => MatchAuthority.stripTransientPresentationState(snapshot),
+            restoreMissingChargeDeltaEvents: (previousSnapshot: any, nextSnapshot: any) => (
+                MatchAuthority.restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot)
+            )
+        },
+        schema: {
+            buildAction: (input: any, fallbackActor: any, fallbackTurnIndex: any) => (
+                NetworkActionSchema.buildAction(input, fallbackActor, fallbackTurnIndex)
+            )
+        },
+        autoCommand: {
+            isAutoTurnPublishBody: (body: any) => MatchAutoCommand.isMatchAutoTurnPublishBody(body),
+            resolveAutoTurnPublishBody: (options: any) => MatchAutoCommand.resolveMatchAutoTurnPublishBody({
+                body: options.body,
+                snapshot: options.snapshot,
+                playerKey: options.playerKey,
+                planningPlayerKey: options.planningPlayerKey,
+                CpuNetworkCommandPlanner,
+                CoreLogic: Core,
+                CardLogic,
+                PendingCoordinator,
+                PendingSelectionRegistry,
+                SubPlacementContinuation
+            })
+        },
+        debug: {
+            isDebugFillHandPayload: (body: any) => isNetworkDebugFillHandPayload(body),
+            resolveDebugFillHandOptions: (body: any) => resolveNetworkDebugFillHandOptions(body),
+            fillDebugHand: (cardState: any, options: any) => DebugActions.fillDebugHand(cardState, options)
+        },
+        random: {
+            fromState: (state: any) => SeededPRNG.fromState(state),
+            createPrng: (seed: any) => SeededPRNG.createPRNG(seed),
+            deriveSeed: (context: any, snapshot: any, commandPlayerKey: any) => (
+                MatchAuthority.createTurnStartSeed(
+                    { seed: context.roomSeed },
+                    snapshot,
+                    commandPlayerKey
+                )
+            )
+        },
+        pipeline: {
+            applyTurnSafe: (
+                cardState: any,
+                gameState: any,
+                commandPlayerKey: any,
+                action: any,
+                prng: any,
+                options: any
+            ) => TurnPipeline.applyTurnSafe(
+                cardState,
+                gameState,
+                commandPlayerKey,
+                action,
+                prng,
+                options
+            )
+        },
+        turnStart: {
+            isGameOver: (gameState: any) => Core.isGameOver(gameState),
+            createCardState: (prng: any, initialDeckOptions: any) => (
+                CardLogic.createCardState(prng, initialDeckOptions)
+            ),
+            mergeWithDefaultShape: (defaultValue: any, overrideValue: any) => (
+                MatchAuthority.mergeWithDefaultShape(defaultValue, overrideValue)
+            ),
+            applyTurnStartPhase: (
+                cardLogic: any,
+                coreLogic: any,
+                cardState: any,
+                gameState: any,
+                commandPlayerKey: any,
+                events: any,
+                prng: any
+            ) => TurnPipelinePhases.applyTurnStartPhase(
+                cardLogic,
+                coreLogic,
+                cardState,
+                gameState,
+                commandPlayerKey,
+                events,
+                prng
+            ),
+            cardLogic: CardLogic,
+            coreLogic: Core
+        },
+        authority: {
+            normalizePlayerKey,
+            parsePlayerKeyOptional: parseSeatKeyOptional,
+            getCurrentPlayerKey,
+            parseHiddenHandToken: (value: any) => MatchAuthority.parseHiddenHandToken(value),
+            validatePendingSelectionPublish: (
+                snapshot: any,
+                commandPlayerKey: any,
+                action: any
+            ) => MatchAuthority.validatePendingSelectionPublish(snapshot, commandPlayerKey, action),
+            sanitizePendingSelectionActionForAuthority: (
+                snapshot: any,
+                commandPlayerKey: any,
+                action: any
+            ) => MatchAuthority.sanitizePendingSelectionActionForAuthority(snapshot, commandPlayerKey, action),
+            validateAuthoritativePendingSelectionResult: (action: any, rawEvents: any) => (
+                MatchAuthority.validateAuthoritativePendingSelectionResult(action, rawEvents)
+            ),
+            isSubPlacementTurnActive: (cardState: any, commandPlayerKey: any) => (
+                SubPlacementContinuation.isSubPlacementTurnActive(cardState, commandPlayerKey)
+            )
+        },
+        presentation: {
+            collectActionPlaybackEvents: (options: any) => PlaybackEventHelpers.collectActionPlaybackEvents({
+                result: options.result,
+                rawEvents: options.rawEvents,
+                snapshot: options.snapshot,
+                playerKey: options.playerKey,
+                fallbackPlayerKey: options.playerKey,
+                adapter: TurnPipelineUIAdapter,
+                normalizePlayerKey
+            }),
+            collectTurnStartPlaybackEvents: (options: any) => PlaybackEventHelpers.collectServerPlaybackEvents({
+                rawEvents: options.rawEvents,
+                snapshot: options.snapshot,
+                playerKey: options.playerKey,
+                fallbackPlayerKey: options.playerKey,
+                adapter: TurnPipelineUIAdapter,
+                normalizePlayerKey
+            }),
+            buildActionEffectLogs: (
+                action: any,
+                commandPlayerKey: any,
+                rawEvents: any,
+                presentationEvents: any
+            ) => buildNetworkActionEffectLogs(
+                action,
+                commandPlayerKey,
+                rawEvents,
+                presentationEvents
+            ),
+            collectTurnStartEffectLogs: (
+                rawEvents: any,
+                presentationEvents: any,
+                commandPlayerKey: any
+            ) => MatchAuthority.collectPipelineEffectLogMessages(
+                rawEvents,
+                presentationEvents,
+                commandPlayerKey,
+                TurnPipelineUIAdapter
+            ),
+            appendTurnStartDrawPlaybackEvents: (options: any) => (
+                PlaybackEventHelpers.appendTurnStartDrawPlaybackEvents({
+                    playbackAssembly: options.playbackAssembly,
+                    snapshot: options.snapshot,
+                    handState: options.handState,
+                    adapter: TurnPipelineUIAdapter,
+                    normalizePlayerKey
+                })
+            ),
+            appendPlaybackEventsAfter: (first: any, second: any) => (
+                PlaybackEventHelpers.appendPlaybackEventsAfter(first, second)
+            ),
+            appendEffectLogMessages: (first: any, second: any) => (
+                MatchAuthority.appendEffectLogMessages(first, second)
+            ),
+            reportPlaybackAssemblyDiagnostics: (context: any, diagnostics: any, options: any) => (
+                MatchAuthority.reportPlaybackAssemblyDiagnostics(context, diagnostics, options)
+            ),
+            toDebugPlaybackDiagnostics: (diagnostics: any, networkDebugEnabled: any) => (
+                MatchAuthority.toDebugPlaybackDiagnostics(diagnostics, networkDebugEnabled)
+            )
         }
-    }
-    return SeededPRNG.createPRNG(createTurnStartSeed(room, snapshot, getCurrentPlayerKey(snapshot && snapshot.gameState)));
+    };
 }
 
 function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
@@ -698,212 +722,47 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
         return { ok: false, rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE' };
     }
+    if (isNetworkDebugFillHandPayload(body) && !toPublicNetworkDebugEnabled(room)) {
+        return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
+    }
 
-    const currentSnapshot = (room && room.snapshot && room.snapshot.gameState && room.snapshot.cardState)
-        ? deepClone(room.snapshot)
-        : null;
-    if (!currentSnapshot) {
+    if (!room || !room.snapshot || !room.snapshot.gameState || !room.snapshot.cardState) {
         return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
     }
-    MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
-
-    if (
-        MatchAutoCommand.isMatchAutoTurnPublishBody(body)
-        && room.networkAutoEnabled !== true
-    ) {
-        return { ok: false, rejectedReason: 'AUTO_COMMAND_DISABLED' };
-    }
-
-    if (isNetworkDebugFillHandPayload(body)) {
-        if (!toPublicNetworkDebugEnabled(room)) {
-            return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
-        }
-        const DebugActions = require('../game/debug/debug-actions');
-        if (!DebugActions || typeof DebugActions.fillDebugHand !== 'function') {
-            return { ok: false, rejectedReason: 'DEBUG_ACTIONS_UNAVAILABLE' };
-        }
-
-        const applied = DebugActions.fillDebugHand(
-            currentSnapshot.cardState,
-            Object.assign({ playerKey }, resolveNetworkDebugFillHandOptions(body))
-        );
-        if (!applied) {
-            return { ok: false, rejectedReason: 'DEBUG_FILL_HAND_FAILED' };
-        }
-
-        MatchAuthority.stripTransientPresentationState(currentSnapshot);
-        return {
-            ok: true,
-            snapshot: currentSnapshot,
-            playbackEvents: [],
-            playbackDiagnostics: null,
-            effectLogs: []
-        };
-    }
-
-    let autoCommand: any = null;
-    try {
-        autoCommand = MatchAutoCommand.resolveMatchAutoTurnPublishBody({
-            body,
-            snapshot: currentSnapshot,
-            playerKey,
-            planningPlayerKey: getCurrentPlayerKey(currentSnapshot.gameState),
-            CpuNetworkCommandPlanner,
-            CoreLogic: Core,
-            CardLogic,
-            PendingCoordinator,
-            PendingSelectionRegistry,
-            SubPlacementContinuation
-        });
-    } catch (error: any) {
-        return {
-            ok: false,
-            rejectedReason: 'AUTO_COMMAND_PLANNER_UNAVAILABLE',
-            errorMessage: error instanceof Error ? error.message : String(error || '')
-        };
-    }
-    if (!autoCommand || autoCommand.ok !== true) {
-        return {
-            ok: false,
-            rejectedReason: autoCommand && autoCommand.rejectedReason
-                ? autoCommand.rejectedReason
-                : 'AUTO_COMMAND_REQUIRED'
-        };
-    }
-    const commandBody = autoCommand.body || body;
-
-    const preparedCommand = MatchCommandRuntime.prepareMatchCommandAction({
-        snapshot: currentSnapshot,
-        body: commandBody,
-        playerKey,
-        networkDebugEnabled: !!(room && room.networkDebugEnabled === true),
-        buildAction: (input: any, fallbackActor: any, fallbackTurnIndex: any) => NetworkActionSchema.buildAction(input, fallbackActor, fallbackTurnIndex),
-        normalizePlayerKey,
-        validatePendingSelectionPublish: MatchAuthority.validatePendingSelectionPublish,
-        sanitizePendingSelectionActionForAuthority: MatchAuthority.sanitizePendingSelectionActionForAuthority
-    });
-    if (!preparedCommand || preparedCommand.ok !== true) {
-        return preparedCommand;
-    }
-    const currentTurnIndex = preparedCommand.currentTurnIndex;
-    const currentCardState = preparedCommand.currentCardState;
-    const resolvedAction = preparedCommand.resolvedAction;
-    const pendingValidation = preparedCommand.pendingValidation;
-
-    const prng = createCommandActionPrng(room, currentSnapshot);
-    const isSubPlacementTurnActive = (
-        SubPlacementContinuation &&
-        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function'
-    )
-        ? ((cardState: any, seatKey: any) => SubPlacementContinuation.isSubPlacementTurnActive(cardState, seatKey))
-        : undefined;
-    const skipCommandTurnStart = MatchCommandRuntime.shouldSkipMatchCommandTurnStart({
-        cardState: currentCardState,
-        playerKey,
-        resolvedAction,
-        isSubPlacementTurnActive
-    });
-    const result = TurnPipeline.applyTurnSafe(
-        currentCardState,
-        currentSnapshot.gameState,
-        playerKey,
-        resolvedAction,
-        prng,
-        {
-            currentStateVersion: currentTurnIndex,
-            prngState: currentCardState && currentCardState.prngState,
-            skipTurnStart: skipCommandTurnStart
-        }
-    );
+    const normalizedPlayerKey = normalizePlayerKey(playerKey);
+    const result = MatchCommandRuntime.executeMatchCommand({
+        snapshot: room.snapshot,
+        playerKey: normalizedPlayerKey,
+        roomSeed: Number.isFinite(Number(room.seed)) ? Math.trunc(Number(room.seed)) : 1,
+        stateVersion: Number.isFinite(Number(room.stateVersion)) ? Math.trunc(Number(room.stateVersion)) : 0,
+        initialDeckOptions: buildInitialDeckSnapshotOptions(room),
+        networkDebugEnabled: room.networkDebugEnabled === true,
+        networkAutoEnabled: room.networkAutoEnabled === true
+    }, body, createLocalMatchCommandCapabilities());
 
     if (!result || result.ok !== true) {
-        return {
+        const failure: any = {
             ok: false,
-            rejectedReason: (result && result.rejectedReason) || 'COMMAND_REJECTED',
-            errorMessage: result && result.errorMessage ? String(result.errorMessage) : null
+            rejectedReason: (result && result.rejectedReason) || 'COMMAND_REJECTED'
         };
-    }
-    const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(
-        resolvedAction,
-        result.events
-    );
-    if (!authoritativePendingResult || authoritativePendingResult.ok !== true) {
-        return {
-            ok: false,
-            rejectedReason: authoritativePendingResult && authoritativePendingResult.rejectedReason
-                ? authoritativePendingResult.rejectedReason
-                : 'INVALID_PENDING_SELECTION_TARGET'
-        };
+        if (result && Object.prototype.hasOwnProperty.call(result, 'errorMessage')) {
+            failure.errorMessage = result.errorMessage;
+        }
+        return failure;
     }
 
-    const nextSnapshot = {
-        gameState: result.gameState,
-        cardState: result.cardState
-    };
-    MatchAuthority.restoreMissingChargeDeltaEvents(currentSnapshot, nextSnapshot);
-    const actionChargeDeltaEvents = Array.isArray(nextSnapshot && nextSnapshot.cardState && nextSnapshot.cardState.chargeDeltaEvents)
-        ? deepClone(nextSnapshot.cardState.chargeDeltaEvents)
-        : [];
-    const playbackAssembly = PlaybackEventHelpers.collectActionPlaybackEvents({
-        result,
-        rawEvents: result.events,
-        snapshot: nextSnapshot,
-        playerKey,
-        fallbackPlayerKey: playerKey,
-        adapter: TurnPipelineUIAdapter,
-        normalizePlayerKey
-    });
-    MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-action', playbackAssembly && playbackAssembly.diagnostics, {
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-    });
-    const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
-        ? playbackAssembly.playbackEvents
-        : [];
-    const actionPresentationEvents = (playbackAssembly && Array.isArray(playbackAssembly.presentationEvents))
-        ? playbackAssembly.presentationEvents
-        : [];
-    const actionEffectLogs = buildNetworkActionEffectLogs(
-        resolvedAction,
-        playerKey,
-        result.events,
-        actionPresentationEvents
-    );
-
-    const postActionPlayerKey = getCurrentPlayerKey(nextSnapshot.gameState);
-    const shouldReconcilePostActionTurnStart = !skipCommandTurnStart || postActionPlayerKey !== playerKey;
-    const turnStartPlaybackAssembly = shouldReconcilePostActionTurnStart
-        ? reconcileTurnStartAndCollectPlayback(room, nextSnapshot)
-        : null;
-    if (
-        actionChargeDeltaEvents.length > 0
-        && nextSnapshot
-        && nextSnapshot.cardState
-        && (!Array.isArray(nextSnapshot.cardState.chargeDeltaEvents) || nextSnapshot.cardState.chargeDeltaEvents.length === 0)
-    ) {
-        nextSnapshot.cardState.chargeDeltaEvents = deepClone(actionChargeDeltaEvents);
-    }
-    MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-    });
-    const turnStartPlaybackEvents = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.playbackEvents))
-        ? turnStartPlaybackAssembly.playbackEvents
-        : [];
-    const turnStartEffectLogs = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.effectLogs))
-        ? turnStartPlaybackAssembly.effectLogs
-        : [];
-    const combinedPlaybackEvents = PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents);
-    const combinedEffectLogs = MatchAuthority.appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
-    MatchAuthority.stripTransientPresentationState(nextSnapshot);
-
-    return {
+    const success: any = {
         ok: true,
-        snapshot: nextSnapshot,
-        playbackEvents: combinedPlaybackEvents,
-        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
-        effectLogs: combinedEffectLogs,
-        action: resolvedAction,
-        pendingEffectId: pendingValidation && pendingValidation.pendingEffectId ? pendingValidation.pendingEffectId : null
+        snapshot: result.snapshot,
+        playbackEvents: result.playbackEvents,
+        playbackDiagnostics: result.playbackDiagnostics,
+        effectLogs: result.effectLogs,
+        pendingEffectId: result.pendingEffectId
     };
+    if (!isNetworkDebugFillHandPayload(body)) {
+        success.action = result.action;
+    }
+    return success;
 }
 
 function applyTimeoutPassToSnapshot(room: any, playerKey: any) {
@@ -1609,48 +1468,20 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     const previousUpdatedAt = room.updatedAt;
     const previousAuthoritativeStateHash = room.authoritativeStateHash;
     const expectedTurnDeadlineAt = deadline;
-    ensureInitialPresentationSnapshots(room);
 
     const timeoutPassResult = applyTimeoutPassToSnapshot(room, timedOutSeatKey);
-    const usedTimeoutPassCommand = !!(timeoutPassResult && timeoutPassResult.ok === true && timeoutPassResult.snapshot);
-    const nextSnapshot = usedTimeoutPassCommand
-        ? deepClone(timeoutPassResult.snapshot)
-        : deepClone(snapshot);
-    if (!usedTimeoutPassCommand) {
-        nextSnapshot.gameState = Core.applyPass(nextSnapshot.gameState);
+    if (!timeoutPassResult || timeoutPassResult.ok !== true || !timeoutPassResult.snapshot) {
+        return { applied: false };
     }
-    MatchAuthority.stripTransientPresentationState(nextSnapshot);
-    if (
-        nextSnapshot.cardState
-        && parseSeatKeyOptional(nextSnapshot.cardState.selectedCardOwnerKey) === timedOutSeatKey
-    ) {
-        nextSnapshot.cardState.selectedCardId = null;
-        nextSnapshot.cardState.selectedCardOwnerKey = null;
-    }
-    if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
-        nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
-    }
-    const serverPlaybackAssembly = usedTimeoutPassCommand
-        ? null
-        : reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
-    if (!usedTimeoutPassCommand) {
-        MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-        });
-    }
-    const serverPlaybackEvents = usedTimeoutPassCommand && Array.isArray(timeoutPassResult.playbackEvents)
+    ensureInitialPresentationSnapshots(room);
+    const nextSnapshot = deepClone(timeoutPassResult.snapshot);
+    const serverPlaybackEvents = Array.isArray(timeoutPassResult.playbackEvents)
         ? timeoutPassResult.playbackEvents
-        : (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
-            ? serverPlaybackAssembly.playbackEvents
-            : [];
-    const serverEffectLogs = usedTimeoutPassCommand && Array.isArray(timeoutPassResult.effectLogs)
+        : [];
+    const serverEffectLogs = Array.isArray(timeoutPassResult.effectLogs)
         ? timeoutPassResult.effectLogs
-        : (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
-            ? serverPlaybackAssembly.effectLogs
-            : [];
-    const serverPlaybackDiagnostics = usedTimeoutPassCommand
-        ? (timeoutPassResult.playbackDiagnostics || null)
-        : MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room));
+        : [];
+    const serverPlaybackDiagnostics = timeoutPassResult.playbackDiagnostics || null;
 
     const latestTimer = room.turnTimer && typeof room.turnTimer === 'object' ? room.turnTimer : null;
     const latestDeadline = Number(latestTimer && latestTimer.turnDeadlineAt);

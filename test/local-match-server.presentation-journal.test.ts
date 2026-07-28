@@ -246,4 +246,60 @@ describe('local match server presentation journal', () => {
       await closeServer(server);
     }
   });
+
+  test('timeout command rejection leaves snapshot, version, timer, and presentation journal unchanged', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black' });
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'white'
+      });
+      expect(created.status).toBe(200);
+      expect(joined.status).toBe(200);
+
+      let before: any = null;
+      expect(patchRoomSnapshotForTests(created.data.roomId, (room: any) => {
+        room.snapshot.cardState.hands.black = ['__hidden_hand__:black:0'];
+        room.turnTimer = {
+          ...(room.turnTimer || {}),
+          active: true,
+          turnSeatKey: 'black',
+          turnStartedAt: Date.now() - 300000,
+          turnDeadlineAt: Date.now() - 1
+        };
+        before = JSON.parse(JSON.stringify({
+          snapshot: room.snapshot,
+          stateVersion: room.stateVersion,
+          turnTimer: room.turnTimer,
+          visualSeq: room.visualSeq,
+          presentationJournal: room.presentationJournal
+        }));
+      })).toBe(true);
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(created.data.roomId)}&seatKey=black&seatToken=${encodeURIComponent(created.data.seatToken)}`
+      );
+      expect(state.status).toBe(200);
+
+      let after: any = null;
+      expect(patchRoomSnapshotForTests(created.data.roomId, (room: any) => {
+        after = JSON.parse(JSON.stringify({
+          snapshot: room.snapshot,
+          stateVersion: room.stateVersion,
+          turnTimer: room.turnTimer,
+          visualSeq: room.visualSeq,
+          presentationJournal: room.presentationJournal
+        }));
+      })).toBe(true);
+
+      expect(after).toEqual(before);
+    } finally {
+      await closeServer(server);
+    }
+  });
 });

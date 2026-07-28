@@ -278,6 +278,24 @@ function pushParityMismatch(mismatches, card, field, details = {}) {
   }, details));
 }
 
+function findFirstParityDifference(left, right, path = '$') {
+  if (Object.is(left, right)) return null;
+  if (
+    !left
+    || !right
+    || typeof left !== 'object'
+    || typeof right !== 'object'
+  ) {
+    return { path, local: left, server: right };
+  }
+  const keys = Array.from(new Set([...Object.keys(left), ...Object.keys(right)])).sort();
+  for (const key of keys) {
+    const difference = findFirstParityDifference(left[key], right[key], `${path}.${key}`);
+    if (difference) return difference;
+  }
+  return null;
+}
+
 async function createPatchedServerRoom(snapshot, stateVersion, seed = 17) {
   const server = createLocalMatchServer();
   const port = await listen(server);
@@ -490,7 +508,8 @@ describe('local match runtime parity', () => {
         if (JSON.stringify(serverSnapshot) !== JSON.stringify(localSnapshot)) {
           pushParityMismatch(mismatches, card, 'snapshot', {
             stateVersion: serverResult.data.stateVersion,
-            pendingEffectId: getPendingEffectId(serverResult.data.snapshot)
+            pendingEffectId: getPendingEffectId(serverResult.data.snapshot),
+            firstDifference: findFirstParityDifference(localSnapshot, serverSnapshot)
           });
         }
         const serverPlayback = serverResult.data.playbackEvents;
@@ -591,7 +610,8 @@ describe('local match runtime parity', () => {
           pushParityMismatch(mismatches, card, 'snapshot', {
             pendingType: pending.type,
             stateVersion: serverFollowResult.data.stateVersion,
-            pendingEffectId: pending.pendingEffectId || null
+            pendingEffectId: pending.pendingEffectId || null,
+            firstDifference: findFirstParityDifference(localSnapshot, serverSnapshot)
           });
         }
         const serverPlayback = serverFollowResult.data.playbackEvents;
