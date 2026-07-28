@@ -1,4 +1,16 @@
 import type {
+    AppliedMatchCommandExecution,
+    MatchCommandAuthorityCapabilities,
+    MatchCommandAuthorityContext,
+    MatchCommandExecutionCapabilities,
+    MatchCommandExecutionFailure,
+    MatchCommandExecutionResult,
+    MatchCommandPlayerKey,
+    MatchCommandPrepareResult,
+    MatchCommandPrng,
+    MatchCommandRecord,
+    MatchCommandSnapshot,
+    PreparedMatchCommandExecution,
     MatchCommandRuntimePort,
     MatchRuntimeCommand,
     MatchRuntimeCommandResult
@@ -25,8 +37,6 @@ export function executeMatchRuntimeCommand<TResult>(
     }
     return port.execute(command);
 }
-
-type MatchCommandRecord = Record<string, unknown>;
 
 interface MatchCommandBuiltAction {
     actor?: unknown;
@@ -226,4 +236,403 @@ export function shouldSkipMatchCommandTurnStart(options: MatchCommandTurnStartSk
         && expectedPendingType
     );
     return skipTurnStartForSubPlacement || skipTurnStartForPendingSelection;
+}
+
+function hasFunction(value: unknown, key: string): boolean {
+    return !!(
+        value
+        && typeof value === 'object'
+        && typeof (value as MatchCommandRecord)[key] === 'function'
+    );
+}
+
+function toFailure(
+    rejectedReason: string,
+    errorMessage?: unknown,
+    rawEvents?: readonly unknown[]
+): MatchCommandExecutionFailure {
+    const result: MatchCommandExecutionFailure = {
+        ok: false,
+        rejectedReason
+    };
+    if (typeof errorMessage !== 'undefined') {
+        result.errorMessage = errorMessage === null
+            ? null
+            : String(errorMessage);
+    }
+    if (rawEvents) result.rawEvents = rawEvents;
+    return result;
+}
+
+function toRawEvents(value: unknown): readonly unknown[] {
+    return Array.isArray(value) ? value : [];
+}
+
+function isDebugFillCommand(
+    body: MatchCommandRecord,
+    capabilities: MatchCommandExecutionCapabilities | null | undefined
+): boolean {
+    const bodyAction = asRecord(body.action);
+    const commandType = String(body.actionType || bodyAction.type || '').trim().toLowerCase();
+    if (commandType === 'debug_fill_hand' || commandType === 'fill_debug_hand') return true;
+    const debug = capabilities && capabilities.debug;
+    return !!(
+        debug
+        && typeof debug.isDebugFillHandPayload === 'function'
+        && debug.isDebugFillHandPayload(body)
+    );
+}
+
+function isAutoCommand(
+    body: MatchCommandRecord,
+    capabilities: MatchCommandExecutionCapabilities | null | undefined
+): boolean {
+    const bodyAction = asRecord(body.action);
+    const commandType = String(body.actionType || bodyAction.type || '').trim().toLowerCase();
+    if (commandType === 'auto_turn') return true;
+    const autoCommand = capabilities && capabilities.autoCommand;
+    return !!(
+        autoCommand
+        && typeof autoCommand.isAutoTurnPublishBody === 'function'
+        && autoCommand.isAutoTurnPublishBody(body)
+    );
+}
+
+function validateSharedCapabilityGroups(
+    body: MatchCommandRecord,
+    capabilities: MatchCommandExecutionCapabilities | null | undefined
+): MatchCommandExecutionFailure | null {
+    if (!capabilities || !hasFunction(capabilities.schema, 'buildAction')) {
+        return toFailure('COMMAND_SCHEMA_UNAVAILABLE');
+    }
+    if (
+        !capabilities.snapshot
+        || !hasFunction(capabilities.snapshot, 'cloneSnapshot')
+        || !hasFunction(capabilities.snapshot, 'stripTransientChargeDeltaState')
+        || !hasFunction(capabilities.snapshot, 'stripTransientPresentationState')
+        || !capabilities.authority
+        || !hasFunction(capabilities.authority, 'parseHiddenHandToken')
+    ) {
+        return toFailure('COMMAND_PIPELINE_UNAVAILABLE');
+    }
+
+    const debugFill = isDebugFillCommand(body, capabilities);
+    if (debugFill) {
+        if (
+            !capabilities.debug
+            || !hasFunction(capabilities.debug, 'isDebugFillHandPayload')
+            || !hasFunction(capabilities.debug, 'resolveDebugFillHandOptions')
+            || !hasFunction(capabilities.debug, 'fillDebugHand')
+        ) {
+            return toFailure('DEBUG_ACTIONS_UNAVAILABLE');
+        }
+        return null;
+    }
+
+    if (
+        !capabilities.random
+        || !hasFunction(capabilities.random, 'fromState')
+        || !hasFunction(capabilities.random, 'createPrng')
+        || !hasFunction(capabilities.random, 'deriveSeed')
+        || !capabilities.pipeline
+        || !hasFunction(capabilities.pipeline, 'applyTurnSafe')
+        || !capabilities.turnStart
+        || !hasFunction(capabilities.turnStart, 'isGameOver')
+        || !hasFunction(capabilities.turnStart, 'createCardState')
+        || !hasFunction(capabilities.turnStart, 'mergeWithDefaultShape')
+        || !hasFunction(capabilities.turnStart, 'applyTurnStartPhase')
+        || !capabilities.presentation
+        || !hasFunction(capabilities.presentation, 'collectActionPlaybackEvents')
+        || !capabilities.authority
+        || !hasFunction(capabilities.authority, 'normalizePlayerKey')
+        || !hasFunction(capabilities.authority, 'getCurrentPlayerKey')
+        || !hasFunction(capabilities.authority, 'validatePendingSelectionPublish')
+        || !hasFunction(capabilities.authority, 'sanitizePendingSelectionActionForAuthority')
+        || !hasFunction(capabilities.authority, 'validateAuthoritativePendingSelectionResult')
+    ) {
+        return toFailure('COMMAND_PIPELINE_UNAVAILABLE');
+    }
+
+    if (isAutoCommand(body, capabilities)) {
+        if (
+            !capabilities.autoCommand
+            || !hasFunction(capabilities.autoCommand, 'isAutoTurnPublishBody')
+            || !hasFunction(capabilities.autoCommand, 'resolveAutoTurnPublishBody')
+        ) {
+            return toFailure('AUTO_COMMAND_PLANNER_UNAVAILABLE');
+        }
+    }
+    return null;
+}
+
+export function validateCanonicalMatchCommandSnapshot(
+    snapshotValue: unknown,
+    authority: Pick<MatchCommandAuthorityCapabilities, 'parseHiddenHandToken'>
+): snapshotValue is MatchCommandSnapshot {
+    if (!snapshotValue || typeof snapshotValue !== 'object') return false;
+    const snapshot = snapshotValue as MatchCommandRecord;
+    if (!snapshot.gameState || typeof snapshot.gameState !== 'object') return false;
+    if (!snapshot.cardState || typeof snapshot.cardState !== 'object') return false;
+
+    const metadata = asRecord(snapshot._meta);
+    if (
+        Object.prototype.hasOwnProperty.call(metadata, 'projectedForSeat')
+        || Object.prototype.hasOwnProperty.call(metadata, 'viewerRole')
+    ) {
+        return false;
+    }
+
+    if (!authority || typeof authority.parseHiddenHandToken !== 'function') return false;
+    const cardState = asRecord(snapshot.cardState);
+    const hands = asRecord(cardState.hands);
+    for (const playerKey of ['black', 'white'] as const) {
+        const hand = hands[playerKey];
+        if (!Array.isArray(hand)) continue;
+        if (hand.some((entry) => !!authority.parseHiddenHandToken(entry))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function createCommandPrng(
+    context: MatchCommandAuthorityContext,
+    snapshot: MatchCommandSnapshot,
+    capabilities: MatchCommandExecutionCapabilities
+): MatchCommandPrng {
+    const cardState = asRecord(snapshot.cardState);
+    const savedState = asRecord(cardState.prngState);
+    if (
+        Number.isFinite(Number(savedState.seed))
+        && Number.isFinite(Number(savedState.calls))
+    ) {
+        try {
+            return capabilities.random.fromState({
+                seed: Math.trunc(Number(savedState.seed)),
+                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
+            });
+        } catch (_error) {
+            // Invalid serialized state falls through to the deterministic seed.
+        }
+    }
+    return capabilities.random.createPrng(
+        capabilities.random.deriveSeed(context, snapshot, context.playerKey)
+    );
+}
+
+export function prepareMatchCommandExecution(
+    context: MatchCommandAuthorityContext,
+    bodyValue: unknown,
+    capabilities: MatchCommandExecutionCapabilities
+): MatchCommandPrepareResult {
+    const body = asRecord(bodyValue);
+    const capabilityFailure = validateSharedCapabilityGroups(body, capabilities);
+    if (capabilityFailure) {
+        return { kind: 'terminal', result: capabilityFailure };
+    }
+    if (
+        !capabilities.authority
+        || !validateCanonicalMatchCommandSnapshot(context && context.snapshot, capabilities.authority)
+    ) {
+        return {
+            kind: 'terminal',
+            result: toFailure('INVALID_SNAPSHOT')
+        };
+    }
+
+    const currentSnapshot = capabilities.snapshot.cloneSnapshot(context.snapshot);
+    capabilities.snapshot.stripTransientChargeDeltaState(currentSnapshot);
+
+    if (isDebugFillCommand(body, capabilities)) {
+        if (context.networkDebugEnabled !== true) {
+            return {
+                kind: 'terminal',
+                result: toFailure('NETWORK_DEBUG_DISABLED')
+            };
+        }
+        const debug = capabilities.debug!;
+        const applied = debug.fillDebugHand(
+            asRecord(currentSnapshot.cardState),
+            Object.assign(
+                { playerKey: context.playerKey },
+                debug.resolveDebugFillHandOptions(body)
+            )
+        );
+        if (applied !== true) {
+            return {
+                kind: 'terminal',
+                result: toFailure('DEBUG_FILL_HAND_FAILED')
+            };
+        }
+        capabilities.snapshot.stripTransientPresentationState(currentSnapshot);
+        return {
+            kind: 'terminal',
+            result: {
+                ok: true,
+                snapshot: currentSnapshot,
+                rawEvents: [],
+                playbackEvents: [],
+                playbackDiagnostics: null,
+                effectLogs: [],
+                action: body.action || {
+                    type: 'debug_fill_hand',
+                    playerKey: context.playerKey
+                },
+                pendingEffectId: null
+            }
+        };
+    }
+
+    let commandBody = body;
+    if (isAutoCommand(body, capabilities)) {
+        if (context.networkAutoEnabled !== true) {
+            return {
+                kind: 'terminal',
+                result: toFailure('AUTO_COMMAND_DISABLED')
+            };
+        }
+        let autoCommand;
+        try {
+            autoCommand = capabilities.autoCommand!.resolveAutoTurnPublishBody({
+                body,
+                snapshot: currentSnapshot,
+                playerKey: context.playerKey,
+                planningPlayerKey: capabilities.authority.getCurrentPlayerKey(currentSnapshot.gameState)
+            });
+        } catch (error) {
+            return {
+                kind: 'terminal',
+                result: toFailure(
+                    'AUTO_COMMAND_PLANNER_UNAVAILABLE',
+                    error instanceof Error ? error.message : String(error || '')
+                )
+            };
+        }
+        if (!autoCommand || autoCommand.ok !== true) {
+            return {
+                kind: 'terminal',
+                result: toFailure(
+                    typeof autoCommand?.rejectedReason === 'string' && autoCommand.rejectedReason
+                        ? autoCommand.rejectedReason
+                        : 'AUTO_COMMAND_REQUIRED'
+                )
+            };
+        }
+        commandBody = asRecord(autoCommand.body || body);
+    }
+
+    const preparedAction = prepareMatchCommandAction({
+        snapshot: currentSnapshot,
+        body: commandBody,
+        playerKey: context.playerKey,
+        networkDebugEnabled: context.networkDebugEnabled,
+        buildAction: (input, _fallbackActor, fallbackTurnIndex) => capabilities.schema.buildAction(
+            input,
+            context.playerKey,
+            Number.isFinite(Number(fallbackTurnIndex))
+                ? Number(fallbackTurnIndex)
+                : 0
+        ),
+        normalizePlayerKey: capabilities.authority.normalizePlayerKey,
+        validatePendingSelectionPublish: (snapshot, playerKey, action) => (
+            capabilities.authority.validatePendingSelectionPublish(
+                snapshot as MatchCommandSnapshot,
+                playerKey as MatchCommandPlayerKey,
+                action
+            )
+        ),
+        sanitizePendingSelectionActionForAuthority: (snapshot, playerKey, action) => (
+            capabilities.authority.sanitizePendingSelectionActionForAuthority(
+                snapshot as MatchCommandSnapshot,
+                playerKey as MatchCommandPlayerKey,
+                action
+            )
+        )
+    });
+    if (preparedAction.ok !== true) {
+        return {
+            kind: 'terminal',
+            result: preparedAction
+        };
+    }
+
+    const skipTurnStart = shouldSkipMatchCommandTurnStart({
+        cardState: preparedAction.currentCardState,
+        playerKey: context.playerKey,
+        resolvedAction: preparedAction.resolvedAction,
+        isSubPlacementTurnActive: capabilities.authority.isSubPlacementTurnActive
+            ? (cardState, playerKey) => capabilities.authority.isSubPlacementTurnActive!(
+                cardState,
+                playerKey as MatchCommandPlayerKey
+            )
+            : undefined
+    });
+    return {
+        kind: 'prepared',
+        value: {
+            context,
+            preActionSnapshot: currentSnapshot,
+            commandBody,
+            currentTurnIndex: preparedAction.currentTurnIndex,
+            currentCardState: preparedAction.currentCardState,
+            resolvedAction: preparedAction.resolvedAction,
+            pendingValidation: preparedAction.pendingValidation,
+            prng: createCommandPrng(context, currentSnapshot, capabilities),
+            skipTurnStart
+        }
+    };
+}
+
+export function applyPreparedMatchCommandExecution(
+    prepared: PreparedMatchCommandExecution,
+    capabilities: MatchCommandExecutionCapabilities
+): AppliedMatchCommandExecution | MatchCommandExecutionFailure {
+    const result = capabilities.pipeline.applyTurnSafe(
+        prepared.currentCardState,
+        prepared.preActionSnapshot.gameState,
+        prepared.context.playerKey,
+        prepared.resolvedAction,
+        prepared.prng,
+        {
+            currentStateVersion: prepared.currentTurnIndex,
+            prngState: prepared.currentCardState.prngState,
+            skipTurnStart: prepared.skipTurnStart
+        }
+    );
+    const rawEvents = toRawEvents(result && result.events);
+    if (!result || result.ok !== true) {
+        return toFailure(
+            typeof result?.rejectedReason === 'string' && result.rejectedReason
+                ? result.rejectedReason
+                : 'COMMAND_REJECTED',
+            result && Object.prototype.hasOwnProperty.call(result, 'errorMessage')
+                ? result.errorMessage
+                : null,
+            rawEvents
+        );
+    }
+
+    const pendingResult = capabilities.authority.validateAuthoritativePendingSelectionResult(
+        prepared.resolvedAction,
+        rawEvents
+    );
+    if (!pendingResult || pendingResult.ok !== true) {
+        return toFailure(
+            typeof pendingResult?.rejectedReason === 'string' && pendingResult.rejectedReason
+                ? pendingResult.rejectedReason
+                : 'INVALID_PENDING_SELECTION_TARGET'
+        );
+    }
+
+    const gameState = asRecord(result.gameState);
+    const cardState = asRecord(result.cardState);
+    return {
+        ...prepared,
+        pipelineResult: result,
+        nextSnapshot: {
+            gameState,
+            cardState
+        },
+        rawEvents
+    };
 }

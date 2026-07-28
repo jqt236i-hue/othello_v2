@@ -79,15 +79,16 @@ export interface MatchCommandPrng {
 }
 
 export interface MatchCommandRandomCapabilities {
-  createActionPrng: (
-    context: MatchCommandAuthorityContext,
-    snapshot: MatchCommandSnapshot
-  ) => MatchCommandPrng;
-  createTurnStartPrng: (
+  fromState: (state: {
+    seed: number;
+    calls: number;
+  }) => MatchCommandPrng;
+  createPrng: (seed: number) => MatchCommandPrng;
+  deriveSeed: (
     context: MatchCommandAuthorityContext,
     snapshot: MatchCommandSnapshot,
     playerKey: MatchCommandPlayerKey
-  ) => MatchCommandPrng;
+  ) => number;
 }
 
 export interface MatchCommandPipelineResult {
