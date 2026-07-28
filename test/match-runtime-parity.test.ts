@@ -245,50 +245,6 @@ function normalizePublicSnapshotForParity(snapshot) {
   return shot;
 }
 
-function normalizePlaybackSummary(events) {
-  const collectSoundKeys = (event: any) => {
-    const keys = new Set<string>();
-    if (event && typeof event.soundKey === 'string' && event.soundKey.trim()) {
-      keys.add(event.soundKey.trim());
-    }
-    if (event && event.meta && typeof event.meta.soundKey === 'string' && event.meta.soundKey.trim()) {
-      keys.add(event.meta.soundKey.trim());
-    }
-    const targets = Array.isArray(event && event.targets) ? event.targets : [];
-    for (const target of targets) {
-      if (target && typeof target.soundKey === 'string' && target.soundKey.trim()) {
-        keys.add(target.soundKey.trim());
-      }
-    }
-    return Array.from(keys).sort();
-  };
-
-  return (Array.isArray(events) ? events : []).map((event) => ({
-    type: event && event.type ? event.type : null,
-    phase: Number.isFinite(Number(event && event.phase)) ? Number(event.phase) : null,
-    rawType: event && event.rawType ? event.rawType : null,
-    soundKeys: collectSoundKeys(event),
-    metaCause: event && event.meta && event.meta.cause ? event.meta.cause : null,
-    metaReason: event && event.meta && event.meta.reason ? event.meta.reason : null,
-    metaMoveIntent: event && event.meta && event.meta.moveIntent ? event.meta.moveIntent : null,
-    metaSpawnIntent: event && event.meta && event.meta.spawnIntent ? event.meta.spawnIntent : null,
-    targets: Array.isArray(event && event.targets)
-      ? event.targets.map((target) => ({
-        r: Number.isInteger(target.r) ? target.r : null,
-        row: Number.isInteger(target.row) ? target.row : null,
-        col: Number.isInteger(target.col) ? target.col : null,
-        player: target.player || null,
-        owner: target.owner || null,
-        ownerBefore: target.ownerBefore || null,
-        ownerAfter: target.ownerAfter || null,
-        cause: target.cause || null,
-        reason: target.reason || null,
-        soundKey: target.soundKey || null
-      }))
-      : []
-  }));
-}
-
 function classifyNetworkFailurePattern(cardType) {
   const type = String(cardType || '').trim().toUpperCase();
   if ([
@@ -366,7 +322,7 @@ describe('local match runtime parity', () => {
     expect(types.size).toBe(cards.length);
   });
 
-  test('place command result matches local match server public projection and playback summary', async () => {
+  test('place command result matches local match server public projection and exact playback artifacts', async () => {
     const runtime = LocalMatchRuntime.createRuntime({ seed: 17 });
     const initialSnapshot = runtime.getSnapshot();
     const initialVersion = runtime.getRoom().stateVersion;
@@ -396,8 +352,7 @@ describe('local match runtime parity', () => {
       const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), action.playerKey);
       expect(normalizePublicSnapshotForParity(serverResult.data.snapshot))
         .toEqual(normalizePublicSnapshotForParity(localPublic));
-      expect(normalizePlaybackSummary(serverResult.data.playbackEvents))
-        .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
+      expect(serverResult.data.playbackEvents).toEqual(localResult.playbackEvents);
       expect(serverResult.data.effectLogs).toEqual(localResult.effectLogs);
     } finally {
       await closeServer(room.server);
@@ -538,8 +493,8 @@ describe('local match runtime parity', () => {
             pendingEffectId: getPendingEffectId(serverResult.data.snapshot)
           });
         }
-        const serverPlayback = normalizePlaybackSummary(serverResult.data.playbackEvents);
-        const localPlayback = normalizePlaybackSummary(localResult.playbackEvents);
+        const serverPlayback = serverResult.data.playbackEvents;
+        const localPlayback = localResult.playbackEvents;
         if (JSON.stringify(serverPlayback) !== JSON.stringify(localPlayback)) {
           pushParityMismatch(mismatches, card, 'playback', {
             stateVersion: serverResult.data.stateVersion,
@@ -560,7 +515,7 @@ describe('local match runtime parity', () => {
     expect(mismatches).toEqual([]);
   }, 120000);
 
-  test('pending card follow-up commands match local match server public projection and playback summary', async () => {
+  test('pending card follow-up commands match local match server public projection and exact playback artifacts', async () => {
     const cards = Array.isArray((CardCatalog as any).cards) ? (CardCatalog as any).cards : [];
     const mismatches: any[] = [];
     const coveredPendingTypes = new Set<string>();
@@ -639,8 +594,8 @@ describe('local match runtime parity', () => {
             pendingEffectId: pending.pendingEffectId || null
           });
         }
-        const serverPlayback = normalizePlaybackSummary(serverFollowResult.data.playbackEvents);
-        const localPlayback = normalizePlaybackSummary(localFollowResult.playbackEvents);
+        const serverPlayback = serverFollowResult.data.playbackEvents;
+        const localPlayback = localFollowResult.playbackEvents;
         if (JSON.stringify(serverPlayback) !== JSON.stringify(localPlayback)) {
           pushParityMismatch(mismatches, card, 'playback', {
             pendingType: pending.type,
