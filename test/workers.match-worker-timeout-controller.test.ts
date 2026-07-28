@@ -32,37 +32,33 @@ describe('match worker timeout controller', () => {
   test('expired timeout can use injected forced pass resolver instead of direct core pass', async () => {
     const room = createRoom();
     const broadcastCalls: any[] = [];
-    const applyTimeoutPassToSnapshot = jest.fn(async ({ snapshot, playerKey }: any) => ({
-      ok: true,
-      snapshot: {
-        ...snapshot,
-        gameState: {
-          ...(snapshot as any).gameState,
-          currentPlayer: -1,
-          consecutivePasses: 1,
-          turnNumber: 10
+    const applyTimeoutPassToSnapshot = jest.fn(async ({ snapshot }: any) => {
+      const gameState = {
+        ...(snapshot as any).gameState,
+        currentPlayer: -1,
+        consecutivePasses: 1,
+        turnNumber: 10
+      };
+      delete gameState.__resultShown;
+      return {
+        ok: true,
+        snapshot: {
+          ...snapshot,
+          gameState,
+          cardState: {
+            ...(snapshot as any).cardState,
+            turnIndex: 11,
+            lastTurnStartedFor: 'white',
+            selectedCardId: null,
+            selectedCardOwnerKey: null,
+            pendingEffectByPlayer: { black: null, white: null }
+          }
         },
-        cardState: {
-          ...(snapshot as any).cardState,
-          turnIndex: 11,
-          lastTurnStartedFor: 'white',
-          pendingEffectByPlayer: { black: null, white: null }
-        }
-      },
-      playbackEvents: [{ type: 'pass', phase: 1 }],
-      effectLogs: ['forced timeout pass'],
-      playbackDiagnostics: { source: 'forced-pass' }
-    }));
-    const loadCoreLogicModule = jest.fn(async () => ({
-      applyPass() {
-        throw new Error('timeout should not use direct core pass when resolver is available');
-      }
-    }));
-    const reconcileTurnStartAndCollectPlayback = jest.fn(async () => ({
-      playbackEvents: [{ type: 'draw_card', phase: 1 }],
-      diagnostics: null,
-      effectLogs: []
-    }));
+        playbackEvents: [{ type: 'pass', phase: 1 }],
+        effectLogs: ['forced timeout pass'],
+        playbackDiagnostics: { source: 'forced-pass' }
+      };
+    });
     const ensureInitialPresentationSnapshots = jest.fn();
     const buildPublishViewerArtifacts = jest.fn(() => ({
       canonicalHash: 'hash_5',
@@ -85,22 +81,12 @@ describe('match worker timeout controller', () => {
 
     const controller = createMatchWorkerTimeoutController({
       getRoom: () => room,
-      asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
       parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
       resolveTurnSeatKey: () => 'black',
       refreshTurnTimer: async () => false,
       saveRoom: async () => undefined,
-      loadCoreLogicModule,
       applyTimeoutPassToSnapshot,
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
-      stripTransientPresentationState: (snapshot: any) => {
-        if (snapshot && snapshot.gameState) delete snapshot.gameState.__resultShown;
-        return snapshot;
-      },
-      reconcileTurnStartAndCollectPlayback,
-      reportPlaybackAssemblyDiagnostics: () => undefined,
-      toPublicNetworkDebugEnabled: () => false,
-      toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
       normalizeSnapshotBoardContract,
       appendAuthorityLog: () => [],
@@ -118,8 +104,6 @@ describe('match worker timeout controller', () => {
       playerKey: 'black',
       nowMs: 20
     }));
-    expect(loadCoreLogicModule).not.toHaveBeenCalled();
-    expect(reconcileTurnStartAndCollectPlayback).not.toHaveBeenCalled();
     expect(normalizeSnapshotBoardContract).toHaveBeenCalledWith(
       expect.objectContaining({ stateVersion: 5 }),
       { allowLegacy: true, requireFullSnapshot: true }
@@ -169,7 +153,6 @@ describe('match worker timeout controller', () => {
     });
     const controller = createMatchWorkerTimeoutController({
       getRoom: () => room,
-      asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
       parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
       resolveTurnSeatKey: () => 'black',
       refreshTurnTimer: async (options) => {
@@ -180,31 +163,31 @@ describe('match worker timeout controller', () => {
         order.push('save-room');
         saveCount += 1;
       },
-      loadCoreLogicModule: async () => ({
-        applyPass(gameState: any) {
-          return {
-            ...gameState,
-            currentPlayer: -1,
-            consecutivePasses: 1
-          };
-        }
-      }),
-      deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
-      stripTransientPresentationState: (snapshot: any) => {
-        if (snapshot && snapshot.gameState) {
-          delete snapshot.gameState.__resultShown;
-        }
-        return snapshot;
+      applyTimeoutPassToSnapshot: async ({ snapshot }) => {
+        const gameState = {
+          ...(snapshot as any).gameState,
+          currentPlayer: -1,
+          consecutivePasses: 1
+        };
+        delete gameState.__resultShown;
+        return {
+          ok: true,
+          snapshot: {
+            ...snapshot,
+            gameState,
+            cardState: {
+              ...(snapshot as any).cardState,
+              selectedCardId: null,
+              selectedCardOwnerKey: null,
+              pendingEffectByPlayer: { black: null, white: null }
+            }
+          },
+          playbackEvents: [{ type: 'draw_card', phase: 1 }],
+          effectLogs: ['timeout effect'],
+          playbackDiagnostics: { warningCount: 0 }
+        };
       },
-      reconcileTurnStartAndCollectPlayback: async (_room, snapshot: any) => ({
-        playbackEvents: [{ type: 'draw_card', phase: 1 }],
-        diagnostics: { warningCount: 0 },
-        effectLogs: ['timeout effect'],
-        snapshot
-      }),
-      reportPlaybackAssemblyDiagnostics: () => undefined,
-      toPublicNetworkDebugEnabled: () => false,
-      toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
+      deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: (_room, entry) => {
@@ -284,6 +267,70 @@ describe('match worker timeout controller', () => {
     ]);
   });
 
+  test('missing shared timeout resolver fails closed before timer refresh or save', async () => {
+    const room = createRoom();
+    const before = JSON.parse(JSON.stringify(room));
+    const refreshTurnTimer = jest.fn(async () => false);
+    const saveRoom = jest.fn(async () => undefined);
+    const controller = createMatchWorkerTimeoutController({
+      getRoom: () => room,
+      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
+      resolveTurnSeatKey: () => 'black',
+      refreshTurnTimer,
+      saveRoom,
+      deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
+      computeAuthoritativeStateHash: () => 'unused',
+      normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
+      appendAuthorityLog: () => [],
+      ensureInitialPresentationSnapshots: jest.fn(),
+      buildPublishViewerArtifacts: jest.fn(() => ({})),
+      appendPresentationFrameForAcceptedPublish: jest.fn(),
+      broadcastSnapshot: jest.fn(async () => undefined)
+    } as any);
+
+    await expect(controller.applyExpiredTurnTimeoutIfNeeded({ nowMs: 20 }))
+      .resolves.toEqual({ applied: false });
+    expect(refreshTurnTimer).not.toHaveBeenCalled();
+    expect(saveRoom).not.toHaveBeenCalled();
+    expect(room).toEqual(before);
+  });
+
+  test('shared timeout command rejection leaves authority and presentation state unchanged', async () => {
+    const room = createRoom();
+    const before = JSON.parse(JSON.stringify(room));
+    const saveRoom = jest.fn(async () => undefined);
+    const ensureInitialPresentationSnapshots = jest.fn();
+    const appendPresentationFrameForAcceptedPublish = jest.fn();
+    const broadcastSnapshot = jest.fn(async () => undefined);
+    const controller = createMatchWorkerTimeoutController({
+      getRoom: () => room,
+      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
+      resolveTurnSeatKey: () => 'black',
+      refreshTurnTimer: jest.fn(async () => false),
+      saveRoom,
+      applyTimeoutPassToSnapshot: jest.fn(async () => ({
+        ok: false,
+        rejectedReason: 'INVALID_SNAPSHOT'
+      })),
+      deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
+      computeAuthoritativeStateHash: () => 'unused',
+      normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
+      appendAuthorityLog: () => [],
+      ensureInitialPresentationSnapshots,
+      buildPublishViewerArtifacts: jest.fn(() => ({})),
+      appendPresentationFrameForAcceptedPublish,
+      broadcastSnapshot
+    } as any);
+
+    await expect(controller.applyExpiredTurnTimeoutIfNeeded({ nowMs: 20 }))
+      .resolves.toEqual({ applied: false });
+    expect(saveRoom).not.toHaveBeenCalled();
+    expect(ensureInitialPresentationSnapshots).not.toHaveBeenCalled();
+    expect(appendPresentationFrameForAcceptedPublish).not.toHaveBeenCalled();
+    expect(broadcastSnapshot).not.toHaveBeenCalled();
+    expect(room).toEqual(before);
+  });
+
   test('mismatched timer seat triggers corrective refresh and does not broadcast', async () => {
     const room = createRoom();
     room.turnTimer.turnSeatKey = 'white';
@@ -292,7 +339,6 @@ describe('match worker timeout controller', () => {
     const broadcastCalls: any[] = [];
     const controller = createMatchWorkerTimeoutController({
       getRoom: () => room,
-      asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
       parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
       resolveTurnSeatKey: () => 'black',
       refreshTurnTimer: async (options) => {
@@ -300,15 +346,8 @@ describe('match worker timeout controller', () => {
         return true;
       },
       saveRoom: async () => { saveCount += 1; },
-      loadCoreLogicModule: async () => ({
-        applyPass(gameState: any) { return gameState; }
-      }),
+      applyTimeoutPassToSnapshot: jest.fn(async () => ({ ok: false })),
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
-      stripTransientPresentationState: (snapshot) => snapshot,
-      reconcileTurnStartAndCollectPlayback: async () => ({ playbackEvents: [], diagnostics: null, effectLogs: [] }),
-      reportPlaybackAssemblyDiagnostics: () => undefined,
-      toPublicNetworkDebugEnabled: () => false,
-      toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: () => 'unused',
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
@@ -340,14 +379,10 @@ describe('match worker timeout controller', () => {
     const broadcastSnapshot = jest.fn(async () => undefined);
     const controller = createMatchWorkerTimeoutController({
       getRoom: () => room,
-      asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
       parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
       resolveTurnSeatKey: () => room.snapshot.gameState.currentPlayer === 1 ? 'black' : 'white',
       refreshTurnTimer: async () => false,
       saveRoom,
-      loadCoreLogicModule: async () => ({
-        applyPass(gameState: any) { return gameState; }
-      }),
       applyTimeoutPassToSnapshot: async ({ snapshot }) => {
         room.stateVersion = 5;
         room.snapshot = {
@@ -372,11 +407,6 @@ describe('match worker timeout controller', () => {
         };
       },
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
-      stripTransientPresentationState: (snapshot) => snapshot,
-      reconcileTurnStartAndCollectPlayback: async () => ({ playbackEvents: [], diagnostics: null, effectLogs: [] }),
-      reportPlaybackAssemblyDiagnostics: () => undefined,
-      toPublicNetworkDebugEnabled: () => false,
-      toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: () => 'unused',
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],

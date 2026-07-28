@@ -321,7 +321,7 @@ function runWorkerPendingSelectionPlaceParityScenario(config) {
   expect(workerUse.status).toBe(200);
   expect(workerUse.payload && workerUse.payload.ok).toBe(true);
 
-  const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+  const workerSnapshotAfterUse = clone(workerUse.internalSnapshot);
   const workerPlaceTurnIndex = Number(workerSnapshotAfterUse && workerSnapshotAfterUse.cardState && workerSnapshotAfterUse.cardState.turnIndex) || 0;
   const workerMove = pickFirstLegalMove(workerSnapshotAfterUse, 'black');
   const workerTargets = (typeof config.selectTargets === 'function')
@@ -583,7 +583,7 @@ describe('worker card pattern parity', () => {
       stage: null
     }));
 
-    const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+    const workerSnapshotAfterUse = clone(workerUse.internalSnapshot);
     const workerMove = pickFirstLegalMove(workerSnapshotAfterUse, 'black');
     const workerPlaceTurnIndex = Number(workerSnapshotAfterUse && workerSnapshotAfterUse.cardState && workerSnapshotAfterUse.cardState.turnIndex) || 0;
     const workerPlaceBody = {
@@ -659,7 +659,7 @@ describe('worker card pattern parity', () => {
     expect(workerUse.status).toBe(200);
     expect(workerUse.payload && workerUse.payload.ok).toBe(true);
 
-    const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+    const workerSnapshotAfterUse = clone(workerUse.internalSnapshot);
     const pending = workerSnapshotAfterUse.cardState.pendingEffectByPlayer.black;
     expect(pending).toEqual(expect.objectContaining({
       type: 'METEOR_WILL',
@@ -759,7 +759,7 @@ describe('worker card pattern parity', () => {
     expect(workerUse.status).toBe(200);
     expect(workerUse.payload && workerUse.payload.ok).toBe(true);
 
-    const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+    const workerSnapshotAfterUse = clone(workerUse.internalSnapshot);
     const pending = workerSnapshotAfterUse.cardState.pendingEffectByPlayer.black;
     expect(pending).toEqual(expect.objectContaining({
       type: 'CAUSAL_REPLAY_WILL',

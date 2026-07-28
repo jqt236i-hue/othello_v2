@@ -1662,13 +1662,18 @@ async function createJoinedLocalRoom(options = {}) {
     'GET',
     `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(blackToken)}`
   );
+  let canonicalSnapshot = null;
+  expect(patchRoomSnapshotForTests(roomId, (serverRoom) => {
+    canonicalSnapshot = clone(serverRoom.snapshot);
+  })).toBe(true);
   return {
     server,
     port,
     roomId,
     blackToken,
     whiteToken,
-    stateResponse
+    stateResponse,
+    canonicalSnapshot
   };
 }
 
@@ -2055,7 +2060,7 @@ describe('network playback event assembly contract', () => {
       expect(room.stateResponse.status).toBe(200);
       expect(room.stateResponse.data.ok).toBe(true);
 
-      const snapshot = room.stateResponse.data.snapshot;
+      const snapshot = room.canonicalSnapshot;
       const stateVersion = room.stateResponse.data.stateVersion;
       const turnIndex = Number(snapshot && snapshot.cardState && snapshot.cardState.turnIndex) || 1;
       const action = buildCommandAction(turnIndex);
@@ -2133,7 +2138,7 @@ describe('network playback event assembly contract', () => {
       expect(room.stateResponse.data.ok).toBe(true);
       expect(room.stateResponse.data.roomBoardConfig).toMatchObject(roomBoardConfig);
 
-      const snapshot = room.stateResponse.data.snapshot;
+      const snapshot = room.canonicalSnapshot;
       expect(snapshot.gameState.board).toHaveLength(7);
       expect(snapshot.gameState.board[0]).toHaveLength(9);
       const stateVersion = room.stateResponse.data.stateVersion;

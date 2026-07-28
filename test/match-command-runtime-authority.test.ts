@@ -91,28 +91,57 @@ function readRepositoryFile(relativePath: string): string {
   return fs.readFileSync(path.resolve(__dirname, '..', relativePath), 'utf8');
 }
 
+function countOccurrences(source: string, token: string): number {
+  return source.split(token).length - 1;
+}
+
 describe('match command runtime authority characterization', () => {
   test.each(scenarioCoverage)('$scenario is pinned by $file', ({ file, testName }) => {
     expect(readRepositoryFile(file)).toContain(testName);
   });
 
-  test('local runtime delegates command authority while Worker remains on the migration baseline', () => {
+  test('Worker and local command facades each delegate once to the shared executor', () => {
     const workerSource = readRepositoryFile('workers/match-worker.ts');
     const localSource = readRepositoryFile('scripts/local-match-server.ts');
-    const localTimeoutSource = readRepositoryFile('scripts/local-match-server.ts');
     const workerTimeoutSource = readRepositoryFile('workers/match-worker-timeout-controller.ts');
 
     expect(workerSource).toContain('async function applyCommandPublishToSnapshot(');
     expect(localSource).toContain('function applyCommandPublishToSnapshot(');
-    expect(workerSource).toContain('TurnPipeline.applyTurnSafe(');
-    expect(localSource).not.toContain('const result = TurnPipeline.applyTurnSafe(');
-    expect(workerSource).toContain('validateAuthoritativePendingSelectionResult(');
+    expect(countOccurrences(workerSource, 'const result = executeMatchCommand(')).toBe(1);
+    expect(countOccurrences(localSource, 'const result = MatchCommandRuntime.executeMatchCommand({')).toBe(1);
+    expect(workerSource).not.toContain('const preparedCommand = prepareMatchCommandAction(');
+    expect(localSource).not.toContain('const preparedCommand = MatchCommandRuntime.prepareMatchCommandAction(');
+    expect(workerSource).not.toContain('const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(');
     expect(localSource).not.toContain('const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(');
+    expect(workerSource).not.toContain('repairNetworkDebugProjectedHandForCardUse(');
+    expect(workerSource).not.toContain('reconcileTurnStartAndCollectPlayback(room, nextSnapshot');
     expect(localSource).not.toContain('reconcileTurnStartAndCollectPlayback(room, nextSnapshot)');
-    expect(localTimeoutSource).not.toContain('nextSnapshot.gameState = Core.applyPass(');
-    expect(localSource).toContain('MatchCommandRuntime.executeMatchCommand({');
-    expect(workerTimeoutSource).toContain('cfg.loadCoreLogicModule()');
-    expect(workerTimeoutSource).toContain('cfg.reconcileTurnStartAndCollectPlayback(room, nextSnapshot)');
+    expect(localSource).not.toContain('nextSnapshot.gameState = Core.applyPass(');
+    expect(workerTimeoutSource).not.toContain('cfg.loadCoreLogicModule()');
+    expect(workerTimeoutSource).not.toContain('cfg.reconcileTurnStartAndCollectPlayback(');
+    expect(workerTimeoutSource).not.toContain('.applyPass(');
+  });
+
+  test('Worker resolves command-specific modules before entering the synchronous executor', () => {
+    const workerSource = readRepositoryFile('workers/match-worker.ts');
+    const resolverStart = workerSource.indexOf('async function resolveWorkerMatchCommandCapabilities(');
+    const facadeStart = workerSource.indexOf('async function applyCommandPublishToSnapshot(');
+    const resolverSource = workerSource.slice(resolverStart, facadeStart);
+    const facadeSource = workerSource.slice(facadeStart, workerSource.indexOf('async function applyTimeoutPassToSnapshot('));
+
+    expect(resolverStart).toBeGreaterThanOrEqual(0);
+    expect(facadeStart).toBeGreaterThan(resolverStart);
+    expect(resolverSource).toContain("rejectedReason: 'COMMAND_SCHEMA_UNAVAILABLE'");
+    expect(resolverSource).toContain("rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE'");
+    expect(resolverSource).toContain("rejectedReason: 'AUTO_COMMAND_PLANNER_UNAVAILABLE'");
+    expect(resolverSource).toContain("rejectedReason: 'DEBUG_ACTIONS_UNAVAILABLE'");
+    expect(resolverSource).toContain('loadTurnStartModules()');
+    expect(resolverSource).toContain('loadDebugActionsModule()');
+    expect(resolverSource).toContain("import('../game/cpu-network-command-planner.js')");
+    expect(facadeSource.indexOf('await resolveWorkerMatchCommandCapabilities('))
+      .toBeLessThan(facadeSource.indexOf('const result = executeMatchCommand('));
+    expect(facadeSource.slice(facadeSource.indexOf('const result = executeMatchCommand(')))
+      .not.toContain('await ');
   });
 
   test('local internal invalid-snapshot and disabled-debug rejection shapes are exact before migration', () => {
