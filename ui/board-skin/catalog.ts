@@ -285,6 +285,71 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
       paddingLeft: 21,
       artOffsetY: 2
     })
+  }),
+  Object.freeze({
+    id: 'thin-ebony-gold',
+    label: '黒檀金象嵌枠',
+    note: '細身の黒檀と金象嵌のCSS外周フレーム',
+    imagePath: 'assets/images/board/board-frame-thin-ebony-gold-v1.png',
+    layout: Object.freeze({
+      paddingTop: 18,
+      paddingRight: 18,
+      paddingBottom: 18,
+      paddingLeft: 18,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'thin-walnut-brass',
+    label: '胡桃真鍮枠',
+    note: '細身の胡桃材と真鍮のCSS外周フレーム',
+    imagePath: 'assets/images/board/board-frame-thin-walnut-brass-v1.png',
+    layout: Object.freeze({
+      paddingTop: 22,
+      paddingRight: 22,
+      paddingBottom: 22,
+      paddingLeft: 22,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'thin-charred-cedar-copper',
+    label: '焼杉銅縁枠',
+    note: '細身の焼杉と銅縁のCSS外周フレーム',
+    imagePath: 'assets/images/board/board-frame-thin-charred-cedar-copper-v1.png',
+    layout: Object.freeze({
+      paddingTop: 15,
+      paddingRight: 15,
+      paddingBottom: 15,
+      paddingLeft: 15,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'thin-birch-gunmetal',
+    label: '白樺黒鉄枠',
+    note: '細身の白樺材と黒鉄のCSS外周フレーム',
+    imagePath: 'assets/images/board/board-frame-thin-birch-gunmetal-v1.png',
+    layout: Object.freeze({
+      paddingTop: 10,
+      paddingRight: 10,
+      paddingBottom: 10,
+      paddingLeft: 10,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'thin-mahogany-bronze',
+    label: '紅木古青銅枠',
+    note: '細身の紅木と古青銅のCSS外周フレーム',
+    imagePath: 'assets/images/board/board-frame-thin-mahogany-bronze-v1.png',
+    layout: Object.freeze({
+      paddingTop: 10,
+      paddingRight: 10,
+      paddingBottom: 10,
+      paddingLeft: 10,
+      artOffsetY: 0
+    })
   })
 ]);
 

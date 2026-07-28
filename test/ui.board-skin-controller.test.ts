@@ -131,7 +131,19 @@ describe('board skin controller', () => {
       'marsh-forged-iron',
       'submerged-wood',
       'swamp-ruin-stone',
-      'shadow-vine-lacquer'
+      'shadow-vine-lacquer',
+      'thin-ebony-gold',
+      'thin-walnut-brass',
+      'thin-charred-cedar-copper',
+      'thin-birch-gunmetal',
+      'thin-mahogany-bronze'
+    ]);
+    expect(catalog.getAllBoardFrameSkins().slice(-5).map((skin: { label: string }) => skin.label)).toEqual([
+      '黒檀金象嵌枠',
+      '胡桃真鍮枠',
+      '焼杉銅縁枠',
+      '白樺黒鉄枠',
+      '紅木古青銅枠'
     ]);
 
     api.selectFrameSkin('compact-brass-clean-corners');
@@ -172,9 +184,27 @@ describe('board skin controller', () => {
     expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe('calc(20px * var(--layout-stage-scale))');
     expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe('calc(20px * var(--layout-stage-scale))');
     expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(2px * var(--layout-stage-scale))');
+
+    const thinFrameLayouts: Array<[string, number]> = [
+      ['thin-ebony-gold', 18],
+      ['thin-walnut-brass', 22],
+      ['thin-charred-cedar-copper', 15],
+      ['thin-birch-gunmetal', 10],
+      ['thin-mahogany-bronze', 10]
+    ];
+    thinFrameLayouts.forEach(([skinId, padding]) => {
+      api.selectFrameSkin(skinId);
+
+      const expectedPadding = `calc(${padding}px * var(--layout-stage-scale))`;
+      expect(frameEl.style.getPropertyValue('--board-frame-padding-top')).toBe(expectedPadding);
+      expect(frameEl.style.getPropertyValue('--board-frame-padding-right')).toBe(expectedPadding);
+      expect(frameEl.style.getPropertyValue('--board-frame-padding-bottom')).toBe(expectedPadding);
+      expect(frameEl.style.getPropertyValue('--board-frame-padding-left')).toBe(expectedPadding);
+      expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(0px * var(--layout-stage-scale))');
+    });
   });
 
-  test('persists and applies the selected compact board frame skins', () => {
+  test('persists and applies the selected bundled board frame skins', () => {
     const controller = require('../ui/board-skin/controller.js');
     const api = controller.setupBoardSkinControls({ root: window });
     const expected: Array<[string, string]> = [
@@ -182,7 +212,12 @@ describe('board skin controller', () => {
       ['compact-gold-clean-corners', 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png'],
       ['submerged-wood', 'assets/images/board/board-frame-submerged-wood-v1.png'],
       ['swamp-ruin-stone', 'assets/images/board/board-frame-swamp-ruin-stone-v1.png'],
-      ['shadow-vine-lacquer', 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png']
+      ['shadow-vine-lacquer', 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png'],
+      ['thin-ebony-gold', 'assets/images/board/board-frame-thin-ebony-gold-v1.png'],
+      ['thin-walnut-brass', 'assets/images/board/board-frame-thin-walnut-brass-v1.png'],
+      ['thin-charred-cedar-copper', 'assets/images/board/board-frame-thin-charred-cedar-copper-v1.png'],
+      ['thin-birch-gunmetal', 'assets/images/board/board-frame-thin-birch-gunmetal-v1.png'],
+      ['thin-mahogany-bronze', 'assets/images/board/board-frame-thin-mahogany-bronze-v1.png']
     ];
 
     expected.forEach(([skinId, imagePath]) => {
@@ -195,7 +230,7 @@ describe('board skin controller', () => {
     });
   });
 
-  test('compact board frame image outer background is transparent', () => {
+  test('bundled board frame image outer background is transparent', () => {
     const imagePaths = [
       'assets/images/board/board-frame-compact-brass-clean-corners-v3.png',
       'assets/images/board/board-frame-compact-iron-clean-corners-v3.png',
@@ -203,7 +238,12 @@ describe('board skin controller', () => {
       'assets/images/board/board-frame-marsh-forged-iron-v1.png',
       'assets/images/board/board-frame-submerged-wood-v1.png',
       'assets/images/board/board-frame-swamp-ruin-stone-v1.png',
-      'assets/images/board/board-frame-shadow-vine-lacquer-v1.png'
+      'assets/images/board/board-frame-shadow-vine-lacquer-v1.png',
+      'assets/images/board/board-frame-thin-ebony-gold-v1.png',
+      'assets/images/board/board-frame-thin-walnut-brass-v1.png',
+      'assets/images/board/board-frame-thin-charred-cedar-copper-v1.png',
+      'assets/images/board/board-frame-thin-birch-gunmetal-v1.png',
+      'assets/images/board/board-frame-thin-mahogany-bronze-v1.png'
     ];
 
     imagePaths.forEach((imagePath) => {
@@ -215,6 +255,33 @@ describe('board skin controller', () => {
         [png.width - 1, png.height - 1]
       ];
 
+      samplePoints.forEach(([x, y]) => {
+        const alpha = png.data[((y * png.width + x) * 4) + 3];
+        expect(alpha).toBe(0);
+      });
+    });
+  });
+
+  test('thin board frame images preserve the shared square transparent asset contract', () => {
+    const imagePaths = [
+      'assets/images/board/board-frame-thin-ebony-gold-v1.png',
+      'assets/images/board/board-frame-thin-walnut-brass-v1.png',
+      'assets/images/board/board-frame-thin-charred-cedar-copper-v1.png',
+      'assets/images/board/board-frame-thin-birch-gunmetal-v1.png',
+      'assets/images/board/board-frame-thin-mahogany-bronze-v1.png'
+    ];
+
+    imagePaths.forEach((imagePath) => {
+      const png = PNG.sync.read(fs.readFileSync(path.join(__dirname, '..', imagePath)));
+      expect([png.width, png.height]).toEqual([1254, 1254]);
+
+      const samplePoints = [
+        [0, 0],
+        [png.width - 1, 0],
+        [0, png.height - 1],
+        [png.width - 1, png.height - 1],
+        [Math.floor(png.width / 2), Math.floor(png.height / 2)]
+      ];
       samplePoints.forEach(([x, y]) => {
         const alpha = png.data[((y * png.width + x) * 4) + 3];
         expect(alpha).toBe(0);

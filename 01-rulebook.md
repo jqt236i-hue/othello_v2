@@ -1619,7 +1619,7 @@ emainingOwnerTurns など持続情報は、複製元の値をそのまま引き�
 - 手の見た目スキンの初期所持は `既定` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
 - 背景画像の初期所持は `古書机背景` (`assets/images/background/default.png`) と `デフォルト2`〜`デフォルト28` (各 `assets/images/background/デフォルトN.png`) と `観測の机` (`assets/images/background-skin/観測の机.png`) とし、`default-25` の表示名は `既定` とする。選択は次回起動後も保持してよい
 - 盤面下地の初期所持は盤面デザインカタログの各下地とし、`既定` (`bluegreen-felt`)・`青磁石盤`・`青藍漆盤`・`静宙盤` も含める。選択は次回起動後も保持してよい
-- 盤面フレームの初期所持は盤面フレームカタログの各フレームとし、`黒金漆枠`・`重厚黒金枠`・`黒鉄鋲留枠`・`黒金装飾枠`・`既定` (`marsh-forged-iron`)・`沈木枠`・`湿地遺跡石枠`・`影蔦漆枠` を含める。欠けマスのない通常盤面では各フレーム画像を表示し、特殊盤面では同じ選択をCSS外周フレームの色・質感プリセットとして扱って盤面形状に追従させる。選択は次回起動後も保持してよい
+- 盤面フレームの初期所持は盤面フレームカタログの各フレームとし、`黒金漆枠`・`重厚黒金枠`・`黒鉄鋲留枠`・`黒金装飾枠`・`既定` (`marsh-forged-iron`)・`沈木枠`・`湿地遺跡石枠`・`影蔦漆枠`・`黒檀金象嵌枠` (`thin-ebony-gold`)・`胡桃真鍮枠` (`thin-walnut-brass`)・`焼杉銅縁枠` (`thin-charred-cedar-copper`)・`白樺黒鉄枠` (`thin-birch-gunmetal`)・`紅木古青銅枠` (`thin-mahogany-bronze`) を含める。欠けマスのない通常盤面では各フレーム画像を表示し、特殊盤面では同じ選択をCSS外周フレームの色・質感プリセットとして扱って盤面形状に追従させる。選択は次回起動後も保持してよい
 - 文字フォントの初期所持は `既定` (`shippori-mincho`) と `DotGothic16` とし、初期選択は `既定` とする。選択は次回起動後も保持してよい
 - 通常石スキンの初期所持は `クラシック石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `既定` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい
 - 保存済みの見た目選択がない初期起動・リセット時の既定セットは、手の見た目 `既定` (`default`)、背景 `既定` (`default-25`)、盤面下地 `既定` (`bluegreen-felt`)、盤面フレーム `既定` (`marsh-forged-iron`)、文字フォント `既定` (`shippori-mincho`)、通常石 `既定` (`o-stone`) とする。背景は JS 初期化前の初期描画でも `default-25` を表示し、保存済みの選択がある場合は保存値を優先する
