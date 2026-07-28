@@ -156,10 +156,10 @@ function moveCoexistingMarkers(cardState: any, anchorEntry: any, fromRow: number
     for (const marker of cardState.markers as any[]) {
         if (!marker || marker === anchorEntry) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
-            ? SpecialStoneRegistry.isBoardMarker(marker)
-            : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-                .includes(String(marker && marker.data && marker.data.type || '').toUpperCase());
+        if (!SpecialStoneRegistry || typeof SpecialStoneRegistry.isBoardMarker !== 'function') {
+            throw new Error('SpecialStoneRegistry.isBoardMarker is required by DragonEffects');
+        }
+        const boardMarker = SpecialStoneRegistry.isBoardMarker(marker);
         if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;

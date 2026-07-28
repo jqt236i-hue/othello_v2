@@ -5,6 +5,9 @@ export type BoardSourceTrajectoryBaselineProfileKey =
   | 'meteorGodBlackBeam'
   | 'lightningDestroyed'
   | 'udgDestroyed'
+  | 'fireWillFlameBeam'
+  | 'waterWillHealingBeam'
+  | 'grassWillSeedBeam'
   | 'zombieBite';
 
 export type BoardSourceTrajectoryBaselinePrimitive =
@@ -16,9 +19,10 @@ export type BoardSourceTrajectoryBaselinePrimitive =
 
 export interface BoardSourceTrajectoryBaselineFixture {
   readonly profileKey: BoardSourceTrajectoryBaselineProfileKey;
-  readonly eventType: 'destroy' | 'flip';
+  readonly eventType: 'destroy' | 'flip' | 'status_applied';
   readonly cause: string;
   readonly reason: string;
+  readonly meta?: Readonly<Record<string, unknown>>;
   readonly primitive: BoardSourceTrajectoryBaselinePrimitive;
   readonly direction: 'source-to-target' | 'target-to-source';
   readonly duration: Readonly<{
@@ -148,6 +152,72 @@ export const BOARD_SOURCE_TRAJECTORY_BASELINE_FIXTURES: readonly BoardSourceTraj
     noAnimation: 'zero-duration-no-object',
     reducedMotion: 'unchanged',
     usesVisualSeed: true
+  }),
+  Object.freeze({
+    profileKey: 'fireWillFlameBeam',
+    eventType: 'status_applied',
+    cause: 'FIRE_WILL',
+    reason: 'scorched_cell_applied',
+    meta: Object.freeze({
+      special: 'SCORCHED_CELL',
+      cause: 'FIRE_WILL',
+      reason: 'scorched_cell_applied',
+      sourceTrajectoryProfile: 'fireWillFlameBeam'
+    }),
+    primitive: 'beam',
+    direction: 'source-to-target',
+    duration: distanceDuration(240, 0.28, 280, 520),
+    settlement: 'fixed-deadline',
+    deadlinePaddingMs: 120,
+    ownerPolicy: 'none',
+    targetImpactOwner: 'board-backend',
+    noAnimation: 'zero-duration-no-object',
+    reducedMotion: 'skip-source',
+    usesVisualSeed: false
+  }),
+  Object.freeze({
+    profileKey: 'waterWillHealingBeam',
+    eventType: 'status_applied',
+    cause: 'WATER_WILL',
+    reason: 'healing_cell_applied',
+    meta: Object.freeze({
+      special: 'HEALING_CELL',
+      cause: 'WATER_WILL',
+      reason: 'healing_cell_applied',
+      sourceTrajectoryProfile: 'waterWillHealingBeam'
+    }),
+    primitive: 'beam',
+    direction: 'source-to-target',
+    duration: distanceDuration(240, 0.28, 280, 520),
+    settlement: 'fixed-deadline',
+    deadlinePaddingMs: 120,
+    ownerPolicy: 'none',
+    targetImpactOwner: 'board-backend',
+    noAnimation: 'zero-duration-no-object',
+    reducedMotion: 'skip-source',
+    usesVisualSeed: false
+  }),
+  Object.freeze({
+    profileKey: 'grassWillSeedBeam',
+    eventType: 'status_applied',
+    cause: 'GRASS_WILL',
+    reason: 'grass_seeded',
+    meta: Object.freeze({
+      special: 'SEED',
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      sourceTrajectoryProfile: 'grassWillSeedBeam'
+    }),
+    primitive: 'beam',
+    direction: 'source-to-target',
+    duration: distanceDuration(240, 0.28, 280, 520),
+    settlement: 'fixed-deadline',
+    deadlinePaddingMs: 120,
+    ownerPolicy: 'none',
+    targetImpactOwner: 'board-backend',
+    noAnimation: 'zero-duration-no-object',
+    reducedMotion: 'skip-source',
+    usesVisualSeed: false
   }),
   Object.freeze({
     profileKey: 'zombieBite',

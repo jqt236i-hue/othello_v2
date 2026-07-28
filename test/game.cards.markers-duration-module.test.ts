@@ -1,7 +1,7 @@
 import * as CardMarkers from '../game/logic/cards/markers.js';
 
 describe('CardMarkers duration effects', () => {
-  test('applyExtendLifeWill doubles timed markers on the selected cell and clears pending', () => {
+  test('applyExtendLifeWill doubles only the special-stone body on the selected cell and clears pending', () => {
     const cardState = {
       pendingEffectByPlayer: {
         black: { type: 'EXTEND_LIFE_WILL', stage: 'selectTarget', cardId: 'extend_01' }
@@ -9,7 +9,8 @@ describe('CardMarkers duration effects', () => {
       markers: [
         { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 5 } },
         { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } },
-        { id: 3, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'BLOCKADE', remainingOwnerTurns: 2 } }
+        { id: 3, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'BLOCKADE', remainingOwnerTurns: 2 } },
+        { id: 4, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'REGEN', remainingOwnerTurns: 3, regenRemaining: 3 } }
       ]
     };
 
@@ -27,8 +28,10 @@ describe('CardMarkers duration effects', () => {
       cardType: 'EXTEND_LIFE_WILL'
     });
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(10);
-    expect(cardState.markers[1].data.remainingOwnerTurns).toBe(6);
+    expect(cardState.markers[1].data.remainingOwnerTurns).toBe(3);
     expect(cardState.markers[2].data.remainingOwnerTurns).toBe(2);
+    expect(cardState.markers[3].data.remainingOwnerTurns).toBe(3);
+    expect(cardState.markers[3].data.regenRemaining).toBe(3);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -46,7 +49,7 @@ describe('CardMarkers duration effects', () => {
     ]));
   });
 
-  test('applyExtendLifeGod quadruples timed markers on the selected cell and clears pending', () => {
+  test('applyExtendLifeGod quadruples only the special-stone body on the selected cell and clears pending', () => {
     const cardState = {
       pendingEffectByPlayer: {
         black: { type: 'EXTEND_LIFE_GOD', stage: 'selectTarget', cardId: 'extend_life_god_01' }
@@ -54,7 +57,8 @@ describe('CardMarkers duration effects', () => {
       markers: [
         { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 5 } },
         { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } },
-        { id: 3, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'FREEZE', remainingOwnerTurns: 4 } }
+        { id: 3, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'FREEZE', remainingOwnerTurns: 4 } },
+        { id: 4, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'REGEN', remainingOwnerTurns: 3, regenRemaining: 3 } }
       ]
     };
 
@@ -72,8 +76,10 @@ describe('CardMarkers duration effects', () => {
       cardType: 'EXTEND_LIFE_GOD'
     });
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(20);
-    expect(cardState.markers[1].data.remainingOwnerTurns).toBe(12);
+    expect(cardState.markers[1].data.remainingOwnerTurns).toBe(3);
     expect(cardState.markers[2].data.remainingOwnerTurns).toBe(4);
+    expect(cardState.markers[3].data.remainingOwnerTurns).toBe(3);
+    expect(cardState.markers[3].data.regenRemaining).toBe(3);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
       expect.objectContaining({

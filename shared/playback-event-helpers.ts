@@ -3,6 +3,7 @@
         let OwnerHelpers = null;
         let PlaybackEventContract = null;
         let SharedBoardUtils = null;
+        let SpecialStoneRegistry = null;
         try {
             OwnerHelpers = require('../utils/owner-helpers');
         } catch (e) { /* ignore */ }
@@ -12,18 +13,23 @@
         try {
             SharedBoardUtils = require('./shared-board-utils');
         } catch (e) { /* ignore */ }
-        module.exports = factory(OwnerHelpers, PlaybackEventContract, SharedBoardUtils);
+        try {
+            SpecialStoneRegistry = require('./special-stone-registry');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(OwnerHelpers, PlaybackEventContract, SharedBoardUtils, SpecialStoneRegistry);
     } else {
         root.PlaybackEventHelpers = factory(
             root.OwnerHelpers || null,
             root.PlaybackEventContract || null,
-            root.SharedBoardUtils || null
+            root.SharedBoardUtils || null,
+            root.SpecialStoneRegistry || null
         );
     }
 }(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (
     OwnerHelpers: unknown,
     PlaybackEventContract: unknown,
-    SharedBoardUtils: unknown
+    SharedBoardUtils: unknown,
+    SpecialStoneRegistry: unknown
 ) {
     'use strict';
 
@@ -41,6 +47,15 @@
     const RequiredBoardKernel = BoardKernel as {
         createBoardContext: (gameState: unknown, cardState?: unknown) => unknown;
         getCellValue: (context: unknown, row: number, col: number) => unknown;
+    };
+    const MarkerRegistry = SpecialStoneRegistry as {
+        isTrueSpecialStoneMarker?: (marker: unknown) => boolean;
+    } | null;
+    if (!MarkerRegistry || typeof MarkerRegistry.isTrueSpecialStoneMarker !== 'function') {
+        throw new Error('SpecialStoneRegistry.isTrueSpecialStoneMarker is required by PlaybackEventHelpers');
+    }
+    const RequiredMarkerRegistry = MarkerRegistry as {
+        isTrueSpecialStoneMarker: (marker: unknown) => boolean;
     };
 
     interface PlaceEvent {
@@ -334,6 +349,12 @@
             const marker = markerValue && typeof markerValue === 'object' ? markerValue as Record<string, unknown> : null;
             if (!marker) continue;
             if (marker.kind !== 'specialStone') continue;
+            const markerData = marker.data && typeof marker.data === 'object'
+                ? marker.data as Record<string, unknown>
+                : {};
+            const markerType = markerData.type || marker.type || null;
+            if (!RequiredMarkerRegistry.isTrueSpecialStoneMarker(marker)) continue;
+            if (!markerType) continue;
             if (Number(marker.row) === row && Number(marker.col) === col) return marker;
         }
         return null;
@@ -681,19 +702,27 @@
         };
     }
 
-    function appendNetworkReplayContractWarnings(diagnostics: AssemblyDiagnostics, playbackEvents: unknown[]): AssemblyDiagnostics {
-        if (!diagnostics || !Array.isArray(diagnostics.warnings)) return diagnostics;
-        try {
-            const validator = PlaybackEventContract && typeof (PlaybackEventContract as { validatePlaybackEventsForNetworkReplay?: unknown }).validatePlaybackEventsForNetworkReplay === 'function'
-                ? (PlaybackEventContract as { validatePlaybackEventsForNetworkReplay: (events: unknown[]) => unknown[] }).validatePlaybackEventsForNetworkReplay
-                : null;
-            if (!validator) return diagnostics;
-            const errors = validator(playbackEvents);
-            if (Array.isArray(errors) && errors.length > 0) {
-                diagnostics.warnings.push(`network_replay_contract:${JSON.stringify(errors)}`);
+    function enforceNetworkReplayContract(
+        diagnostics: AssemblyDiagnostics,
+        playbackEvents: unknown[]
+    ): AssemblyDiagnostics {
+        const validator = PlaybackEventContract
+            && typeof (PlaybackEventContract as { validatePlaybackEventsForNetworkReplay?: unknown }).validatePlaybackEventsForNetworkReplay === 'function'
+            ? (PlaybackEventContract as { validatePlaybackEventsForNetworkReplay: (events: unknown[]) => unknown[] }).validatePlaybackEventsForNetworkReplay
+            : null;
+        if (!validator) {
+            throw new Error('PlaybackEventHelpers network replay contract validator is unavailable');
+        }
+        const errors = validator(playbackEvents);
+        if (Array.isArray(errors) && errors.length > 0) {
+            const semanticStatusErrors = errors.filter((error) => (
+                String(error && typeof error === 'object' ? (error as { code?: unknown }).code : '')
+                    .startsWith('target_status_')
+            ));
+            if (semanticStatusErrors.length > 0) {
+                throw new Error(`PlaybackEventHelpers network replay contract violation: ${JSON.stringify(semanticStatusErrors)}`);
             }
-        } catch (e) {
-            diagnostics.warnings.push('network_replay_contract:validator_failed');
+            diagnostics.warnings.push(`network_replay_contract:${JSON.stringify(errors)}`);
         }
         return diagnostics;
     }
@@ -833,7 +862,7 @@
 
         playbackEvents = completeNetworkReplayPlaybackEvents(playbackEvents);
 
-        const diagnostics = appendNetworkReplayContractWarnings(
+        const diagnostics = enforceNetworkReplayContract(
             createAssemblyDiagnostics(rawEvents, playbackEvents),
             playbackEvents
         );

@@ -241,6 +241,15 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         cell.appendChild(scorchedCellMark);
     }
 
+    if (state.healingCell) {
+        cell.classList.add('healing-cell');
+        const healingCellMark = markerRenderer
+            ? markerRenderer.createHealingCellMark(state.healingCell.remainingTurns)
+            : document.createElement('div');
+        if (!markerRenderer) healingCellMark.className = 'healing-cell-mark';
+        cell.appendChild(healingCellMark);
+    }
+
     if (state.blockade) {
         cell.classList.add('blocked-cell');
         const blockedType = String(state.blockade.type || '').toUpperCase();

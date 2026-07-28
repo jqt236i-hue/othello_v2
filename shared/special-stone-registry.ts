@@ -79,6 +79,23 @@
         | 'placement_effect';
 
     type OwnershipChangePolicy = 'revert' | 'resolve_after_change' | 'preserve';
+    type MarkerSubjectKind =
+        | 'stone_body'
+        | 'stone_status'
+        | 'cell_marker'
+        | 'topology'
+        | 'placement_effect';
+    type MarkerOwnershipPolicy = 'stone_owner' | 'source_player' | 'none';
+    type MarkerDurationClock = 'owner_turn' | 'completed_turn' | 'permanent' | 'none';
+    type MarkerExclusivityGroup = 'temporary_special_cell' | null;
+
+    interface MarkerSemanticTraits {
+        subjectKind: MarkerSubjectKind;
+        ownershipPolicy: MarkerOwnershipPolicy;
+        durationClock: MarkerDurationClock;
+        exclusivityGroup: MarkerExclusivityGroup;
+        visualLayer: 'stone' | 'stone_overlay' | 'cell' | 'topology';
+    }
 
     interface SpecialStoneCardDefinition {
         cardId: string;
@@ -238,6 +255,18 @@
             flipProtected: true,
             timerClass: 'dragon-timer'
         }),
+        WATER: Object.freeze({
+            name: '水石',
+            desc: 'ランダムなマスを治癒マスにする。',
+            flipProtected: true,
+            timerClass: 'dragon-timer'
+        }),
+        GRASS: Object.freeze({
+            name: '草石',
+            desc: 'ランダムな空きマスに種をまく。',
+            flipProtected: true,
+            timerClass: 'dragon-timer'
+        }),
         METEOR_GOD: Object.freeze({
             name: '因果抹消神石',
             desc: '敵石をランダムに1つ選び、そのマスを穴化する。',
@@ -379,6 +408,10 @@
             name: '灼熱マス',
             desc: '10ターン持続し、このマスに同じ石が3ターン居続けると通常の破壊を試みる。'
         }),
+        HEALING_CELL: Object.freeze({
+            name: '治癒マス',
+            desc: '8ターン持続し、所有者ターン開始時に上の特殊石本体の持続ターンを3増やす。'
+        }),
         SCORCHED: Object.freeze({
             name: '灼熱状態',
             desc: '同じ灼熱マスに居続けると3ターンで通常の破壊を受ける。',
@@ -452,6 +485,8 @@
         DESTROY_DRAGON_WILL: Object.freeze({ cardId: 'destroy_dragon_01', cardNameJa: '破壊龍', cardType: 'DESTROY_DRAGON_WILL', markerType: 'DESTROY_DRAGON' }),
         LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '雷の意志', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
         FIRE_WILL: Object.freeze({ cardId: 'fire_will_01', cardNameJa: '火の意志', cardType: 'FIRE_WILL', markerType: 'FIRE' }),
+        WATER_WILL: Object.freeze({ cardId: 'water_will_01', cardNameJa: '水の意志', cardType: 'WATER_WILL', markerType: 'WATER' }),
+        GRASS_WILL: Object.freeze({ cardId: 'grass_will_01', cardNameJa: '草の意志', cardType: 'GRASS_WILL', markerType: 'GRASS' }),
         ULTIMATE_DESTROY_GOD: Object.freeze({ cardId: 'udg_01', cardNameJa: '究極破壊神', cardType: 'ULTIMATE_DESTROY_GOD', markerType: 'ULTIMATE_DESTROY_GOD' }),
         ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極多動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
         METEOR_GOD: Object.freeze({ cardId: 'meteor_god_01', cardNameJa: '因果抹消神', cardType: 'METEOR_GOD', markerType: 'METEOR_GOD' })
@@ -470,7 +505,33 @@
         'FREEZE',
         'SEED',
         'POISON_CELL',
+        'SCORCHED_CELL',
+        'HEALING_CELL'
+    ]);
+
+    const TEMPORARY_SPECIAL_CELL_TYPES: ReadonlySet<string> = new Set([
+        'BLOCKADE',
+        'FREEZE',
+        'SEED',
+        'POISON_CELL',
+        'SCORCHED_CELL',
+        'HEALING_CELL'
+    ]);
+
+    const HAZARD_CELL_TYPES: ReadonlySet<string> = new Set([
+        'POISON_CELL',
         'SCORCHED_CELL'
+    ]);
+
+    const COMPLETED_TURN_CELL_TYPES: ReadonlySet<string> = new Set([
+        'POISON_CELL',
+        'SCORCHED_CELL',
+        'HEALING_CELL'
+    ]);
+
+    const HAZARD_STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
+        'POISONED',
+        'SCORCHED'
     ]);
 
     const PLACEMENT_EFFECT_TYPES: ReadonlySet<string> = new Set([
@@ -531,6 +592,7 @@
         });
 
         out.REGEN = makeStoneEffectRule('REGEN', {
+            durationAffectable: false,
             ownershipChangePolicy: 'resolve_after_change'
         });
         out.ZOMBIE = makeStoneEffectRule('ZOMBIE', {
@@ -903,6 +965,109 @@
         return !!rule && rule.category === 'board_marker';
     }
 
+    function isTemporarySpecialCellType(rawType: unknown): boolean {
+        const type = normalizeSpecialStoneType(rawType);
+        return !!type && TEMPORARY_SPECIAL_CELL_TYPES.has(type);
+    }
+
+    function isHazardCellType(rawType: unknown): boolean {
+        const type = normalizeSpecialStoneType(rawType);
+        return !!type && HAZARD_CELL_TYPES.has(type);
+    }
+
+    function isHazardStoneStatusType(rawType: unknown): boolean {
+        const type = normalizeSpecialStoneType(rawType);
+        return !!type && HAZARD_STONE_STATUS_TYPES.has(type);
+    }
+
+    function getMarkerSemanticTraits(rawType: unknown, markerData?: any): Readonly<MarkerSemanticTraits> | null {
+        const type = normalizeSpecialStoneType(rawType);
+        if (!type) return null;
+        if (type === 'METEOR_HOLE') {
+            return Object.freeze({
+                subjectKind: 'topology',
+                ownershipPolicy: 'none',
+                durationClock: 'permanent',
+                exclusivityGroup: null,
+                visualLayer: 'topology'
+            });
+        }
+        if (TEMPORARY_SPECIAL_CELL_TYPES.has(type)) {
+            const completedTurnCell = COMPLETED_TURN_CELL_TYPES.has(type);
+            return Object.freeze({
+                subjectKind: 'cell_marker',
+                ownershipPolicy: completedTurnCell ? 'none' : 'source_player',
+                durationClock: completedTurnCell ? 'completed_turn' : 'owner_turn',
+                exclusivityGroup: 'temporary_special_cell',
+                visualLayer: 'cell'
+            });
+        }
+        if (STONE_STATUS_TYPES.has(type)) {
+            return Object.freeze({
+                subjectKind: 'stone_status',
+                ownershipPolicy: 'stone_owner',
+                durationClock: HAZARD_STONE_STATUS_TYPES.has(type) ? 'completed_turn' : 'owner_turn',
+                exclusivityGroup: null,
+                visualLayer: 'stone_overlay'
+            });
+        }
+        const rule = getStoneEffectRule(type, markerData);
+        if (!rule) return null;
+        if (rule.category === 'placement_effect') {
+            return Object.freeze({
+                subjectKind: 'placement_effect',
+                ownershipPolicy: 'stone_owner',
+                durationClock: 'none',
+                exclusivityGroup: null,
+                visualLayer: 'stone_overlay'
+            });
+        }
+        if (rule.category === 'board_marker') {
+            return Object.freeze({
+                subjectKind: 'cell_marker',
+                ownershipPolicy: 'source_player',
+                durationClock: 'owner_turn',
+                exclusivityGroup: null,
+                visualLayer: 'cell'
+            });
+        }
+        return Object.freeze({
+            subjectKind: 'stone_body',
+            ownershipPolicy: 'stone_owner',
+            durationClock: 'owner_turn',
+            exclusivityGroup: null,
+            visualLayer: 'stone'
+        });
+    }
+
+    function getMarkerSubjectKind(rawType: unknown, markerData?: any): MarkerSubjectKind | null {
+        const traits = getMarkerSemanticTraits(rawType, markerData);
+        return traits ? traits.subjectKind : null;
+    }
+
+    function getMarkerOwnershipPolicy(rawType: unknown, markerData?: any): MarkerOwnershipPolicy | null {
+        const traits = getMarkerSemanticTraits(rawType, markerData);
+        return traits ? traits.ownershipPolicy : null;
+    }
+
+    function getMarkerDurationClock(rawType: unknown, markerData?: any): MarkerDurationClock | null {
+        const traits = getMarkerSemanticTraits(rawType, markerData);
+        return traits ? traits.durationClock : null;
+    }
+
+    function getMarkerDurationValue(rawType: unknown, markerData?: any): number | null {
+        const data = markerData && typeof markerData === 'object' ? markerData : {};
+        const clock = getMarkerDurationClock(rawType, data);
+        const raw = clock === 'completed_turn'
+            ? data.remainingTurns
+            : clock === 'owner_turn'
+                ? data.remainingOwnerTurns
+                : null;
+        if (raw === null || raw === undefined || raw === '') return null;
+        const value = Number(raw);
+        return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : null;
+    }
+
     function isPlacementEffectMarker(marker: any): boolean {
         return classifyMarkerRuleClass(marker) === 'placement_effect';
     }
@@ -922,6 +1087,10 @@
         STONE_EFFECT_RULES,
         STONE_STATUS_TYPES,
         BOARD_MARKER_TYPES,
+        TEMPORARY_SPECIAL_CELL_TYPES,
+        HAZARD_CELL_TYPES,
+        COMPLETED_TURN_CELL_TYPES,
+        HAZARD_STONE_STATUS_TYPES,
         PLACEMENT_EFFECT_TYPES,
         normalizeSpecialStoneType,
         getSpecialStoneInfo,
@@ -956,6 +1125,14 @@
         isTrapMarker,
         isBoardMarker,
         isBoardMarkerType,
+        isTemporarySpecialCellType,
+        isHazardCellType,
+        isHazardStoneStatusType,
+        getMarkerSemanticTraits,
+        getMarkerSubjectKind,
+        getMarkerOwnershipPolicy,
+        getMarkerDurationClock,
+        getMarkerDurationValue,
         isPlacementEffectMarker,
         isDurationAffectableMarker
     };

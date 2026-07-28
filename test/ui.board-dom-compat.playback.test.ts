@@ -187,6 +187,92 @@ describe('DOM board playback phase ownership', () => {
     );
   });
 
+  test('grass beam impact materializes one asset-backed seed marker without an empty gap', async () => {
+    document.body.innerHTML = `
+      <div id="board" data-board-renderer="dom">
+        <div class="cell" data-row="1" data-col="1"><div class="disc black"></div></div>
+        <div class="cell" data-row="2" data-col="2"></div>
+      </div>`;
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
+    const handlers = createDomBoardPlaybackHandlers({
+      boardElement: document.getElementById('board'),
+      documentRef: document,
+      isNoAnim: () => true
+    });
+    const executor = createDomBoardPlaybackExecutor(handlers);
+    const meta = {
+      special: 'SEED',
+      owner: 'black',
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      sourceRow: 1,
+      sourceCol: 1,
+      sourceTrajectoryProfile: 'grassWillSeedBeam'
+    };
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta,
+      targets: [{
+        r: 2,
+        col: 2,
+        sourceRow: 1,
+        sourceCol: 1,
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        meta,
+        after: { special: 'SEED', owner: 'black', timer: 5 }
+      }]
+    };
+
+    await executor.playPhase([event], createPlaybackContext(event));
+
+    const target = document.querySelector('.cell[data-row="2"][data-col="2"]') as HTMLElement;
+    expect(target.classList.contains('seeded-cell')).toBe(true);
+    expect(target.querySelectorAll('.seed-mark')).toHaveLength(1);
+    expect(target.querySelector('.seed-icon')).not.toBeNull();
+    expect(target.querySelector('.seed-turn')?.textContent).toBe('5');
+    expect((target.querySelector('.seed-mark') as HTMLElement).style.opacity).toBe('');
+  });
+
+  test('SEED_WILL materializes the same seed marker during status playback', async () => {
+    document.body.innerHTML = `
+      <div id="board" data-board-renderer="dom">
+        <div class="cell" data-row="3" data-col="4"></div>
+      </div>`;
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
+    const handlers = createDomBoardPlaybackHandlers({
+      boardElement: document.getElementById('board'),
+      documentRef: document,
+      isNoAnim: () => true
+    });
+    const executor = createDomBoardPlaybackExecutor(handlers);
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta: {
+        special: 'SEED',
+        owner: 'white',
+        cause: 'SEED_WILL',
+        reason: 'seed_selected'
+      },
+      targets: [{
+        r: 3,
+        col: 4,
+        after: { special: 'SEED', owner: 'white', timer: 5 }
+      }]
+    };
+
+    await executor.playPhase([event], createPlaybackContext(event));
+
+    const target = document.querySelector('.cell[data-row="3"][data-col="4"]') as HTMLElement;
+    expect(target.querySelectorAll('.seed-mark')).toHaveLength(1);
+    expect(target.querySelector('.seed-icon')).not.toBeNull();
+    expect(target.querySelector('.seed-turn')?.textContent).toBe('5');
+  });
+
   test('legacy fade-out mutates the disc only inside the DOM backend and settles its timer', async () => {
     jest.useFakeTimers();
     document.body.innerHTML = '<div id="board"><div class="cell" data-row="1" data-col="2"><div class="disc black flip"></div></div></div>';

@@ -50,6 +50,7 @@
 [data-board-renderer="dom"] .poison-cell-turn,
 [data-board-renderer="dom"] .poison-lethal-timer,
 [data-board-renderer="dom"] .scorched-cell-turn,
+[data-board-renderer="dom"] .healing-cell-turn,
 [data-board-renderer="dom"] .scorch-lethal-timer,
 [data-board-renderer="dom"] .stone-flip-protection-badge,
 [data-board-renderer="dom"] .stone-regen-badge {
@@ -903,6 +904,42 @@ body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-em
     line-height: 1;
     text-align: center;
     text-shadow: 0 1px 2px #3a0500;
+    z-index: 70;
+}
+
+[data-board-renderer="dom"] .cell.healing-cell {
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 36% 30%, rgba(145, 232, 255, 0.5), transparent 30%),
+        repeating-radial-gradient(circle at 72% 70%, rgba(8, 74, 155, 0.46) 0 6%, transparent 7% 17%),
+        linear-gradient(145deg, rgba(7, 55, 126, 0.84), rgba(25, 154, 225, 0.76));
+    box-shadow: inset 0 0 calc(13px * var(--layout-stage-scale)) rgba(56, 195, 255, 0.58);
+}
+
+[data-board-renderer="dom"] .healing-cell-mark {
+    position: absolute;
+    inset: 4%;
+    pointer-events: none;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(75, 201, 255, 0.7);
+    border-radius: 18%;
+    z-index: 18;
+}
+
+[data-board-renderer="dom"] .healing-cell-turn {
+    position: absolute;
+    top: calc(2px * var(--layout-stage-scale));
+    left: calc(2px * var(--layout-stage-scale));
+    width: calc(26px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    padding: calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) 0;
+    border-radius: 0 0 calc(5px * var(--layout-stage-scale)) 0;
+    color: #fff;
+    background: rgba(5, 57, 132, 0.92);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 1px 2px #001a43;
     z-index: 70;
 }
 

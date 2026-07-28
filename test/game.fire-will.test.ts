@@ -72,6 +72,7 @@ describe('FIRE_WILL（火の意志）', () => {
     expect(marker(cardState, 'SCORCHED_CELL')).toEqual(expect.objectContaining({
       row: 0,
       col: 0,
+      owner: null,
       data: expect.objectContaining({ remainingTurns: 10 })
     }));
     expect(events).toEqual(expect.arrayContaining([
@@ -102,6 +103,47 @@ describe('FIRE_WILL（火の意志）', () => {
     ]);
     expect(marker(cardState, 'FIRE', 4, 4)).toBeFalsy();
     expect(gameState.board[4][4]).toBe(Shared.BLACK);
+  });
+
+  test('火石による灼熱生成イベントに炎ビームの発射元を保持する', () => {
+    const { cardState, gameState } = createStates(0);
+    gameState.board[4][4] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
+      type: 'FIRE',
+      remainingOwnerTurns: 6
+    });
+
+    CardLogic.processFireWillEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      4,
+      4,
+      createPrng(0)
+    );
+
+    const scorchAppliedEvents = cardState._presentationEventsPersist.filter((event: any) => (
+      event?.type === 'STATUS_APPLIED' && event?.meta?.special === 'SCORCHED_CELL'
+    ));
+    expect(scorchAppliedEvents).toHaveLength(1);
+    expect(scorchAppliedEvents[0]).toEqual(expect.objectContaining({
+        type: 'STATUS_APPLIED',
+        row: 0,
+        col: 0,
+        meta: expect.objectContaining({
+          special: 'SCORCHED_CELL',
+          owner: null,
+          sourcePlayer: 'black',
+          timer: 10,
+          subjectKind: 'cell_marker',
+          stoneMutation: 'preserve',
+          cause: 'FIRE_WILL',
+          reason: 'scorched_cell_applied',
+          sourceRow: 4,
+          sourceCol: 4,
+          sourceTrajectoryProfile: 'fireWillFlameBeam'
+        })
+      }));
   });
 
   test('灼熱マスは毒マスを完全上書きし、既に石へ付いた毒状態は残す', () => {

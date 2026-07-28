@@ -92,6 +92,8 @@ function resolvePlacementImmediateEffects(options: ResolvePlacementImmediateEffe
         effects && effects.sniperPlaced ? 'SNIPER' : null,
         effects && effects.lightningPlaced ? 'LIGHTNING' : null,
         effects && effects.firePlaced ? 'FIRE' : null,
+        effects && effects.waterPlaced ? 'WATER' : null,
+        effects && effects.grassPlaced ? 'GRASS' : null,
         effects && effects.meteorGodPlaced ? 'METEOR_GOD' : null,
         effects && effects.willHunterKingPlaced ? 'WILL_HUNTER_KING' : null
     ].filter(Boolean);

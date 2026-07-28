@@ -369,6 +369,7 @@ interface DurationDefaults {
     destroyDragonTurns: number;
     lightningTurns: number;
     fireTurns: number;
+    grassTurns: number;
     meteorGodTurns: number;
     extremeHyperactiveFlipEvadeLimit: number;
     extremeHyperactiveDestroyEvadeLimit: number;
@@ -400,6 +401,7 @@ function getDurationDefaults(deps: LivingWillDeps): DurationDefaults {
         destroyDragonTurns: getNumericDefault(source.destroyDragonTurns, 3),
         lightningTurns: getNumericDefault(source.lightningTurns, 6),
         fireTurns: getNumericDefault(source.fireTurns, 6),
+        grassTurns: getNumericDefault(source.grassTurns, 10),
         meteorGodTurns: getNumericDefault(source.meteorGodTurns, 6),
         extremeHyperactiveFlipEvadeLimit: getNumericDefault(source.extremeHyperactiveFlipEvadeLimit, getFlipEvadeDefault('EXTREME_HYPERACTIVE', 5)),
         extremeHyperactiveDestroyEvadeLimit: getNumericDefault(source.extremeHyperactiveDestroyEvadeLimit, getDestroyEvadeDefault('EXTREME_HYPERACTIVE', 5)),
@@ -473,6 +475,9 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         break;
     case 'FIRE':
         markerData.remainingOwnerTurns = defaults.fireTurns;
+        break;
+    case 'GRASS':
+        markerData.remainingOwnerTurns = defaults.grassTurns;
         break;
     case 'METEOR_GOD':
         markerData.remainingOwnerTurns = defaults.meteorGodTurns;

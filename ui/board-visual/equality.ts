@@ -63,6 +63,8 @@ function cellStatesEqual(a: any, b: any): boolean {
   }
   if ((a.poisonCell === null) !== (b.poisonCell === null)) return false;
   if (a.poisonCell && b.poisonCell && a.poisonCell.remainingTurns !== b.poisonCell.remainingTurns) return false;
+  if ((a.healingCell === null) !== (b.healingCell === null)) return false;
+  if (a.healingCell && b.healingCell && a.healingCell.remainingTurns !== b.healingCell.remainingTurns) return false;
   if ((a.poisoned === null) !== (b.poisoned === null)) return false;
   if (a.poisoned && b.poisoned && a.poisoned.remainingTurns !== b.poisoned.remainingTurns) return false;
 

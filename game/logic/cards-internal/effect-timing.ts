@@ -65,6 +65,8 @@ interface Constants {
     DESTROY_DRAGON_TURNS: any;
     LIGHTNING_WILL_TURNS: any;
     FIRE_WILL_TURNS: any;
+    WATER_WILL_TURNS: any;
+    GRASS_WILL_TURNS: any;
     METEOR_GOD_TURNS: any;
     GHOST_WILL_TURNS: any;
     SACRIFICE_WILL_TURNS: any;
@@ -105,6 +107,12 @@ interface TurnStartSummary {
         handCount: number;
     };
     generatedSpawnFlipResults?: any[];
+}
+
+function getSeedSourceCardType(marker: any): 'SEED_WILL' | 'GRASS_WILL' {
+    return String(marker && marker.data && marker.data.sourceCardType || '').trim().toUpperCase() === 'GRASS_WILL'
+        ? 'GRASS_WILL'
+        : 'SEED_WILL';
 }
 
 function getFlipEvadeDefault(type: string, fallback: number, mode: 'runtime' | 'info' | 'visual' = 'runtime'): number {
@@ -162,6 +170,8 @@ function getConstants(context: Context): Constants {
         DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
         FIRE_WILL_TURNS: constants.FIRE_WILL_TURNS,
+        WATER_WILL_TURNS: constants.WATER_WILL_TURNS,
+        GRASS_WILL_TURNS: constants.GRASS_WILL_TURNS,
         METEOR_GOD_TURNS: constants.METEOR_GOD_TURNS,
         GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
         SACRIFICE_WILL_TURNS: constants.SACRIFICE_WILL_TURNS,
@@ -262,6 +272,8 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             destroyDragonTurns: constants && constants.DESTROY_DRAGON_TURNS,
             lightningTurns: constants && constants.LIGHTNING_WILL_TURNS,
             fireTurns: constants && constants.FIRE_WILL_TURNS,
+            waterTurns: constants && constants.WATER_WILL_TURNS,
+            grassTurns: constants && constants.GRASS_WILL_TURNS,
             meteorGodTurns: constants && constants.METEOR_GOD_TURNS,
             extremeHyperactiveFlipEvadeLimit: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
             extremeHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
@@ -403,11 +415,12 @@ function clearSeedMarker(cardState: any, helpers: any, specialStoneKind: string,
     });
 }
 
-function resolveSeedExpiration(cardState: any, gameState: any, marker: any, helpers: any, BoardOpsModule: any, constants: Constants, specialStoneKind: string, context: Context): { sprouted: boolean; reason?: string; spawnRes?: any; flipBatch?: any } {
+function resolveSeedExpiration(cardState: any, gameState: any, marker: any, helpers: any, BoardOpsModule: any, constants: Constants, specialStoneKind: string, context: Context): { sprouted: boolean; reason?: string; spawnRes?: any; flipBatch?: any; sourceCardType?: 'SEED_WILL' | 'GRASS_WILL' } {
     if (!marker || !Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return { sprouted: false };
     const row = marker.row;
     const col = marker.col;
     const ownerKey = normalizeMarkerOwnerKey(marker.owner);
+    const sourceCardType = getSeedSourceCardType(marker);
     const currentCellValue = getBoardCellForCard(cardState, gameState, helpers, row, col);
 
     emitDurationEndStatusRemoved(cardState, helpers, marker, marker.data || { type: 'SEED' });
@@ -438,7 +451,7 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
             ownerKey,
             playerValue,
             [{ row, col }],
-            'SEED_WILL',
+            sourceCardType,
             'seed_sprout',
             { row, col },
             {
@@ -447,18 +460,20 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
                 getFlipsWithContext: helpers.getFlipsWithContext,
                 clearBombAt: helpers.clearBombAt,
                 clearHyperactiveAtPositions: helpers.clearHyperactiveAtPositions,
-                changeCause: 'SEED_WILL',
+                changeCause: sourceCardType,
                 changeReason: 'seed_sprout_flip',
                 spawnMeta: {
                     seedSprout: true,
-                    seedOwner: ownerKey
+                    seedOwner: ownerKey,
+                    seedSourceCardType: sourceCardType
                 }
             }
         );
         return {
             sprouted: !!(flipBatch && Array.isArray(flipBatch.spawned) && flipBatch.spawned.length > 0),
             spawnRes: flipBatch,
-            flipBatch
+            flipBatch,
+            sourceCardType
         };
     }
 
@@ -469,14 +484,15 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
             row,
             col,
             ownerKey,
-            'SEED_WILL',
+            sourceCardType,
             'seed_sprout',
             {
                 seedSprout: true,
-                seedOwner: ownerKey
+                seedOwner: ownerKey,
+                seedSourceCardType: sourceCardType
             }
         );
-        return { sprouted: !!(spawnRes && spawnRes.spawned), spawnRes };
+        return { sprouted: !!(spawnRes && spawnRes.spawned), spawnRes, sourceCardType };
     }
 
     if (typeof helpers.clearStoneIdAtForCard === 'function') {
@@ -634,7 +650,7 @@ function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, play
         const generatedSpawnFlipResults = (seedExpiration && seedExpiration.sprouted && seedExpiration.flipBatch)
             ? [Object.assign({
                 ownerKey: normalizeMarkerOwnerKey(marker.owner),
-                cause: 'SEED_WILL',
+                cause: seedExpiration.sourceCardType || 'SEED_WILL',
                 reason: 'seed_sprout'
             }, seedExpiration.flipBatch)]
             : [];
@@ -842,7 +858,7 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
                     summary.generatedSpawnFlipResults = summary.generatedSpawnFlipResults || [];
                     summary.generatedSpawnFlipResults.push(Object.assign({
                         ownerKey: normalizeMarkerOwnerKey(marker.owner),
-                        cause: 'SEED_WILL',
+                        cause: seedExpiration.sourceCardType || 'SEED_WILL',
                         reason: 'seed_sprout'
                     }, seedExpiration.flipBatch));
                 }
@@ -1207,6 +1223,22 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.FIRE_WILL_TURNS
         });
         effects.firePlaced = true;
+    }
+
+    if (pending && pending.type === 'WATER_WILL' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'WATER',
+            remainingOwnerTurns: constants.WATER_WILL_TURNS
+        });
+        effects.waterPlaced = true;
+    }
+
+    if (pending && pending.type === 'GRASS_WILL' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'GRASS',
+            remainingOwnerTurns: constants.GRASS_WILL_TURNS
+        });
+        effects.grassPlaced = true;
     }
 
     if (pending && pending.type === 'METEOR_GOD' && typeof helpers.addMarker === 'function') {

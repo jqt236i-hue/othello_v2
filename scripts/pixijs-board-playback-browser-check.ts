@@ -95,6 +95,9 @@ const SOURCE_TRAJECTORY_VISUAL_POLICY = Object.freeze({
   sniperShot: Object.freeze({ primitive: 'projectile' as const, direction: 'source-to-target' as const, captureDelayMs: 72, maxPixelDiffRatio: 0.08 }),
   robotVacuumSuck: Object.freeze({ primitive: 'suction' as const, direction: 'target-to-source' as const, captureDelayMs: 92, maxPixelDiffRatio: 0.09 }),
   destroyDragonBreath: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 140, maxPixelDiffRatio: 0.12 }),
+  fireWillFlameBeam: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 140, maxPixelDiffRatio: 0.18 }),
+  waterWillHealingBeam: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 140, maxPixelDiffRatio: 0.18 }),
+  grassWillSeedBeam: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 140, maxPixelDiffRatio: 0.18 }),
   meteorGodBlackBeam: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 130, maxPixelDiffRatio: 0.12 }),
   lightningDestroyed: Object.freeze({ primitive: 'lightning' as const, direction: 'source-to-target' as const, captureDelayMs: 88, maxPixelDiffRatio: 0.16 }),
   udgDestroyed: Object.freeze({ primitive: 'lightning' as const, direction: 'source-to-target' as const, captureDelayMs: 88, maxPixelDiffRatio: 0.16 }),
@@ -157,7 +160,10 @@ function sourceTrajectoryMetadata(
 
 function destroySourceTrajectoryScenario(input: Readonly<{
   name: string;
-  profileKey: Exclude<keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY, 'zombieBite'>;
+  profileKey: Exclude<
+    keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY,
+    'zombieBite' | 'fireWillFlameBeam' | 'waterWillHealingBeam' | 'grassWillSeedBeam'
+  >;
   cause: string;
   reason: string;
 }>): PlaybackScenarioDefinition {
@@ -339,6 +345,218 @@ const PLAYBACK_SCENARIOS: readonly PlaybackScenarioDefinition[] = Object.freeze(
         })])
       }),
       Object.freeze({ type: 'sound_effect', phase: 1, targets: Object.freeze([{ soundKey: 'guard_apply' }]) })
+    ])
+  }),
+  Object.freeze({
+    name: 'fire-will-scorch',
+    eventType: 'status_applied',
+    soundKey: 'fire_will_scorch',
+    modes: PHASE7_PARITY_MODES,
+    initialStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    finalStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    initialMarkers: Object.freeze([
+      specialMarker('pixi-playback-fire-source', 2, 1, 'black', 'FIRE', 6)
+    ]),
+    finalMarkers: Object.freeze([
+      specialMarker('pixi-playback-fire-source', 2, 1, 'black', 'FIRE', 6),
+      Object.freeze({
+        id: 'pixi-playback-scorched-cell',
+        kind: 'specialStone',
+        row: 5,
+        col: 5,
+        owner: null,
+        data: Object.freeze({
+          type: 'SCORCHED_CELL',
+          sourcePlayer: 'black',
+          remainingTurns: 10
+        })
+      })
+    ]),
+    probeCells: Object.freeze([{ row: 2, col: 1 }, { row: 5, col: 5 }]),
+    expectedDispatchLaunchOrder: Object.freeze([
+      'board:status_applied',
+      'sound:fire_will_scorch'
+    ]),
+    sourceTrajectory: sourceTrajectoryMetadata('fireWillFlameBeam', '2,1', '5,5'),
+    events: Object.freeze([
+      Object.freeze({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        phase: 1,
+        meta: Object.freeze({
+          special: 'SCORCHED_CELL',
+          cause: 'FIRE_WILL',
+          reason: 'scorched_cell_applied',
+          sourceRow: 2,
+          sourceCol: 1,
+          sourceTrajectoryProfile: 'fireWillFlameBeam',
+          impactSoundPhase: 2
+        }),
+        targets: Object.freeze([Object.freeze({
+          r: 5,
+          col: 5,
+          sourceRow: 2,
+          sourceCol: 1,
+          sourcePlayer: 'black',
+          cause: 'FIRE_WILL',
+          reason: 'scorched_cell_applied',
+          subjectKind: 'cell_marker',
+          stoneMutation: 'preserve',
+          after: Object.freeze({ special: 'SCORCHED_CELL', timer: 10 }),
+          meta: Object.freeze({
+            special: 'SCORCHED_CELL',
+            cause: 'FIRE_WILL',
+            reason: 'scorched_cell_applied',
+            sourceRow: 2,
+            sourceCol: 1,
+            sourcePlayer: 'black',
+            sourceTrajectoryProfile: 'fireWillFlameBeam',
+            impactSoundPhase: 2
+          })
+        })])
+      }),
+      Object.freeze({
+        type: 'sound_effect',
+        phase: 2,
+        targets: Object.freeze([{ soundKey: 'fire_will_scorch' }])
+      })
+    ])
+  }),
+  Object.freeze({
+    name: 'water-will-healing',
+    eventType: 'status_applied',
+    soundKey: 'water_will_healing_cell',
+    modes: PHASE7_PARITY_MODES,
+    initialStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    finalStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    initialMarkers: Object.freeze([
+      specialMarker('pixi-playback-water-source', 2, 1, 'black', 'WATER', 6)
+    ]),
+    finalMarkers: Object.freeze([
+      specialMarker('pixi-playback-water-source', 2, 1, 'black', 'WATER', 6),
+      Object.freeze({
+        id: 'pixi-playback-healing-cell',
+        kind: 'specialStone',
+        row: 5,
+        col: 5,
+        owner: null,
+        data: Object.freeze({
+          type: 'HEALING_CELL',
+          sourcePlayer: 'black',
+          remainingTurns: 8
+        })
+      })
+    ]),
+    probeCells: Object.freeze([{ row: 2, col: 1 }, { row: 5, col: 5 }]),
+    expectedDispatchLaunchOrder: Object.freeze([
+      'board:status_applied',
+      'sound:water_will_healing_cell'
+    ]),
+    sourceTrajectory: sourceTrajectoryMetadata('waterWillHealingBeam', '2,1', '5,5'),
+    events: Object.freeze([
+      Object.freeze({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        phase: 1,
+        meta: Object.freeze({
+          special: 'HEALING_CELL',
+          cause: 'WATER_WILL',
+          reason: 'healing_cell_applied',
+          sourceRow: 2,
+          sourceCol: 1,
+          sourceTrajectoryProfile: 'waterWillHealingBeam',
+          impactSoundPhase: 2
+        }),
+        targets: Object.freeze([Object.freeze({
+          r: 5,
+          col: 5,
+          sourceRow: 2,
+          sourceCol: 1,
+          sourcePlayer: 'black',
+          cause: 'WATER_WILL',
+          reason: 'healing_cell_applied',
+          subjectKind: 'cell_marker',
+          stoneMutation: 'preserve',
+          after: Object.freeze({ special: 'HEALING_CELL', timer: 8, owner: null }),
+          meta: Object.freeze({
+            special: 'HEALING_CELL',
+            cause: 'WATER_WILL',
+            reason: 'healing_cell_applied',
+            sourceRow: 2,
+            sourceCol: 1,
+            sourcePlayer: 'black',
+            sourceTrajectoryProfile: 'waterWillHealingBeam',
+            impactSoundPhase: 2
+          })
+        })])
+      }),
+      Object.freeze({
+        type: 'sound_effect',
+        phase: 2,
+        targets: Object.freeze([{ soundKey: 'water_will_healing_cell' }])
+      })
+    ])
+  }),
+  Object.freeze({
+    name: 'grass-will-seed',
+    eventType: 'status_applied',
+    soundKey: 'seed_place',
+    modes: PHASE7_PARITY_MODES,
+    initialStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    finalStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    initialMarkers: Object.freeze([
+      specialMarker('pixi-playback-grass-source', 2, 1, 'black', 'GRASS', 10)
+    ]),
+    finalMarkers: Object.freeze([
+      specialMarker('pixi-playback-grass-source', 2, 1, 'black', 'GRASS', 10),
+      specialMarker('pixi-playback-grass-seed', 5, 5, 'black', 'SEED', 5)
+    ]),
+    probeCells: Object.freeze([{ row: 2, col: 1 }, { row: 5, col: 5 }]),
+    expectedDispatchLaunchOrder: Object.freeze([
+      'board:status_applied',
+      'sound:seed_place'
+    ]),
+    sourceTrajectory: sourceTrajectoryMetadata('grassWillSeedBeam', '2,1', '5,5'),
+    events: Object.freeze([
+      Object.freeze({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        phase: 1,
+        meta: Object.freeze({
+          special: 'SEED',
+          owner: 'black',
+          cause: 'GRASS_WILL',
+          reason: 'grass_seeded',
+          sourceRow: 2,
+          sourceCol: 1,
+          sourceTrajectoryProfile: 'grassWillSeedBeam',
+          impactSoundPhase: 2
+        }),
+        targets: Object.freeze([Object.freeze({
+          r: 5,
+          col: 5,
+          sourceRow: 2,
+          sourceCol: 1,
+          cause: 'GRASS_WILL',
+          reason: 'grass_seeded',
+          after: Object.freeze({ special: 'SEED', timer: 5, owner: 'black' }),
+          meta: Object.freeze({
+            special: 'SEED',
+            owner: 'black',
+            cause: 'GRASS_WILL',
+            reason: 'grass_seeded',
+            sourceRow: 2,
+            sourceCol: 1,
+            sourceTrajectoryProfile: 'grassWillSeedBeam',
+            impactSoundPhase: 2
+          })
+        })])
+      }),
+      Object.freeze({
+        type: 'sound_effect',
+        phase: 2,
+        targets: Object.freeze([{ soundKey: 'seed_place' }])
+      })
     ])
   }),
   destroySourceTrajectoryScenario({

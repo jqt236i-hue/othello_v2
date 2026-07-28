@@ -33,6 +33,10 @@ const RandomSourceModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../cards-internal/random-source')
     : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
+const SpecialStoneRegistry = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/special-stone-registry')
+    : null) || (typeof self !== 'undefined' ? (self as any).SpecialStoneRegistry : null);
+
 const CardCellRemoval = ((typeof module === 'object' && module.exports)
     ? safeRequire('./cell-removal')
     : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null) || {
@@ -108,10 +112,13 @@ function moveMarkers(cardState: CardState, fromRow: number, fromCol: number, toR
     for (const marker of markers) {
         if (!marker) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        const boardMarker = deps && typeof deps.isBoardMarker === 'function'
-            ? deps.isBoardMarker(marker)
-            : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-                .includes(String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase());
+        const markerClassifier = deps && typeof deps.isBoardMarker === 'function'
+            ? deps.isBoardMarker
+            : SpecialStoneRegistry && SpecialStoneRegistry.isBoardMarker;
+        if (typeof markerClassifier !== 'function') {
+            throw new Error('SpecialStoneRegistry.isBoardMarker is required by CardTeleport');
+        }
+        const boardMarker = markerClassifier(marker);
         if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;

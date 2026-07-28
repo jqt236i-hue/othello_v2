@@ -14,7 +14,7 @@ import {
 } from './fixtures/board-source-trajectory-contract';
 
 describe('board source trajectory typed contract', () => {
-  test('registers exactly the shared seven profiles and matches the Phase 0 contract', () => {
+  test('registers exactly the shared profiles and matches the trajectory contract', () => {
     expect(new Set(Object.keys(BOARD_SOURCE_TRAJECTORY_PROFILE_REGISTRY))).toEqual(
       new Set(PresentationEffectProfiles.BOARD_SOURCE_TRAJECTORY_PROFILE_KEYS)
     );
@@ -45,7 +45,8 @@ describe('board source trajectory typed contract', () => {
     (fixture) => {
       const target = {
         cause: fixture.cause,
-        reason: fixture.reason
+        reason: fixture.reason,
+        meta: fixture.meta
       };
       expect(PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey(
         fixture.eventType,
@@ -101,6 +102,139 @@ describe('board source trajectory typed contract', () => {
     expect(Object.isFrozen(batch.requests)).toBe(true);
     expect(Object.isFrozen(batch.requests[0].source)).toBe(true);
     expect(getBoardSourceTrajectoryRequest(batch, batch.requests[1].trajectoryId)).toBe(batch.requests[1]);
+  });
+
+  test('classifies FIRE_WILL status only with canonical scorch metadata and preserves its endpoints', () => {
+    const target = {
+      r: 6,
+      col: 5,
+      sourceRow: 2,
+      sourceCol: 3,
+      cause: 'FIRE_WILL',
+      reason: 'scorched_cell_applied',
+      meta: {
+        special: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceRow: 2,
+        sourceCol: 3,
+        sourceTrajectoryProfile: 'fireWillFlameBeam'
+      }
+    };
+    const event = { type: 'status_applied', targets: [target] };
+    const batch = collectBoardSourceTrajectoryRequests([event], {
+      phaseKey: 'fire-status',
+      stepIndex: 1
+    });
+
+    expect(batch.requests).toEqual([
+      expect.objectContaining({
+        profileKey: 'fireWillFlameBeam',
+        eventType: 'status_applied',
+        source: { row: 2, col: 3 },
+        target: { row: 6, col: 5 },
+        direction: 'source-to-target',
+        owner: null,
+        event,
+        targetPayload: target
+      })
+    ]);
+    expect(getBoardSourceTrajectoryIdsForTarget(
+      batch,
+      'status_applied',
+      target,
+      event
+    )).toEqual([batch.requests[0].trajectoryId]);
+    expect(PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey(
+      'status_applied',
+      { ...target, meta: { ...target.meta, sourceTrajectoryProfile: null } }
+    )).toBeNull();
+  });
+
+  test('classifies GRASS_WILL status only with canonical seed metadata and preserves its endpoints', () => {
+    const target = {
+      r: 6,
+      col: 5,
+      sourceRow: 2,
+      sourceCol: 3,
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      meta: {
+        special: 'SEED',
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        sourceRow: 2,
+        sourceCol: 3,
+        sourceTrajectoryProfile: 'grassWillSeedBeam'
+      }
+    };
+    const event = { type: 'status_applied', targets: [target] };
+    const batch = collectBoardSourceTrajectoryRequests([event], {
+      phaseKey: 'grass-status',
+      stepIndex: 1
+    });
+
+    expect(batch.requests).toEqual([
+      expect.objectContaining({
+        profileKey: 'grassWillSeedBeam',
+        eventType: 'status_applied',
+        source: { row: 2, col: 3 },
+        target: { row: 6, col: 5 },
+        direction: 'source-to-target',
+        owner: null,
+        event,
+        targetPayload: target
+      })
+    ]);
+    expect(getBoardSourceTrajectoryIdsForTarget(
+      batch,
+      'status_applied',
+      target,
+      event
+    )).toEqual([batch.requests[0].trajectoryId]);
+  });
+
+  test('classifies WATER_WILL status only with canonical healing metadata and preserves its endpoints', () => {
+    const target = {
+      r: 6,
+      col: 5,
+      sourceRow: 2,
+      sourceCol: 3,
+      cause: 'WATER_WILL',
+      reason: 'healing_cell_applied',
+      meta: {
+        special: 'HEALING_CELL',
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        sourceRow: 2,
+        sourceCol: 3,
+        sourceTrajectoryProfile: 'waterWillHealingBeam'
+      }
+    };
+    const event = { type: 'status_applied', targets: [target] };
+    const batch = collectBoardSourceTrajectoryRequests([event], {
+      phaseKey: 'water-status',
+      stepIndex: 1
+    });
+
+    expect(batch.requests).toEqual([
+      expect.objectContaining({
+        profileKey: 'waterWillHealingBeam',
+        eventType: 'status_applied',
+        source: { row: 2, col: 3 },
+        target: { row: 6, col: 5 },
+        direction: 'source-to-target',
+        owner: null,
+        event,
+        targetPayload: target
+      })
+    ]);
+    expect(getBoardSourceTrajectoryIdsForTarget(
+      batch,
+      'status_applied',
+      target,
+      event
+    )).toEqual([batch.requests[0].trajectoryId]);
   });
 
   test.each([

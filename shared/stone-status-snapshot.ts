@@ -105,6 +105,16 @@
         return type === 'GUARD' || type === 'LIVING_WILL' || type === 'POISONED';
     }
 
+    function isBoardMarkerType(rawType: unknown): boolean {
+        if (
+            !SpecialStoneRegistry
+            || typeof (SpecialStoneRegistry as { isBoardMarkerType?: (v: unknown) => boolean }).isBoardMarkerType !== 'function'
+        ) {
+            throw new Error('SpecialStoneRegistry.isBoardMarkerType is required by StoneStatusSnapshot');
+        }
+        return (SpecialStoneRegistry as { isBoardMarkerType: (v: unknown) => boolean }).isBoardMarkerType(rawType) === true;
+    }
+
     function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {
         if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { getSpecialStoneTimerClass?: (v: unknown, f?: unknown) => string }).getSpecialStoneTimerClass === 'function') {
             return (SpecialStoneRegistry as { getSpecialStoneTimerClass: (v: unknown, f?: unknown) => string }).getSpecialStoneTimerClass(rawType, fallback);
@@ -356,7 +366,7 @@
         const visualSpecial = markers.find((marker) => {
             const type = normalizeSpecialStoneType(marker && marker.data && marker.data.type);
             if (!type) return false;
-            return !isOverlayOnlySpecialStoneType(type);
+            return !isOverlayOnlySpecialStoneType(type) && !isBoardMarkerType(type);
         });
         if (visualSpecial) {
             const snapshot = createSpecialStoneStatusSnapshot({

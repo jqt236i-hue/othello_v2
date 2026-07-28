@@ -263,7 +263,7 @@ export interface PixiRetainedStoneOverride {
 export interface PixiPlaybackGhostOptions {
   readonly row: number;
   readonly col: number;
-  readonly stone: BoardStoneVisualState;
+  readonly stone?: BoardStoneVisualState | null;
   readonly markers?: readonly BoardMarkerVisualState[];
 }
 
@@ -548,9 +548,14 @@ interface RetainedCellViews {
   readonly hint: PixiHintView;
 }
 
+type PlaybackGhostView =
+  | Readonly<{ kind: 'stone'; view: PixiStoneView }>
+  | Readonly<{ kind: 'marker'; view: PixiCellView }>;
+
 interface PlaybackGhostRecord {
   readonly handle: PixiPlaybackGhostHandle;
-  view: PixiStoneView | null;
+  readonly visualKind: 'stone' | 'marker';
+  view: PlaybackGhostView | null;
   readonly cell: MaterializedBoardCellVisualState;
   row: number;
   col: number;
@@ -885,6 +890,9 @@ const SOURCE_TRAJECTORY_PROFILE_KEYS: readonly BoardSourceTrajectoryProfileKey[]
   'meteorGodBlackBeam',
   'lightningDestroyed',
   'udgDestroyed',
+  'fireWillFlameBeam',
+  'waterWillHealingBeam',
+  'grassWillSeedBeam',
   'zombieBite'
 ]);
 
@@ -1059,6 +1067,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   });
   const playbackGhostPool: ObjectPool<PixiStoneView> = createObjectPool({
     create: () => createPixiStoneView(runtime),
+    reset: (view) => view.reset(),
+    destroy: (view) => view.destroy(),
+    maxRetained: maxRetainedGhosts
+  });
+  const playbackMarkerGhostPool: ObjectPool<PixiCellView> = createObjectPool({
+    create: () => createPixiCellView(runtime),
     reset: (view) => view.reset(),
     destroy: (view) => view.destroy(),
     maxRetained: maxRetainedGhosts
@@ -1394,7 +1408,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         bottom: 'none' as const,
         left: 'none' as const
       }),
-      stone: options.stone,
+      stone: options.stone || null,
       markers: Object.freeze(Array.from(options.markers || [])),
       interaction: existing?.interaction || Object.freeze({
         legal: false,
@@ -1423,10 +1437,11 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   }
 
   function dematerializePlaybackGhost(record: PlaybackGhostRecord): void {
-    const view = record.view;
-    if (!view) return;
+    const owned = record.view;
+    if (!owned) return;
     record.view = null;
-    playbackGhostPool.release(view);
+    if (owned.kind === 'marker') playbackMarkerGhostPool.release(owned.view);
+    else playbackGhostPool.release(owned.view);
   }
 
   function shouldMaterializePlaybackGhost(record: PlaybackGhostRecord): boolean {
@@ -1438,24 +1453,27 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       dematerializePlaybackGhost(record);
       return;
     }
-    let view = record.view;
-    const acquired = !view;
-    if (!view) {
-      view = playbackGhostPool.acquire();
-      record.view = view;
+    let owned = record.view;
+    const acquired = !owned;
+    if (!owned) {
+      owned = record.visualKind === 'marker'
+        ? Object.freeze({ kind: 'marker' as const, view: playbackMarkerGhostPool.acquire() })
+        : Object.freeze({ kind: 'stone' as const, view: playbackGhostPool.acquire() });
+      record.view = owned;
     }
     try {
-      if (acquired) addPixiChild(layers.playback, view.root);
+      const root = owned.kind === 'marker' ? owned.view.markerRoot : owned.view.root;
+      if (acquired) addPixiChild(layers.playback, root);
       const context = viewContextAt(record.row, record.col);
-      view.update(record.cell, context);
+      owned.view.update(record.cell, context);
       setPlaybackTransform(
-        view.root,
+        root,
         context.sceneX,
         context.sceneY,
         context.layout.cellSize,
         record.transform
       );
-      view.root.visible = true;
+      root.visible = true;
     } catch (error) {
       dematerializePlaybackGhost(record);
       throw error;
@@ -1504,7 +1522,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     options: PixiPlaybackGhostOptions
   ): PixiPlaybackGhostHandle {
     assertPlaybackScope(scope);
-    if (!options || !options.stone) throw new Error('Pixi playback ghost stone is required');
+    if (!options || (!options.stone && !(options.markers || []).length)) {
+      throw new Error('Pixi playback ghost visual is required');
+    }
     integerWorldKey(options.row, options.col);
     const handle = Object.freeze({ id: nextPlaybackGhostId++, scopeId: scope.id });
     const transform = normalizeGhostUpdate({
@@ -1514,6 +1534,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     });
     const record: PlaybackGhostRecord = {
       handle,
+      visualKind: options.stone ? 'stone' : 'marker',
       view: null,
       cell: makePlaybackGhostCell(handle, options),
       row: transform.row,
@@ -1883,13 +1904,20 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const record = handle && playbackGhosts.get(handle.id);
     if (!record || record.handle.scopeId !== handle.scopeId || !latestFrame || !latestViewContext) return null;
     const scene = worldToScene(latestFrame.model.topology, latestFrame.layout, record.row, record.col);
+    const owned = record.view;
+    const root = owned
+      ? (owned.kind === 'marker' ? owned.view.markerRoot : owned.view.root)
+      : null;
+    const visualOwner = owned?.kind === 'stone'
+      ? owned.view.getDiagnostics().owner
+      : record.cell.markers.find((marker) => marker.owner)?.owner;
     return Object.freeze({
       id: record.handle.id,
       scopeId: record.handle.scopeId,
       row: record.row,
       col: record.col,
-      visible: !!record.view?.root.visible,
-      owner: record.view?.getDiagnostics().owner || record.cell.stone?.owner || null,
+      visible: !!root?.visible,
+      owner: visualOwner || record.cell.stone?.owner || null,
       position: Object.freeze({
         x: scene.x + latestViewContext.sceneOffsetX + record.transform.offsetX,
         y: scene.y + latestViewContext.sceneOffsetY + record.transform.offsetY
@@ -3015,6 +3043,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     pool.destroy();
     stonePool.destroy();
     playbackGhostPool.destroy();
+    playbackMarkerGhostPool.destroy();
     playbackHighlightPool.destroy();
     playbackEffectPool.destroy();
     sourceTrajectoryPool.destroy();
@@ -3033,6 +3062,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const stonePoolDiagnostics = stonePool.getDiagnostics();
     const staticDiagnostics = staticBoardLayer.getDiagnostics();
     const ghostPoolDiagnostics = playbackGhostPool.getDiagnostics();
+    const markerGhostPoolDiagnostics = playbackMarkerGhostPool.getDiagnostics();
     const highlightPoolDiagnostics = playbackHighlightPool.getDiagnostics();
     const effectPoolDiagnostics = playbackEffectPool.getDiagnostics();
     const sourceTrajectoryPoolDiagnostics = sourceTrajectoryPool.getDiagnostics();
@@ -3093,9 +3123,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       activePlaybackGhostCount: playbackGhosts.size,
       materializedPlaybackGhostCount: Array.from(playbackGhosts.values())
         .filter((record) => !!record.view).length,
-      pooledPlaybackGhostCount: ghostPoolDiagnostics.available,
-      createdPlaybackGhostCount: ghostPoolDiagnostics.created,
-      destroyedPlaybackGhostCount: ghostPoolDiagnostics.destroyed,
+      pooledPlaybackGhostCount: ghostPoolDiagnostics.available + markerGhostPoolDiagnostics.available,
+      createdPlaybackGhostCount: ghostPoolDiagnostics.created + markerGhostPoolDiagnostics.created,
+      destroyedPlaybackGhostCount: ghostPoolDiagnostics.destroyed + markerGhostPoolDiagnostics.destroyed,
       activePlaybackHighlightLeaseCount: playbackHighlightLeases.size,
       renderedPlaybackHighlightCount: playbackHighlightsByKey.size,
       pooledPlaybackHighlightCount: highlightPoolDiagnostics.available,

@@ -101,6 +101,8 @@ export type CardType =
   | 'BLOCKADE_WILL'
   | 'POISON_WILL'
   | 'FIRE_WILL'
+  | 'WATER_WILL'
+  | 'GRASS_WILL'
   | 'METEOR_WILL'
   | 'CAUSAL_REPLAY_WILL'
   | 'METEOR_GOD'
@@ -136,10 +138,15 @@ export interface PendingEffect {
 }
 
 export interface Marker {
+  id?: number;
+  markerId?: string;
   row: number;
   col: number;
-  type: string;
-  owner: PlayerKey;
+  kind: string;
+  owner: PlayerKey | null;
+  createdSeq?: number;
+  /** Legacy projection only. Canonical marker type lives in data.type. */
+  type?: string;
   data?: Record<string, unknown>;
 }
 

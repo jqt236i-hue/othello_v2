@@ -800,7 +800,19 @@ function swapCellCoordinates(cardState: CardState, gameState: GameState, posA: P
     }
 }
 
-function addMarker(cardState: CardState, kind: string, row: number, col: number, owner: PlayerKey, data: any): any {
+interface AddMarkerOptions {
+    emitStatusApplied?: boolean;
+}
+
+function addMarker(
+    cardState: CardState,
+    kind: string,
+    row: number,
+    col: number,
+    owner: PlayerKey | null,
+    data: any,
+    options: AddMarkerOptions = {}
+): any {
     ensureMarkers(cardState);
     const id = (cardState as any)._nextMarkerId || 1;
     (cardState as any)._nextMarkerId = id + 1;
@@ -823,7 +835,7 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
 
     (cardState as any).markers.push(marker);
 
-    try {
+    if (options.emitStatusApplied !== false) try {
         const presentationHelper = getPresentationHelper();
         let special: any = null;
         let timer: any = null;
@@ -917,6 +929,7 @@ function applyExtendLifeSelection(cardState: CardState, gameState: GameState, pl
 
     const specialsAtCell = getSpecialMarkers(cardState).filter((marker: any) => (
         marker &&
+        isTrueSpecialStoneMarker(marker) &&
         isDurationAffectableMarker(marker) &&
         marker.row === row &&
         marker.col === col &&
@@ -966,6 +979,59 @@ function applyExtendLifeGod(cardState: CardState, gameState: GameState, playerKe
         pendingType: 'EXTEND_LIFE_GOD',
         multiplier: 4
     });
+}
+
+function addSpecialStoneDurationOnHealingCells(
+    cardState: CardState,
+    playerKey: PlayerKey,
+    bonusRaw: number
+): { affectedCount: number; details: any[] } {
+    const bonus = Number.isFinite(Number(bonusRaw)) ? Math.max(0, Math.trunc(Number(bonusRaw))) : 0;
+    if (bonus <= 0) return { affectedCount: 0, details: [] };
+
+    const healingCells = new Set(
+        getMarkers(cardState)
+            .filter((marker: any) => getNormalizedMarkerType(marker) === 'HEALING_CELL')
+            .map((marker: any) => `${marker.row},${marker.col}`)
+    );
+    if (!healingCells.size) return { affectedCount: 0, details: [] };
+
+    const targets = getSpecialMarkers(cardState).filter((marker: any) => (
+        marker &&
+        isTrueSpecialStoneMarker(marker) &&
+        isDurationAffectableMarker(marker) &&
+        isActiveSpecialMarker(marker) &&
+        marker.owner === playerKey &&
+        marker.data &&
+        Number.isFinite(Number(marker.data.remainingOwnerTurns)) &&
+        Number(marker.data.remainingOwnerTurns) > 0 &&
+        healingCells.has(`${marker.row},${marker.col}`)
+    )).slice().sort((left: any, right: any) => (
+        (Number(left && left.createdSeq) || 0) - (Number(right && right.createdSeq) || 0) ||
+        (Number(left && left.row) || 0) - (Number(right && right.row) || 0) ||
+        (Number(left && left.col) || 0) - (Number(right && right.col) || 0)
+    ));
+
+    const details: any[] = [];
+    for (const marker of targets) {
+        const before = Math.max(1, Math.trunc(Number(marker.data.remainingOwnerTurns)));
+        const after = before + bonus;
+        marker.data.remainingOwnerTurns = after;
+        details.push({
+            row: marker.row,
+            col: marker.col,
+            owner: marker.owner,
+            special: marker.data.type || null,
+            previousRemainingOwnerTurns: before,
+            newRemainingOwnerTurns: after,
+            addedTurns: bonus
+        });
+        emitDurationChangeStatusTick(cardState, marker, {
+            reason: 'healing_cell_duration_added',
+            highlightTone: 'positive'
+        });
+    }
+    return { affectedCount: details.length, details };
 }
 
 interface CorrosionDeps {
@@ -1083,5 +1149,6 @@ export = {
     removeMarkerById,
     applyExtendLifeWill,
     applyExtendLifeGod,
+    addSpecialStoneDurationOnHealingCells,
     applyCorrosionWill
 };

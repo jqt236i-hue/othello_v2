@@ -116,6 +116,38 @@ describe('CardMarkers module', () => {
     expect(cardState._presentationEventsPersist[0].meta.special).toBeUndefined();
   });
 
+  test('addMarker presentation suppression stores the marker without generic status or spawn backfill', () => {
+    const cardState = {
+      markers: [],
+      _nextMarkerId: 1,
+      _nextCreatedSeq: 1,
+      _currentActionMeta: { actionId: 'action-cell' },
+      _presentationEventsPersist: [
+        { type: 'SPAWN', row: 2, col: 3, actionId: 'action-cell', meta: { existing: true } }
+      ],
+      presentationEvents: []
+    };
+
+    const marker = CardMarkers.addMarker(
+      cardState,
+      CardMarkers.MARKER_KINDS.SPECIAL_STONE,
+      2,
+      3,
+      null,
+      { type: 'SCORCHED_CELL', remainingTurns: 10, sourcePlayer: 'black' },
+      { emitStatusApplied: false }
+    );
+
+    expect(marker).toMatchObject({
+      row: 2,
+      col: 3,
+      owner: null,
+      data: { type: 'SCORCHED_CELL', remainingTurns: 10, sourcePlayer: 'black' }
+    });
+    expect(emitPresentationEvent).not.toHaveBeenCalled();
+    expect(cardState._presentationEventsPersist[0].meta).toEqual({ existing: true });
+  });
+
   test('swapCellCoordinates swaps main and expansion stone ids and marker-linked positions', () => {
     const gameState = Core.createGameState();
     CardExpansion.ensureExpansionCellForCard(null, gameState, -1, 0, Core.EMPTY);

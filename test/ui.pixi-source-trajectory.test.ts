@@ -266,7 +266,7 @@ function requestFor(
     reason: fixture.reason,
     before: { owner: 'black', color: 1 },
     after: { owner: 'white', color: -1, special: profileKey === 'zombieBite' ? 'ZOMBIE' : null },
-    meta: { sourceRow: source.row, sourceCol: source.col }
+    meta: { ...fixture.meta, sourceRow: source.row, sourceCol: source.col }
   };
   const batch = collectBoardSourceTrajectoryRequests([{
     type: fixture.eventType,
@@ -551,6 +551,58 @@ describe('Pixi board source trajectory renderer', () => {
     expect((lightning.lines || []).some((line) => line.width >= 12 && line.alpha < 0.4)).toBe(true);
   });
 
+  test('fire will beam uses a hot core and radial sparks without a stone-shaped target disc', () => {
+    const visual = buildPixiSourceTrajectoryVisualState(
+      requestFor('fireWillFlameBeam'),
+      geometry(),
+      0.5
+    );
+
+    expect(visual.visible).toBe(true);
+    expect(Math.max(...(visual.lines || []).map((line) => line.width))).toBeGreaterThanOrEqual(48);
+    expect((visual.lines || []).some((line) => line.color === '#fff0a8' && line.alpha >= 0.2)).toBe(true);
+    expect((visual.lines || []).some((line) => line.color === '#ff2a0a' && line.alpha < 0.3)).toBe(true);
+    expect((visual.lines || []).filter((line) => line.color === '#ffd36b').length).toBeGreaterThanOrEqual(8);
+    expect((visual.circles || []).filter((circle) => (
+      circle.x === geometry().targetCenter.x && circle.y === geometry().targetCenter.y
+    ))).toHaveLength(0);
+  });
+
+  test('grass will beam uses a green core without generated seed-like target geometry', () => {
+    const snapshot = geometry();
+    const visual = buildPixiSourceTrajectoryVisualState(
+      requestFor('grassWillSeedBeam'),
+      snapshot,
+      0.5
+    );
+
+    expect(visual.visible).toBe(true);
+    expect(Math.max(...(visual.lines || []).map((line) => line.width))).toBeGreaterThanOrEqual(48);
+    expect((visual.lines || []).some((line) => line.color === '#eaffb8' && line.alpha >= 0.4)).toBe(true);
+    expect((visual.lines || []).some((line) => line.color === '#0f7d3c' && line.alpha < 0.3)).toBe(true);
+    expect((visual.lines || []).filter((line) => line.color === '#dfff86')).toHaveLength(0);
+    expect((visual.circles || []).filter((circle) => (
+      circle.x === snapshot.targetCenter.x && circle.y === snapshot.targetCenter.y
+    ))).toHaveLength(0);
+  });
+
+  test('water will beam uses a blue aqua core without a stone-shaped target disc', () => {
+    const snapshot = geometry();
+    const visual = buildPixiSourceTrajectoryVisualState(
+      requestFor('waterWillHealingBeam'),
+      snapshot,
+      0.5
+    );
+
+    expect(visual.visible).toBe(true);
+    expect(Math.max(...(visual.lines || []).map((line) => line.width))).toBeGreaterThanOrEqual(48);
+    expect((visual.lines || []).some((line) => line.color === '#e6fbff' && line.alpha >= 0.4)).toBe(true);
+    expect((visual.lines || []).some((line) => line.color === '#075b9e' && line.alpha < 0.3)).toBe(true);
+    expect((visual.circles || []).filter((circle) => (
+      circle.x === snapshot.targetCenter.x && circle.y === snapshot.targetCenter.y
+    ))).toHaveLength(0);
+  });
+
   test('keeps source visuals on logical coordinates and clips their pixels at the profile boundary', () => {
     const partiallyVisibleProjectile = buildPixiSourceTrajectoryVisualState(
       requestFor('sniperShot'),
@@ -662,10 +714,13 @@ describe('Pixi board source trajectory renderer', () => {
     expect(renderer.getDiagnostics()).toMatchObject({ noObjectRunCount: 1, offscreenNoObjectRunCount: 1 });
   });
 
-  test('NOANIM and reduced-motion zombie run duration zero before handle or lease acquisition', async () => {
+  test('NOANIM and reduced-motion skipped profiles run duration zero before handle or lease acquisition', async () => {
     for (const testCase of [
       { request: requestFor('sniperShot'), noAnimation: true, reducedMotion: false },
-      { request: requestFor('zombieBite'), noAnimation: false, reducedMotion: true }
+      { request: requestFor('zombieBite'), noAnimation: false, reducedMotion: true },
+      { request: requestFor('fireWillFlameBeam'), noAnimation: false, reducedMotion: true },
+      { request: requestFor('waterWillHealingBeam'), noAnimation: false, reducedMotion: true },
+      { request: requestFor('grassWillSeedBeam'), noAnimation: false, reducedMotion: true }
     ]) {
       const harness = createProjection(testCase);
       const renderer = createPixiSourceTrajectoryRenderer();
@@ -741,7 +796,7 @@ describe('Pixi board source trajectory renderer', () => {
     const frame = makeFrame();
     scene.applyFrame(frame, { canvasViewport: { sceneOffsetX: 64, sceneOffsetY: 64 } });
     const materializedBefore = scene.getDiagnostics().activeViewCount;
-    const request = requestFor('destroyDragonBreath', { row: 1, col: -2 }, { row: 1, col: 6 });
+    const request = requestFor('fireWillFlameBeam', { row: 1, col: -2 }, { row: 1, col: 6 });
     const snapshot = scene.snapshotSourceTrajectoryGeometry(request);
 
     expect(snapshot).toMatchObject({

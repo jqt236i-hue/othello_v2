@@ -1,7 +1,10 @@
 import {
   isSpawnOwnedStatusVisualEvent,
-  type PresentationPlaybackEvent
+  resolveStatusPlaybackStoneMutation,
+  type PresentationPlaybackEvent,
+  type PresentationPlaybackTarget
 } from '../../board-visual/playback-types';
+import PresentationEffectProfiles = require('../../../shared/presentation-effect-profiles');
 import type {
   PixiPlaybackCellHighlightHandle,
   PixiPlaybackEffectHandle,
@@ -9,6 +12,7 @@ import type {
 } from '../board-scene';
 import type { BoardFrameInnerBoundaryEdge } from '../cell-view';
 import {
+  createPlaybackSeedMarkers,
   createPlaybackStoneVisual,
   normalizePlaybackCoordinate,
   type PixiPlaybackStoneVisual
@@ -110,9 +114,10 @@ function boardFrameInnerBoundaryEdges(
     .map(([edge]) => edge));
 }
 
-function resolveStatusSpecial(event: PresentationPlaybackEvent, target: any): string {
+function resolveStatusSpecial(event: PresentationPlaybackEvent, target: PresentationPlaybackTarget): string {
   const meta = eventMeta(event);
-  return upper(meta.special || target?.after?.special);
+  const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+  return upper(targetMeta.special || meta.special || target?.after?.special);
 }
 
 function isHazardStatus(special: string): boolean {
@@ -134,7 +139,7 @@ function resolveStatusAfterVisual(
   if (isHazardStatus(special) && upper(event?.rawType) !== 'STATUS_TICK') {
     return current;
   }
-  if (special === 'BLOCKADE' || special === 'POISON_CELL' || special === 'SCORCHED_CELL') {
+  if (special === 'BLOCKADE' || special === 'POISON_CELL' || special === 'SCORCHED_CELL' || special === 'HEALING_CELL') {
     return current;
   }
   if (special === 'FREEZE') {
@@ -143,14 +148,7 @@ function resolveStatusAfterVisual(
       ? (createPlaybackStoneVisual(target?.after) || current)
       : current;
   }
-  const meta = eventMeta(event);
-  const resolved = createPlaybackStoneVisual(
-    target?.after,
-    target?.owner,
-    meta.owner,
-    event?.owner
-  );
-  return resolved;
+  return createPlaybackStoneVisual(target?.after) || current;
 }
 
 function resolveStatusMode(
@@ -166,7 +164,7 @@ function resolveStatusMode(
   if (isRemoved && special === 'FREEZE' && reason === 'duration_end' && !target?.after?.special) {
     return 'freeze-fade';
   }
-  if (isHazardStatus(special) || isCausalReplayCellRestoration(event)) return 'immediate';
+  if (isHazardStatus(special) || special === 'HEALING_CELL' || isCausalReplayCellRestoration(event)) return 'immediate';
   if (upper(target?.after?.special) === 'METEOR_HOLE') {
     return isBoardShrinkHole(event, target) ? 'hole-push' : 'immediate';
   }
@@ -198,12 +196,81 @@ function resolveVisualDurationMs(
 
 async function playStatusTarget(
   event: PresentationPlaybackEvent,
-  target: any,
+  target: PresentationPlaybackTarget,
   projection: PixiBoardEffectProjection
 ): Promise<void> {
   const coordinate = normalizePlaybackCoordinate(target);
   if (!coordinate || !isPlayableCoordinate(projection, coordinate.row, coordinate.col)) return;
+  const profileKey = PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey(
+    'status_applied',
+    target
+  );
   const special = resolveStatusSpecial(event, target);
+  const meta = eventMeta(event);
+  const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+  const seedMarkers = special === 'SEED'
+    ? createPlaybackSeedMarkers(
+      target?.after,
+      targetMeta.owner,
+      target?.owner,
+      meta.owner,
+      event?.owner
+    )
+    : Object.freeze([]);
+  const usesSeedMarker = lower(event?.type) === 'status_applied' && seedMarkers.length > 0;
+  const waitsForSeedTrajectory = profileKey === 'grassWillSeedBeam' && usesSeedMarker;
+  // A committed frame can already contain the new seed while playback waits
+  // for its beam. Pin the target to the pre-impact empty state immediately so
+  // that marker cannot flash before the trajectory lands.
+  if (waitsForSeedTrajectory) {
+    projection.setProjectedStone(coordinate.row, coordinate.col, null);
+  }
+  const sourceTrajectoryGate = projection.waitForSourceTrajectories(event, target);
+  if (profileKey) {
+    projection.record?.('pixi-playback:target-impact-start', {
+      eventType: 'status_applied',
+      row: coordinate.row,
+      col: coordinate.col,
+      profileKey
+    });
+  }
+  await sourceTrajectoryGate;
+  const stoneMutation = resolveStatusPlaybackStoneMutation(event, target);
+  if (!usesSeedMarker && (stoneMutation === 'preserve' || stoneMutation === 'timer-only')) {
+    const tone = resolveStatusHighlightTone(event, target, projection.noAnimation);
+    const durationMs = tone ? projection.timings.positiveHighlightMinimumMs : 0;
+    let highlight: PixiPlaybackCellHighlightHandle | null = null;
+    try {
+      await projection.timeline.run({
+        durationMs,
+        effectFamily: `status-${stoneMutation}`,
+        event,
+        onStart: () => {
+          if (tone) {
+            highlight = projection.acquireHighlight(coordinate.row, coordinate.col, tone);
+          }
+        },
+        onUpdate: (progress) => {
+          if (progress >= 1 && highlight) {
+            const owned = highlight;
+            highlight = null;
+            projection.releaseHighlight(owned);
+          }
+        }
+      });
+      if (profileKey) {
+        projection.record?.('pixi-playback:target-commit', {
+          eventType: 'status_applied',
+          row: coordinate.row,
+          col: coordinate.col,
+          profileKey
+        });
+      }
+    } finally {
+      if (highlight) projection.releaseHighlight(highlight);
+    }
+    return;
+  }
   const mode = resolveStatusMode(event, target, special);
   const beforeColor = Number(target?.before?.color);
   const eventBefore = (beforeColor === 1 || beforeColor === -1)
@@ -221,6 +288,7 @@ async function playStatusTarget(
   let highlight: PixiPlaybackCellHighlightHandle | null = null;
   let outgoingGhost: PixiPlaybackGhostHandle | null = null;
   let incomingGhost: PixiPlaybackGhostHandle | null = null;
+  let retainedSeedGhost: PixiPlaybackGhostHandle | null = null;
   let topologyEffect: PixiPlaybackEffectHandle | null = null;
   let topologyRetained = false;
   let timelineCompleted = false;
@@ -257,7 +325,18 @@ async function playStatusTarget(
   const applyFinal = () => {
     if (finalApplied) return;
     releaseGhosts();
-    projection.setProjectedStone(coordinate.row, coordinate.col, after);
+    if (usesSeedMarker) {
+      if (!retainedSeedGhost) {
+        retainedSeedGhost = projection.setProjectedMarkers(
+          coordinate.row,
+          coordinate.col,
+          seedMarkers
+        );
+      }
+      if (retainedSeedGhost) projection.updateGhost(retainedSeedGhost, { alpha: 1 });
+    } else {
+      projection.setProjectedStone(coordinate.row, coordinate.col, after);
+    }
     if (mode === 'hole-push' && topologyEffect && !topologyRetained) {
       projection.updateEffect(topologyEffect, { alpha: 1, scale: 1 });
       projection.retainEffect(coordinate.row, coordinate.col, topologyEffect);
@@ -312,7 +391,20 @@ async function playStatusTarget(
           });
         }
 
-        projection.setProjectedStone(coordinate.row, coordinate.col, null);
+        if (usesSeedMarker) {
+          retainedSeedGhost = projection.setProjectedMarkers(
+            coordinate.row,
+            coordinate.col,
+            seedMarkers
+          );
+          if (retainedSeedGhost) {
+            projection.updateGhost(retainedSeedGhost, {
+              alpha: projection.noAnimation ? 1 : 0
+            });
+          }
+        } else {
+          projection.setProjectedStone(coordinate.row, coordinate.col, null);
+        }
         if (current) outgoingGhost = projection.acquireTransientGhost(
           coordinate.row,
           coordinate.col,
@@ -342,12 +434,23 @@ async function playStatusTarget(
         } else if (mode === 'crossfade') {
           if (outgoingGhost) projection.updateGhost(outgoingGhost, { alpha: 1 - visualProgress });
           if (incomingGhost) projection.updateGhost(incomingGhost, { alpha: visualProgress });
+          if (retainedSeedGhost) {
+            projection.updateGhost(retainedSeedGhost, { alpha: visualProgress });
+          }
         }
         if (visualProgress >= 1) applyFinal();
         if (progress >= 1) releaseHighlight();
       }
     });
     timelineCompleted = true;
+    if (profileKey) {
+      projection.record?.('pixi-playback:target-commit', {
+        eventType: 'status_applied',
+        row: coordinate.row,
+        col: coordinate.col,
+        profileKey
+      });
+    }
   } finally {
     releaseGhosts();
     releaseHighlight();
@@ -360,6 +463,6 @@ export async function playPixiStatusEffect(
   projection: PixiBoardEffectProjection
 ): Promise<void> {
   if (isSpawnOwnedStatusVisualEvent(event)) return;
-  const targets: readonly unknown[] = Array.isArray(event?.targets) ? event.targets : [];
+  const targets = (Array.isArray(event?.targets) ? event.targets : []) as readonly PresentationPlaybackTarget[];
   await Promise.all(targets.map((target) => playStatusTarget(event, target, projection)));
 }

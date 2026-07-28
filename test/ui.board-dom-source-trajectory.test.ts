@@ -98,6 +98,175 @@ describe('DOM board source trajectory ownership', () => {
     await run.settlement;
   });
 
+  test('routes FIRE_WILL status through the board-owned flame beam and target gate', async () => {
+    const animateDestroyDragonBreath = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/animation-destroy-source-events', () => ({
+      animateDestroyDragonBreath
+    }));
+    const board = document.getElementById('board') as HTMLElement;
+    board.innerHTML = [
+      '<div class="cell" data-row="1" data-col="1"></div>',
+      '<div class="cell" data-row="4" data-col="5"></div>'
+    ].join('');
+    board.getBoundingClientRect = () => rect(60, 60, 200, 200) as DOMRect;
+    const sourceCell = board.querySelector<HTMLElement>('.cell[data-row="1"][data-col="1"]')!;
+    const targetCell = board.querySelector<HTMLElement>('.cell[data-row="4"][data-col="5"]')!;
+    sourceCell.getBoundingClientRect = () => rect(90, 90) as DOMRect;
+    targetCell.getBoundingClientRect = () => rect(190, 190) as DOMRect;
+    const meta = Object.freeze({
+      special: 'SCORCHED_CELL',
+      cause: 'FIRE_WILL',
+      reason: 'scorched_cell_applied',
+      sourceRow: 1,
+      sourceCol: 1,
+      sourceTrajectoryProfile: 'fireWillFlameBeam'
+    });
+    const event = Object.freeze({
+      type: 'status_applied',
+      targets: Object.freeze([Object.freeze({
+        r: 4,
+        col: 5,
+        sourceRow: 1,
+        sourceCol: 1,
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        meta
+      })])
+    });
+    const SourceTrajectory = require('../ui/board-dom-compat/source-trajectory');
+
+    const run = SourceTrajectory.startDomBoardSourceTrajectoryBatch(
+      [event],
+      contextFor([event]),
+      baseDeps(document, board)
+    );
+
+    await expect(run.waitForTarget('status_applied', event.targets[0], event)).resolves.toBeUndefined();
+    expect(animateDestroyDragonBreath).toHaveBeenCalledTimes(1);
+    expect(animateDestroyDragonBreath.mock.calls[0][1]).toMatchObject({
+      suppressTargetImpact: true
+    });
+    expect(run.batch.requests[0]).toMatchObject({
+      profileKey: 'fireWillFlameBeam',
+      eventType: 'status_applied',
+      source: { row: 1, col: 1 },
+      target: { row: 4, col: 5 }
+    });
+  });
+
+  test('routes GRASS_WILL seed status through the board-owned green beam and target gate', async () => {
+    const animateDestroyDragonBreath = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/animation-destroy-source-events', () => ({
+      animateDestroyDragonBreath
+    }));
+    const board = document.getElementById('board') as HTMLElement;
+    board.innerHTML = [
+      '<div class="cell" data-row="1" data-col="1"></div>',
+      '<div class="cell" data-row="4" data-col="5"></div>'
+    ].join('');
+    board.getBoundingClientRect = () => rect(60, 60, 200, 200) as DOMRect;
+    const sourceCell = board.querySelector<HTMLElement>('.cell[data-row="1"][data-col="1"]')!;
+    const targetCell = board.querySelector<HTMLElement>('.cell[data-row="4"][data-col="5"]')!;
+    sourceCell.getBoundingClientRect = () => rect(90, 90) as DOMRect;
+    targetCell.getBoundingClientRect = () => rect(190, 190) as DOMRect;
+    const meta = Object.freeze({
+      special: 'SEED',
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      sourceRow: 1,
+      sourceCol: 1,
+      sourceTrajectoryProfile: 'grassWillSeedBeam'
+    });
+    const event = Object.freeze({
+      type: 'status_applied',
+      targets: Object.freeze([Object.freeze({
+        r: 4,
+        col: 5,
+        sourceRow: 1,
+        sourceCol: 1,
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        meta
+      })])
+    });
+    const SourceTrajectory = require('../ui/board-dom-compat/source-trajectory');
+
+    const run = SourceTrajectory.startDomBoardSourceTrajectoryBatch(
+      [event],
+      contextFor([event]),
+      baseDeps(document, board)
+    );
+
+    await expect(run.waitForTarget('status_applied', event.targets[0], event)).resolves.toBeUndefined();
+    expect(animateDestroyDragonBreath).toHaveBeenCalledTimes(1);
+    expect(animateDestroyDragonBreath.mock.calls[0][0]).toMatchObject({ meta });
+    expect(animateDestroyDragonBreath.mock.calls[0][1]).toMatchObject({
+      suppressTargetImpact: true
+    });
+    expect(run.batch.requests[0]).toMatchObject({
+      profileKey: 'grassWillSeedBeam',
+      eventType: 'status_applied',
+      source: { row: 1, col: 1 },
+      target: { row: 4, col: 5 }
+    });
+  });
+
+  test('routes WATER_WILL healing status through the board-owned blue beam and target gate', async () => {
+    const animateDestroyDragonBreath = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/animation-destroy-source-events', () => ({
+      animateDestroyDragonBreath
+    }));
+    const board = document.getElementById('board') as HTMLElement;
+    board.innerHTML = [
+      '<div class="cell" data-row="1" data-col="1"></div>',
+      '<div class="cell" data-row="4" data-col="5"></div>'
+    ].join('');
+    board.getBoundingClientRect = () => rect(60, 60, 200, 200) as DOMRect;
+    const sourceCell = board.querySelector<HTMLElement>('.cell[data-row="1"][data-col="1"]')!;
+    const targetCell = board.querySelector<HTMLElement>('.cell[data-row="4"][data-col="5"]')!;
+    sourceCell.getBoundingClientRect = () => rect(90, 90) as DOMRect;
+    targetCell.getBoundingClientRect = () => rect(190, 190) as DOMRect;
+    const meta = Object.freeze({
+      special: 'HEALING_CELL',
+      cause: 'WATER_WILL',
+      reason: 'healing_cell_applied',
+      sourceRow: 1,
+      sourceCol: 1,
+      sourceTrajectoryProfile: 'waterWillHealingBeam'
+    });
+    const event = Object.freeze({
+      type: 'status_applied',
+      targets: Object.freeze([Object.freeze({
+        r: 4,
+        col: 5,
+        sourceRow: 1,
+        sourceCol: 1,
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        meta
+      })])
+    });
+    const SourceTrajectory = require('../ui/board-dom-compat/source-trajectory');
+    const run = SourceTrajectory.startDomBoardSourceTrajectoryBatch(
+      [event],
+      contextFor([event]),
+      baseDeps(document, board)
+    );
+
+    await expect(run.waitForTarget('status_applied', event.targets[0], event)).resolves.toBeUndefined();
+    expect(animateDestroyDragonBreath).toHaveBeenCalledTimes(1);
+    expect(animateDestroyDragonBreath.mock.calls[0][0]).toMatchObject({ meta });
+    expect(animateDestroyDragonBreath.mock.calls[0][1]).toMatchObject({
+      suppressTargetImpact: true
+    });
+    expect(run.batch.requests[0]).toMatchObject({
+      profileKey: 'waterWillHealingBeam',
+      eventType: 'status_applied',
+      source: { row: 1, col: 1 },
+      target: { row: 4, col: 5 }
+    });
+  });
+
   test('keeps full-scope ordinals while starting only the current playPhase launch', async () => {
     const board = document.getElementById('board') as HTMLElement;
     const events = Object.freeze([0, 1].map((index) => Object.freeze({

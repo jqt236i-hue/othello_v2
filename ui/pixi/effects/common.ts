@@ -139,6 +139,23 @@ export function createPlaybackStoneVisual(
   });
 }
 
+export function createPlaybackSeedMarkers(
+  rawState: unknown,
+  ...ownerFallbacks: unknown[]
+): readonly BoardMarkerVisualState[] {
+  const state = asRecord(rawState);
+  if (specialTypeFromState(state) !== 'SEED') return Object.freeze([]);
+  const owner = normalizePlaybackOwner(state.owner, state.color, ...ownerFallbacks);
+  if (!owner) return Object.freeze([]);
+  return Object.freeze([
+    marker('seed', owner, {
+      ...state,
+      type: 'SEED',
+      remainingOwnerTurns: state.remainingOwnerTurns ?? state.timer ?? null
+    })
+  ]);
+}
+
 export function playbackTargetState(target: unknown, key: 'before' | 'after'): unknown {
   const source = asRecord(target);
   return source[key] && typeof source[key] === 'object' ? source[key] : null;

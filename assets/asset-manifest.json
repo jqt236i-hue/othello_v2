@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-27",
-  "generatedAt": "2026-07-27T11:24:04.888Z",
+  "version": "2026-07-28",
+  "generatedAt": "2026-07-28T01:56:07.730Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -81,6 +81,14 @@
     {
       "path": "assets/images/special-stones/gold_stone.png",
       "sha256": "1743ea2ab9070228e3be985c0090766ee69487a1066fd0cb397aca1cb2b54686"
+    },
+    {
+      "path": "assets/images/special-stones/grass-will-black.png",
+      "sha256": "93ea35ea673a5e4607735b62c44f1faeb8e0869b4bd95b30cc4eff3528f15810"
+    },
+    {
+      "path": "assets/images/special-stones/grass-will-white.png",
+      "sha256": "86db505876857de1725deb288c96f4df38235942259168b3a84e971c7877f96c"
     },
     {
       "path": "assets/images/special-stones/HYPERACTIVE_WILL-black.png",
@@ -253,6 +261,14 @@
     {
       "path": "assets/images/special-stones/ULTIMATE_WORK_GOD-white.png",
       "sha256": "aac6bc88045478ed3e802f0fcf229ea439face6f463d8a192afeb8a12a5aad23"
+    },
+    {
+      "path": "assets/images/special-stones/water-will-black.png",
+      "sha256": "8805fa8db888d610f7c20954d5f573178eebc44ceec2db74a66a9de445da2cec"
+    },
+    {
+      "path": "assets/images/special-stones/water-will-white.png",
+      "sha256": "67c0897f9d26b585fed09602a6a2f0a45c6c642db9010762fd011367fdc02395"
     },
     {
       "path": "assets/images/special-stones/WILL_HUNTER_KING-black.png",
@@ -477,6 +493,14 @@
     {
       "path": "assets/images/special-cards/backgrounds/fire_will_background.png",
       "sha256": "c32d6e00fec14db8af150f59fa4b7a565f78fd767ed8db8bb202a6024bfdedff"
+    },
+    {
+      "path": "assets/images/special-cards/backgrounds/grass_will_background.png",
+      "sha256": "7e62a6c4b18231cde006083826ed23feaae24102d0a4f3348439071760152bb1"
+    },
+    {
+      "path": "assets/images/special-cards/backgrounds/water_will_background.png",
+      "sha256": "f56e67013207a3a6cc246f631a2e9dfb21531fe0f6693efbdc8c4a5e085246aa"
     },
     {
       "path": "assets/images/special-cards/backgrounds/zombie_will_background.png",
@@ -919,12 +943,20 @@
       "sha256": "438343a40a4072ddb59af6a10006e325ba4b18dd8d670041aa7eb2b0a47af0ed"
     },
     {
+      "path": "assets/audio/sound-effect/水の意志で治癒マスを生成するタイミング.mp3",
+      "sha256": "041b0f9dbc98a123947fe35803b794b1343657783ed1f803ab9f68f5d805ee6b"
+    },
+    {
       "path": "assets/audio/sound-effect/浮力系で石が浮上したタイミング.mp3",
       "sha256": "3031ebb18bfbe8e4b081763d9d15c7dada0fde02086dce88ae1ffee2e9ed0151"
     },
     {
       "path": "assets/audio/sound-effect/混沌召喚のルーレット効果音.mp3",
       "sha256": "c0d41ca87dfb0a49eb952b2cd4522054a644b8ea313924b4e7425766ed0caa73"
+    },
+    {
+      "path": "assets/audio/sound-effect/火の意志で灼熱マスを生成するタイミング.mp3",
+      "sha256": "c4bca74a560db3d010c1d57da36733b6f222a2830589f7984bf30b9451a7f288"
     },
     {
       "path": "assets/audio/sound-effect/爆弾系の石が起爆したタイミング.mp3",

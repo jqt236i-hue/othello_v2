@@ -4,7 +4,7 @@ import type {
   BoardSourceTrajectoryProfileKey,
   BoardSourceTrajectoryRequest
 } from '../../board-visual/source-trajectory';
-import type { BoardVisualFrame } from '../../board-visual/types';
+import type { BoardMarkerVisualState, BoardVisualFrame } from '../../board-visual/types';
 import type {
   PixiBoardScene,
   PixiPlaybackCellHighlightHandle,
@@ -58,6 +58,11 @@ export interface PixiBoardEffectProjection {
   getPhaseSourceStone(row: number, col: number): PixiPlaybackStoneVisual | null;
   getProjectedStone(row: number, col: number): PixiPlaybackStoneVisual | null;
   setProjectedStone(row: number, col: number, visual: PixiPlaybackStoneVisual | null): void;
+  setProjectedMarkers(
+    row: number,
+    col: number,
+    markers: readonly BoardMarkerVisualState[]
+  ): PixiPlaybackGhostHandle | null;
   acquireTransientGhost(
     row: number,
     col: number,

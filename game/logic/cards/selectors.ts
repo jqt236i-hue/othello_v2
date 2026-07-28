@@ -762,13 +762,17 @@ function getExtendLifeTargets(cardState: CardState, _gameState: GameState, playe
     const ownerKey = String(playerKey || '');
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    const isTrueSpecialStoneMarker = CardUtils && typeof CardUtils.isTrueSpecialStoneMarker === 'function'
+        ? CardUtils.isTrueSpecialStoneMarker
+        : (() => false);
     const isDurationAffectableMarker = CardUtils && typeof CardUtils.isDurationAffectableMarker === 'function'
         ? CardUtils.isDurationAffectableMarker
-        : ((marker: any) => !!(marker && marker.kind === 'specialStone'));
+        : (() => false);
     const res: TargetCell[] = [];
     const seen = new Set<string>();
     for (const marker of markers) {
         if (!marker || marker.kind !== 'specialStone') continue;
+        if (!isTrueSpecialStoneMarker(marker)) continue;
         if (!isDurationAffectableMarker(marker)) continue;
         if (marker.owner !== ownerKey) continue;
         const remaining = (marker.data && Number.isFinite(marker.data.remainingOwnerTurns))

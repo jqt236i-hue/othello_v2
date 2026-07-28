@@ -9,6 +9,27 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
+type StatusCellSubjectKind = 'stone_body' | 'stone_status' | 'cell_marker' | 'topology' | 'placement_effect';
+type StatusCellOwnershipPolicy = 'stone_owner' | 'source_player' | 'none';
+type StatusCellDurationClock = 'owner_turn' | 'completed_turn' | 'permanent' | 'none';
+
+interface StatusCellSemanticTraits {
+    subjectKind: StatusCellSubjectKind;
+    ownershipPolicy: StatusCellOwnershipPolicy;
+    durationClock: StatusCellDurationClock;
+}
+
+interface StatusCellMarkerConfig {
+    markerType: string;
+    reason: string;
+    remainingOwnerTurns?: number;
+    remainingTurns?: number;
+    appliedTurnNumber?: number;
+    sourceCardType?: string;
+    presentationMeta?: Record<string, unknown> | null;
+    [key: string]: unknown;
+}
+
 function applyStatusCellWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, config: any, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const removeMarkersAt = deps && deps.removeMarkersAt;
@@ -42,13 +63,63 @@ function applyStatusCellWill(cardState: CardState, gameState: GameState, playerK
     return result;
 }
 
-const TEMPORARY_SPECIAL_CELL_TYPES = Object.freeze([
-    'BLOCKADE',
-    'FREEZE',
-    'SEED',
-    'POISON_CELL',
-    'SCORCHED_CELL'
-]);
+function getTemporarySpecialCellTypes(deps: any): string[] {
+    const source = deps && deps.TEMPORARY_SPECIAL_CELL_TYPES;
+    if (source instanceof Set) return Array.from(source).map((type) => String(type).toUpperCase());
+    if (Array.isArray(source)) return source.map((type) => String(type).toUpperCase());
+    throw new Error('Status-cell resolution requires SpecialStoneRegistry.TEMPORARY_SPECIAL_CELL_TYPES');
+}
+
+function isTemporarySpecialCellType(rawType: unknown, deps: any): boolean {
+    if (!deps || typeof deps.isTemporarySpecialCellType !== 'function') {
+        throw new Error('Status-cell resolution requires SpecialStoneRegistry.isTemporarySpecialCellType');
+    }
+    return deps.isTemporarySpecialCellType(rawType) === true;
+}
+
+function getStatusCellSemanticTraits(rawType: unknown, markerData: unknown, deps: any): StatusCellSemanticTraits {
+    if (!deps || typeof deps.getMarkerSemanticTraits !== 'function') {
+        throw new Error('Status-cell resolution requires SpecialStoneRegistry.getMarkerSemanticTraits');
+    }
+    const traits = deps.getMarkerSemanticTraits(rawType, markerData);
+    if (!traits || traits.subjectKind !== 'cell_marker') {
+        throw new Error(`Status-cell marker type is not a canonical cell marker: ${String(rawType || '')}`);
+    }
+    return traits as StatusCellSemanticTraits;
+}
+
+function createCellMarkerPresentationMeta(
+    markerTypeRaw: unknown,
+    markerData: Record<string, any>,
+    markerOwner: PlayerKey | null,
+    sourcePlayer: PlayerKey | null,
+    reason: string,
+    presentationMeta: Record<string, unknown> | null,
+    deps: any
+): Record<string, unknown> {
+    const markerTypeKey = String(markerTypeRaw || '').trim().toUpperCase();
+    const traits = getStatusCellSemanticTraits(markerTypeKey, markerData, deps);
+    const timer = traits.durationClock === 'completed_turn'
+        ? markerData.remainingTurns
+        : traits.durationClock === 'owner_turn'
+            ? markerData.remainingOwnerTurns
+            : null;
+    const semanticOwner = traits.ownershipPolicy === 'none' ? null : markerOwner;
+    const semanticSourcePlayer = sourcePlayer || (
+        traits.ownershipPolicy === 'none' && (markerOwner === 'black' || markerOwner === 'white')
+            ? markerOwner
+            : null
+    );
+    return Object.assign({}, presentationMeta || {}, {
+        special: markerTypeKey,
+        owner: semanticOwner,
+        sourcePlayer: semanticSourcePlayer,
+        timer: Number.isFinite(Number(timer)) ? Math.max(0, Math.trunc(Number(timer))) : null,
+        reason,
+        subjectKind: traits.subjectKind,
+        stoneMutation: 'preserve'
+    });
+}
 
 function removeTemporarySpecialCellsAt(cardState: CardState, row: number, col: number, deps: any): string[] {
     const getMarkers = deps && deps.getMarkers;
@@ -61,23 +132,38 @@ function removeTemporarySpecialCellsAt(cardState: CardState, row: number, col: n
             marker &&
             marker.row === row &&
             marker.col === col &&
-            TEMPORARY_SPECIAL_CELL_TYPES.includes(markerType(marker))
+            isTemporarySpecialCellType(markerType(marker), deps)
         ));
         for (const marker of candidates) {
             const type = markerType(marker);
             if (!removeMarkerById(cardState, marker.id)) continue;
             removed.push(type);
-            if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
-                type: 'STATUS_REMOVED',
-                row,
-                col,
-                meta: { special: type, reason: 'special_cell_overwritten' }
-            });
+            if (typeof emitPresentationEvent === 'function') {
+                const data = marker.data && typeof marker.data === 'object' ? marker.data : {};
+                const owner = marker.owner === 'black' || marker.owner === 'white' ? marker.owner : null;
+                const sourcePlayer = data.sourcePlayer === 'black' || data.sourcePlayer === 'white'
+                    ? data.sourcePlayer
+                    : owner;
+                emitPresentationEvent(cardState, {
+                    type: 'STATUS_REMOVED',
+                    row,
+                    col,
+                    meta: createCellMarkerPresentationMeta(
+                        type,
+                        data,
+                        owner,
+                        sourcePlayer,
+                        'special_cell_overwritten',
+                        null,
+                        deps
+                    )
+                });
+            }
         }
         return removed;
     }
     if (typeof removeMarkersAt === 'function') {
-        for (const type of TEMPORARY_SPECIAL_CELL_TYPES) {
+        for (const type of getTemporarySpecialCellTypes(deps)) {
             const count = Number(removeMarkersAt(cardState, row, col, {
                 kind: deps && deps.MARKER_KINDS ? deps.MARKER_KINDS.SPECIAL_STONE : 'specialStone',
                 type
@@ -88,7 +174,14 @@ function removeTemporarySpecialCellsAt(cardState: CardState, row: number, col: n
     return removed;
 }
 
-function applyStatusCellMarker(cardState: CardState, playerKey: PlayerKey, row: number, col: number, config: any, deps: any): Record<string, any> {
+function applyStatusCellMarker(
+    cardState: CardState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    config: StatusCellMarkerConfig,
+    deps: any
+): Record<string, any> {
     const addMarker = deps && deps.addMarker;
     const emitPresentationEvent = deps && deps.emitPresentationEvent;
 
@@ -110,18 +203,42 @@ function applyStatusCellMarker(cardState: CardState, playerKey: PlayerKey, row: 
     if (Number.isFinite(Number(config.appliedTurnNumber))) {
         markerData.appliedTurnNumber = Number(config.appliedTurnNumber);
     }
-    const marker = addMarker(cardState, 'specialStone', row, col, playerKey, markerData);
+    const sourceCardType = String(config.sourceCardType || '').trim().toUpperCase();
+    if (sourceCardType === 'SEED_WILL' || sourceCardType === 'GRASS_WILL') {
+        markerData.sourceCardType = sourceCardType;
+    }
+    const semanticTraits = getStatusCellSemanticTraits(config.markerType, markerData, deps);
+    const markerOwner = semanticTraits.ownershipPolicy === 'none' ? null : playerKey;
+    const sourcePlayer = playerKey;
+    if (semanticTraits.ownershipPolicy === 'none') {
+        markerData.sourcePlayer = sourcePlayer;
+    }
+    const marker = addMarker(
+        cardState,
+        'specialStone',
+        row,
+        col,
+        markerOwner,
+        markerData,
+        { emitStatusApplied: false }
+    );
     if (typeof emitPresentationEvent === 'function') {
+        const presentationMeta = config.presentationMeta && typeof config.presentationMeta === 'object'
+            ? config.presentationMeta
+            : null;
         emitPresentationEvent(cardState, {
             type: 'STATUS_APPLIED',
             row,
             col,
-            meta: {
-                special: config.markerType,
-                owner: playerKey,
-                timer: config.remainingOwnerTurns,
-                reason: config.reason
-            }
+            meta: createCellMarkerPresentationMeta(
+                config.markerType,
+                markerData,
+                markerOwner,
+                sourcePlayer,
+                config.reason,
+                presentationMeta,
+                deps
+            )
         });
     }
     return { applied: true, row, col, markerId: marker && marker.id, removedTypes };
@@ -215,8 +332,52 @@ function applySeedWill(cardState: CardState, gameState: GameState, playerKey: Pl
         markerType: 'SEED',
         reason: 'seed_selected',
         remainingOwnerTurns: deps && deps.SEED_WILL_TURNS,
+        sourceCardType: 'SEED_WILL',
         getTargets: deps && deps.getSeedTargets
     }, deps);
+}
+
+function applySeedMarker(
+    cardState: CardState,
+    gameState: GameState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    sourceCardType: string,
+    deps: any,
+    sourceRow?: number,
+    sourceCol?: number
+): Record<string, any> {
+    const getTargets = deps && deps.getSeedTargets;
+    if (typeof getTargets !== 'function') {
+        return { applied: false, reason: 'deps_missing' };
+    }
+    const targets = getTargets(cardState, gameState, playerKey);
+    const allowed = Array.isArray(targets) && targets.some((target: any) => (
+        target && target.row === row && target.col === col
+    ));
+    if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+    const normalizedSourceCardType = String(sourceCardType || '').trim().toUpperCase();
+    const hasGrassSource = normalizedSourceCardType === 'GRASS_WILL'
+        && Number.isInteger(sourceRow)
+        && Number.isInteger(sourceCol);
+    const result = applyStatusCellMarker(cardState, playerKey, row, col, {
+        markerType: 'SEED',
+        reason: 'grass_seeded',
+        remainingOwnerTurns: deps && deps.SEED_WILL_TURNS,
+        sourceCardType,
+        presentationMeta: hasGrassSource ? {
+            cause: 'GRASS_WILL',
+            sourceRow,
+            sourceCol,
+            sourceTrajectoryProfile: 'grassWillSeedBeam'
+        } : null
+    }, deps);
+    if (result.applied) {
+        syncHazardContacts(cardState, gameState, Number(gameState && (gameState as any).turnNumber || 0), deps);
+    }
+    return result;
 }
 
 function markerType(marker: any): string {
@@ -301,8 +462,9 @@ function syncScorchContacts(cardState: CardState, gameState: GameState, appliedT
         const stillOnContactCell = Number(status.data && status.data.contactRow) === Number(status.row) &&
             Number(status.data && status.data.contactCol) === Number(status.col);
         const onScorchCell = scorchCells.some((cell: any) => cell.row === status.row && cell.col === status.col);
+        const persistsWithoutScorchedCell = status.data && status.data.persistsWithoutScorchedCell === true;
         const inviolable = typeof isInviolableCell === 'function' && isInviolableCell(cardState, status.row, status.col);
-        if (occupied && stillOnContactCell && onScorchCell && !inviolable) continue;
+        if (occupied && stillOnContactCell && (onScorchCell || persistsWithoutScorchedCell) && !inviolable) continue;
         if (!removeMarkerById(cardState, status.id)) continue;
         removed += 1;
         if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
@@ -313,7 +475,7 @@ function syncScorchContacts(cardState: CardState, gameState: GameState, appliedT
                 special: 'SCORCHED',
                 reason: inviolable
                     ? 'inviolable'
-                    : (!occupied ? 'stone_absent' : (!onScorchCell ? 'scorched_cell_absent' : 'stone_left_cell'))
+                    : (!occupied ? 'stone_absent' : (!stillOnContactCell ? 'stone_left_cell' : 'scorched_cell_absent'))
             }
         });
     }
@@ -342,6 +504,37 @@ function syncScorchContacts(cardState: CardState, gameState: GameState, appliedT
     return { applied, removed };
 }
 
+function preserveScorchedStatusAfterHealingOverwrite(
+    cardState: CardState,
+    row: number,
+    col: number,
+    removedTypes: unknown,
+    deps: any
+): void {
+    if (
+        !Array.isArray(removedTypes) ||
+        !removedTypes.some((type) => String(type || '').trim().toUpperCase() === 'SCORCHED_CELL')
+    ) {
+        return;
+    }
+    const getMarkers = deps && deps.getMarkers;
+    if (typeof getMarkers !== 'function') return;
+    for (const status of getMarkers(cardState)) {
+        if (
+            !status ||
+            markerType(status) !== 'SCORCHED' ||
+            status.row !== row ||
+            status.col !== col ||
+            !status.data ||
+            Number(status.data.contactRow) !== row ||
+            Number(status.data.contactCol) !== col
+        ) {
+            continue;
+        }
+        status.data.persistsWithoutScorchedCell = true;
+    }
+}
+
 function syncHazardContacts(cardState: CardState, gameState: GameState, appliedTurnNumber: number, deps: any): Record<string, any> {
     const poison = syncPoisonContacts(cardState, gameState, appliedTurnNumber, deps);
     const scorch = syncScorchContacts(cardState, gameState, appliedTurnNumber, deps);
@@ -366,15 +559,61 @@ function applyPoisonWill(cardState: CardState, gameState: GameState, playerKey: 
     return result;
 }
 
-function applyScorchedCell(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
+function applyScorchedCell(
+    cardState: CardState,
+    gameState: GameState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    deps: any,
+    sourceRow?: number,
+    sourceCol?: number
+): Record<string, any> {
     const appliedTurnNumber = Number(gameState && (gameState as any).turnNumber || 0);
+    const hasSource = Number.isInteger(sourceRow) && Number.isInteger(sourceCol);
     const result = applyStatusCellMarker(cardState, playerKey, row, col, {
         markerType: 'SCORCHED_CELL',
         remainingTurns: deps.SCORCHED_CELL_TURNS,
         appliedTurnNumber,
-        reason: 'scorched_cell_applied'
+        reason: 'scorched_cell_applied',
+        presentationMeta: hasSource ? {
+            cause: 'FIRE_WILL',
+            sourceRow,
+            sourceCol,
+            sourceTrajectoryProfile: 'fireWillFlameBeam'
+        } : null
     }, deps);
     if (!result.applied) return result;
+    syncHazardContacts(cardState, gameState, appliedTurnNumber, deps);
+    return result;
+}
+
+function applyHealingCell(
+    cardState: CardState,
+    gameState: GameState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    deps: any,
+    sourceRow?: number,
+    sourceCol?: number
+): Record<string, any> {
+    const appliedTurnNumber = Number(gameState && (gameState as any).turnNumber || 0);
+    const hasSource = Number.isInteger(sourceRow) && Number.isInteger(sourceCol);
+    const result = applyStatusCellMarker(cardState, playerKey, row, col, {
+        markerType: 'HEALING_CELL',
+        remainingTurns: deps.HEALING_CELL_TURNS,
+        appliedTurnNumber,
+        reason: 'healing_cell_applied',
+        presentationMeta: hasSource ? {
+            cause: 'WATER_WILL',
+            sourceRow,
+            sourceCol,
+            sourceTrajectoryProfile: 'waterWillHealingBeam'
+        } : { cause: 'WATER_WILL' }
+    }, deps);
+    if (!result.applied) return result;
+    preserveScorchedStatusAfterHealingOverwrite(cardState, row, col, result.removedTypes, deps);
     syncHazardContacts(cardState, gameState, appliedTurnNumber, deps);
     return result;
 }
@@ -400,6 +639,7 @@ function processStatusCellTurnEnd(cardState: CardState, gameState: GameState, co
     let scorchLethalCount = 0;
     let expiredPoisonCellCount = 0;
     let expiredScorchedCellCount = 0;
+    let expiredHealingCellCount = 0;
     const statuses = getMarkers(cardState).filter((marker: any) => (
         markerType(marker) === 'POISONED' || markerType(marker) === 'SCORCHED'
     )).slice().sort(compareMarkerOrder);
@@ -460,7 +700,9 @@ function processStatusCellTurnEnd(cardState: CardState, gameState: GameState, co
     }
     syncHazardContacts(cardState, gameState, completedTurnNumber, deps);
     const cells = getMarkers(cardState).filter((marker: any) => (
-        markerType(marker) === 'POISON_CELL' || markerType(marker) === 'SCORCHED_CELL'
+        markerType(marker) === 'POISON_CELL' ||
+        markerType(marker) === 'SCORCHED_CELL' ||
+        markerType(marker) === 'HEALING_CELL'
     )).slice().sort(compareMarkerOrder);
     for (const queuedMarker of cells) {
         const marker = getMarkers(cardState).find((current: any) => current && current.id === queuedMarker.id);
@@ -469,13 +711,16 @@ function processStatusCellTurnEnd(cardState: CardState, gameState: GameState, co
         marker.data.remainingTurns = Math.max(0, Number(marker.data.remainingTurns || 0) - 1);
         const type = markerType(marker);
         const isPoisonCell = type === 'POISON_CELL';
+        const isHealingCell = type === 'HEALING_CELL';
         if (marker.data.remainingTurns > 0) {
             if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
                 type: 'STATUS_TICK', row: marker.row, col: marker.col,
                 meta: {
                     special: type,
                     timer: marker.data.remainingTurns,
-                    reason: isPoisonCell ? 'poison_cell_tick' : 'scorched_cell_tick'
+                    reason: isPoisonCell
+                        ? 'poison_cell_tick'
+                        : (isHealingCell ? 'healing_cell_tick' : 'scorched_cell_tick')
                 }
             });
             continue;
@@ -484,6 +729,7 @@ function processStatusCellTurnEnd(cardState: CardState, gameState: GameState, co
             if (removeMarkerById(cardState, marker.id)) {
                 expiredCellCount += 1;
                 if (isPoisonCell) expiredPoisonCellCount += 1;
+                else if (isHealingCell) expiredHealingCellCount += 1;
                 else expiredScorchedCellCount += 1;
             }
             syncHazardContacts(cardState, gameState, completedTurnNumber, deps);
@@ -495,7 +741,7 @@ function processStatusCellTurnEnd(cardState: CardState, gameState: GameState, co
         if (typeof deps.runEffectBlock === 'function') {
             deps.runEffectBlock(cardState, gameState, {
                 kind: 'status_cell_expiry',
-                cause: isPoisonCell ? 'POISON_WILL' : 'FIRE_WILL',
+                cause: isPoisonCell ? 'POISON_WILL' : (isHealingCell ? 'WATER_WILL' : 'FIRE_WILL'),
                 reason: 'duration_end',
                 sourceRow: marker.row,
                 sourceCol: marker.col
@@ -512,7 +758,8 @@ function processStatusCellTurnEnd(cardState: CardState, gameState: GameState, co
         poisonLethalCount,
         scorchLethalCount,
         expiredPoisonCellCount,
-        expiredScorchedCellCount
+        expiredScorchedCellCount,
+        expiredHealingCellCount
     };
 }
 
@@ -521,15 +768,16 @@ function processPoisonTurnEnd(cardState: CardState, gameState: GameState, comple
 }
 
     return {
-        TEMPORARY_SPECIAL_CELL_TYPES,
         removeTemporarySpecialCellsAt,
         applyStatusCellMarker,
         applyBlockadeWill,
         applyFreezeWill,
         applyMassFreezeWill,
         applySeedWill,
+        applySeedMarker,
         applyPoisonWill,
         applyScorchedCell,
+        applyHealingCell,
         syncPoisonContacts,
         syncScorchContacts,
         syncHazardContacts,

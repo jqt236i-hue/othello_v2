@@ -38,6 +38,9 @@ const EXPECTED_BRANCH_IDS = [
   'destroy-meteor-will-before-hole',
   'status-guard-protected-and-generic',
   'status-tick-poison-cell',
+  'status-fire-will-scorched-cell',
+  'status-water-will-healing-cell',
+  'status-grass-will-seed',
   'status-tick-special-stone-timer',
   'status-regen-consumed-crossfade',
   'status-loss-will-reset-crossfade',
@@ -289,6 +292,90 @@ const PHASE7_EXECUTABLE_FIXTURE_REGISTRY: readonly ExecutableFixture[] = Object.
     target: { specialType: 'GUARD' }, inputEventTypes: ['status_applied', 'status_removed']
   }),
   playbackFixture('status-tick-poison-cell', 'status_applied', ['status'], STATUS_RENDERER, { target: { specialType: 'POISON_CELL' } }),
+  playbackFixture(
+    'status-fire-will-scorched-cell',
+    'status_applied',
+    ['status', 'board-source-trajectory'],
+    [
+      'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer',
+      'ui/pixi/effects/status.ts#playPixiStatusEffect'
+    ],
+    {
+      target: {
+        specialType: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        profileKey: 'fireWillFlameBeam',
+        sourceRow: 1,
+        sourceCol: 1,
+        after: Object.freeze({ owner: 'white', value: -1, special: 'SCORCHED_CELL' }),
+        meta: Object.freeze({
+          special: 'SCORCHED_CELL',
+          cause: 'FIRE_WILL',
+          reason: 'scorched_cell_applied',
+          sourceRow: 1,
+          sourceCol: 1,
+          sourceTrajectoryProfile: 'fireWillFlameBeam'
+        })
+      }
+    }
+  ),
+  playbackFixture(
+    'status-water-will-healing-cell',
+    'status_applied',
+    ['status', 'board-source-trajectory'],
+    [
+      'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer',
+      'ui/pixi/effects/status.ts#playPixiStatusEffect'
+    ],
+    {
+      target: {
+        specialType: 'HEALING_CELL',
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        profileKey: 'waterWillHealingBeam',
+        sourceRow: 1,
+        sourceCol: 1,
+        after: Object.freeze({ owner: null, value: 0, special: 'HEALING_CELL' }),
+        meta: Object.freeze({
+          special: 'HEALING_CELL',
+          cause: 'WATER_WILL',
+          reason: 'healing_cell_applied',
+          sourceRow: 1,
+          sourceCol: 1,
+          sourceTrajectoryProfile: 'waterWillHealingBeam'
+        })
+      }
+    }
+  ),
+  playbackFixture(
+    'status-grass-will-seed',
+    'status_applied',
+    ['status', 'board-source-trajectory'],
+    [
+      'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer',
+      'ui/pixi/effects/status.ts#playPixiStatusEffect'
+    ],
+    {
+      target: {
+        specialType: 'SEED',
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        profileKey: 'grassWillSeedBeam',
+        sourceRow: 1,
+        sourceCol: 1,
+        after: Object.freeze({ owner: null, value: 0, special: 'SEED' }),
+        meta: Object.freeze({
+          special: 'SEED',
+          cause: 'GRASS_WILL',
+          reason: 'grass_seeded',
+          sourceRow: 1,
+          sourceCol: 1,
+          sourceTrajectoryProfile: 'grassWillSeedBeam'
+        })
+      }
+    }
+  ),
   playbackFixture('status-tick-special-stone-timer', 'status_applied', ['status'], STATUS_RENDERER, { target: { specialType: 'TIME_BOMB' } }),
   playbackFixture('status-regen-consumed-crossfade', 'status_removed', ['status'], STATUS_RENDERER, { target: { specialType: 'REGEN', reason: 'consumed' } }),
   playbackFixture('status-loss-will-reset-crossfade', 'status_removed', ['status'], STATUS_RENDERER, { target: { reason: 'loss_will_reset' } }),
@@ -683,9 +770,9 @@ describe('Phase 7 board visual branch inventory', () => {
   });
 
   test('executes every independent Phase 7 fixture contract and resolves real renderer exports', async () => {
-    expect(PHASE7_EXECUTABLE_FIXTURE_REGISTRY).toHaveLength(57);
+    expect(PHASE7_EXECUTABLE_FIXTURE_REGISTRY).toHaveLength(60);
     expect(PHASE7_EXECUTABLE_FIXTURE_REGISTRY.map((fixture) => fixture.branchId)).toEqual(EXPECTED_BRANCH_IDS);
-    expect(new Set(PHASE7_EXECUTABLE_FIXTURE_REGISTRY.map((fixture) => fixture.fixtureId)).size).toBe(57);
+    expect(new Set(PHASE7_EXECUTABLE_FIXTURE_REGISTRY.map((fixture) => fixture.fixtureId)).size).toBe(60);
 
     const entriesById = new Map(inventory().map((entry) => [entry.id, entry]));
     const executedFixtureIds: string[] = [];
@@ -737,10 +824,15 @@ describe('Phase 7 board visual branch inventory', () => {
       ...PresentationEffectProfiles.SUPER_CRUSH_DESTROY_TARGET_PROFILES
     } as Record<string, { causes: readonly string[]; reasonPrefix: string }>;
     const profileEntries = inventory().filter((entry) => entry.profileKey !== null);
-    expect(profileEntries.map((entry) => entry.profileKey).sort()).toEqual(Object.keys(sharedProfiles).sort());
+    const destroyProfileEntries = profileEntries.filter((entry) => (
+      entry.profileKey !== 'fireWillFlameBeam' &&
+      entry.profileKey !== 'waterWillHealingBeam' &&
+      entry.profileKey !== 'grassWillSeedBeam'
+    ));
+    expect(destroyProfileEntries.map((entry) => entry.profileKey).sort()).toEqual(Object.keys(sharedProfiles).sort());
 
     const trajectoryKeys = new Set<string>(PresentationEffectProfiles.GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS);
-    for (const entry of profileEntries) {
+    for (const entry of destroyProfileEntries) {
       const profile = sharedProfiles[entry.profileKey!];
       expect(entry.causes).toEqual(profile.causes);
       expect(entry.reasonPrefixes).toEqual([profile.reasonPrefix]);
@@ -753,6 +845,31 @@ describe('Phase 7 board visual branch inventory', () => {
         expect(entry.eventTypes).toEqual(['destroy']);
       }
     }
+
+    expect(profileEntries.find((entry) => entry.profileKey === 'fireWillFlameBeam')).toMatchObject({
+      eventTypes: ['status_applied'],
+      causes: ['FIRE_WILL'],
+      reasonPrefixes: ['scorched_cell_applied'],
+      specialTypes: ['SCORCHED_CELL'],
+      effectFamilies: ['status', 'board-source-trajectory'],
+      effectBlockPolicy: 'board-source-shared-settlement'
+    });
+    expect(profileEntries.find((entry) => entry.profileKey === 'grassWillSeedBeam')).toMatchObject({
+      eventTypes: ['status_applied'],
+      causes: ['GRASS_WILL'],
+      reasonPrefixes: ['grass_seeded'],
+      specialTypes: ['SEED'],
+      effectFamilies: ['status', 'board-source-trajectory'],
+      effectBlockPolicy: 'board-source-shared-settlement'
+    });
+    expect(profileEntries.find((entry) => entry.profileKey === 'waterWillHealingBeam')).toMatchObject({
+      eventTypes: ['status_applied'],
+      causes: ['WATER_WILL'],
+      reasonPrefixes: ['healing_cell_applied'],
+      specialTypes: ['HEALING_CELL'],
+      effectFamilies: ['status', 'board-source-trajectory'],
+      effectBlockPolicy: 'board-source-shared-settlement'
+    });
   });
 
   test('keeps final pixels single-writer and routes every family consistently with bounds', () => {

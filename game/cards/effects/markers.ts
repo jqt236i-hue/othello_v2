@@ -32,7 +32,15 @@ interface MarkersExports {
   getStoneIdAtForCard: (cardState: CardState, gameState: any, row: number, col: number) => string | null;
   setStoneIdAtForCard: (cardState: CardState, gameState: any, row: number, col: number, stoneId: string | null) => void;
   swapCellCoordinates: (cardState: CardState, gameState: any, posA: { row: number; col: number }, posB: { row: number; col: number }) => void;
-  addMarker: (cardState: CardState, kind: string, row: number, col: number, owner: PlayerKey, data?: any) => void;
+  addMarker: (
+    cardState: CardState,
+    kind: string,
+    row: number,
+    col: number,
+    owner: PlayerKey | null,
+    data?: any,
+    options?: { emitStatusApplied?: boolean }
+  ) => any;
   removeMarkerById: (cardState: CardState, markerId: number) => boolean;
   applyExtendLifeWill: (cardState: CardState, gameState: any, playerKey: PlayerKey, row: number, col: number, deps?: any) => Record<string, unknown>;
   applyExtendLifeGod: (cardState: CardState, gameState: any, playerKey: PlayerKey, row: number, col: number, deps?: any) => Record<string, unknown>;

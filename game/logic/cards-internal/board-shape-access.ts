@@ -31,10 +31,10 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
     const emptyValue = cfg.emptyValue;
     const blackValue = cfg.blackValue;
     const whiteValue = cfg.whiteValue;
-    const isBoardMarker = typeof cfg.isBoardMarker === 'function'
-        ? cfg.isBoardMarker
-        : (marker: any) => ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-            .includes(String(marker && marker.data && marker.data.type || '').toUpperCase());
+    if (typeof cfg.isBoardMarker !== 'function') {
+        throw new Error('[board-shape-access] canonical isBoardMarker classifier is required');
+    }
+    const isBoardMarker = cfg.isBoardMarker;
 
     function createView(cardState: any, gameState: any): any {
         // Constructing the context here intentionally validates both authoritative

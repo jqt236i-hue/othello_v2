@@ -4,6 +4,7 @@ import {
   getBoardSourceTrajectoryIdsForTarget,
   resolveBoardSourceTrajectoryDurationMs,
   type BoardSourceTrajectoryBatch,
+  type BoardSourceTrajectoryEventType,
   type BoardSourceTrajectoryRequest
 } from '../board-visual/source-trajectory';
 import { getBoardClientRect, getCellClientRect as getFrameCellClientRect } from '../board-visual/layout';
@@ -37,7 +38,7 @@ type DestroySourceAnimationDeps = {
   playbackScope: unknown;
   transientOverlayBatch: DomSourceTrajectoryOverlayBatch | null;
   random: () => number;
-  suppressTargetImpact: false;
+  suppressTargetImpact: boolean;
   abortSignal: AbortSignal | null;
 };
 
@@ -69,7 +70,7 @@ export interface DomBoardSourceTrajectoryRun {
   readonly trajectoryById: ReadonlyMap<string, Promise<void>>;
   readonly settlement: Promise<void>;
   waitForTarget(
-    eventType: 'destroy' | 'flip',
+    eventType: BoardSourceTrajectoryEventType,
     target: unknown,
     event?: PresentationPlaybackEvent | null
   ): Promise<void>;
@@ -85,6 +86,9 @@ const DESTROY_METHOD_BY_PROFILE = Object.freeze({
   sniperShot: 'animateSniperProjectile',
   robotVacuumSuck: 'animateRobotVacuumSuction',
   destroyDragonBreath: 'animateDestroyDragonBreath',
+  fireWillFlameBeam: 'animateDestroyDragonBreath',
+  waterWillHealingBeam: 'animateDestroyDragonBreath',
+  grassWillSeedBeam: 'animateDestroyDragonBreath',
   meteorGodBlackBeam: 'animateMeteorGodBlackBeam',
   lightningDestroyed: 'animateUdgLightningStrike',
   udgDestroyed: 'animateUdgLightningStrike'
@@ -338,10 +342,13 @@ function animationDeps(
     playbackScope: deps.playbackScope,
     transientOverlayBatch: overlayBatch,
     random: deps.createVisualRandom(request.event, request.targetPayload),
-    // DOM compatibility historically owns these target flashes/rings inside
-    // the same source animation. Keeping them here preserves fallback parity;
-    // the Pixi lane continues to use its target-local effect owner.
-    suppressTargetImpact: false,
+    // The generic dragon-breath impact is a filled white/orange disc. For the
+    // FIRE_WILL cell effect that silhouette looks like a normal stone flashing
+    // before the scorched marker appears, so the beam owns the impact instead.
+    suppressTargetImpact:
+      request.profileKey === 'fireWillFlameBeam' ||
+      request.profileKey === 'waterWillHealingBeam' ||
+      request.profileKey === 'grassWillSeedBeam',
     abortSignal: deps.abortSignal || null
   };
 }
@@ -508,7 +515,7 @@ export function startDomBoardSourceTrajectoryBatch(
   }
   const settlement = Promise.all(Array.from(trajectoryById.values())).then(() => undefined);
   const waitForMembership = async (
-    eventType: 'destroy' | 'flip',
+    eventType: BoardSourceTrajectoryEventType,
     target: unknown,
     event: PresentationPlaybackEvent | null,
     allowMissing: boolean
@@ -529,7 +536,7 @@ export function startDomBoardSourceTrajectoryBatch(
     trajectoryById,
     settlement,
     async waitForTarget(
-      eventType: 'destroy' | 'flip',
+      eventType: BoardSourceTrajectoryEventType,
       target: unknown,
       event: PresentationPlaybackEvent | null = null
     ): Promise<void> {

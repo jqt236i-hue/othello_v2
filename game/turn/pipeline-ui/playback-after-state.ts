@@ -6,12 +6,40 @@ type PlaybackAfterStateDeps = {
     getDestroyEvadeRemainingFromMeta: (meta: any) => any;
     getVisualStateAt: (row: any, col: any, cardState: any, gameState: any) => any;
     isManifestStoneType?: (rawType: any) => boolean;
+    isBoardMarkerType?: (rawType: any) => boolean;
 };
 
 function ownerToColor(owner: any) {
     if (owner === 'black' || owner === 1 || owner === '1') return 1;
     if (owner === 'white' || owner === -1 || owner === '-1') return -1;
     return 0;
+}
+
+function colorToOwner(color: any) {
+    if (color === 1 || color === '1') return 'black';
+    if (color === -1 || color === '-1') return 'white';
+    return null;
+}
+
+function isBoardMarkerVisualType(rawType: any, deps: PlaybackAfterStateDeps) {
+    if (!deps || typeof deps.isBoardMarkerType !== 'function') {
+        throw new Error('SpecialStoneRegistry.isBoardMarkerType is required by playback-after-state');
+    }
+    return deps.isBoardMarkerType(rawType) === true;
+}
+
+function isStonePreservingStatusTarget(target: any, presentationEvent: any) {
+    const targetMeta = target && target.meta && typeof target.meta === 'object' ? target.meta : null;
+    const eventMeta = presentationEvent && presentationEvent.meta && typeof presentationEvent.meta === 'object'
+        ? presentationEvent.meta
+        : null;
+    const mutation = String(
+        (target && target.stoneMutation)
+        || (targetMeta && targetMeta.stoneMutation)
+        || (eventMeta && eventMeta.stoneMutation)
+        || ''
+    ).trim().toLowerCase();
+    return mutation === 'preserve' || mutation === 'timer-only';
 }
 
 function createEmptyVisualState() {
@@ -27,12 +55,14 @@ function createEmptyVisualState() {
 }
 
 function createEventSourcedVisual(target: any, targetMeta: any, ownerHint: any, deps: PlaybackAfterStateDeps) {
+    const special = deps.getVisualSpecialFromMeta(targetMeta);
+    const boardMarkerVisual = isBoardMarkerVisualType(special, deps);
     const visualOwner = (targetMeta && targetMeta.owner) || ((ownerHint === 'black' || ownerHint === 'white') ? ownerHint : null);
     const visual: any = {
-        color: ownerToColor(ownerHint || (targetMeta && targetMeta.owner)),
-        special: deps.getVisualSpecialFromMeta(targetMeta),
+        color: boardMarkerVisual ? 0 : ownerToColor(ownerHint || (targetMeta && targetMeta.owner)),
+        special,
         timer: deps.getPrimaryTimerFromMeta(targetMeta),
-        owner: visualOwner,
+        owner: boardMarkerVisual ? null : visualOwner,
         flipEvadeRemaining: deps.getFlipEvadeRemainingFromMeta(targetMeta),
         destroyEvadeRemaining: deps.getDestroyEvadeRemainingFromMeta(targetMeta),
         livingWillAura: targetMeta && targetMeta.livingWillAura === true
@@ -92,13 +122,17 @@ function createStatusBefore(playbackType: any, presentationEvent: any, target: a
     const eventMeta = presentationEvent && presentationEvent.meta && typeof presentationEvent.meta === 'object'
         ? presentationEvent.meta
         : null;
+    const eventSpecial = deps.getVisualSpecialFromMeta(eventMeta);
+    const boardMarkerVisual = isBoardMarkerVisualType(eventSpecial, deps);
     const ownerFromEvent = (eventMeta && eventMeta.owner) || (target && target.ownerBefore) || null;
     const visual = deps.getVisualStateAt(target.r, target.col, finalCardState, finalGameState);
     const before = createEventSourcedVisual(target, eventMeta, ownerFromEvent, deps);
     if (before.color === 0 && visual && (visual.color === 1 || visual.color === -1)) {
         before.color = visual.color;
     }
-    if (!before.owner && visual && visual.owner) {
+    if (boardMarkerVisual) {
+        before.owner = colorToOwner(before.color);
+    } else if (!before.owner && visual && visual.owner) {
         before.owner = visual.owner;
     }
     if (playbackType === 'status_applied') {
@@ -118,6 +152,7 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
         : null;
     const specialFromEventRaw = (eventMeta && eventMeta.special) || null;
     const specialFromEvent = deps.getVisualSpecialFromMeta(eventMeta);
+    const boardMarkerVisual = isBoardMarkerVisualType(specialFromEventRaw || specialFromEvent, deps);
     const ownerFromEvent = (eventMeta && eventMeta.owner) || null;
     const flipEvadeRemainingFromEvent = deps.getFlipEvadeRemainingFromMeta(eventMeta);
     const destroyEvadeRemainingFromEvent = deps.getDestroyEvadeRemainingFromMeta(eventMeta);
@@ -140,7 +175,9 @@ function createStatusAfter(playbackType: any, presentationEvent: any, target: an
     const timerForVisual = isStatusRemoved
         ? (visual.timer || null)
         : (preferFinalVisualStateForApply ? (visual.timer || null) : ((eventMeta && eventMeta.timer) || visual.timer || null));
-    const ownerForVisual = isManifestEnding
+    const ownerForVisual = boardMarkerVisual
+        ? colorToOwner(color)
+        : isManifestEnding
         ? (visual.owner || ownerFromEvent || null)
         : isStatusRemoved
         ? (visual.owner || null)
@@ -189,8 +226,13 @@ function populatePlaybackEventAfterState(playbackEvent: any, presentationEvent: 
             target.before = target.before || createEventSourcedBefore(target, targetMeta, deps);
             target.after = target.after || createEmptyVisualState();
         } else if (playbackEvent.type === 'status_applied' || playbackEvent.type === 'status_removed' || playbackEvent.type === 'manifest_ending') {
-            target.before = target.before || createStatusBefore(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
-            target.after = target.after || createStatusAfter(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
+            if (isStonePreservingStatusTarget(target, presentationEvent)) {
+                delete target.before;
+                delete target.after;
+            } else {
+                target.before = target.before || createStatusBefore(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
+                target.after = target.after || createStatusAfter(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
+            }
         } else if (target.ownerAfter !== undefined) {
             target.before = target.before || createEventSourcedBefore(target, targetMeta, deps);
             target.after = target.after || createEventSourcedAfter(target, targetMeta, deps);

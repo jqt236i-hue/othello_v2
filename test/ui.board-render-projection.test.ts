@@ -32,8 +32,9 @@ describe('per-render board projection', () => {
         { id: 'bomb', kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } },
         { id: 'poison-cell', kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'POISON_CELL', remainingTurns: 9 } },
         { id: 'poisoned', kind: 'specialStone', row: 5, col: 5, owner: 'white', data: { type: 'POISONED', remainingTurns: 4 } },
-        { id: 'scorched-cell', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'SCORCHED_CELL', remainingTurns: 10 } },
-        { id: 'scorched', kind: 'specialStone', row: 6, col: 6, owner: 'white', data: { type: 'SCORCHED', remainingTurns: 3 } }
+        { id: 'scorched-cell', kind: 'specialStone', row: 6, col: 6, owner: null, data: { type: 'SCORCHED_CELL', remainingTurns: 10 } },
+        { id: 'scorched', kind: 'specialStone', row: 6, col: 6, owner: 'white', data: { type: 'SCORCHED', remainingTurns: 3 } },
+        { id: 'healing-cell', kind: 'specialStone', row: 7, col: 7, owner: null, data: { type: 'HEALING_CELL', remainingTurns: 8, sourcePlayer: 'black' } }
       ],
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: {}
@@ -62,10 +63,11 @@ describe('per-render board projection', () => {
     expect(projectedState[2][3].isLegal).toBe(true);
     expect(projectedState._renderProjection.markerMaps.specialMap.get('3,3')).toEqual(expect.objectContaining({ type: 'PROTECTED' }));
     expect(projectedState._renderProjection.markerMaps.bombMap.get('4,4')).toEqual(expect.objectContaining({ remainingTurns: 2 }));
-    expect(projectedState[5][5].poisonCell).toEqual({ remainingTurns: 9 });
+    expect(projectedState[5][5].poisonCell).toEqual({ remainingTurns: 9, sourcePlayer: 'black' });
     expect(projectedState[5][5].poisoned).toEqual({ remainingTurns: 4 });
-    expect(projectedState[6][6].scorchedCell).toEqual({ remainingTurns: 10 });
+    expect(projectedState[6][6].scorchedCell).toEqual({ remainingTurns: 10, sourcePlayer: null });
     expect(projectedState[6][6].scorched).toEqual({ remainingTurns: 3 });
+    expect(projectedState[7][7].healingCell).toEqual({ remainingTurns: 8, sourcePlayer: 'black' });
     expect(projectedState[5][5].special).toBeNull();
     expect((global as any).gameState._renderProjection).toBeUndefined();
     expect((global as any).cardState._renderProjection).toBeUndefined();
@@ -167,6 +169,26 @@ describe('per-render board projection', () => {
     expect((global as any).getLegalMoves).toHaveBeenCalledTimes(1);
 
     const compatibility = require('../ui/board-visual/model-builder').buildDomCompatibilityRenderState(model);
+    expect(compatibility.renderProjection.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 5,
+        col: 5,
+        owner: null,
+        data: expect.objectContaining({ type: 'POISON_CELL', sourcePlayer: 'black' })
+      }),
+      expect.objectContaining({
+        row: 6,
+        col: 6,
+        owner: null,
+        data: expect.objectContaining({ type: 'SCORCHED_CELL', sourcePlayer: null })
+      }),
+      expect.objectContaining({
+        row: 7,
+        col: 7,
+        owner: null,
+        data: expect.objectContaining({ type: 'HEALING_CELL', sourcePlayer: 'black' })
+      })
+    ]));
     expect(compatibility.cellState[2][3].isKeyboardCursor).toBe(true);
     diff.renderBoardDiff(
       (global as any).boardEl,
@@ -177,6 +199,9 @@ describe('per-render board projection', () => {
     );
     expect((global as any).boardEl.querySelector('.cell[data-row="2"][data-col="3"]')
       ?.classList.contains('keyboard-legal-cursor')).toBe(true);
+    const healingCell = (global as any).boardEl.querySelector('.cell[data-row="7"][data-col="7"]');
+    expect(healingCell?.classList.contains('healing-cell')).toBe(true);
+    expect(healingCell?.querySelector('.healing-cell-turn')?.textContent).toBe('8');
 
     const movedOverlay = diff.createBoardPresentationOverlayState(
       projection,

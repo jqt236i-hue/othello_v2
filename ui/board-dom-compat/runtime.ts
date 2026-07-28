@@ -183,7 +183,7 @@ class DomBoardPlaybackRuntime {
 
   recordTargetStage(
     stage: 'impact-start' | 'commit',
-    eventType: 'destroy' | 'flip',
+    eventType: 'destroy' | 'flip' | 'status_applied',
     target: any
   ): void {
     const rowValue = Object.prototype.hasOwnProperty.call(target || {}, 'r') ? target.r : target?.row;
@@ -634,6 +634,103 @@ class DomBoardPlaybackRuntime {
       try { element.addEventListener('transitionend', onEnd); } catch (_error) { /* compatibility */ }
       timeoutId = this.timer().setTimeout(finish, timeout, this.playbackScope());
       if (starter) try { starter(); } catch (_error) { finish(); }
+    });
+  }
+
+  private isSeedStatus(event: PresentationPlaybackEvent, target: any): boolean {
+    if (String(event?.type || '').trim().toLowerCase() !== 'status_applied') return false;
+    const eventMeta = event?.meta && typeof event.meta === 'object' ? event.meta as any : {};
+    const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+    return String(
+      targetMeta.special
+        || eventMeta.special
+        || target?.after?.special
+    ).trim().toUpperCase() === 'SEED';
+  }
+
+  private isGrassSeedTrajectory(event: PresentationPlaybackEvent, target: any): boolean {
+    return this.isSeedStatus(event, target)
+      && PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey(
+        'status_applied',
+        target
+      ) === 'grassWillSeedBeam';
+  }
+
+  private seedTargetCell(
+    event: PresentationPlaybackEvent,
+    target: any,
+    phase: DomPhaseRuntimeContext
+  ): HTMLElement | null {
+    if (!this.isSeedStatus(event, target)) return null;
+    const row = Object.prototype.hasOwnProperty.call(target || {}, 'r') ? target.r : target?.row;
+    const col = Object.prototype.hasOwnProperty.call(target || {}, 'col')
+      ? target.col
+      : target?.c;
+    return this.getCellEl(row, col, phase);
+  }
+
+  private hideGrassSeedBeforeImpact(
+    event: PresentationPlaybackEvent,
+    target: any,
+    phase: DomPhaseRuntimeContext
+  ): void {
+    if (!this.isGrassSeedTrajectory(event, target)) return;
+    const existing = this.seedTargetCell(event, target, phase)
+      ?.querySelector('.seed-mark') as HTMLElement | null;
+    if (!existing) return;
+    existing.style.visibility = 'hidden';
+    existing.style.opacity = '0';
+  }
+
+  private async revealSeedAtImpact(
+    event: PresentationPlaybackEvent,
+    target: any,
+    phase: DomPhaseRuntimeContext
+  ): Promise<void> {
+    const cell = this.seedTargetCell(event, target, phase);
+    if (!cell) return;
+    let seedMark = cell.querySelector('.seed-mark') as HTMLElement | null;
+    if (!seedMark) {
+      if (!SpecialMarkerRenderer || typeof SpecialMarkerRenderer.createSpecialMarkerRenderer !== 'function') {
+        throw new Error('DOM seed marker renderer unavailable');
+      }
+      const renderer = SpecialMarkerRenderer.createSpecialMarkerRenderer({
+        documentRef: this.documentRef
+      });
+      if (!renderer || typeof renderer.createSeedMark !== 'function') {
+        throw new Error('DOM seed marker factory unavailable');
+      }
+      const eventMeta = event?.meta && typeof event.meta === 'object' ? event.meta as any : {};
+      const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+      const remaining = target?.after?.remainingOwnerTurns
+        ?? target?.after?.timer
+        ?? targetMeta.remainingOwnerTurns
+        ?? targetMeta.timer
+        ?? eventMeta.remainingOwnerTurns
+        ?? eventMeta.timer;
+      const created = renderer.createSeedMark(remaining) as HTMLElement | null;
+      if (!created) throw new Error('DOM seed marker creation failed');
+      created.style.opacity = '0';
+      cell.appendChild(created);
+      seedMark = created;
+    }
+    if (!seedMark) throw new Error('DOM seed marker unavailable after creation');
+    cell.classList.add('seeded-cell');
+    seedMark.style.visibility = 'visible';
+    if (this.isNoAnim()) {
+      seedMark.style.opacity = '';
+      return;
+    }
+    const previousTransition = seedMark.style.transition;
+    seedMark.style.transition = `opacity ${OVERLAY_CROSSFADE_MS}ms ease`;
+    // Commit the transparent start state before the impact fade.
+    void seedMark.offsetWidth;
+    await this.waitForOpacityTransition(seedMark, OVERLAY_CROSSFADE_MS, 120, () => {
+      if (seedMark) seedMark.style.opacity = '1';
+    }, () => {
+      if (!seedMark) return;
+      seedMark.style.opacity = '';
+      seedMark.style.transition = previousTransition;
     });
   }
 
@@ -1182,6 +1279,18 @@ class DomBoardPlaybackRuntime {
   async playStatusChange(event: PresentationPlaybackEvent, context: BoardPlaybackContext): Promise<void> {
     await this.runInPhase([event], context, async (phase) => {
       if (!AnimationStatusEvents || typeof AnimationStatusEvents.handleStatusChangeEvent !== 'function') throw new Error('DOM status event module unavailable');
+      const trajectoryTargets: any[] = [];
+      for (const target of Array.isArray(event.targets) ? event.targets : []) {
+        if (PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey('status_applied', target)) {
+          trajectoryTargets.push(target);
+          this.hideGrassSeedBeforeImpact(event, target, phase);
+          this.recordTargetStage('impact-start', 'status_applied', target);
+          await this.sourceTrajectoryRunForEvent(phase, event).waitForTarget('status_applied', target, event);
+          await this.revealSeedAtImpact(event, target, phase);
+        } else if (this.isSeedStatus(event, target)) {
+          await this.revealSeedAtImpact(event, target, phase);
+        }
+      }
       await AnimationStatusEvents.handleStatusChangeEvent(event, {
         eventTypes: EVENT_TYPES,
         visuals: Visuals,
@@ -1201,6 +1310,9 @@ class DomBoardPlaybackRuntime {
         resolveVisualColorFromState: (state: any, disc: HTMLElement, owner: unknown) => this.resolveVisualColorFromState(state, disc, owner),
         syncDiscVisual: (disc: HTMLElement, state: any) => this.syncDiscVisual(disc, state)
       });
+      for (const target of trajectoryTargets) {
+        this.recordTargetStage('commit', 'status_applied', target);
+      }
     });
   }
 

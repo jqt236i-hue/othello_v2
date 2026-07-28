@@ -28,6 +28,10 @@ type PassiveEventPlaybackDeps = {
     createPlaybackEvent: (playbackBase: any, type: any, phase: any, targets: any) => any;
     hasDurationEndMarker: (reason: any, cause?: any) => boolean;
     isManifestStoneType: (rawType: any) => boolean;
+    getStatusPlaybackTargetTraits: (ev: any) => {
+        subjectKind: 'stone_body' | 'stone_status' | 'cell_marker' | 'topology' | 'placement_effect';
+        stoneMutation: 'preserve' | 'replace' | 'remove' | 'timer-only';
+    };
 };
 
 function getEventMeta(ev: any) {
@@ -74,14 +78,53 @@ function mapStatusApplied(ctx: PassiveEventPlaybackContext, deps: PassiveEventPl
     if (!deps.isBoardShrinkHoleStatusAppliedPresentationEvent(ctx.ev)) {
         deps.preparePassivePlaybackPhaseState(ctx.phaseState);
     }
+    const meta = getEventMeta(ctx.ev);
+    const isFireWillScorch = !!meta
+        && String(meta.special || '').toUpperCase() === 'SCORCHED_CELL'
+        && String(meta.cause || '').toUpperCase() === 'FIRE_WILL'
+        && String(meta.reason || '').toLowerCase() === 'scorched_cell_applied'
+        && String(meta.sourceTrajectoryProfile || '') === 'fireWillFlameBeam';
+    const isGrassWillSeed = !!meta
+        && String(meta.special || '').toUpperCase() === 'SEED'
+        && String(meta.cause || '').toUpperCase() === 'GRASS_WILL'
+        && String(meta.reason || '').toLowerCase() === 'grass_seeded'
+        && String(meta.sourceTrajectoryProfile || '') === 'grassWillSeedBeam';
+    const isWaterWillHealing = !!meta
+        && String(meta.special || '').toUpperCase() === 'HEALING_CELL'
+        && String(meta.cause || '').toUpperCase() === 'WATER_WILL'
+        && String(meta.reason || '').toLowerCase() === 'healing_cell_applied'
+        && String(meta.sourceTrajectoryProfile || '') === 'waterWillHealingBeam';
+    const hasBoardSourceImpact = isFireWillScorch || isGrassWillSeed || isWaterWillHealing;
+    const playbackMeta = hasBoardSourceImpact
+        ? Object.assign({}, meta, { impactSoundPhase: ctx.phaseState.currentPhase + 1 })
+        : meta;
+    const playbackTraits = deps.getStatusPlaybackTargetTraits(ctx.ev);
+    if (hasBoardSourceImpact) ctx.pEvent.meta = playbackMeta;
     ctx.pEvent.type = 'status_applied';
-    ctx.pEvent.targets = [{ r: ctx.ev.row, col: ctx.ev.col }];
+    ctx.pEvent.targets = [{
+        r: ctx.ev.row,
+        col: ctx.ev.col,
+        subjectKind: playbackTraits.subjectKind,
+        stoneMutation: playbackTraits.stoneMutation,
+        cause: ctx.ev.cause || (meta && meta.cause) || null,
+        reason: ctx.ev.reason || (meta && meta.reason) || null,
+        sourceRow: meta && Number.isInteger(meta.sourceRow) ? meta.sourceRow : null,
+        sourceCol: meta && Number.isInteger(meta.sourceCol) ? meta.sourceCol : null,
+        meta: playbackMeta
+    }];
+    if (hasBoardSourceImpact) ctx.phaseState.currentPhase += 2;
 }
 
 function mapStatusTick(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
     deps.preparePassivePlaybackPhaseState(ctx.phaseState);
+    const playbackTraits = deps.getStatusPlaybackTargetTraits(ctx.ev);
     ctx.pEvent.type = 'status_applied';
-    ctx.pEvent.targets = [{ r: ctx.ev.row, col: ctx.ev.col }];
+    ctx.pEvent.targets = [{
+        r: ctx.ev.row,
+        col: ctx.ev.col,
+        subjectKind: playbackTraits.subjectKind,
+        stoneMutation: playbackTraits.stoneMutation
+    }];
 }
 
 function mapLivingWillConsumedStatus(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
@@ -137,8 +180,14 @@ function mapStatusRemoved(ctx: PassiveEventPlaybackContext, deps: PassiveEventPl
     deps.preparePassivePlaybackPhaseState(ctx.phaseState, {
         preserveDurationEndRevert: preserveDurationEndRevert || isManifestEnding
     });
+    const playbackTraits = deps.getStatusPlaybackTargetTraits(ctx.ev);
     ctx.pEvent.type = isManifestEnding ? 'manifest_ending' : 'status_removed';
-    ctx.pEvent.targets = [{ r: ctx.ev.row, col: ctx.ev.col }];
+    ctx.pEvent.targets = [{
+        r: ctx.ev.row,
+        col: ctx.ev.col,
+        subjectKind: playbackTraits.subjectKind,
+        stoneMutation: playbackTraits.stoneMutation
+    }];
     if (deps.isRegenConsumedStatus(ctx.ev)) {
         ctx.phaseState.currentPhase++;
         ctx.pEvent.phase = ctx.phaseState.currentPhase;

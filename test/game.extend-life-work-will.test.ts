@@ -22,6 +22,26 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     const { cardState, gameState } = createStates();
     cardState.hands.black = [def.id];
     cardState.charge.black = def.cost;
+    gameState.board[1][1] = SharedConstants.BLACK;
+    gameState.board[2][2] = SharedConstants.BLACK;
+    cardState.markers.push(
+      {
+        id: 9006,
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 9007,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'REGEN', remainingOwnerTurns: 3, regenRemaining: 3 }
+      }
+    );
 
     const usable = CardLogic.getUsableCardIds(cardState, gameState, 'black');
     expect(usable).toEqual([]);
@@ -33,6 +53,8 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     gameState.board[2][2] = SharedConstants.BLACK;
     gameState.board[3][3] = SharedConstants.BLACK;
     gameState.board[4][4] = SharedConstants.BLACK;
+    gameState.board[5][5] = SharedConstants.BLACK;
+    gameState.board[6][6] = SharedConstants.BLACK;
 
     cardState.markers.push({
       id: 9101,
@@ -65,6 +87,22 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
       col: 4,
       owner: 'black',
       data: { type: 'BLOCKADE', remainingOwnerTurns: 3 }
+    });
+    cardState.markers.push({
+      id: 9105,
+      kind: 'specialStone',
+      row: 5,
+      col: 5,
+      owner: 'black',
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
+    });
+    cardState.markers.push({
+      id: 9106,
+      kind: 'specialStone',
+      row: 6,
+      col: 6,
+      owner: 'black',
+      data: { type: 'REGEN', remainingOwnerTurns: 3, regenRemaining: 3 }
     });
 
     cardState.pendingEffectByPlayer.black = { type: 'EXTEND_LIFE_WILL', stage: 'selectTarget' };
@@ -132,7 +170,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(work.data.remainingOwnerTurns).toBe(2);
   });
 
-  test('applyExtendLifeWill doubles both special stone and GUARD remainingOwnerTurns on same cell', () => {
+  test('applyExtendLifeWill doubles the special-stone body but leaves GUARD unchanged on the same cell', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_WILL');
     expect(def).toBeTruthy();
 
@@ -172,7 +210,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(work).toBeTruthy();
     expect(guard).toBeTruthy();
     expect(work.data.remainingOwnerTurns).toBe(4);
-    expect(guard.data.remainingOwnerTurns).toBe(6);
+    expect(guard.data.remainingOwnerTurns).toBe(3);
   });
 
   test('applyExtendLifeGod quadruples remainingOwnerTurns on own WORK stone', () => {

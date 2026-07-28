@@ -40,7 +40,9 @@ interface FireDeps {
         gameState: FireGameState,
         playerKey: FireSeatKey,
         row: number,
-        col: number
+        col: number,
+        sourceRow: number,
+        sourceCol: number
     ) => Record<string, any>;
     BoardOps?: {
         getCellValue?: (gameState: FireGameState, row: number, col: number, cardState?: FireCardState | null) => number | null;
@@ -212,7 +214,15 @@ function processAnchor(
         if (targets.length > 0) {
             const randomFn = resolveRandomFunction(deps.random);
             const target = targets[resolveRandomIndex(targets.length, randomFn)];
-            const applied = deps.applyScorchedCell!(cardState, gameState, playerKey, target.row, target.col);
+            const applied = deps.applyScorchedCell!(
+                cardState,
+                gameState,
+                playerKey,
+                target.row,
+                target.col,
+                row,
+                col
+            );
             if (applied && applied.applied) {
                 result.scorched.push({
                     row: target.row,

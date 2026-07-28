@@ -23,6 +23,7 @@ const SURFACE_MARKER_KINDS = new Set([
   'seed',
   'poison-cell',
   'scorched-cell',
+  'healing-cell',
   'theory-number-cell'
 ]);
 

@@ -933,6 +933,7 @@ function buildBoardPendingStatusFixture(config) {
     name: config.pendingType,
     expectedStatusApplied: config.expectedStatusApplied || null,
     expectedStatusTick: config.expectedStatusTick || null,
+    unexpectedStatusTickSpecial: config.unexpectedStatusTickSpecial || null,
     expectedHandAdd: config.expectedHandAdd || null,
     snapshot,
     action: buildCommandAction(2, {
@@ -1289,21 +1290,33 @@ function buildPlaybackParityFixtures() {
       pendingType: 'EXTEND_LIFE_WILL',
       actionKey: 'extendTarget',
       target: { row: 2, col: 2 },
-      markers: [{
-        id: 22,
-        kind: 'specialStone',
-        row: 2,
-        col: 2,
-        owner: 'black',
-        data: { type: 'GUARD', remainingOwnerTurns: 3 }
-      }],
+      extraBoard: [{ row: 2, col: 2, value: 1 }],
+      markers: [
+        {
+          id: 22,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'LIGHTNING', remainingOwnerTurns: 2 }
+        },
+        {
+          id: 23,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 3 }
+        }
+      ],
       expectedStatusTick: {
         row: 2,
         col: 2,
-        special: 'GUARD',
+        special: 'LIGHTNING',
         reason: 'extend_life_applied',
         highlightTone: 'positive'
-      }
+      },
+      unexpectedStatusTickSpecial: 'GUARD'
     }),
     buildBoardPendingStatusFixture({
       cardId: 'corrosion_01',
@@ -1331,21 +1344,33 @@ function buildPlaybackParityFixtures() {
       pendingType: 'EXTEND_LIFE_GOD',
       actionKey: 'extendTarget',
       target: { row: 2, col: 2 },
-      markers: [{
-        id: 62,
-        kind: 'specialStone',
-        row: 2,
-        col: 2,
-        owner: 'black',
-        data: { type: 'GUARD', remainingOwnerTurns: 2 }
-      }],
+      extraBoard: [{ row: 2, col: 2, value: 1 }],
+      markers: [
+        {
+          id: 62,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'LIGHTNING', remainingOwnerTurns: 2 }
+        },
+        {
+          id: 63,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 2 }
+        }
+      ],
       expectedStatusTick: {
         row: 2,
         col: 2,
-        special: 'GUARD',
+        special: 'LIGHTNING',
         reason: 'extend_life_applied',
         highlightTone: 'positive'
-      }
+      },
+      unexpectedStatusTickSpecial: 'GUARD'
     }),
     buildBoardPendingStatusFixture({
       cardId: 'capture_01',
@@ -2535,6 +2560,17 @@ describe('network playback event assembly contract', () => {
               special: fixture.expectedStatusTick.special,
               reason: fixture.expectedStatusTick.reason,
               highlightTone: fixture.expectedStatusTick.highlightTone
+            })
+          })
+        ]));
+      }
+      if (fixture.unexpectedStatusTickSpecial) {
+        expect(expected.playbackEvents).not.toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            rawType: 'STATUS_TICK',
+            meta: expect.objectContaining({
+              special: fixture.unexpectedStatusTickSpecial,
+              reason: 'extend_life_applied'
             })
           })
         ]));

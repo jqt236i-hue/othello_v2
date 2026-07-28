@@ -185,6 +185,8 @@ export const CARD_FACE_ART_PATH_BY_ID: Record<string, string> = Object.freeze({
     "blockade_01": "assets/images/card/82_封鎖の意志.png",
     "poison_will_01": "assets/images/card/98_毒殺の意志.png",
     "fire_will_01": "assets/images/special-cards/backgrounds/fire_will_background.png",
+    "water_will_01": "assets/images/special-cards/backgrounds/water_will_background.png",
+    "grass_will_01": "assets/images/special-cards/backgrounds/grass_will_background.png",
     "meteor_01": "assets/images/card/83_因果抹消.png",
     "causal_replay_01": "assets/images/card/93_因果再生.png",
     "freeze_01": "assets/images/card/84_凍結の意志.png",

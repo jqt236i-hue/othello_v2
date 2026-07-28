@@ -96,7 +96,6 @@ function refreshHyperactiveRuntimeModules(): void {
 
 refreshHyperactiveRuntimeModules();
 
-const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'LIVING_WILL']);
 const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 function logHyperactiveDebug(...args: any[]): void {
@@ -315,45 +314,12 @@ function buildMovingStonePresentationMeta(cardState: CardState, row: number, col
         : [];
     if (!markersAtCell.length) return undefined;
 
-    if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
-        return compactPresentationMeta(StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
-            mode: 'raw'
-        }));
+    if (!StoneStatusSnapshot || typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers !== 'function') {
+        throw new Error('StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers is required by CardHyperactive');
     }
-
-    const destroyValues = markersAtCell
-        .map((marker: any) => toCounterOrNull(marker && marker.data && marker.data.destroyEvadeRemaining))
-        .filter((value: any) => value !== null);
-    const visualSpecial = markersAtCell.find((marker: any) => {
-        const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-        return !!typeUpper && !OVERLAY_ONLY_SPECIAL_TYPES.has(typeUpper);
-    });
-
-    const meta: any = {
-        special: null,
-        timer: null,
-        owner: null,
-        flipEvadeRemaining: null,
-        destroyEvadeRemaining: destroyValues.length
-            ? destroyValues.reduce((sum: number, value: number) => sum + value, 0)
-            : null
-    };
-
-    if (visualSpecial) {
-        const specialType = (visualSpecial.data && visualSpecial.data.type) || null;
-        meta.special = specialType;
-        meta.timer = toCounterOrNull(visualSpecial.data && visualSpecial.data.remainingOwnerTurns);
-        if (meta.timer === null && String(specialType || '').toUpperCase() === 'REGEN') {
-            meta.timer = toCounterOrNull(visualSpecial.data && visualSpecial.data.regenRemaining);
-        }
-        meta.owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
-        meta.flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
-        if (meta.destroyEvadeRemaining === null) {
-            meta.destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
-        }
-    }
-
-    return compactPresentationMeta(meta);
+    return compactPresentationMeta(StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
+        mode: 'raw'
+    }));
 }
 
 function resolveBoardConfig(gameState: GameState): BoardConfig {
@@ -654,12 +620,10 @@ function moveCoexistingSpecialMarkers(cardState: CardState, anchorEntry: any, fr
     for (const marker of (cardState as any).markers) {
         if (!marker || marker === anchorEntry) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
-            ? SpecialStoneRegistry.isBoardMarker(marker)
-            : (CardMarkersModule && typeof CardMarkersModule.getMarkerRuleClass === 'function'
-                ? CardMarkersModule.getMarkerRuleClass(marker) === 'board_marker'
-                : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-                    .includes(String(marker && marker.data && marker.data.type || '').toUpperCase()));
+        if (!SpecialStoneRegistry || typeof SpecialStoneRegistry.isBoardMarker !== 'function') {
+            throw new Error('SpecialStoneRegistry.isBoardMarker is required by CardHyperactive');
+        }
+        const boardMarker = SpecialStoneRegistry.isBoardMarker(marker);
         if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;

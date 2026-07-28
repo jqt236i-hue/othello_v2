@@ -330,6 +330,13 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
     const distance = Math.max(1, Math.hypot(deltaX, deltaY));
     const angleDeg = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
     const durationMs = Math.max(280, Math.min(520, Math.round(240 + (distance * 0.28))));
+    const sourceTrajectoryProfile = String(
+        (target.meta && target.meta.sourceTrajectoryProfile) ||
+        target.sourceTrajectoryProfile ||
+        ''
+    ).trim();
+    const isGrassWillSeedBeam = sourceTrajectoryProfile === 'grassWillSeedBeam';
+    const isWaterWillHealingBeam = sourceTrajectoryProfile === 'waterWillHealingBeam';
 
     const layer = document.createElement('div');
     layer.style.position = 'fixed';
@@ -349,8 +356,16 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
     beam.style.transformOrigin = '0 50%';
     beam.style.transform = `rotate(${angleDeg}deg) scaleX(0.2)`;
     beam.style.borderRadius = '999px';
-    beam.style.background = 'linear-gradient(90deg, rgba(255,235,150,0.95) 0%, rgba(255,150,40,0.95) 48%, rgba(255,70,20,0.85) 100%)';
-    beam.style.boxShadow = '0 0 14px rgba(255,120,30,0.85), 0 0 24px rgba(255,70,20,0.6)';
+    beam.style.background = isGrassWillSeedBeam
+        ? 'linear-gradient(90deg, rgba(238,255,184,0.96) 0%, rgba(118,224,91,0.96) 48%, rgba(24,154,70,0.88) 100%)'
+        : isWaterWillHealingBeam
+            ? 'linear-gradient(90deg, rgba(230,251,255,0.98) 0%, rgba(103,217,255,0.96) 48%, rgba(7,91,158,0.88) 100%)'
+        : 'linear-gradient(90deg, rgba(255,235,150,0.95) 0%, rgba(255,150,40,0.95) 48%, rgba(255,70,20,0.85) 100%)';
+    beam.style.boxShadow = isGrassWillSeedBeam
+        ? '0 0 14px rgba(79,207,88,0.88), 0 0 24px rgba(22,145,68,0.62)'
+        : isWaterWillHealingBeam
+            ? '0 0 14px rgba(52,185,239,0.9), 0 0 24px rgba(7,91,158,0.64)'
+        : '0 0 14px rgba(255,120,30,0.85), 0 0 24px rgba(255,70,20,0.6)';
     beam.style.opacity = '0';
 
     const muzzle = document.createElement('div');
@@ -360,8 +375,16 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
     muzzle.style.width = '16px';
     muzzle.style.height = '16px';
     muzzle.style.borderRadius = '50%';
-    muzzle.style.background = 'radial-gradient(circle, rgba(255,245,190,0.95) 0%, rgba(255,154,40,0.9) 45%, rgba(255,80,20,0.15) 100%)';
-    muzzle.style.boxShadow = '0 0 16px rgba(255,150,40,0.9)';
+    muzzle.style.background = isGrassWillSeedBeam
+        ? 'radial-gradient(circle, rgba(241,255,190,0.96) 0%, rgba(103,220,91,0.92) 45%, rgba(20,145,65,0.16) 100%)'
+        : isWaterWillHealingBeam
+            ? 'radial-gradient(circle, rgba(230,251,255,0.98) 0%, rgba(52,185,239,0.94) 45%, rgba(7,91,158,0.16) 100%)'
+        : 'radial-gradient(circle, rgba(255,245,190,0.95) 0%, rgba(255,154,40,0.9) 45%, rgba(255,80,20,0.15) 100%)';
+    muzzle.style.boxShadow = isGrassWillSeedBeam
+        ? '0 0 16px rgba(88,215,92,0.92)'
+        : isWaterWillHealingBeam
+            ? '0 0 16px rgba(52,185,239,0.94)'
+        : '0 0 16px rgba(255,150,40,0.9)';
     muzzle.style.opacity = '0';
 
     const impact = document.createElement('div');

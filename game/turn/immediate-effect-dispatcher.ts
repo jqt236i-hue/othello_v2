@@ -172,6 +172,34 @@ function resolveImmediateEffects(context: ImmediateEffectContext): void {
         return;
     }
 
+    if (typeKey === 'WATER' && typeof ctx.CardLogic.processWaterWillEffectsAtTurnStartAnchor === 'function') {
+        const waterNow = ctx.CardLogic.processWaterWillEffectsAtTurnStartAnchor(
+            ctx.cardState,
+            ctx.gameState,
+            ctx.playerKey,
+            row,
+            col,
+            buildImmediateOptions(randomSource)
+        );
+        pushDetailsEvent(ctx.events, 'water_healing_cell_immediate', waterNow && waterNow.healingCells);
+        pushDetailsEvent(ctx.events, 'water_expired_immediate', waterNow && waterNow.expired);
+        return;
+    }
+
+    if (typeKey === 'GRASS' && typeof ctx.CardLogic.processGrassWillEffectsAtTurnStartAnchor === 'function') {
+        const grassNow = ctx.CardLogic.processGrassWillEffectsAtTurnStartAnchor(
+            ctx.cardState,
+            ctx.gameState,
+            ctx.playerKey,
+            row,
+            col,
+            buildImmediateOptions(randomSource)
+        );
+        pushDetailsEvent(ctx.events, 'grass_seeded_immediate', grassNow && grassNow.seeded);
+        pushDetailsEvent(ctx.events, 'grass_expired_immediate', grassNow && grassNow.expired);
+        return;
+    }
+
     if (typeKey === 'METEOR_GOD' && typeof ctx.CardLogic.processMeteorGodEffectsAtTurnStartAnchor === 'function') {
         const meteorGodNow = ctx.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(
             ctx.cardState,

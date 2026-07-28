@@ -16,6 +16,7 @@ import {
   normalizePresentationEventType
 } from '../board-visual/playback-types';
 import type {
+  BoardMarkerVisualState,
   BoardPlaybackContext,
   BoardPlaybackValidationContext,
   BoardVisualFrame
@@ -778,12 +779,14 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       },
       waitForSourceTrajectories(event: PresentationPlaybackEvent, target: unknown): Promise<void> {
         const eventType = normalizePresentationEventType(event);
-        if (eventType !== 'destroy' && eventType !== 'flip') return Promise.resolve();
+        if (eventType !== 'destroy' && eventType !== 'flip' && eventType !== 'status_applied') {
+          return Promise.resolve();
+        }
         const ids = getBoardSourceTrajectoryIdsForTarget(
           phaseTrajectories.batch,
           eventType,
           target,
-          eventType === 'destroy' ? event : null
+          eventType === 'flip' ? null : event
         );
         if (!ids.length) {
           const targetCoordinate = normalizePlaybackCoordinate(target);
@@ -832,6 +835,25 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
           stone: visual.stone,
           markers: visual.markers
         }));
+      },
+      setProjectedMarkers(
+        row: number,
+        col: number,
+        markers: readonly BoardMarkerVisualState[]
+      ): PixiPlaybackGhostHandle | null {
+        const key = coordinateKey(row, col);
+        releaseRetainedFinalGhost(key, scope);
+        projectedStones.set(key, null);
+        scene.hideStone(scope, row, col);
+        if (!markers.length) return null;
+        const handle = scene.acquirePlaybackGhost(scope, {
+          row,
+          col,
+          stone: null,
+          markers
+        });
+        retainedFinalGhosts.set(key, handle);
+        return handle;
       },
       acquireTransientGhost(row: number, col: number, visual: PixiPlaybackStoneVisual): PixiPlaybackGhostHandle {
         return scene.acquirePlaybackGhost(scope, {

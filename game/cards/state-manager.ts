@@ -140,8 +140,16 @@ function getMarkers(cardState: CardState) {
     return CardMarkers.getMarkers(cardState);
 }
 
-function addMarker(cardState: CardState, kind: string, row: number, col: number, owner: string, data: any) {
-    return CardMarkers.addMarker(cardState, kind, row, col, owner, data);
+function addMarker(
+    cardState: CardState,
+    kind: string,
+    row: number,
+    col: number,
+    owner: string | null,
+    data: any,
+    options?: { emitStatusApplied?: boolean }
+) {
+    return CardMarkers.addMarker(cardState, kind, row, col, owner, data, options);
 }
 
 function removeMarker(cardState: CardState, markerId: number) {

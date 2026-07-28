@@ -71,6 +71,48 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
         deps.pushSoundCue(ctx, 'seed_place', seedPlacePhase, 'seed_selected');
     }
 
+    for (const event of ctx.base) {
+        if (
+            !event ||
+            event.type !== 'status_applied' ||
+            String(event.rawType || '').toUpperCase() !== 'STATUS_APPLIED' ||
+            !event.meta ||
+            String(event.meta.special || '').toUpperCase() !== 'SEED' ||
+            String(event.meta.reason || '').toLowerCase() !== 'grass_seeded' ||
+            String(event.meta.cause || '').toUpperCase() !== 'GRASS_WILL'
+        ) {
+            continue;
+        }
+        const count = Math.max(1, Array.isArray(event.targets) ? event.targets.length : 0);
+        const impactSoundPhase = Number.isInteger(event.meta.impactSoundPhase)
+            ? event.meta.impactSoundPhase
+            : Number(event.phase) + 1;
+        for (let index = 0; index < count; index += 1) {
+            deps.pushSoundCue(ctx, 'seed_place', impactSoundPhase, 'grass_seeded', { allowRepeat: true });
+        }
+    }
+
+    for (const event of ctx.base) {
+        if (
+            !event ||
+            event.type !== 'status_applied' ||
+            String(event.rawType || '').toUpperCase() !== 'STATUS_APPLIED' ||
+            !event.meta ||
+            String(event.meta.special || '').toUpperCase() !== 'HEALING_CELL' ||
+            String(event.meta.reason || '').toLowerCase() !== 'healing_cell_applied' ||
+            String(event.meta.cause || '').toUpperCase() !== 'WATER_WILL'
+        ) {
+            continue;
+        }
+        const count = Math.max(1, Array.isArray(event.targets) ? event.targets.length : 0);
+        const impactSoundPhase = Number.isInteger(event.meta.impactSoundPhase)
+            ? event.meta.impactSoundPhase
+            : Number(event.phase) + 1;
+        for (let index = 0; index < count; index += 1) {
+            deps.pushSoundCue(ctx, 'water_will_healing_cell', impactSoundPhase, 'water_healing_cell', { allowRepeat: true });
+        }
+    }
+
     const poisonWillPlacePhase = deps.findPhase(
         ctx.base,
         (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'POISON_CELL',
@@ -78,6 +120,27 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
     );
     if (deps.hasRawEvent(ctx.raw, 'poison_selected', (ev: any) => !!(ev && ev.applied))) {
         deps.pushSoundCue(ctx, 'poison_will_place', poisonWillPlacePhase, 'poison_selected');
+    }
+
+    for (const event of ctx.base) {
+        if (
+            !event ||
+            event.type !== 'status_applied' ||
+            String(event.rawType || '').toUpperCase() !== 'STATUS_APPLIED' ||
+            !event.meta ||
+            String(event.meta.special || '').toUpperCase() !== 'SCORCHED_CELL' ||
+            String(event.meta.reason || '').toLowerCase() !== 'scorched_cell_applied' ||
+            String(event.meta.cause || '').toUpperCase() !== 'FIRE_WILL'
+        ) {
+            continue;
+        }
+        const count = Math.max(1, Array.isArray(event.targets) ? event.targets.length : 0);
+        const impactSoundPhase = Number.isInteger(event.meta.impactSoundPhase)
+            ? event.meta.impactSoundPhase
+            : Number(event.phase) + 1;
+        for (let index = 0; index < count; index += 1) {
+            deps.pushSoundCue(ctx, 'fire_will_scorch', impactSoundPhase, 'fire_scorched', { allowRepeat: true });
+        }
     }
 
     const trapTriggeredEvent = ctx.raw.find((ev: any) => ev && ev.type === 'trap_triggered' && deps.rawDetailCount(ev) > 0);

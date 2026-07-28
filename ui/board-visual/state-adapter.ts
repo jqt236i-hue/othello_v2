@@ -507,6 +507,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 frozen: null,
                 poisonCell: null,
                 poisoned: null,
+                healingCell: null,
                 destroyEvadeRemaining: null
             };
         }

@@ -1,4 +1,5 @@
 import * as StatusCells from '../game/logic/card-resolution/status-cells';
+const SpecialStoneRegistry = require('../shared/special-stone-registry');
 
 describe('card-resolution status cell primitive', () => {
   test('overwrites temporary special cells before applying one canonical marker without touching pending state', () => {
@@ -27,7 +28,10 @@ describe('card-resolution status cell primitive', () => {
       removeMarkerById,
       addMarker,
       emitPresentationEvent,
-      MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+      MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
+      TEMPORARY_SPECIAL_CELL_TYPES: SpecialStoneRegistry.TEMPORARY_SPECIAL_CELL_TYPES,
+      isTemporarySpecialCellType: SpecialStoneRegistry.isTemporarySpecialCellType,
+      getMarkerSemanticTraits: SpecialStoneRegistry.getMarkerSemanticTraits
     });
 
     expect(result).toEqual({
@@ -42,18 +46,34 @@ describe('card-resolution status cell primitive', () => {
     expect(addMarker).toHaveBeenCalledWith(cardState, 'specialStone', 2, 3, 'black', {
       type: 'FREEZE',
       remainingOwnerTurns: 5
+    }, { emitStatusApplied: false });
+    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, {
+      type: 'STATUS_REMOVED',
+      row: 2,
+      col: 3,
+      meta: {
+        special: 'POISON_CELL',
+        owner: null,
+        sourcePlayer: null,
+        timer: null,
+        reason: 'special_cell_overwritten',
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve'
+      }
     });
     expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, {
       type: 'STATUS_REMOVED',
       row: 2,
       col: 3,
-      meta: { special: 'POISON_CELL', reason: 'special_cell_overwritten' }
-    });
-    expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, {
-      type: 'STATUS_REMOVED',
-      row: 2,
-      col: 3,
-      meta: { special: 'SEED', reason: 'special_cell_overwritten' }
+      meta: {
+        special: 'SEED',
+        owner: null,
+        sourcePlayer: null,
+        timer: null,
+        reason: 'special_cell_overwritten',
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve'
+      }
     });
     expect(emitPresentationEvent).toHaveBeenCalledWith(cardState, {
       type: 'STATUS_APPLIED',
@@ -62,8 +82,11 @@ describe('card-resolution status cell primitive', () => {
       meta: {
         special: 'FREEZE',
         owner: 'black',
+        sourcePlayer: 'black',
         timer: 5,
-        reason: 'freeze_selected'
+        reason: 'freeze_selected',
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve'
       }
     });
     expect(cardState.pendingEffectByPlayer.black).toEqual({ type: 'FREEZE_WILL' });

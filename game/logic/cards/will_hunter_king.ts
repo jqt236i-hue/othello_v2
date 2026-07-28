@@ -198,10 +198,10 @@ function moveCoexistingMarkers(cardState: any, fromRow: number, fromCol: number,
     for (const marker of cardState.markers) {
         if (!marker || marker.row !== fromRow || marker.col !== fromCol)
             continue;
-        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
-            ? SpecialStoneRegistry.isBoardMarker(marker)
-            : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-                .includes(String(marker && marker.data && marker.data.type || '').toUpperCase());
+        if (!SpecialStoneRegistry || typeof SpecialStoneRegistry.isBoardMarker !== 'function') {
+            throw new Error('SpecialStoneRegistry.isBoardMarker is required by WillHunterKing');
+        }
+        const boardMarker = SpecialStoneRegistry.isBoardMarker(marker);
         if (boardMarker)
             continue;
         marker.row = toRow;

@@ -120,5 +120,11 @@ describe('Pixi appearance resolver', () => {
         url: 'https://example.test/game/assets/images/other/ICE.png'
       })
     );
+    expect(resolver.resolveSpecialStoneAppearanceResource(window, 'SEED', 'black')).toEqual(
+      expect.objectContaining({
+        role: 'special-stone',
+        url: 'https://example.test/game/assets/images/other/seed.png'
+      })
+    );
   });
 });

@@ -16,7 +16,7 @@ import {
 } from './fixtures/board-source-trajectory-contract';
 
 describe('board source trajectory Phase 0 baseline', () => {
-  test('freezes the exact seven migrated profiles and excludes target-local slash', () => {
+  test('freezes the exact shared profiles and excludes target-local slash', () => {
     expect(BOARD_SOURCE_TRAJECTORY_BASELINE_FIXTURES.map((fixture) => fixture.profileKey)).toEqual([
       'sniperShot',
       'robotVacuumSuck',
@@ -24,6 +24,9 @@ describe('board source trajectory Phase 0 baseline', () => {
       'meteorGodBlackBeam',
       'lightningDestroyed',
       'udgDestroyed',
+      'fireWillFlameBeam',
+      'waterWillHealingBeam',
+      'grassWillSeedBeam',
       'zombieBite'
     ]);
     expect(Object.isFrozen(BOARD_SOURCE_TRAJECTORY_BASELINE_FIXTURES)).toBe(true);
@@ -55,6 +58,9 @@ describe('board source trajectory Phase 0 baseline', () => {
     expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.destroyDragonBreath, 256)).toBe(312);
     expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.meteorGodBlackBeam, 256)).toBe(286);
     expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.lightningDestroyed, 256)).toBe(201);
+    expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.fireWillFlameBeam, 256)).toBe(312);
+    expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.waterWillHealingBeam, 256)).toBe(312);
+    expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.grassWillSeedBeam, 256)).toBe(312);
     expect(resolveBaselineDurationMs(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.zombieBite, 9999)).toBe(800);
     expect(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.robotVacuumSuck.direction).toBe('target-to-source');
     expect(BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY.sniperShot.ownerPolicy).toBe(
@@ -174,7 +180,13 @@ describe('board source trajectory Phase 0 baseline', () => {
       const normalProfiles = capture.samples
         .filter((sample) => sample[1] === 'normal')
         .map((sample) => sample[0]);
-      expect(normalProfiles).toEqual(BOARD_SOURCE_TRAJECTORY_BASELINE_FIXTURES.map((fixture) => fixture.profileKey));
+      expect(normalProfiles).toEqual(BOARD_SOURCE_TRAJECTORY_BASELINE_FIXTURES
+        .filter((fixture) => ![
+          'fireWillFlameBeam',
+          'waterWillHealingBeam',
+          'grassWillSeedBeam'
+        ].includes(fixture.profileKey))
+        .map((fixture) => fixture.profileKey));
       const longRange = capture.samples.find((sample) => sample[1] === 'long-range-offscreen-sniper');
       expect(longRange?.[0]).toBe('sniperShot');
       expect(longRange?.[5]).toBe(true);

@@ -30,6 +30,7 @@ if (
         'SNIPER',
         'LIGHTNING',
         'FIRE',
+        'GRASS',
         'METEOR_GOD',
         'DRAGON',
         'HYPERACTIVE',

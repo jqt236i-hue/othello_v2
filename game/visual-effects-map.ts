@@ -194,6 +194,24 @@ const GAME_STONE_VISUAL_EFFECTS: Record<string, any> = {
         },
         dataAttributes: {}
     },
+    waterWillStone: {
+        cssClass: 'water-will-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/water-will-black.png',
+            '-1': 'assets/images/special-stones/water-will-white.png'
+        },
+        dataAttributes: {}
+    },
+    grassWillStone: {
+        cssClass: 'grass-will-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/grass-will-black.png',
+            '-1': 'assets/images/special-stones/grass-will-white.png'
+        },
+        dataAttributes: {}
+    },
     meteorGodStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -403,6 +421,8 @@ const PENDING_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
     'FIRE_WILL': 'fireWillStone',
+    'WATER_WILL': 'waterWillStone',
+    'GRASS_WILL': 'grassWillStone',
     'METEOR_GOD': 'meteorGodStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
@@ -559,6 +579,8 @@ const SPECIAL_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
     'FIRE': 'fireWillStone',
+    'WATER': 'waterWillStone',
+    'GRASS': 'grassWillStone',
     'METEOR_GOD': 'meteorGodStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',

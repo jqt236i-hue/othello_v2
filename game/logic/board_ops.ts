@@ -454,15 +454,10 @@ function _isBlockingMarkerType(type: string): boolean {
 function _isCellFixedMarkerType(type: string): boolean {
     const typeUpper = String(type || '').toUpperCase();
     const registry = getSpecialStoneRegistryModule();
-    if (registry && typeof registry.isBoardMarkerType === 'function') {
-        return registry.isBoardMarkerType(typeUpper) === true;
+    if (!registry || typeof registry.isBoardMarkerType !== 'function') {
+        throw new Error('SpecialStoneRegistry.isBoardMarkerType is required by BoardOps');
     }
-    return typeUpper === 'BLOCKADE' ||
-        typeUpper === 'METEOR_HOLE' ||
-        typeUpper === 'FREEZE' ||
-        typeUpper === 'SEED' ||
-        typeUpper === 'POISON_CELL' ||
-        typeUpper === 'SCORCHED_CELL';
+    return registry.isBoardMarkerType(typeUpper) === true;
 }
 
 function _isStoneAttachedMoveMarker(marker: any): boolean {
@@ -1512,50 +1507,13 @@ function _getSpecialVisualMeta(cardState: any, row: number, col: number): any {
                 ? MarkersAdapter.findBombMarkerAt(cardState, row, col)
                 : cardState.markers.find((m: any) => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === row && m.col === col))
             ;
-        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
-            return StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
-                bombMarker: b,
-                mode: 'raw'
-            });
+        if (!StoneStatusSnapshot || typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers !== 'function') {
+            throw new Error('StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers is required by BoardOps');
         }
-
-        let flipEvadeRemaining: number | null = null;
-        let destroyEvadeRemaining: number | null = null;
-        const destroyEvadeTotal = markersAtCell.reduce((sum: number, marker: any) => {
-            const remaining = EvasionStatus && typeof EvasionStatus.readDestroyEvadeRemaining === 'function'
-                ? EvasionStatus.readDestroyEvadeRemaining(marker)
-                : _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining);
-            return remaining === null ? sum : (sum + remaining);
-        }, 0);
-        if (destroyEvadeTotal > 0 || markersAtCell.some((marker: any) => _normalizeCounterValue(marker && marker.data && marker.data.destroyEvadeRemaining) === 0)) {
-            destroyEvadeRemaining = destroyEvadeTotal;
-        }
-
-        const visualSpecial = markersAtCell.find((m: any) => {
-            const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
-            if (!typeUpper) return false;
-            return !isOverlayOnlySpecialStoneType(typeUpper);
+        return StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
+            bombMarker: b,
+            mode: 'raw'
         });
-        if (visualSpecial) {
-            flipEvadeRemaining = _normalizeCounterValue(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
-            return {
-                special: (visualSpecial.data && visualSpecial.data.type) || null,
-                timer: _resolveSpecialDisplayTimerValue(visualSpecial.data),
-                owner: (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null,
-                flipEvadeRemaining,
-                destroyEvadeRemaining
-            };
-        }
-
-        if (b) {
-            return {
-                special: 'TIME_BOMB',
-                timer: (b.data && typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns : null,
-                owner: (b.owner !== undefined && b.owner !== null) ? b.owner : null,
-                flipEvadeRemaining,
-                destroyEvadeRemaining
-            };
-        }
     }
 
     return {
@@ -2038,9 +1996,10 @@ function _removeDestroyedCellFromBoard(ctx: DestroyCoreContext): void {
     setStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col, null);
     setCellValue(ctx.gameState, ctx.row, ctx.col, EMPTY, ctx.cardState);
     const registry = getSpecialStoneRegistryModule();
-    const boardMarkerTypes = registry && registry.BOARD_MARKER_TYPES
-        ? Array.from(registry.BOARD_MARKER_TYPES)
-        : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL'];
+    if (!registry || !registry.BOARD_MARKER_TYPES) {
+        throw new Error('SpecialStoneRegistry.BOARD_MARKER_TYPES is required by BoardOps');
+    }
+    const boardMarkerTypes = Array.from(registry.BOARD_MARKER_TYPES);
     if (ctx.cardMarkers && typeof ctx.cardMarkers.removeMarkersAt === 'function') {
         ctx.cardMarkers.removeMarkersAt(ctx.cardState, ctx.row, ctx.col, { preserveTypes: boardMarkerTypes });
     } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {

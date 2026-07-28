@@ -51,6 +51,30 @@ describe('PlaybackEventHelpers', () => {
     expect(out.playbackEvents).toEqual(expected);
   });
 
+  test('rejects invalid hazard-cell playback instead of publishing a warning-only event', () => {
+    expect(() => helpers.assemblePlaybackEvents({
+      rawEvents: [],
+      presentationEvents: [{ type: 'STATUS_APPLIED', row: 2, col: 3 }],
+      snapshot: {
+        cardState: { markers: [], turnIndex: 1 },
+        gameState: { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+      },
+      adapter: {
+        mapToPlaybackEvents: jest.fn(() => [{
+          type: 'status_applied',
+          phase: 1,
+          meta: { special: 'SCORCHED_CELL' },
+          targets: [{
+            r: 2,
+            col: 3,
+            subjectKind: 'cell_marker',
+            stoneMutation: 'replace'
+          }]
+        }])
+      }
+    })).toThrow(/network replay contract violation/);
+  });
+
   test('appends independent playback bundles after the base phase range', () => {
     const out = helpers.appendPlaybackEventsAfter(
       [

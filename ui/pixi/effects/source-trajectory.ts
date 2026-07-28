@@ -69,6 +69,9 @@ const PROFILE_KEYS: readonly BoardSourceTrajectoryProfileKey[] = Object.freeze([
   'meteorGodBlackBeam',
   'lightningDestroyed',
   'udgDestroyed',
+  'fireWillFlameBeam',
+  'waterWillHealingBeam',
+  'grassWillSeedBeam',
   'zombieBite'
 ]);
 
@@ -318,6 +321,32 @@ function lineVisuals(
   })));
 }
 
+function radialImpactSegments(
+  center: PixiSourceTrajectoryPoint,
+  radius: number,
+  clipRect: PixiSourceTrajectoryRect
+): readonly (readonly [PixiSourceTrajectoryPoint, PixiSourceTrajectoryPoint])[] {
+  const rayAngles = Object.freeze([-1.56, -0.96, -0.38, 0.2, 0.86, 1.42, 2.08, 2.7, 3.28, 3.94, 4.54]);
+  const rayScales = Object.freeze([1, 0.68, 0.88, 0.62, 0.94, 0.7, 0.86, 0.64, 0.92, 0.66, 0.82]);
+  const output: (readonly [PixiSourceTrajectoryPoint, PixiSourceTrajectoryPoint])[] = [];
+  for (let index = 0; index < rayAngles.length; index += 1) {
+    const angle = rayAngles[index];
+    const directionX = Math.cos(angle);
+    const directionY = Math.sin(angle);
+    const start = point(
+      center.x + directionX * radius * 0.18,
+      center.y + directionY * radius * 0.18
+    );
+    const end = point(
+      center.x + directionX * radius * rayScales[index],
+      center.y + directionY * radius * rayScales[index]
+    );
+    const clipped = clipSegment(start, end, clipRect);
+    if (clipped) output.push(clipped);
+  }
+  return Object.freeze(output);
+}
+
 function hashText(value: string): number {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -433,6 +462,9 @@ function beamVisual(
   progress: number
 ): PixiSourceTrajectoryVisualState {
   const blackBeam = request.profileKey === 'meteorGodBlackBeam';
+  const fireWillBeam = request.profileKey === 'fireWillFlameBeam';
+  const waterWillBeam = request.profileKey === 'waterWillHealingBeam';
+  const grassWillBeam = request.profileKey === 'grassWillSeedBeam';
   const reveal = blackBeam
     ? keyframed(progress, [[0, 0.08], [0.16, 1], [0.74, 1], [1, 0.96]])
     : keyframed(progress, [[0, 0.2], [0.18, 1], [0.72, 1], [1, 0.92]]);
@@ -447,6 +479,30 @@ function beamVisual(
       ...lineVisuals(segments, '#6f3aa6', alpha * 0.78, Math.max(6, geometry.cellSize * 0.44)),
       ...lineVisuals(segments, '#08050d', alpha, Math.max(3, geometry.cellSize * 0.19))
     ])
+    : fireWillBeam
+      ? Object.freeze([
+        ...lineVisuals(segments, '#ff2a0a', alpha * 0.04, Math.max(18, geometry.cellSize * 1.5)),
+        ...lineVisuals(segments, '#ff4b0f', alpha * 0.07, Math.max(12, geometry.cellSize * 0.9)),
+        ...lineVisuals(segments, '#ff5a1f', alpha * 0.12, Math.max(5, geometry.cellSize * 0.38)),
+        ...lineVisuals(segments, '#ffb234', alpha * 0.18, Math.max(3, geometry.cellSize * 0.24)),
+        ...lineVisuals(segments, '#fff0a8', alpha * 0.22, Math.max(1.5, geometry.cellSize * 0.08))
+      ])
+    : waterWillBeam
+      ? Object.freeze([
+        ...lineVisuals(segments, '#075b9e', alpha * 0.05, Math.max(18, geometry.cellSize * 1.5)),
+        ...lineVisuals(segments, '#0c8fd6', alpha * 0.09, Math.max(12, geometry.cellSize * 0.9)),
+        ...lineVisuals(segments, '#22b8ee', alpha * 0.16, Math.max(5, geometry.cellSize * 0.38)),
+        ...lineVisuals(segments, '#67d9ff', alpha * 0.28, Math.max(3, geometry.cellSize * 0.24)),
+        ...lineVisuals(segments, '#e6fbff', alpha * 0.48, Math.max(1.5, geometry.cellSize * 0.08))
+      ])
+    : grassWillBeam
+      ? Object.freeze([
+        ...lineVisuals(segments, '#0f7d3c', alpha * 0.05, Math.max(18, geometry.cellSize * 1.5)),
+        ...lineVisuals(segments, '#22a84f', alpha * 0.09, Math.max(12, geometry.cellSize * 0.9)),
+        ...lineVisuals(segments, '#34c759', alpha * 0.16, Math.max(5, geometry.cellSize * 0.38)),
+        ...lineVisuals(segments, '#8ce35f', alpha * 0.28, Math.max(3, geometry.cellSize * 0.24)),
+        ...lineVisuals(segments, '#eaffb8', alpha * 0.48, Math.max(1.5, geometry.cellSize * 0.08))
+      ])
     : Object.freeze([
       ...lineVisuals(segments, '#ff4614', alpha * 0.04, Math.max(18, geometry.cellSize * 1.5)),
       ...lineVisuals(segments, '#ff781e', alpha * 0.07, Math.max(12, geometry.cellSize * 0.9)),
@@ -466,7 +522,7 @@ function beamVisual(
     && geometry.sourceCenter.x - muzzlePaintRadius <= paintRect.right
     && geometry.sourceCenter.y + muzzlePaintRadius >= paintRect.top
     && geometry.sourceCenter.y - muzzlePaintRadius <= paintRect.bottom;
-  const circles = sourceNearPaint && muzzleProgress > 0
+  const muzzleCircles = sourceNearPaint && muzzleProgress > 0
     ? blackBeam
       ? Object.freeze([Object.freeze({
         x: muzzleCenter.x,
@@ -475,6 +531,54 @@ function beamVisual(
         color: '#160b24',
         alpha: muzzleProgress
       })])
+      : grassWillBeam
+        ? Object.freeze([
+          Object.freeze({
+            x: muzzleCenter.x,
+            y: muzzleCenter.y,
+            radius: muzzleRadius * 1.9,
+            color: '#19a94b',
+            alpha: muzzleProgress * 0.09
+          }),
+          Object.freeze({
+            x: muzzleCenter.x,
+            y: muzzleCenter.y,
+            radius: muzzleRadius,
+            color: '#62d65f',
+            alpha: muzzleProgress * 0.24
+          }),
+          Object.freeze({
+            x: muzzleCenter.x,
+            y: muzzleCenter.y,
+            radius: muzzleRadius * 0.34,
+            color: '#efffbc',
+            alpha: muzzleProgress * 0.58
+          })
+        ])
+      : waterWillBeam
+        ? Object.freeze([
+          Object.freeze({
+            x: muzzleCenter.x,
+            y: muzzleCenter.y,
+            radius: muzzleRadius * 1.9,
+            color: '#0b74b8',
+            alpha: muzzleProgress * 0.09
+          }),
+          Object.freeze({
+            x: muzzleCenter.x,
+            y: muzzleCenter.y,
+            radius: muzzleRadius,
+            color: '#34b9ef',
+            alpha: muzzleProgress * 0.24
+          }),
+          Object.freeze({
+            x: muzzleCenter.x,
+            y: muzzleCenter.y,
+            radius: muzzleRadius * 0.34,
+            color: '#e6fbff',
+            alpha: muzzleProgress * 0.58
+          })
+        ])
       : Object.freeze([
         Object.freeze({
           x: muzzleCenter.x,
@@ -499,9 +603,32 @@ function beamVisual(
         })
       ])
     : Object.freeze([]);
+  const impactBeam = fireWillBeam;
+  const impactAlpha = impactBeam
+    ? keyframed(progress, [[0, 0], [0.22, 1], [0.7, 0.88], [1, 0]])
+    : 0;
+  const impactScale = impactBeam
+    ? keyframed(progress, [[0, 0.35], [0.22, 1.15], [0.7, 1.35], [1, 1.75]])
+    : 0;
+  const impactRadius = geometry.cellSize * 0.54 * impactScale;
+  const impactSegments = impactBeam && impactAlpha > 0
+    ? radialImpactSegments(geometry.targetCenter, impactRadius, paintRect)
+    : Object.freeze([]);
+  const impactLines = fireWillBeam
+    ? Object.freeze([
+      ...lineVisuals(impactSegments, '#ff3b0a', impactAlpha * 0.22, Math.max(3, geometry.cellSize * 0.18)),
+      ...lineVisuals(impactSegments, '#ffd36b', impactAlpha * 0.72, Math.max(1.2, geometry.cellSize * 0.055))
+    ])
+    : Object.freeze([]);
+  const combinedLines = impactLines.length > 0
+    ? Object.freeze([...lines, ...impactLines])
+    : lines;
+  // Keep the muzzle glow, but never draw a filled target circle: at board-cell
+  // scale it reads as a normal stone or a generated seed before the marker lands.
+  const circles = muzzleCircles;
   return Object.freeze({
-    visible: lines.length > 0 || circles.length > 0,
-    lines,
+    visible: combinedLines.length > 0 || circles.length > 0,
+    lines: combinedLines,
     circles
   });
 }

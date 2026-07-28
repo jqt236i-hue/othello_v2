@@ -10,7 +10,12 @@ export type BoardSourceTrajectoryProfileKey =
   | 'meteorGodBlackBeam'
   | 'lightningDestroyed'
   | 'udgDestroyed'
+  | 'fireWillFlameBeam'
+  | 'waterWillHealingBeam'
+  | 'grassWillSeedBeam'
   | 'zombieBite';
+
+export type BoardSourceTrajectoryEventType = 'destroy' | 'flip' | 'status_applied';
 
 export type BoardSourceTrajectoryPrimitive =
   | 'projectile'
@@ -31,7 +36,7 @@ export interface BoardSourceTrajectoryDurationPolicy {
 
 export interface BoardSourceTrajectoryProfile {
   readonly profileKey: BoardSourceTrajectoryProfileKey;
-  readonly eventType: 'destroy' | 'flip';
+  readonly eventType: BoardSourceTrajectoryEventType;
   readonly primitive: BoardSourceTrajectoryPrimitive;
   readonly direction: BoardSourceTrajectoryDirection;
   readonly duration: BoardSourceTrajectoryDurationPolicy;
@@ -50,7 +55,7 @@ export interface BoardSourceTrajectoryProfile {
 export interface BoardSourceTrajectoryRequest {
   readonly trajectoryId: string;
   readonly profileKey: BoardSourceTrajectoryProfileKey;
-  readonly eventType: 'destroy' | 'flip';
+  readonly eventType: BoardSourceTrajectoryEventType;
   readonly eventOrdinal: number;
   readonly targetOrdinal: number;
   readonly source: Readonly<{ row: number; col: number }>;
@@ -66,7 +71,7 @@ export interface BoardSourceTrajectoryMembership {
   readonly trajectoryId: string;
   readonly eventOrdinal: number;
   readonly targetOrdinal: number;
-  readonly eventType: 'destroy' | 'flip';
+  readonly eventType: BoardSourceTrajectoryEventType;
   readonly targetKey: string;
   readonly event: PresentationPlaybackEvent;
   readonly targetPayload: unknown;
@@ -164,6 +169,27 @@ Record<BoardSourceTrajectoryProfileKey, BoardSourceTrajectoryProfile>
     targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'unchanged',
     visualSeedPolicy: 'destroy-source', haloCells: 1
   }),
+  fireWillFlameBeam: Object.freeze({
+    profileKey: 'fireWillFlameBeam', eventType: 'status_applied', primitive: 'beam', direction: 'source-to-target',
+    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
+    targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'skip-source',
+    visualSeedPolicy: 'none', haloCells: 0.75
+  }),
+  waterWillHealingBeam: Object.freeze({
+    profileKey: 'waterWillHealingBeam', eventType: 'status_applied', primitive: 'beam', direction: 'source-to-target',
+    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
+    targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'skip-source',
+    visualSeedPolicy: 'none', haloCells: 0.75
+  }),
+  grassWillSeedBeam: Object.freeze({
+    profileKey: 'grassWillSeedBeam', eventType: 'status_applied', primitive: 'beam', direction: 'source-to-target',
+    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
+    targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'skip-source',
+    visualSeedPolicy: 'none', haloCells: 0.75
+  }),
   zombieBite: Object.freeze({
     profileKey: 'zombieBite', eventType: 'flip', primitive: 'bite', direction: 'source-to-target',
     duration: duration(800, 0, 800, 800), settlement: 'fixed-deadline', deadlinePaddingMs: 0,
@@ -247,9 +273,9 @@ function resolveVisualSeed(
   });
 }
 
-function normalizeEventType(event: PresentationPlaybackEvent): 'destroy' | 'flip' | null {
+function normalizeEventType(event: PresentationPlaybackEvent): BoardSourceTrajectoryEventType | null {
   const type = String(event?.type || '').trim().toLowerCase();
-  return type === 'destroy' || type === 'flip' ? type : null;
+  return type === 'destroy' || type === 'flip' || type === 'status_applied' ? type : null;
 }
 
 function stableTrajectoryId(
@@ -393,7 +419,7 @@ export function collectBoardSourceTrajectoryRequests(
  */
 export function getBoardSourceTrajectoryIdsForTarget(
   batch: BoardSourceTrajectoryBatch,
-  eventType: 'destroy' | 'flip',
+  eventType: BoardSourceTrajectoryEventType,
   targetPayload: unknown,
   event?: PresentationPlaybackEvent | null
 ): readonly string[] {

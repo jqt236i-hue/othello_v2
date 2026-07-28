@@ -505,6 +505,33 @@ describe('Pixi static retained views', () => {
     ))).toBeDefined();
   });
 
+  test('renders a blue healing surface with its turn count in the top-left corner', () => {
+    const fixture = createFakeRuntime();
+    const cellView = CellView.createPixiCellView(fixture.runtime);
+    const cell = materializedCell(makeCell('2,2', {
+      markers: [
+        { kind: 'healing-cell', owner: null, value: null, data: { remainingTurns: 8 } }
+      ]
+    }));
+
+    cellView.update(cell, viewContext());
+
+    expect(cellView.getDiagnostics()).toMatchObject({
+      renderedMarkerKinds: ['healing-cell'],
+      markerLabels: ['8']
+    });
+    const surface = cellView.surfaceRoot.children.find((child: any) => (
+      child.label === 'pixi-cell-healing-surface'
+    ));
+    expect(surface).toMatchObject({ visible: true });
+    expect(surface.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#0b4f9f' }) })
+    ]));
+    expect(cellView.markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-healing-cell-corner'
+    ))).toBeDefined();
+  });
+
   test('renders legal/target/preview/keyboard/direction DTOs without deriving authority', () => {
     const fixture = createFakeRuntime();
     const hintView = HintView.createPixiHintView(fixture.runtime);
@@ -746,15 +773,47 @@ describe('Pixi static retained views', () => {
     });
 
     const seedView = CellView.createPixiCellView(fixture.runtime);
+    const seedTexture = { id: 'seed-texture' };
     const seed = materializedCell(makeCell('0,4', {
       markers: [{ kind: 'seed', owner: 'white', value: null, data: { remainingOwnerTurns: 2 } }]
     }));
-    seedView.update(seed, viewContext({ stoneRevisionSignature: 'static-stone:6' }));
+    seedView.update(seed, viewContext({
+      stoneRevisionSignature: 'static-stone:6',
+      textures: new Map([['special-stone:SEED:white', { texture: seedTexture }]])
+    }));
     expect(seedView.getDiagnostics()).toMatchObject({
       markerCount: 1,
       markerLabels: ['2'],
       renderedMarkerKinds: ['seed']
     });
+    expect(seedView.markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-seed-texture'
+    ))).toMatchObject({
+      texture: seedTexture,
+      visible: true,
+      width: 28.8,
+      height: 28.8,
+      rotation: 0
+    });
+    expect(seedView.markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-label:seed'
+    ))).toMatchObject({ text: '2' });
+
+    const fallbackSeedView = CellView.createPixiCellView(fixture.runtime);
+    fallbackSeedView.update(seed, viewContext({
+      stoneRevisionSignature: 'static-stone:seed-fallback',
+      textures: new Map([['special-stone:SEED:white', {
+        texture: { id: 'generic-fallback-texture' },
+        sourceKind: 'procedural',
+        usedFallback: true
+      }]])
+    }));
+    expect(fallbackSeedView.markerRoot.children.some((child: any) => (
+      child.label === 'pixi-marker-seed-texture'
+    ))).toBe(false);
+    expect(fallbackSeedView.markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-seed-fallback'
+    ))).toBeDefined();
   });
 
   test('keeps simultaneous stone status labels in deterministic slots and order', () => {
@@ -1718,6 +1777,54 @@ describe('Pixi board scene playback projection', () => {
     expect(scene.getDiagnostics()).toMatchObject({
       hiddenStoneCount: 0,
       playbackScopeKey: null,
+      activePlaybackGhostCount: 0,
+      materializedPlaybackGhostCount: 0,
+      pooledPlaybackGhostCount: 1
+    });
+  });
+
+  test('materializes marker-only seed ghosts with the preloaded seed texture', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const seedTexture = { id: 'playback-seed-texture' };
+    scene.applyFrame(makeFrame({ topology }), {
+      textures: new Map([['special-stone:SEED:black', { texture: seedTexture }]])
+    });
+    const scope = scene.beginPlaybackScope('writer:seed-marker');
+    const ghost = scene.acquirePlaybackGhost(scope, {
+      row: 5,
+      col: 5,
+      stone: null,
+      markers: [{
+        kind: 'seed',
+        owner: 'black',
+        value: null,
+        data: { type: 'SEED', remainingOwnerTurns: 5 }
+      }]
+    });
+
+    expect(scene.getPlaybackGhost(ghost)).toMatchObject({
+      row: 5,
+      col: 5,
+      visible: true,
+      owner: 'black'
+    });
+    const markerRoot = scene.layers.playback.children[0];
+    expect(markerRoot).toMatchObject({ label: 'pixi-cell-markers', visible: true });
+    expect(markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-seed-texture'
+    ))).toMatchObject({
+      texture: seedTexture,
+      visible: true
+    });
+    expect(markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-seed-fallback'
+    ))).toBeUndefined();
+
+    scene.releasePlaybackGhost(scope, ghost);
+    expect(scene.layers.playback.children).toHaveLength(0);
+    expect(scene.getDiagnostics()).toMatchObject({
       activePlaybackGhostCount: 0,
       materializedPlaybackGhostCount: 0,
       pooledPlaybackGhostCount: 1

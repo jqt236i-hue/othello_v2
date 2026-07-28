@@ -193,6 +193,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const cause = String(result && result.cause ? result.cause : '').toUpperCase();
         if (phase === 'turn_start') {
             if (cause === 'SEED_WILL') return 'seed_turn_start';
+            if (cause === 'GRASS_WILL') return 'grass_seed_turn_start';
             if (cause === 'PROLIFERATION_WILL') return 'proliferation_turn_start';
             if (cause === 'STONE_SALVATION_GOD') return 'stone_salvation_god_turn_start';
             return 'generated_spawn_turn_start';

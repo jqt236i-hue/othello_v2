@@ -223,6 +223,8 @@ const {
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 6;
     const FIRE_WILL_TURNS = 6;
+    const WATER_WILL_TURNS = 6;
+    const GRASS_WILL_TURNS = 10;
     const METEOR_GOD_TURNS = 6;
     const GHOST_WILL_TURNS = 8;
     const SACRIFICE_WILL_TURNS = 5;
@@ -236,6 +238,8 @@ const {
     const POISON_STONE_TURNS = 5;
     const SCORCHED_CELL_TURNS = 10;
     const SCORCHED_STONE_TURNS = 3;
+    const HEALING_CELL_TURNS = 8;
+    const HEALING_CELL_DURATION_BONUS = 3;
     const TRAP_WILL_STEAL_MAX = 10;
     const GUARD_WILL_TURNS = 3;
     const GUARDIAN_GOD_TURNS = 10;
@@ -610,6 +614,8 @@ const {
     const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
     const CardLightningModule = resolveRequiredCardModule('./cards/lightning', 'CardLightning');
     const CardFireWillModule = resolveRequiredCardModule('./cards/fire-will', 'CardFireWill');
+    const CardWaterWillModule = resolveRequiredCardModule('./cards/water-will', 'CardWaterWill');
+    const CardGrassWillModule = resolveRequiredCardModule('./cards/grass-will', 'CardGrassWill');
     /** @type {any} */
     const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
     /** @type {any} */
@@ -977,6 +983,8 @@ const {
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
                 FIRE_WILL_TURNS,
+                WATER_WILL_TURNS,
+                GRASS_WILL_TURNS,
                 METEOR_GOD_TURNS,
                 GHOST_WILL_TURNS,
                 SACRIFICE_WILL_TURNS,
@@ -1800,12 +1808,12 @@ const {
      * @param {Object} data - Additional data (type, remainingTurns, etc.)
      * @returns {Object} The created marker
      */
-    function addMarker(cardState: any, kind: any, row: any, col: any, owner: any, data: any) {
+    function addMarker(cardState: any, kind: any, row: any, col: any, owner: any, data: any, options?: any) {
         if (!CardStateManager || typeof CardStateManager.addMarker !== 'function') {
             throw new Error('[cards.js] CardStateManager.addMarker not available');
         }
         const markerData = attachMarkerOriginIfNeeded(cardState, kind, owner, data);
-        return CardStateManager.addMarker(cardState, kind, row, col, owner, markerData);
+        return CardStateManager.addMarker(cardState, kind, row, col, owner, markerData, options);
     }
 
     /**
@@ -1935,6 +1943,8 @@ const {
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
                 FIRE_WILL_TURNS,
+                WATER_WILL_TURNS,
+                GRASS_WILL_TURNS,
                 METEOR_GOD_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS
@@ -2683,7 +2693,7 @@ const {
         return CardTargetAccessModule.getLivingWillTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
-    // Return targets: own true special stones / stone statuses with remainingOwnerTurns > 0
+    // Return targets: own duration-bearing true special-stone bodies with remainingOwnerTurns > 0
     function getExtendLifeTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getExtendLifeTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -2763,6 +2773,10 @@ const {
 
     function getScorchTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getScorchTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
+    }
+
+    function getHealingCellTargets(cardState: any, gameState: any, playerKey: any) {
+        return getScorchTargets(cardState, gameState, playerKey);
     }
 
     function getMeteorTargets(cardState: any, gameState: any, playerKey: any) {
@@ -2887,7 +2901,7 @@ const {
         );
     }
 
-    // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on chosen cell's own special markers (numeric remainingOwnerTurns only)
+    // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on the chosen duration-bearing special-stone body only
     function applyExtendLifeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return requireCardMarkersMethod('applyExtendLifeWill')(cardState, gameState, playerKey, row, col, {
             getExtendLifeTargets
@@ -2898,6 +2912,14 @@ const {
         return requireCardMarkersMethod('applyExtendLifeGod')(cardState, gameState, playerKey, row, col, {
             getExtendLifeTargets
         });
+    }
+
+    function processHealingCellDurationBoosts(cardState: any, playerKey: any) {
+        return requireCardMarkersMethod('addSpecialStoneDurationOnHealingCells')(
+            cardState,
+            playerKey,
+            HEALING_CELL_DURATION_BONUS
+        );
     }
 
     function applyCorrosionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
@@ -3072,7 +3094,11 @@ const {
             POISON_CELL_TURNS,
             POISON_STONE_TURNS,
             SCORCHED_CELL_TURNS,
-            SCORCHED_STONE_TURNS
+            SCORCHED_STONE_TURNS,
+            HEALING_CELL_TURNS,
+            TEMPORARY_SPECIAL_CELL_TYPES: SpecialStoneRegistry && SpecialStoneRegistry.TEMPORARY_SPECIAL_CELL_TYPES,
+            isTemporarySpecialCellType: SpecialStoneRegistry && SpecialStoneRegistry.isTemporarySpecialCellType,
+            getMarkerSemanticTraits: SpecialStoneRegistry && SpecialStoneRegistry.getMarkerSemanticTraits
         };
     }
 
@@ -3092,8 +3118,46 @@ const {
         return CardStatusCellsModule.syncHazardContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getHazardCellDeps(cardState));
     }
 
-    function applyScorchedCell(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardStatusCellsModule.applyScorchedCell(cardState, gameState, playerKey, row, col, getHazardCellDeps(cardState));
+    function applyScorchedCell(
+        cardState: any,
+        gameState: any,
+        playerKey: any,
+        row: any,
+        col: any,
+        sourceRow?: any,
+        sourceCol?: any
+    ) {
+        return CardStatusCellsModule.applyScorchedCell(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            getHazardCellDeps(cardState),
+            sourceRow,
+            sourceCol
+        );
+    }
+
+    function applyHealingCell(
+        cardState: any,
+        gameState: any,
+        playerKey: any,
+        row: any,
+        col: any,
+        sourceRow?: any,
+        sourceCol?: any
+    ) {
+        return CardStatusCellsModule.applyHealingCell(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            getHazardCellDeps(cardState),
+            sourceRow,
+            sourceCol
+        );
     }
 
     function processPoisonTurnEnd(cardState: any, gameState: any, completedTurnNumber?: any) {
@@ -3162,6 +3226,35 @@ const {
             SEED_WILL_TURNS
             }
         ));
+    }
+
+    function applySeedMarker(
+        cardState: any,
+        gameState: any,
+        playerKey: any,
+        row: any,
+        col: any,
+        sourceCardType: any,
+        sourceRow?: any,
+        sourceCol?: any
+    ) {
+        return CardStatusCellsModule.applySeedMarker(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            sourceCardType,
+            Object.assign(
+                getHazardCellDeps(cardState),
+                {
+                    getSeedTargets,
+                    SEED_WILL_TURNS
+                }
+            ),
+            sourceRow,
+            sourceCol
+        );
     }
 
     function getLossWillRemovableCount(cardState: any) {
@@ -4341,13 +4434,15 @@ const {
             BoardOps: BoardOpsModule,
             random: defaultPrng,
             getScorchTargets,
-            applyScorchedCell: (cs: any, gs: any, owner: any, row: any, col: any) => (
-                applyScorchedCell(cs, gs, owner, row, col)
+            applyScorchedCell: (cs: any, gs: any, owner: any, row: any, col: any, sourceRow: any, sourceCol: any) => (
+                applyScorchedCell(cs, gs, owner, row, col, sourceRow, sourceCol)
             )
         }, label);
         deps.getScorchTargets = deps.getScorchTargets || getScorchTargets;
         deps.applyScorchedCell = deps.applyScorchedCell || (
-            (cs: any, gs: any, owner: any, row: any, col: any) => applyScorchedCell(cs, gs, owner, row, col)
+            (cs: any, gs: any, owner: any, row: any, col: any, sourceRow: any, sourceCol: any) => (
+                applyScorchedCell(cs, gs, owner, row, col, sourceRow, sourceCol)
+            )
         );
         return deps;
     }
@@ -4374,6 +4469,107 @@ const {
 
     function processFireWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
         return processFireWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
+    }
+
+    function getWaterWillEffectDeps(cardState: any, prngOrOpts: any, label: string) {
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'BoardOps',
+            'getHealingCellTargets',
+            'applyHealingCell'
+        ], {
+            BoardOps: BoardOpsModule,
+            random: defaultPrng,
+            getHealingCellTargets,
+            applyHealingCell: (cs: any, gs: any, owner: any, row: any, col: any, sourceRow: any, sourceCol: any) => (
+                applyHealingCell(cs, gs, owner, row, col, sourceRow, sourceCol)
+            )
+        }, label);
+        deps.getHealingCellTargets = deps.getHealingCellTargets || getHealingCellTargets;
+        deps.applyHealingCell = deps.applyHealingCell || (
+            (cs: any, gs: any, owner: any, row: any, col: any, sourceRow: any, sourceCol: any) => (
+                applyHealingCell(cs, gs, owner, row, col, sourceRow, sourceCol)
+            )
+        );
+        return deps;
+    }
+
+    function processWaterWillEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardWaterWillModule.processWaterWillEffects(
+            cardState,
+            gameState,
+            playerKey,
+            getWaterWillEffectDeps(cardState, prng || defaultPrng, 'CardLogic.processWaterWillEffects')
+        );
+    }
+
+    function processWaterWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return CardWaterWillModule.processWaterWillEffectsAtAnchor(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            getWaterWillEffectDeps(cardState, prngOrOpts, 'CardLogic.processWaterWillEffectsAtAnchor')
+        );
+    }
+
+    function processWaterWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return processWaterWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
+    }
+
+    function getGrassWillEffectDeps(cardState: any, prngOrOpts: any, label: string) {
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'BoardOps',
+            'getSeedTargets',
+            'applySeedMarker'
+        ], {
+            BoardOps: BoardOpsModule,
+            random: defaultPrng,
+            getSeedTargets,
+            applySeedMarker: (
+                cs: any,
+                gs: any,
+                owner: any,
+                row: any,
+                col: any,
+                sourceCardType: any,
+                sourceRow?: any,
+                sourceCol?: any
+            ) => applySeedMarker(cs, gs, owner, row, col, sourceCardType, sourceRow, sourceCol)
+        }, label);
+        deps.getSeedTargets = deps.getSeedTargets || getSeedTargets;
+        deps.applySeedMarker = deps.applySeedMarker || (
+            (cs: any, gs: any, owner: any, row: any, col: any, sourceCardType: any, sourceRow?: any, sourceCol?: any) => (
+                applySeedMarker(cs, gs, owner, row, col, sourceCardType, sourceRow, sourceCol)
+            )
+        );
+        return deps;
+    }
+
+    function processGrassWillEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardGrassWillModule.processGrassWillEffects(
+            cardState,
+            gameState,
+            playerKey,
+            getGrassWillEffectDeps(cardState, prng || defaultPrng, 'CardLogic.processGrassWillEffects')
+        );
+    }
+
+    function processGrassWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return CardGrassWillModule.processGrassWillEffectsAtAnchor(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            getGrassWillEffectDeps(cardState, prngOrOpts, 'CardLogic.processGrassWillEffectsAtAnchor')
+        );
+    }
+
+    function processGrassWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return processGrassWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
     }
 
     function processMeteorGodEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
@@ -4855,6 +5051,8 @@ const cardsApi: any = {
         DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
         FIRE_WILL_TURNS,
+        WATER_WILL_TURNS,
+        GRASS_WILL_TURNS,
         METEOR_GOD_TURNS,
         GHOST_WILL_TURNS,
         SACRIFICE_WILL_TURNS,
@@ -4863,6 +5061,8 @@ const cardsApi: any = {
         POISON_STONE_TURNS,
         SCORCHED_CELL_TURNS,
         SCORCHED_STONE_TURNS,
+        HEALING_CELL_TURNS,
+        HEALING_CELL_DURATION_BONUS,
         WILL_HUNTER_KING_TURNS,
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
         THROW_CHAIN_CONFIG_BY_TYPE,
@@ -4936,6 +5136,8 @@ const cardsApi: any = {
         processDestroyDragonEffects,
         processLightningWillEffects,
         processFireWillEffects,
+        processWaterWillEffects,
+        processGrassWillEffects,
         processMeteorGodEffects,
 
         // Game flow
@@ -4968,6 +5170,7 @@ const cardsApi: any = {
         applyCaptureWill,
         applyExtendLifeWill,
         applyExtendLifeGod,
+        processHealingCellDurationBoosts,
         applyCorrosionWill,
         applyGuardWill,
         applyLivingWill,
@@ -4982,6 +5185,7 @@ const cardsApi: any = {
         applyBlockadeWill,
         applyPoisonWill,
         applyScorchedCell,
+        applyHealingCell,
         syncPoisonContacts,
         syncScorchContacts,
         syncHazardContacts,
@@ -4990,6 +5194,7 @@ const cardsApi: any = {
         applyMeteorWill,
         applyFreezeWill,
         applySeedWill,
+        applySeedMarker,
         getEqualityWillBoardCounts,
         getEqualityWillChargeState,
         getReinforcementWillTargets,
@@ -5043,6 +5248,10 @@ const cardsApi: any = {
         processLightningWillEffectsAtAnchor,
         processFireWillEffectsAtTurnStartAnchor,
         processFireWillEffectsAtAnchor,
+        processWaterWillEffectsAtTurnStartAnchor,
+        processWaterWillEffectsAtAnchor,
+        processGrassWillEffectsAtTurnStartAnchor,
+        processGrassWillEffectsAtAnchor,
         processMeteorGodEffectsAtTurnStartAnchor,
         processMeteorGodEffectsAtAnchor,
         processWillHunterKingEffectsAtTurnStartAnchor,
@@ -5091,6 +5300,7 @@ const cardsApi: any = {
         getBlockadeTargets,
         getPoisonTargets,
         getScorchTargets,
+        getHealingCellTargets,
         getMeteorTargets,
         getCausalReplayTargets,
         getFreezeTargets,

@@ -207,7 +207,9 @@ function createMockScene(log: string[]) {
     acquirePlaybackGhost: jest.fn((ownedScope: any, options: any) => {
       const handle = Object.freeze({ id: nextGhostId++, scopeId: ownedScope.id });
       ghosts.set(handle.id, { handle, ...options, alpha: 1, visible: true });
-      log.push(`scene:ghost-acquire:${options.row},${options.col}:${options.stone.owner}`);
+      const visualLabel = options.stone?.owner
+        || `marker:${options.markers?.[0]?.kind || 'unknown'}`;
+      log.push(`scene:ghost-acquire:${options.row},${options.col}:${visualLabel}`);
       return handle;
     }),
     updatePlaybackGhost: jest.fn((_scope: any, handle: any, update: any) => {
@@ -1023,6 +1025,237 @@ describe('Pixi board playback contract', () => {
       activeScopeKey: null
     });
     expect(harness.scene.getDiagnostics().activePlaybackEffectCount).toBe(0);
+  });
+
+  test('FIRE_WILL status waits for the flame beam before applying the scorched target', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[5, 1, stone('white')]])
+    });
+    const meta = {
+      special: 'SCORCHED_CELL',
+      cause: 'FIRE_WILL',
+      reason: 'scorched_cell_applied',
+      sourceRow: 2,
+      sourceCol: 3,
+      sourceTrajectoryProfile: 'fireWillFlameBeam'
+    };
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta,
+      targets: [{
+        r: 5,
+        col: 1,
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceRow: 2,
+        sourceCol: 3,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve',
+        meta
+      }]
+    } as any;
+    let settled = false;
+    const pending = harness.playback.playPhase([event], context(false, [event]))
+      .then(() => { settled = true; });
+
+    await flushMicrotasks();
+    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:fireWillFlameBeam:'))).toBe(true);
+    expect(harness.log).not.toContain('scene:hide:5,1');
+    expect(settled).toBe(false);
+
+    harness.application.tick(400);
+    await flushMicrotasks();
+    harness.application.tick(1);
+    await flushMicrotasks();
+    for (let index = 0; index < 4 && !settled; index += 1) {
+      harness.application.tick(1000);
+      await flushMicrotasks();
+    }
+    expect(settled).toBe(true);
+    await pending;
+    expect(harness.log).not.toContain('scene:hide:5,1');
+    expect(harness.log.some((entry) => entry.startsWith('scene:ghost-acquire:5,1:'))).toBe(false);
+
+    expect(harness.playback.getDiagnostics().sourceTrajectory).toMatchObject({
+      startedRunCount: 1,
+      completedRunCount: 1,
+      activeRunCount: 0,
+      byProfile: {
+        fireWillFlameBeam: expect.objectContaining({
+          started: 1,
+          completed: 1,
+          active: 0
+        })
+      }
+    });
+  });
+
+  test('GRASS_WILL status waits for the grass beam before applying the seed target', async () => {
+    const harness = createHarness();
+    const meta = {
+      special: 'SEED',
+      owner: 'black',
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      sourceRow: 2,
+      sourceCol: 3,
+      sourceTrajectoryProfile: 'grassWillSeedBeam'
+    };
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta,
+      targets: [{
+        r: 5,
+        col: 1,
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        sourceRow: 2,
+        sourceCol: 3,
+        meta,
+        after: { special: 'SEED', timer: 5, owner: 'black' }
+      }]
+    } as any;
+    let settled = false;
+    const pending = harness.playback.playPhase([event], context(false, [event]))
+      .then(() => { settled = true; });
+
+    await flushMicrotasks();
+    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:grassWillSeedBeam:'))).toBe(true);
+    const preImpactHide = harness.log.indexOf('scene:hide:5,1');
+    expect(preImpactHide).toBeGreaterThan(
+      harness.log.findIndex((entry) => entry.startsWith('scene:source-acquire:grassWillSeedBeam:'))
+    );
+    expect(harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'))).toBe(-1);
+    expect(settled).toBe(false);
+
+    harness.application.tick(400);
+    await flushMicrotasks();
+    harness.application.tick(1);
+    await flushMicrotasks();
+    const sourceRelease = harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'));
+    const seedAcquire = harness.log.indexOf('scene:ghost-acquire:5,1:marker:seed');
+    expect(sourceRelease).toBeGreaterThan(preImpactHide);
+    expect(seedAcquire).toBeGreaterThan(sourceRelease);
+    for (let index = 0; index < 4 && !settled; index += 1) {
+      harness.application.tick(1000);
+      await flushMicrotasks();
+    }
+    expect(settled).toBe(true);
+    await pending;
+
+    expect(harness.playback.getDiagnostics().sourceTrajectory).toMatchObject({
+      startedRunCount: 1,
+      completedRunCount: 1,
+      activeRunCount: 0,
+      byProfile: {
+        grassWillSeedBeam: expect.objectContaining({
+          started: 1,
+          completed: 1,
+          active: 0
+        })
+      }
+    });
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      retainedFinalGhostCount: 1,
+      projectedStoneCount: 1
+    });
+  });
+
+  test('WATER_WILL status waits for the water beam before applying the healing target', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[5, 1, stone('white')]])
+    });
+    const meta = {
+      special: 'HEALING_CELL',
+      cause: 'WATER_WILL',
+      reason: 'healing_cell_applied',
+      sourceRow: 2,
+      sourceCol: 3,
+      sourceTrajectoryProfile: 'waterWillHealingBeam'
+    };
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta,
+      targets: [{
+        r: 5,
+        col: 1,
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        sourceRow: 2,
+        sourceCol: 3,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve',
+        meta
+      }]
+    } as any;
+    let settled = false;
+    const pending = harness.playback.playPhase([event], context(false, [event]))
+      .then(() => { settled = true; });
+
+    await flushMicrotasks();
+    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:waterWillHealingBeam:'))).toBe(true);
+    expect(harness.log).not.toContain('scene:hide:5,1');
+    expect(settled).toBe(false);
+
+    harness.application.tick(400);
+    await flushMicrotasks();
+    harness.application.tick(1);
+    await flushMicrotasks();
+    for (let index = 0; index < 4 && !settled; index += 1) {
+      harness.application.tick(1000);
+      await flushMicrotasks();
+    }
+    expect(settled).toBe(true);
+    await pending;
+    expect(harness.log).not.toContain('scene:hide:5,1');
+    expect(harness.log.some((entry) => entry.startsWith('scene:ghost-acquire:5,1:'))).toBe(false);
+
+    expect(harness.playback.getDiagnostics().sourceTrajectory).toMatchObject({
+      startedRunCount: 1,
+      completedRunCount: 1,
+      activeRunCount: 0,
+      byProfile: {
+        waterWillHealingBeam: expect.objectContaining({
+          started: 1,
+          completed: 1,
+          active: 0
+        })
+      }
+    });
+  });
+
+  test('SEED_WILL status retains the asset marker through phase settlement', async () => {
+    const harness = createHarness({ noAnimation: true });
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta: {
+        special: 'SEED',
+        owner: 'black',
+        cause: 'SEED_WILL',
+        reason: 'seed_selected'
+      },
+      targets: [{
+        r: 4,
+        col: 2,
+        cause: 'SEED_WILL',
+        reason: 'seed_selected',
+        after: { special: 'SEED', timer: 5, owner: 'black' }
+      }]
+    } as any;
+
+    await harness.playback.playPhase([event], context(false, [event]));
+
+    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:'))).toBe(false);
+    expect(harness.log).toContain('scene:ghost-acquire:4,2:marker:seed');
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      retainedFinalGhostCount: 1,
+      projectedStoneCount: 1,
+      inFlightEffectCount: 0
+    });
   });
 
   test('deduped zombie target waits for every raw board-owned source trajectory', async () => {

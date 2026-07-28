@@ -182,6 +182,47 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelectorAll('.guard-timer').length).toBe(1);
   });
 
+  test('HEALING_CELL の STATUS_TICK は治癒マスの残り表示だけを更新する', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    setAnimationEngineDomBackendSleepControl();
+    const board = document.getElementById('board')!;
+    const cell = document.createElement('div');
+    cell.className = 'cell healing-cell';
+    cell.dataset.row = '0';
+    cell.dataset.col = '3';
+    const timer = document.createElement('div');
+    timer.className = 'healing-cell-turn';
+    timer.textContent = '8';
+    cell.appendChild(timer);
+    board.appendChild(cell);
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_TICK',
+      targets: [{
+        r: 0,
+        col: 3,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve',
+        after: { special: 'HEALING_CELL', timer: 7 }
+      }],
+      meta: {
+        special: 'HEALING_CELL',
+        timer: 7,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve'
+      }
+    });
+
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(cell.querySelector('.healing-cell-turn')?.textContent).toBe('7');
+  });
+
   test('延命系の STATUS_TICK は紫セルハイライトを出しつつ timer だけ更新する', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
@@ -859,6 +900,50 @@ describe('animation-engine guard timer rendering', () => {
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+  });
+
+  test('SCORCHED_CELL preserveはDOM discを更新しない', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    setAnimationEngineDomBackendSleepControl();
+    const board = document.getElementById('board')!;
+    const cell = document.createElement('div');
+    cell.className = 'cell has-disc';
+    cell.dataset.row = '2';
+    cell.dataset.col = '4';
+    const disc = document.createElement('div');
+    disc.className = 'disc white special-stone';
+    disc.dataset.specialType = 'FIRE';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+    const before = disc.outerHTML;
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{
+        r: 2,
+        col: 4,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve'
+      }],
+      meta: {
+        special: 'SCORCHED_CELL',
+        owner: null,
+        sourcePlayer: 'black',
+        timer: 10,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve'
+      }
+    });
+
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(disc.outerHTML).toBe(before);
+    expect(cell.querySelector('.disc')).toBe(disc);
   });
 
   test('causal replay STATUS_REMOVED clears hole styling before holding purple highlight', async () => {

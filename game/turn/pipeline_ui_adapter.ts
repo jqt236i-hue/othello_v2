@@ -120,6 +120,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'SNIPER_WILL',
         'LIGHTNING_WILL',
         'FIRE_WILL',
+        'WATER_WILL',
+        'GRASS_WILL',
         'METEOR_GOD',
         'DESTROY_DRAGON',
         'DESTROY_DRAGON_WILL',
@@ -141,6 +143,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'HYPERACTIVE',
         'LIGHTNING',
         'FIRE',
+        'WATER',
         'METEOR_GOD',
         'PROLIFERATION',
         'ROBOT_VACUUM',
@@ -579,6 +582,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return toCounterOrNull(meta && meta.destroyEvadeRemaining);
     }
 
+    function getStatusPlaybackTargetTraits(ev: any) {
+        const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : {};
+        const explicitSubjectKind = String(meta.subjectKind || ev && ev.subjectKind || '').trim().toLowerCase();
+        const explicitStoneMutation = String(meta.stoneMutation || ev && ev.stoneMutation || '').trim().toLowerCase();
+        const special = String(meta.special || ev && ev.special || '').trim().toUpperCase();
+        const subjectKind = explicitSubjectKind || (
+            SpecialStoneRegistry && typeof SpecialStoneRegistry.getMarkerSubjectKind === 'function'
+                ? String(SpecialStoneRegistry.getMarkerSubjectKind(special) || '').trim().toLowerCase()
+                : ''
+        ) || 'stone_body';
+        let stoneMutation = explicitStoneMutation;
+        if (!stoneMutation) {
+            if (subjectKind === 'cell_marker') {
+                stoneMutation = 'preserve';
+            } else if (subjectKind === 'topology') {
+                stoneMutation = 'remove';
+            } else {
+                const isHazardStoneStatus = SpecialStoneRegistry
+                    && typeof SpecialStoneRegistry.isHazardStoneStatusType === 'function'
+                    && SpecialStoneRegistry.isHazardStoneStatusType(special) === true;
+                stoneMutation = isHazardStoneStatus && String(ev && ev.type || '').toUpperCase() === 'STATUS_TICK'
+                    ? 'timer-only'
+                    : (isHazardStoneStatus ? 'preserve' : 'replace');
+            }
+        }
+        return { subjectKind, stoneMutation };
+    }
+
     function getCellColorAt(gameState: any, cardState: any, r: any, c: any) {
         if (!gameState || !Array.isArray(gameState.board)) return 0;
         if (
@@ -653,46 +684,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 };
             }
 
-            if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
-                const visualState = StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
-                    bombMarker,
-                    mode: 'visual'
-                });
-                special = visualState.special;
-                timer = visualState.timer;
-                owner = visualState.owner;
-                flipEvadeRemaining = visualState.flipEvadeRemaining;
-                destroyEvadeRemaining = visualState.destroyEvadeRemaining;
-                livingWillAura = visualState.livingWillAura === true;
-            } else {
-                const visualSpecial = markersAtCell.find((m: any) => {
-                    const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
-                    if (!typeUpper) return false;
-                    return !isOverlayOnlySpecialStoneType(typeUpper);
-                });
-
-                if (visualSpecial) {
-                    special = (visualSpecial.data && visualSpecial.data.type) || null;
-                    timer = resolveDisplayTimerValue(
-                        special,
-                        visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
-                        visualSpecial.data && visualSpecial.data.regenRemaining
-                    );
-                    owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
-                    flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
-                    destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
-                    if (flipEvadeRemaining === null) {
-                        const specialType = String(special || '').toUpperCase();
-                        if (specialType === 'ULTIMATE_HYPERACTIVE' || specialType === 'EXTREME_HYPERACTIVE') {
-                            flipEvadeRemaining = 5;
-                        }
-                    }
-                } else if (bombMarker) {
-                    special = 'TIME_BOMB';
-                    timer = (bombMarker.data && bombMarker.data.remainingTurns) || null;
-                    owner = (bombMarker.owner !== undefined && bombMarker.owner !== null) ? bombMarker.owner : null;
-                }
+            if (!StoneStatusSnapshot || typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers !== 'function') {
+                throw new Error('StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers is required by PipelineUIAdapter');
             }
+            const visualState = StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
+                bombMarker,
+                mode: 'visual'
+            });
+            special = visualState.special;
+            timer = visualState.timer;
+            owner = visualState.owner;
+            flipEvadeRemaining = visualState.flipEvadeRemaining;
+            destroyEvadeRemaining = visualState.destroyEvadeRemaining;
+            livingWillAura = visualState.livingWillAura === true;
             if (!livingWillAura) {
                 livingWillAura = markersAtCell.some((m: any) => (
                     m &&
@@ -823,7 +827,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isSeedSproutEventLike(ev: any) {
-        return _matchesSpawnCauseAndReason(ev, 'SEED_WILL', 'seed_sprout');
+        return (
+            _matchesSpawnCauseAndReason(ev, 'SEED_WILL', 'seed_sprout') ||
+            _matchesSpawnCauseAndReason(ev, 'GRASS_WILL', 'seed_sprout')
+        );
     }
 
     function _isLivingWillRestoreEventLike(ev: any) {
@@ -877,7 +884,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getFlipEvadeRemainingFromMeta,
             getDestroyEvadeRemainingFromMeta,
             getVisualStateAt,
-            isManifestStoneType: isManifestStoneTypeForPipelineUI
+            isManifestStoneType: isManifestStoneTypeForPipelineUI,
+            isBoardMarkerType: (rawType: any) => (
+                SpecialStoneRegistry &&
+                typeof SpecialStoneRegistry.isBoardMarkerType === 'function' &&
+                SpecialStoneRegistry.isBoardMarkerType(rawType) === true
+            )
         };
     }
 
@@ -915,7 +927,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             createPlaybackEvent: _createPlaybackEvent,
             hasDurationEndMarker: _hasDurationEndMarker,
             isObserverLostBubblePresentationEvent,
-            isManifestStoneType: isManifestStoneTypeForPipelineUI
+            isManifestStoneType: isManifestStoneTypeForPipelineUI,
+            getStatusPlaybackTargetTraits
         };
     }
 

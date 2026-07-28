@@ -16,6 +16,8 @@ const FALLBACK_TURNS = Object.freeze({
     DESTROY_DRAGON_WILL: 3,
     LIGHTNING_WILL: 6,
     FIRE_WILL: 6,
+    WATER_WILL: 6,
+    GRASS_WILL: 10,
     METEOR_GOD: 6,
     TIME_STOP_GOD: 3,
     TIME_STOP_DEITY: 5,
@@ -129,6 +131,16 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
             return {
                 type: readRegistryMarkerType(type, deps) || 'FIRE',
                 remainingOwnerTurns: readPositiveInt(constants.FIRE_WILL_TURNS, FALLBACK_TURNS.FIRE_WILL)
+            };
+        case 'WATER_WILL':
+            return {
+                type: readRegistryMarkerType(type, deps) || 'WATER',
+                remainingOwnerTurns: readPositiveInt(constants.WATER_WILL_TURNS, FALLBACK_TURNS.WATER_WILL)
+            };
+        case 'GRASS_WILL':
+            return {
+                type: readRegistryMarkerType(type, deps) || 'GRASS',
+                remainingOwnerTurns: readPositiveInt(constants.GRASS_WILL_TURNS, FALLBACK_TURNS.GRASS_WILL)
             };
         case 'METEOR_GOD':
             return {

@@ -9,6 +9,7 @@ import type {
 } from '../board-visual/types';
 import BoardSkinCatalog = require('../board-skin/catalog');
 import StoneSkinCatalog = require('../stone-skin/catalog');
+import SpecialStoneRegistry = require('../../shared/special-stone-registry');
 import PixiRuntimeContract = require('./runtime-contract');
 import { parsePlayerSeatKey } from '../../shared/player-seat-contract';
 import {
@@ -308,6 +309,9 @@ function textureSource(snapshot: PixiCommittedTextureSet): PixiStaticTextureSour
   return Object.freeze({
     get(purpose: string) {
       return snapshot.get(purpose)?.texture || null;
+    },
+    getResource(purpose: string) {
+      return snapshot.get(purpose);
     }
   });
 }
@@ -344,7 +348,8 @@ function collectSpecialStones(frame: BoardVisualFrame): ReadonlyArray<{
   const markerTypeByKind: Readonly<Record<string, string>> = Object.freeze({
     bomb: 'TIME_BOMB',
     frozen: 'FREEZE',
-    guard: 'GUARD'
+    guard: 'GUARD',
+    seed: 'SEED'
   });
   for (const cell of frame.model.cells) {
     const stone = cell.stone;
@@ -358,6 +363,12 @@ function collectSpecialStones(frame: BoardVisualFrame): ReadonlyArray<{
         || markerTypeByKind[marker.kind]
         || ''
       ).trim().toUpperCase();
+      const specialStoneRegistry = SpecialStoneRegistry as any;
+      const markerSubjectKind = specialStoneRegistry
+        && typeof specialStoneRegistry.getMarkerSubjectKind === 'function'
+        ? specialStoneRegistry.getMarkerSubjectKind(markerType, marker.data)
+        : null;
+      if (markerSubjectKind && markerSubjectKind !== 'stone_body') continue;
       const markerOwner = marker.owner || stone?.owner || null;
       if (!markerType || (markerOwner !== 'black' && markerOwner !== 'white')) continue;
       byKey.set(`${markerType}:${markerOwner}`, Object.freeze({ type: markerType, owner: markerOwner }));
@@ -760,7 +771,7 @@ export function createPixiBoardVisualBackend(
       const purpose = `special-stone:${special.type}:${special.owner}`;
       const fallbackRole = `${special.owner}-stone` as BoardAppearanceResourceDescriptor['role'];
       const fallback = defaultByRole.get(fallbackRole);
-      const isFullCellStatusOverlay = special.type === 'FREEZE';
+      const requiresProceduralFallback = special.type === 'FREEZE' || special.type === 'SEED';
       const physical = resourcePhysicalLimit(purpose, frame, effectGutterCells);
       requests.set(purpose, Object.freeze({
         purpose,
@@ -770,7 +781,7 @@ export function createPixiBoardVisualBackend(
         contentFingerprint: resource.contentFingerprint,
         maxPhysicalWidth: physical.width,
         maxPhysicalHeight: physical.height,
-        fallback: fallback && !isFullCellStatusOverlay
+        fallback: fallback && !requiresProceduralFallback
           ? Object.freeze({ kind: 'built-in' as const, url: fallback.url, contentFingerprint: fallback.contentFingerprint })
           : Object.freeze({ kind: 'procedural' as const, id: `${purpose}:procedural` })
       }));

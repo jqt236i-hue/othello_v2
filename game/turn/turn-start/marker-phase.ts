@@ -216,6 +216,29 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
     const processingState = TurnStartSpecialStonePhaseModule.createTurnStartSpecialStoneProcessingState();
     const markers = Array.isArray(opts.markers) ? opts.markers : [];
 
+    if (typeof opts.CardLogic.processHealingCellDurationBoosts === 'function') {
+        const turnIndex = opts.cardState && Number.isFinite(Number(opts.cardState.turnIndex))
+            ? Math.trunc(Number(opts.cardState.turnIndex))
+            : (opts.gameState && Number.isFinite(Number(opts.gameState.turnNumber)) ? Math.trunc(Number(opts.gameState.turnNumber)) : 0);
+        const actionId = `turn-start:${turnIndex}:healing-cells`;
+        const previousActionMeta = readCurrentActionMeta(opts.cardState);
+        setActionContextForAnchor(opts, {
+            actionId,
+            effectBlockId: buildTurnStartEffectBlockId(actionId, 'healing-cell'),
+            turnIndex,
+            plyIndex: 0,
+            randomSource: opts.prng || null
+        });
+        try {
+            const healing = opts.CardLogic.processHealingCellDurationBoosts(opts.cardState, opts.playerKey);
+            if (healing && Array.isArray(healing.details) && healing.details.length) {
+                opts.events.push({ type: 'water_duration_added_start', details: healing.details });
+            }
+        } finally {
+            restoreActionContextForAnchor(opts, previousActionMeta);
+        }
+    }
+
     for (let index = 0; index < markers.length; index += 1) {
         const markerAnchor = markers[index];
         if (!markerAnchor) continue;

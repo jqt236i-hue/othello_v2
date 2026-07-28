@@ -234,6 +234,81 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('GRASS_WILL の播種は草ビーム着弾phaseで seed_place を1回再生する', () => {
+    const presentation = [{
+      type: 'STATUS_APPLIED',
+      row: 5,
+      col: 1,
+      meta: {
+        special: 'SEED',
+        owner: 'black',
+        timer: 5,
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        sourceRow: 3,
+        sourceCol: 2,
+        sourceTrajectoryProfile: 'grassWillSeedBeam'
+      }
+    }];
+    const finalCardState = {
+      markers: [{
+        id: 'grass-seed-5-1',
+        kind: 'specialStone',
+        row: 5,
+        col: 1,
+        owner: 'black',
+        data: {
+          type: 'SEED',
+          remainingOwnerTurns: 5,
+          sourceCardType: 'GRASS_WILL'
+        }
+      }]
+    };
+    const finalGameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+
+    const base = adapter.mapToPlaybackEvents(presentation, finalCardState, finalGameState);
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [{
+      type: 'grass_seeded_start',
+      details: [{ row: 5, col: 1, sourceRow: 3, sourceCol: 2 }]
+    }]);
+    const status = base.find((event) => event?.type === 'status_applied');
+    const cues = out.filter((event) => event?.targets?.[0]?.soundKey === 'seed_place');
+
+    expect(status).toMatchObject({
+      phase: 1,
+      rawType: 'STATUS_APPLIED',
+      meta: expect.objectContaining({
+        sourceTrajectoryProfile: 'grassWillSeedBeam',
+        impactSoundPhase: 2
+      }),
+      targets: [{
+        r: 5,
+        col: 1,
+        sourceRow: 3,
+        sourceCol: 2,
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        meta: expect.objectContaining({
+          sourceTrajectoryProfile: 'grassWillSeedBeam',
+          impactSoundPhase: 2
+        })
+      }]
+    });
+    expect(cues).toHaveLength(1);
+    expect(cues[0].phase).toBe(2);
+  });
+
+  test('GRASS_WILL の播種が不成立なら seed_place を再生しない', () => {
+    const out = adapter.appendSoundEffectPlaybackEvents([], [{
+      type: 'grass_seeded_start',
+      details: []
+    }]);
+
+    expect(out.some((event) => event?.targets?.[0]?.soundKey === 'seed_place')).toBe(false);
+  });
+
   test('poison_selected 成功時は POISON_CELL の status_applied phase で poison_will_place を再生する', () => {
     const base = [{
       type: 'status_applied',
@@ -263,6 +338,270 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'poison_will_place');
 
     expect(cue).toBeUndefined();
+  });
+
+  test('FIRE_WILL の灼熱マス成立phaseで1マスにつき fire_will_scorch を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      phase: 18,
+      targets: [{ r: 5, col: 1 }],
+      meta: {
+        special: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied'
+      }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets?.[0]?.soundKey === 'fire_will_scorch'
+    ));
+
+    expect(cues).toHaveLength(1);
+    expect(cues[0].phase).toBe(19);
+  });
+
+  test('灼熱カウントtickと不成立イベントでは fire_will_scorch を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      rawType: 'STATUS_TICK',
+      phase: 19,
+      targets: [{ r: 5, col: 1 }],
+      meta: {
+        special: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied'
+      }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [{
+      type: 'fire_scorched_start',
+      details: []
+    }]);
+
+    expect(out.some((ev) => ev?.targets?.[0]?.soundKey === 'fire_will_scorch')).toBe(false);
+  });
+
+  test('WATER_WILL の治癒マスは水ビーム着弾phaseで1マスにつき専用音を再生する', () => {
+    const presentation = [{
+      type: 'STATUS_APPLIED',
+      row: 5,
+      col: 1,
+      meta: {
+        special: 'HEALING_CELL',
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        sourceRow: 3,
+        sourceCol: 2,
+        sourceTrajectoryProfile: 'waterWillHealingBeam'
+      }
+    }];
+
+    const base = adapter.mapToPlaybackEvents(presentation, {}, {});
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const status = base.find((event) => event?.type === 'status_applied');
+    const cues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets?.[0]?.soundKey === 'water_will_healing_cell'
+    ));
+
+    expect(status).toMatchObject({
+      phase: 1,
+      rawType: 'STATUS_APPLIED',
+      meta: expect.objectContaining({
+        sourceTrajectoryProfile: 'waterWillHealingBeam',
+        impactSoundPhase: 2
+      }),
+      targets: [{
+        r: 5,
+        col: 1,
+        sourceRow: 3,
+        sourceCol: 2,
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        meta: expect.objectContaining({
+          sourceTrajectoryProfile: 'waterWillHealingBeam',
+          impactSoundPhase: 2
+        })
+      }]
+    });
+    expect(cues).toHaveLength(1);
+    expect(cues[0].phase).toBe(2);
+  });
+
+  test('治癒マスtickと不成立イベントでは専用音を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      rawType: 'STATUS_TICK',
+      phase: 19,
+      targets: [{ r: 5, col: 1 }],
+      meta: {
+        special: 'HEALING_CELL',
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied'
+      }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [{
+      type: 'water_healing_cell_start',
+      details: []
+    }]);
+
+    expect(out.some((ev) => ev?.targets?.[0]?.soundKey === 'water_will_healing_cell')).toBe(false);
+  });
+
+  test('SCORCHED_CELL playback targetへ発射元とtrajectory metadataを残す', () => {
+    const presentation = [{
+      type: 'STATUS_APPLIED',
+      row: 5,
+      col: 1,
+      meta: {
+        special: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceRow: 3,
+        sourceCol: 2,
+        sourceTrajectoryProfile: 'fireWillFlameBeam'
+      }
+    }];
+    const out = adapter.mapToPlaybackEvents(presentation, {}, {});
+    const status = out.find((event) => event?.type === 'status_applied');
+
+    expect(status).toMatchObject({
+      rawType: 'STATUS_APPLIED',
+      meta: {
+        ...presentation[0].meta,
+        impactSoundPhase: 2
+      },
+      targets: [{
+        r: 5,
+        col: 1,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceRow: 3,
+        sourceCol: 2,
+        meta: {
+          ...presentation[0].meta,
+          impactSoundPhase: 2
+        }
+      }]
+    });
+  });
+
+  test('空のSCORCHED_CELL対象でマス所有者を通常石の色へ変換しない', () => {
+    const presentation = [{
+      type: 'STATUS_APPLIED',
+      row: 5,
+      col: 1,
+      meta: {
+        special: 'SCORCHED_CELL',
+        owner: 'black',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceRow: 3,
+        sourceCol: 2,
+        sourceTrajectoryProfile: 'fireWillFlameBeam'
+      }
+    }];
+    const finalCardState = {
+      markers: [{
+        id: 'scorched-cell-5-1',
+        kind: 'specialStone',
+        row: 5,
+        col: 1,
+        owner: 'black',
+        data: {
+          type: 'SCORCHED_CELL',
+          remainingTurns: 10
+        }
+      }]
+    };
+    const finalGameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+
+    const out = adapter.mapToPlaybackEvents(presentation, finalCardState, finalGameState);
+    const target = out.find((event) => event?.type === 'status_applied')?.targets?.[0];
+
+    expect(target).toMatchObject({
+      r: 5,
+      col: 1,
+      subjectKind: 'cell_marker',
+      stoneMutation: 'preserve'
+    });
+    expect(target).not.toHaveProperty('before');
+    expect(target).not.toHaveProperty('after');
+  });
+
+  test('hazard cell apply/tick/removeは石のbefore/afterを生成しない', () => {
+    const presentation = [
+      {
+        type: 'STATUS_APPLIED',
+        row: 2,
+        col: 2,
+        meta: { special: 'SCORCHED_CELL', reason: 'scorched_cell_applied' }
+      },
+      {
+        type: 'STATUS_TICK',
+        row: 2,
+        col: 2,
+        meta: { special: 'SCORCHED_CELL', timer: 9, reason: 'scorched_cell_tick' }
+      },
+      {
+        type: 'STATUS_REMOVED',
+        row: 2,
+        col: 2,
+        meta: { special: 'SCORCHED_CELL', timer: 0, reason: 'duration_end' }
+      }
+    ];
+
+    const statusEvents = adapter.mapToPlaybackEvents(presentation, {}, {})
+      .filter((event) => event?.type === 'status_applied' || event?.type === 'status_removed');
+
+    expect(statusEvents).toHaveLength(3);
+    expect(statusEvents.map((event) => event.targets[0].stoneMutation))
+      .toEqual(['preserve', 'preserve', 'preserve']);
+    for (const event of statusEvents) {
+      expect(event.targets[0]).toMatchObject({ subjectKind: 'cell_marker' });
+      expect(event.targets[0]).not.toHaveProperty('before');
+      expect(event.targets[0]).not.toHaveProperty('after');
+    }
+  });
+
+  test('複数火石はビームphaseと着弾音phaseを交互に予約する', () => {
+    const presentation = [0, 1].map((index) => ({
+      type: 'STATUS_APPLIED',
+      row: 5,
+      col: index,
+      meta: {
+        special: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceRow: 3,
+        sourceCol: index,
+        sourceTrajectoryProfile: 'fireWillFlameBeam'
+      }
+    }));
+    const base = adapter.mapToPlaybackEvents(presentation, {}, {});
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+
+    expect(base.map((event) => ({
+      phase: event.phase,
+      impactSoundPhase: event.meta.impactSoundPhase
+    }))).toEqual([
+      { phase: 1, impactSoundPhase: 2 },
+      { phase: 3, impactSoundPhase: 4 }
+    ]);
+    expect(out
+      .filter((event) => event?.targets?.[0]?.soundKey === 'fire_will_scorch')
+      .map((event) => event.phase)
+    ).toEqual([2, 4]);
   });
 
   test('POISONED の status_applied phase で poison_will_infect を再生する', () => {

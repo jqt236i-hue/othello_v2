@@ -719,6 +719,7 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
         poisonCell: source.poisonCell ? { ...source.poisonCell } : source.poisonCell,
         poisoned: source.poisoned ? { ...source.poisoned } : source.poisoned,
         scorchedCell: source.scorchedCell ? { ...source.scorchedCell } : source.scorchedCell,
+        healingCell: source.healingCell ? { ...source.healingCell } : source.healingCell,
         scorched: source.scorched ? { ...source.scorched } : source.scorched
     };
     if (cloned.special) {
@@ -740,6 +741,7 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
     if (cloned.poisonCell) cloned.poisonCell.remainingTurns = 0;
     if (cloned.poisoned) cloned.poisoned.remainingTurns = 0;
     if (cloned.scorchedCell) cloned.scorchedCell.remainingTurns = 0;
+    if (cloned.healingCell) cloned.healingCell.remainingTurns = 0;
     if (cloned.scorched) cloned.scorched.remainingTurns = 0;
     return cloned;
 }
@@ -798,6 +800,9 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     }
     if (prevState.scorchedCell && state.scorchedCell && prevState.scorchedCell.remainingTurns !== state.scorchedCell.remainingTurns) {
         if (!patch(cell.querySelector('.scorched-cell-turn'), prevState.scorchedCell.remainingTurns, state.scorchedCell.remainingTurns)) return false;
+    }
+    if (prevState.healingCell && state.healingCell && prevState.healingCell.remainingTurns !== state.healingCell.remainingTurns) {
+        if (!patch(cell.querySelector('.healing-cell-turn'), prevState.healingCell.remainingTurns, state.healingCell.remainingTurns)) return false;
     }
     if (prevState.scorched && state.scorched && prevState.scorched.remainingTurns !== state.scorched.remainingTurns) {
         if (!patch(cell.querySelector('.scorch-lethal-timer'), prevState.scorched.remainingTurns, state.scorched.remainingTurns)) return false;
@@ -1731,6 +1736,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 poisonCell: null,
                 poisoned: null,
                 scorchedCell: null,
+                healingCell: null,
                 scorched: null,
                 destroyEvadeRemaining: null
             };

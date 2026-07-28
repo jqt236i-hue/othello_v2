@@ -99,6 +99,8 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   DESTROY_DRAGON_WILL: '破壊龍で周囲を壊す',
   LIGHTNING_WILL: '雷の意志で敵石を破壊する',
   FIRE_WILL: '火の意志で灼熱マスを生み石を焼き尽くす',
+  WATER_WILL: '水の意志で治癒マスを生み特殊石を延命する',
+  GRASS_WILL: '草の意志で種をまき未来の石を育てる',
   ULTIMATE_DESTROY_GOD: '破壊神で周囲を壊す',
   ULTIMATE_HYPERACTIVE_GOD: '究極多動神を配置する',
   BOARD_EXPANSION_WILL: '盤面を外側へ広げる',

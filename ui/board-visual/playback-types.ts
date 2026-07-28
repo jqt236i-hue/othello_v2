@@ -1,3 +1,35 @@
+import SpecialStoneRegistry = require('../../shared/special-stone-registry');
+
+export type StatusPlaybackSubjectKind =
+  | 'stone_body'
+  | 'stone_status'
+  | 'cell_marker'
+  | 'topology'
+  | 'placement_effect';
+
+export type StatusPlaybackStoneMutation = 'preserve' | 'replace' | 'remove' | 'timer-only';
+
+export interface PlaybackStoneState {
+  color?: number;
+  owner?: 'black' | 'white' | number | null;
+  special?: unknown;
+  timer?: number | null;
+  [key: string]: unknown;
+}
+
+export interface PresentationPlaybackTarget {
+  r?: number;
+  row?: number;
+  col?: number;
+  c?: number;
+  subjectKind?: StatusPlaybackSubjectKind;
+  stoneMutation?: StatusPlaybackStoneMutation;
+  before?: PlaybackStoneState | null;
+  after?: PlaybackStoneState | null;
+  meta?: Readonly<Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
 export interface PresentationPlaybackEvent {
   type: string;
   phase?: number;
@@ -67,6 +99,89 @@ export function normalizePresentationEventType(eventOrType: unknown): string {
     ? (eventOrType as { type?: unknown }).type
     : eventOrType;
   return String(raw || '').trim().toLowerCase();
+}
+
+function normalizeStatusSubjectKind(value: unknown): StatusPlaybackSubjectKind | null {
+  const key = String(value || '').trim().toLowerCase();
+  if (
+    key === 'stone_body'
+    || key === 'stone_status'
+    || key === 'cell_marker'
+    || key === 'topology'
+    || key === 'placement_effect'
+  ) {
+    return key;
+  }
+  return null;
+}
+
+function normalizeStatusStoneMutation(value: unknown): StatusPlaybackStoneMutation | null {
+  const key = String(value || '').trim().toLowerCase();
+  if (key === 'preserve' || key === 'replace' || key === 'remove' || key === 'timer-only') {
+    return key;
+  }
+  return null;
+}
+
+function statusSpecial(event: PresentationPlaybackEvent, target: PresentationPlaybackTarget): string {
+  const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+  const eventMeta = event?.meta && typeof event.meta === 'object' ? event.meta : {};
+  return String(
+    targetMeta.special
+      || eventMeta.special
+      || (target.after && target.after.special)
+      || ''
+  ).trim().toUpperCase();
+}
+
+export function resolveStatusPlaybackSubjectKind(
+  event: PresentationPlaybackEvent,
+  target: PresentationPlaybackTarget
+): StatusPlaybackSubjectKind {
+  const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+  const eventMeta = event?.meta && typeof event.meta === 'object' ? event.meta : {};
+  const explicit = normalizeStatusSubjectKind(
+    target.subjectKind || targetMeta.subjectKind || eventMeta.subjectKind
+  );
+  if (explicit) return explicit;
+  const special = statusSpecial(event, target);
+  const registry = SpecialStoneRegistry as any;
+  const inferred = registry
+    && typeof registry.getMarkerSubjectKind === 'function'
+    ? normalizeStatusSubjectKind(registry.getMarkerSubjectKind(special))
+    : null;
+  return inferred || 'stone_body';
+}
+
+export function resolveStatusPlaybackStoneMutation(
+  event: PresentationPlaybackEvent,
+  target: PresentationPlaybackTarget
+): StatusPlaybackStoneMutation {
+  const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
+  const eventMeta = event?.meta && typeof event.meta === 'object' ? event.meta : {};
+  const explicit = normalizeStatusStoneMutation(
+    target.stoneMutation || targetMeta.stoneMutation || eventMeta.stoneMutation
+  );
+  if (explicit) return explicit;
+  const subjectKind = resolveStatusPlaybackSubjectKind(event, target);
+  if (subjectKind === 'cell_marker') return 'preserve';
+  if (subjectKind === 'topology') return 'remove';
+  const special = statusSpecial(event, target);
+  const rawType = String(event?.rawType || '').trim().toUpperCase();
+  const registry = SpecialStoneRegistry as any;
+  const isHazardStoneStatus = registry
+    && typeof registry.isHazardStoneStatusType === 'function'
+    && registry.isHazardStoneStatusType(special) === true;
+  if (isHazardStoneStatus) return rawType === 'STATUS_TICK' ? 'timer-only' : 'preserve';
+  return 'replace';
+}
+
+export function isStonePreservingStatusPlaybackTarget(
+  event: PresentationPlaybackEvent,
+  target: PresentationPlaybackTarget
+): boolean {
+  const mutation = resolveStatusPlaybackStoneMutation(event, target);
+  return mutation === 'preserve' || mutation === 'timer-only';
 }
 
 export function isBoardPlaybackEvent(event: unknown): event is PresentationPlaybackEvent {

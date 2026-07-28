@@ -71,6 +71,63 @@ describe('PresentationEffectProfiles', () => {
     })).toBe(false);
   });
 
+  test('classifies only canonical FIRE_WILL scorch status as the flame beam trajectory', () => {
+    const target = {
+      cause: 'FIRE_WILL',
+      reason: 'scorched_cell_applied',
+      meta: {
+        special: 'SCORCHED_CELL',
+        cause: 'FIRE_WILL',
+        reason: 'scorched_cell_applied',
+        sourceTrajectoryProfile: 'fireWillFlameBeam'
+      }
+    };
+    expect(profiles.getBoardSourceTrajectoryProfileKey('status_applied', target)).toBe('fireWillFlameBeam');
+    expect(profiles.getBoardSourceTrajectoryProfileKey('destroy', target)).toBeNull();
+    expect(profiles.getBoardSourceTrajectoryProfileKey(
+      'status_applied',
+      { ...target, meta: { ...target.meta, special: 'POISON_CELL' } }
+    )).toBeNull();
+  });
+
+  test('classifies only canonical GRASS_WILL seed status as the grass beam trajectory', () => {
+    const target = {
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      meta: {
+        special: 'SEED',
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        sourceTrajectoryProfile: 'grassWillSeedBeam'
+      }
+    };
+    expect(profiles.getBoardSourceTrajectoryProfileKey('status_applied', target)).toBe('grassWillSeedBeam');
+    expect(profiles.getBoardSourceTrajectoryProfileKey('destroy', target)).toBeNull();
+    expect(profiles.getBoardSourceTrajectoryProfileKey(
+      'status_applied',
+      { ...target, meta: { ...target.meta, special: 'SCORCHED_CELL' } }
+    )).toBeNull();
+  });
+
+  test('classifies only canonical WATER_WILL healing status as the water beam trajectory', () => {
+    const target = {
+      cause: 'WATER_WILL',
+      reason: 'healing_cell_applied',
+      meta: {
+        special: 'HEALING_CELL',
+        cause: 'WATER_WILL',
+        reason: 'healing_cell_applied',
+        sourceTrajectoryProfile: 'waterWillHealingBeam'
+      }
+    };
+    expect(profiles.getBoardSourceTrajectoryProfileKey('status_applied', target)).toBe('waterWillHealingBeam');
+    expect(profiles.getBoardSourceTrajectoryProfileKey('destroy', target)).toBeNull();
+    expect(profiles.getBoardSourceTrajectoryProfileKey(
+      'status_applied',
+      { ...target, meta: { ...target.meta, special: 'SCORCHED_CELL' } }
+    )).toBeNull();
+  });
+
   test('equality will is treated as a positive normal spawn profile', () => {
     const profile = profiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.find((one) => one && one.cause === 'EQUALITY_WILL');
     expect(profile).toEqual(expect.objectContaining({
@@ -114,5 +171,6 @@ describe('PresentationEffectProfiles', () => {
     expect(profiles.inferSpawnIntent('SUPPORT_TROOPS_WILL', 'support_troops_will_spawn')).toBe('normal_spawn');
     expect(profiles.inferSpawnIntent('SYSTEM', 'standard_spawn')).toBe('normal_spawn');
     expect(profiles.inferSpawnIntent('SEED_WILL', 'seed_sprout')).toBe('normal_spawn');
+    expect(profiles.inferSpawnIntent('GRASS_WILL', 'seed_sprout')).toBe('normal_spawn');
   });
 });

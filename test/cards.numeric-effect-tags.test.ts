@@ -31,6 +31,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getNumericTagLabels('TIME_STOP_GOD')).toEqual(['5ターン後に発動']);
     expect(getNumericTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual([]);
     expect(getNumericTagLabels('SEED_WILL')).toEqual(['5ターン後に発動']);
+    expect(getNumericTagLabels('GRASS_WILL')).toEqual(['10ターン持続']);
   });
 
   test('TRAP_WILL and RIBO_WILL do not invent numeric tags for opponent-turn or repayment wording', () => {

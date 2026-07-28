@@ -45,6 +45,7 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'SNIPER') return '狙撃石';
     if (s === 'LIGHTNING') return '落雷石';
     if (s === 'FIRE') return '火石';
+    if (s === 'GRASS') return '草石';
     if (s === 'METEOR_GOD') return '因果抹消神石';
     if (s === 'HYPERACTIVE') return '多動石';
     if (s === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
@@ -281,6 +282,17 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             case 'fire_expired_immediate':
                 push(`火石: 親石${_detailCount(ev)}個が通常石に戻る`);
                 break;
+            case 'water_healing_cell_start':
+            case 'water_healing_cell_immediate':
+                push(`水石: 治癒マスを${_detailCount(ev)}個生成`);
+                break;
+            case 'water_duration_added_start':
+                push(`治癒マス: 特殊石${_detailCount(ev)}個の持続ターンを3延長`);
+                break;
+            case 'water_expired_start':
+            case 'water_expired_immediate':
+                push(`水石: 親石${_detailCount(ev)}個が通常石に戻る`);
+                break;
             case 'meteor_god_destroyed_start':
             case 'meteor_god_destroyed_immediate':
                 push(`因果抹消神石: ${_detailCount(ev)}個を穴化`);
@@ -418,6 +430,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
                     if (e.lightningPlaced) push('雷の意志: 落雷石を設置');
                     if (e.firePlaced) push('火の意志: 火石を設置');
+                    if (e.grassPlaced) push('草の意志: 草石を設置');
                     if (e.meteorGodPlaced) push('因果抹消神石を設置');
                     if (e.willHunterKingPlaced) push('意志狩りの王を設置');
                     if (e.silverStoneUsed) push('銀石: 獲得布石3倍');

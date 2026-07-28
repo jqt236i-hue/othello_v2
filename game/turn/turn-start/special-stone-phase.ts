@@ -307,6 +307,24 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
         return processingState;
     }
 
+    if (typeKey === 'WATER' && owner === opts.playerKey) {
+        const res = opts.CardLogic.processWaterWillEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        pushTurnStartResultDetails(opts.events, res, [
+            { field: 'healingCells', type: 'water_healing_cell_start' },
+            { field: 'expired', type: 'water_expired_start' }
+        ]);
+        return processingState;
+    }
+
+    if (typeKey === 'GRASS' && owner === opts.playerKey) {
+        const res = opts.CardLogic.processGrassWillEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        pushTurnStartResultDetails(opts.events, res, [
+            { field: 'seeded', type: 'grass_seeded_start' },
+            { field: 'expired', type: 'grass_expired_start' }
+        ]);
+        return processingState;
+    }
+
     if (typeKey === 'METEOR_GOD' && owner === opts.playerKey) {
         const res = opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
         pushTurnStartResultDetails(opts.events, res, [

@@ -16,7 +16,10 @@ export interface PixiStaticViewRuntime {
 export type PixiStaticTextureSource =
   | ReadonlyMap<string, unknown>
   | Readonly<Record<string, unknown>>
-  | { get(purpose: string): unknown };
+  | {
+    get(purpose: string): unknown;
+    getResource?(purpose: string): unknown;
+  };
 
 export type PixiStaticBoardTextureMode = 'none' | 'single-surface' | 'per-cell';
 
@@ -332,6 +335,18 @@ function readTextureSource(source: PixiStaticTextureSource | null | undefined, p
   return (source as Readonly<Record<string, unknown>>)[purpose];
 }
 
+function readTextureResourceSource(
+  source: PixiStaticTextureSource | null | undefined,
+  purpose: string
+): unknown {
+  if (!source) return null;
+  const resourceGetter = (source as { getResource?: unknown }).getResource;
+  if (typeof resourceGetter === 'function') {
+    return (resourceGetter as (key: string) => unknown).call(source, purpose);
+  }
+  return readTextureSource(source, purpose);
+}
+
 /** Accepts both raw Pixi textures and texture-manager resource wrappers. */
 export function resolvePixiStaticTexture(
   source: PixiStaticTextureSource | null | undefined,
@@ -342,6 +357,29 @@ export function resolvePixiStaticTexture(
     if (!candidate) continue;
     if (typeof candidate === 'object' && Object.prototype.hasOwnProperty.call(candidate, 'texture')) {
       return (candidate as { texture: unknown }).texture || null;
+    }
+    return candidate;
+  }
+  return null;
+}
+
+/**
+ * Resolves only the requested texture, excluding texture-manager fallbacks.
+ * Marker views use this when their own procedural rendering is semantically
+ * safer than displaying a generic texture fallback.
+ */
+function resolvePixiStaticPrimaryTexture(
+  source: PixiStaticTextureSource | null | undefined,
+  purposes: readonly string[]
+): unknown | null {
+  for (const purpose of purposes) {
+    const candidate = readTextureResourceSource(source, purpose);
+    if (!candidate) continue;
+    if (typeof candidate === 'object' && Object.prototype.hasOwnProperty.call(candidate, 'texture')) {
+      if ((candidate as { usedFallback?: unknown }).usedFallback === true) continue;
+      const texture = (candidate as { texture: unknown }).texture;
+      if (texture) return texture;
+      continue;
     }
     return candidate;
   }
@@ -514,7 +552,7 @@ export function drawPixiBoardFrameHoleInnerEdges(
   }
 }
 
-const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell', 'scorched-cell']);
+const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell', 'scorched-cell', 'healing-cell']);
 
 export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView {
   const surfaceRoot = createPixiContainer(runtime, 'pixi-cell-surface');
@@ -524,6 +562,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
   const surfaceTexture = createPixiSprite(runtime, 'pixi-cell-surface-texture');
   const poisonSurface = createPixiGraphics(runtime, 'pixi-cell-poison-surface');
   const scorchedSurface = createPixiGraphics(runtime, 'pixi-cell-scorched-surface');
+  const healingSurface = createPixiGraphics(runtime, 'pixi-cell-healing-surface');
   const boardFrameHoleSurface = createPixiGraphics(runtime, 'pixi-cell-board-frame-hole-surface');
   const boardFrameHoleInnerEdges = createPixiGraphics(runtime, 'pixi-cell-board-frame-hole-inner-edges');
   const grid = createPixiGraphics(runtime, 'pixi-cell-grid-lines');
@@ -533,6 +572,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     surfaceTexture,
     poisonSurface,
     scorchedSurface,
+    healingSurface,
     boardFrameHoleSurface,
     boardFrameHoleInnerEdges
   );
@@ -582,6 +622,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     clearPixiGraphics(surface);
     clearPixiGraphics(poisonSurface);
     clearPixiGraphics(scorchedSurface);
+    clearPixiGraphics(healingSurface);
     clearPixiGraphics(boardFrameHoleSurface);
     clearPixiGraphics(boardFrameHoleInnerEdges);
     clearPixiGraphics(grid);
@@ -659,6 +700,22 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         cellSize * 0.84,
         cellSize * 0.84,
         { color: '#ff7a22', alpha: 0.2 }
+      );
+    }
+    const healingCellMarker = cell.markers.find((marker) => marker.kind === 'healing-cell') || null;
+    healingSurface.visible = !!healingCellMarker;
+    if (healingCellMarker) {
+      drawPixiRect(healingSurface, 0, 0, cellSize, cellSize, {
+        color: '#0b4f9f',
+        alpha: 0.76
+      });
+      drawPixiRect(
+        healingSurface,
+        cellSize * 0.08,
+        cellSize * 0.08,
+        cellSize * 0.84,
+        cellSize * 0.84,
+        { color: '#39bfff', alpha: 0.2 }
       );
     }
     if (boardFrameHole) {
@@ -768,6 +825,65 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         }
         continue;
       }
+      if (marker.kind === 'seed') {
+        const owner = marker.owner === 'white' ? 'white' : 'black';
+        const seedTexture = resolvePixiStaticPrimaryTexture(
+          context.textures,
+          [`special-stone:SEED:${owner}`]
+        );
+        const seedSprite = seedTexture
+          ? createPixiSprite(runtime, 'pixi-marker-seed-texture')
+          : null;
+        if (seedSprite) {
+          seedSprite.texture = seedTexture;
+          seedSprite.visible = true;
+          seedSprite.width = cellSize * 0.9;
+          seedSprite.height = cellSize * 0.9;
+          seedSprite.rotation = 0;
+          setPixiAnchor(seedSprite, 0.5);
+          setPixiPosition(seedSprite, cellSize * 0.5, cellSize * 0.42);
+          addPixiChild(markerRoot, seedSprite);
+        } else {
+          const fallbackSeed = createPixiGraphics(runtime, 'pixi-marker-seed-fallback');
+          drawPixiCircle(fallbackSeed, cellSize * 0.5, cellSize * 0.4, cellSize * 0.16, {
+            color: '#9d652f',
+            alpha: 0.98
+          }, {
+            color: '#e7c98b',
+            alpha: 0.92,
+            width: Math.max(1, cellSize * 0.025)
+          });
+          drawPixiCircle(fallbackSeed, cellSize * 0.58, cellSize * 0.28, cellSize * 0.07, {
+            color: '#67b84f',
+            alpha: 0.96
+          });
+          addPixiChild(markerRoot, fallbackSeed);
+        }
+        if (label) {
+          const timerBackground = createPixiGraphics(runtime, 'pixi-marker-seed-timer-background');
+          drawPixiCircle(timerBackground, cellSize * 0.5, cellSize * 0.82, cellSize * 0.14, {
+            color: '#0c2e48',
+            alpha: 0.86
+          }, {
+            color: '#cbf0ff',
+            alpha: 0.9,
+            width: Math.max(1, cellSize * 0.018)
+          });
+          addPixiChild(markerRoot, timerBackground);
+          const text = createPixiText(
+            runtime,
+            'pixi-marker-label:seed',
+            label,
+            toPixiTextStyle(context.theme.timer, cellSize * 0.72, label)
+          );
+          if (text) {
+            setPixiAnchor(text, 0.5);
+            setPixiPosition(text, cellSize * 0.5, cellSize * 0.82);
+            addPixiChild(markerRoot, text);
+          }
+        }
+        continue;
+      }
       if (marker.kind === 'poison-cell') {
         const cornerWidth = cellSize * (label.length >= 2 ? 0.42 : 0.34);
         const cornerHeight = cellSize * 0.34;
@@ -803,6 +919,29 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
           const text = createPixiText(
             runtime,
             'pixi-marker-label:scorched-cell',
+            label,
+            toPixiTextStyle(context.theme.timer, cellSize * 0.68, label)
+          );
+          if (text) {
+            setPixiAnchor(text, 0.5);
+            setPixiPosition(text, cornerWidth / 2, cornerHeight / 2);
+            addPixiChild(markerRoot, text);
+          }
+        }
+        continue;
+      }
+      if (marker.kind === 'healing-cell') {
+        const cornerWidth = cellSize * (label.length >= 2 ? 0.42 : 0.34);
+        const cornerHeight = cellSize * 0.34;
+        const corner = createPixiGraphics(runtime, 'pixi-marker-healing-cell-corner');
+        drawPixiRect(corner, 0, 0, cornerWidth, cornerHeight, {
+          color: '#083f88', alpha: 0.97
+        });
+        addPixiChild(markerRoot, corner);
+        if (label) {
+          const text = createPixiText(
+            runtime,
+            'pixi-marker-label:healing-cell',
             label,
             toPixiTextStyle(context.theme.timer, cellSize * 0.68, label)
           );
@@ -867,6 +1006,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     clearPixiGraphics(surface);
     clearPixiGraphics(poisonSurface);
     clearPixiGraphics(scorchedSurface);
+    clearPixiGraphics(healingSurface);
     clearPixiGraphics(boardFrameHoleSurface);
     clearPixiGraphics(boardFrameHoleInnerEdges);
     clearPixiGraphics(grid);
@@ -874,6 +1014,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     boardFrameHoleInnerEdges.visible = false;
     poisonSurface.visible = false;
     scorchedSurface.visible = false;
+    healingSurface.visible = false;
     grid.visible = true;
     if (surfaceTexture) surfaceTexture.visible = false;
     removeAndDestroyPixiChildren(markerRoot);

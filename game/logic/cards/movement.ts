@@ -34,6 +34,10 @@ const SelectorsCoreUtils = ((typeof module === 'object' && module.exports)
     ? safeRequire('./selectors-core-utils')
     : null) || (typeof self !== 'undefined' ? (self as any).CardSelectorsCoreUtils : null);
 
+const SpecialStoneRegistry = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/special-stone-registry')
+    : null) || (typeof self !== 'undefined' ? (self as any).SpecialStoneRegistry : null);
+
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)
     : 0;
@@ -64,10 +68,13 @@ function moveMarkers(cardState: any, fromRow: number, fromCol: number, toRow: nu
             continue;
         if (marker.row !== fromRow || marker.col !== fromCol)
             continue;
-        const boardMarker = deps && typeof deps.isBoardMarker === 'function'
-            ? deps.isBoardMarker(marker)
-            : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-                .includes(String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase());
+        const markerClassifier = deps && typeof deps.isBoardMarker === 'function'
+            ? deps.isBoardMarker
+            : SpecialStoneRegistry && SpecialStoneRegistry.isBoardMarker;
+        if (typeof markerClassifier !== 'function') {
+            throw new Error('SpecialStoneRegistry.isBoardMarker is required by CardMovement');
+        }
+        const boardMarker = markerClassifier(marker);
         if (boardMarker)
             continue;
         marker.row = toRow;

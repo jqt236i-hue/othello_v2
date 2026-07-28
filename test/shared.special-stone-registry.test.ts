@@ -17,6 +17,7 @@ describe('special stone registry rule classification', () => {
     'SNIPER',
     'LIGHTNING',
     'FIRE',
+    'GRASS',
     'DESTROY_DRAGON',
     'DRAGON',
     'ULTIMATE_DESTROY_GOD',
@@ -35,6 +36,7 @@ describe('special stone registry rule classification', () => {
   test('classifies enduring active stones as true_special_stone', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('HYPERACTIVE')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('DESTROY_DRAGON')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('GRASS')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('STONE_SALVATION_GOD')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PROTECTED')).toBe('true_special_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('PERMA_PROTECTED')).toBe('true_special_stone');
@@ -105,12 +107,13 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('GHOST')).toBe(true);
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('AFTERIMAGE_WILL')).toBe(true);
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('REGEN')).toBe(true);
+    expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('GRASS')).toBe(true);
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('TRAP')).toBe(false);
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('TIME_BOMB')).toBe(false);
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('OBSERVER_WILL')).toBe(false);
     expect(SpecialStoneRegistry.isTheoryIncarnationSpawnCandidate('LIVING_WILL')).toBe(false);
     expect(SpecialStoneRegistry.getTheoryIncarnationSpawnCandidates()).toEqual(
-      expect.arrayContaining(['GHOST', 'AFTERIMAGE_WILL', 'REGEN'])
+      expect.arrayContaining(['GHOST', 'AFTERIMAGE_WILL', 'REGEN', 'GRASS'])
     );
     expect(SpecialStoneRegistry.getTheoryIncarnationSpawnCandidates()).not.toEqual(
       expect.arrayContaining(['TRAP', 'TIME_BOMB', 'OBSERVER_WILL', 'LIVING_WILL'])
@@ -144,6 +147,8 @@ describe('special stone registry rule classification', () => {
       ['destroy_dragon_01', 'DESTROY_DRAGON_WILL', 'DESTROY_DRAGON'],
       ['lightning_01', 'LIGHTNING_WILL', 'LIGHTNING'],
       ['fire_will_01', 'FIRE_WILL', 'FIRE'],
+      ['water_will_01', 'WATER_WILL', 'WATER'],
+      ['grass_will_01', 'GRASS_WILL', 'GRASS'],
       ['udg_01', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_DESTROY_GOD'],
       ['ultimate_hyperactive_01', 'ULTIMATE_HYPERACTIVE_GOD', 'ULTIMATE_HYPERACTIVE'],
       ['meteor_god_01', 'METEOR_GOD', 'METEOR_GOD'],
@@ -185,6 +190,7 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.isNormalVisualStoneEffect('POISONED')).toBe(true);
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('POISONED')).toBe(false);
     expect(SpecialStoneRegistry.isDurationAffectableMarker({ kind: 'specialStone', data: { type: 'POISONED', remainingTurns: 5 } })).toBe(false);
+    expect(SpecialStoneRegistry.isDurationAffectableMarker({ kind: 'specialStone', data: { type: 'REGEN', remainingOwnerTurns: 3, regenRemaining: 3 } })).toBe(false);
 
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.blocksTempt('GUARD')).toBe(true);
@@ -197,17 +203,59 @@ describe('special stone registry rule classification', () => {
   });
 
   test('defines ownership-change lifecycle without per-caller card lists', () => {
-    for (const type of ['SACRIFICE', 'PROLIFERATION', 'SNIPER', 'WORK', 'TIME_STOP', 'TIME_STOP_DEITY', 'TIME_BOMB']) {
+    for (const type of ['SACRIFICE', 'PROLIFERATION', 'SNIPER', 'WORK', 'WATER', 'GRASS', 'TIME_STOP', 'TIME_STOP_DEITY', 'TIME_BOMB']) {
       expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('revert');
     }
     for (const type of ['REGEN', 'ZOMBIE', 'LIVING_WILL', 'TRAP']) {
       expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('resolve_after_change');
     }
-    for (const type of ['POISONED', 'SCORCHED', 'BLOCKADE', 'FREEZE', 'SCORCHED_CELL', 'THEORY_INCARNATION', 'GOLD']) {
+    for (const type of ['POISONED', 'SCORCHED', 'BLOCKADE', 'FREEZE', 'SCORCHED_CELL', 'HEALING_CELL', 'THEORY_INCARNATION', 'GOLD']) {
       expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('preserve');
     }
     expect(SpecialStoneRegistry.getOwnershipChangePolicy('FUTURE_UNKNOWN_SPECIAL_STONE')).toBe('revert');
     expect(SpecialStoneRegistry.getOwnershipChangePolicy('CUSTOM_BOMB', { category: 'bomb' })).toBe('revert');
+  });
+
+  test('defines cell-marker ownership, clock, and stone-preservation semantics centrally', () => {
+    expect(SpecialStoneRegistry.getMarkerSemanticTraits('SCORCHED_CELL')).toEqual({
+      subjectKind: 'cell_marker',
+      ownershipPolicy: 'none',
+      durationClock: 'completed_turn',
+      exclusivityGroup: 'temporary_special_cell',
+      visualLayer: 'cell'
+    });
+    expect(SpecialStoneRegistry.getMarkerSemanticTraits('POISON_CELL')).toEqual(
+      SpecialStoneRegistry.getMarkerSemanticTraits('SCORCHED_CELL')
+    );
+    expect(SpecialStoneRegistry.getMarkerSemanticTraits('HEALING_CELL')).toEqual(
+      SpecialStoneRegistry.getMarkerSemanticTraits('SCORCHED_CELL')
+    );
+    expect(SpecialStoneRegistry.getMarkerSubjectKind('SCORCHED')).toBe('stone_status');
+    expect(SpecialStoneRegistry.getMarkerDurationValue('SCORCHED_CELL', { remainingTurns: 10 })).toBe(10);
+    expect(SpecialStoneRegistry.isTemporarySpecialCellType('SEED')).toBe(true);
+  });
+
+  test('exposes water stone protection and duration traits through the shared registry', () => {
+    expect(SpecialStoneRegistry.getSpecialStoneInfo('WATER')).toEqual(expect.objectContaining({
+      name: '水石',
+      flipProtected: true
+    }));
+    expect(SpecialStoneRegistry.isDurationAffectableMarker({
+      kind: 'specialStone',
+      data: { type: 'WATER', remainingOwnerTurns: 6 }
+    })).toBe(true);
+    expect(SpecialStoneRegistry.isHazardCellType('HEALING_CELL')).toBe(false);
+  });
+
+  test('exposes grass stone protection and duration traits through the shared registry', () => {
+    expect(SpecialStoneRegistry.getSpecialStoneInfo('GRASS')).toEqual(expect.objectContaining({
+      name: '草石',
+      flipProtected: true
+    }));
+    expect(SpecialStoneRegistry.isDurationAffectableMarker({
+      kind: 'specialStone',
+      data: { type: 'GRASS', remainingOwnerTurns: 10 }
+    })).toBe(true);
   });
 
   test('late-bound global EvasionStatus still supplies evade defaults', () => {

@@ -168,6 +168,28 @@ describe('visual-effects map shared between game/ui', () => {
     expect(shared.STONE_VISUAL_EFFECTS.fireWillStone.imagePathByOwner['-1']).toContain('fire-will-white.png');
   });
 
+  test('WATER_WILL と WATER が水石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.WATER_WILL).toBe('waterWillStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.WATER).toBe('waterWillStone');
+    expect(shared.STONE_VISUAL_EFFECTS.waterWillStone.imagePathByOwner['1']).toContain('water-will-black.png');
+    expect(shared.STONE_VISUAL_EFFECTS.waterWillStone.imagePathByOwner['-1']).toContain('water-will-white.png');
+  });
+
+  test('GRASS_WILL と GRASS が草石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.GRASS_WILL).toBe('grassWillStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.GRASS).toBe('grassWillStone');
+    expect(shared.STONE_VISUAL_EFFECTS.grassWillStone.imagePathByOwner['1']).toContain('grass-will-black.png');
+    expect(shared.STONE_VISUAL_EFFECTS.grassWillStone.imagePathByOwner['-1']).toContain('grass-will-white.png');
+  });
+
   test('METEOR_GOD が因果抹消神石画像へ解決される', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

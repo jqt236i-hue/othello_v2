@@ -30,6 +30,7 @@ function makeFrame(
   options: {
     boardUrl?: string;
     special?: boolean;
+    seed?: boolean;
     rows?: number;
     cols?: number;
     renderSessionId?: string;
@@ -88,13 +89,18 @@ function makeFrame(
           kind: 'playable' as const,
           expansionSide: null,
           boundaryEdges: { top: 'outer' as const, right: 'none' as const, bottom: 'none' as const, left: 'outer' as const },
-          stone: {
+          stone: options.seed ? null : {
             owner: 'black' as const,
             value: 1,
             specialType: options.special ? 'TIME_BOMB' : null,
             status: {}
           },
-          markers: [],
+          markers: options.seed ? [{
+            kind: 'seed',
+            owner: 'black' as const,
+            value: null,
+            data: { remainingOwnerTurns: 5 }
+          }] : [],
           interaction: {
             legal: false,
             legalFree: false,
@@ -226,10 +232,11 @@ function createApplicationRuntime(document: Document, options: {
 
 function createTextureRuntime() {
   const deferredByUrl = new Map<string, ReturnType<typeof deferred<void>>>();
+  const failedUrls = new Set<string>();
   const destroyed: string[] = [];
   let failAll = false;
   const loadTexture = jest.fn(async (url: string) => {
-    if (failAll) throw new Error(`texture-failed:${url}`);
+    if (failAll || failedUrls.has(url)) throw new Error(`texture-failed:${url}`);
     const waiting = deferredByUrl.get(url);
     if (waiting) await waiting.promise;
     return {
@@ -259,6 +266,7 @@ function createTextureRuntime() {
       deferredByUrl.set(url, waiting);
       return waiting;
     },
+    failUrl(url: string) { failedUrls.add(url); },
     setFailAll(value: boolean) { failAll = value; }
   };
 }
@@ -604,6 +612,49 @@ describe('Pixi board backend integration', () => {
       settledFrameToken: 'network-restored-special',
       neededSpecialAssetIds: ['TIME_BOMB']
     });
+  });
+
+  test('prepares the seed marker texture for an empty Pixi board cell', async () => {
+    const harness = createHarness();
+    const frame = makeFrame('seed-marker-texture', 2, { seed: true });
+    await harness.backend.mount(harness.host, {});
+
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(
+      'https://example.test/special/SEED/black.png',
+      'special-stone:SEED:black'
+    );
+    expect(harness.scene.applyCalls.at(-1)?.context?.textures.get('special-stone:SEED:black')).toEqual({
+      url: 'https://example.test/special/SEED/black.png'
+    });
+  });
+
+  test('exposes a procedural fallback instead of a normal stone when the seed image fails', async () => {
+    const harness = createHarness();
+    const frame = makeFrame('seed-marker-fallback', 2, { seed: true });
+    const seedUrl = 'https://example.test/special/SEED/black.png';
+    harness.textures.failUrl(seedUrl);
+    await harness.backend.mount(harness.host, {});
+
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    const textureSource = harness.scene.applyCalls.at(-1)?.context?.textures;
+    expect(textureSource.getResource('special-stone:SEED:black')).toMatchObject({
+      sourceKind: 'procedural',
+      usedFallback: true
+    });
+    expect(textureSource.get('special-stone:SEED:black')).toEqual({
+      procedural: 'special-stone:SEED:black'
+    });
+    expect(harness.textures.loadTexture).not.toHaveBeenCalledWith(
+      'https://example.test/default-black.png',
+      'special-stone:SEED:black'
+    );
   });
 
   test('restore waits for every interrupted raw playback phase before applying its frame', async () => {

@@ -260,6 +260,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/cards/expansion": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/expansion.js"),
   "game/logic/cards/fire-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/fire-will.js"),
   "game/logic/cards/flips": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/flips.js"),
+  "game/logic/cards/grass-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/grass-will.js"),
   "game/logic/cards/hyperactive": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/hyperactive.js"),
   "game/logic/cards/hyperactive-board-shape": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/hyperactive-board-shape.js"),
   "game/logic/cards/hyperactive-core-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/hyperactive-core-utils.js"),
@@ -282,6 +283,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/cards/udg": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/udg.js"),
   "game/logic/cards/ultimate_work_god": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/ultimate_work_god.js"),
   "game/logic/cards/utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/utils.js"),
+  "game/logic/cards/water-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/water-will.js"),
   "game/logic/cards/will_hunter_king": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/will_hunter_king.js"),
   "game/logic/cards/work_will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/work_will.js"),
   "game/logic/cards/zombie_will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/zombie_will.js"),
@@ -369,8 +371,10 @@ const startupAccessors: Record<string, () => unknown> = {
   "legacy/game/logic/cards/breeding": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/breeding.js"),
   "legacy/game/logic/cards/destroy_dragon": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/destroy_dragon.js"),
   "legacy/game/logic/cards/fire-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/fire-will.js"),
+  "legacy/game/logic/cards/grass-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/grass-will.js"),
   "legacy/game/logic/cards/lightning": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/lightning.js"),
   "legacy/game/logic/cards/sniper": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/sniper.js"),
+  "legacy/game/logic/cards/water-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/water-will.js"),
   "legacy/utils/owner-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/utils/owner-helpers.js"),
   "shared-constants": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared-constants.js"),
   "shared/board-hint-projection": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board-hint-projection.js"),
@@ -952,6 +956,7 @@ installBootModuleMetadata({
     "game/logic/cards/expansion",
     "game/logic/cards/fire-will",
     "game/logic/cards/flips",
+    "game/logic/cards/grass-will",
     "game/logic/cards/hyperactive",
     "game/logic/cards/hyperactive-board-shape",
     "game/logic/cards/hyperactive-core-utils",
@@ -974,6 +979,7 @@ installBootModuleMetadata({
     "game/logic/cards/udg",
     "game/logic/cards/ultimate_work_god",
     "game/logic/cards/utils",
+    "game/logic/cards/water-will",
     "game/logic/cards/will_hunter_king",
     "game/logic/cards/work_will",
     "game/logic/cards/zombie_will",
@@ -1061,8 +1067,10 @@ installBootModuleMetadata({
     "legacy/game/logic/cards/breeding",
     "legacy/game/logic/cards/destroy_dragon",
     "legacy/game/logic/cards/fire-will",
+    "legacy/game/logic/cards/grass-will",
     "legacy/game/logic/cards/lightning",
     "legacy/game/logic/cards/sniper",
+    "legacy/game/logic/cards/water-will",
     "legacy/utils/owner-helpers",
     "shared-constants",
     "shared/board-hint-projection",
@@ -1476,4 +1484,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 687;
+export const startupModuleCount = 691;

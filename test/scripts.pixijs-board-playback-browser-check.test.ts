@@ -370,6 +370,9 @@ describe('Pixi playback browser scenario matrix', () => {
       'status_applied'
     ]);
     expect(Check.PLAYBACK_SCENARIOS.slice(6).map((scenario: any) => scenario.name)).toEqual([
+      'fire-will-scorch',
+      'water-will-healing',
+      'grass-will-seed',
       'trajectory-sniper-shot',
       'trajectory-robot-vacuum-suck',
       'special-destroy-hybrid',
@@ -389,10 +392,13 @@ describe('Pixi playback browser scenario matrix', () => {
       'legacy-sacrifice-absorb-pulse'
     ]);
     expect(Check.scenariosForMode('reduced-motion')).toHaveLength(6);
-    expect(Check.scenariosForMode('normal')).toHaveLength(23);
-    expect(Check.scenariosForMode('noanim')).toHaveLength(23);
+    expect(Check.scenariosForMode('normal')).toHaveLength(26);
+    expect(Check.scenariosForMode('noanim')).toHaveLength(26);
     const sourceScenarios = Check.PLAYBACK_SCENARIOS.filter((scenario: any) => scenario.sourceTrajectory);
     expect(sourceScenarios.map((scenario: any) => scenario.sourceTrajectory.profileKey)).toEqual([
+      'fireWillFlameBeam',
+      'waterWillHealingBeam',
+      'grassWillSeedBeam',
       'sniperShot',
       'robotVacuumSuck',
       'destroyDragonBreath',
@@ -448,6 +454,15 @@ describe('Pixi playback browser scenario matrix', () => {
     const zombieSource = Check.PLAYBACK_SCENARIOS.find((scenario: any) => (
       scenario.name === 'zombie-infection-source'
     ));
+    const fireSource = Check.PLAYBACK_SCENARIOS.find((scenario: any) => (
+      scenario.name === 'fire-will-scorch'
+    ));
+    const grassSource = Check.PLAYBACK_SCENARIOS.find((scenario: any) => (
+      scenario.name === 'grass-will-seed'
+    ));
+    const waterSource = Check.PLAYBACK_SCENARIOS.find((scenario: any) => (
+      scenario.name === 'water-will-healing'
+    ));
     expect(destroySource.expectedGlobalEventTypes).toBeUndefined();
     expect(zombieSource.expectedGlobalEventTypes).toBeUndefined();
     expect(Check.expectedDispatchLaunchOrder(destroySource)).toEqual([
@@ -465,6 +480,24 @@ describe('Pixi playback browser scenario matrix', () => {
       'impact:start(3,5)',
       'trajectory:settle(zombieBite,1/0/0/0/zombieBite)',
       'target:commit(3,5)'
+    ]);
+    expect(Check.expectedSemanticTrajectoryTrace(fireSource)).toEqual([
+      'trajectory:start(fireWillFlameBeam,1/0/0/0/fireWillFlameBeam)',
+      'impact:start(5,5)',
+      'trajectory:settle(fireWillFlameBeam,1/0/0/0/fireWillFlameBeam)',
+      'target:commit(5,5)'
+    ]);
+    expect(Check.expectedSemanticTrajectoryTrace(waterSource)).toEqual([
+      'trajectory:start(waterWillHealingBeam,1/0/0/0/waterWillHealingBeam)',
+      'impact:start(5,5)',
+      'trajectory:settle(waterWillHealingBeam,1/0/0/0/waterWillHealingBeam)',
+      'target:commit(5,5)'
+    ]);
+    expect(Check.expectedSemanticTrajectoryTrace(grassSource)).toEqual([
+      'trajectory:start(grassWillSeedBeam,1/0/0/0/grassWillSeedBeam)',
+      'impact:start(5,5)',
+      'trajectory:settle(grassWillSeedBeam,1/0/0/0/grassWillSeedBeam)',
+      'target:commit(5,5)'
     ]);
     const sniper = Check.PLAYBACK_SCENARIOS.find((scenario: any) => scenario.name === 'trajectory-sniper-shot');
     expect(sniper.sourceTrajectory).toEqual(expect.objectContaining({

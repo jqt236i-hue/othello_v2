@@ -24,6 +24,7 @@ function getOwnerValueForDiff(owner: any, BLACK: any, WHITE: any): any {
 
 const BoardVisualModel = _require('./model');
 const SharedBoardUtils = _require('../../shared/shared-board-utils');
+const SpecialStoneRegistry = _require('../../shared/special-stone-registry');
 
 function cloneSemanticValue(value: any): any {
     if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -278,6 +279,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
     const poisonedMap = new Map();
     const scorchedCellMap = new Map();
     const scorchedMap = new Map();
+    const healingCellMap = new Map();
     const sproutMap = new Map();
     const markerVisualMap = new Map<string, any>();
     const setMarkerVisual = (row: any, col: any, field: string, value: any) => {
@@ -358,7 +360,12 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 continue;
             }
             if (m.data.type === 'POISON_CELL') {
-                const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
+                const visual = {
+                    row: m.row,
+                    col: m.col,
+                    remainingTurns: m.data.remainingTurns,
+                    sourcePlayer: m.data.sourcePlayer || m.owner || null
+                };
                 poisonCellMap.set(`${m.row},${m.col}`, visual);
                 setMarkerVisual(m.row, m.col, 'poisonCell', visual);
                 continue;
@@ -370,9 +377,25 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 continue;
             }
             if (m.data.type === 'SCORCHED_CELL') {
-                const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
+                const visual = {
+                    row: m.row,
+                    col: m.col,
+                    remainingTurns: m.data.remainingTurns,
+                    sourcePlayer: m.data.sourcePlayer || m.owner || null
+                };
                 scorchedCellMap.set(`${m.row},${m.col}`, visual);
                 setMarkerVisual(m.row, m.col, 'scorchedCell', visual);
+                continue;
+            }
+            if (m.data.type === 'HEALING_CELL') {
+                const visual = {
+                    row: m.row,
+                    col: m.col,
+                    remainingTurns: m.data.remainingTurns,
+                    sourcePlayer: m.data.sourcePlayer || m.owner || null
+                };
+                healingCellMap.set(`${m.row},${m.col}`, visual);
+                setMarkerVisual(m.row, m.col, 'healingCell', visual);
                 continue;
             }
             if (m.data.type === 'SCORCHED') {
@@ -495,6 +518,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             const poisoned = val !== EMPTY && markerVisual ? markerVisual.poisoned || null : null;
             const scorchedCell = markerVisual ? markerVisual.scorchedCell || null : null;
             const scorched = val !== EMPTY && markerVisual ? markerVisual.scorched || null : null;
+            const healingCell = markerVisual ? markerVisual.healingCell || null : null;
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
@@ -567,9 +591,19 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     owner: getOwnerValueForDiff(seed.owner, BLACK, WHITE),
                     remainingOwnerTurns: seed.remainingOwnerTurns
                 } : null,
-                poisonCell: poisonCell ? { remainingTurns: poisonCell.remainingTurns } : null,
+                poisonCell: poisonCell ? {
+                    remainingTurns: poisonCell.remainingTurns,
+                    sourcePlayer: poisonCell.sourcePlayer || null
+                } : null,
                 poisoned: poisoned ? { remainingTurns: poisoned.remainingTurns } : null,
-                scorchedCell: scorchedCell ? { remainingTurns: scorchedCell.remainingTurns } : null,
+                scorchedCell: scorchedCell ? {
+                    remainingTurns: scorchedCell.remainingTurns,
+                    sourcePlayer: scorchedCell.sourcePlayer || null
+                } : null,
+                healingCell: healingCell ? {
+                    remainingTurns: healingCell.remainingTurns,
+                    sourcePlayer: healingCell.sourcePlayer || null
+                } : null,
                 scorched: scorched ? { remainingTurns: scorched.remainingTurns } : null,
                 destroyEvadeRemaining: destroyEvadeDisplay
             };
@@ -604,6 +638,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         const poisoned = expVal !== EMPTY && markerVisual ? markerVisual.poisoned || null : null;
         const scorchedCell = markerVisual ? markerVisual.scorchedCell || null : null;
         const scorched = expVal !== EMPTY && markerVisual ? markerVisual.scorched || null : null;
+        const healingCell = markerVisual ? markerVisual.healingCell || null : null;
         const special = expVal !== EMPTY && markerVisual ? markerVisual.special || null : null;
         const guard = expVal !== EMPTY && markerVisual ? markerVisual.guard || null : null;
         const livingWill = expVal !== EMPTY && markerVisual ? markerVisual.livingWill || null : null;
@@ -638,9 +673,19 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 owner: getOwnerValueForDiff(seed.owner, BLACK, WHITE),
                 remainingOwnerTurns: seed.remainingOwnerTurns
             } : null,
-            poisonCell: poisonCell ? { remainingTurns: poisonCell.remainingTurns } : null,
+            poisonCell: poisonCell ? {
+                remainingTurns: poisonCell.remainingTurns,
+                sourcePlayer: poisonCell.sourcePlayer || null
+            } : null,
             poisoned: poisoned ? { remainingTurns: poisoned.remainingTurns } : null,
-            scorchedCell: scorchedCell ? { remainingTurns: scorchedCell.remainingTurns } : null,
+            scorchedCell: scorchedCell ? {
+                remainingTurns: scorchedCell.remainingTurns,
+                sourcePlayer: scorchedCell.sourcePlayer || null
+            } : null,
+            healingCell: healingCell ? {
+                remainingTurns: healingCell.remainingTurns,
+                sourcePlayer: healingCell.sourcePlayer || null
+            } : null,
             scorched: scorched ? { remainingTurns: scorched.remainingTurns } : null,
             special: special ? {
                 type: special.type,
@@ -700,7 +745,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 frozen: null,
                 seed: null,
                 poisonCell: null,
-                scorchedCell: null
+                scorchedCell: null,
+                healingCell: null
             });
         }
         Object.defineProperty(state, '_cellStateByKey', {
@@ -724,6 +770,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     poisonedMap,
                     scorchedCellMap,
                     scorchedMap,
+                    healingCellMap,
                     sproutMap,
                     markerVisualMap
                 })
@@ -771,6 +818,7 @@ function markerListFromLegacyState(cellState: any, black: any, white: any): any[
     push('poison-cell', cellState.poisonCell);
     push('poisoned', cellState.poisoned);
     push('scorched-cell', cellState.scorchedCell);
+    push('healing-cell', cellState.healingCell);
     push('scorched', cellState.scorched);
     push('breeding-sprout', cellState.breedingSprout);
     push('board-bonus', cellState.boardBonus);
@@ -976,6 +1024,7 @@ function createEmptyDomCompatibilityCellState(): any {
         poisonCell: null,
         poisoned: null,
         scorchedCell: null,
+        healingCell: null,
         scorched: null,
         destroyEvadeRemaining: null
     };
@@ -996,6 +1045,7 @@ function createDomCompatibilityCellState(cell: any): any {
     const poisonCell = getSemanticMarkerData(cell, 'poison-cell');
     const poisoned = cell && cell.stone ? getSemanticMarkerData(cell, 'poisoned') : null;
     const scorchedCell = getSemanticMarkerData(cell, 'scorched-cell');
+    const healingCell = getSemanticMarkerData(cell, 'healing-cell');
     const scorched = cell && cell.stone ? getSemanticMarkerData(cell, 'scorched') : null;
     const stoneStatus = cell && cell.stone && cell.stone.status && typeof cell.stone.status === 'object'
         ? cell.stone.status
@@ -1032,6 +1082,7 @@ function createDomCompatibilityCellState(cell: any): any {
         poisonCell,
         poisoned,
         scorchedCell,
+        healingCell,
         scorched,
         destroyEvadeRemaining: stoneStatus.destroyEvadeRemaining ?? null
     };
@@ -1053,25 +1104,55 @@ function isModelBaseCoordinate(model: any, cell: any): boolean {
 function createCompatibilityMarker(cell: any, marker: any): any {
     if (!marker || typeof marker !== 'object') return null;
     const data = marker.data && typeof marker.data === 'object' ? cloneSemanticValue(marker.data) : {};
-    const owner = marker.owner || (data && data.owner) || (cell && cell.stone && cell.stone.owner) || null;
-    const base = { row: cell.row, col: cell.col, owner, data };
+    const serializedLegacyOwner = marker.owner || (data && data.owner) || null;
+    const stoneOwner = (cell && cell.stone && cell.stone.owner) || null;
+    const visualOwner = serializedLegacyOwner || stoneOwner;
+    let type = '';
+    let kind = 'specialStone';
     if (marker.kind === 'special') {
-        const type = String(data.type || (cell.stone && cell.stone.specialType) || '');
+        type = String(data.type || (cell.stone && cell.stone.specialType) || '');
         if (!type) return null;
         const manifest = type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
-        return { ...base, kind: manifest ? 'manifestStone' : 'specialStone', data: { ...data, type } };
+        kind = manifest ? 'manifestStone' : 'specialStone';
+    } else if (marker.kind === 'living-will-aura') {
+        type = 'LIVING_WILL';
+    } else if (marker.kind === 'guard') {
+        type = 'GUARD';
+    } else if (marker.kind === 'bomb') {
+        type = 'TIME_BOMB';
+        data.category = 'bomb';
+    } else if (marker.kind === 'blockade') {
+        type = data.type || 'BLOCKADE';
+    } else if (marker.kind === 'frozen') {
+        type = 'FREEZE';
+    } else if (marker.kind === 'seed') {
+        type = 'SEED';
+    } else if (marker.kind === 'poison-cell') {
+        type = 'POISON_CELL';
+    } else if (marker.kind === 'poisoned') {
+        type = 'POISONED';
+    } else if (marker.kind === 'scorched-cell') {
+        type = 'SCORCHED_CELL';
+    } else if (marker.kind === 'healing-cell') {
+        type = 'HEALING_CELL';
+    } else if (marker.kind === 'scorched') {
+        type = 'SCORCHED';
+    } else {
+        return null;
     }
-    if (marker.kind === 'living-will-aura') return { ...base, kind: 'specialStone', data: { ...data, type: 'LIVING_WILL' } };
-    if (marker.kind === 'guard') return { ...base, kind: 'specialStone', data: { ...data, type: 'GUARD' } };
-    if (marker.kind === 'bomb') return { ...base, kind: 'specialStone', data: { ...data, type: 'TIME_BOMB', category: 'bomb' } };
-    if (marker.kind === 'blockade') return { ...base, kind: 'specialStone', data: { ...data, type: data.type || 'BLOCKADE' } };
-    if (marker.kind === 'frozen') return { ...base, kind: 'specialStone', data: { ...data, type: 'FREEZE' } };
-    if (marker.kind === 'seed') return { ...base, kind: 'specialStone', data: { ...data, type: 'SEED' } };
-    if (marker.kind === 'poison-cell') return { ...base, kind: 'specialStone', data: { ...data, type: 'POISON_CELL' } };
-    if (marker.kind === 'poisoned') return { ...base, kind: 'specialStone', data: { ...data, type: 'POISONED' } };
-    if (marker.kind === 'scorched-cell') return { ...base, kind: 'specialStone', data: { ...data, type: 'SCORCHED_CELL' } };
-    if (marker.kind === 'scorched') return { ...base, kind: 'specialStone', data: { ...data, type: 'SCORCHED' } };
-    return null;
+    const traits = SpecialStoneRegistry && typeof SpecialStoneRegistry.getMarkerSemanticTraits === 'function'
+        ? SpecialStoneRegistry.getMarkerSemanticTraits(type, data)
+        : null;
+    const owner = traits && traits.ownershipPolicy === 'none' ? null : visualOwner;
+    if (
+        traits
+        && traits.ownershipPolicy === 'none'
+        && !data.sourcePlayer
+        && (serializedLegacyOwner === 'black' || serializedLegacyOwner === 'white')
+    ) {
+        data.sourcePlayer = serializedLegacyOwner;
+    }
+    return { row: cell.row, col: cell.col, owner, kind, data: { ...data, type } };
 }
 
 /**

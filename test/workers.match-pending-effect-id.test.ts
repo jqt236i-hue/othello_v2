@@ -656,8 +656,11 @@ describe('worker pendingEffectId contract', () => {
     expect(result.marker).toEqual(expect.objectContaining({
       row: 2,
       col: 3,
-      owner: 'black',
-      data: expect.objectContaining({ type: markerType })
+      owner: markerType === 'POISON_CELL' ? null : 'black',
+      data: expect.objectContaining({
+        type: markerType,
+        ...(markerType === 'POISON_CELL' ? { sourcePlayer: 'black' } : {})
+      })
     }));
   });
 
@@ -971,15 +974,24 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
-  test('extend life target selection doubles authoritative marker duration and emits status playback', () => {
+  test('extend life target selection doubles only the authoritative special-stone body duration', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'extend_life_01',
       pendingType: 'EXTEND_LIFE_WILL',
       actionKey: 'extendTarget',
       target: { row: 2, col: 2 },
+      extraBoard: [{ row: 2, col: 2, value: 1 }],
       markers: [
         {
           id: 22,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'LIGHTNING', remainingOwnerTurns: 2 }
+        },
+        {
+          id: 23,
           kind: 'specialStone',
           row: 2,
           col: 2,
@@ -1001,7 +1013,14 @@ describe('worker pendingEffectId contract', () => {
         row: 2,
         col: 2,
         owner: 'black',
-        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 6 })
+        data: expect.objectContaining({ type: 'LIGHTNING', remainingOwnerTurns: 4 })
+      }),
+      expect.objectContaining({
+        id: 23,
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 3 })
       })
     ]));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
@@ -1009,8 +1028,8 @@ describe('worker pendingEffectId contract', () => {
         type: 'status_applied',
         rawType: 'STATUS_TICK',
         meta: expect.objectContaining({
-          special: 'GUARD',
-          timer: 6,
+          special: 'LIGHTNING',
+          timer: 4,
           reason: 'extend_life_applied',
           highlightTone: 'positive'
         })
@@ -1021,6 +1040,15 @@ describe('worker pendingEffectId contract', () => {
         targets: expect.arrayContaining([
           expect.objectContaining({ soundKey: 'extend_life' })
         ])
+      })
+    ]));
+    expect(result.payload.playbackEvents).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        rawType: 'STATUS_TICK',
+        meta: expect.objectContaining({
+          special: 'GUARD',
+          reason: 'extend_life_applied'
+        })
       })
     ]));
   });

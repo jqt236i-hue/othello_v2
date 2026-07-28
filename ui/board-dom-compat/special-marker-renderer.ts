@@ -145,6 +145,13 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return mark;
   }
 
+  function createHealingCellMark(remainingTurns: any) {
+    const mark = doc.createElement('div');
+    mark.className = 'healing-cell-mark';
+    mark.appendChild(createTimedMarkerLabel('healing-cell-turn countdown-timer', remainingTurns));
+    return mark;
+  }
+
   function createScorchLethalTimer(remainingTurns: any) {
     const timer = doc.createElement('div');
     timer.className = 'scorch-lethal-timer';
@@ -168,6 +175,7 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createPoisonCellMark,
     createPoisonLethalTimer,
     createScorchedCellMark,
+    createHealingCellMark,
     createScorchLethalTimer
   };
 }

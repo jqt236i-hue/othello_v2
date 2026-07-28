@@ -468,6 +468,8 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectSoundFiles.zombie_will_revive).toBe('ゾンビの意志が復活するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.poison_will_place).toBe('毒殺の意志を置くタイミング.mp3');
     expect(soundEngine.effectSoundFiles.poison_will_infect).toBe('毒殺の意志で石が毒状態になるタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.fire_will_scorch).toBe('火の意志で灼熱マスを生成するタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.water_will_healing_cell).toBe('水の意志で治癒マスを生成するタイミング.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);

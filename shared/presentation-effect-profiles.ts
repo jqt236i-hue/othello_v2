@@ -65,6 +65,9 @@ const GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS = Object.freeze([
 
 const BOARD_SOURCE_TRAJECTORY_PROFILE_KEYS = Object.freeze([
     ...GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS,
+    'fireWillFlameBeam',
+    'waterWillHealingBeam',
+    'grassWillSeedBeam',
     'zombieBite'
 ] as const);
 
@@ -96,6 +99,7 @@ const POSITIVE_SPAWN_LIKE_EFFECTS = Object.freeze([
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SEED_WILL', reasonPrefix: 'seed_sprout' }),
+    Object.freeze({ spawnIntent: 'normal_spawn', cause: 'GRASS_WILL', reasonPrefix: 'seed_sprout' }),
     Object.freeze({ spawnIntent: 'clone_spawn', cause: 'CLONE_WILL', reasonPrefix: 'clone_spawn' }),
     Object.freeze({ spawnIntent: 'proliferation_spawn', cause: 'PROLIFERATION_WILL', reasonPrefix: 'proliferation_spawn' })
 ]);
@@ -106,6 +110,7 @@ const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = Object.freeze([
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
     Object.freeze({ spawnIntent: 'normal_spawn', cause: 'SEED_WILL', reasonPrefix: 'seed_sprout' }),
+    Object.freeze({ spawnIntent: 'normal_spawn', cause: 'GRASS_WILL', reasonPrefix: 'seed_sprout' }),
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
 ]);
 
@@ -177,6 +182,34 @@ function getBoardSourceTrajectoryProfileKey(
     subject: PresentationSubject | null | undefined
 ): string | null {
     const normalizedType = String(eventType || '').trim().toLowerCase();
+    if (normalizedType === 'status_applied') {
+        const meta = subject && subject.meta && typeof subject.meta === 'object'
+            ? subject.meta
+            : {};
+        const explicitProfile = String(meta.sourceTrajectoryProfile || '').trim();
+        const special = String(meta.special || '').trim().toUpperCase();
+        const cause = String(meta.cause || subject?.cause || '').trim().toUpperCase();
+        const reason = String(meta.reason || subject?.reason || '').trim().toLowerCase();
+        if (explicitProfile === 'fireWillFlameBeam'
+            && special === 'SCORCHED_CELL'
+            && cause === 'FIRE_WILL'
+            && reason === 'scorched_cell_applied') {
+            return 'fireWillFlameBeam';
+        }
+        if (explicitProfile === 'waterWillHealingBeam'
+            && special === 'HEALING_CELL'
+            && cause === 'WATER_WILL'
+            && reason === 'healing_cell_applied') {
+            return 'waterWillHealingBeam';
+        }
+        if (explicitProfile === 'grassWillSeedBeam'
+            && special === 'SEED'
+            && cause === 'GRASS_WILL'
+            && reason === 'grass_seeded') {
+            return 'grassWillSeedBeam';
+        }
+        return null;
+    }
     if (normalizedType === 'flip') return isZombieInfectionTarget(subject) ? 'zombieBite' : null;
     if (normalizedType !== 'destroy') return null;
     const key = getSpecialDestroyTargetProfileKey(subject);
@@ -211,6 +244,7 @@ function inferSpawnIntent(cause: unknown, reason: unknown): string | null {
     if (causeUpper === 'SALVATION_WILL') return 'salvation_spawn';
     if (causeUpper === STONE_SALVATION_GOD_CAUSE) return 'salvation_spawn';
     if (causeUpper === 'SEED_WILL') return 'normal_spawn';
+    if (causeUpper === 'GRASS_WILL') return 'normal_spawn';
     if (causeUpper === 'LIVING_WILL') return 'restore_spawn';
     if (causeUpper === 'REINFORCEMENT_WILL' || reasonLower.indexOf('_spawn') >= 0) {
         return 'normal_spawn';

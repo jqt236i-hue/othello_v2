@@ -1126,6 +1126,8 @@ const Flips = CardFlips || {};
         const res: any[] = [];
         for (const m of markers) {
             if (!m || m.kind !== 'specialStone') continue;
+            if (typeof Markers.isTrueSpecialStoneMarker !== 'function' || !Markers.isTrueSpecialStoneMarker(m)) continue;
+            if (typeof Markers.isDurationAffectableMarker !== 'function' || !Markers.isDurationAffectableMarker(m)) continue;
             if (m.owner !== playerKey) continue;
             const rem = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
             if (rem === null || !Number.isFinite(rem) || rem <= 0) continue;

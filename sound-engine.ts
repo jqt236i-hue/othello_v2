@@ -129,6 +129,8 @@ const SoundEngine = {
         blockade_select: '封鎖の意志を置くタイミング.mp3',
         poison_will_place: '毒殺の意志を置くタイミング.mp3',
         poison_will_infect: '毒殺の意志で石が毒状態になるタイミング.mp3',
+        fire_will_scorch: '火の意志で灼熱マスを生成するタイミング.mp3',
+        water_will_healing_cell: '水の意志で治癒マスを生成するタイミング.mp3',
         freeze_select: '凍結するマスを選択したタイミング.mp3',
         trap_triggered: '罠が発動したタイミング.mp3',
         trap_misfire: '罠が不発で消えたタイミング.mp3',

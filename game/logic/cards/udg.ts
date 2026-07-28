@@ -179,12 +179,10 @@ function moveCoexistingMarkers(cardState: CardState, anchorEntry: any, fromRow: 
     for (const marker of (cardState as any).markers) {
         if (!marker || marker === anchorEntry) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
-            ? SpecialStoneRegistry.isBoardMarker(marker)
-            : (CardMarkersModule && typeof CardMarkersModule.getMarkerRuleClass === 'function'
-                ? CardMarkersModule.getMarkerRuleClass(marker) === 'board_marker'
-                : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
-                    .includes(String(marker && marker.data && marker.data.type || '').toUpperCase()));
+        if (!SpecialStoneRegistry || typeof SpecialStoneRegistry.isBoardMarker !== 'function') {
+            throw new Error('SpecialStoneRegistry.isBoardMarker is required by CardUdG');
+        }
+        const boardMarker = SpecialStoneRegistry.isBoardMarker(marker);
         if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;
