@@ -353,9 +353,8 @@ function runWorkerPendingSelectionPlaceParityScenario(config) {
   expect(workerPlace.status).toBe(200);
   expect(workerPlace.payload && workerPlace.payload.ok).toBe(true);
 
-  const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
   expect(normalizePublicSnapshotForParity(workerPlace.payload.snapshot))
-    .toEqual(normalizePublicSnapshotForParity(localPublic));
+    .toEqual(normalizePublicSnapshotForParity(localPlace.snapshot));
   expect(normalizePlaybackSummary(workerPlace.payload.playbackEvents))
     .toEqual(normalizePlaybackSummary(localPlace.playbackEvents));
   expect(workerPlace.payload.effectLogs || []).toEqual(localPlace.effectLogs || []);
@@ -435,10 +434,9 @@ describe('worker card pattern parity', () => {
       return;
     }
 
-    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
     expect(workerResult.payload.stateVersion).toBe(localResult.stateVersion);
     expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
-      .toEqual(normalizePublicSnapshotForParity(localPublic));
+      .toEqual(normalizePublicSnapshotForParity(localResult.snapshot));
     if (EXPECTED_PENDING_TYPE_BY_CARD_ID[cardId]) {
       expect(workerResult.payload.snapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
         type: EXPECTED_PENDING_TYPE_BY_CARD_ID[cardId],
@@ -470,9 +468,8 @@ describe('worker card pattern parity', () => {
     expect(workerResult.payload.ok).toBe(true);
     expect(localResult.ok).toBe(true);
 
-    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
     expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
-      .toEqual(normalizePublicSnapshotForParity(localPublic));
+      .toEqual(normalizePublicSnapshotForParity(localResult.snapshot));
     expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
       .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
 
@@ -516,9 +513,8 @@ describe('worker card pattern parity', () => {
     expect(workerResult.payload.ok).toBe(true);
     expect(localResult.ok).toBe(true);
 
-    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
     expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
-      .toEqual(normalizePublicSnapshotForParity(localPublic));
+      .toEqual(normalizePublicSnapshotForParity(localResult.snapshot));
     expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
       .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
     expect(workerResult.payload.effectLogs || []).toEqual(localResult.effectLogs || []);

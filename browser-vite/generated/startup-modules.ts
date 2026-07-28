@@ -689,7 +689,6 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-publish-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-publish-controller.js"),
   "utils/match-rematch-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-rematch-controller.js"),
   "utils/match-room-preferences-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-room-preferences-controller.js"),
-  "utils/match-runtime-core": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-runtime-core.js"),
   "utils/match-runtime-ports": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-runtime-ports.js"),
   "utils/match-spectate-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-spectate-controller.js"),
   "utils/match-state-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-state-controller.js"),
@@ -1395,7 +1394,6 @@ installBootModuleMetadata({
     "utils/match-publish-controller",
     "utils/match-rematch-controller",
     "utils/match-room-preferences-controller",
-    "utils/match-runtime-core",
     "utils/match-runtime-ports",
     "utils/match-spectate-controller",
     "utils/match-state-controller",
@@ -1484,4 +1482,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 691;
+export const startupModuleCount = 690;

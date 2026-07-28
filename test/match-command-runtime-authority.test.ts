@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as ts from 'typescript';
 import * as LocalMatchServer from '../scripts/local-match-server';
 import * as LocalMatchRuntime from '../scripts/local-match-runtime';
 
@@ -76,6 +77,21 @@ const scenarioCoverage: ScenarioCoverage[] = [
     testName: 'expired timeout can use injected forced pass resolver instead of direct core pass'
   },
   {
+    scenario: 'missing Worker timeout resolver fails closed before authority mutation',
+    file: 'test/workers.match-worker-timeout-controller.test.ts',
+    testName: 'missing shared timeout resolver fails closed before timer refresh or save'
+  },
+  {
+    scenario: 'rejected Worker timeout command leaves authority and presentation unchanged',
+    file: 'test/workers.match-worker-timeout-controller.test.ts',
+    testName: 'shared timeout command rejection leaves authority and presentation state unchanged'
+  },
+  {
+    scenario: 'rejected local timeout command leaves authority and presentation unchanged',
+    file: 'test/local-match-server.presentation-journal.test.ts',
+    testName: 'timeout command rejection leaves snapshot, version, timer, and presentation journal unchanged'
+  },
+  {
     scenario: 'charge delta is command-local and cleared before the next command',
     file: 'test/match-runtime-parity.test.ts',
     testName: 'accepted runtime commands clear transient charge deltas before the next command'
@@ -95,6 +111,49 @@ function countOccurrences(source: string, token: string): number {
   return source.split(token).length - 1;
 }
 
+function findFunctionSource(source: string, functionName: string): string {
+  const sourceFile = ts.createSourceFile(
+    `${functionName}.ts`,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+  let match: ts.FunctionDeclaration | null = null;
+  function visit(node: ts.Node) {
+    if (
+      ts.isFunctionDeclaration(node)
+      && node.name
+      && node.name.text === functionName
+    ) {
+      match = node;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return match ? (match as ts.FunctionDeclaration).getText(sourceFile) : '';
+}
+
+function collectCalledCallees(source: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    'authority-source.ts',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+  const callees: string[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node)) {
+      callees.push(node.expression.getText(sourceFile));
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return callees;
+}
+
 describe('match command runtime authority characterization', () => {
   test.each(scenarioCoverage)('$scenario is pinned by $file', ({ file, testName }) => {
     expect(readRepositoryFile(file)).toContain(testName);
@@ -103,23 +162,83 @@ describe('match command runtime authority characterization', () => {
   test('Worker and local command facades each delegate once to the shared executor', () => {
     const workerSource = readRepositoryFile('workers/match-worker.ts');
     const localSource = readRepositoryFile('scripts/local-match-server.ts');
+    const sharedSource = readRepositoryFile('utils/match-command-runtime.ts');
+    const workerFacade = findFunctionSource(workerSource, 'applyCommandPublishToSnapshot');
+    const localFacade = findFunctionSource(localSource, 'applyCommandPublishToSnapshot');
+    const localTimeout = findFunctionSource(localSource, 'applyExpiredTurnTimeoutIfNeeded');
     const workerTimeoutSource = readRepositoryFile('workers/match-worker-timeout-controller.ts');
+    const workerCalls = collectCalledCallees(workerSource);
+    const localCalls = collectCalledCallees(localSource);
+    const sharedCalls = collectCalledCallees(sharedSource);
 
-    expect(workerSource).toContain('async function applyCommandPublishToSnapshot(');
-    expect(localSource).toContain('function applyCommandPublishToSnapshot(');
-    expect(countOccurrences(workerSource, 'const result = executeMatchCommand(')).toBe(1);
-    expect(countOccurrences(localSource, 'const result = MatchCommandRuntime.executeMatchCommand({')).toBe(1);
-    expect(workerSource).not.toContain('const preparedCommand = prepareMatchCommandAction(');
-    expect(localSource).not.toContain('const preparedCommand = MatchCommandRuntime.prepareMatchCommandAction(');
-    expect(workerSource).not.toContain('const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(');
-    expect(localSource).not.toContain('const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(');
-    expect(workerSource).not.toContain('repairNetworkDebugProjectedHandForCardUse(');
-    expect(workerSource).not.toContain('reconcileTurnStartAndCollectPlayback(room, nextSnapshot');
-    expect(localSource).not.toContain('reconcileTurnStartAndCollectPlayback(room, nextSnapshot)');
-    expect(localSource).not.toContain('nextSnapshot.gameState = Core.applyPass(');
-    expect(workerTimeoutSource).not.toContain('cfg.loadCoreLogicModule()');
-    expect(workerTimeoutSource).not.toContain('cfg.reconcileTurnStartAndCollectPlayback(');
-    expect(workerTimeoutSource).not.toContain('.applyPass(');
+    expect(workerFacade).not.toBe('');
+    expect(localFacade).not.toBe('');
+    expect(countOccurrences(workerFacade, 'executeMatchCommand(')).toBe(1);
+    expect(countOccurrences(localFacade, 'MatchCommandRuntime.executeMatchCommand(')).toBe(1);
+    expect(collectCalledCallees(workerFacade)).not.toEqual(expect.arrayContaining([
+      'prepareMatchCommandAction',
+      'applyPreparedMatchCommandExecution',
+      'reconcileMatchCommandTurnStart',
+      'finalizeMatchCommandExecution'
+    ]));
+    expect(collectCalledCallees(localFacade)).not.toEqual(expect.arrayContaining([
+      'MatchCommandRuntime.prepareMatchCommandAction',
+      'MatchCommandRuntime.applyPreparedMatchCommandExecution',
+      'MatchCommandRuntime.reconcileMatchCommandTurnStart',
+      'MatchCommandRuntime.finalizeMatchCommandExecution'
+    ]));
+    expect(workerCalls).not.toContain('TurnPipeline.applyTurnSafe');
+    expect(localCalls).not.toContain('TurnPipeline.applyTurnSafe');
+    expect(workerCalls).not.toContain('MatchAuthority.validateAuthoritativePendingSelectionResult');
+    expect(localCalls).not.toContain('MatchAuthority.validateAuthoritativePendingSelectionResult');
+    expect(sharedCalls).toContain('capabilities.pipeline.applyTurnSafe');
+    expect(sharedCalls).toContain('capabilities.authority.validateAuthoritativePendingSelectionResult');
+    expect(sharedCalls).toContain('prepareMatchCommandAction');
+    expect(workerSource).not.toContain('repairNetworkDebugProjectedHandForCardUse');
+    expect(workerTimeoutSource).not.toContain('loadCoreLogicModule');
+    expect(collectCalledCallees(workerTimeoutSource).every((callee) => !callee.endsWith('.applyPass'))).toBe(true);
+    expect(collectCalledCallees(localTimeout).every((callee) => !callee.endsWith('.applyPass'))).toBe(true);
+    expect(localTimeout).not.toContain('reconcileTurnStartAndCollectPlayback');
+  });
+
+  test('canonical snapshot validation exists only in the shared command entry', () => {
+    const sharedSource = readRepositoryFile('utils/match-command-runtime.ts');
+    const workerCommandSource = [
+      findFunctionSource(readRepositoryFile('workers/match-worker.ts'), 'buildWorkerMatchCommandCapabilities'),
+      findFunctionSource(readRepositoryFile('workers/match-worker.ts'), 'applyCommandPublishToSnapshot')
+    ].join('\n');
+    const localCommandSource = [
+      findFunctionSource(readRepositoryFile('scripts/local-match-server.ts'), 'createLocalMatchCommandCapabilities'),
+      findFunctionSource(readRepositoryFile('scripts/local-match-server.ts'), 'applyCommandPublishToSnapshot')
+    ].join('\n');
+    const sharedValidation = findFunctionSource(sharedSource, 'validateCanonicalMatchCommandSnapshot');
+
+    expect(sharedValidation).toContain('projectedForSeat');
+    expect(sharedValidation).toContain('viewerRole');
+    expect(sharedValidation).toContain('authority.parseHiddenHandToken');
+    for (const adapterSource of [workerCommandSource, localCommandSource]) {
+      expect(adapterSource).not.toContain('projectedForSeat');
+      expect(adapterSource).not.toContain('viewerRole');
+      expect(adapterSource).not.toContain('__hidden_hand__');
+      expect(adapterSource).not.toContain('validateCanonicalMatchCommandSnapshot');
+    }
+  });
+
+  test('legacy callback core is absent and the command runtime import direction is acyclic', () => {
+    const commandRuntimeSource = readRepositoryFile('utils/match-command-runtime.ts');
+    const portsSource = readRepositoryFile('utils/match-runtime-ports.ts');
+    const localRuntimeSource = readRepositoryFile('scripts/local-match-runtime.ts');
+    const localServerSource = readRepositoryFile('scripts/local-match-server.ts');
+
+    expect(fs.existsSync(path.resolve(__dirname, '../utils/match-runtime-core.ts'))).toBe(false);
+    expect(commandRuntimeSource).not.toContain('executeMatchRuntimeCommand');
+    expect(portsSource).not.toContain('MatchCommandRuntimePort');
+    expect(localRuntimeSource).toContain("require('./local-match-server')");
+    expect(localRuntimeSource).not.toContain('match-command-runtime');
+    expect(localServerSource).toContain("require('../utils/match-command-runtime')");
+    expect(localServerSource).not.toContain('local-match-runtime');
+    expect(commandRuntimeSource).toContain("from './match-runtime-ports'");
+    expect(portsSource).not.toContain('match-command-runtime');
   });
 
   test('Worker resolves command-specific modules before entering the synchronous executor', () => {

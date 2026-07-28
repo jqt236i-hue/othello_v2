@@ -184,6 +184,37 @@ describe('match authority public snapshot trap visibility', () => {
     expect(sanitized.cardState.chargeDeltaEvents).toEqual([]);
   });
 
+  test('canonical and projected hashes ignore transient charge delta queue without changing public shape', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'black', delta: 2, before: 1, after: 3, reason: 'turn_gain' }
+    ];
+    const cleanedSnapshot = JSON.parse(JSON.stringify(snapshot));
+    cleanedSnapshot.cardState.chargeDeltaEvents = [];
+
+    expect(MatchAuthority.computeAuthoritativeStateHash(snapshot))
+      .toBe(MatchAuthority.computeAuthoritativeStateHash(cleanedSnapshot));
+    expect(MatchAuthority.computeProjectedSnapshotHash(snapshot))
+      .toBe(MatchAuthority.computeProjectedSnapshotHash(cleanedSnapshot));
+
+    const roomWithDelta = {
+      stateVersion: 7,
+      updatedAt: 700,
+      snapshot
+    } as any;
+    const roomWithoutDelta = {
+      ...roomWithDelta,
+      snapshot: cleanedSnapshot
+    };
+    const projectedWithDelta = MatchAuthority.buildPublicSnapshot(roomWithDelta, 'black');
+    const projectedWithoutDelta = MatchAuthority.buildPublicSnapshot(roomWithoutDelta, 'black');
+
+    expect(projectedWithDelta.cardState.chargeDeltaEvents).toEqual(snapshot.cardState.chargeDeltaEvents);
+    expect(projectedWithoutDelta.cardState.chargeDeltaEvents).toEqual([]);
+    expect(projectedWithDelta._meta.projectedSnapshotHash)
+      .toBe(projectedWithoutDelta._meta.projectedSnapshotHash);
+  });
+
   test('time stop marker details stay visible in opponent public snapshots', () => {
     const snapshot = createSnapshot();
     snapshot.cardState.markers.push({

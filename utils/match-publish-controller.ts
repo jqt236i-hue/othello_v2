@@ -257,9 +257,6 @@ export function createMatchPublishController(config?: any): any {
     );
 
     const stateHashBefore = cfg.MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
-    const previousSnapshotForChargeDelta = cfg.includePreviousSnapshotForChargeDelta === true
-      ? cfg.deepClone(room.snapshot)
-      : null;
     let nextSnapshot: any = null;
     let serverPlaybackEvents: unknown[] = [];
     let serverEffectLogs: unknown[] = [];
@@ -418,26 +415,20 @@ export function createMatchPublishController(config?: any): any {
     };
     const serverTime = Date.now();
     const preparedSnapshot = cfg.prepareSnapshotBroadcast(meta);
-    const publishResponseOptions = Object.assign(
-      cfg.MatchAuthority.buildPublishResponseOptions({
-        ok: true,
-        serverTime,
-        playbackEvents: serverPlaybackEvents,
-        effectLogs: serverEffectLogs,
-        playbackDiagnostics: serverPlaybackDiagnostics,
-        autoPassNotice,
-        presentationFrameEntry,
-        publishKind: 'accepted',
-        operationId,
-        actionType,
-        receivedBaseVersion: baseVersion,
-        authoritativeStateVersion: room.stateVersion
-      }),
-      { previousSnapshotForChargeDelta, presentationFrameEntry }
-    );
-    if (cfg.includePreviousSnapshotForChargeDelta !== true) {
-      delete publishResponseOptions.previousSnapshotForChargeDelta;
-    }
+    const publishResponseOptions = cfg.MatchAuthority.buildPublishResponseOptions({
+      ok: true,
+      serverTime,
+      playbackEvents: serverPlaybackEvents,
+      effectLogs: serverEffectLogs,
+      playbackDiagnostics: serverPlaybackDiagnostics,
+      autoPassNotice,
+      presentationFrameEntry,
+      publishKind: 'accepted',
+      operationId,
+      actionType,
+      receivedBaseVersion: baseVersion,
+      authoritativeStateVersion: room.stateVersion
+    });
     publishResponseOptions.snapshot = publishViewerArtifacts.projectedSnapshots[seatKey];
     const responsePayload = cfg.buildPublishPayload(room, seatKey, publishResponseOptions);
     cfg.MatchAuthority.appendAuthorityLog(room, {

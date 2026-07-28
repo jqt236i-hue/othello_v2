@@ -534,6 +534,16 @@ Shared backend ownership for those contracts is:
 - `scripts/local-match-server.ts` and `workers/match-worker.ts` are the canonical runtime adapters over that shared authority contract; `scripts/local-match-server.js` and `workers/match-worker.mjs` remain thin runtime entry wrappers.
 - runtime-specific code should stay limited to HTTP / Durable Object storage / connection management differences, not duplicate publish or seat-claim semantics
 
+### 8.4.1 Worker / local canonical command execution
+
+`utils/match-command-runtime.ts` is the single owner of canonical player, AUTO, debug, and forced-timeout command execution shared by Worker and local authority. Its synchronous `executeMatchCommand()` entry alone owns the ordered A–E sequence: canonical snapshot validation and command preparation, pipeline application and pending-result validation, action presentation assembly, optional turn-start reconciliation, then final playback/log/delta assembly and transient presentation cleanup.
+
+`scripts/local-match-server.ts` and `workers/match-worker.ts` are adapters around that entry. They may construct the authority context, preflight or resolve runtime modules, project the shared result into the existing runtime response shape, and perform storage/HTTP/SSE I/O. They must not reproduce an individual A–E stage or call the turn pipeline as command authority. The local adapter and `scripts/local-match-runtime.ts` remain strictly synchronous. Worker module loading remains asynchronous only before entry; once `executeMatchCommand()` starts, required schema, pipeline, presentation, turn-start, AUTO, or debug capabilities are already resolved and no `await` occurs inside canonical execution.
+
+Authority always receives a canonical private snapshot. A seat/spectator projection, projection metadata, or a hidden-hand placeholder is rejected at the shared entry. Worker, local production code, and test harnesses must not repair a projected hand back into canonical state.
+
+Command execution creates the current command's `chargeDeltaEvents` during shared action/turn-start/final assembly. The outer publish controller or direct local facade first clones/builds the public response and presentation artifacts, then removes that transient queue from the stored canonical snapshot. It must not reconstruct a new delta from a previous snapshot. Timeout progression uses the same command entry; if its shared resolver is unavailable or rejects, the adapter fails closed before authority mutation instead of applying a runtime-specific pass fallback.
+
 ### 8.5 Publish / stream / resync precedence
 
 Network delivery paths may race, but they do not have equal authority:
@@ -546,6 +556,7 @@ Network delivery paths may race, but they do not have equal authority:
 
 This means precedence is decided by both version and tracked self-operation identity (`operationId`), not by transport arrival order alone.
 If version matches but projection-safe snapshot hash differs, the browser must treat that as different authoritative truth and must not skip force-sync only because the numeric `stateVersion` is unchanged.
+`chargeDeltaEvents` is a transient public-delivery queue and is excluded from both canonical and projected snapshot hash input. Therefore an accepted delta-bearing response and the delta-free recovery snapshot for the same version/gameplay state have the same respective hash; removing the canonical queue after artifact construction must not change authority identity.
 
 ### 8.6 Randomness and turn-start reconciliation
 
@@ -569,6 +580,7 @@ Projection is authoritative for the viewer who receives it, but projection-speci
 - player-visible wording for these projection rules belongs in `01-rulebook.md`; this document defines the runtime contract that keeps worker, local server, and browser projection behavior aligned
 - transport-visible snapshot integrity, when exposed, must be projection-safe (`projectedSnapshotHash` over the viewer's projected snapshot) rather than a hash over hidden canonical state
 - internal authority diagnostics may keep a stronger `authoritativeStateHash`, but that value is server-side only and must not weaken hidden-information projection
+- hash calculation normalizes `cardState.chargeDeltaEvents` to an empty queue for both canonical and viewer-projected sources; the public snapshot field itself is not removed, so an accepted response may still carry the current command's delta while recovery state carries `[]`
 
 ### 8.8 Spectator projection
 
@@ -704,6 +716,8 @@ The following are known structural risks and should be treated as debt, not as d
 - local server and worker still have duplicated network constants / contract logic in places
 - some architecture knowledge is still scattered across audits, plans, and narrow docs
 - legacy global escape hatches still exist for compatibility and debugging
+
+The Worker/local command-execution cluster is no longer part of this debt: canonical prepare/apply/pending validation/presentation/turn-start/finalization is shared by `utils/match-command-runtime.ts`. This does not claim that duplicated network constants, route handling, room lifecycle, payload decoration, or other runtime module-resolution patterns have been unified.
 
 These debts should be reduced over time, but they are not automatically public extension points.
 

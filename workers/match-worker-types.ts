@@ -279,7 +279,6 @@ export interface MatchWorkerPublishPayloadOptions extends Record<string, unknown
     ok?: boolean;
     serverTime?: unknown;
     snapshot?: unknown;
-    previousSnapshotForChargeDelta?: unknown;
     playbackEvents?: unknown;
     effectLogs?: unknown;
     idempotentReplay?: unknown;

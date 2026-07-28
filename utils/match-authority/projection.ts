@@ -317,6 +317,9 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
             delete meta.projectedSnapshotHash;
             delete meta.authoritativeStateHash;
         }
+        if (shot && typeof shot === 'object' && shot.cardState && typeof shot.cardState === 'object') {
+            asRecord(shot.cardState).chargeDeltaEvents = [];
+        }
         return deps.canonicalizeSnapshotBoardForHash(shot);
     }
 

@@ -321,25 +321,3 @@ export type MatchCommandPrepareResult =
     kind: 'prepared';
     value: PreparedMatchCommandExecution;
   };
-
-export interface MatchRuntimeCommand {
-  room: Record<string, unknown>;
-  body: Record<string, unknown>;
-  playerKey: string;
-}
-
-export interface MatchRuntimeCommandResult {
-  ok: boolean;
-  rejectedReason?: string;
-  errorMessage?: string | null;
-  snapshot?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-/**
- * Compatibility-only port retained until both runtime facades use the shared
- * synchronous executor directly.
- */
-export interface MatchCommandRuntimePort<TResult = MatchRuntimeCommandResult> {
-  execute(command: MatchRuntimeCommand): TResult;
-}

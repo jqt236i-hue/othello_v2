@@ -4,7 +4,7 @@ import * as path from 'path';
 const ROOT = path.resolve(__dirname, '..');
 
 const AUTHORITY_RANDOM_TARGETS = [
-  'utils/match-runtime-core.ts',
+  'utils/match-command-runtime.ts',
   'workers/match-worker.ts',
   'scripts/local-match-server.ts',
   'game/turn',
@@ -69,58 +69,37 @@ describe('network authority path hardening', () => {
     expect(violations).toEqual([]);
   });
 
-  test('shared authority core fails closed when required runtime dependencies are missing', () => {
-    const MatchRuntimeCore = require('../utils/match-runtime-core');
-    const room = {
-      stateVersion: 0,
-      snapshot: {
-        stateVersion: 0,
-        gameState: { currentPlayer: 1, board: [] },
-        cardState: { turnIndex: 0 }
-      }
-    };
-
-    const result = MatchRuntimeCore.applyCommandToSnapshot(room, {
+  test('direct local runtime delegates once to the synchronous shared-executor facade', () => {
+    const LocalMatchRuntime = require('../scripts/local-match-runtime');
+    const LocalMatchServer = require('../scripts/local-match-server');
+    const facade = jest.spyOn(LocalMatchServer, 'applyCommandPublishToSnapshot');
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 67 });
+    const snapshot = runtime.getSnapshot();
+    const turnIndex = Number(snapshot.cardState && snapshot.cardState.turnIndex) || 0;
+    const body = {
+      actionType: 'pass',
       seatKey: 'black',
       playerKey: 'black',
       actor: 'black',
-      actionType: 'place',
-      operationId: 'op_missing_deps_1',
-      baseVersion: 0,
-      params: { row: 0, col: 0 },
-      turnIndex: 0
-    }, 'black', {});
-
-    expect(result).toEqual(expect.objectContaining({
-      ok: false,
-      rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE'
-    }));
-  });
-
-  test('runtime-neutral command port receives the canonical command unchanged', () => {
-    const MatchRuntimeCore = require('../utils/match-runtime-core');
-    const room = {
-      stateVersion: 3,
-      snapshot: { gameState: {}, cardState: {} }
+      baseVersion: runtime.getRoom().stateVersion,
+      operationId: 'op_direct_local_authority_1',
+      turnIndex,
+      action: {
+        type: 'pass',
+        playerKey: 'black',
+        turnIndex,
+        forcePass: true
+      }
     };
-    const body = {
-      actionType: 'pass',
-      action: { type: 'pass', forcePass: true }
-    };
-    const execute = jest.fn(() => ({
-      ok: true,
-      snapshot: { gameState: { done: true } }
-    }));
 
-    const result = MatchRuntimeCore.applyCommandToSnapshot(room, body, 'black', {
-      TurnPipeline: { applyTurnSafe: jest.fn() },
-      applyCommandPublishToSnapshot: execute
-    });
+    try {
+      const result = runtime.applyCommand(body);
 
-    expect(result).toEqual({
-      ok: true,
-      snapshot: { gameState: { done: true } }
-    });
-    expect(execute).toHaveBeenCalledWith(room, body, 'black');
+      expect(result && typeof result.then).not.toBe('function');
+      expect(facade).toHaveBeenCalledTimes(1);
+      expect(facade).toHaveBeenCalledWith(runtime.getRoom(), body, 'black');
+    } finally {
+      facade.mockRestore();
+    }
   });
 });

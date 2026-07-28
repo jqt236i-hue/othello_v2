@@ -367,9 +367,8 @@ describe('local match runtime parity', () => {
       expect(serverResult.data.ok).toBe(true);
       expect(serverResult.data.stateVersion).toBe(localResult.stateVersion);
 
-      const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), action.playerKey);
       expect(normalizePublicSnapshotForParity(serverResult.data.snapshot))
-        .toEqual(normalizePublicSnapshotForParity(localPublic));
+        .toEqual(normalizePublicSnapshotForParity(localResult.snapshot));
       expect(serverResult.data.playbackEvents).toEqual(localResult.playbackEvents);
       expect(serverResult.data.effectLogs).toEqual(localResult.effectLogs);
     } finally {
@@ -380,6 +379,7 @@ describe('local match runtime parity', () => {
   test('version rejection and idempotent replay follow the network publish contract shape', () => {
     const runtime = LocalMatchRuntime.createRuntime({ seed: 19 });
     const snapshot = runtime.getSnapshot();
+    const initialHash = runtime.getRoom().authoritativeStateHash;
     const action = pickFirstLegalAction(snapshot);
     const staleBody = buildPublishBody({
       snapshot,
@@ -395,6 +395,8 @@ describe('local match runtime parity', () => {
       operationId: 'op_local_runtime_version_1',
       rejectedReason: 'VERSION_BEHIND'
     }));
+    expect(runtime.getRoom().authoritativeStateHash).toBe(initialHash);
+    expect(runtime.getSnapshot().cardState.chargeDeltaEvents).toEqual([]);
 
     const acceptedBody = buildPublishBody({
       snapshot,
@@ -403,6 +405,7 @@ describe('local match runtime parity', () => {
       operationId: 'op_local_runtime_replay_1'
     });
     const first = runtime.applyCommand(acceptedBody);
+    const acceptedHash = runtime.getRoom().authoritativeStateHash;
     const second = runtime.applyCommand(acceptedBody);
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(true);
@@ -412,6 +415,11 @@ describe('local match runtime parity', () => {
       kind: 'idempotent_replay',
       operationId: 'op_local_runtime_replay_1'
     }));
+    expect(runtime.getRoom().authoritativeStateHash).toBe(acceptedHash);
+    expect(runtime.getRoom().authoritativeStateHash)
+      .toBe(MatchAuthority.computeAuthoritativeStateHash(runtime.getSnapshot()));
+    expect(second.snapshot.cardState.chargeDeltaEvents).toEqual([]);
+    expect(runtime.getSnapshot().cardState.chargeDeltaEvents).toEqual([]);
   });
 
   test('accepted runtime commands clear transient charge deltas before the next command', () => {
@@ -426,6 +434,11 @@ describe('local match runtime parity', () => {
     }));
     expect(first.ok).toBe(true);
     expect(first.snapshot.cardState.chargeDeltaEvents.length).toBeGreaterThan(0);
+    expect(runtime.getSnapshot().cardState.chargeDeltaEvents).toEqual([]);
+    expect(runtime.getRoom().authoritativeStateHash)
+      .toBe(MatchAuthority.computeAuthoritativeStateHash(runtime.getSnapshot()));
+    expect(first.snapshot._meta.projectedSnapshotHash)
+      .toBe(MatchAuthority.computeProjectedSnapshotHash(first.snapshot));
 
     const passSnapshot = runtime.getSnapshot();
     passSnapshot.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK));
@@ -502,9 +515,8 @@ describe('local match runtime parity', () => {
           continue;
         }
 
-        const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
         const serverSnapshot = normalizePublicSnapshotForParity(serverResult.data.snapshot);
-        const localSnapshot = normalizePublicSnapshotForParity(localPublic);
+        const localSnapshot = normalizePublicSnapshotForParity(localResult.snapshot);
         if (JSON.stringify(serverSnapshot) !== JSON.stringify(localSnapshot)) {
           pushParityMismatch(mismatches, card, 'snapshot', {
             stateVersion: serverResult.data.stateVersion,
@@ -603,9 +615,8 @@ describe('local match runtime parity', () => {
         if (!serverOk) continue;
         coveredPendingTypes.add(String(pending.type));
 
-        const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
         const serverSnapshot = normalizePublicSnapshotForParity(serverFollowResult.data.snapshot);
-        const localSnapshot = normalizePublicSnapshotForParity(localPublic);
+        const localSnapshot = normalizePublicSnapshotForParity(localFollowResult.snapshot);
         if (JSON.stringify(serverSnapshot) !== JSON.stringify(localSnapshot)) {
           pushParityMismatch(mismatches, card, 'snapshot', {
             pendingType: pending.type,

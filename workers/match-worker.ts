@@ -586,9 +586,6 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
         ? options.snapshot
         : toPublicSnapshot(room, viewerSeatKey);
-    if (options.previousSnapshotForChargeDelta) {
-        MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
-    }
     const payloadOptions: MatchWorkerPublishPayloadOptions = {
         ok: options.ok === true,
         snapshot,
@@ -682,9 +679,7 @@ function buildWorkerMatchCommandCapabilities(options: {
                 commandPlayerKey: unknown,
                 action: unknown
             ) => MatchAuthority.sanitizePendingSelectionActionForAuthority(snapshot, commandPlayerKey, action),
-            validateAuthoritativePendingSelectionResult: (action: unknown, rawEvents: unknown) => (
-                MatchAuthority.validateAuthoritativePendingSelectionResult(action, rawEvents)
-            ),
+            validateAuthoritativePendingSelectionResult: MatchAuthority.validateAuthoritativePendingSelectionResult,
             isSubPlacementTurnActive: (
                 cardState: unknown,
                 commandPlayerKey: unknown
@@ -752,21 +747,7 @@ function buildWorkerMatchCommandCapabilities(options: {
             )
         };
         capabilities.pipeline = {
-            applyTurnSafe: (
-                cardState: unknown,
-                gameState: unknown,
-                commandPlayerKey: unknown,
-                action: unknown,
-                prng: unknown,
-                pipelineOptions: unknown
-            ) => TurnPipeline.applyTurnSafe(
-                cardState,
-                gameState,
-                commandPlayerKey,
-                action,
-                prng,
-                pipelineOptions as Record<string, unknown>
-            )
+            applyTurnSafe: TurnPipeline.applyTurnSafe.bind(TurnPipeline)
         };
         capabilities.turnStart = {
             isGameOver: (gameState: unknown) => turnStartModules.Core.isGameOver(gameState),
@@ -2128,7 +2109,6 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 getCurrentPlayerKey,
                 toPublicNetworkDebugEnabled,
                 deepClone,
-                includePreviousSnapshotForChargeDelta: false,
                 makeInitialSnapshot,
                 buildInitialDeckSnapshotOptions,
                 applyCommandPublishToSnapshot,

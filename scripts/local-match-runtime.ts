@@ -1,11 +1,8 @@
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
-const TurnPipeline = require('../game/turn/turn_pipeline');
 const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
 const SeededPRNG = require('../game/schema/prng');
-const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
-const MatchRuntimeCore = require('../utils/match-runtime-core');
 const LocalMatchServer = require('./local-match-server');
 
 function makeInitialSnapshot(seed: number, options: any) {
@@ -148,12 +145,8 @@ function createRuntime(options: any) {
             }));
         }
 
-        const previousSnapshotForChargeDelta = deepClone(room.snapshot);
         const stateHashBefore = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
-        const commandResult = MatchRuntimeCore.applyCommandToSnapshot(room, body, playerKey, {
-            TurnPipeline,
-            applyCommandPublishToSnapshot: LocalMatchServer.applyCommandPublishToSnapshot
-        });
+        const commandResult = LocalMatchServer.applyCommandPublishToSnapshot(room, body, playerKey);
         if (!commandResult || commandResult.ok !== true) {
             return buildPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
@@ -207,10 +200,7 @@ function createRuntime(options: any) {
         });
 
         const publicSnapshot = MatchAuthority.buildPublicSnapshot(room, seatKey);
-        if (typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
-            MatchAuthority.restoreMissingChargeDeltaEvents(previousSnapshotForChargeDelta, publicSnapshot);
-        }
-        return buildPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
+        const responsePayload = buildPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: true,
             snapshot: publicSnapshot,
             playbackEvents: commandResult.playbackEvents || [],
@@ -222,6 +212,8 @@ function createRuntime(options: any) {
             receivedBaseVersion: baseVersion,
             authoritativeStateVersion: room.stateVersion
         }));
+        MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
+        return responsePayload;
     }
 
     return {

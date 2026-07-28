@@ -93,4 +93,25 @@ describe('match authority publish viewer artifacts', () => {
     expect(artifacts.projectedSnapshots.white.cardState.hands.black[0]).not.toBe('mutated');
     expect(room.snapshot.cardState.hands.black).toEqual(['black-visible']);
   });
+
+  test('cleanup after artifact construction preserves canonical and projected hashes', () => {
+    const room = createRoom();
+    room.snapshot.cardState.chargeDeltaEvents = [
+      { seq: 1, player: 'black', delta: 1, before: 0, after: 1, reason: 'turn_gain' }
+    ];
+    const artifactsBeforeCleanup = MatchAuthority.buildPublishViewerArtifacts(room);
+    const canonicalHashBeforeCleanup = artifactsBeforeCleanup.canonicalHash;
+    const blackProjectedHashBeforeCleanup = artifactsBeforeCleanup.projectedSnapshots.black._meta.projectedSnapshotHash;
+
+    MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
+    const artifactsAfterCleanup = MatchAuthority.buildPublishViewerArtifacts(room);
+
+    expect(room.snapshot.cardState.chargeDeltaEvents).toEqual([]);
+    expect(MatchAuthority.computeAuthoritativeStateHash(room.snapshot)).toBe(canonicalHashBeforeCleanup);
+    expect(artifactsAfterCleanup.canonicalHash).toBe(canonicalHashBeforeCleanup);
+    expect(artifactsBeforeCleanup.projectedSnapshots.black.cardState.chargeDeltaEvents).toHaveLength(1);
+    expect(artifactsAfterCleanup.projectedSnapshots.black.cardState.chargeDeltaEvents).toEqual([]);
+    expect(artifactsAfterCleanup.projectedSnapshots.black._meta.projectedSnapshotHash)
+      .toBe(blackProjectedHashBeforeCleanup);
+  });
 });

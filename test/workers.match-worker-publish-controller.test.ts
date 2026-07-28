@@ -8,6 +8,14 @@ function jsonResponse(status: number, data: any) {
   };
 }
 
+function computeHashIgnoringChargeDelta(snapshotValue: any) {
+  const snapshot = JSON.parse(JSON.stringify(snapshotValue || {}));
+  if (snapshot.cardState && typeof snapshot.cardState === 'object') {
+    snapshot.cardState.chargeDeltaEvents = [];
+  }
+  return JSON.stringify(snapshot);
+}
+
 function buildPublishViewerArtifacts(room: any, options: any = {}) {
   const clone = (value: any) => JSON.parse(JSON.stringify(value));
   const counters = options.perfCounters;
@@ -17,7 +25,7 @@ function buildPublishViewerArtifacts(room: any, options: any = {}) {
     counters.viewerProjectionSpectator = Number(counters.viewerProjectionSpectator || 0) + 1;
   }
   return {
-    canonicalHash: 'hash_state',
+    canonicalHash: computeHashIgnoringChargeDelta(room.snapshot),
     projectedSnapshots: {
       black: clone(room.snapshot),
       white: clone(room.snapshot),
@@ -40,7 +48,10 @@ describe('match worker publish controller', () => {
       sseEventBuffer: [],
       snapshot: {
         gameState: { currentPlayer: 1, turnNumber: 8 },
-        cardState: { pendingEffectByPlayer: { black: null, white: null } }
+        cardState: {
+          pendingEffectByPlayer: { black: null, white: null },
+          chargeDeltaEvents: []
+        }
       }
     };
     let preparedMeta: any = null;
@@ -66,7 +77,7 @@ describe('match worker publish controller', () => {
       resolveAuthenticatedSeatKey: (_room: any, seatKey: any) => seatKey,
       ensureAcceptedOperationsBySeat: (currentRoom: any) => currentRoom.acceptedOperationsBySeat,
       MatchAuthority: {
-        computeAuthoritativeStateHash: () => 'hash_state',
+        computeAuthoritativeStateHash: computeHashIgnoringChargeDelta,
         buildPublishResponseOptions: (options: any) => options,
         hasRequiredOperationId: () => true,
         resolveAcceptedOperation: () => null,
@@ -76,14 +87,18 @@ describe('match worker publish controller', () => {
         rememberAcceptedOperationBySeat: (currentRoom: any, seatKey: any, entry: any) => {
           currentRoom.acceptedOperationsBySeat[seatKey] = entry;
         },
-        stripTransientChargeDeltaState: () => undefined
+        stripTransientChargeDeltaState: (snapshot: any) => {
+          if (snapshot.cardState && typeof snapshot.cardState === 'object') {
+            snapshot.cardState.chargeDeltaEvents = [];
+          }
+        }
       },
       asRecord: (value: any) => (value && typeof value === 'object' ? value : {}),
       buildPublishPayload: (_room: any, _viewerSeatKey: any, options: any) => ({
         ok: options.ok,
         stateVersion: room.stateVersion,
         operationId: options.operationId || null,
-        snapshot: room.snapshot
+        snapshot: JSON.parse(JSON.stringify(options.snapshot || room.snapshot))
       }),
       getCurrentPlayerKey: () => 'black',
       isSnapshotGameOver: async () => false,
@@ -97,7 +112,10 @@ describe('match worker publish controller', () => {
           ok: true,
           snapshot: {
             gameState: { currentPlayer: -1, turnNumber: 9 },
-            cardState: { pendingEffectByPlayer: { black: null, white: null } }
+            cardState: {
+              pendingEffectByPlayer: { black: null, white: null },
+              chargeDeltaEvents: [{ playerKey: 'black', delta: 1 }]
+            }
           },
           playbackEvents: [{ type: 'flip', phase: 1 }],
           effectLogs: ['effect-log'],
@@ -171,7 +189,9 @@ describe('match worker publish controller', () => {
       playbackDiagnostics: { accepted: true }
     }));
     expect(preparedMeta.__publishViewerArtifacts).toBe(appendedOptions.publishViewerArtifacts);
-    expect(preparedMeta.__publishViewerArtifacts.projectedSnapshots.black).toEqual(room.snapshot);
+    expect(preparedMeta.__publishViewerArtifacts.projectedSnapshots.black.cardState.chargeDeltaEvents).toEqual([
+      { playerKey: 'black', delta: 1 }
+    ]);
     expect(broadcastMeta).toEqual(expect.objectContaining({
       playerKey: 'black',
       actionType: 'place',
@@ -189,6 +209,11 @@ describe('match worker publish controller', () => {
       stateVersion: 5,
       operationId: 'op_publish_1'
     }));
+    expect(payload.snapshot.cardState.chargeDeltaEvents).toEqual([
+      { playerKey: 'black', delta: 1 }
+    ]);
+    expect(room.snapshot.cardState.chargeDeltaEvents).toEqual([]);
+    expect(room.authoritativeStateHash).toBe(computeHashIgnoringChargeDelta(room.snapshot));
   });
 });
 

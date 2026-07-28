@@ -498,15 +498,6 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
         ? options.snapshot
         : toPublicSnapshot(room, viewerSeatKey);
-    const publishMetaKind = options
-        && options.publishMeta
-        && typeof options.publishMeta === 'object'
-        ? String(options.publishMeta.kind || '').trim().toLowerCase()
-        : '';
-    const shouldRestoreChargeDelta = publishMetaKind !== 'accepted';
-    if (shouldRestoreChargeDelta && options.previousSnapshotForChargeDelta) {
-        MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
-    }
     const payloadOptions: any = {
         ok: options.ok === true,
         snapshot,
@@ -585,21 +576,7 @@ function createLocalMatchCommandCapabilities() {
             )
         },
         pipeline: {
-            applyTurnSafe: (
-                cardState: any,
-                gameState: any,
-                commandPlayerKey: any,
-                action: any,
-                prng: any,
-                options: any
-            ) => TurnPipeline.applyTurnSafe(
-                cardState,
-                gameState,
-                commandPlayerKey,
-                action,
-                prng,
-                options
-            )
+            applyTurnSafe: TurnPipeline.applyTurnSafe.bind(TurnPipeline)
         },
         turnStart: {
             isGameOver: (gameState: any) => Core.isGameOver(gameState),
@@ -644,9 +621,7 @@ function createLocalMatchCommandCapabilities() {
                 commandPlayerKey: any,
                 action: any
             ) => MatchAuthority.sanitizePendingSelectionActionForAuthority(snapshot, commandPlayerKey, action),
-            validateAuthoritativePendingSelectionResult: (action: any, rawEvents: any) => (
-                MatchAuthority.validateAuthoritativePendingSelectionResult(action, rawEvents)
-            ),
+            validateAuthoritativePendingSelectionResult: MatchAuthority.validateAuthoritativePendingSelectionResult,
             isSubPlacementTurnActive: (cardState: any, commandPlayerKey: any) => (
                 SubPlacementContinuation.isSubPlacementTurnActive(cardState, commandPlayerKey)
             )
@@ -2343,7 +2318,6 @@ async function handlePublish(req: any, res: any) {
             && Core.isGameOver(snapshot.gameState) === true
         ),
         deepClone,
-        includePreviousSnapshotForChargeDelta: false,
         catchRematchResetErrors: false,
         makeInitialSnapshot,
         buildInitialDeckSnapshotOptions,
