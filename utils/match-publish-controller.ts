@@ -429,6 +429,7 @@ export function createMatchPublishController(config?: any): any {
       receivedBaseVersion: baseVersion,
       authoritativeStateVersion: room.stateVersion
     });
+    publishResponseOptions.presentationFrameEntry = presentationFrameEntry;
     publishResponseOptions.snapshot = publishViewerArtifacts.projectedSnapshots[seatKey];
     const responsePayload = cfg.buildPublishPayload(room, seatKey, publishResponseOptions);
     cfg.MatchAuthority.appendAuthorityLog(room, {

@@ -28,6 +28,13 @@ function createRoom() {
   } as any;
 }
 
+function stripTransientChargeDeltaState(snapshot: any) {
+  if (snapshot?.cardState && typeof snapshot.cardState === 'object') {
+    snapshot.cardState.chargeDeltaEvents = [];
+  }
+  return snapshot;
+}
+
 describe('match worker timeout controller', () => {
   test('expired timeout can use injected forced pass resolver instead of direct core pass', async () => {
     const room = createRoom();
@@ -51,7 +58,15 @@ describe('match worker timeout controller', () => {
             lastTurnStartedFor: 'white',
             selectedCardId: null,
             selectedCardOwnerKey: null,
-            pendingEffectByPlayer: { black: null, white: null }
+            pendingEffectByPlayer: { black: null, white: null },
+            chargeDeltaEvents: [{
+              seq: 1,
+              player: 'white',
+              before: 0,
+              after: 5,
+              delta: 5,
+              reason: 'ultimate_work_god_income'
+            }]
           }
         },
         playbackEvents: [{ type: 'pass', phase: 1 }],
@@ -60,15 +75,21 @@ describe('match worker timeout controller', () => {
       };
     });
     const ensureInitialPresentationSnapshots = jest.fn();
-    const buildPublishViewerArtifacts = jest.fn(() => ({
-      canonicalHash: 'hash_5',
-      projectedSnapshots: {
-        black: { stateVersion: 5 },
-        white: { stateVersion: 5 },
-        spectator: { stateVersion: 5 }
-      },
-      snapshotPayloads: {}
-    }));
+    let artifactChargeDeltaEvents: any[] = [];
+    const buildPublishViewerArtifacts = jest.fn((currentRoom: any) => {
+      artifactChargeDeltaEvents = JSON.parse(JSON.stringify(
+        currentRoom.snapshot.cardState.chargeDeltaEvents
+      ));
+      return {
+        canonicalHash: 'hash_5',
+        projectedSnapshots: {
+          black: { stateVersion: 5 },
+          white: { stateVersion: 5 },
+          spectator: { stateVersion: 5 }
+        },
+        snapshotPayloads: {}
+      };
+    });
     const appendPresentationFrameForAcceptedPublish = jest.fn((_room, options) => ({
       visualSeq: 1,
       stateVersionFrom: options.previousStateVersion,
@@ -88,6 +109,7 @@ describe('match worker timeout controller', () => {
       applyTimeoutPassToSnapshot,
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
+      stripTransientChargeDeltaState,
       normalizeSnapshotBoardContract,
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots,
@@ -121,6 +143,8 @@ describe('match worker timeout controller', () => {
     expect(room.snapshot.gameState.__resultShown).toBeUndefined();
     expect(room.snapshot.cardState.selectedCardId).toBeNull();
     expect(room.snapshot.cardState.selectedCardOwnerKey).toBeNull();
+    expect(artifactChargeDeltaEvents).toHaveLength(1);
+    expect(room.snapshot.cardState.chargeDeltaEvents).toEqual([]);
     expect(broadcastCalls[0]).toEqual(expect.objectContaining({
       actionType: 'timeout_pass',
       playbackEvents: [{ type: 'pass', phase: 1 }],
@@ -189,6 +213,7 @@ describe('match worker timeout controller', () => {
       },
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
+      stripTransientChargeDeltaState,
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: (_room, entry) => {
         authorityLogEntries.push(entry);
@@ -280,6 +305,7 @@ describe('match worker timeout controller', () => {
       saveRoom,
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: () => 'unused',
+      stripTransientChargeDeltaState,
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots: jest.fn(),
@@ -314,6 +340,7 @@ describe('match worker timeout controller', () => {
       })),
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: () => 'unused',
+      stripTransientChargeDeltaState,
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots,
@@ -349,6 +376,7 @@ describe('match worker timeout controller', () => {
       applyTimeoutPassToSnapshot: jest.fn(async () => ({ ok: false })),
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: () => 'unused',
+      stripTransientChargeDeltaState,
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots: jest.fn(),
@@ -408,6 +436,7 @@ describe('match worker timeout controller', () => {
       },
       deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
       computeAuthoritativeStateHash: () => 'unused',
+      stripTransientChargeDeltaState,
       normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots: jest.fn(),

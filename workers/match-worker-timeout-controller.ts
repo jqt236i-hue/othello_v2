@@ -26,6 +26,7 @@ type MatchWorkerTimeoutControllerConfig = {
     } | null | undefined>;
     deepClone: <T>(value: T) => T;
     computeAuthoritativeStateHash: (snapshotValue: unknown) => string | null;
+    stripTransientChargeDeltaState: (snapshotValue: unknown) => unknown;
     normalizeSnapshotBoardContract: (
         snapshotValue: unknown,
         options?: { allowLegacy?: boolean; requireFullSnapshot?: boolean }
@@ -173,6 +174,7 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             stateHashAfter: room.authoritativeStateHash,
             timeoutReason: 'turn_deadline_expired'
         }, undefined);
+        cfg.stripTransientChargeDeltaState(room.snapshot);
 
         await cfg.refreshTurnTimer({ nowMs, forceRestart: true });
         await cfg.saveRoom();

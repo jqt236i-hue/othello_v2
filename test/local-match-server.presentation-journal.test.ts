@@ -149,6 +149,29 @@ describe('local match server presentation journal', () => {
       const beforeTimeoutVersion = joined.data.stateVersion;
 
       expect(patchRoomSnapshotForTests(roomId, (room: any) => {
+        const board = room.snapshot.gameState.board;
+        let whiteStone: { row: number; col: number } | null = null;
+        for (let row = 0; row < board.length && !whiteStone; row += 1) {
+          for (let col = 0; col < board[row].length; col += 1) {
+            if (board[row][col] === -1) {
+              whiteStone = { row, col };
+              break;
+            }
+          }
+        }
+        if (!whiteStone) throw new Error('White stone fixture is required');
+        room.snapshot.cardState.markers.push({
+          kind: 'specialStone',
+          row: whiteStone.row,
+          col: whiteStone.col,
+          owner: 'white',
+          data: {
+            type: 'ULTIMATE_WORK_GOD',
+            ownerColor: 'white',
+            selfDestructChancePercent: 0
+          }
+        });
+        room.snapshot.cardState.charge.white = 0;
         room.turnTimer = {
           ...(room.turnTimer || {}),
           active: true,
@@ -170,6 +193,8 @@ describe('local match server presentation journal', () => {
         visualSeq: 1,
         stateVersion: beforeTimeoutVersion + 1
       });
+      expect(afterTimeout.data.snapshot.cardState.charge.white).toBe(5);
+      expect(afterTimeout.data.snapshot.cardState.chargeDeltaEvents).toEqual([]);
       expect(afterTimeout.data.presentationFrames).toEqual([
         expect.objectContaining({
           visualSeq: 1,
@@ -179,7 +204,16 @@ describe('local match server presentation journal', () => {
           actionType: 'timeout_pass',
           operationId: expect.stringMatching(/^timeout_/),
           snapshotAfter: expect.objectContaining({
-            stateVersion: beforeTimeoutVersion + 1
+            stateVersion: beforeTimeoutVersion + 1,
+            cardState: expect.objectContaining({
+              chargeDeltaEvents: expect.arrayContaining([
+                expect.objectContaining({
+                  player: 'white',
+                  delta: 5,
+                  sourceType: 'ultimate_work_god_income'
+                })
+              ])
+            })
           })
         })
       ]);

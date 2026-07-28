@@ -1518,6 +1518,7 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         stateHashAfter: room.authoritativeStateHash,
         timeoutReason: 'turn_deadline_expired'
     });
+    MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
     refreshTurnTimer(room, { nowMs, forceRestart: true });
     broadcastSnapshot(room, {
         playerKey: timedOutSeatKey,

@@ -2076,6 +2076,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 applyTimeoutPassToSnapshot,
                 deepClone,
                 computeAuthoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash,
+                stripTransientChargeDeltaState: MatchAuthority.stripTransientChargeDeltaState,
                 normalizeSnapshotBoardContract: MatchAuthority.normalizeSnapshotBoardContract,
                 appendAuthorityLog: MatchAuthority.appendAuthorityLog,
                 ensureInitialPresentationSnapshots,
