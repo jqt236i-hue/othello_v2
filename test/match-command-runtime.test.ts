@@ -1,8 +1,12 @@
 import {
+  assembleMatchCommandActionPresentation,
   applyPreparedMatchCommandExecution,
+  executeMatchCommand,
   executeMatchRuntimeCommand,
   prepareMatchCommandExecution,
   prepareMatchCommandAction,
+  reconcileMatchCommandTurnStart,
+  shouldReconcileMatchCommandTurnStart,
   shouldSkipMatchCommandTurnStart,
   validateCanonicalMatchCommandSnapshot
 } from '../utils/match-command-runtime';
@@ -545,5 +549,290 @@ describe('shared match command prepare and apply stages', () => {
       ok: false,
       rejectedReason: 'INVALID_PENDING_SELECTION_TARGET'
     });
+  });
+});
+
+describe('shared match command presentation, turn-start, and single executor', () => {
+  function prepareAndApply(
+    context: MatchCommandAuthorityContext,
+    capabilities: MatchCommandExecutionCapabilities
+  ) {
+    const prepared = prepareMatchCommandExecution(
+      context,
+      { actionType: 'pass', action: { type: 'pass' } },
+      capabilities
+    );
+    if (prepared.kind !== 'prepared') throw new Error('expected prepared command');
+    const applied = applyPreparedMatchCommandExecution(prepared.value, capabilities);
+    if ('ok' in applied) throw new Error('expected applied command');
+    return applied;
+  }
+
+  test('action presentation preserves raw event order and captures command-local charge delta once', () => {
+    const capabilities = createExecutionCapabilities();
+    (capabilities.pipeline.applyTurnSafe as jest.Mock).mockImplementation((cardState, gameState) => ({
+      ok: true,
+      cardState: {
+        ...clone(cardState),
+        chargeDeltaEvents: [{ player: 'black', amount: 3 }]
+      },
+      gameState: clone(gameState),
+      events: [{ type: 'RAW_1' }, { type: 'RAW_2' }]
+    }));
+    (capabilities.presentation.collectActionPlaybackEvents as jest.Mock).mockReturnValue({
+      playbackEvents: [{ type: 'ACTION_PLAYBACK' }],
+      presentationEvents: [{ type: 'ACTION_PRESENTATION' }],
+      diagnostics: { source: 'action' }
+    });
+    (capabilities.presentation.buildActionEffectLogs as jest.Mock).mockReturnValue(['action-log']);
+
+    const applied = prepareAndApply(createAuthorityContext(), capabilities);
+    const assembly = assembleMatchCommandActionPresentation(applied, capabilities);
+
+    expect(assembly).toEqual(expect.objectContaining({
+      rawEvents: [{ type: 'RAW_1' }, { type: 'RAW_2' }],
+      playbackEvents: [{ type: 'ACTION_PLAYBACK' }],
+      presentationEvents: [{ type: 'ACTION_PRESENTATION' }],
+      effectLogs: ['action-log'],
+      diagnostics: { source: 'action' },
+      actionChargeDeltaEvents: [{ player: 'black', amount: 3 }]
+    }));
+    expect(capabilities.snapshot.restoreMissingChargeDeltaEvents).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    [false, 'black', 'black', true],
+    [true, 'black', 'black', false],
+    [true, 'black', 'white', true]
+  ])(
+    'turn-start decision uses skip=%s and player transition %s→%s',
+    (skipTurnStart, preActionPlayerKey, postActionPlayerKey, expected) => {
+      expect(shouldReconcileMatchCommandTurnStart({
+        skipTurnStart,
+        preActionPlayerKey: preActionPlayerKey as any,
+        postActionPlayerKey: postActionPlayerKey as any
+      })).toBe(expected);
+    }
+  );
+
+  test('turn-start reconciliation is synchronous and applies normalized state exactly once', () => {
+    const context: any = createAuthorityContext();
+    context.snapshot.cardState.lastTurnStartedFor = 'white';
+    const capabilities = createExecutionCapabilities();
+    (capabilities.turnStart.applyTurnStartPhase as jest.Mock).mockImplementation(
+      (_cardLogic, _coreLogic, cardState, _gameState, _playerKey, events) => {
+        events.push({ type: 'TURN_START_1' }, { type: 'TURN_START_2' });
+        cardState.chargeDeltaEvents = [];
+      }
+    );
+    (capabilities.presentation.collectTurnStartPlaybackEvents as jest.Mock).mockReturnValue({
+      playbackEvents: [{ type: 'TURN_START_PLAYBACK' }],
+      presentationEvents: [{ type: 'TURN_START_PRESENTATION' }],
+      diagnostics: { source: 'turn-start' }
+    });
+    (capabilities.presentation.collectTurnStartEffectLogs as jest.Mock).mockReturnValue(['turn-start-log']);
+    (capabilities.presentation.appendTurnStartDrawPlaybackEvents as jest.Mock).mockImplementation(
+      ({ playbackAssembly }) => ({
+        ...playbackAssembly,
+        playbackEvents: [...playbackAssembly.playbackEvents, { type: 'DRAW_PLAYBACK' }]
+      })
+    );
+
+    const result: any = reconcileMatchCommandTurnStart(context, clone(context.snapshot), capabilities);
+
+    expect(result && typeof result.then).not.toBe('function');
+    expect(result.rawEvents).toEqual([{ type: 'TURN_START_1' }, { type: 'TURN_START_2' }]);
+    expect(result.playbackEvents).toEqual([
+      { type: 'TURN_START_PLAYBACK' },
+      { type: 'DRAW_PLAYBACK' }
+    ]);
+    expect(result.effectLogs).toEqual(['turn-start-log']);
+    expect(capabilities.turnStart.applyTurnStartPhase).toHaveBeenCalledTimes(1);
+    expect(capabilities.random.fromState).toHaveBeenCalledTimes(1);
+  });
+
+  test('single executor keeps action→turn-start ordering, restores action delta, and cleans presentation', () => {
+    const order: string[] = [];
+    const context: any = createAuthorityContext({ networkDebugEnabled: true });
+    context.snapshot.cardState.lastTurnStartedFor = 'black';
+    const capabilities = createExecutionCapabilities();
+    (capabilities.pipeline.applyTurnSafe as jest.Mock).mockImplementation((cardState, gameState) => {
+      order.push('apply');
+      return {
+        ok: true,
+        cardState: {
+          ...clone(cardState),
+          lastTurnStartedFor: 'black',
+          chargeDeltaEvents: [{ player: 'black', amount: 4 }]
+        },
+        gameState: { ...clone(gameState), currentPlayer: -1 },
+        events: [{ type: 'ACTION_RAW_1' }, { type: 'ACTION_RAW_2' }]
+      };
+    });
+    (capabilities.snapshot.restoreMissingChargeDeltaEvents as jest.Mock).mockImplementation(() => {
+      order.push('restore-charge');
+    });
+    (capabilities.presentation.collectActionPlaybackEvents as jest.Mock).mockImplementation(() => {
+      order.push('action-playback');
+      return {
+        playbackEvents: [{ type: 'ACTION_PLAYBACK_1' }, { type: 'ACTION_PLAYBACK_2' }],
+        presentationEvents: [],
+        diagnostics: { exact: true }
+      };
+    });
+    (capabilities.presentation.buildActionEffectLogs as jest.Mock).mockReturnValue(['action-log-1', 'action-log-2']);
+    (capabilities.turnStart.applyTurnStartPhase as jest.Mock).mockImplementation(
+      (_cardLogic, _coreLogic, cardState, _gameState, _playerKey, events) => {
+        order.push('turn-start');
+        events.push({ type: 'TURN_START_RAW' });
+        cardState.chargeDeltaEvents = [];
+      }
+    );
+    (capabilities.presentation.collectTurnStartPlaybackEvents as jest.Mock).mockImplementation(() => {
+      order.push('turn-start-playback');
+      return {
+        playbackEvents: [{ type: 'TURN_START_PLAYBACK' }],
+        presentationEvents: [],
+        diagnostics: { turnStart: true }
+      };
+    });
+    (capabilities.presentation.collectTurnStartEffectLogs as jest.Mock).mockReturnValue(['turn-start-log']);
+    (capabilities.presentation.appendTurnStartDrawPlaybackEvents as jest.Mock).mockImplementation(
+      ({ playbackAssembly }) => ({
+        ...playbackAssembly,
+        playbackEvents: [...playbackAssembly.playbackEvents, { type: 'DRAW_PLAYBACK' }]
+      })
+    );
+    (capabilities.presentation.toDebugPlaybackDiagnostics as jest.Mock).mockImplementation(
+      (diagnostics, enabled) => enabled ? diagnostics : null
+    );
+
+    const result: any = executeMatchCommand(
+      context,
+      { actionType: 'pass', action: { type: 'pass' } },
+      capabilities
+    );
+
+    expect(result && typeof result.then).not.toBe('function');
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      rawEvents: [
+        { type: 'ACTION_RAW_1' },
+        { type: 'ACTION_RAW_2' },
+        { type: 'TURN_START_RAW' }
+      ],
+      playbackEvents: [
+        { type: 'ACTION_PLAYBACK_1' },
+        { type: 'ACTION_PLAYBACK_2' },
+        { type: 'TURN_START_PLAYBACK' },
+        { type: 'DRAW_PLAYBACK' }
+      ],
+      effectLogs: ['action-log-1', 'action-log-2', 'turn-start-log'],
+      playbackDiagnostics: { exact: true }
+    }));
+    expect(result.snapshot.cardState.chargeDeltaEvents).toEqual([
+      { player: 'black', amount: 4 }
+    ]);
+    expect(order).toEqual([
+      'apply',
+      'restore-charge',
+      'action-playback',
+      'turn-start',
+      'turn-start-playback'
+    ]);
+    expect(capabilities.snapshot.stripTransientPresentationState).toHaveBeenCalledTimes(2);
+  });
+
+  test('non-empty turn-start charge delta wins and disabled diagnostics stay private', () => {
+    const context: any = createAuthorityContext({ networkDebugEnabled: false });
+    context.snapshot.cardState.lastTurnStartedFor = 'black';
+    const capabilities = createExecutionCapabilities();
+    (capabilities.pipeline.applyTurnSafe as jest.Mock).mockImplementation((cardState, gameState) => ({
+      ok: true,
+      cardState: {
+        ...clone(cardState),
+        lastTurnStartedFor: 'black',
+        chargeDeltaEvents: [{ player: 'black', amount: 4 }]
+      },
+      gameState: { ...clone(gameState), currentPlayer: -1 },
+      events: []
+    }));
+    (capabilities.turnStart.applyTurnStartPhase as jest.Mock).mockImplementation(
+      (_cardLogic, _coreLogic, cardState) => {
+        cardState.chargeDeltaEvents = [{ player: 'white', amount: 7 }];
+      }
+    );
+    (capabilities.presentation.collectActionPlaybackEvents as jest.Mock).mockReturnValue({
+      playbackEvents: [],
+      presentationEvents: [],
+      diagnostics: { private: true }
+    });
+    (capabilities.presentation.toDebugPlaybackDiagnostics as jest.Mock).mockImplementation(
+      (_diagnostics, enabled) => enabled ? { private: true } : null
+    );
+
+    const result: any = executeMatchCommand(
+      context,
+      { actionType: 'pass', action: { type: 'pass' } },
+      capabilities
+    );
+
+    expect(result.snapshot.cardState.chargeDeltaEvents).toEqual([
+      { player: 'white', amount: 7 }
+    ]);
+    expect(result.playbackDiagnostics).toBeNull();
+  });
+
+  test('skipped same-player continuation never invokes turn-start capabilities', () => {
+    const context: any = createAuthorityContext();
+    context.snapshot.cardState.pendingEffectByPlayer.black = { type: 'SEED' };
+    const capabilities = createExecutionCapabilities();
+
+    const result = executeMatchCommand(
+      context,
+      {
+        actionType: 'select_target',
+        action: {
+          type: 'select_target',
+          pendingSelectionState: { type: 'SEED' }
+        }
+      },
+      capabilities
+    );
+
+    expect(result.ok).toBe(true);
+    expect(capabilities.turnStart.applyTurnStartPhase).not.toHaveBeenCalled();
+    expect(capabilities.presentation.collectTurnStartPlaybackEvents).not.toHaveBeenCalled();
+  });
+
+  test('terminal debug and rejection results stop before later stages', () => {
+    const debugCapabilities = createExecutionCapabilities();
+    const debug = executeMatchCommand(
+      createAuthorityContext({ networkDebugEnabled: true }),
+      { actionType: 'debug_fill_hand' },
+      debugCapabilities
+    );
+    expect(debug.ok).toBe(true);
+    expect(debugCapabilities.pipeline.applyTurnSafe).not.toHaveBeenCalled();
+    expect(debugCapabilities.presentation.collectActionPlaybackEvents).not.toHaveBeenCalled();
+
+    const rejectedCapabilities = createExecutionCapabilities();
+    (rejectedCapabilities.pipeline.applyTurnSafe as jest.Mock).mockReturnValue({
+      ok: false,
+      rejectedReason: 'ILLEGAL_MOVE',
+      events: [{ type: 'REJECTED_RAW' }]
+    });
+    const rejected = executeMatchCommand(
+      createAuthorityContext(),
+      { actionType: 'place', action: { type: 'place' } },
+      rejectedCapabilities
+    );
+    expect(rejected).toEqual({
+      ok: false,
+      rejectedReason: 'ILLEGAL_MOVE',
+      errorMessage: null,
+      rawEvents: [{ type: 'REJECTED_RAW' }]
+    });
+    expect(rejectedCapabilities.presentation.collectActionPlaybackEvents).not.toHaveBeenCalled();
   });
 });

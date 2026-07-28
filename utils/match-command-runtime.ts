@@ -5,12 +5,15 @@ import type {
     MatchCommandExecutionCapabilities,
     MatchCommandExecutionFailure,
     MatchCommandExecutionResult,
+    MatchCommandExecutionSuccess,
     MatchCommandPlayerKey,
+    MatchCommandPresentationAssembly,
     MatchCommandPrepareResult,
     MatchCommandPrng,
     MatchCommandRecord,
     MatchCommandSnapshot,
     PreparedMatchCommandExecution,
+    TurnStartReconciliationResult,
     MatchCommandRuntimePort,
     MatchRuntimeCommand,
     MatchRuntimeCommandResult
@@ -398,7 +401,8 @@ export function validateCanonicalMatchCommandSnapshot(
 function createCommandPrng(
     context: MatchCommandAuthorityContext,
     snapshot: MatchCommandSnapshot,
-    capabilities: MatchCommandExecutionCapabilities
+    capabilities: MatchCommandExecutionCapabilities,
+    playerKey: MatchCommandPlayerKey
 ): MatchCommandPrng {
     const cardState = asRecord(snapshot.cardState);
     const savedState = asRecord(cardState.prngState);
@@ -416,7 +420,7 @@ function createCommandPrng(
         }
     }
     return capabilities.random.createPrng(
-        capabilities.random.deriveSeed(context, snapshot, context.playerKey)
+        capabilities.random.deriveSeed(context, snapshot, playerKey)
     );
 }
 
@@ -577,7 +581,7 @@ export function prepareMatchCommandExecution(
             currentCardState: preparedAction.currentCardState,
             resolvedAction: preparedAction.resolvedAction,
             pendingValidation: preparedAction.pendingValidation,
-            prng: createCommandPrng(context, currentSnapshot, capabilities),
+            prng: createCommandPrng(context, currentSnapshot, capabilities, context.playerKey),
             skipTurnStart
         }
     };
@@ -635,4 +639,278 @@ export function applyPreparedMatchCommandExecution(
         },
         rawEvents
     };
+}
+
+export interface MatchCommandTurnStartDecision {
+    skipTurnStart: boolean;
+    preActionPlayerKey: MatchCommandPlayerKey;
+    postActionPlayerKey: MatchCommandPlayerKey;
+}
+
+export function shouldReconcileMatchCommandTurnStart(
+    decision: MatchCommandTurnStartDecision
+): boolean {
+    return !decision.skipTurnStart
+        || decision.postActionPlayerKey !== decision.preActionPlayerKey;
+}
+
+export function assembleMatchCommandActionPresentation(
+    applied: AppliedMatchCommandExecution,
+    capabilities: MatchCommandExecutionCapabilities
+): MatchCommandPresentationAssembly {
+    capabilities.snapshot.restoreMissingChargeDeltaEvents(
+        applied.preActionSnapshot,
+        applied.nextSnapshot
+    );
+    const nextCardState = asRecord(applied.nextSnapshot.cardState);
+    const actionChargeDeltaEvents = Array.isArray(nextCardState.chargeDeltaEvents)
+        ? nextCardState.chargeDeltaEvents.slice()
+        : [];
+    const playbackAssembly = capabilities.presentation.collectActionPlaybackEvents({
+        result: applied.pipelineResult,
+        rawEvents: applied.rawEvents,
+        snapshot: applied.nextSnapshot,
+        playerKey: applied.context.playerKey
+    }) || {};
+    const playbackEvents = Array.isArray(playbackAssembly.playbackEvents)
+        ? playbackAssembly.playbackEvents
+        : [];
+    const presentationEvents = Array.isArray(playbackAssembly.presentationEvents)
+        ? playbackAssembly.presentationEvents
+        : [];
+    const diagnostics = Object.prototype.hasOwnProperty.call(playbackAssembly, 'diagnostics')
+        ? playbackAssembly.diagnostics || null
+        : null;
+    capabilities.presentation.reportPlaybackAssemblyDiagnostics(
+        'match-command-action',
+        diagnostics,
+        { networkDebugEnabled: applied.context.networkDebugEnabled }
+    );
+    const effectLogs = capabilities.presentation.buildActionEffectLogs(
+        applied.resolvedAction,
+        applied.context.playerKey,
+        applied.rawEvents,
+        presentationEvents
+    );
+    const postActionPlayerKey = capabilities.authority.getCurrentPlayerKey(
+        applied.nextSnapshot.gameState
+    );
+
+    return {
+        snapshot: applied.nextSnapshot,
+        rawEvents: applied.rawEvents,
+        playbackEvents,
+        presentationEvents,
+        effectLogs: Array.isArray(effectLogs) ? effectLogs : [],
+        diagnostics,
+        actionChargeDeltaEvents,
+        shouldReconcileTurnStart: shouldReconcileMatchCommandTurnStart({
+            skipTurnStart: applied.skipTurnStart,
+            preActionPlayerKey: applied.context.playerKey,
+            postActionPlayerKey
+        })
+    };
+}
+
+function captureTurnStartHandState(
+    snapshot: MatchCommandSnapshot,
+    playerKey: MatchCommandPlayerKey
+): {
+    playerKey: MatchCommandPlayerKey;
+    hand: readonly unknown[];
+} {
+    const cardState = asRecord(snapshot.cardState);
+    const hands = asRecord(cardState.hands);
+    return {
+        playerKey,
+        hand: Array.isArray(hands[playerKey])
+            ? (hands[playerKey] as unknown[]).slice()
+            : []
+    };
+}
+
+function emptyTurnStartResult(
+    snapshot: MatchCommandSnapshot,
+    playerKey: MatchCommandPlayerKey | null
+): TurnStartReconciliationResult {
+    return {
+        snapshot,
+        rawEvents: [],
+        playbackEvents: [],
+        presentationEvents: [],
+        effectLogs: [],
+        diagnostics: null,
+        playerKey
+    };
+}
+
+export function reconcileMatchCommandTurnStart(
+    context: MatchCommandAuthorityContext,
+    snapshot: MatchCommandSnapshot,
+    capabilities: MatchCommandExecutionCapabilities
+): TurnStartReconciliationResult {
+    const playerKey = capabilities.authority.getCurrentPlayerKey(snapshot.gameState);
+    const handState = captureTurnStartHandState(snapshot, playerKey);
+    capabilities.snapshot.stripTransientPresentationState(snapshot);
+
+    const cardStateBefore = asRecord(snapshot.cardState);
+    const lastTurnStartedFor = capabilities.authority.parsePlayerKeyOptional(
+        cardStateBefore.lastTurnStartedFor
+    );
+    let rawEvents: unknown[] = [];
+    if (
+        lastTurnStartedFor !== playerKey
+        && capabilities.turnStart.isGameOver(snapshot.gameState) !== true
+    ) {
+        const baselinePrng = capabilities.random.createPrng(
+            capabilities.random.deriveSeed(context, snapshot, playerKey)
+        );
+        const baselineCardState = capabilities.turnStart.createCardState(
+            baselinePrng,
+            context.initialDeckOptions
+        );
+        snapshot.cardState = capabilities.turnStart.mergeWithDefaultShape(
+            baselineCardState,
+            cardStateBefore
+        );
+        const normalizedCardState = asRecord(snapshot.cardState);
+        if (!Array.isArray(normalizedCardState.presentationEvents)) {
+            normalizedCardState.presentationEvents = [];
+        }
+        if (!Array.isArray(normalizedCardState._presentationEventsPersist)) {
+            normalizedCardState._presentationEventsPersist = [];
+        }
+
+        const prng = createCommandPrng(context, snapshot, capabilities, playerKey);
+        rawEvents = [];
+        capabilities.turnStart.applyTurnStartPhase(
+            capabilities.turnStart.cardLogic,
+            capabilities.turnStart.coreLogic,
+            normalizedCardState,
+            snapshot.gameState,
+            playerKey,
+            rawEvents,
+            prng
+        );
+        if (prng && typeof prng.getState === 'function') {
+            normalizedCardState.prngState = prng.getState();
+        }
+    }
+
+    const playbackAssembly = capabilities.presentation.collectTurnStartPlaybackEvents({
+        rawEvents,
+        snapshot,
+        playerKey
+    }) || {};
+    const presentationEvents = Array.isArray(playbackAssembly.presentationEvents)
+        ? playbackAssembly.presentationEvents
+        : [];
+    const effectLogs = capabilities.presentation.collectTurnStartEffectLogs(
+        rawEvents,
+        presentationEvents,
+        playerKey
+    );
+    const withDrawPlayback = capabilities.presentation.appendTurnStartDrawPlaybackEvents({
+        playbackAssembly: Object.assign({}, playbackAssembly, {
+            effectLogs: Array.isArray(effectLogs) ? effectLogs : []
+        }),
+        snapshot,
+        handState
+    }) || playbackAssembly;
+    const diagnostics = Object.prototype.hasOwnProperty.call(withDrawPlayback, 'diagnostics')
+        ? withDrawPlayback.diagnostics || null
+        : null;
+    capabilities.presentation.reportPlaybackAssemblyDiagnostics(
+        'match-command-turn-start',
+        diagnostics,
+        { networkDebugEnabled: context.networkDebugEnabled }
+    );
+    return {
+        snapshot,
+        rawEvents,
+        playbackEvents: Array.isArray(withDrawPlayback.playbackEvents)
+            ? withDrawPlayback.playbackEvents
+            : [],
+        presentationEvents: Array.isArray(withDrawPlayback.presentationEvents)
+            ? withDrawPlayback.presentationEvents
+            : presentationEvents,
+        effectLogs: Array.isArray((withDrawPlayback as MatchCommandRecord).effectLogs)
+            ? (withDrawPlayback as MatchCommandRecord).effectLogs as string[]
+            : (Array.isArray(effectLogs) ? effectLogs : []),
+        diagnostics,
+        playerKey
+    };
+}
+
+export function finalizeMatchCommandExecution(
+    applied: AppliedMatchCommandExecution,
+    actionPresentation: MatchCommandPresentationAssembly,
+    turnStart: TurnStartReconciliationResult | null,
+    capabilities: MatchCommandExecutionCapabilities
+): MatchCommandExecutionSuccess {
+    const turnStartResult = turnStart || emptyTurnStartResult(
+        actionPresentation.snapshot,
+        null
+    );
+    const snapshot = turnStartResult.snapshot;
+    const cardState = asRecord(snapshot.cardState);
+    const finalChargeDeltaEvents = Array.isArray(cardState.chargeDeltaEvents)
+        ? cardState.chargeDeltaEvents
+        : [];
+    if (
+        finalChargeDeltaEvents.length === 0
+        && actionPresentation.actionChargeDeltaEvents.length > 0
+    ) {
+        cardState.chargeDeltaEvents = actionPresentation.actionChargeDeltaEvents.slice();
+    }
+    capabilities.snapshot.stripTransientPresentationState(snapshot);
+
+    return {
+        ok: true,
+        snapshot,
+        rawEvents: [
+            ...actionPresentation.rawEvents,
+            ...turnStartResult.rawEvents
+        ],
+        playbackEvents: capabilities.presentation.appendPlaybackEventsAfter(
+            actionPresentation.playbackEvents,
+            turnStartResult.playbackEvents
+        ),
+        playbackDiagnostics: capabilities.presentation.toDebugPlaybackDiagnostics(
+            actionPresentation.diagnostics,
+            applied.context.networkDebugEnabled
+        ),
+        effectLogs: capabilities.presentation.appendEffectLogMessages(
+            actionPresentation.effectLogs,
+            turnStartResult.effectLogs
+        ),
+        action: applied.resolvedAction,
+        pendingEffectId: typeof applied.pendingValidation.pendingEffectId === 'string'
+            && applied.pendingValidation.pendingEffectId
+            ? applied.pendingValidation.pendingEffectId
+            : null
+    };
+}
+
+export function executeMatchCommand(
+    context: MatchCommandAuthorityContext,
+    body: unknown,
+    capabilities: MatchCommandExecutionCapabilities
+): MatchCommandExecutionResult {
+    const prepared = prepareMatchCommandExecution(context, body, capabilities);
+    if (prepared.kind === 'terminal') return prepared.result;
+
+    const applied = applyPreparedMatchCommandExecution(prepared.value, capabilities);
+    if (!('pipelineResult' in applied)) return applied;
+
+    const actionPresentation = assembleMatchCommandActionPresentation(applied, capabilities);
+    const turnStart = actionPresentation.shouldReconcileTurnStart
+        ? reconcileMatchCommandTurnStart(context, actionPresentation.snapshot, capabilities)
+        : null;
+    return finalizeMatchCommandExecution(
+        applied,
+        actionPresentation,
+        turnStart,
+        capabilities
+    );
 }
