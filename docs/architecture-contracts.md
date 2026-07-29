@@ -254,6 +254,18 @@ It owns the board array, current player, turn number, and other pure progression
 `cardState` is the canonical card-and-marker runtime state used by `game/`.
 It owns hands, charge, marker collections, pending state, and card-specific runtime fields.
 
+#### 6.2.1 Canonical multi-cell special stones
+
+A multi-cell special stone is represented by ordinary owner values in every occupied cell plus one canonical group marker. `SHINRA_BANSHO_GOD` uses a top-left anchor and the versioned `square_2x2.v1` footprint; the four cells are never four independent special-stone identities.
+
+- shared footprint helpers own anchor-to-cell projection, cell-to-group lookup, canonical row/column ordering, and complete-group validation
+- rules that count board stones consume all occupied cells; rules that count special-stone instances deduplicate by group marker identity
+- flip/destroy protection and single-cell target exclusion are projected to every footprint cell before board-kernel evaluation
+- fusion consumption, summon clearing, and topology-driven group dissolution are typed atomic operations; they must not enter normal destruction history, recovery, evasion, salvation, or charge accounting
+- a complete snapshot must contain the group marker and all four same-owner cells, or none of them; ingress and reconciliation fail closed on partial groups
+- generic marker serialization remains the transport authority. Browser, headless, local server, Worker, CPU, reconnect, and spectator projection rebuild the same footprint index from canonical state
+- automatic fusion runs only at explicit settlement boundaries after a logical board operation and its generated flip/revive flush. It must not run inside low-level per-cell mutations or observe a half-finished effect block
+
 ### 6.3 Pending state
 
 Pending card flows must remain explicit in state rather than hidden in UI-only flags.
@@ -394,6 +406,8 @@ The following boundaries apply:
 - Logical endpoints are validated against topology `existingKeys`, not the currently materialized viewport window. Offscreen or negative expanded-board coordinates remain valid topology coordinates; the renderer must not create extra cell/void views or grow the canvas backing store to reach them.
 - Source and target coordinates, direction, duration, and target gate remain unchanged when an endpoint is outside the visible viewport. Viewport inclusion is never a targeting rule: every trajectory still travels from the actual source-stone center to the actual target-stone center. Only painted pixels are clipped to the board viewport and its bounded effect gutter; the renderer must not substitute the viewport edge, retarget another stone, or report impact early. A fully clipped trajectory still participates in phase timing and settlement without materializing a display object.
 - Hand/card/HUD-to-board trajectories and fullscreen/global UI remain global DOM presentation. They may read a board cell rectangle through the public board-visual API, but they do not become board writers or join the board-cell trajectory port.
+
+A multi-cell special stone is one composite visual inside the active backend's existing stone layer. The render model keeps four semantic owner cells and one group-identified composite. Materialization is based on footprint intersection with the render window, not anchor visibility alone. Board-source trajectories resolve the composite footprint center while preserving the canonical anchor and footprint metadata; no second canvas, ticker, writer, or backend-specific settlement path is permitted.
 
 DOM compatibility module definitions/accessors may be registered at browser startup so initial failure or context-loss recovery needs no second network fetch. Registration is not evaluation: the default Pixi execution graph must not require or evaluate the DOM source-trajectory runtime. Its stylesheet may be available before fallback, but its selectors must remain compatibility-only: board selectors are scoped to `[data-board-renderer="dom"]`, and source-trajectory selectors use dedicated classes prefixed with `.dom-board-source-trajectory` on nodes that only the DOM backend creates. No compatibility selector may match or paint the active Pixi board.
 
@@ -567,6 +581,7 @@ Canonical randomness belongs to the authority runtime.
 - when persisted `prngState` is unavailable, turn-start reconciliation must derive the next PRNG state from stable authority inputs such as room seed, `stateVersion`, turn number, turn index, and active player
 - browser-side preview may mirror authority results, but it must not define canonical random outcomes
 - gameplay-relevant `Math.random()` fallback on a canonical path is hardening debt, not a valid long-term authority contract
+- canonical candidate arrays are sorted by row and then column before indexed selection. Existing elemental pulses preserve their current PRNG call count, including one draw when exactly one target exists; the Shinra 2x2 placement selector consumes no draw when its best tier contains only one candidate
 - authority-side diagnostics may record `matchId`, `operationId`, version, pending identity, timeout reason, dedupe outcome, and before/after state hashes, but those diagnostics remain internal and must not widen normal public payloads by default
 
 ### 8.7 Projection details

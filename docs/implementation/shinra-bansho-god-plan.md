@@ -107,14 +107,15 @@
 2. `flipProtected`、`destroyProtected`、永続、単セル操作不可をレジストリの機械可読ルールで表現する。
 3. anchor座標の完全一致ではなく、共通footprint indexを通して4セルの保護と石情報を解決する。
 4. 反転、通常破壊、誘惑、捕獲、意志の喪失、移動、交換、複製、延命などの候補列挙を監査する。単セル変更が成立し得ない操作は候補外にし、雷の意志のように「候補選択後に完全保護で不発」とする既存効果は4ownerセルを候補へ残して結果だけを防ぐ。
-5. セル消滅がfootprintの1セルへ成立した場合は、group markerと全4石を1回のmutationで消す。穴化は元の効果が指定したセルだけに適用する。
-6. 4セル全体を絶対対象とする既存効果では、group単位のfootprintを明示的に渡す。
-7. 通常の`destroyAt`へ融合専用の無制限bypass flagを追加せず、後続Step 5の限定されたtyped operationだけが専用除去を呼べる境界を準備する。
+5. セル消滅がfootprintの1セルへ成立した場合は、`group_dissolve`としてgroup markerと全4石を1回のmutationで消す。穴化は元の効果が指定したセルだけに適用し、追加3セルは破壊履歴、破壊数、布石、救済、復活、回避へ入れない。
+6. 複数セル消滅batchは先に対象穴セルを確定し、marker IDでgroup解体をdedupeする。4セル全体を絶対対象とする既存効果ではgroup footprintを明示的に渡す。
+7. `凍結の意志`の単セル凍結は選択セルだけへmarkerを置くが、any-footprint freezeでgroup全体の4pulseを止める。`意志の凍結`はgroupを1体として列挙し、4セルすべてへ同じ期限の凍結markerを置く。
+8. 通常の`destroyAt`へ融合専用の無制限bypass flagを追加せず、後続Step 5の限定されたtyped operationだけが専用除去を呼べる境界を準備する。
 
 ### 検証
 
 - `npm run check:window`
-- 保護、セル消滅、複製、移動、誘惑、捕獲、延命のfocused Jest
+- 保護、単セル/全体凍結、セル消滅batch、複製、移動、誘惑、捕獲、延命のfocused Jest
 - `rg -n "marker\\.row\\s*===|marker\\.col\\s*===" game shared ui --glob "*.ts"`で未対応のanchor直比較を監査する
 
 ### 完了条件
@@ -146,13 +147,14 @@
 2. 現行の配置時・ターン開始APIは「pulse→必要なら寿命減算」の合成として残し、外部挙動を変えない。
 3. 森羅万象神用には寿命へ触れないpulse入口を公開する。
 4. pulseのsource metadataを単セル座標またはcomposite group sourceのどちらでも表現できるようにする。
-5. 候補0と候補1で不要なPRNGを消費しない既存契約を維持する。
+5. 既存4属性pulseは候補0だけPRNGを消費せず、候補1以上では現行どおり1回消費する契約を維持する。
 
 ### 検証
 
 - 火・水・草・雷の既存Jestを変更前後で比較する
 - 配置時発動では寿命を減らさず、所有者ターン開始では従来どおり減算することをfocused testで固定する
 - pulse単体では寿命とmarker lifecycleを変更しないtestを追加する
+- 各属性で候補0・1・複数のPRNG call countを回帰テストにする
 
 ### 完了条件
 
@@ -175,7 +177,7 @@
 ### 実装内容
 
 1. ownerごとに `FIRE`、`WATER`、`GRASS`、`LIGHTNING` を各1体選ぶ。種類内は`createdSeq`、canonical marker順、`markerId`で最古を選び、成立セットは最大`createdSeq`の昇順、素材marker順、黒→白で処理する。
-2. 現在のBoardViewの有効セルから2×2候補を列挙し、穴・void・進入不能セル・不可侵・完全保護・既存神を含む候補を除く。
+2. 現在のBoardViewの有効セルから2×2候補を列挙し、穴・void・進入不能セル・不可侵・完全保護・既存神を含む候補を除く。候補anchorは必ずrow→colでcanonical sortする。
 3. 選択素材4体を空きとして投影した空きセル数を数え、最大tier内だけからauthority PRNGで選ぶ。
 4. 候補0では何も変更せず正常な「保留」を返す。
 5. 選択後は1つのeffect blockとmutation checkpoint内で、次を順に行う。
@@ -193,6 +195,7 @@
 
 - 同色成立、混色、不足、owner不一致
 - 最大空きtier、同点乱数、候補0・1の乱数非消費
+- 入力cell順を並べ替えても候補順、選択先、PRNG stateが変わらない
 - 素材が出現footprint内外にある場合
 - 盤面が通常石で埋まっている場合
 - 穴・void・拡張セル・封鎖・凍結・不可侵・完全保護・既存神
@@ -225,9 +228,13 @@
    - 通常配置、通常反転、配置時即時効果の完了後
    - 即時カードと対象選択カードのcanonical効果完了後
    - 生成、複製、誘惑、復活などの盤面変更settlement後
-   - ターン開始marker 1個の処理完了後
+   - ターン開始before-anchor処理と復活flushの完了後
+   - ターン開始marker 1個の処理と、そのanchorの復活flushの完了後
+   - 全turn-start anchor後の生成石反転・復活flushの完了後
+   - 理論の化身の配置後生成、生成石即時効果、復活flushの完了後
+   - pending selection完了、追加配置の各sub-placement完了、手番引継ぎ前の最終settlement
 2. `BoardOps`の個別mutationへ自動融合を埋め込まず、半完成の中間状態では呼ばない。
-3. ターン開始marker一覧は開始時点snapshotを維持し、同じ開始処理中に召喚された森羅万象神をその回の対象へ追加しない。
+3. すべての入口が同じidempotentなfusion closureを呼ぶ。ターン開始marker一覧は開始時点snapshotを維持し、同じ開始処理中に召喚された森羅万象神をその回の対象へ追加しない。
 4. 候補0で保留中の素材は、以後の盤面変更settlementごとに再判定する。
 5. action resultとnetwork resultには融合eventsを同じcanonical順で含め、次の入力を演出settlement前に解放しない。
 
@@ -235,6 +242,7 @@
 
 - 4体目の配置時属性効果が先、融合が後になる
 - pending選択完了で条件を満たした場合も自動融合する
+- before-anchor復活flush、各anchor復活flush、全anchor後生成flush、理論の化身生成後の各入口で発火漏れと二重発火がない
 - ターン開始中の復活・生成で成立した場合、現在anchorの後かつ次anchorの前に融合する
 - 同じターン開始中に召喚された神が発動しない
 - passや盤面を変えないactionで不要なPRNGを消費しない
@@ -265,6 +273,7 @@
 4. 各pulseを独立したpresentation sub-phaseとしてsettleし、不発でも次のpulseへ進む。
 5. source metadataへgroup marker ID、4セルfootprint、論理anchorを入れる。
 6. 最終pulse後にのみ次の特殊石anchorへ進む。
+7. 開始時点のfootprint凍結snapshotで、1セルでも凍結中なら4pulse全体をスキップする。
 
 ### 検証
 
@@ -273,6 +282,7 @@
 - 各pulse候補0でも後続を継続する
 - 永続でremaining owner turnを持たず、治癒による`+3`対象にならない
 - 複数神と他特殊石が`createdSeq`順に処理される
+- anchor以外の1セルだけが凍結中でも4pulseを発動せず、開始処理中の期限変化で部分発動しない
 
 ### 完了条件
 
@@ -339,13 +349,15 @@ headless event列だけから、どのbackendでも同じ融合順・4pulse順�
 3. Pixiでは既存stone layer内でanchor以外を個別描画せず、4セル外接矩形へ大型spriteを1個描く。
 4. 保護表示、hover、石情報、source geometryをgroup単位に集約する。
 5. DOM互換ではbackend選択時だけ2×2 overlayを1個描き、個別discの見た目を抑止する。
-6. 盤面回転、白視点、拡張盤面、viewport clip、context recovery後も同じgroup IDで再構築する。
-7. 2つ目のcanvas、ticker、writer、DOM互換への通常Pixi importを追加しない。
+6. compositeはanchor単独ではなくfootprintとmaterialization領域の交差で生成する。anchorだけがviewport外でも他の3セルが見えていれば、同じgroup IDのspriteを1個だけ描画する。
+7. 盤面回転、白視点、拡張盤面、viewport clip、context recovery後も同じgroup IDで再構築する。
+8. 2つ目のcanvas、ticker、writer、DOM互換への通常Pixi importを追加しない。
 
 ### 検証
 
 - render modelでsemantic cell 4、composite 1
 - Pixi sprite 1、DOM overlay 1
+- anchorのみviewport外、白視点、拡張盤面、context recoveryでもcomposite 1体とsource geometryが残る
 - `npm run match:pixi-runtime-fallback-check`
 - `npm run match:cross-platform-smoke:vite`
 - `npm run check:board-test-selectors`
@@ -366,6 +378,7 @@ PixiとDOM互換のどちらでも2×2の1体に見え、盤面操作・アク�
 - 新規
   - `assets/images/special-stones/SHINRA_BANSHO_GOD-black.png`
   - `assets/images/special-stones/SHINRA_BANSHO_GOD-white.png`
+  - `assets/images/special-cards/backgrounds/shinra_bansho_god_background.png`
 - `game/visual-effects-map.ts`
 - `ui/presentation/stone-info-controller.ts`
 - `ui/presentation/stone-info-panel.ts`
@@ -377,18 +390,20 @@ PixiとDOM互換のどちらでも2×2の1体に見え、盤面操作・アク�
 
 ### 実装内容
 
-1. 黒白で判別でき、2×2表示時に四辺が切れない同一構図の画像を用意する。
-2. 石情報へ名称、短い説明、`特殊石`・`永続`・`4マス占有`・`完全保護`タグを追加する。
-3. どのfootprintセルから開いても同じgroup情報へ解決し、一覧では1体に集約する。
-4. classic browser、Vite、Worker preloadに新しいshared/game moduleを既存順序で追加する。
-5. `cards/catalog.json`と`CardType`へは追加しない。
-6. 生成物を手編集せず、既存scriptでmanifest、browser bundle、Worker mirrorを生成する。
+1. 黒白で判別でき、2×2表示時に四辺が切れない同一構図の透過128×128画像を用意する。
+2. 1024×1536の不透明カード背景を用意し、カード定義には登録せず森羅万象神の石情報詳細パネル専用背景としてcover表示する。既存パネル色の半透明scrimで本文可読性を保つ。
+3. 石情報へ名称、短い説明、`特殊石`・`永続`・`4マス占有`・`完全保護`タグを追加する。
+4. どのfootprintセルから開いても同じgroup情報へ解決し、一覧では1体に集約する。
+5. classic browser、Vite、Worker preloadに新しいshared/game moduleを既存順序で追加する。
+6. `cards/catalog.json`と`CardType`へは追加しない。
+7. 生成物を手編集せず、既存scriptでmanifest、browser bundle、Worker mirrorを生成する。
 
 ### 検証
 
 - `npm run typecheck`
 - `npm run build:ts`
 - asset manifestと画像caseのfocused test
+- 3画像の寸法・alpha・透明角・視認性を目視/metadata確認し、石情報背景がカード一覧へ混入しないfocused test
 - `npm run build:browser`
 - `npm run worker:prepare`
 
@@ -439,7 +454,9 @@ browser、local server、Worker、CPU、selfplay、再接続が同じcanonical�
 - 融合成立・不成立・保留・複数召喚
 - 最大空きtierとPRNG消費
 - 完全保護と単セル操作不可
+- 単セル凍結、意志の凍結、凍結中4pulse停止
 - セル消滅時のgroup解体
+- セル消滅batchのgroup dedupeと追加3セルの非破壊会計
 - 4pulseの順序・永続・候補なし継続
 - render modelとgroup playback
 - snapshot/network parity
@@ -508,3 +525,4 @@ git diff --check
 - UIへgroup推測を持たせず、canonical eventとrender modelへmarker ID・footprintを明示する工程を追加した。
 - state hashやnetwork snapshotはgeneric markerで足りる可能性があるため、変更を前提にせず、明示allowlistや正規化不足が見つかった場合だけ変更する計画にした。
 - browser表示、network parity、Worker mirrorへまたがるため、focused test後の`build:browser`、network parity、`worker:prepare`、Pixi/DOM smokeを完了条件に含めた。
+- 独立レビューで、既存4属性pulseは候補1でもPRNGを消費する事実、凍結のgroup semantics、セル消滅会計、settlement hook網羅性、candidateのrow→col sort、partial viewport、追加カード背景の用途が不足していると判明した。設計へ戻って修正し、本計画のStep 3〜10と総合検証へ反映した。

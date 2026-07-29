@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-28",
-  "generatedAt": "2026-07-28T01:56:07.730Z",
+  "version": "2026-07-29",
+  "generatedAt": "2026-07-29T04:35:23.845Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -169,6 +169,14 @@
     {
       "path": "assets/images/special-stones/SACRIFICE_WILL-white.png",
       "sha256": "ff4ac721819b6dfc739a5d37c7f9a8463631511d05d49907c5d71343e341cfe8"
+    },
+    {
+      "path": "assets/images/special-stones/SHINRA_BANSHO_GOD-black.png",
+      "sha256": "ed225fb1116adbc4d88ad0b0a8a73f8bad0614637fcb858092be1e3ec7944b5b"
+    },
+    {
+      "path": "assets/images/special-stones/SHINRA_BANSHO_GOD-white.png",
+      "sha256": "ef3be8c57cd4d0c4f9e188da77ea035f2dd2dfa239ca0711005b7328c6a6b1a6"
     },
     {
       "path": "assets/images/special-stones/silver.stone.png",
@@ -497,6 +505,10 @@
     {
       "path": "assets/images/special-cards/backgrounds/grass_will_background.png",
       "sha256": "7e62a6c4b18231cde006083826ed23feaae24102d0a4f3348439071760152bb1"
+    },
+    {
+      "path": "assets/images/special-cards/backgrounds/shinra_bansho_god_background.png",
+      "sha256": "44bc2f6a17731a58636ee095e9dec1e85bd7f380a4b011fdfebed59cf499a10d"
     },
     {
       "path": "assets/images/special-cards/backgrounds/water_will_background.png",
