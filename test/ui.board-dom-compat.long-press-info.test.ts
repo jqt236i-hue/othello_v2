@@ -141,6 +141,43 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('白石');
   });
 
+  test('森羅万象神は2×2のどのマスからも同じ詳細と専用背景を表示する', () => {
+    [
+      [2, 2],
+      [2, 3],
+      [3, 2],
+      [3, 3]
+    ].forEach(([row, col]) => {
+      global.gameState.board[row][col] = global.BLACK;
+    });
+    global.cardState.markers = [{
+      id: 'shinra-info',
+      markerId: 'shinra-info',
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: {
+        type: 'SHINRA_BANSHO_GOD',
+        footprint: 'square_2x2.v1',
+        permanent: true
+      }
+    }];
+
+    const mod = require('../ui/board-dom-compat/renderer');
+
+    expect(mod.showSpecialStoneInfoAt(3, 3)).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('森羅万象神');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('2×2の永続特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('完全保護');
+
+    const panel = document.getElementById('stone-info-detail-panel') as HTMLElement;
+    expect(panel.classList.contains('has-special-background')).toBe(true);
+    expect(panel.style.getPropertyValue('--stone-info-detail-background-image'))
+      .toContain('shinra_bansho_god_background.png');
+  });
+
   test('showSpecialStoneInfoAt keeps normal stone info for living-will aura and adds its badge', () => {
     global.gameState.board[2][2] = global.BLACK;
     global.cardState.markers = [{

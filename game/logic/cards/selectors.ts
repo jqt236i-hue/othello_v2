@@ -199,10 +199,19 @@ function isInviolableCell(cardState: CardState, row: number, col: number): boole
     ));
 }
 
+function isMultiCellSpecialStoneCell(cardState: CardState, row: number, col: number): boolean {
+    if (CardUtils && typeof CardUtils.getSpecialMarkerAt === 'function') {
+        const marker = CardUtils.getSpecialMarkerAt(cardState, row, col);
+        return String(marker && marker.data && marker.data.type || '').toUpperCase() === 'SHINRA_BANSHO_GOD';
+    }
+    return false;
+}
+
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
     if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isPositionSwapProtectedCell === 'function') {
-        return SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col);
+        if (SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col)) return true;
     }
+    if (isMultiCellSpecialStoneCell(cardState, row, col)) return true;
     if (isFrozenCell(cardState, row, col)) return true;
     if (isInviolableCell(cardState, row, col)) return true;
     const cs = cardState as any;
@@ -360,6 +369,7 @@ function getDestroyTargets(cardState: CardState, gameState: GameState): TargetCe
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const guarded = markers.some((m: any) =>
             m &&
             m.kind === 'specialStone' &&
@@ -394,6 +404,7 @@ function getSwapTargets(cardState: CardState, gameState: GameState, playerKey: P
     const canSwapCell = (row: number, col: number, ownerValue: number) => {
         if (ownerValue !== opVal) return;
         if (isInviolableCell(cardState, row, col)) return;
+        if (isMultiCellSpecialStoneCell(cardState, row, col)) return;
         const hasSpecialOrBomb = markers.some((m: any) => {
             if (!m || m.row !== row || m.col !== col) return false;
             if (m.kind !== 'specialStone') return false;
@@ -467,6 +478,7 @@ function getStrongWindTargets(cardState: CardState, gameState: GameState): Targe
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         let movable = false;
         for (const d of [[0, -1], [0, 1]]) {
             if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d[0], d[1])) {
@@ -489,7 +501,13 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
     let destination: DestinationCell | null = null;
     for (let r = firstRow; hasBoardShapeCell(cardState, gameState, r, col); r += dr) {
         if (isBlockedCell(cardState, r, col)) break;
-        if (getCellValue(cardState, gameState, r, col) !== P_EMPTY && isGuardProtectedCell(cardState, r, col)) break;
+        const owner = getCellValue(cardState, gameState, r, col);
+        if (
+            owner !== P_EMPTY &&
+            (isGuardProtectedCell(cardState, r, col) || isMultiCellSpecialStoneCell(cardState, r, col))
+        ) {
+            break;
+        }
         destination = { row: r, col };
     }
     return destination;
@@ -528,6 +546,7 @@ function isSuperAttractionPathCandidateLegal(cardState: CardState, gameState: Ga
         if (isBlockedCell(cardState, point.row, point.col)) return false;
 
         const owner = getCellValue(cardState, gameState, point.row, point.col);
+        if (owner !== P_EMPTY && isMultiCellSpecialStoneCell(cardState, point.row, point.col)) return false;
         if (owner !== P_EMPTY && isGuardProtectedCell(cardState, point.row, point.col)) return false;
         if (index === pathCells.length - 1 && owner !== P_EMPTY && isGhostCell(cardState, point.row, point.col)) return false;
     }
@@ -562,6 +581,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
         const firstOwner = getCellValue(cardState, gameState, first.row, first.col);
         if (firstOwner === null || firstOwner === P_EMPTY) return res;
         if (isInviolableCell(cardState, first.row, first.col)) return res;
+        if (isMultiCellSpecialStoneCell(cardState, first.row, first.col)) return res;
     forEachBoardShapeCell(cardState, gameState, (r, c) => {
             if (r === first.row && c === first.col) return;
             if (canSuperAttractionTravelTo(cardState, gameState, first.row, first.col, r, c)) {
@@ -574,6 +594,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         if (hasSuperAttractionDestination(cardState, gameState, r, c)) {
             res.push({ row: r, col: c });
         }
@@ -649,6 +670,7 @@ function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
         if (destination.row === r && destination.col === c) return;
@@ -662,6 +684,7 @@ function _getVerticalSlideTargets(cardState: CardState, gameState: GameState, dr
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const destination = _collectVerticalSlideDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
         res.push({ row: r, col: c });
@@ -697,6 +720,7 @@ function getTrapTargets(cardState: CardState, gameState: GameState, playerKey: P
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const hasOwnTrap = markers.some((m: any) => (
             m &&
             m.row === r &&
@@ -723,6 +747,7 @@ function getGuardTargets(cardState: CardState, gameState: GameState, playerKey: 
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -738,6 +763,7 @@ function getLivingWillTargets(cardState: CardState, gameState: GameState, player
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const hasLivingWill = markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
@@ -836,6 +862,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
         if (owner === P_EMPTY) return;
         if (isFrozenCell(cardState, r, c)) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -859,6 +886,7 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
         if (isInviolableCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -1048,6 +1076,7 @@ function getCellTeleportTargets(cardState: CardState, gameState: GameState): Tar
         if (isFrozenCell(cardState, r, c)) return;
         if (isInviolableCell(cardState, r, c)) return;
         if (isMeteorHoleCell(cardState, r, c)) return;
+        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
 

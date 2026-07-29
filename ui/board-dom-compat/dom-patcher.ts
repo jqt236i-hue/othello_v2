@@ -384,6 +384,12 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
             if (effectKey) {
                 applyStoneVisualEffect(disc, effectKey, { owner: normalizeOwnerVal(state.special.owner) });
             }
+            if (String(state.special.type || '').toUpperCase() === 'SHINRA_BANSHO_GOD') {
+                const isAnchor = Number(state.special.footprintRowOffset) === 0
+                    && Number(state.special.footprintColOffset) === 0;
+                cell.classList.add(isAnchor ? 'shinra-bansho-god-anchor-cell' : 'shinra-bansho-god-part-cell');
+                disc.classList.add(isAnchor ? 'shinra-bansho-god-anchor' : 'shinra-bansho-god-part');
+            }
             // Robust fallback: ensure reveal-only trap image is visible if visual-map lookup/DI fails.
             if (state.special.type === 'TRAP_REVEAL' && typeof applyTrapStoneFallbackVisual === 'function') {
                 applyTrapStoneFallbackVisual(disc, normalizeOwnerVal(state.special.owner));

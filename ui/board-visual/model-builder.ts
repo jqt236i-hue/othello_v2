@@ -460,8 +460,26 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     )
                     : 0
             };
-            specialMap.set(`${m.row},${m.col}`, specialVisual);
-            setMarkerVisual(m.row, m.col, 'special', specialVisual);
+            const footprint = (
+                SpecialStoneRegistry
+                && typeof SpecialStoneRegistry.getSpecialStoneFootprint === 'function'
+            )
+                ? SpecialStoneRegistry.getSpecialStoneFootprint(m)
+                : [{ row: m.row, col: m.col }];
+            for (const occupied of footprint) {
+                if (!occupied || !Number.isInteger(occupied.row) || !Number.isInteger(occupied.col)) continue;
+                const projectedVisual = {
+                    ...specialVisual,
+                    anchorRow: m.row,
+                    anchorCol: m.col,
+                    footprintRows: footprint.length > 1 ? 2 : 1,
+                    footprintCols: footprint.length > 1 ? 2 : 1,
+                    footprintRowOffset: occupied.row - m.row,
+                    footprintColOffset: occupied.col - m.col
+                };
+                specialMap.set(`${occupied.row},${occupied.col}`, projectedVisual);
+                setMarkerVisual(occupied.row, occupied.col, 'special', projectedVisual);
+            }
         }
     }
     try {
@@ -565,7 +583,13 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     remainingOwnerTurns: special.remainingOwnerTurns,
                     regenRemaining: special.regenRemaining,
                     flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
-                    destroyEvadeRemaining: destroyEvadeDisplay
+                    destroyEvadeRemaining: destroyEvadeDisplay,
+                    anchorRow: special.anchorRow,
+                    anchorCol: special.anchorCol,
+                    footprintRows: special.footprintRows,
+                    footprintCols: special.footprintCols,
+                    footprintRowOffset: special.footprintRowOffset,
+                    footprintColOffset: special.footprintColOffset
                 } : null,
                 livingWillAura: !!livingWill,
                 manifestAura: manifestAura ? {
@@ -693,7 +717,13 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 remainingOwnerTurns: special.remainingOwnerTurns,
                 regenRemaining: special.regenRemaining,
                 flipEvadeRemaining: specialSupportsFlipEvade ? flipEvadeDisplay : 0,
-                destroyEvadeRemaining: destroyEvadeDisplay
+                destroyEvadeRemaining: destroyEvadeDisplay,
+                anchorRow: special.anchorRow,
+                anchorCol: special.anchorCol,
+                footprintRows: special.footprintRows,
+                footprintCols: special.footprintCols,
+                footprintRowOffset: special.footprintRowOffset,
+                footprintColOffset: special.footprintColOffset
             } : null,
             livingWillAura: !!livingWill,
             manifestAura: manifestAura ? {

@@ -20,6 +20,8 @@
         desc: string;
         flipProtected?: boolean;
         destroyProtected?: boolean;
+        multiCellFootprint?: string;
+        detailBackgroundImage?: string;
         timerClass?: string;
         mobility?: boolean;
         ghost?: boolean;
@@ -266,6 +268,14 @@
             desc: 'ランダムな空きマスに種をまく。',
             flipProtected: true,
             timerClass: 'dragon-timer'
+        }),
+        SHINRA_BANSHO_GOD: Object.freeze({
+            name: '森羅万象神',
+            desc: '火・水・草・雷の意志が融合した2×2の永続特殊石。完全保護を持ち、自ターン開始時に4属性効果を順番に発動する。',
+            flipProtected: true,
+            destroyProtected: true,
+            multiCellFootprint: 'square_2x2.v1',
+            detailBackgroundImage: 'assets/images/special-cards/backgrounds/shinra_bansho_god_background.png'
         }),
         METEOR_GOD: Object.freeze({
             name: '因果抹消神石',
@@ -590,6 +600,15 @@
         out.ULTIMATE_WORK_GOD = makeStoneEffectRule('ULTIMATE_WORK_GOD', {
             durationAffectable: false
         });
+        out.SHINRA_BANSHO_GOD = makeStoneEffectRule('SHINRA_BANSHO_GOD', {
+            temptTargetable: false,
+            captureTargetable: false,
+            lossWillRevertible: false,
+            willHunterPriority: false,
+            durationAffectable: false,
+            theorySpawnCandidate: false,
+            ownershipChangePolicy: 'preserve'
+        });
 
         out.REGEN = makeStoneEffectRule('REGEN', {
             durationAffectable: false,
@@ -734,6 +753,34 @@
         const type = normalizeSpecialStoneType(rawType);
         if (!type) return null;
         return hydrateEvasionDefaults(type, SPECIAL_STONE_REGISTRY[type] || null);
+    }
+
+    function getSpecialStoneFootprint(marker: any): ReadonlyArray<Readonly<{ row: number; col: number; role: string }>> {
+        const type = normalizeSpecialStoneType(marker && marker.data && marker.data.type);
+        const row = Number(marker && marker.row);
+        const col = Number(marker && marker.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return Object.freeze([]);
+        const footprint = String(marker && marker.data && marker.data.footprint || '');
+        if (type !== 'SHINRA_BANSHO_GOD' || (footprint && footprint !== 'square_2x2.v1')) {
+            return Object.freeze([Object.freeze({ row, col, role: 'anchor' })]);
+        }
+        return Object.freeze([
+            Object.freeze({ row, col, role: 'anchor' }),
+            Object.freeze({ row, col: col + 1, role: 'top-right' }),
+            Object.freeze({ row: row + 1, col, role: 'bottom-left' }),
+            Object.freeze({ row: row + 1, col: col + 1, role: 'bottom-right' })
+        ]);
+    }
+
+    function markerOccupiesCell(marker: any, row: unknown, col: unknown): boolean {
+        const targetRow = Number(row);
+        const targetCol = Number(col);
+        if (!Number.isInteger(targetRow) || !Number.isInteger(targetCol)) return false;
+        return getSpecialStoneFootprint(marker).some((cell) => cell.row === targetRow && cell.col === targetCol);
+    }
+
+    function isMultiCellSpecialStoneMarker(marker: any): boolean {
+        return normalizeSpecialStoneType(marker && marker.data && marker.data.type) === 'SHINRA_BANSHO_GOD';
     }
 
     function getSpecialStoneDisplayName(rawType: unknown, fallback?: unknown): string {
@@ -1094,6 +1141,9 @@
         PLACEMENT_EFFECT_TYPES,
         normalizeSpecialStoneType,
         getSpecialStoneInfo,
+        getSpecialStoneFootprint,
+        markerOccupiesCell,
+        isMultiCellSpecialStoneMarker,
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
         getSpecialCardMarkerMetadata,

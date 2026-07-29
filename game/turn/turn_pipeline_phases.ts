@@ -915,6 +915,35 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             : (nextCardState.markers || []);
     }
 
+    function resolveShinraBanshoGodFusions(
+        CardLogic: any,
+        cardState: any,
+        gameState: any,
+        events: any[],
+        prng: any,
+        settlement: string
+    ): any {
+        if (isOthelloModeForTurnPipelinePhases()) {
+            return { summoned: [], deferredOwners: [] };
+        }
+        if (!CardLogic || typeof CardLogic.resolveShinraBanshoGodFusions !== 'function') {
+            return { summoned: [], deferredOwners: [] };
+        }
+        const result = CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+        for (const detail of Array.isArray(result && result.summoned) ? result.summoned : []) {
+            events.push({
+                type: 'shinra_bansho_god_summoned',
+                player: detail.owner || null,
+                row: detail.row,
+                col: detail.col,
+                footprint: detail.footprint || [],
+                markerId: detail.markerId || null,
+                settlement
+            });
+        }
+        return result;
+    }
+
     function prepareTurnStartStage(ctx: TurnPipelinePhaseContext, roundBonusSummary: any): TurnStartStageState {
         const phaseSnapshot = snapshotTurnPhasePresentationStart(ctx);
         const timerSnapshot = (TurnStartTimerPhaseModule && typeof TurnStartTimerPhaseModule.snapshotTurnStartTimers === 'function')
@@ -1142,6 +1171,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartStage.turnStartOptions) || null));
             events.push({ type: 'turn_start', player: playerKey });
             emitTurnStartSummaryEvents(ctx, turnStartSummary);
+            resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'turn_start_before_anchors');
 
             if (turnStartStage.othelloMode) {
                 return { ok: true, events };
@@ -1201,6 +1231,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     flushPostFlipRevivesForAnchor,
                     emitTimerStatusTickForAnchor,
                     applyGeneratedSpawnFlipResultsForAnchor,
+                    resolveShinraBanshoGodFusions: () => {
+                        resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'turn_start_anchor');
+                    },
                     debugLog: logTurnPipelinePhasesDebug
                 })
                 : {
@@ -1261,6 +1294,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
                 });
             }
+            resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'turn_start_after_anchors');
 
             if (turnStartStage.hasSplitTurnStartHooks) {
                 CardLogic.drawForTurnStart(cardState, playerKey, p, turnStartStage.turnStartOptions);
@@ -1341,6 +1375,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         CardLogic.consumeGeneratedSpawnFlipResults(cardState)
                     );
                 }
+                resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'card_usage');
 
             }
         } finally {
@@ -1737,6 +1772,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const actionTurnNumber = Number(gameState && gameState.turnNumber || 0);
         const phaseSnapshot = snapshotTurnPhasePresentationStart(ctx);
         const presentationStartIndex = phaseSnapshot.presentationStartIndex;
+        let actionFailed = false;
         try {
             if (action.type === 'pass') {
                 applyPassActionStage(ctx);
@@ -1759,7 +1795,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         } else {
             throw new Error('Unknown action.type');
         }
+        } catch (error) {
+            actionFailed = true;
+            throw error;
         } finally {
+            if (!actionFailed) {
+                resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, ctx.prng, 'action');
+            }
             if (CardLogic && typeof CardLogic.syncHazardContacts === 'function') {
                 CardLogic.syncHazardContacts(cardState, gameState, actionTurnNumber);
             }

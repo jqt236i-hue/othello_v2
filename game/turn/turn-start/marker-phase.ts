@@ -58,6 +58,7 @@ type ProcessTurnStartMarkersOptions = {
     flushPostFlipRevivesForAnchor?: (flippedByOwner: Record<string, any[]>) => void;
     emitTimerStatusTickForAnchor?: (marker: any) => void;
     applyGeneratedSpawnFlipResultsForAnchor?: (results: any[]) => void;
+    resolveShinraBanshoGodFusions?: () => void;
     debugLog?: (...args: any[]) => void;
 };
 
@@ -274,6 +275,9 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
                     isFrozenCell: opts.isFrozenCell
                 });
                 emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
+                if (typeof opts.resolveShinraBanshoGodFusions === 'function') {
+                    opts.resolveShinraBanshoGodFusions();
+                }
                 continue;
             }
             const flippedCountsBeforeAnchor = snapshotFlippedByOwnerCounts(processingState);
@@ -299,6 +303,9 @@ function processTurnStartMarkers(options: ProcessTurnStartMarkersOptions): any {
                 }
             }
             emitTimerStatusTickForCurrentAnchor(opts, currentMarkerAnchor);
+            if (typeof opts.resolveShinraBanshoGodFusions === 'function') {
+                opts.resolveShinraBanshoGodFusions();
+            }
         } finally {
             restoreActionContextForAnchor(opts, previousActionMeta);
         }

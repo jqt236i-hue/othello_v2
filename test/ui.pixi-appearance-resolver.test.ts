@@ -104,6 +104,13 @@ describe('Pixi appearance resolver', () => {
       url: 'https://example.test/game/assets/images/special-stones/TIME_STOP-black.png',
       sourceBlob: null
     }));
+    expect(resolver.resolveSpecialStoneAppearanceResource(window, 'SHINRA_BANSHO_GOD', 'white')).toEqual(
+      expect.objectContaining({
+        role: 'special-stone',
+        url: 'https://example.test/game/assets/images/special-stones/SHINRA_BANSHO_GOD-white.png',
+        sourceBlob: null
+      })
+    );
   });
 
   test('keeps committed special visuals separate from placement-only pending effects', () => {

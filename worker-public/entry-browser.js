@@ -237,6 +237,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/game/logic/cards/fire-will" },
   { moduleKey: "./dist/game/logic/cards/water-will" },
   { moduleKey: "./dist/game/logic/cards/grass-will" },
+  { moduleKey: "./dist/game/logic/cards/shinra-bansho-god", globalNames: ["CardShinraBanshoGod"] },
   { moduleKey: "./dist/game/logic/cards/destroy_dragon" },
   { moduleKey: "./dist/game/logic/cards/will_hunter_king" },
   { moduleKey: "./dist/game/logic/cards/work_will" },

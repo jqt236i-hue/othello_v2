@@ -11,6 +11,7 @@ type Marker = {
 
 type SpecialStoneRegistryLike = {
     getSpecialStoneInfo?: (type: string) => any;
+    markerOccupiesCell?: (marker: Marker, row: number, col: number) => boolean;
     SPECIAL_STONE_REGISTRY?: Record<string, any>;
 };
 
@@ -41,7 +42,12 @@ function getSpecialStoneInfo(registry: SpecialStoneRegistryLike | null | undefin
 }
 
 function isSpecialMarkerAt(marker: Marker, row: number, col: number, options: ResolveOptions): boolean {
-    if (!marker || marker.row !== row || marker.col !== col) return false;
+    if (!marker) return false;
+    const registry = options.SpecialStoneRegistry;
+    const occupies = registry && typeof registry.markerOccupiesCell === 'function'
+        ? registry.markerOccupiesCell(marker, row, col)
+        : marker.row === row && marker.col === col;
+    if (!occupies) return false;
     const specialKind = options.markerKinds && options.markerKinds.SPECIAL_STONE
         ? options.markerKinds.SPECIAL_STONE
         : DEFAULT_SPECIAL_MARKER_KIND;

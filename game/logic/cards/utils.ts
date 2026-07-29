@@ -306,11 +306,17 @@ function isDurationAffectableMarker(marker: any): boolean {
     return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
 }
 
+function markerOccupiesCell(marker: any, row: any, col: any): boolean {
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.markerOccupiesCell === 'function') {
+        return SpecialStoneRegistry.markerOccupiesCell(marker, row, col) === true;
+    }
+    return !!(marker && marker.row === row && marker.col === col);
+}
+
 function getSpecialMarkerAt(cardState: any, row: any, col: any): any | null {
     const marker = getMarkers(cardState).find((candidate: any) => (
         candidate &&
-        candidate.row === row &&
-        candidate.col === col &&
+        markerOccupiesCell(candidate, row, col) &&
         (isSpecialStoneMarker(candidate) || isBombCategoryMarker(candidate)) &&
         !isNormalVisualSpecialMarker(candidate) &&
         String(candidate && candidate.data && candidate.data.type || '').toUpperCase() !== 'LIVING_WILL'
@@ -321,8 +327,7 @@ function getSpecialMarkerAt(cardState: any, row: any, col: any): any | null {
 function getTrueSpecialStoneMarkerAt(cardState: any, row: any, col: any): any | null {
     const marker = getMarkers(cardState).find((candidate: any) => (
         candidate &&
-        candidate.row === row &&
-        candidate.col === col &&
+        markerOccupiesCell(candidate, row, col) &&
         isTrueSpecialStoneMarker(candidate)
     ));
     return marker || null;

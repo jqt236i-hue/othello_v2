@@ -478,6 +478,71 @@ describe('Pixi static retained views', () => {
     expect(overlap).toEqual([]);
   });
 
+  test('renders Shinra Bansho God as one 2x2 anchor sprite and hides member stone bodies', () => {
+    const fixture = createFakeRuntime();
+    const anchorView = StoneView.createPixiStoneView(fixture.runtime);
+    const memberView = StoneView.createPixiStoneView(fixture.runtime);
+    const texture = { id: 'shinra-black' };
+    const textures = new Map([
+      ['special-stone:SHINRA_BANSHO_GOD:black', { texture }]
+    ]);
+    const makeShinra = (key: string, rowOffset: number, colOffset: number) => materializedCell(makeCell(key, {
+      stone: {
+        owner: 'black',
+        value: 1,
+        specialType: 'SHINRA_BANSHO_GOD',
+        status: {
+          special: {
+            type: 'SHINRA_BANSHO_GOD',
+            anchorRow: 2,
+            anchorCol: 2,
+            footprintRows: 2,
+            footprintCols: 2,
+            footprintRowOffset: rowOffset,
+            footprintColOffset: colOffset
+          }
+        }
+      },
+      markers: [{
+        kind: 'special',
+        owner: 'black',
+        value: null,
+        data: {
+          type: 'SHINRA_BANSHO_GOD',
+          footprintRowOffset: rowOffset,
+          footprintColOffset: colOffset
+        }
+      }]
+    }));
+
+    anchorView.update(makeShinra('2,2', 0, 0), viewContext({ textures }));
+    memberView.update(makeShinra('2,3', 0, 1), viewContext({
+      textures,
+      sceneX: 128,
+      stoneRevisionSignature: 'static-stone:shinra-member'
+    }));
+
+    const anchorSprite = anchorView.root.children.find((child: any) => child.label === 'pixi-stone-texture');
+    expect(anchorView.getDiagnostics()).toMatchObject({
+      visible: true,
+      specialType: 'SHINRA_BANSHO_GOD',
+      textureBacked: true,
+      texturePurpose: 'special-stone:SHINRA_BANSHO_GOD:black',
+      flipProtectionBadgeVisible: false
+    });
+    expect(anchorSprite).toMatchObject({
+      texture,
+      width: 60,
+      height: 60,
+      position: { x: 32, y: 32 }
+    });
+    expect(memberView.getDiagnostics()).toMatchObject({
+      visible: false,
+      specialType: 'SHINRA_BANSHO_GOD',
+      textureBacked: false
+    });
+  });
+
   test('renders a red scorched surface with its turn count in the top-left corner', () => {
     const fixture = createFakeRuntime();
     const cellView = CellView.createPixiCellView(fixture.runtime);

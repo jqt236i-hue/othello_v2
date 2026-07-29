@@ -38,6 +38,21 @@ function pushTurnStartResultDetails(events: any[], result: any, mappings: Array<
     }
 }
 
+function isMarkerFrozenAtTurnStart(options: ProcessTurnStartSpecialStoneOptions, marker: any, typeKey: string): boolean {
+    if (typeKey === 'FREEZE') return false;
+    const row = marker && marker.row;
+    const col = marker && marker.col;
+    if (typeKey !== 'SHINRA_BANSHO_GOD') {
+        return options.isFrozenCell(options.cardState, row, col);
+    }
+    return [
+        { row, col },
+        { row, col: col + 1 },
+        { row: row + 1, col },
+        { row: row + 1, col: col + 1 }
+    ].some((cell) => options.isFrozenCell(options.cardState, cell.row, cell.col));
+}
+
 function createTurnStartSpecialStoneProcessingState(): TurnStartSpecialStoneProcessingState {
     return {
         hyperAggregated: {
@@ -232,7 +247,35 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
     const col = marker && marker.col;
     const p = opts.prng || undefined;
 
-    if (typeKey !== 'FREEZE' && opts.isFrozenCell(opts.cardState, row, col)) return processingState;
+    if (isMarkerFrozenAtTurnStart(opts, marker, typeKey)) return processingState;
+
+    if (
+        typeKey === 'SHINRA_BANSHO_GOD' &&
+        owner === opts.playerKey &&
+        typeof opts.CardLogic.processShinraBanshoGodAtTurnStartAnchor === 'function'
+    ) {
+        const res = opts.CardLogic.processShinraBanshoGodAtTurnStartAnchor(
+            opts.cardState,
+            opts.gameState,
+            opts.playerKey,
+            row,
+            col,
+            p
+        );
+        pushTurnStartResultDetails(opts.events, res && res.fire, [
+            { field: 'scorched', type: 'shinra_fire_scorched_start' }
+        ]);
+        pushTurnStartResultDetails(opts.events, res && res.water, [
+            { field: 'healingCells', type: 'shinra_water_healing_cell_start' }
+        ]);
+        pushTurnStartResultDetails(opts.events, res && res.grass, [
+            { field: 'seeded', type: 'shinra_grass_seeded_start' }
+        ]);
+        pushTurnStartResultDetails(opts.events, res && res.lightning, [
+            { field: 'destroyed', type: 'shinra_lightning_destroyed_start' }
+        ]);
+        return processingState;
+    }
 
     if (
         typeKey === 'ULTIMATE_WORK_GOD' &&

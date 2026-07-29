@@ -34,6 +34,7 @@ interface GrassGameState {
 
 interface GrassDeps {
     random?: GrassRandomLike | null;
+    anchorType?: string;
     decrementRemainingOwnerTurns?: boolean;
     getSeedTargets?: (
         cardState: GrassCardState,
@@ -198,6 +199,7 @@ function processAnchor(
     deps: GrassDeps
 ): GrassResult {
     const result = emptyResult();
+    const anchorType = String(deps.anchorType || 'GRASS').toUpperCase();
     const marker = (cardState.markers || []).find((entry) => (
         entry &&
         entry.kind === 'specialStone' &&
@@ -205,7 +207,7 @@ function processAnchor(
         entry.row === row &&
         entry.col === col &&
         entry.data &&
-        String(entry.data.type || '').toUpperCase() === 'GRASS'
+        String(entry.data.type || '').toUpperCase() === anchorType
     ));
     if (!marker) return result;
 
@@ -251,7 +253,7 @@ function processAnchor(
             : 0;
         const shouldDecrement = deps.decrementRemainingOwnerTurns !== false;
         const after = shouldDecrement ? before - 1 : before;
-        if (marker.data) marker.data.remainingOwnerTurns = after;
+        if (shouldDecrement && marker.data) marker.data.remainingOwnerTurns = after;
         if (shouldDecrement && after >= 0) result.anchors.push({ row, col, remainingNow: after });
         if (shouldDecrement && after === 0) expireAnchor(cardState, gameState, playerKey, marker, deps, result.expired);
         if (shouldDecrement && after < 0 && marker.data) marker.data.remainingOwnerTurns = -1;

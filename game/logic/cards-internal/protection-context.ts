@@ -14,6 +14,7 @@ type ConstantsLike = {
 
 type SpecialStoneRegistryLike = {
     getSpecialStoneInfo(rawType: unknown): { flipProtected?: boolean } | null;
+    getSpecialStoneFootprint?(marker: Marker): Array<{ row: number; col: number }>;
     normalizeSpecialStoneType?(rawType: unknown): string | null;
     SPECIAL_STONE_REGISTRY?: Record<string, { flipProtected?: boolean } | null>;
 };
@@ -156,6 +157,21 @@ function mapOwnerPosition(marker: Marker, constants: ConstantsLike) {
     return { row: marker.row, col: marker.col, owner: ownerValue(marker.owner, constants) };
 }
 
+function mapFootprintPositions(marker: Marker, registry: SpecialStoneRegistryLike): Array<{ row?: number; col?: number; owner?: unknown }> {
+    const footprint = typeof registry.getSpecialStoneFootprint === 'function'
+        ? registry.getSpecialStoneFootprint(marker)
+        : [marker];
+    return footprint.map((cell) => ({ row: cell.row, col: cell.col, owner: marker.owner }));
+}
+
+function mapOwnerFootprintPositions(marker: Marker, constants: ConstantsLike, registry: SpecialStoneRegistryLike): Array<{ row?: number; col?: number; owner?: unknown }> {
+    return mapFootprintPositions(marker, registry).map((cell) => ({
+        row: cell.row,
+        col: cell.col,
+        owner: ownerValue(marker.owner, constants)
+    }));
+}
+
 function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextDeps = {}) {
     const registry = requireSpecialStoneRegistry(deps);
     const constants = deps.constants || {};
@@ -171,14 +187,14 @@ function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextD
     for (const entry of specials) {
         if (!entry || !entry.data) continue;
         const type = normalizeMarkerType(entry, registry);
-        if (type === 'PROTECTED') protectedStones.push(mapPosition(entry));
+        if (type === 'PROTECTED') protectedStones.push(...mapFootprintPositions(entry, registry));
         if (
             isRegistryFlipProtectedType(type, registry) ||
             type === 'FREEZE' ||
             (typeof markerIndex.isFrozenCell === 'function' && markerIndex.isFrozenCell(entry.row, entry.col)) ||
             (typeof deps.isAdditionalPermaProtectedMarker === 'function' && deps.isAdditionalPermaProtectedMarker(entry, cardState) === true)
         ) {
-            permaProtectedStones.push(mapOwnerPosition(entry, constants));
+            permaProtectedStones.push(...mapOwnerFootprintPositions(entry, constants, registry));
         }
     }
 

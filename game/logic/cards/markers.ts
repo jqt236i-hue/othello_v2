@@ -317,8 +317,7 @@ function isInviolableMarker(marker: any): boolean {
 function isInviolableCell(cardState: CardState, row: number, col: number): boolean {
     return getMarkers(cardState).some((marker: any) => (
         marker &&
-        marker.row === row &&
-        marker.col === col &&
+        markerOccupiesCell(marker, row, col) &&
         isInviolableMarker(marker)
     ));
 }
@@ -467,6 +466,22 @@ function findBombMarkerAt(cardState: CardState, row: number, col: number): any {
     ));
 }
 
+function markerOccupiesCell(marker: any, row: any, col: any): boolean {
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.markerOccupiesCell === 'function') {
+        return SpecialStoneRegistry.markerOccupiesCell(marker, row, col) === true;
+    }
+    return !!(marker && marker.row === row && marker.col === col);
+}
+
+function getMarkerFootprint(marker: any): any[] {
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneFootprint === 'function') {
+        return SpecialStoneRegistry.getSpecialStoneFootprint(marker);
+    }
+    return marker && Number.isInteger(marker.row) && Number.isInteger(marker.col)
+        ? [{ row: marker.row, col: marker.col, role: 'anchor' }]
+        : [];
+}
+
 function markerCellKey(row: any, col: any): string {
     return `${typeof row}:${String(row)},${typeof col}:${String(col)}`;
 }
@@ -514,10 +529,12 @@ function createMarkerContextIndex(cardState: CardState, options?: MarkerContextI
         }
 
         if (includeCellIndex && Number.isFinite(marker.row) && Number.isFinite(marker.col)) {
-            const key = markerCellKey(marker.row, marker.col);
-            const list = byCell.get(key);
-            if (list) list.push(marker);
-            else byCell.set(key, [marker]);
+            for (const cell of getMarkerFootprint(marker)) {
+                const key = markerCellKey(cell.row, cell.col);
+                const list = byCell.get(key);
+                if (list) list.push(marker);
+                else byCell.set(key, [marker]);
+            }
         }
     }
 
@@ -585,7 +602,7 @@ function removeMarkersAt(cardState: CardState, row: number, col: number, options
     const opts = options || {};
     const preserveTypes = new Set((opts.preserveTypes || []).map((type) => String(type).toUpperCase()));
     (cardState as any).markers = (cardState as any).markers.filter((marker: any) => {
-        if (!marker || marker.row !== row || marker.col !== col) return true;
+        if (!marker || !markerOccupiesCell(marker, row, col)) return true;
         if (preserveTypes.has(String(marker.data && marker.data.type || '').toUpperCase())) return true;
         if (opts.kind === MARKER_CATEGORIES.BOMB && !isBombCategoryMarker(marker)) return true;
         if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(marker)) return true;
@@ -607,8 +624,7 @@ function removeMarkersAt(cardState: CardState, row: number, col: number, options
 function getSpecialMarkerAt(cardState: CardState, row: number, col: number): { kind: string; category: string | null; marker: any } | null {
     const special = getSpecialMarkers(cardState).find((marker: any) => (
         marker &&
-        marker.row === row &&
-        marker.col === col &&
+        markerOccupiesCell(marker, row, col) &&
         !isNormalVisualSpecialMarker(marker)
     ));
     if (special) return { kind: 'specialStone', category: getMarkerCategory(special), marker: special };
@@ -630,8 +646,7 @@ function findManifestMarkerAt(cardState: CardState, row: number, col: number, ty
 function getTrueSpecialStoneMarkerAt(cardState: CardState, row: number, col: number): { kind: string; category: string | null; marker: any } | null {
     const special = getSpecialMarkers(cardState).find((marker: any) => (
         marker &&
-        marker.row === row &&
-        marker.col === col &&
+        markerOccupiesCell(marker, row, col) &&
         isTrueSpecialStoneMarker(marker)
     ));
     if (!special) return null;
@@ -931,8 +946,7 @@ function applyExtendLifeSelection(cardState: CardState, gameState: GameState, pl
         marker &&
         isTrueSpecialStoneMarker(marker) &&
         isDurationAffectableMarker(marker) &&
-        marker.row === row &&
-        marker.col === col &&
+        markerOccupiesCell(marker, row, col) &&
         marker.owner === playerKey &&
         marker.data &&
         Number.isFinite(marker.data.remainingOwnerTurns) &&
@@ -1128,6 +1142,8 @@ export = {
     isFrozenCellForCard,
     isMeteorHoleCell,
     isGuardProtectedCell,
+    markerOccupiesCell,
+    getMarkerFootprint,
     findSpecialMarkerAt,
     findManifestMarkerAt,
     findBombMarkerAt,

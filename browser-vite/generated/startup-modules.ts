@@ -275,6 +275,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/cards/selectors": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/selectors.js"),
   "game/logic/cards/selectors-board-shape": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/selectors-board-shape.js"),
   "game/logic/cards/selectors-core-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/selectors-core-utils.js"),
+  "game/logic/cards/shinra-bansho-god": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/shinra-bansho-god.js"),
   "game/logic/cards/shrink": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/shrink.js"),
   "game/logic/cards/sniper": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/sniper.js"),
   "game/logic/cards/targets": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/targets.js"),
@@ -970,6 +971,7 @@ installBootModuleMetadata({
     "game/logic/cards/selectors",
     "game/logic/cards/selectors-board-shape",
     "game/logic/cards/selectors-core-utils",
+    "game/logic/cards/shinra-bansho-god",
     "game/logic/cards/shrink",
     "game/logic/cards/sniper",
     "game/logic/cards/targets",
@@ -1482,4 +1484,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 690;
+export const startupModuleCount = 691;

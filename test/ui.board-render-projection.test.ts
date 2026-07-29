@@ -111,6 +111,48 @@ describe('per-render board projection', () => {
     });
   });
 
+  test('projects one Shinra Bansho God marker across all four occupied cells', () => {
+    for (const [row, col] of [[2, 2], [2, 3], [3, 2], [3, 3]]) {
+      (global as any).gameState.board[row][col] = 1;
+    }
+    (global as any).cardState.markers.push({
+      id: 'shinra',
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: {
+        type: 'SHINRA_BANSHO_GOD',
+        footprint: 'square_2x2.v1',
+        permanent: true
+      }
+    });
+    const diff = require('../ui/board-dom-compat/renderer');
+    const projection = diff.createBoardRenderProjection();
+    const state = diff.buildCurrentCellState(projection);
+    const model = diff.buildBoardRenderModel(projection, state, { visualRevision: 1 });
+
+    expect([
+      state[2][2].special,
+      state[2][3].special,
+      state[3][2].special,
+      state[3][3].special
+    ]).toEqual([
+      expect.objectContaining({ type: 'SHINRA_BANSHO_GOD', footprintRowOffset: 0, footprintColOffset: 0 }),
+      expect.objectContaining({ type: 'SHINRA_BANSHO_GOD', footprintRowOffset: 0, footprintColOffset: 1 }),
+      expect.objectContaining({ type: 'SHINRA_BANSHO_GOD', footprintRowOffset: 1, footprintColOffset: 0 }),
+      expect.objectContaining({ type: 'SHINRA_BANSHO_GOD', footprintRowOffset: 1, footprintColOffset: 1 })
+    ]);
+    expect(['2,2', '2,3', '3,2', '3,3'].map((key) => (
+      model.cells.find((cell: any) => cell.key === key)?.stone?.specialType
+    ))).toEqual([
+      'SHINRA_BANSHO_GOD',
+      'SHINRA_BANSHO_GOD',
+      'SHINRA_BANSHO_GOD',
+      'SHINRA_BANSHO_GOD'
+    ]);
+  });
+
   test('projects breeding sprouts on occupied expansion cells with matching ownership only', () => {
     (global as any).gameState.boardExpansion = {
       active: true,

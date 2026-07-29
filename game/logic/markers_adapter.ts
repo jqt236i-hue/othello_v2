@@ -122,6 +122,16 @@ const FALLBACK_MANIFEST_STONE_TYPES = Object.freeze([
 const ManifestStoneRegistry = (() => {
     try { return require('../../shared/manifest-stone-registry'); } catch (e) { return null; }
 })();
+const SpecialStoneRegistry = (() => {
+    try { return require('../../shared/special-stone-registry'); } catch (e) { return null; }
+})();
+
+function markerOccupiesCell(marker: Marker, row: number, col: number): boolean {
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.markerOccupiesCell === 'function') {
+        return SpecialStoneRegistry.markerOccupiesCell(marker, row, col) === true;
+    }
+    return !!(marker && marker.row === row && marker.col === col);
+}
 
 function isManifestStoneType(rawType: unknown): boolean {
     if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
@@ -377,8 +387,7 @@ function getBombMarkers(cardState: any): Marker[] {
 function findSpecialMarkerAt(cardState: any, row: number, col: number, type?: string, owner?: string): Marker | undefined {
     return getMarkers(cardState).find(m => (
         isSpecialStoneMarker(m) &&
-        m.row === row &&
-        m.col === col &&
+        markerOccupiesCell(m, row, col) &&
         (type ? (m.data && m.data.type === type) : true) &&
         (owner ? m.owner === owner : true)
     ));
@@ -405,7 +414,7 @@ function removeMarkersAt(cardState: any, row: number, col: number, options?: Rem
     const opts = options || {};
     const preserveTypes = new Set((opts.preserveTypes || []).map((type) => String(type).toUpperCase()));
     removeMarkers(cardState, (m: Marker) => {
-        if (m.row !== row || m.col !== col) return false;
+        if (!markerOccupiesCell(m, row, col)) return false;
         if (preserveTypes.has(String(m.data && m.data.type || '').toUpperCase())) return false;
         if (opts.kind === LEGACY_BOMB_KIND && !isBombCategoryMarker(m)) return false;
         if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(m)) return false;
@@ -453,5 +462,6 @@ export = {
     findSpecialMarkerAt,
     findBombMarkerAt,
     removeMarkers,
-    removeMarkersAt
+    removeMarkersAt,
+    markerOccupiesCell
 };

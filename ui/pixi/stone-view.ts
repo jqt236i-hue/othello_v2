@@ -351,6 +351,37 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     specialType = stone?.specialType
       ? String(stone.specialType).trim().toUpperCase()
       : markerSpecialType(stoneMarkers);
+    const nestedSpecial = (
+      stone
+      && stone.status
+      && stone.status.special
+      && typeof stone.status.special === 'object'
+    )
+      ? stone.status.special as Readonly<Record<string, unknown>>
+      : {};
+    const normalizedSpecialType = String(specialType || '').trim().toUpperCase();
+    const isShinraBanshoGod = normalizedSpecialType === 'SHINRA_BANSHO_GOD';
+    const footprintRowOffset = Number(nestedSpecial.footprintRowOffset);
+    const footprintColOffset = Number(nestedSpecial.footprintColOffset);
+    const isShinraAnchor = !isShinraBanshoGod || (
+      footprintRowOffset === 0
+      && footprintColOffset === 0
+    );
+    if (!isShinraAnchor) {
+      root.visible = false;
+      if (sprite) sprite.visible = false;
+      if (markerOverlay) markerOverlay.visible = false;
+      if (specialBadge) specialBadge.visible = false;
+      if (flipProtectionBadge) flipProtectionBadge.visible = false;
+      statusLabels = [];
+      removeAndDestroyPixiChildren(statusLabelsRoot);
+      textureBacked = false;
+      texturePurpose = null;
+      timerLabel = '';
+      badgeLabel = '';
+      flipProtectionBadgeVisible = false;
+      return true;
+    }
     const cellSize = context.layout.cellSize;
     const stageScale = Math.max(0.01, Number(context.layout.stageScale) || 1);
     const cellScale = Math.max(0.01, Number(context.layout.cellScale) || 1);
@@ -362,9 +393,11 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     const discInset = Math.max(1, Math.round(cellSize * 0.0505));
     const discSize = Math.max(1, cellSize - (discInset * 2));
     const discOrigin = cellBorderWidth + discInset;
-    const radius = discSize / 2;
-    const center = discOrigin + radius;
-    const normalizedSpecialType = String(specialType || '').trim().toUpperCase();
+    const compositeSize = isShinraBanshoGod
+      ? Math.max(1, (cellSize * 2) - (discInset * 2))
+      : discSize;
+    const radius = compositeSize / 2;
+    const center = isShinraBanshoGod ? cellSize : discOrigin + (discSize / 2);
     const purposes = stoneTexturePurposes(owner, specialType);
     const basePurposes = [`${owner}-stone`, `stone:${owner}`];
     const specialTexture = stone ? resolvePixiStaticTexture(context.textures, purposes) : null;
@@ -377,7 +410,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         : specialTexture)
       : null;
 
-    if (stone) {
+    if (stone && !isShinraBanshoGod) {
       // Match the two DOM depth layers without applying a per-stone filter.
       // The compatibility writer applies both pseudo-element shadows to every
       // occupied cell, including special stones whose image already owns the
@@ -442,8 +475,8 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       if (textureBacked) sprite.texture = texture;
       setPixiAnchor(sprite, 0.5);
       setPixiPosition(sprite, center, center);
-      sprite.width = discSize;
-      sprite.height = discSize;
+      sprite.width = compositeSize;
+      sprite.height = compositeSize;
     }
     if (markerOverlay) {
       markerOverlay.visible = !!freezeOverlayTexture;
@@ -547,7 +580,9 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       }
     }
 
-    flipProtectionBadgeVisible = !!stone && stoneStatusSnapshot?.hasFlipProtection === true;
+    flipProtectionBadgeVisible = !!stone
+      && !isShinraBanshoGod
+      && stoneStatusSnapshot?.hasFlipProtection === true;
     if (flipProtectionBadge) {
       flipProtectionBadge.visible = flipProtectionBadgeVisible;
       if (flipProtectionBadgeVisible) {

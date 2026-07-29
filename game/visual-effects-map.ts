@@ -212,6 +212,15 @@ const GAME_STONE_VISUAL_EFFECTS: Record<string, any> = {
         },
         dataAttributes: {}
     },
+    shinraBanshoGodStone: {
+        cssClass: 'shinra-bansho-god-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/SHINRA_BANSHO_GOD-black.png',
+            '-1': 'assets/images/special-stones/SHINRA_BANSHO_GOD-white.png'
+        },
+        dataAttributes: {}
+    },
     meteorGodStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -581,6 +590,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'FIRE': 'fireWillStone',
     'WATER': 'waterWillStone',
     'GRASS': 'grassWillStone',
+    'SHINRA_BANSHO_GOD': 'shinraBanshoGodStone',
     'METEOR_GOD': 'meteorGodStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',

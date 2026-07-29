@@ -1115,6 +1115,20 @@ body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-em
     left: var(--board-disc-inset);
 }
 
+[data-board-renderer="dom"] .cell.shinra-bansho-god-anchor-cell {
+    z-index: calc(var(--board-layer-expanded-cell) + 8);
+}
+
+[data-board-renderer="dom"] .disc.shinra-bansho-god-anchor {
+    width: calc(200% - (var(--board-disc-inset) * 2));
+    height: calc(200% - (var(--board-disc-inset) * 2));
+    border-radius: 50%;
+}
+
+[data-board-renderer="dom"] .disc.shinra-bansho-god-part {
+    visibility: hidden;
+}
+
 [data-board-renderer="dom"] .disc.black {
     --stone-keyline-width: max(1px, calc(1px * var(--layout-stage-scale)));
     --stone-keyline-inset: calc(6.5% - 2px);

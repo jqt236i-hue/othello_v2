@@ -37,6 +37,12 @@ if (typeof require === 'function') {
     try { SharedBoardUtilsModule = require('../../shared/shared-board-utils'); } catch (e: any) { /* ignore */ }
 }
 
+var MarkersAdapterModuleForDiff: any = null;
+
+if (typeof require === 'function') {
+    try { MarkersAdapterModuleForDiff = require('../../game/logic/markers_adapter'); } catch (e: any) { /* ignore */ }
+}
+
 function _getGlobalScopeForDiff() {
     return (typeof globalThis !== 'undefined')
         ? globalThis
@@ -44,9 +50,9 @@ function _getGlobalScopeForDiff() {
 }
 
 function _getSpecialStoneRegistryForDiff() {
-    if (SpecialStoneRegistryModule) return SpecialStoneRegistryModule;
     const globalScope = _getGlobalScopeForDiff();
-    return globalScope.SpecialStoneRegistry || null;
+    if (globalScope.SpecialStoneRegistry) return globalScope.SpecialStoneRegistry;
+    return SpecialStoneRegistryModule || null;
 }
 
 function _getStoneStatusSnapshotForDiff() {
@@ -59,6 +65,15 @@ function _getSharedBoardUtilsForDiff() {
     if (SharedBoardUtilsModule) return SharedBoardUtilsModule;
     const globalScope = _getGlobalScopeForDiff();
     return globalScope.SharedBoardUtils || null;
+}
+
+function _getMarkersAdapterForDiff() {
+    if (MarkersAdapterModuleForDiff) return MarkersAdapterModuleForDiff;
+    try {
+        if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter) return MarkersAdapter;
+    } catch (e: any) { /* ignore */ }
+    const globalScope = _getGlobalScopeForDiff();
+    return globalScope.MarkersAdapter || null;
 }
 
 
@@ -168,6 +183,7 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外。誘惑・捕獲は受け流し、入替や他の効果は通常どおり受ける。',
     '不可侵': '顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
+    '完全保護': '石に対する敵対的・強制的な効果を無効化する。セルそのものを消す効果は貫通する。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
     '通常石': '通常の石。配置時に挟んだ列を反転できる。'
 });
@@ -483,8 +499,9 @@ function _renderStoneInfoMetaBadges(metaEl: any, badges: any) {
 }
 
 function _getMarkerKinds() {
-    return (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
-        ? MarkersAdapter.MARKER_KINDS
+    const markersAdapter = _getMarkersAdapterForDiff();
+    return (markersAdapter && markersAdapter.MARKER_KINDS)
+        ? markersAdapter.MARKER_KINDS
         : { SPECIAL_STONE: 'specialStone', MANIFEST_STONE: 'manifestStone', BOMB: 'bomb' };
 }
 
@@ -493,10 +510,26 @@ function _getMarkerEntriesAt(row: any, col: any) {
     const markers = cardStateValue && Array.isArray(cardStateValue.markers) ? cardStateValue.markers : [];
     const kinds = _getMarkerKinds();
     const entries = [];
+    const markersAdapter = _getMarkersAdapterForDiff();
+    const specialStoneRegistry = _getSpecialStoneRegistryForDiff();
+    const markerOccupiesCell = (
+        specialStoneRegistry
+        && typeof specialStoneRegistry.markerOccupiesCell === 'function'
+    )
+        ? specialStoneRegistry.markerOccupiesCell
+        : (
+            markersAdapter
+            && typeof markersAdapter.markerOccupiesCell === 'function'
+                ? markersAdapter.markerOccupiesCell
+                : null
+        );
 
     for (const marker of markers) {
         if (!marker || marker.kind !== kinds.SPECIAL_STONE) continue;
-        if (!_isSameBoardCoord(marker.row, marker.col, row, col)) continue;
+        const occupiesCell = markerOccupiesCell
+            ? markerOccupiesCell(marker, row, col)
+            : _isSameBoardCoord(marker.row, marker.col, row, col);
+        if (!occupiesCell) continue;
         if (_isBoardHiddenTrap(marker)) continue;
         entries.push({ kind: kinds.SPECIAL_STONE, marker });
     }
@@ -726,6 +759,23 @@ function renderCurrentStoneInfoPanel(frame: any) {
         if (!cell || !cell.stone) continue;
         const ownerKey = cell.stone.owner === 'white' ? 'white' : 'black';
         let specialType = _getCatalogSpecialType(cell);
+        const projectedSpecial = (
+            cell.stone.status
+            && cell.stone.status.special
+            && typeof cell.stone.status.special === 'object'
+        )
+            ? cell.stone.status.special
+            : null;
+        if (
+            specialType === 'SHINRA_BANSHO_GOD'
+            && projectedSpecial
+            && (
+                Number(projectedSpecial.footprintRowOffset) !== 0
+                || Number(projectedSpecial.footprintColOffset) !== 0
+            )
+        ) {
+            continue;
+        }
         if (!specialType && _hasCatalogMarker(cell, 'breeding-sprout')) {
             specialType = 'BREEDING_SPROUT';
         }
@@ -825,6 +875,7 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     const entries = _getMarkerEntriesAt(row, col);
     const entry = entries.find((one) => !_isOverlayOnlyMarkerEntryForDiff(one)) || null;
     let info: any = null;
+    let detailBackgroundImage = '';
     const badges = [];
     if (entry) {
         const type = _getEntryType(entry);
@@ -840,6 +891,8 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
         info = primarySnapshot
             ? { name: primarySnapshot.name, desc: primarySnapshot.description }
             : (_getSpecialStoneInfoForDiff(type) || { name: type, desc: '効果情報は未登録です。' });
+        const registryInfo = _getSpecialStoneInfoForDiff(type);
+        detailBackgroundImage = String(registryInfo && registryInfo.detailBackgroundImage || '').trim();
         badges.push(..._buildSpecialStoneBadges(entries, hasGuard, primaryInput));
     } else {
         const sproutInfo = _getBreedingSproutStoneInfo(row, col);
@@ -871,6 +924,17 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     } else {
         refs.image.removeAttribute('src');
         refs.image.hidden = true;
+    }
+    if (detailBackgroundImage) {
+        let resolvedBackground = detailBackgroundImage;
+        try {
+            resolvedBackground = new URL(detailBackgroundImage, document.baseURI).href;
+        } catch (e: any) { /* retain the canonical relative asset path */ }
+        refs.root.style.setProperty('--stone-info-detail-background-image', `url("${resolvedBackground.replace(/"/g, '\\"')}")`);
+        refs.root.classList.add('has-special-background');
+    } else {
+        refs.root.style.removeProperty('--stone-info-detail-background-image');
+        refs.root.classList.remove('has-special-background');
     }
     refs.root.classList.add('is-open');
     refs.root.setAttribute('aria-hidden', 'false');

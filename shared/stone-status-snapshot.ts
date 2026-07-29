@@ -334,7 +334,16 @@
         else if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
         if (destroyEvadeTotal !== null) tags.push(`破壊回避 残り${destroyEvadeTotal}回`);
         else if (snapshots.some((snapshot) => snapshot.hasDestroyEvade)) tags.push('破壊回避');
-        if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) tags.push('反転保護');
+        if (
+            primarySnapshot
+            && !primarySnapshot.hasGhost
+            && primarySnapshot.hasFlipProtection
+            && primarySnapshot.hasDestroyProtection
+        ) {
+            tags.push('完全保護');
+        } else if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) {
+            tags.push('反転保護');
+        }
 
         return Array.from(new Set(tags));
     }

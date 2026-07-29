@@ -400,8 +400,13 @@ function _getSpecialMarkersAt(cardState: any, row: number, col: number): any[] {
             )));
     return markers.filter((m: any) => (
         m &&
-        _normalizeBoardIndex(m.row) === pos.row &&
-        _normalizeBoardIndex(m.col) === pos.col
+        ((() => {
+            const registry = getSpecialStoneRegistryModule();
+            if (registry && typeof registry.markerOccupiesCell === 'function') {
+                return registry.markerOccupiesCell(m, pos.row, pos.col) === true;
+            }
+            return _normalizeBoardIndex(m.row) === pos.row && _normalizeBoardIndex(m.col) === pos.col;
+        })())
     ));
 }
 
@@ -1333,6 +1338,80 @@ function _recordCellRemovalForSalvationFallback(cardState: any, pending: any): v
     });
 }
 
+function _findMultiCellSpecialStoneAt(cardState: any, row: number, col: number): any | null {
+    const registry = getSpecialStoneRegistryModule();
+    if (
+        !registry ||
+        typeof registry.isMultiCellSpecialStoneMarker !== 'function' ||
+        typeof registry.markerOccupiesCell !== 'function'
+    ) {
+        return null;
+    }
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    return markers.find((marker: any) => (
+        marker &&
+        registry.isMultiCellSpecialStoneMarker(marker) === true &&
+        registry.markerOccupiesCell(marker, row, col) === true
+    )) || null;
+}
+
+function _removeMultiCellSpecialStoneForCellRemoval(
+    cardState: any,
+    gameState: any,
+    marker: any,
+    cause: string | null,
+    reason: string | null,
+    options: any
+): any {
+    const registry = getSpecialStoneRegistryModule();
+    const footprint = registry && typeof registry.getSpecialStoneFootprint === 'function'
+        ? registry.getSpecialStoneFootprint(marker)
+        : [];
+    const footprintKeys = new Set(
+        footprint.map((cell: any) => `${Number(cell.row)},${Number(cell.col)}`)
+    );
+    const anchorStoneId = getStoneIdAt(cardState, gameState, marker.row, marker.col);
+    for (const cell of footprint) {
+        setStoneIdAt(cardState, gameState, cell.row, cell.col, null);
+        if (getCellValue(gameState, cell.row, cell.col, cardState) !== null) {
+            setCellValue(gameState, cell.row, cell.col, EMPTY, cardState);
+        }
+    }
+    if (Array.isArray(cardState.markers)) {
+        cardState.markers = cardState.markers.filter((entry: any) => {
+            if (!entry) return false;
+            if (entry === marker) return false;
+            const key = `${Number(entry.row)},${Number(entry.col)}`;
+            if (!footprintKeys.has(key)) return true;
+            const type = String(entry && entry.data && entry.data.type || '').toUpperCase();
+            return !!(registry && typeof registry.isBoardMarkerType === 'function' && registry.isBoardMarkerType(type));
+        });
+    }
+    emitPresentationEvent(cardState, {
+        type: 'DESTROY',
+        stoneId: anchorStoneId,
+        row: marker.row,
+        col: marker.col,
+        ownerBefore: marker.owner || null,
+        cause: cause || null,
+        reason: reason || null,
+        meta: Object.assign({}, options && options.destroyMeta || {}, {
+            special: 'SHINRA_BANSHO_GOD',
+            groupMarkerId: marker.markerId ?? marker.id ?? null,
+            footprint: footprint.map((cell: any) => ({ row: cell.row, col: cell.col })),
+            cellRemoval: true,
+            removalPolicy: 'group_dissolve',
+            removalKind: options && options.removalKind ? options.removalKind : 'meteor_hole'
+        })
+    });
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, {
+        reason: 'group_dissolved',
+        cellRemoval: true,
+        removalPolicy: 'group_dissolve',
+        removalKind: options && options.removalKind ? options.removalKind : 'meteor_hole'
+    });
+}
+
 function applyCellRemovalAt(
     cardState: any,
     gameState: any,
@@ -1364,7 +1443,18 @@ function applyCellRemovalAt(
         }
         let destroyed = false;
         let destroyResult: any = null;
-        if (prev !== EMPTY) {
+        const multiCellMarker = _findMultiCellSpecialStoneAt(cardState, row, col);
+        if (multiCellMarker) {
+            destroyResult = _removeMultiCellSpecialStoneForCellRemoval(
+                cardState,
+                gameState,
+                multiCellMarker,
+                cause,
+                reason,
+                options
+            );
+            destroyed = true;
+        } else if (prev !== EMPTY) {
             destroyResult = _removeOccupiedCellForCellRemoval(cardState, gameState, row, col, prev, cause, reason, options);
             destroyed = true;
         }
@@ -2352,6 +2442,9 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
     col = pos.col;
     const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { changed: false, reason: 'out_of_board' };
+    if (_findMultiCellSpecialStoneAt(cardState, row, col)) {
+        return { changed: false, reason: 'multi_cell_stone_protected' };
+    }
     const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
     const forcePresentation = !!(meta && meta.forcePresentation === true);
     const allowGhostFlip = !!(meta && meta.allowGhostFlip === true);
@@ -2446,6 +2539,9 @@ function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: 
     const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { reverted: false, reason: 'out_of_board' };
     if (prev === EMPTY) return { reverted: false, reason: 'empty_cell' };
+    if (_findMultiCellSpecialStoneAt(cardState, row, col)) {
+        return { reverted: false, reason: 'multi_cell_stone_protected' };
+    }
 
     const targetTypeUpper = String(specialType || '').toUpperCase();
     if (!targetTypeUpper) return { reverted: false, reason: 'missing_special_type' };
@@ -2564,6 +2660,9 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
     const prev = getCellValue(gameState, fromRow, fromCol, cardState);
     if (prev === EMPTY) return { moved: false };
     if (prev === null) return { moved: false, reason: 'from_out_of_board' };
+    if (_findMultiCellSpecialStoneAt(cardState, fromRow, fromCol)) {
+        return { moved: false, reason: 'multi_cell_stone_protected' };
+    }
     if (_isFrozenCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'frozen_source' };
     if (_isInviolableCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'inviolable_source' };
     const destVal = getCellValue(gameState, toRow, toCol, cardState);
@@ -2624,6 +2723,12 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
     const valueB = getCellValue(gameState, bRow, bCol, cardState);
     if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
     if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
+    if (
+        _findMultiCellSpecialStoneAt(cardState, aRow, aCol) ||
+        _findMultiCellSpecialStoneAt(cardState, bRow, bCol)
+    ) {
+        return { swapped: false, reason: 'multi_cell_stone_protected' };
+    }
     if (_isFrozenCell(cardState, aRow, aCol) || _isFrozenCell(cardState, bRow, bCol)) return { swapped: false, reason: 'frozen_source' };
     if (_isInviolableCell(cardState, aRow, aCol) || _isInviolableCell(cardState, bRow, bCol)) return { swapped: false, reason: 'inviolable_source' };
 

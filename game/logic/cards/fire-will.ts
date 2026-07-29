@@ -33,6 +33,7 @@ interface FireGameState {
 
 interface FireDeps {
     random?: FireRandomLike | null;
+    anchorType?: string;
     decrementRemainingOwnerTurns?: boolean;
     getScorchTargets?: (cardState: FireCardState, gameState: FireGameState, playerKey: FireSeatKey) => Array<{ row: number; col: number }>;
     applyScorchedCell?: (
@@ -187,6 +188,7 @@ function processAnchor(
     deps: FireDeps
 ): FireResult {
     const result = emptyResult();
+    const anchorType = String(deps.anchorType || 'FIRE').toUpperCase();
     const marker = (cardState.markers || []).find((entry) => (
         entry &&
         entry.kind === 'specialStone' &&
@@ -194,7 +196,7 @@ function processAnchor(
         entry.row === row &&
         entry.col === col &&
         entry.data &&
-        String(entry.data.type || '').toUpperCase() === 'FIRE'
+        String(entry.data.type || '').toUpperCase() === anchorType
     ));
     if (!marker) return result;
 
@@ -239,7 +241,7 @@ function processAnchor(
             : 0;
         const shouldDecrement = deps.decrementRemainingOwnerTurns !== false;
         const after = shouldDecrement ? before - 1 : before;
-        if (marker.data) marker.data.remainingOwnerTurns = after;
+        if (shouldDecrement && marker.data) marker.data.remainingOwnerTurns = after;
         if (shouldDecrement && after >= 0) result.anchors.push({ row, col, remainingNow: after });
         if (shouldDecrement && after === 0) expireAnchor(cardState, gameState, playerKey, marker, deps, result.expired);
         if (shouldDecrement && after < 0 && marker.data) marker.data.remainingOwnerTurns = -1;

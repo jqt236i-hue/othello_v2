@@ -291,7 +291,15 @@ function applyMassFreezeWill(cardState: CardState, gameState: GameState, playerK
     }
     const seen = new Set<string>();
     const normalizedTargets: Array<{ row: number; col: number }> = [];
+    const expandedTargets: any[] = [];
     for (const target of targets) {
+        const footprint = deps && typeof deps.getMultiCellFootprintAt === 'function'
+            ? deps.getMultiCellFootprintAt(cardState, target.row, target.col)
+            : null;
+        if (Array.isArray(footprint) && footprint.length > 1) expandedTargets.push(...footprint);
+        else expandedTargets.push(target);
+    }
+    for (const target of expandedTargets) {
         const row = target && target.row;
         const col = target && target.col;
         if (!Number.isInteger(row) || !Number.isInteger(col)) {
@@ -321,7 +329,8 @@ function applyMassFreezeWill(cardState: CardState, gameState: GameState, playerK
     syncHazardContacts(cardState, gameState, Number(gameState && (gameState as any).turnNumber || 0), deps);
     return {
         applied: true,
-        frozenCount: normalizedTargets.length,
+        frozenCount: targets.length,
+        frozenCellCount: normalizedTargets.length,
         targets: normalizedTargets
     };
 }

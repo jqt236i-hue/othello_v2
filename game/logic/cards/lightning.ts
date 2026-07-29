@@ -105,6 +105,7 @@ type LightningDestroyAt = (cardState: LightningCardState, gameState: LightningGa
 
 interface LightningProcessDeps {
   random?: LightningRandomLike | null;
+  anchorType?: string;
   destroyAt?: LightningDestroyAt;
   BoardOps?: LightningBoardOpsModule | null;
   decrementRemainingOwnerTurns?: boolean;
@@ -316,11 +317,12 @@ function processAnchor(cardState: LightningCardState, gameState: LightningGameSt
   const shouldDecrement = options.decrementRemainingOwnerTurns !== false;
   const destroyAt: LightningDestroyAt = options.destroyAt || fallbackDestroyAt;
 
+  const anchorType = String(options.anchorType || 'LIGHTNING').toUpperCase();
   const marker = (cardState.markers || []).find((entry) => (
     entry &&
     entry.kind === 'specialStone' &&
     entry.data &&
-    entry.data.type === 'LIGHTNING' &&
+    String(entry.data.type || '').toUpperCase() === anchorType &&
     entry.owner === playerKey &&
     entry.row === row &&
     entry.col === col
@@ -358,7 +360,7 @@ function processAnchor(cardState: LightningCardState, gameState: LightningGameSt
     ? Number(marker.data.remainingOwnerTurns)
     : 0;
   const after = shouldDecrement ? (before - 1) : before;
-  if (marker.data) marker.data.remainingOwnerTurns = after;
+  if (shouldDecrement && marker.data) marker.data.remainingOwnerTurns = after;
 
   if (shouldDecrement && after >= 0) anchors.push({ row, col, remainingNow: after });
   if (shouldDecrement && after === 0) expireAnchor(cardState, gameState, playerKey, row, col, marker, options, expired);

@@ -333,6 +333,10 @@ const Flips = CardFlips || {};
         )) || null;
     }
 
+    function isMultiCellSpecialStoneCell(cardState: any, row: number, col: number) {
+        return !!findSpecialMarkerAt(cardState, row, col, 'SHINRA_BANSHO_GOD');
+    }
+
     function toBoardCellKey(row: number, col: number) {
         return `${row},${col}`;
     }
@@ -356,6 +360,7 @@ const Flips = CardFlips || {};
         return !!(
             isFrozenCell(cardState, row, col) ||
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
+            isMultiCellSpecialStoneCell(cardState, row, col) ||
             isInviolableCell(cardState, row, col)
         );
     }
@@ -538,7 +543,8 @@ const Flips = CardFlips || {};
         if (!destinations.length) return [];
         return getOccupiedBoardShapeCells(cardState, gameState)
             .filter((cell: any) => !isFrozenCell(cardState, cell.row, cell.col))
-            .filter((cell: any) => !isInviolableCell(cardState, cell.row, cell.col));
+            .filter((cell: any) => !isInviolableCell(cardState, cell.row, cell.col))
+            .filter((cell: any) => !isMultiCellSpecialStoneCell(cardState, cell.row, cell.col));
     }
 
     function getBoardExpansionTargets(cardState: any, gameState: any, playerKey: any) {
@@ -593,6 +599,7 @@ const Flips = CardFlips || {};
         const res: any[] = [];
         forEachBoardShapeCell(cardState, gameState, (row: any, col: any, owner: any) => {
             if (owner !== BLACK && owner !== WHITE) return;
+            if (isMultiCellSpecialStoneCell(cardState, row, col)) return;
             const flips = Flips.getOccupiedOriginFlipsWithContext(gameState, row, col, owner, context);
             if (!Array.isArray(flips) || flips.length === 0) return;
             res.push({
@@ -754,6 +761,7 @@ const Flips = CardFlips || {};
         const markersAt = createMarkersAtLookup(cardState);
         forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
+            if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
             const guarded = markersAt(r, c).some((m: any) =>
                 m &&
                 m.kind === 'specialStone' &&
@@ -785,6 +793,7 @@ const Flips = CardFlips || {};
 
         forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner !== opVal) return;
+            if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
             const hasSpecialOrBomb = markersAt(r, c).some((m: any) => {
                 if (!m) return false;
                 if (m.kind !== 'specialStone') return false;
@@ -818,6 +827,7 @@ const Flips = CardFlips || {};
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isInviolableCell(cardState, row, col)) continue;
+            if (isMultiCellSpecialStoneCell(cardState, row, col)) continue;
             res.push({ row, col });
         }
         return res;
@@ -896,6 +906,7 @@ const Flips = CardFlips || {};
         const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             if (getCellValue(cardState, gameState, cell.row, cell.col) !== playerVal) continue;
+            if (isMultiCellSpecialStoneCell(cardState, cell.row, cell.col)) continue;
             if (collectEmptyNeighborCells(cardState, gameState, cell.row, cell.col).length === 0) continue;
             res.push({ row: cell.row, col: cell.col });
         }
@@ -1014,6 +1025,7 @@ const Flips = CardFlips || {};
             if (isFrozenCell(cardState, r, c)) return;
             if (isInviolableCell(cardState, r, c)) return;
             if (isMeteorHoleCell(cardState, r, c)) return;
+            if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
         });
         return res;

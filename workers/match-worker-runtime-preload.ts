@@ -144,6 +144,7 @@ installRuntimeModule('CardLightning', () => require('../game/logic/cards/lightni
 installRuntimeModule('CardFireWill', () => require('../game/logic/cards/fire-will.js'));
 installRuntimeModule('CardWaterWill', () => require('../game/logic/cards/water-will.js'));
 installRuntimeModule('CardGrassWill', () => require('../game/logic/cards/grass-will.js'));
+installRuntimeModule('CardShinraBanshoGod', () => require('../game/logic/cards/shinra-bansho-god.js'));
 installRuntimeModule('CardWillHunterKing', () => require('../game/logic/cards/will_hunter_king.js'));
 installRuntimeModule('CardDestroyDragon', () => require('../game/logic/cards/destroy_dragon.js'));
 installRuntimeModule('CardSelectors', () => require('../game/logic/cards/selectors.js'));

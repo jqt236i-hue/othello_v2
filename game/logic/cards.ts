@@ -616,6 +616,7 @@ const {
     const CardFireWillModule = resolveRequiredCardModule('./cards/fire-will', 'CardFireWill');
     const CardWaterWillModule = resolveRequiredCardModule('./cards/water-will', 'CardWaterWill');
     const CardGrassWillModule = resolveRequiredCardModule('./cards/grass-will', 'CardGrassWill');
+    const CardShinraBanshoGodModule = resolveRequiredCardModule('./cards/shinra-bansho-god', 'CardShinraBanshoGod');
     /** @type {any} */
     const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
     /** @type {any} */
@@ -3098,7 +3099,13 @@ const {
             HEALING_CELL_TURNS,
             TEMPORARY_SPECIAL_CELL_TYPES: SpecialStoneRegistry && SpecialStoneRegistry.TEMPORARY_SPECIAL_CELL_TYPES,
             isTemporarySpecialCellType: SpecialStoneRegistry && SpecialStoneRegistry.isTemporarySpecialCellType,
-            getMarkerSemanticTraits: SpecialStoneRegistry && SpecialStoneRegistry.getMarkerSemanticTraits
+            getMarkerSemanticTraits: SpecialStoneRegistry && SpecialStoneRegistry.getMarkerSemanticTraits,
+            getMultiCellFootprintAt: (cs: any, row: any, col: any) => {
+                const marker = findSpecialMarkerAt(cs, row, col, 'SHINRA_BANSHO_GOD');
+                return marker && SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneFootprint === 'function'
+                    ? SpecialStoneRegistry.getSpecialStoneFootprint(marker)
+                    : null;
+            }
         };
     }
 
@@ -3548,6 +3555,7 @@ const {
         const targets: any[] = [];
         for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
             if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+            if (findSpecialMarkerAt(cardState, cell.row, cell.col, 'SHINRA_BANSHO_GOD')) continue;
             const res = getReverseWillFlips(cardState, gameState, cell.row, cell.col);
             if (!res.ownerKey || res.flips.length <= 0) continue;
             targets.push({
@@ -4405,6 +4413,7 @@ const {
 
     function processLightningWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
         const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'anchorType',
             'decrementRemainingOwnerTurns',
             'destroyAt',
             'BoardOps'
@@ -4426,6 +4435,7 @@ const {
 
     function getFireWillEffectDeps(cardState: any, prngOrOpts: any, label: string) {
         const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'anchorType',
             'decrementRemainingOwnerTurns',
             'BoardOps',
             'getScorchTargets',
@@ -4473,6 +4483,7 @@ const {
 
     function getWaterWillEffectDeps(cardState: any, prngOrOpts: any, label: string) {
         const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'anchorType',
             'decrementRemainingOwnerTurns',
             'BoardOps',
             'getHealingCellTargets',
@@ -4520,6 +4531,7 @@ const {
 
     function getGrassWillEffectDeps(cardState: any, prngOrOpts: any, label: string) {
         const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'anchorType',
             'decrementRemainingOwnerTurns',
             'BoardOps',
             'getSeedTargets',
@@ -4570,6 +4582,57 @@ const {
 
     function processGrassWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
         return processGrassWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
+    }
+
+    function getShinraBanshoGodDeps() {
+        return {
+            EMPTY,
+            BLACK,
+            WHITE,
+            BoardOps: BoardOpsModule,
+            BoardUtils,
+            SpecialStoneRegistry,
+            addMarker,
+            isBlockedCell,
+            isFrozenCell,
+            isInviolableCell,
+            getCellValue: getCellValueForCard,
+            getStoneIdAt: getStoneIdAtForCard,
+            clearStoneIdAt: clearStoneIdAtForCard
+        };
+    }
+
+    function resolveShinraBanshoGodFusions(cardState: any, gameState: any, prngOrOpts?: any) {
+        const randomSource = prngOrOpts && typeof prngOrOpts === 'object' && prngOrOpts.randomSource
+            ? prngOrOpts.randomSource
+            : (prngOrOpts || defaultPrng);
+        return CardShinraBanshoGodModule.resolveShinraBanshoGodFusions(
+            cardState,
+            gameState,
+            randomSource,
+            getShinraBanshoGodDeps()
+        );
+    }
+
+    function processShinraBanshoGodAtTurnStartAnchor(
+        cardState: any,
+        gameState: any,
+        playerKey: any,
+        row: any,
+        col: any,
+        prngOrOpts: any
+    ) {
+        const pulseOptions = {
+            anchorType: 'SHINRA_BANSHO_GOD',
+            decrementRemainingOwnerTurns: false,
+            random: prngOrOpts || defaultPrng,
+            randomSource: prngOrOpts || defaultPrng
+        };
+        const fire = processFireWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, pulseOptions);
+        const water = processWaterWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, pulseOptions);
+        const grass = processGrassWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, pulseOptions);
+        const lightning = processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, pulseOptions);
+        return { fire, water, grass, lightning };
     }
 
     function processMeteorGodEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
@@ -5139,6 +5202,7 @@ const cardsApi: any = {
         processWaterWillEffects,
         processGrassWillEffects,
         processMeteorGodEffects,
+        resolveShinraBanshoGodFusions,
 
         // Game flow
         onTurnStart,
@@ -5252,6 +5316,7 @@ const cardsApi: any = {
         processWaterWillEffectsAtAnchor,
         processGrassWillEffectsAtTurnStartAnchor,
         processGrassWillEffectsAtAnchor,
+        processShinraBanshoGodAtTurnStartAnchor,
         processMeteorGodEffectsAtTurnStartAnchor,
         processMeteorGodEffectsAtAnchor,
         processWillHunterKingEffectsAtTurnStartAnchor,

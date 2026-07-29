@@ -1,0 +1,247 @@
+import * as Shared from '../shared-constants';
+import * as Core from '../game/logic/core';
+import * as CardLogic from '../game/logic/cards';
+import * as BoardOps from '../game/logic/board_ops';
+import * as SpecialStoneRegistry from '../shared/special-stone-registry';
+
+const MATERIALS = ['FIRE', 'WATER', 'GRASS', 'LIGHTNING'] as const;
+
+function createPrng(values: number[] = [0]) {
+  let index = 0;
+  return {
+    shuffle: (items: any[]) => items,
+    random: jest.fn(() => values[Math.min(index++, values.length - 1)] ?? 0)
+  };
+}
+
+function createEmptyStates(prng = createPrng()) {
+  const cardState = CardLogic.createCardState(prng);
+  const gameState = Core.createGameState();
+  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+  gameState.turnNumber = 1;
+  return { cardState, gameState };
+}
+
+function addMaterials(cardState: any, gameState: any, positions: Array<[number, number]>, owner: 'black' | 'white' = 'black') {
+  const ownerValue = owner === 'black' ? Shared.BLACK : Shared.WHITE;
+  MATERIALS.forEach((type, index) => {
+    const [row, col] = positions[index];
+    gameState.board[row][col] = ownerValue;
+    CardLogic.addMarker(cardState, 'specialStone', row, col, owner, {
+      type,
+      remainingOwnerTurns: 6
+    });
+  });
+}
+
+function shinraMarker(cardState: any) {
+  return (cardState.markers || []).find((marker: any) => (
+    marker?.kind === 'specialStone'
+    && marker?.data?.type === 'SHINRA_BANSHO_GOD'
+  ));
+}
+
+describe('森羅万象神', () => {
+  test('同色4属性を自動融合し、空き優先の2×2へ1グループとして召喚する', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
+
+    const result = CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+
+    expect(result.summoned).toEqual([
+      expect.objectContaining({
+        summoned: true,
+        owner: 'black',
+        row: 0,
+        col: 0,
+        footprint: [
+          { row: 0, col: 0 },
+          { row: 0, col: 1 },
+          { row: 1, col: 0 },
+          { row: 1, col: 1 }
+        ]
+      })
+    ]);
+    expect(prng.random).toHaveBeenCalledTimes(1);
+    expect(shinraMarker(cardState)).toEqual(expect.objectContaining({
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: expect.objectContaining({
+        type: 'SHINRA_BANSHO_GOD',
+        footprint: 'square_2x2.v1',
+        permanent: true
+      })
+    }));
+    expect((cardState.markers || []).filter((marker: any) => MATERIALS.includes(marker?.data?.type))).toHaveLength(0);
+    expect([
+      gameState.board[0][0],
+      gameState.board[0][1],
+      gameState.board[1][0],
+      gameState.board[1][1]
+    ]).toEqual([Shared.BLACK, Shared.BLACK, Shared.BLACK, Shared.BLACK]);
+    expect([
+      gameState.board[6][0],
+      gameState.board[6][2],
+      gameState.board[6][4],
+      gameState.board[6][6]
+    ]).toEqual([Shared.EMPTY, Shared.EMPTY, Shared.EMPTY, Shared.EMPTY]);
+  });
+
+  test('空き2×2がなくても、最も素材を多く含む候補を選び石を除去して場所を作る', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK));
+    addMaterials(cardState, gameState, [[0, 0], [0, 3], [3, 0], [3, 3]]);
+
+    const result = CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+
+    expect(result.summoned[0]).toMatchObject({
+      row: 0,
+      col: 0,
+      clearedCount: 3
+    });
+    const fusionDestroyEvents = (cardState.presentationEvents || []).filter((event: any) => (
+      event?.type === 'DESTROY'
+      && event?.meta?.bypassNormalDestroyAccounting === true
+    ));
+    expect(fusionDestroyEvents).toHaveLength(7);
+    expect(gameState.board.flat().filter((value: number) => value === Shared.BLACK)).toHaveLength(61);
+  });
+
+  test('4占有マスすべてが完全保護され、単マスの反転・移動・入替・対象選択を拒否する', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
+    CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+    gameState.board[2][2] = Shared.WHITE;
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[4][4] = Shared.WHITE;
+
+    const context = CardLogic.getCardContext(cardState);
+    expect(context.permaProtectedStones).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 0, col: 0 }),
+      expect.objectContaining({ row: 0, col: 1 }),
+      expect.objectContaining({ row: 1, col: 0 }),
+      expect.objectContaining({ row: 1, col: 1 })
+    ]));
+    expect(BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy'))
+      .toMatchObject({ destroyed: false });
+    expect(BoardOps.changeAt(cardState, gameState, 0, 1, 'white', 'TEST', 'flip'))
+      .toMatchObject({ changed: false, reason: 'multi_cell_stone_protected' });
+    expect(BoardOps.moveAt(cardState, gameState, 1, 0, 2, 0, 'TEST', 'move'))
+      .toMatchObject({ moved: false, reason: 'multi_cell_stone_protected' });
+    expect(BoardOps.swapOccupiedCells(cardState, gameState, { row: 0, col: 0 }, { row: 4, col: 4 }))
+      .toMatchObject({ swapped: false, reason: 'multi_cell_stone_protected' });
+    const footprintKeys = new Set(['0,0', '0,1', '1,0', '1,1']);
+    const targetCollections = [
+      CardLogic.getDestroyTargets(cardState, gameState),
+      CardLogic.getSwapTargets(cardState, gameState, 'white'),
+      CardLogic.getPositionSwapTargets(cardState, gameState, 'black', null),
+      CardLogic.getTeleportTargets(cardState, gameState),
+      CardLogic.getSuperAttractionTargets(cardState, gameState, 'black', null),
+      CardLogic.getSuperBuoyancyTargets(cardState, gameState),
+      CardLogic.getSuperGravityTargets(cardState, gameState),
+      CardLogic.getReverseWillTargets(cardState, gameState)
+    ];
+    for (const targets of targetCollections) {
+      expect(targets.some((cell: any) => footprintKeys.has(`${cell.row},${cell.col}`))).toBe(false);
+    }
+  });
+
+  test('マス消失は完全保護を貫通して4マス全体を一度だけ解体する', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
+    CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+    cardState.presentationEvents.length = 0;
+
+    const result = BoardOps.applyCellRemovalAt(
+      cardState,
+      gameState,
+      1,
+      1,
+      'white',
+      'METEOR_WILL',
+      'meteor_cell_destroy',
+      { removalKind: 'meteor_hole' }
+    );
+
+    expect(result).toMatchObject({
+      applied: true,
+      destroyed: true,
+      destroyResult: expect.objectContaining({
+        removalPolicy: 'group_dissolve'
+      })
+    });
+    expect(shinraMarker(cardState)).toBeUndefined();
+    expect([
+      gameState.board[0][0],
+      gameState.board[0][1],
+      gameState.board[1][0],
+      gameState.board[1][1]
+    ]).toEqual([Shared.EMPTY, Shared.EMPTY, Shared.EMPTY, Shared.EMPTY]);
+    expect((cardState.presentationEvents || []).filter((event: any) => (
+      event?.type === 'DESTROY'
+      && event?.meta?.removalPolicy === 'group_dissolve'
+    ))).toHaveLength(1);
+    expect((cardState.markers || []).some((marker: any) => (
+      marker?.row === 1
+      && marker?.col === 1
+      && marker?.data?.type === 'METEOR_HOLE'
+    ))).toBe(true);
+  });
+
+  test('所有者ターン開始は火→水→草→雷を各1回発動し、永続マーカーを減算しない', () => {
+    const prng = createPrng([0, 0, 0, 0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
+    CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+    prng.random.mockClear();
+    gameState.board[7][7] = Shared.WHITE;
+
+    const result = CardLogic.processShinraBanshoGodAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      0,
+      0,
+      prng
+    );
+
+    expect(result.fire.scorched).toHaveLength(1);
+    expect(result.water.healingCells).toHaveLength(1);
+    expect(result.grass.seeded).toHaveLength(1);
+    expect(result.lightning.destroyed).toEqual([
+      expect.objectContaining({ row: 7, col: 7, sourceRow: 0, sourceCol: 0 })
+    ]);
+    expect(prng.random).toHaveBeenCalledTimes(4);
+    expect(shinraMarker(cardState)?.data).not.toHaveProperty('remainingOwnerTurns');
+  });
+
+  test('大凍結は神を1体として数えつつ4占有マス全部へ凍結を付ける', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
+    CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+    cardState.pendingEffectByPlayer.white = {
+      type: 'MASS_FREEZE_WILL',
+      cardId: 'mass_freeze_will_01',
+      stage: null
+    };
+
+    const result = CardLogic.applyMassFreezeWill(cardState, gameState, 'white');
+    const freezes = (cardState.markers || []).filter((marker: any) => marker?.data?.type === 'FREEZE');
+
+    expect(result).toMatchObject({
+      applied: true,
+      frozenCount: 1,
+      frozenCellCount: 4
+    });
+    expect(freezes.map((marker: any) => `${marker.row},${marker.col}`).sort()).toEqual([
+      '0,0', '0,1', '1,0', '1,1'
+    ]);
+    expect(SpecialStoneRegistry.markerOccupiesCell(shinraMarker(cardState), 1, 1)).toBe(true);
+  });
+});
