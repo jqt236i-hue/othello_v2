@@ -3080,6 +3080,9 @@ const {
             clearCardPendingEffect,
             getCellValueForCard: bindGetCellValueForCard(cardState),
             isInviolableCell,
+            isFullyProtectedCell: SpecialStoneRegistry && typeof SpecialStoneRegistry.isFullyProtectedCell === 'function'
+                ? SpecialStoneRegistry.isFullyProtectedCell
+                : null,
             destroyAt: (cs: any, gs: any, r: any, c: any, cause: any, reason: any, meta: any) => (
                 BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                     ? BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)

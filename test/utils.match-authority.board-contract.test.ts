@@ -153,6 +153,49 @@ describe('match authority board contract', () => {
     }));
   });
 
+  test('v2 accepts only complete same-owner Shinra Bansho God groups', () => {
+    const valid: any = createBoardSnapshot([]);
+    valid._meta = { boardContractVersion: 2 };
+    valid.cardState.markers.push({
+      id: 'shinra-valid',
+      markerId: 'shinra-valid',
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: {
+        type: 'SHINRA_BANSHO_GOD',
+        footprint: 'square_2x2.v1',
+        permanent: true
+      }
+    });
+
+    expect(MatchAuthority.inspectSnapshotBoardContract(valid, {
+      allowLegacy: false,
+      requireFullSnapshot: true
+    })).toEqual(expect.objectContaining({ ok: true }));
+
+    const partial = JSON.parse(JSON.stringify(valid));
+    partial.gameState.board[1][1] = 0;
+    const wrongOwner = JSON.parse(JSON.stringify(valid));
+    wrongOwner.gameState.board[1][1] = -1;
+    const outside = JSON.parse(JSON.stringify(valid));
+    outside.cardState.markers[0].row = 3;
+    outside.cardState.markers[0].col = 3;
+
+    for (const malformed of [partial, wrongOwner, outside]) {
+      expect(MatchAuthority.inspectSnapshotBoardContract(malformed, {
+        allowLegacy: false,
+        requireFullSnapshot: true
+      })).toEqual(expect.objectContaining({
+        ok: false,
+        errors: expect.arrayContaining([
+          expect.stringContaining('SHINRA_BANSHO_GOD')
+        ])
+      }));
+    }
+  });
+
   test('descriptor order does not change authority hash or mutate canonical state', () => {
     const first: any = createBoardSnapshot([
       { row: -1, col: 2, side: 'top', owner: -1 },

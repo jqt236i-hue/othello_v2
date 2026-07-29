@@ -198,7 +198,7 @@
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
   "browser-vite/generated-assets/optional-compatibility.mjs": {
-    "file": "assets/optional-compatibility-CCLsfCRQ.mjs",
+    "file": "assets/optional-compatibility-ThMzubAc.mjs",
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
@@ -226,7 +226,7 @@
     "src": "browser-vite/generated-assets/optional-onnx.mjs"
   },
   "entry-browser.js": {
-    "file": "assets/entry-browser-DQ3ISDBn.js",
+    "file": "assets/entry-browser-QzvAb1Oi.js",
     "name": "entry-browser",
     "src": "entry-browser.js",
     "isDynamicEntry": true,
@@ -235,7 +235,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-COeSZMaz.js",
+    "file": "assets/index.vite-BviC2zEc.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -257,7 +257,7 @@
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-UiDuVAOA.mjs",
-      "assets/optional-compatibility-CCLsfCRQ.mjs",
+      "assets/optional-compatibility-ThMzubAc.mjs",
       "assets/optional-diagnostics-DQiaJ-SF.mjs",
       "assets/black-C5I6QShq.png",
       "assets/hero-DbqiEqdj.png",

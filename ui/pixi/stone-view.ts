@@ -488,6 +488,27 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       markerOverlay.height = cellSize;
     }
 
+    if (isShinraBanshoGod) {
+      const shinraAuraSteps = [
+        [1.24, '#ff6a3d', 0.075],
+        [1.19, '#5ed9ff', 0.085],
+        [1.14, '#65df87', 0.095],
+        [1.09, '#f3cf54', 0.105],
+        [1.045, '#c7a2ff', 0.12]
+      ] as const;
+      for (const [scale, color, alpha] of shinraAuraSteps) {
+        drawPixiCircle(aura, center, center, radius * scale, {
+          color,
+          alpha
+        });
+      }
+      drawPixiCircle(aura, center, center, radius * 1.025, null, {
+        color: owner === 'white' ? '#f8ffff' : '#a9b8ff',
+        alpha: owner === 'white' ? 0.58 : 0.42,
+        width: Math.max(1.5, cellSize * 0.055)
+      });
+    }
+
     if (renderedMarkerKinds.includes('manifest-aura')) {
       const whiteAura = owner === 'white';
       const auraColor = whiteAura ? '#effcff' : '#090b10';

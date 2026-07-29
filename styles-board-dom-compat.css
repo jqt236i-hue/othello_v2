@@ -1123,10 +1123,42 @@ body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-em
     width: calc(200% - (var(--board-disc-inset) * 2));
     height: calc(200% - (var(--board-disc-inset) * 2));
     border-radius: 50%;
+    box-shadow:
+        0 0 calc(4px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(199, 162, 255, 0.52),
+        0 0 calc(9px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(94, 217, 255, 0.34),
+        0 0 calc(15px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(101, 223, 135, 0.24),
+        0 0 calc(22px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(255, 106, 61, 0.17),
+        0 0 calc(29px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(243, 207, 84, 0.12);
+    animation: shinra-bansho-god-aura 2.8s ease-in-out infinite;
 }
 
 [data-board-renderer="dom"] .disc.shinra-bansho-god-part {
     visibility: hidden;
+}
+
+@keyframes shinra-bansho-god-aura {
+    0%, 100% {
+        box-shadow:
+            0 0 calc(4px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(199, 162, 255, 0.48),
+            0 0 calc(9px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(94, 217, 255, 0.30),
+            0 0 calc(15px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(101, 223, 135, 0.21),
+            0 0 calc(22px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(255, 106, 61, 0.15),
+            0 0 calc(29px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(243, 207, 84, 0.10);
+    }
+    50% {
+        box-shadow:
+            0 0 calc(6px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(199, 162, 255, 0.62),
+            0 0 calc(13px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(94, 217, 255, 0.42),
+            0 0 calc(20px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(101, 223, 135, 0.30),
+            0 0 calc(28px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(255, 106, 61, 0.22),
+            0 0 calc(36px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) rgba(243, 207, 84, 0.16);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-board-renderer="dom"] .disc.shinra-bansho-god-anchor {
+        animation: none;
+    }
 }
 
 [data-board-renderer="dom"] .disc.black {

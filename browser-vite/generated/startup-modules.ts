@@ -420,6 +420,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/match-entry-payload": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/match-entry-payload.js"),
   "shared/match-room-lobby": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/match-room-lobby.js"),
   "shared/module-export-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/module-export-utils.js"),
+  "shared/multi-cell-stone": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/multi-cell-stone.js"),
   "shared/network-action-schema": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-action-schema.js"),
   "shared/network-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-contract.js"),
   "shared/network-presentation-frame": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-presentation-frame.js"),
@@ -1116,6 +1117,7 @@ installBootModuleMetadata({
     "shared/match-entry-payload",
     "shared/match-room-lobby",
     "shared/module-export-utils",
+    "shared/multi-cell-stone",
     "shared/network-action-schema",
     "shared/network-contract",
     "shared/network-presentation-frame",
@@ -1484,4 +1486,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 691;
+export const startupModuleCount = 692;

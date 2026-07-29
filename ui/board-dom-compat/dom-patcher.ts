@@ -355,7 +355,12 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
                 hasGuard: !!state.guard
             }
             : (state.guard ? { type: null, hasGuard: true } : null);
-        if (flipProtectionStatusInput && _shouldShowFlipProtectionBadgeForDiff(flipProtectionStatusInput)) {
+        const isShinraBanshoGod = String(state.special && state.special.type || '').toUpperCase() === 'SHINRA_BANSHO_GOD';
+        if (
+            !isShinraBanshoGod
+            && flipProtectionStatusInput
+            && _shouldShowFlipProtectionBadgeForDiff(flipProtectionStatusInput)
+        ) {
             const flipProtectionBadge = _createFlipProtectionBadgeForDiff(markerRenderer);
             if (flipProtectionBadge) discHud.appendChild(flipProtectionBadge);
         }
@@ -384,7 +389,7 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
             if (effectKey) {
                 applyStoneVisualEffect(disc, effectKey, { owner: normalizeOwnerVal(state.special.owner) });
             }
-            if (String(state.special.type || '').toUpperCase() === 'SHINRA_BANSHO_GOD') {
+            if (isShinraBanshoGod) {
                 const isAnchor = Number(state.special.footprintRowOffset) === 0
                     && Number(state.special.footprintColOffset) === 0;
                 cell.classList.add(isAnchor ? 'shinra-bansho-god-anchor-cell' : 'shinra-bansho-god-part-cell');

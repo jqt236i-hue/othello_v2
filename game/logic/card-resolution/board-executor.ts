@@ -97,23 +97,34 @@ function isBoardExecutorAffectedSpecialMarker(marker: any): boolean {
     return countsAsBoardExecutorSpecialStone(marker);
 }
 
+function collectBoardExecutorSpecialStoneInstances(cardState: CardState, deps?: any): any[] {
+    return getMarkers(cardState, deps).filter((marker) => (
+        isBoardExecutorAffectedSpecialMarker(marker)
+    ));
+}
+
 function collectBoardExecutorSpecialStoneCells(cardState: CardState, deps?: any): Array<{ row: number; col: number; owner: PlayerKey }> {
     const seen = new Set<string>();
     const cells: Array<{ row: number; col: number; owner: PlayerKey }> = [];
-    for (const marker of getMarkers(cardState, deps)) {
-        if (!isBoardExecutorAffectedSpecialMarker(marker)) continue;
-        const row = Number(marker.row);
-        const col = Number(marker.col);
-        const key = `${row},${col}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        cells.push({ row, col, owner: markerOwnerOf(marker) });
+    for (const marker of collectBoardExecutorSpecialStoneInstances(cardState, deps)) {
+        const footprint = SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneFootprint === 'function'
+            ? SpecialStoneRegistry.getSpecialStoneFootprint(marker)
+            : [{ row: Number(marker.row), col: Number(marker.col) }];
+        for (const cell of footprint) {
+            const row = Number(cell && cell.row);
+            const col = Number(cell && cell.col);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            const key = `${row},${col}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            cells.push({ row, col, owner: markerOwnerOf(marker) });
+        }
     }
     return cells;
 }
 
 function canUseBoardExecutor(cardState: CardState, _playerKey: PlayerKey, deps?: any): boolean {
-    return collectBoardExecutorSpecialStoneCells(cardState, deps).length >= BOARD_EXECUTOR_MIN_SPECIAL_STONES;
+    return collectBoardExecutorSpecialStoneInstances(cardState, deps).length >= BOARD_EXECUTOR_MIN_SPECIAL_STONES;
 }
 
 function ensureBoardExecutorState(cardState: any): void {

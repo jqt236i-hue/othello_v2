@@ -495,6 +495,37 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return timeStopPassRes;
     }
 
+    function handOffTurnAfterResolvedSelection(
+        CardLogic: any,
+        Core: any,
+        cardState: any,
+        gameState: any,
+        playerKey: any
+    ): void {
+        if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
+            throw new Error('TurnPipeline handoff module unavailable');
+        }
+        ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
+            Core,
+            CardLogic,
+            cardState,
+            gameState,
+            playerKey,
+            advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
+                if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
+                    throw new Error('TurnPipeline round state module unavailable');
+                }
+                return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+                    Core: nextCore,
+                    gameState: nextGameState,
+                    playerKey: nextPlayerKey,
+                    options,
+                    normalizePlayerKey
+                });
+            }
+        });
+    }
+
     function resolveSpecialStatusTimer(markerData: any) {
         const remainingOwnerTurns = Number(markerData && markerData.remainingOwnerTurns);
         if (Number.isFinite(remainingOwnerTurns)) return Math.max(0, Math.trunc(remainingOwnerTurns));
@@ -1488,6 +1519,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const { CardLogic, Core, cardState, gameState, playerKey, action, events } = ctx;
         const p = ctx.prng;
         const pending = readPendingForActionPhase(cardState, playerKey);
+        let handOffRequested = false;
         hydrateDeferredPendingSelectionState(pending, action);
         if (!(ActionPhasePrePlacementSelectionModule && typeof ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction === 'function')) {
             return false;
@@ -1505,28 +1537,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             isDestroyOutcomeResolved,
             applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
             handOffTurnAfterSelection: () => {
-                if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
-                    throw new Error('TurnPipeline handoff module unavailable');
-                }
-                ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
-                    Core,
-                    CardLogic,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                        if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                            throw new Error('TurnPipeline round state module unavailable');
-                        }
-                        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                            Core: nextCore,
-                            gameState: nextGameState,
-                            playerKey: nextPlayerKey,
-                            options,
-                            normalizePlayerKey
-                        });
-                    }
-                });
+                handOffRequested = true;
             },
             emitDurationSelectionStatusTick: (target: any, reason: any, highlightTone: any) => (
                 emitDurationSelectionStatusTick(CardLogic, cardState, target, reason, highlightTone, presentationStartIndex)
@@ -1568,6 +1579,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 CardLogic.consumeGeneratedSpawnFlipResults(cardState)
             );
         }
+        resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'pre_placement_selection');
+        if (handOffRequested) {
+            handOffTurnAfterResolvedSelection(CardLogic, Core, cardState, gameState, playerKey);
+        }
         return true;
     }
 
@@ -1575,6 +1590,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const { CardLogic, Core, BoardOps, cardState, gameState, playerKey, action, events } = ctx;
         const p = ctx.prng;
         const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
+        let handOffRequested = false;
         const placementResolution = (ActionPhasePlaceResolutionModule && typeof ActionPhasePlaceResolutionModule.resolvePlacementAction === 'function')
             ? ActionPhasePlaceResolutionModule.resolvePlacementAction({
                 CardLogic,
@@ -1594,28 +1610,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 getPendingEffectTypeForActionPhase,
                 applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
                 handOffTurnAfterSelection: () => {
-                    if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
-                        throw new Error('TurnPipeline handoff module unavailable');
-                    }
-                    ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
-                        Core,
-                        CardLogic,
-                        cardState,
-                        gameState,
-                        playerKey,
-                        advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                            if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                                throw new Error('TurnPipeline round state module unavailable');
-                            }
-                            return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                                Core: nextCore,
-                                gameState: nextGameState,
-                                playerKey: nextPlayerKey,
-                                options,
-                                normalizePlayerKey
-                            });
-                        }
-                    });
+                    handOffRequested = true;
                 },
                 resolveBoardBonusGain,
                 applyPlacementBoardBonusGain,
@@ -1627,6 +1622,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             throw new Error('TurnPipeline placement resolution module unavailable');
         }
         if (placementResolution.completedSelectionOnly) {
+            resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'placement_selection');
+            if (handOffRequested) {
+                handOffTurnAfterResolvedSelection(CardLogic, Core, cardState, gameState, playerKey);
+            }
             return true;
         }
         const preExtra = placementResolution.preExtra || 0;
@@ -1715,6 +1714,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
         }
 
+        resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, p, 'placement_before_handoff');
         if (ActionPhaseContinuationModule && typeof ActionPhaseContinuationModule.resolvePlacementContinuation === 'function') {
             ActionPhaseContinuationModule.resolvePlacementContinuation({
                 Core,

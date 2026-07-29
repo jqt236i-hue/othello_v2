@@ -399,6 +399,7 @@ function syncPoisonContacts(cardState: CardState, gameState: GameState, appliedT
     const removeMarkerById = deps && deps.removeMarkerById;
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const isInviolableCell = deps && deps.isInviolableCell;
+    const isFullyProtectedCell = deps && deps.isFullyProtectedCell;
     const emitPresentationEvent = deps && deps.emitPresentationEvent;
     const empty = deps && deps.EMPTY;
     if (typeof getMarkers !== 'function' || typeof addMarker !== 'function' || typeof getCellValueForCard !== 'function') {
@@ -412,7 +413,9 @@ function syncPoisonContacts(cardState: CardState, gameState: GameState, appliedT
 
     for (const status of poisoned) {
         const occupied = getCellValueForCard(gameState, status.row, status.col) !== empty;
-        const guarded = markers.some((marker: any) => marker.row === status.row && marker.col === status.col && markerType(marker) === 'GUARD');
+        const guarded = typeof isFullyProtectedCell === 'function'
+            ? isFullyProtectedCell(markers, status.row, status.col)
+            : markers.some((marker: any) => marker.row === status.row && marker.col === status.col && markerType(marker) === 'GUARD');
         const inviolable = typeof isInviolableCell === 'function' && isInviolableCell(cardState, status.row, status.col);
         if (occupied && !guarded && !inviolable) continue;
         if (typeof removeMarkerById === 'function' && removeMarkerById(cardState, status.id)) {
@@ -428,7 +431,9 @@ function syncPoisonContacts(cardState: CardState, gameState: GameState, appliedT
         const value = getCellValueForCard(gameState, cell.row, cell.col);
         if (value === empty) continue;
         const currentMarkers = getMarkers(cardState);
-        const guarded = currentMarkers.some((marker: any) => marker.row === cell.row && marker.col === cell.col && markerType(marker) === 'GUARD');
+        const guarded = typeof isFullyProtectedCell === 'function'
+            ? isFullyProtectedCell(currentMarkers, cell.row, cell.col)
+            : currentMarkers.some((marker: any) => marker.row === cell.row && marker.col === cell.col && markerType(marker) === 'GUARD');
         const inviolable = typeof isInviolableCell === 'function' && isInviolableCell(cardState, cell.row, cell.col);
         const exists = currentMarkers.some((marker: any) => marker.row === cell.row && marker.col === cell.col && markerType(marker) === 'POISONED');
         if (guarded || inviolable || exists) continue;

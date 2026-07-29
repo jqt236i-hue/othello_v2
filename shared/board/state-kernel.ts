@@ -5,6 +5,7 @@ import {
   isBoardCoordinateWithinLimit,
   resolveBoardMaxAbsCoordinate,
 } from "./expansion-descriptors";
+import { inspectMultiCellSpecialStoneGroups } from "../multi-cell-stone";
 import type { BoardTopology } from "./topology";
 
 export const BOARD_CONTRACT_VERSION = 2;
@@ -544,6 +545,22 @@ export function createStateKernel(deps: StateKernelDependencies) {
         if (strict && expansion && expansion.owner !== deps.empty) {
           errors.push(`hole expansion cell ${key} must be empty`);
         }
+      }
+      if (strict) {
+        errors.push(...inspectMultiCellSpecialStoneGroups(cardState, {
+          black: deps.black,
+          white: deps.white,
+          hasPlayableCell: (row, col) => (
+            topology!.playableKeys.has(deps.toBoardCellKey(row, col))
+          ),
+          getCellOwner: (row, col) => {
+            const key = deps.toBoardCellKey(row, col);
+            const expansion = expansionByKey.get(key);
+            if (expansion) return expansion.owner;
+            const boardRow = (gameState.board as unknown[])[row];
+            return Array.isArray(boardRow) ? boardRow[col] : undefined;
+          },
+        }));
       }
     }
     return {

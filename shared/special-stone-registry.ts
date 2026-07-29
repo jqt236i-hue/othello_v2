@@ -8,11 +8,23 @@
         try {
             ManifestStoneRegistry = require('./manifest-stone-registry');
         } catch (e) { /* ignore */ }
-        module.exports = factory(EvasionStatus, ManifestStoneRegistry);
+        module.exports = factory(
+            EvasionStatus,
+            ManifestStoneRegistry,
+            require('./multi-cell-stone')
+        );
     } else {
-        root.SpecialStoneRegistry = factory(root.EvasionStatus || null, root.ManifestStoneRegistry || null);
+        root.SpecialStoneRegistry = factory(
+            root.EvasionStatus || null,
+            root.ManifestStoneRegistry || null,
+            root.MultiCellStone || null
+        );
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (EvasionStatus: unknown, ManifestStoneRegistry: any) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (
+    EvasionStatus: unknown,
+    ManifestStoneRegistry: any,
+    MultiCellStone: any
+) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -756,6 +768,9 @@
     }
 
     function getSpecialStoneFootprint(marker: any): ReadonlyArray<Readonly<{ row: number; col: number; role: string }>> {
+        if (MultiCellStone && typeof MultiCellStone.getSpecialStoneFootprint === 'function') {
+            return MultiCellStone.getSpecialStoneFootprint(marker);
+        }
         const type = normalizeSpecialStoneType(marker && marker.data && marker.data.type);
         const row = Number(marker && marker.row);
         const col = Number(marker && marker.col);
@@ -773,6 +788,9 @@
     }
 
     function markerOccupiesCell(marker: any, row: unknown, col: unknown): boolean {
+        if (MultiCellStone && typeof MultiCellStone.markerOccupiesCell === 'function') {
+            return MultiCellStone.markerOccupiesCell(marker, row, col) === true;
+        }
         const targetRow = Number(row);
         const targetCol = Number(col);
         if (!Number.isInteger(targetRow) || !Number.isInteger(targetCol)) return false;
@@ -780,7 +798,24 @@
     }
 
     function isMultiCellSpecialStoneMarker(marker: any): boolean {
+        if (MultiCellStone && typeof MultiCellStone.isMultiCellSpecialStoneMarker === 'function') {
+            return MultiCellStone.isMultiCellSpecialStoneMarker(marker) === true;
+        }
         return normalizeSpecialStoneType(marker && marker.data && marker.data.type) === 'SHINRA_BANSHO_GOD';
+    }
+
+    function isFullyProtectedSpecialStoneMarker(marker: any): boolean {
+        if (!marker || marker.kind !== 'specialStone' || !marker.data) return false;
+        const info = getSpecialStoneInfo(marker.data.type);
+        return !!(info && info.flipProtected === true && info.destroyProtected === true);
+    }
+
+    function isFullyProtectedCell(markers: unknown, row: unknown, col: unknown): boolean {
+        if (!Array.isArray(markers)) return false;
+        return markers.some((marker) => (
+            isFullyProtectedSpecialStoneMarker(marker)
+            && markerOccupiesCell(marker, row, col)
+        ));
     }
 
     function getSpecialStoneDisplayName(rawType: unknown, fallback?: unknown): string {
@@ -1144,6 +1179,8 @@
         getSpecialStoneFootprint,
         markerOccupiesCell,
         isMultiCellSpecialStoneMarker,
+        isFullyProtectedSpecialStoneMarker,
+        isFullyProtectedCell,
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
         getSpecialCardMarkerMetadata,

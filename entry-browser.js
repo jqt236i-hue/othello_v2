@@ -199,6 +199,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/shared/board/canonical-encoding", globalNames: ["CanonicalBoardEncoding"] },
   { moduleKey: "./dist/shared/board/notation", globalNames: ["BoardNotation"] },
   { moduleKey: "./dist/shared/board/padded-coordinates", globalNames: ["PaddedBoardCoordinates"] },
+  { moduleKey: "./dist/shared/multi-cell-stone", globalNames: ["MultiCellStone"] },
   { moduleKey: "./dist/shared/board/state-kernel", globalNames: ["BoardStateKernel"] },
   { moduleKey: "./dist/shared/shared-board-utils" },
   { moduleKey: "./dist/shared/deck-spec" },

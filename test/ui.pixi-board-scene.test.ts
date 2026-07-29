@@ -523,6 +523,7 @@ describe('Pixi static retained views', () => {
     }));
 
     const anchorSprite = anchorView.root.children.find((child: any) => child.label === 'pixi-stone-texture');
+    const anchorAura = anchorView.root.children.find((child: any) => child.label === 'pixi-stone-aura') as FakeGraphics;
     expect(anchorView.getDiagnostics()).toMatchObject({
       visible: true,
       specialType: 'SHINRA_BANSHO_GOD',
@@ -536,6 +537,11 @@ describe('Pixi static retained views', () => {
       height: 60,
       position: { x: 32, y: 32 }
     });
+    expect(anchorAura.commands.filter((command) => command.op === 'fill').map((command) => command.style?.color))
+      .toEqual(['#ff6a3d', '#5ed9ff', '#65df87', '#f3cf54', '#c7a2ff']);
+    expect(anchorAura.commands.some((command) => (
+      command.op === 'stroke' && command.style?.color === '#a9b8ff'
+    ))).toBe(true);
     expect(memberView.getDiagnostics()).toMatchObject({
       visible: false,
       specialType: 'SHINRA_BANSHO_GOD',

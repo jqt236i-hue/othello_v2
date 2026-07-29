@@ -299,8 +299,10 @@ describe('UI stone rendering', () => {
   });
 
   test('countdown timer css uses a red triangle marker', () => {
-    const css = fs.readFileSync(path.resolve(__dirname, '../styles-board-dom-compat.css'), 'utf8')
-      .replace(/\[data-board-renderer="dom"\]\s+/g, '');
+    const css = fs.readFileSync(
+      path.resolve(__dirname, '../styles-feature-rules-help-layout-info.css'),
+      'utf8'
+    );
     const selectorIndex = css.indexOf('.rules-help-counter-demo .countdown-timer');
     const blockStart = css.indexOf('{', selectorIndex);
     const blockEnd = css.indexOf('}', blockStart);
@@ -849,11 +851,28 @@ describe('UI stone rendering', () => {
     gameState.board[0][1] = BLACK;
     gameState.board[0][2] = BLACK;
     gameState.board[0][3] = BLACK;
+    gameState.board[2][2] = BLACK;
+    gameState.board[2][3] = BLACK;
+    gameState.board[3][2] = BLACK;
+    gameState.board[3][3] = BLACK;
     cardState.markers = [
       { id: 41, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2 } },
       { id: 42, kind: 'specialStone', row: 0, col: 1, owner: 'black', data: { type: 'PERMA_PROTECTED' } },
       { id: 43, kind: 'specialStone', row: 0, col: 2, owner: 'black', data: { type: 'GHOST', remainingOwnerTurns: 3 } },
-      { id: 44, kind: 'specialStone', row: 0, col: 3, owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+      { id: 44, kind: 'specialStone', row: 0, col: 3, owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } },
+      {
+        id: 45,
+        markerId: 'shinra-aura',
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: {
+          type: 'SHINRA_BANSHO_GOD',
+          footprint: 'square_2x2.v1',
+          permanent: true
+        }
+      }
     ];
 
     const diffRenderer = require('../ui/board-dom-compat/renderer');
@@ -863,11 +882,18 @@ describe('UI stone rendering', () => {
     const permaDisc = boardEl.querySelector('.cell[data-row="0"][data-col="1"] .disc');
     const ghostDisc = boardEl.querySelector('.cell[data-row="0"][data-col="2"] .disc');
     const guardDisc = boardEl.querySelector('.cell[data-row="0"][data-col="3"] .disc');
+    const shinraDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
 
     assert.strictEqual(protectedDisc.querySelector('.stone-flip-protection-badge').textContent, '反');
     assert.strictEqual(permaDisc.querySelector('.stone-flip-protection-badge').textContent, '反');
     assert.strictEqual(ghostDisc.querySelector('.stone-flip-protection-badge'), null);
     assert.strictEqual(guardDisc.querySelector('.stone-flip-protection-badge').textContent, '反');
+    assert.ok(shinraDisc.classList.contains('shinra-bansho-god-anchor'));
+    assert.strictEqual(shinraDisc.querySelector('.stone-flip-protection-badge'), null);
+
+    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board-dom-compat.css'), 'utf8');
+    assert.match(boardCss, /@keyframes\s+shinra-bansho-god-aura/);
+    assert.match(boardCss, /prefers-reduced-motion:\s*reduce[\s\S]*?shinra-bansho-god-anchor[\s\S]*?animation:\s*none/);
   });
 
   test('showSpecialStoneInfoAt renders TIME_STOP name and timer', () => {

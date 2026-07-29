@@ -3,6 +3,7 @@ import * as Core from '../game/logic/core';
 import * as CardLogic from '../game/logic/cards';
 import * as BoardOps from '../game/logic/board_ops';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry';
+import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases';
 
 const MATERIALS = ['FIRE', 'WATER', 'GRASS', 'LIGHTNING'] as const;
 
@@ -39,6 +40,29 @@ function shinraMarker(cardState: any) {
     marker?.kind === 'specialStone'
     && marker?.data?.type === 'SHINRA_BANSHO_GOD'
   ));
+}
+
+function addShinraGroup(
+  cardState: any,
+  gameState: any,
+  owner: 'black' | 'white',
+  row = 0,
+  col = 0
+) {
+  const ownerValue = owner === 'black' ? Shared.BLACK : Shared.WHITE;
+  for (const [cellRow, cellCol] of [
+    [row, col],
+    [row, col + 1],
+    [row + 1, col],
+    [row + 1, col + 1]
+  ]) {
+    gameState.board[cellRow][cellCol] = ownerValue;
+  }
+  return CardLogic.addMarker(cardState, 'specialStone', row, col, owner, {
+    type: 'SHINRA_BANSHO_GOD',
+    footprint: 'square_2x2.v1',
+    permanent: true
+  });
 }
 
 describe('森羅万象神', () => {
@@ -243,5 +267,140 @@ describe('森羅万象神', () => {
       '0,0', '0,1', '1,0', '1,1'
     ]);
     expect(SpecialStoneRegistry.markerOccupiesCell(shinraMarker(cardState), 1, 1)).toBe(true);
+  });
+
+  test('通常配置で成立した融合は手番引継ぎ前に解決する', () => {
+    const prng = createPrng([0]);
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.turnNumber = 1;
+    addMaterials(cardState, gameState, [[0, 0], [0, 2], [7, 5], [7, 7]]);
+    const observedPlayers: number[] = [];
+    const cardLogic = {
+      ...CardLogic,
+      resolveShinraBanshoGodFusions: (...args: any[]) => {
+        observedPlayers.push(gameState.currentPlayer);
+        return CardLogic.resolveShinraBanshoGodFusions(...args as [any, any, any]);
+      }
+    };
+
+    TurnPipelinePhases.applyActionPhase(
+      cardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      [],
+      prng,
+      BoardOps
+    );
+
+    expect(observedPlayers[0]).toBe(Shared.BLACK);
+    expect(gameState.currentPlayer).toBe(Shared.WHITE);
+    expect(shinraMarker(cardState)).toBeTruthy();
+  });
+
+  test('完全保護は毒・意志狩り・ゾンビ感染の旧候補列挙にも4マス投影される', () => {
+    const poisonPrng = createPrng([0]);
+    const poisonState = createEmptyStates(poisonPrng);
+    addShinraGroup(poisonState.cardState, poisonState.gameState, 'black');
+    CardLogic.addMarker(poisonState.cardState, 'specialStone', 1, 1, 'white', {
+      type: 'POISON_CELL',
+      remainingTurns: 10
+    });
+
+    CardLogic.syncPoisonContacts(poisonState.cardState, poisonState.gameState, 1);
+
+    expect((poisonState.cardState.markers || []).some((marker: any) => (
+      marker?.row === 1
+      && marker?.col === 1
+      && marker?.data?.type === 'POISONED'
+    ))).toBe(false);
+
+    const hunterPrng = createPrng([0]);
+    const hunterState = createEmptyStates(hunterPrng);
+    addShinraGroup(hunterState.cardState, hunterState.gameState, 'white');
+    hunterState.gameState.board[3][3] = Shared.BLACK;
+    hunterState.gameState.board[7][7] = Shared.WHITE;
+    CardLogic.addMarker(hunterState.cardState, 'specialStone', 3, 3, 'black', {
+      type: 'WILL_HUNTER_KING',
+      remainingOwnerTurns: 8
+    });
+
+    const hunterResult = CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(
+      hunterState.cardState,
+      hunterState.gameState,
+      'black',
+      3,
+      3,
+      hunterPrng
+    );
+
+    expect(hunterResult.destroyed).toEqual([
+      expect.objectContaining({ row: 7, col: 7 })
+    ]);
+    expect(hunterState.gameState.board[1][1]).toBe(Shared.WHITE);
+
+    const zombiePrng = createPrng([0]);
+    const zombieState = createEmptyStates(zombiePrng);
+    addShinraGroup(zombieState.cardState, zombieState.gameState, 'white');
+    zombieState.gameState.board[2][2] = Shared.BLACK;
+    CardLogic.addMarker(zombieState.cardState, 'specialStone', 2, 2, 'black', {
+      type: 'ZOMBIE',
+      ownerColor: Shared.BLACK,
+      turnsUntilInfection: 1,
+      regenRemaining: 1
+    });
+
+    const zombieResult = CardLogic.processZombieEffectsAtTurnStartAnchor(
+      zombieState.cardState,
+      zombieState.gameState,
+      'black',
+      2,
+      2,
+      zombiePrng
+    );
+
+    expect(zombieResult.infected).toEqual([]);
+    expect(zombieState.gameState.board[1][1]).toBe(Shared.WHITE);
+    expect((zombieState.cardState.markers || []).filter((marker: any) => (
+      marker?.data?.type === 'ZOMBIE'
+    ))).toHaveLength(1);
+  });
+
+  test('盤界の執行者は使用条件では1体、絶対執行では4マス全部を穴化する', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    addShinraGroup(cardState, gameState, 'black');
+    gameState.board[4][4] = Shared.BLACK;
+    gameState.board[5][5] = Shared.WHITE;
+    CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
+      type: 'SNIPER',
+      remainingOwnerTurns: 4
+    });
+    CardLogic.addMarker(cardState, 'specialStone', 5, 5, 'white', {
+      type: 'DRAGON',
+      remainingOwnerTurns: 4
+    });
+    cardState.hands.black = ['board_executor_01'];
+    cardState.charge.black = 99;
+
+    expect(CardLogic.canUseBoardExecutor(cardState, 'black')).toBe(true);
+    expect(CardLogic.applyCardUsage(
+      cardState,
+      gameState,
+      'black',
+      'board_executor_01',
+      null,
+      { prng }
+    )).toBe(true);
+
+    const holeKeys = new Set((cardState.markers || [])
+      .filter((marker: any) => marker?.data?.type === 'METEOR_HOLE')
+      .map((marker: any) => `${marker.row},${marker.col}`));
+    expect(holeKeys).toEqual(new Set(['0,0', '0,1', '1,0', '1,1', '4,4', '5,5']));
+    expect(shinraMarker(cardState)).toBeUndefined();
   });
 });

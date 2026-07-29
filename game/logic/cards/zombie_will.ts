@@ -152,13 +152,20 @@ const CardZombieWill = (function (root: any, factory: any) {
     function isEnemyNormalStone(cardState: any, gameState: any, row: number, col: number, ownerKey: string) {
         const cell = getCell(cardState, gameState, row, col);
         if (cell !== ownerValue(ownerKey === 'black' ? 'white' : 'black')) return false;
+        const reg = getSpecialStoneRegistryModule();
+        if (
+            reg
+            && typeof reg.isFullyProtectedCell === 'function'
+            && reg.isFullyProtectedCell(getMarkers(cardState), row, col) === true
+        ) {
+            return false;
+        }
         const existing = markerAtPosition(cardState, row, col);
         if (!existing) return true;
         if (existing.kind !== 'specialStone') return true;
         const data = existing.data || {};
         const type = String(data.type || '').toUpperCase();
         if (type === 'GUARD') return false;
-        const reg = getSpecialStoneRegistryModule();
         if (reg && typeof reg.isStoneStatusMarker === 'function' && reg.isStoneStatusMarker(existing)) {
             return false;
         }

@@ -287,13 +287,14 @@ compositeはanchorセル単独ではなくfootprintとmaterialization領域の�
 - 既存の単一Pixi application、stone layer、timeline、resource lifecycle内にcomposite stone viewを追加する。
 - anchor以外の3セルの通常stone viewを非表示にし、2×2の外接矩形へ黒白別の大型画像を1枚描画する。
 - 画像は `assets/images/special-stones/SHINRA_BANSHO_GOD-black.png` と `SHINRA_BANSHO_GOD-white.png` を正本とする。
-- 完全保護表示は4個のバッジではなく、composite全体へ1つの保護表現を付ける。
+- 完全保護・反転保護の石上バッジは表示せず、composite全体の背面へ火・水・草・雷を表す多色オーラを付ける。オーラは既存stone viewのgraphicsで描き、第2tickerや第2writerを作らない。
 - viewport外や部分表示でも、既存materializationとeffect gutterの範囲内だけ描画し、2つ目のcanvasや別tickerを作らない。
 
 ### 10.3 DOM互換
 
 - DOM backendが排他的に選択された時だけ、2×2セルをまたぐ専用overlayを1個生成する。
 - 4セルのsemantic要素とowner情報は維持し、見た目の4個のdiscだけを抑止する。
+- 完全保護・反転保護の石上バッジは表示せず、大型discへ多色オーラを付ける。オーラの明滅は `prefers-reduced-motion` で停止し、静止状態でも保護表現を残す。
 - Pixi通常経路からDOM互換moduleをimport・評価しない。
 
 ### 10.4 Playback
@@ -452,3 +453,5 @@ npm run match:cross-platform-smoke:vite
 - 完全保護だけでは友好的な複製・延命などが対象になり得るため、2×2一体性を守る「単セル操作不可」を別制約として明記した。
 - 盤面source trajectoryの始点を左上セル中心にすると見た目がずれるため、論理anchorは維持しつつactive backendがcomposite centerを解決する契約を追加した。
 - 独立レビューで既存4属性pulseの候補1 PRNG消費、凍結、セル消滅会計、settlement hook、candidate sort、partial viewport、追加カード背景の不足を確認し、本節を含む設計へ反映した。
+- 実装後レビューで、通常配置の融合が手番引継ぎ後まで遅れる経路、完全保護をanchor座標だけで判定する旧効果、盤界の執行者が2×2のanchorだけを穴化する経路、部分groupを受理するv2 snapshot検証を確認した。融合は引継ぎ前settlementへ移し、共有footprint/完全保護判定、特殊石個体数と絶対執行対象セルの分離、strict snapshotの完全group検証で修正する。
+- ユーザー指定により、森羅万象神の盤上保護バッジは廃止し、能力自体は維持したまま2×2全体の専用多色オーラへ置き換える。石情報の「完全保護」説明はルール情報なので維持する。

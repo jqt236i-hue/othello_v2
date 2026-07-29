@@ -526,3 +526,36 @@ git diff --check
 - state hashやnetwork snapshotはgeneric markerで足りる可能性があるため、変更を前提にせず、明示allowlistや正規化不足が見つかった場合だけ変更する計画にした。
 - browser表示、network parity、Worker mirrorへまたがるため、focused test後の`build:browser`、network parity、`worker:prepare`、Pixi/DOM smokeを完了条件に含めた。
 - 独立レビューで、既存4属性pulseは候補1でもPRNGを消費する事実、凍結のgroup semantics、セル消滅会計、settlement hook網羅性、candidateのrow→col sort、partial viewport、追加カード背景の用途が不足していると判明した。設計へ戻って修正し、本計画のStep 3〜10と総合検証へ反映した。
+
+## 16. Step 13: 実装後レビュー修正と専用オーラ
+
+### 目的
+
+実装後レビューで再現した4件の不変条件違反を解消し、森羅万象神の盤上保護表現を石上バッジから2×2専用オーラへ変更する。
+
+### 実装内容
+
+1. 通常配置・pending選択の融合settlementを手番引継ぎより前へ移し、action-finalizerの再確認は冪等な安全網として残す。
+2. 共有footprint契約へ「完全保護セル」と「完全な多マスgroup」の純粋判定を追加し、毒、意志狩りの王、ゾンビ感染の候補列挙へ適用する。
+3. 盤界の執行者は使用条件では森羅万象神を特殊石1体と数え、絶対執行では4占有セルすべてを対象セルへ展開する。
+4. v2 complete snapshotは森羅万象神のmarker、`square_2x2.v1`、同色4セル、穴・void非重複、group非重複をstrict board inspectorで検証し、部分groupをfail closedにする。
+5. Pixiでは既存stone viewのaura graphics、DOM互換では大型discのCSSだけを使って多色オーラを表示する。森羅万象神の完全保護・反転保護バッジは両backendで表示しない。
+6. DOMのオーラ明滅は `prefers-reduced-motion` で停止し、静止オーラへ戻す。
+
+### 検証
+
+- `test/game.shinra-bansho-god.test.ts`: 手番引継ぎ前融合、毒、意志狩りの王、ゾンビ感染、盤界の執行者
+- `test/utils.match-authority.board-contract.test.ts`: 正常groupと部分・異色・穴重複groupのstrict拒否
+- `test/ui.pixi-board-scene.test.ts`: 1 sprite、バッジ非表示、多色aura graphics
+- `test/ui.board-dom-compat.stone-rendering.test.ts`: 1大型disc、バッジ非表示、専用aura class
+- board kernel boundary、network parity、browser build、Pixi/DOM smoke、Worker deploy smoke
+
+### 完了条件
+
+レビューで再現した4件がすべて回帰テストで固定され、黒白双方の森羅万象神が能力情報を失わず、盤上では保護バッジなしの2×2専用オーラとして表示される。
+
+### Self-review
+
+- 完全保護能力そのものを削除するとゲーム仕様を変えてしまうため、削除対象は盤上バッジだけに限定し、石情報の「完全保護」説明は維持する。
+- 特殊石個体数と穴化セル数を同じ配列で表すと4マス石で再発するため、盤界の執行者ではinstance収集とaffected-cell展開を別関数にする。
+- snapshot検証をWorkerだけへ追加するとbrowser reconnectとlocal authorityがずれるため、全runtimeが使うstrict shared board inspectorへ置く。

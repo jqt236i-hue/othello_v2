@@ -136,10 +136,17 @@ function isInviolableTarget(cardState: any, row: number, col: number): boolean {
 }
 
 function isGuardProtectedTarget(cardState: any, row: number, col: number): boolean {
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    if (
+        SpecialStoneRegistry
+        && typeof SpecialStoneRegistry.isFullyProtectedCell === 'function'
+        && SpecialStoneRegistry.isFullyProtectedCell(markers, row, col) === true
+    ) {
+        return true;
+    }
     if (CardUtilsModule && typeof CardUtilsModule.blocksTemptAt === 'function') {
         return CardUtilsModule.blocksTemptAt(cardState, row, col) === true;
     }
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     return markers.some((marker: any) => {
         if (!marker || marker.row !== row || marker.col !== col || !marker.data) return false;
         const type = String(marker.data.type || '').toUpperCase();
