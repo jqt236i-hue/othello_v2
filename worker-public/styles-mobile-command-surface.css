@@ -40,59 +40,6 @@ html.layout-profile-phone-portrait #game-container {
     overflow-x: clip;
 }
 
-html.layout-profile-phone-portrait #board-frame {
-    --board-frame-inner-size: min(78vw, calc(345px * var(--layout-stage-scale)), 37dvh);
-}
-
-html.layout-profile-phone-portrait #stone-info-panel {
-    margin: calc(1px * var(--layout-stage-scale)) 0;
-    padding: calc(5px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #stone-info-panel .stone-info-name {
-    margin-bottom: calc(1px * var(--layout-stage-scale));
-    font-size: calc(12px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #stone-info-panel .stone-info-desc {
-    margin-bottom: calc(2px * var(--layout-stage-scale));
-    font-size: calc(9px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #stone-info-panel .stone-info-list-item {
-    flex-basis: calc(44px * var(--layout-stage-scale));
-    width: calc(44px * var(--layout-stage-scale));
-    min-height: calc(50px * var(--layout-stage-scale));
-    padding: calc(2px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #stone-info-panel .stone-info-list-visual {
-    width: calc(29px * var(--layout-stage-scale));
-    height: calc(29px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #card-detail-panel {
-    max-height: calc(130px * var(--layout-stage-scale));
-    margin-top: calc(2px * var(--layout-stage-scale));
-    padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #card-detail-name {
-    min-height: calc(16px * var(--layout-stage-scale));
-    margin-bottom: calc(3px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #card-detail-desc {
-    min-height: calc(42px * var(--layout-stage-scale));
-    max-height: calc(48px * var(--layout-stage-scale));
-    padding: calc(5px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #card-detail-actions {
-    margin-top: calc(3px * var(--layout-stage-scale));
-    padding: calc(3px * var(--layout-stage-scale));
-}
-
 html.layout-profile-phone-portrait :is(#leftActionButtons, #quick-controls-bar) {
     display: none !important;
 }

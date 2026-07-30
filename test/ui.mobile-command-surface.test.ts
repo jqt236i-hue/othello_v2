@@ -32,8 +32,8 @@ function createFixture() {
           <input id="seVolSlider" type="range" min="0" max="2" step="0.05" value="1">
         </div>
         <div id="side-panel" aria-hidden="true"><div id="control-panel"></div></div>
-        <div id="handSkinPanel" aria-hidden="true"><div id="handSkinPanelHeader"><button id="handSkinCloseBtn">×</button></div></div>
-        <div id="rules-help-panel" aria-hidden="true">
+        <div id="handSkinPanel" aria-hidden="true" role="dialog" aria-modal="false"><div id="handSkinPanelHeader"><button id="handSkinCloseBtn">×</button></div></div>
+        <div id="rules-help-panel" aria-hidden="true" role="dialog" aria-modal="false">
           <div id="rules-help-title-row"><button id="rules-help-close-btn">×</button></div>
           <div id="rules-help-catalog-layout">
             <div id="rules-help-catalog-controls"></div>
@@ -201,6 +201,148 @@ describe('mobile command surface', () => {
     expect(fixture.documentRef.getElementById('mobile-command-settings-header')).not.toBeNull();
     expect(fixture.documentRef.querySelector('#mobile-command-settings-header .mobile-command-native-close')).not.toBeNull();
 
+    controller.destroy();
+    fixture.dom.window.close();
+  });
+
+  test('restores injected chrome and existing attributes before a clean reinitialization', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+
+    controller.openDrawer();
+    fixture.documentRef.getElementById('mobile-command-menu-help')!.click();
+    controller.sync();
+
+    const helpPanel = fixture.documentRef.getElementById('rules-help-panel')!;
+    const helpHeader = fixture.documentRef.getElementById('rules-help-title-row')!;
+    const helpClose = fixture.documentRef.getElementById('rules-help-close-btn')!;
+    const helpLayout = fixture.documentRef.getElementById('rules-help-catalog-layout')!;
+    const firstToggle = fixture.documentRef.getElementById('mobile-command-help-filter-toggle')!;
+    expect(helpPanel.classList.contains('mobile-command-native-panel')).toBe(true);
+    expect(helpPanel.getAttribute('aria-modal')).toBe('true');
+    expect(helpHeader.classList.contains('mobile-command-native-header')).toBe(true);
+    expect(helpClose.classList.contains('mobile-command-native-close')).toBe(true);
+    expect(helpLayout.classList.contains('is-mobile-filters-collapsed')).toBe(true);
+
+    firstToggle.click();
+    expect(helpLayout.classList.contains('is-mobile-filters-collapsed')).toBe(false);
+    controller.destroy();
+
+    expect(fixture.documentRef.getElementById('mobile-command-help-filter-toggle')).toBeNull();
+    expect(fixture.documentRef.querySelector('#rules-help-title-row .mobile-command-current-location')).toBeNull();
+    expect(helpPanel.classList.contains('mobile-command-native-panel')).toBe(false);
+    expect(helpPanel.getAttribute('role')).toBe('dialog');
+    expect(helpPanel.getAttribute('aria-modal')).toBe('false');
+    expect(helpHeader.classList.contains('mobile-command-native-header')).toBe(false);
+    expect(helpClose.classList.contains('mobile-command-native-close')).toBe(false);
+    expect(helpLayout.classList.contains('is-mobile-filters-collapsed')).toBe(false);
+
+    fixture.documentRef.getElementById('rules-help-close-btn')!.click();
+    fixture.windowRef.history.replaceState({}, '');
+    const secondController = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+    secondController.openDrawer();
+    fixture.documentRef.getElementById('mobile-command-menu-help')!.click();
+    secondController.sync();
+
+    const secondToggle = fixture.documentRef.getElementById('mobile-command-help-filter-toggle')!;
+    expect(secondToggle).not.toBe(firstToggle);
+    expect(helpLayout.classList.contains('is-mobile-filters-collapsed')).toBe(true);
+    secondToggle.click();
+    expect(helpLayout.classList.contains('is-mobile-filters-collapsed')).toBe(false);
+
+    secondController.destroy();
+    fixture.dom.window.close();
+  });
+
+  test('restores mobile panel decorations when the phone profile is left', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+    controller.openDrawer();
+    fixture.documentRef.getElementById('mobile-command-menu-appearance')!.click();
+    controller.sync();
+
+    const panel = fixture.documentRef.getElementById('handSkinPanel')!;
+    const header = fixture.documentRef.getElementById('handSkinPanelHeader')!;
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    expect(panel.classList.contains('mobile-command-native-panel')).toBe(true);
+    expect(header.classList.contains('mobile-command-native-header')).toBe(true);
+
+    fixture.documentRef.documentElement.classList.remove('layout-profile-phone-portrait');
+    fixture.documentRef.documentElement.removeAttribute('data-layout-profile');
+    fixture.windowRef.dispatchEvent(new fixture.dom.window.Event('resize'));
+
+    expect(panel.getAttribute('aria-modal')).toBe('false');
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.classList.contains('mobile-command-native-panel')).toBe(false);
+    expect(header.classList.contains('mobile-command-native-header')).toBe(false);
+    expect(fixture.documentRef.querySelector('#handSkinPanelHeader .mobile-command-current-location')).toBeNull();
+    expect(fixture.documentRef.body.classList.contains('mobile-command-surface-locked')).toBe(false);
+
+    fixture.windowRef.history.replaceState({}, '');
+    fixture.documentRef.documentElement.classList.add('layout-profile-phone-portrait');
+    fixture.documentRef.documentElement.setAttribute(
+      'data-layout-profile',
+      'layout-profile-phone-portrait',
+    );
+    fixture.windowRef.dispatchEvent(new fixture.dom.window.Event('resize'));
+    controller.openDrawer();
+    fixture.documentRef.getElementById('mobile-command-menu-appearance')!.click();
+    controller.sync();
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+    expect(panel.classList.contains('mobile-command-native-panel')).toBe(true);
+    expect(header.classList.contains('mobile-command-native-header')).toBe(true);
+
+    controller.destroy();
+    fixture.dom.window.close();
+  });
+
+  test('closes a custom layer with Escape and restores its opening focus', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+    const cpuButton = fixture.documentRef.getElementById('modeCpuBtn') as HTMLButtonElement;
+    cpuButton.focus();
+    controller.openDrawer();
+
+    fixture.documentRef.dispatchEvent(new fixture.dom.window.KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(fixture.documentRef.getElementById('mobile-command-surface')!
+      .classList.contains('is-drawer-open')).toBe(false);
+    expect(fixture.documentRef.activeElement).toBe(cpuButton);
+    controller.destroy();
+    fixture.dom.window.close();
+  });
+
+  test('does not move focus when a native panel was opened outside the mobile menu', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+    const cpuButton = fixture.documentRef.getElementById('modeCpuBtn') as HTMLButtonElement;
+    cpuButton.focus();
+
+    fixture.documentRef.getElementById('modeNetworkBtn')!.click();
+    controller.sync();
+    fixture.documentRef.getElementById('networkCloseBtn')!.click();
+    controller.sync();
+
+    expect(fixture.documentRef.activeElement).toBe(cpuButton);
     controller.destroy();
     fixture.dom.window.close();
   });

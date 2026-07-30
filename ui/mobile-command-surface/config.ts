@@ -1,0 +1,247 @@
+type MobileCommandLayer = 'drawer' | 'quick';
+
+type MobileMenuGroupId = 'game' | 'collection' | 'information' | 'settings';
+
+interface MobileActionCommandSpec {
+  kind: 'action';
+  id: string;
+  label: string;
+  group: MobileMenuGroupId;
+  triggerId: string;
+}
+
+interface MobileExistingHeaderChromeSpec {
+  kind: 'existing';
+  headerElementId: string;
+}
+
+interface MobileInjectedHeaderChromeSpec {
+  kind: 'inject';
+  headerElementId: string;
+  containerElementId: string;
+}
+
+interface MobilePanelCommandSpec {
+  kind: 'panel';
+  id: string;
+  label: string;
+  panelLabel: string;
+  group: MobileMenuGroupId;
+  triggerId: string;
+  panelElementId: string;
+  closeButtonId: string;
+  chrome: MobileExistingHeaderChromeSpec | MobileInjectedHeaderChromeSpec;
+}
+
+type MobileCommandSpec = MobileActionCommandSpec | MobilePanelCommandSpec;
+
+const MOBILE_MENU_GROUP_LABELS: Readonly<Record<MobileMenuGroupId, string>> = {
+  game: 'ゲーム',
+  collection: 'コレクション',
+  information: '情報',
+  settings: '設定',
+};
+
+const MOBILE_COMMANDS = [
+  { kind: 'action', id: 'cpu', label: 'CPU', group: 'game', triggerId: 'modeCpuBtn' },
+  {
+    kind: 'panel',
+    id: 'network',
+    label: 'ネット対戦',
+    panelLabel: 'ネット対戦',
+    group: 'game',
+    triggerId: 'modeNetworkBtn',
+    panelElementId: 'networkOverlay',
+    closeButtonId: 'networkCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'networkModalHeader' },
+  },
+  {
+    kind: 'panel',
+    id: 'rated',
+    label: 'レート戦',
+    panelLabel: 'レート戦',
+    group: 'game',
+    triggerId: 'ratedMatchOpenBtn',
+    panelElementId: 'ratedMatchOverlay',
+    closeButtonId: 'ratedMatchCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'ratedMatchModalHeader' },
+  },
+  { kind: 'action', id: 'action', label: '2Dアクション', group: 'game', triggerId: 'reversiDestinyOpenLink' },
+  {
+    kind: 'panel',
+    id: 'deck',
+    label: 'デッキ',
+    panelLabel: 'デッキ構築',
+    group: 'collection',
+    triggerId: 'deckBuilderOpenBtn',
+    panelElementId: 'deckBuilderOverlay',
+    closeButtonId: 'deckBuilderCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'deckBuilderModalHeader' },
+  },
+  {
+    kind: 'panel',
+    id: 'gacha',
+    label: 'ガチャ',
+    panelLabel: 'ガチャ',
+    group: 'collection',
+    triggerId: 'gachaOpenBtn',
+    panelElementId: 'gachaOverlay',
+    closeButtonId: 'gachaCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'gachaModalHeader' },
+  },
+  {
+    kind: 'panel',
+    id: 'appearance',
+    label: '見た目設定',
+    panelLabel: '見た目設定',
+    group: 'collection',
+    triggerId: 'handSkinBtn',
+    panelElementId: 'handSkinPanel',
+    closeButtonId: 'handSkinCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'handSkinPanelHeader' },
+  },
+  {
+    kind: 'panel',
+    id: 'ranking',
+    label: 'ランキング',
+    panelLabel: 'ランキング',
+    group: 'information',
+    triggerId: 'leaderboardOpenBtn',
+    panelElementId: 'leaderboardOverlay',
+    closeButtonId: 'leaderboardCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'leaderboardModalHeader' },
+  },
+  {
+    kind: 'panel',
+    id: 'profile',
+    label: 'プロフィール',
+    panelLabel: 'プロフィール',
+    group: 'information',
+    triggerId: 'profileOpenBtn',
+    panelElementId: 'profileOverlay',
+    closeButtonId: 'profileCloseBtn',
+    chrome: { kind: 'existing', headerElementId: 'profileModalHeader' },
+  },
+  {
+    kind: 'panel',
+    id: 'help',
+    label: 'ヘルプ',
+    panelLabel: 'ヘルプ',
+    group: 'information',
+    triggerId: 'rulesHelpBtn',
+    panelElementId: 'rules-help-panel',
+    closeButtonId: 'rules-help-close-btn',
+    chrome: { kind: 'existing', headerElementId: 'rules-help-title-row' },
+  },
+  {
+    kind: 'panel',
+    id: 'settings',
+    label: '設定',
+    panelLabel: '設定',
+    group: 'settings',
+    triggerId: 'sidePanelToggleBtn',
+    panelElementId: 'side-panel',
+    closeButtonId: 'sidePanelToggleBtn',
+    chrome: {
+      kind: 'inject',
+      headerElementId: 'mobile-command-settings-header',
+      containerElementId: 'control-panel',
+    },
+  },
+] as const satisfies readonly MobileCommandSpec[];
+
+type MobileCommandDefinition = (typeof MOBILE_COMMANDS)[number];
+type MobilePanelCommandDefinition = Extract<MobileCommandDefinition, { kind: 'panel' }>;
+type MobileNativePanelId = MobilePanelCommandDefinition['id'];
+
+const MOBILE_PANEL_COMMANDS = MOBILE_COMMANDS.filter(
+  (command): command is MobilePanelCommandDefinition => command.kind === 'panel',
+);
+
+const MOBILE_COMMAND_BY_ID = new Map<string, MobileCommandDefinition>(
+  MOBILE_COMMANDS.map((command) => [command.id, command]),
+);
+
+const MOBILE_PANEL_COMMAND_BY_ID = new Map<MobileNativePanelId, MobilePanelCommandDefinition>(
+  MOBILE_PANEL_COMMANDS.map((command) => [command.id, command]),
+);
+
+function getMobileCommand(id: string): MobileCommandDefinition | null {
+  return MOBILE_COMMAND_BY_ID.get(id) || null;
+}
+
+function getMobilePanelCommand(panelId: MobileNativePanelId): MobilePanelCommandDefinition {
+  const command = MOBILE_PANEL_COMMAND_BY_ID.get(panelId);
+  if (!command) throw new Error(`Unknown mobile panel: ${panelId}`);
+  return command;
+}
+
+interface MobileQuickButtonSpec {
+  kind: 'button';
+  sourceId: string;
+  confirm: 'local-reset' | null;
+}
+
+interface MobileQuickSelectSpec {
+  kind: 'select';
+  sourceId: string;
+  proxyId: string;
+  ariaLabel: string;
+}
+
+interface MobileQuickRangeSpec {
+  kind: 'range';
+  sourceId: string;
+  proxyId: string;
+  label: string;
+}
+
+type MobileQuickControlSpec =
+  | MobileQuickButtonSpec
+  | MobileQuickSelectSpec
+  | MobileQuickRangeSpec;
+
+const MOBILE_QUICK_CONTROLS = [
+  { kind: 'button', sourceId: 'resetBtn', confirm: 'local-reset' },
+  { kind: 'button', sourceId: 'quickBgmToggleBtn', confirm: null },
+  { kind: 'button', sourceId: 'autoToggleBtn', confirm: null },
+  { kind: 'button', sourceId: 'muteBtn', confirm: null },
+  {
+    kind: 'select',
+    sourceId: 'bgmTrackSelect',
+    proxyId: 'mobile-command-bgm-select',
+    ariaLabel: 'BGM選択',
+  },
+  {
+    kind: 'range',
+    sourceId: 'seVolSlider',
+    proxyId: 'mobile-command-volume-slider',
+    label: '全体音量',
+  },
+] as const satisfies readonly MobileQuickControlSpec[];
+
+type MobileQuickControlDefinition = (typeof MOBILE_QUICK_CONTROLS)[number];
+type MobileQuickButtonDefinition = Extract<MobileQuickControlDefinition, { kind: 'button' }>;
+type MobileQuickSelectDefinition = Extract<MobileQuickControlDefinition, { kind: 'select' }>;
+type MobileQuickRangeDefinition = Extract<MobileQuickControlDefinition, { kind: 'range' }>;
+
+export {
+  MOBILE_COMMANDS,
+  MOBILE_MENU_GROUP_LABELS,
+  MOBILE_PANEL_COMMANDS,
+  MOBILE_QUICK_CONTROLS,
+  getMobileCommand,
+  getMobilePanelCommand,
+};
+
+export type {
+  MobileCommandDefinition,
+  MobileCommandLayer,
+  MobileMenuGroupId,
+  MobileNativePanelId,
+  MobilePanelCommandDefinition,
+  MobileQuickButtonDefinition,
+  MobileQuickControlDefinition,
+  MobileQuickRangeDefinition,
+  MobileQuickSelectDefinition,
+};

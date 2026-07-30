@@ -563,6 +563,12 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/layout-stage": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/layout-stage.js"),
   "ui/marker-bridge": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/marker-bridge.js"),
   "ui/mobile-command-surface": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface.js"),
+  "ui/mobile-command-surface/config": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/config.js"),
+  "ui/mobile-command-surface/control-proxies": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/control-proxies.js"),
+  "ui/mobile-command-surface/dom-mutations": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/dom-mutations.js"),
+  "ui/mobile-command-surface/history": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/history.js"),
+  "ui/mobile-command-surface/state": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/state.js"),
+  "ui/mobile-command-surface/view": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/view.js"),
   "ui/move-executor-visuals": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/move-executor-visuals.js"),
   "ui/network-client": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network-client.js"),
   "ui/network/action-bridge": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/action-bridge.js"),
@@ -1271,6 +1277,12 @@ installBootModuleMetadata({
     "ui/layout-stage",
     "ui/marker-bridge",
     "ui/mobile-command-surface",
+    "ui/mobile-command-surface/config",
+    "ui/mobile-command-surface/control-proxies",
+    "ui/mobile-command-surface/dom-mutations",
+    "ui/mobile-command-surface/history",
+    "ui/mobile-command-surface/state",
+    "ui/mobile-command-surface/view",
     "ui/move-executor-visuals",
     "ui/network-client",
     "ui/network/action-bridge",
@@ -1488,4 +1500,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 693;
+export const startupModuleCount = 699;

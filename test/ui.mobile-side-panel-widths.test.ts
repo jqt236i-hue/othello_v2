@@ -23,10 +23,14 @@ describe('mobile command surface panel contract', () => {
 
   test('phone portrait keeps the board, status, card detail, and hand inside the viewport', () => {
     const mobileCss = readRepoTextFile('styles-mobile-command-surface.css');
+    const responsiveCss = readRepoTextFile('styles-responsive.css');
 
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*overflow-x:\s*clip/);
-    expect(mobileCss).toMatch(/--board-frame-inner-size:\s*min\([\s\S]*78vw,[\s\S]*37dvh[\s\S]*\)/);
-    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel\s+\.stone-info-list-item[\s\S]*min-height:\s*calc\(50px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*max-height:\s*calc\(130px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/--board-frame-inner-size:\s*min\([\s\S]*78vw,[\s\S]*37dvh[\s\S]*\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel\s+\.stone-info-list-item[\s\S]*min-height:\s*calc\(50px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*max-height:\s*calc\(130px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(mobileCss).not.toMatch(/html\.layout-profile-phone-portrait\s+#board-frame/);
+    expect(mobileCss).not.toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel/);
+    expect(mobileCss).not.toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel/);
   });
 });

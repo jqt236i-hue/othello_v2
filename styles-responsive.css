@@ -217,7 +217,7 @@ html.layout-profile-phone-portrait .player-area-bottom {
 }
 
 html.layout-profile-phone-portrait #board-frame {
-    --board-frame-inner-size: min(84vw, calc(410px * var(--layout-stage-scale)), 44dvh);
+    --board-frame-inner-size: min(78vw, calc(345px * var(--layout-stage-scale)), 37dvh);
     --board-frame-padding: calc(7.5px * var(--layout-stage-scale));
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
@@ -273,34 +273,34 @@ html.layout-profile-phone-portrait #stone-info-panel {
     width: var(--layout-phone-portrait-main-column-width);
     max-width: 96vw;
     max-height: none;
-    margin: calc(2px * var(--layout-stage-scale)) 0;
-    padding: calc(7px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    margin: calc(1px * var(--layout-stage-scale)) 0;
+    padding: calc(5px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
     overflow: hidden;
     transform: none;
     z-index: 40;
 }
 
 html.layout-profile-phone-portrait #stone-info-panel .stone-info-name {
-    margin-bottom: calc(2px * var(--layout-stage-scale));
-    font-size: calc(13px * var(--layout-stage-scale));
+    margin-bottom: calc(1px * var(--layout-stage-scale));
+    font-size: calc(12px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #stone-info-panel .stone-info-desc {
-    margin-bottom: calc(4px * var(--layout-stage-scale));
-    font-size: calc(10px * var(--layout-stage-scale));
+    margin-bottom: calc(2px * var(--layout-stage-scale));
+    font-size: calc(9px * var(--layout-stage-scale));
     line-height: 1.25;
 }
 
 html.layout-profile-phone-portrait #stone-info-panel .stone-info-list-item {
-    flex-basis: calc(50px * var(--layout-stage-scale));
-    width: calc(50px * var(--layout-stage-scale));
-    min-height: calc(63px * var(--layout-stage-scale));
-    padding: calc(3px * var(--layout-stage-scale));
+    flex-basis: calc(44px * var(--layout-stage-scale));
+    width: calc(44px * var(--layout-stage-scale));
+    min-height: calc(50px * var(--layout-stage-scale));
+    padding: calc(2px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #stone-info-panel .stone-info-list-visual {
-    width: calc(36px * var(--layout-stage-scale));
-    height: calc(36px * var(--layout-stage-scale));
+    width: calc(29px * var(--layout-stage-scale));
+    height: calc(29px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #side-panel {
@@ -334,25 +334,25 @@ html.layout-profile-phone-portrait #card-detail-panel {
     bottom: auto;
     width: var(--layout-phone-portrait-main-column-width);
     min-height: 0;
-    max-height: calc(170px * var(--layout-stage-scale));
-    margin: calc(4px * var(--layout-stage-scale)) 0 0;
-    padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    max-height: calc(130px * var(--layout-stage-scale));
+    margin: calc(2px * var(--layout-stage-scale)) 0 0;
+    padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
     transform: none;
     overflow: hidden;
     z-index: 40;
 }
 
 html.layout-profile-phone-portrait #card-detail-name {
-    min-height: calc(18px * var(--layout-stage-scale));
-    margin-bottom: calc(5px * var(--layout-stage-scale));
+    min-height: calc(16px * var(--layout-stage-scale));
+    margin-bottom: calc(3px * var(--layout-stage-scale));
     font-size: calc(13px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #card-detail-desc {
-    min-height: calc(58px * var(--layout-stage-scale));
-    max-height: calc(66px * var(--layout-stage-scale));
+    min-height: calc(42px * var(--layout-stage-scale));
+    max-height: calc(48px * var(--layout-stage-scale));
     margin-bottom: calc(4px * var(--layout-stage-scale));
-    padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
     font-size: calc(12px * var(--layout-stage-scale));
     line-height: 1.42;
     overflow-y: auto;
@@ -364,8 +364,8 @@ html.layout-profile-phone-portrait #card-detail-effect-tags {
 }
 
 html.layout-profile-phone-portrait #card-detail-actions {
-    margin-top: calc(6px * var(--layout-stage-scale));
-    padding: calc(5px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale));
+    margin-top: calc(3px * var(--layout-stage-scale));
+    padding: calc(3px * var(--layout-stage-scale));
     gap: calc(5px * var(--layout-stage-scale));
 }
 
