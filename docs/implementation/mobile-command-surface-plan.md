@@ -583,7 +583,28 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - [x] 320x568では短画面上限が働き、縦横溢れとUI欠けがない
 - [x] 393x852でも盤面・カード詳細・自分手札・操作が重ならない
 - [x] PC/iPad/横画面のレイアウト契約を変更しない
-- [ ] 比較QA、focused tests、生成、commit、deploy、本番確認が完了する
+- [x] 比較QA、focused tests、生成、commit、deploy、本番確認が完了する
+
+### 実機下端余白と盤面拡大 verification results
+
+- focused Jest 6 suites / 22 tests: 成功
+  - `test/ui.layout-responsive.aspect-ratio.test.ts`
+  - `test/ui.mobile-side-panel-widths.test.ts`
+  - `test/ui.mobile-quick-controls-layout.test.ts`
+  - `test/ui.hand-deck-scale-contract.test.ts`
+  - `test/ui.deck-fixed-hand-layout.test.ts`
+  - `test/ui.charge-hud-position-contract.test.ts`
+- `npm run worker:prepare`: 成功（`build:browser`、`build:vite`、root/training typecheck、Worker mirror 958 filesを含む。既知のchunk-size warningのみ）
+- Codex in-app Browser:
+  - 393x673: 盤面外枠331.83px、山札下端663.83px、下端余白9.17px、縦横溢れなし
+  - 320x568: 盤面外枠258.47px、山札下端555.59px、縦横溢れと上部3要素の重なりなし
+  - 393x852: 盤面外枠376.36px、カード詳細・手札・山札・`操作` の重なりなし
+  - 実機写真と実装を393x673へ正規化した結合比較でP0/P1/P2なし
+- Cloudflare Worker:
+  - URL: `https://card.reversi-0.workers.dev`
+  - Version ID: `d3dfb914-f999-4c96-a90d-82fee78c7b3f`
+  - `/`、`/mobile-preview`、配信CSS、`/api/match/list` はすべてHTTP 200
+  - 本番 `styles-responsive.css` に通常高盤面上限と620px短画面上限、本番 `styles-mobile-command-surface.css` にsafe areaだけの下端余白が反映済み
 
 ### 実機下端余白と盤面拡大 Self-review
 
