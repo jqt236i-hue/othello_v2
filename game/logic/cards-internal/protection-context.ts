@@ -15,6 +15,7 @@ type ConstantsLike = {
 type SpecialStoneRegistryLike = {
     getSpecialStoneInfo(rawType: unknown): { flipProtected?: boolean } | null;
     getSpecialStoneFootprint?(marker: Marker): Array<{ row: number; col: number }>;
+    isInviolableStoneEffect?(rawType: unknown, markerData?: unknown): boolean;
     normalizeSpecialStoneType?(rawType: unknown): string | null;
     SPECIAL_STONE_REGISTRY?: Record<string, { flipProtected?: boolean } | null>;
 };
@@ -198,8 +199,29 @@ function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextD
         }
     }
 
-    const inviolableStones = manifests
-        .map((entry) => mapOwnerPosition(entry, constants));
+    const inviolableStoneByKey = new Map<string, { row?: number; col?: number; owner?: unknown }>();
+    const addInviolableStone = (entry: { row?: number; col?: number; owner?: unknown }) => {
+        const key = `${Number(entry && entry.row)},${Number(entry && entry.col)}`;
+        if (!inviolableStoneByKey.has(key)) inviolableStoneByKey.set(key, entry);
+    };
+    for (const entry of manifests) {
+        addInviolableStone(mapOwnerPosition(entry, constants));
+    }
+    for (const entry of specials) {
+        if (!entry || !entry.data) continue;
+        const type = normalizeMarkerType(entry, registry);
+        if (
+            !registry
+            || typeof registry.isInviolableStoneEffect !== 'function'
+            || registry.isInviolableStoneEffect(type, entry.data) !== true
+        ) {
+            continue;
+        }
+        for (const position of mapOwnerFootprintPositions(entry, constants, registry)) {
+            addInviolableStone(position);
+        }
+    }
+    const inviolableStones = Array.from(inviolableStoneByKey.values());
 
     permaProtectedStones.push(...inviolableStones);
 

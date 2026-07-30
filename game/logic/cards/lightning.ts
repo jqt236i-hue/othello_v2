@@ -98,6 +98,7 @@ interface LightningRandomSourceModule {
 
 interface LightningCardMarkersModule {
   isManifestStoneAt?: (cardState: LightningCardState, row: number, col: number) => boolean;
+  isInviolableCell?: (cardState: LightningCardState, row: number, col: number) => boolean;
 }
 
 type LightningRandomLike = (() => number) | { random: () => number };
@@ -239,7 +240,10 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function isManifestTarget(cardState: LightningCardState, row: number, col: number): boolean {
+function isUntargetableStone(cardState: LightningCardState, row: number, col: number): boolean {
+  if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
+    return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
+  }
   if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
     return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
   }
@@ -256,7 +260,7 @@ function collectEnemyTargets(cardState: LightningCardState, gameState: Lightning
   const targets: LightningEffectPosition[] = [];
   for (const cell of collectBoardCells(gameState, cardState)) {
     if (cell.owner !== enemyValue) continue;
-    if (isManifestTarget(cardState, cell.row, cell.col)) continue;
+    if (isUntargetableStone(cardState, cell.row, cell.col)) continue;
     targets.push({ row: cell.row, col: cell.col });
   }
   return targets;

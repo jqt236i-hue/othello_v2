@@ -155,6 +155,13 @@ const CardZombieWill = (function (root: any, factory: any) {
         const reg = getSpecialStoneRegistryModule();
         if (
             reg
+            && typeof reg.isInviolableCell === 'function'
+            && reg.isInviolableCell(getMarkers(cardState), row, col) === true
+        ) {
+            return false;
+        }
+        if (
+            reg
             && typeof reg.isFullyProtectedCell === 'function'
             && reg.isFullyProtectedCell(getMarkers(cardState), row, col) === true
         ) {

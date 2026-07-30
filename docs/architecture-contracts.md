@@ -260,7 +260,7 @@ A multi-cell special stone is represented by ordinary owner values in every occu
 
 - shared footprint helpers own anchor-to-cell projection, cell-to-group lookup, canonical row/column ordering, and complete-group validation
 - rules that count board stones consume all occupied cells; rules that count special-stone instances deduplicate by group marker identity
-- flip/destroy protection and single-cell target exclusion are projected to every footprint cell before board-kernel evaluation
+- inviolability and single-cell target exclusion are projected to every footprint cell before board-kernel evaluation; `SHINRA_BANSHO_GOD` remains one true-special-stone instance for counting but is not targetable by card, status, cell-removal, or absolute-execution consumers
 - fusion consumption, summon clearing, and topology-driven group dissolution are typed atomic operations; they must not enter normal destruction history, recovery, evasion, salvation, or charge accounting
 - a complete snapshot must contain the group marker and all four same-owner cells, or none of them; ingress and reconciliation fail closed on partial groups
 - generic marker serialization remains the transport authority. Browser, headless, local server, Worker, CPU, reconnect, and spectator projection rebuild the same footprint index from canonical state

@@ -170,7 +170,8 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('森羅万象神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('2×2の永続特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('完全保護');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('不可侵');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('完全保護');
 
     const panel = document.getElementById('stone-info-detail-panel') as HTMLElement;
     expect(panel.classList.contains('has-special-background')).toBe(true);

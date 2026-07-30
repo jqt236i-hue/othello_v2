@@ -304,6 +304,12 @@ function isActiveManifestMarker(marker: any): boolean {
 }
 
 function isInviolableMarker(marker: any): boolean {
+    if (
+        SpecialStoneRegistry
+        && typeof SpecialStoneRegistry.isInviolableSpecialStoneMarker === 'function'
+    ) {
+        return SpecialStoneRegistry.isInviolableSpecialStoneMarker(marker) === true;
+    }
     if (isActiveManifestMarker(marker)) {
         const type = getNormalizedMarkerType(marker);
         if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isInviolableManifestStoneType === 'function') {
@@ -311,10 +317,20 @@ function isInviolableMarker(marker: any): boolean {
         }
         return isManifestStoneType(type);
     }
-    return false;
+    return (
+        marker
+        && marker.kind === 'specialStone'
+        && getNormalizedMarkerType(marker) === 'SHINRA_BANSHO_GOD'
+    );
 }
 
 function isInviolableCell(cardState: CardState, row: number, col: number): boolean {
+    if (
+        SpecialStoneRegistry
+        && typeof SpecialStoneRegistry.isInviolableCell === 'function'
+    ) {
+        return SpecialStoneRegistry.isInviolableCell(getMarkers(cardState), row, col) === true;
+    }
     return getMarkers(cardState).some((marker: any) => (
         marker &&
         markerOccupiesCell(marker, row, col) &&

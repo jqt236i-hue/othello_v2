@@ -4265,6 +4265,7 @@ const {
             destroyAt,
             BoardOpsModule,
             isManifestStoneAt,
+            isInviolableCell,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         });
@@ -4282,12 +4283,14 @@ const {
             'destroyAt',
             'BoardOps',
             'isManifestStoneAt',
+            'isInviolableCell',
             'selectRandomEmptyBoardShapeDestination',
             'moveCoexistingSpecialMarkers'
         ], {
             destroyAt,
             BoardOps: BoardOpsModule,
             isManifestStoneAt,
+            isInviolableCell,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, 'CardLogic.processUltimateDestroyGodEffectsAtAnchor');
@@ -4304,12 +4307,14 @@ const {
             'destroyAt',
             'BoardOps',
             'isManifestStoneAt',
+            'isInviolableCell',
             'selectRandomEmptyBoardShapeDestination',
             'moveCoexistingSpecialMarkers'
         ], {
             destroyAt,
             BoardOps: BoardOpsModule,
             isManifestStoneAt,
+            isInviolableCell,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, 'CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor');
@@ -4816,6 +4821,7 @@ const {
             BoardOps: BoardOpsModule,
             destroyAt,
             isManifestStoneAt,
+            isInviolableCell,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
             robotVacuumTurns: ROBOT_VACUUM_TURNS
         };
@@ -4836,6 +4842,7 @@ const {
             BoardOps: BoardOpsModule,
             destroyAt,
             isManifestStoneAt,
+            isInviolableCell,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey
         };
         return CardHyperactiveModule.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);

@@ -92,6 +92,7 @@ interface MeteorGodRandomLike {
 
 interface MeteorGodCardMarkersModule {
   isManifestStoneAt?: (cardState: MeteorGodCardState, row: number, col: number) => boolean;
+  isInviolableCell?: (cardState: MeteorGodCardState, row: number, col: number) => boolean;
 }
 
 interface MeteorGodProcessDeps {
@@ -255,7 +256,10 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function isManifestTarget(cardState: MeteorGodCardState, row: number, col: number): boolean {
+function isUntargetableStone(cardState: MeteorGodCardState, row: number, col: number): boolean {
+  if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
+    return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
+  }
   if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
     return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
   }
@@ -272,7 +276,7 @@ function collectEnemyTargets(cardState: MeteorGodCardState, gameState: MeteorGod
   const targets: MeteorGodEffectPosition[] = [];
   for (const cell of collectBoardCells(gameState, cardState)) {
     if (cell.owner !== enemyValue) continue;
-    if (isManifestTarget(cardState, cell.row, cell.col)) continue;
+    if (isUntargetableStone(cardState, cell.row, cell.col)) continue;
     targets.push({ row: cell.row, col: cell.col });
   }
   return targets;

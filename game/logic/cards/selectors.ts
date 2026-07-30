@@ -1337,6 +1337,7 @@ function getFreezeTargets(cardState: CardState, gameState: GameState): TargetCel
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
     forEachBoardShapeCell(cardState, gameState, (r, c) => {
+        if (isInviolableCell(cardState, r, c)) return;
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;
         res.push({ row: r, col: c });

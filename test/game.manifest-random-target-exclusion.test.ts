@@ -41,7 +41,26 @@ function addManifestStone(cardState: any, gameState: any, row: number, col: numb
   });
 }
 
-describe('manifest stones are excluded from random stone targets', () => {
+function addShinraStone(cardState: any, gameState: any, row: number, col: number, owner: 'black' | 'white' = 'white') {
+  const ownerValue = owner === 'black' ? Shared.BLACK : Shared.WHITE;
+  for (const [cellRow, cellCol] of [[row, col], [row, col + 1], [row + 1, col], [row + 1, col + 1]]) {
+    gameState.board[cellRow][cellCol] = ownerValue;
+  }
+  cardState.markers.push({
+    id: `shinra-${row}-${col}`,
+    kind: 'specialStone',
+    row,
+    col,
+    owner,
+    data: {
+      type: 'SHINRA_BANSHO_GOD',
+      footprint: 'square_2x2.v1',
+      permanent: true
+    }
+  });
+}
+
+describe('inviolable stones are excluded from automatic stone targets', () => {
   test('LIGHTNING_WILL skips manifestation stones when choosing a random enemy', () => {
     const { cardState, gameState, prng } = createStates(0);
     gameState.board[0][0] = Shared.BLACK;
@@ -244,5 +263,117 @@ describe('manifest stones are excluded from random stone targets', () => {
     expect(gameState.board[2][2]).toBe(Shared.WHITE);
     expect(gameState.board[2][3]).toBe(Shared.BLACK);
     expect(prng.calls).toBe(1);
+  });
+
+  test.each([
+    ['LIGHTNING_WILL', 'LIGHTNING', (cardState: any, gameState: any, prng: any) =>
+      CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, prng)],
+    ['METEOR_GOD', 'METEOR_GOD', (cardState: any, gameState: any, prng: any) =>
+      CardLogic.processMeteorGodEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, prng)]
+  ])('%s skips all Shinra footprint cells before random selection', (_label, markerType, runEffect) => {
+    const { cardState, gameState, prng } = createStates(0);
+    gameState.board[0][0] = Shared.BLACK;
+    addShinraStone(cardState, gameState, 1, 1);
+    gameState.board[4][4] = Shared.WHITE;
+    cardState.markers.push({
+      id: `source-${markerType}`,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: markerType, remainingOwnerTurns: 6 }
+    });
+
+    const out = runEffect(cardState, gameState, prng);
+
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 4, col: 4 })]);
+    expect(gameState.board[4][4]).toBe(Shared.EMPTY);
+    expect([
+      gameState.board[1][1],
+      gameState.board[1][2],
+      gameState.board[2][1],
+      gameState.board[2][2]
+    ]).toEqual([Shared.WHITE, Shared.WHITE, Shared.WHITE, Shared.WHITE]);
+  });
+
+  test.each([
+    ['DESTROY_DRAGON', (cardState: any, gameState: any) =>
+      CardLogic.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, createPrng(0))],
+    ['ULTIMATE_DESTROY_GOD', (cardState: any, gameState: any) =>
+      CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, 'black', 3, 3, {
+        decrementRemainingOwnerTurns: false
+      })]
+  ])('%s skips adjacent Shinra cells', (type, runEffect) => {
+    const { cardState, gameState } = createStates(0);
+    gameState.board[3][3] = Shared.BLACK;
+    addShinraStone(cardState, gameState, 1, 1);
+    gameState.board[2][3] = Shared.WHITE;
+    cardState.markers.push({
+      id: `source-${type}`,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type, remainingOwnerTurns: 6 }
+    });
+
+    const out = runEffect(cardState, gameState);
+
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 2, col: 3 })]);
+    expect(gameState.board[2][2]).toBe(Shared.WHITE);
+    expect(gameState.board[2][3]).toBe(Shared.EMPTY);
+  });
+
+  test('SNIPER skips nearer Shinra cells and targets the nearest eligible enemy', () => {
+    const { cardState, gameState, prng } = createStates(0);
+    gameState.board[3][3] = Shared.BLACK;
+    addShinraStone(cardState, gameState, 2, 4);
+    gameState.board[3][6] = Shared.WHITE;
+    cardState.markers.push({
+      id: 'source-sniper-shinra',
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'SNIPER', remainingOwnerTurns: 6 }
+    });
+
+    const out = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(out.destroyed).toEqual([expect.objectContaining({ row: 3, col: 6 })]);
+    expect(gameState.board[3][4]).toBe(Shared.WHITE);
+    expect(gameState.board[3][6]).toBe(Shared.EMPTY);
+  });
+
+  test.each([
+    ['ROBOT_VACUUM', (cardState: any, gameState: any, prng: any) =>
+      CardLogic.processRobotVacuumMoveAtAnchor(cardState, gameState, 'black', 3, 3, prng, {
+        currentTurnPlayerKey: 'black'
+      }), 'sucked'],
+    ['GLUTTONOUS', (cardState: any, gameState: any, prng: any) =>
+      CardLogic.processGluttonousMoveAtAnchor(cardState, gameState, 'black', 3, 3, prng), 'ate']
+  ])('%s skips Shinra before random adjacent selection', (type, runEffect, resultKey) => {
+    const { cardState, gameState } = createStates(0);
+    const prng = createPrng([0, 0]);
+    gameState.board[3][3] = Shared.BLACK;
+    addShinraStone(cardState, gameState, 1, 1);
+    gameState.board[2][3] = Shared.WHITE;
+    cardState.markers.push({
+      id: `source-${type}`,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: {
+        type,
+        remainingOwnerTurns: 5,
+        gluttonousMissStreak: 0
+      }
+    });
+
+    const out = runEffect(cardState, gameState, prng) as any;
+
+    expect(out[resultKey]).toEqual([expect.objectContaining({ row: 2, col: 3 })]);
+    expect(gameState.board[2][2]).toBe(Shared.WHITE);
   });
 });

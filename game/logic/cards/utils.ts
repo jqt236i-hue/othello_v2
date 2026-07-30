@@ -356,7 +356,11 @@ function isTrueSpecialStoneAt(cardState: any, row: any, col: any): boolean {
 }
 
 function isInviolableStoneAt(cardState: any, row: any, col: any): boolean {
-    return getMarkers(cardState).some((marker: any) => (
+    const markers = getMarkers(cardState);
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isInviolableCell === 'function') {
+        return SpecialStoneRegistry.isInviolableCell(markers, row, col) === true;
+    }
+    return markers.some((marker: any) => (
         marker &&
         (marker.kind === 'specialStone' || marker.kind === 'manifestStone') &&
         marker.row === row &&

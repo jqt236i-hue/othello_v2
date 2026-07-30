@@ -32,6 +32,7 @@
         desc: string;
         flipProtected?: boolean;
         destroyProtected?: boolean;
+        inviolable?: boolean;
         multiCellFootprint?: string;
         detailBackgroundImage?: string;
         timerClass?: string;
@@ -283,9 +284,8 @@
         }),
         SHINRA_BANSHO_GOD: Object.freeze({
             name: '森羅万象神',
-            desc: '火・水・草・雷の意志が融合した2×2の永続特殊石。完全保護を持ち、自ターン開始時に4属性効果を順番に発動する。',
-            flipProtected: true,
-            destroyProtected: true,
+            desc: '火・水・草・雷の意志が融合した2×2の永続特殊石。不可侵を持ち、自ターン開始時に4属性効果を順番に発動する。',
+            inviolable: true,
             multiCellFootprint: 'square_2x2.v1',
             detailBackgroundImage: 'assets/images/special-cards/backgrounds/shinra_bansho_god_background.png'
         }),
@@ -818,6 +818,30 @@
         ));
     }
 
+    function isInviolableSpecialStoneMarker(marker: any): boolean {
+        if (
+            !marker
+            || (marker.kind !== 'specialStone' && marker.kind !== 'manifestStone')
+            || !marker.data
+            || !isInviolableStoneEffect(marker.data.type, marker.data)
+        ) {
+            return false;
+        }
+        if (Object.prototype.hasOwnProperty.call(marker.data, 'remainingOwnerTurns')) {
+            const remaining = Number(marker.data.remainingOwnerTurns);
+            return Number.isFinite(remaining) && remaining > 0;
+        }
+        return true;
+    }
+
+    function isInviolableCell(markers: unknown, row: unknown, col: unknown): boolean {
+        if (!Array.isArray(markers)) return false;
+        return markers.some((marker) => (
+            isInviolableSpecialStoneMarker(marker)
+            && markerOccupiesCell(marker, row, col)
+        ));
+    }
+
     function getSpecialStoneDisplayName(rawType: unknown, fallback?: unknown): string {
         const info = getSpecialStoneInfo(rawType);
         if (info && info.name) return info.name;
@@ -845,6 +869,8 @@
     function isInviolableSpecialType(rawType: unknown): boolean {
         const type = normalizeSpecialStoneType(rawType);
         if (!type) return false;
+        const info = getSpecialStoneInfo(type);
+        if (info && info.inviolable === true) return true;
         const metadata = getSpecialCardMarkerMetadata(type);
         return !!(metadata && metadata.inviolable === true);
     }
@@ -971,7 +997,12 @@
         const countsAsSpecialStone = rule
             ? rule.countsAsSpecialStone
             : category === 'true_special_stone' || category === 'trap' || category === 'bomb';
-        const inviolable = category === 'manifest_stone' || INVIOLABLE_MANIFEST_STONE_TYPES.has(type);
+        const info = getSpecialStoneInfo(type);
+        const inviolable = (
+            category === 'manifest_stone'
+            || INVIOLABLE_MANIFEST_STONE_TYPES.has(type)
+            || !!(info && info.inviolable === true)
+        );
         const targetableAsSpecialStone = countsAsSpecialStone && !inviolable;
         return Object.freeze({
             category,
@@ -1181,6 +1212,8 @@
         isMultiCellSpecialStoneMarker,
         isFullyProtectedSpecialStoneMarker,
         isFullyProtectedCell,
+        isInviolableSpecialStoneMarker,
+        isInviolableCell,
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
         getSpecialCardMarkerMetadata,

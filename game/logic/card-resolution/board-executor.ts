@@ -94,19 +94,33 @@ function countsAsBoardExecutorSpecialStone(marker: any): boolean {
 function isBoardExecutorAffectedSpecialMarker(marker: any): boolean {
     if (!isActiveMarker(marker)) return false;
     if (!Number.isInteger(Number(marker.row)) || !Number.isInteger(Number(marker.col))) return false;
+    const type = markerTypeOf(marker);
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isTargetableSpecialStone === 'function') {
+        return SpecialStoneRegistry.isTargetableSpecialStone(type, marker.data) === true;
+    }
+    if (
+        SpecialStoneRegistry
+        && typeof SpecialStoneRegistry.isInviolableStoneEffect === 'function'
+        && SpecialStoneRegistry.isInviolableStoneEffect(type, marker.data) === true
+    ) {
+        return false;
+    }
     return countsAsBoardExecutorSpecialStone(marker);
 }
 
 function collectBoardExecutorSpecialStoneInstances(cardState: CardState, deps?: any): any[] {
     return getMarkers(cardState, deps).filter((marker) => (
-        isBoardExecutorAffectedSpecialMarker(marker)
+        isActiveMarker(marker)
+        && Number.isInteger(Number(marker && marker.row))
+        && Number.isInteger(Number(marker && marker.col))
+        && countsAsBoardExecutorSpecialStone(marker)
     ));
 }
 
 function collectBoardExecutorSpecialStoneCells(cardState: CardState, deps?: any): Array<{ row: number; col: number; owner: PlayerKey }> {
     const seen = new Set<string>();
     const cells: Array<{ row: number; col: number; owner: PlayerKey }> = [];
-    for (const marker of collectBoardExecutorSpecialStoneInstances(cardState, deps)) {
+    for (const marker of getMarkers(cardState, deps).filter(isBoardExecutorAffectedSpecialMarker)) {
         const footprint = SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneFootprint === 'function'
             ? SpecialStoneRegistry.getSpecialStoneFootprint(marker)
             : [{ row: Number(marker.row), col: Number(marker.col) }];
@@ -155,7 +169,6 @@ function applyBoardExecutorUsage(cardState: CardState, gameState: GameState, pla
                 BOARD_EXECUTOR_MARKER_TYPE,
                 'board_executor_special_stone_hole',
                 {
-                    ignoreInviolable: true,
                     removalKind: 'board_executor_hole',
                     removalPolicy: 'board_executor',
                     randomSource: prng || null,

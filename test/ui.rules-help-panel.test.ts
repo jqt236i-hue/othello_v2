@@ -720,7 +720,7 @@ describe('rules help panel', () => {
     const popover = document.querySelector('.rules-help-tag-popover') as HTMLElement;
     expect(popover.getAttribute('aria-hidden')).toBe('false');
     expect(popover.querySelector('.rules-help-tag-popover-title').textContent).toBe('不可侵');
-    expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('通常のカード効果や手札効果の対象から外す');
+    expect(popover.querySelector('.rules-help-tag-popover-body').textContent).toContain('盤面干渉効果の対象から外す');
 
   });
 

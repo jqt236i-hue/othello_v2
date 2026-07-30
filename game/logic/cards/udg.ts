@@ -111,6 +111,7 @@ interface UDGDeps {
     destroyAt?: (cardState: CardState, gameState: GameState, row: number, col: number) => boolean;
     BoardOps?: any;
     isManifestStoneAt?: (cardState: CardState, row: number, col: number) => boolean;
+    isInviolableCell?: (cardState: CardState, row: number, col: number) => boolean;
     markersAt?: (row: any, col: any) => any[];
     decrementRemainingOwnerTurns?: boolean;
 }
@@ -126,7 +127,13 @@ function isManifestMarkerForUdg(marker: any): boolean {
     );
 }
 
-function isManifestTarget(cardState: CardState, row: number, col: number, deps: UDGDeps = {}): boolean {
+function isUntargetableStone(cardState: CardState, row: number, col: number, deps: UDGDeps = {}): boolean {
+    if (deps && typeof deps.isInviolableCell === 'function') {
+        return !!deps.isInviolableCell(cardState, row, col);
+    }
+    if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
+        return !!CardMarkersModule.isInviolableCell(cardState, row, col);
+    }
     if (deps && typeof deps.isManifestStoneAt === 'function') {
         return !!deps.isManifestStoneAt(cardState, row, col);
     }
@@ -228,7 +235,7 @@ function collectDestroyedNeighbors(cardState: CardState, gameState: GameState, p
     const neighborCells = getNeighborCellsSnapshot(cardState, gameState, sourceRow, sourceCol);
     const markersAt = createUdgMarkersAtLookup(cardState);
     const targetDeps = { ...deps, markersAt };
-    const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isManifestTarget(cardState, cell.row, cell.col, targetDeps));
+    const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isUntargetableStone(cardState, cell.row, cell.col, targetDeps));
     const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
     const destroyTargets = () => {
         for (const target of targets) {
@@ -429,7 +436,7 @@ function processUltimateDestroyGodEffectsAtAnchor(cardState: CardState, gameStat
     const neighborCells = getNeighborCellsSnapshot(cardState, gameState, row, col);
     const markersAt = createUdgMarkersAtLookup(cardState);
     const targetDeps = { ...deps, markersAt };
-    const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isManifestTarget(cardState, cell.row, cell.col, targetDeps));
+    const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isUntargetableStone(cardState, cell.row, cell.col, targetDeps));
     const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
     const destroyTargets = () => {
         for (const target of targets) {

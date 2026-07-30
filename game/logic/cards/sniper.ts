@@ -230,7 +230,10 @@ const CardSniper = /**
         return playerKey === 'black' ? 'white' : 'black';
     }
 
-    function isManifestTarget(cardState: SniperCardState, row: number, col: number): boolean {
+    function isUntargetableStone(cardState: SniperCardState, row: number, col: number): boolean {
+        if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
+            return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
+        }
         if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
             return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
         }
@@ -247,7 +250,7 @@ const CardSniper = /**
         const candidates: SniperEffectTarget[] = [];
         for (const cell of collectBoardCells(gameState, cardState)) {
             if (cell.owner !== enemyValue) continue;
-            if (isManifestTarget(cardState, cell.row, cell.col)) continue;
+            if (isUntargetableStone(cardState, cell.row, cell.col)) continue;
             const dr = cell.row - sourceRow;
             const dc = cell.col - sourceCol;
             const distSq = (dr * dr) + (dc * dc);

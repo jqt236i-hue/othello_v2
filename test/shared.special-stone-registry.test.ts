@@ -120,6 +120,30 @@ describe('special stone registry rule classification', () => {
     );
   });
 
+  test('keeps Shinra as one special stone while projecting inviolability across its footprint', () => {
+    const marker = {
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: {
+        type: 'SHINRA_BANSHO_GOD',
+        footprint: 'square_2x2.v1',
+        permanent: true
+      }
+    };
+
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('SHINRA_BANSHO_GOD')).toBe('true_special_stone');
+    expect(SpecialStoneRegistry.countsAsSpecialStone('SHINRA_BANSHO_GOD')).toBe(true);
+    expect(SpecialStoneRegistry.isTargetableSpecialStone('SHINRA_BANSHO_GOD')).toBe(false);
+    expect(SpecialStoneRegistry.isInviolableStoneEffect('SHINRA_BANSHO_GOD')).toBe(true);
+    expect(SpecialStoneRegistry.isFullyProtectedSpecialStoneMarker(marker)).toBe(false);
+    expect(SpecialStoneRegistry.isInviolableSpecialStoneMarker(marker)).toBe(true);
+    for (const [row, col] of [[2, 3], [2, 4], [3, 3], [3, 4]]) {
+      expect(SpecialStoneRegistry.isInviolableCell([marker], row, col)).toBe(true);
+    }
+  });
+
   test('exposes canonical special-stone card mappings', () => {
     const expected = [
       ['hard_01', 'PROTECTED_NEXT_STONE', 'PROTECTED'],

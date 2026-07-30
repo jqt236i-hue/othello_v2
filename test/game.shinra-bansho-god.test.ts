@@ -4,6 +4,7 @@ import * as CardLogic from '../game/logic/cards';
 import * as BoardOps from '../game/logic/board_ops';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases';
+import * as TurnStartSpecialStonePhase from '../game/turn/turn-start/special-stone-phase';
 
 const MATERIALS = ['FIRE', 'WATER', 'GRASS', 'LIGHTNING'] as const;
 
@@ -134,7 +135,7 @@ describe('森羅万象神', () => {
     expect(gameState.board.flat().filter((value: number) => value === Shared.BLACK)).toHaveLength(61);
   });
 
-  test('4占有マスすべてが完全保護され、単マスの反転・移動・入替・対象選択を拒否する', () => {
+  test('4占有マスすべてが不可侵になり、単マスの反転・破壊・移動・入替・対象選択を拒否する', () => {
     const prng = createPrng([0]);
     const { cardState, gameState } = createEmptyStates(prng);
     addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
@@ -144,20 +145,23 @@ describe('森羅万象神', () => {
     gameState.board[4][4] = Shared.WHITE;
 
     const context = CardLogic.getCardContext(cardState);
-    expect(context.permaProtectedStones).toEqual(expect.arrayContaining([
+    expect(context.inviolableStones).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 0, col: 0 }),
       expect.objectContaining({ row: 0, col: 1 }),
       expect.objectContaining({ row: 1, col: 0 }),
       expect.objectContaining({ row: 1, col: 1 })
     ]));
+    for (const [row, col] of [[0, 0], [0, 1], [1, 0], [1, 1]]) {
+      expect(CardLogic.isInviolableCell(cardState, row, col)).toBe(true);
+    }
     expect(BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy'))
-      .toMatchObject({ destroyed: false });
+      .toMatchObject({ destroyed: false, reason: 'inviolable' });
     expect(BoardOps.changeAt(cardState, gameState, 0, 1, 'white', 'TEST', 'flip'))
-      .toMatchObject({ changed: false, reason: 'multi_cell_stone_protected' });
+      .toMatchObject({ changed: false, reason: 'inviolable' });
     expect(BoardOps.moveAt(cardState, gameState, 1, 0, 2, 0, 'TEST', 'move'))
-      .toMatchObject({ moved: false, reason: 'multi_cell_stone_protected' });
+      .toMatchObject({ moved: false, reason: 'inviolable_source' });
     expect(BoardOps.swapOccupiedCells(cardState, gameState, { row: 0, col: 0 }, { row: 4, col: 4 }))
-      .toMatchObject({ swapped: false, reason: 'multi_cell_stone_protected' });
+      .toMatchObject({ swapped: false, reason: 'inviolable_source' });
     const footprintKeys = new Set(['0,0', '0,1', '1,0', '1,1']);
     const targetCollections = [
       CardLogic.getDestroyTargets(cardState, gameState),
@@ -167,14 +171,16 @@ describe('森羅万象神', () => {
       CardLogic.getSuperAttractionTargets(cardState, gameState, 'black', null),
       CardLogic.getSuperBuoyancyTargets(cardState, gameState),
       CardLogic.getSuperGravityTargets(cardState, gameState),
-      CardLogic.getReverseWillTargets(cardState, gameState)
+      CardLogic.getReverseWillTargets(cardState, gameState),
+      CardLogic.getMeteorTargets(cardState, gameState, 'white'),
+      CardLogic.getFreezeTargets(cardState, gameState, 'white')
     ];
     for (const targets of targetCollections) {
       expect(targets.some((cell: any) => footprintKeys.has(`${cell.row},${cell.col}`))).toBe(false);
     }
   });
 
-  test('マス消失は完全保護を貫通して4マス全体を一度だけ解体する', () => {
+  test('不可侵により占有マスのセル消滅を拒否し、4マス全体を維持する', () => {
     const prng = createPrng([0]);
     const { cardState, gameState } = createEmptyStates(prng);
     addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
@@ -193,28 +199,25 @@ describe('森羅万象神', () => {
     );
 
     expect(result).toMatchObject({
-      applied: true,
-      destroyed: true,
-      destroyResult: expect.objectContaining({
-        removalPolicy: 'group_dissolve'
-      })
+      applied: false,
+      reason: 'inviolable',
+      destroyed: false
     });
-    expect(shinraMarker(cardState)).toBeUndefined();
+    expect(shinraMarker(cardState)).toBeTruthy();
     expect([
       gameState.board[0][0],
       gameState.board[0][1],
       gameState.board[1][0],
       gameState.board[1][1]
-    ]).toEqual([Shared.EMPTY, Shared.EMPTY, Shared.EMPTY, Shared.EMPTY]);
+    ]).toEqual([Shared.BLACK, Shared.BLACK, Shared.BLACK, Shared.BLACK]);
     expect((cardState.presentationEvents || []).filter((event: any) => (
       event?.type === 'DESTROY'
-      && event?.meta?.removalPolicy === 'group_dissolve'
-    ))).toHaveLength(1);
+    ))).toHaveLength(0);
     expect((cardState.markers || []).some((marker: any) => (
       marker?.row === 1
       && marker?.col === 1
       && marker?.data?.type === 'METEOR_HOLE'
-    ))).toBe(true);
+    ))).toBe(false);
   });
 
   test('所有者ターン開始は火→水→草→雷を各1回発動し、永続マーカーを減算しない', () => {
@@ -244,11 +247,16 @@ describe('森羅万象神', () => {
     expect(shinraMarker(cardState)?.data).not.toHaveProperty('remainingOwnerTurns');
   });
 
-  test('大凍結は神を1体として数えつつ4占有マス全部へ凍結を付ける', () => {
+  test('大凍結は不可侵の神を対象外にし、他の特殊石だけを凍結する', () => {
     const prng = createPrng([0]);
     const { cardState, gameState } = createEmptyStates(prng);
     addMaterials(cardState, gameState, [[6, 0], [6, 2], [6, 4], [6, 6]]);
     CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
+    gameState.board[4][4] = Shared.WHITE;
+    CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'white', {
+      type: 'SNIPER',
+      remainingOwnerTurns: 4
+    });
     cardState.pendingEffectByPlayer.white = {
       type: 'MASS_FREEZE_WILL',
       cardId: 'mass_freeze_will_01',
@@ -261,12 +269,41 @@ describe('森羅万象神', () => {
     expect(result).toMatchObject({
       applied: true,
       frozenCount: 1,
-      frozenCellCount: 4
+      frozenCellCount: 1
     });
-    expect(freezes.map((marker: any) => `${marker.row},${marker.col}`).sort()).toEqual([
-      '0,0', '0,1', '1,0', '1,1'
-    ]);
+    expect(freezes.map((marker: any) => `${marker.row},${marker.col}`)).toEqual(['4,4']);
     expect(SpecialStoneRegistry.markerOccupiesCell(shinraMarker(cardState), 1, 1)).toBe(true);
+  });
+
+  test('互換状態に凍結マーカーが残っていても不可侵の神は4属性効果を発動する', () => {
+    const prng = createPrng([0]);
+    const { cardState, gameState } = createEmptyStates(prng);
+    const marker = addShinraGroup(cardState, gameState, 'black');
+    CardLogic.addMarker(cardState, 'specialStone', 1, 1, 'white', {
+      type: 'FREEZE',
+      remainingOwnerTurns: 5
+    });
+    const processShinra = jest.fn(() => ({
+      fire: { scorched: [] },
+      water: { healingCells: [] },
+      grass: { seeded: [] },
+      lightning: { destroyed: [] }
+    }));
+
+    TurnStartSpecialStonePhase.processTurnStartSpecialStone({
+      CardLogic: { processShinraBanshoGodAtTurnStartAnchor: processShinra },
+      cardState,
+      gameState,
+      playerKey: 'black',
+      events: [],
+      prng,
+      markerAnchor: { marker },
+      isFrozenCell: () => true,
+      awardBoardChargeGain: () => undefined,
+      processingState: TurnStartSpecialStonePhase.createTurnStartSpecialStoneProcessingState()
+    });
+
+    expect(processShinra).toHaveBeenCalledTimes(1);
   });
 
   test('通常配置で成立した融合は手番引継ぎ前に解決する', () => {
@@ -302,7 +339,7 @@ describe('森羅万象神', () => {
     expect(shinraMarker(cardState)).toBeTruthy();
   });
 
-  test('完全保護は毒・意志狩り・ゾンビ感染の旧候補列挙にも4マス投影される', () => {
+  test('不可侵は毒・意志狩り・ゾンビ感染の旧候補列挙にも4マス投影される', () => {
     const poisonPrng = createPrng([0]);
     const poisonState = createEmptyStates(poisonPrng);
     addShinraGroup(poisonState.cardState, poisonState.gameState, 'black');
@@ -370,7 +407,7 @@ describe('森羅万象神', () => {
     ))).toHaveLength(1);
   });
 
-  test('盤界の執行者は使用条件では1体、絶対執行では4マス全部を穴化する', () => {
+  test('盤界の執行者は使用条件では1体に数えるが、不可侵により絶対執行しない', () => {
     const prng = createPrng([0]);
     const { cardState, gameState } = createEmptyStates(prng);
     addShinraGroup(cardState, gameState, 'black');
@@ -400,7 +437,13 @@ describe('森羅万象神', () => {
     const holeKeys = new Set((cardState.markers || [])
       .filter((marker: any) => marker?.data?.type === 'METEOR_HOLE')
       .map((marker: any) => `${marker.row},${marker.col}`));
-    expect(holeKeys).toEqual(new Set(['0,0', '0,1', '1,0', '1,1', '4,4', '5,5']));
-    expect(shinraMarker(cardState)).toBeUndefined();
+    expect(holeKeys).toEqual(new Set(['4,4', '5,5']));
+    expect(shinraMarker(cardState)).toBeTruthy();
+    expect([
+      gameState.board[0][0],
+      gameState.board[0][1],
+      gameState.board[1][0],
+      gameState.board[1][1]
+    ]).toEqual([Shared.BLACK, Shared.BLACK, Shared.BLACK, Shared.BLACK]);
   });
 });

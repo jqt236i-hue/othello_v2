@@ -2442,6 +2442,7 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
     col = pos.col;
     const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { changed: false, reason: 'out_of_board' };
+    if (_isInviolableCell(cardState, row, col)) return { changed: false, reason: 'inviolable' };
     if (_findMultiCellSpecialStoneAt(cardState, row, col)) {
         return { changed: false, reason: 'multi_cell_stone_protected' };
     }
@@ -2471,7 +2472,6 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
         return { changed: false, presented: true };
     }
     if (_isFrozenCell(cardState, row, col)) return { changed: false, reason: 'frozen_protected' };
-    if (_isInviolableCell(cardState, row, col)) return { changed: false, reason: 'inviolable' };
     const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1))
         ? 'black'
         : ((prev === (SharedConstants.WHITE || -1)) ? 'white' : null);
@@ -2660,11 +2660,11 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
     const prev = getCellValue(gameState, fromRow, fromCol, cardState);
     if (prev === EMPTY) return { moved: false };
     if (prev === null) return { moved: false, reason: 'from_out_of_board' };
+    if (_isInviolableCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'inviolable_source' };
     if (_findMultiCellSpecialStoneAt(cardState, fromRow, fromCol)) {
         return { moved: false, reason: 'multi_cell_stone_protected' };
     }
     if (_isFrozenCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'frozen_source' };
-    if (_isInviolableCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'inviolable_source' };
     const destVal = getCellValue(gameState, toRow, toCol, cardState);
     if (destVal === null) return { moved: false, reason: 'to_out_of_board' };
     if (destVal !== EMPTY) return { moved: false, reason: 'dest_not_empty' };
@@ -2723,6 +2723,9 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
     const valueB = getCellValue(gameState, bRow, bCol, cardState);
     if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
     if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
+    if (_isInviolableCell(cardState, aRow, aCol) || _isInviolableCell(cardState, bRow, bCol)) {
+        return { swapped: false, reason: 'inviolable_source' };
+    }
     if (
         _findMultiCellSpecialStoneAt(cardState, aRow, aCol) ||
         _findMultiCellSpecialStoneAt(cardState, bRow, bCol)
@@ -2730,7 +2733,6 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
         return { swapped: false, reason: 'multi_cell_stone_protected' };
     }
     if (_isFrozenCell(cardState, aRow, aCol) || _isFrozenCell(cardState, bRow, bCol)) return { swapped: false, reason: 'frozen_source' };
-    if (_isInviolableCell(cardState, aRow, aCol) || _isInviolableCell(cardState, bRow, bCol)) return { swapped: false, reason: 'inviolable_source' };
 
     const stoneIdA = getStoneIdAt(cardState, gameState, aRow, aCol);
     const stoneIdB = getStoneIdAt(cardState, gameState, bRow, bCol);

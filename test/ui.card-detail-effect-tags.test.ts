@@ -214,7 +214,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
+      desc: '盤面上の不可侵ではない特殊石を絶対執行し、不可侵以外の保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -224,10 +224,10 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     expect(getTagLabels()).toEqual(['特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
-    expect(document.getElementById('card-detail-desc').textContent).toContain('すべての特殊石を絶対執行');
+    expect(document.getElementById('card-detail-desc').textContent).toContain('不可侵ではない特殊石を絶対執行');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('場合のみ使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
-    expect(document.getElementById('card-detail-more').textContent).toContain('全ての保護を貫通');
+    expect(document.getElementById('card-detail-more').textContent).toContain('不可侵以外の保護を貫通');
   });
 
   test('AFTERIMAGE_WILL shows flip and destroy evasion tags with per-stone count labels', () => {
@@ -309,7 +309,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。'
+      desc: '盤面上の不可侵ではない特殊石を絶対執行し、不可侵以外の保護を貫通して穴マスにする。盤界の執行者を顕現。'
     };
     global.cardState.selectedCardId = boardExecutorDef.id;
     global.cardState.hands.black = [boardExecutorDef.id];
@@ -657,7 +657,7 @@ describe('card detail effect tags', () => {
       name: '盤界の執行者',
       type: 'BOARD_EXECUTOR',
       cost: 0,
-      desc: '盤面上のすべての特殊石を絶対執行し、全ての保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
+      desc: '盤面上の不可侵ではない特殊石を絶対執行し、不可侵以外の保護を貫通して穴マスにする。盤界の執行者を顕現。顕現中は両者のカード使用を封じ、手札枚数に応じて布石を失う。'
     };
     global.cardState.selectedCardId = cardDef.id;
     global.cardState.hands.black = [cardDef.id];

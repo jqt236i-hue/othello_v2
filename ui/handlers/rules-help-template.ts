@@ -67,7 +67,7 @@ export const RULES_HELP_INNER_HTML = `
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>絶対執行</dt>
-                        <dd>盤界の執行者専用の抹消。全ての保護を貫通して特殊石を穴マスにする。</dd>
+                        <dd>盤界の執行者専用の抹消。不可侵以外の保護を貫通して特殊石を穴マスにする。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>反転保護</dt>
@@ -79,7 +79,7 @@ export const RULES_HELP_INNER_HTML = `
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>不可侵</dt>
-                        <dd>顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。</dd>
+                        <dd>顕現石や森羅万象神を、反転・破壊・状態付与・抹消・絶対執行など盤面干渉効果の対象から外す保護。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>マス破壊</dt>

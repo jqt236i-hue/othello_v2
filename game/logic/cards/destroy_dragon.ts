@@ -98,6 +98,7 @@ interface DestroyDragonRandomSourceModule {
 
 interface DestroyDragonCardMarkersModule {
   isManifestStoneAt?: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
+  isInviolableCell?: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
 }
 
 interface DestroyDragonBoardKernelModule {
@@ -247,7 +248,10 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function isManifestTarget(cardState: DestroyDragonCardState, row: number, col: number): boolean {
+function isUntargetableStone(cardState: DestroyDragonCardState, row: number, col: number): boolean {
+  if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
+    return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
+  }
   if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
     return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
   }
@@ -267,7 +271,7 @@ function collectAdjacentEnemyTargets(cardState: DestroyDragonCardState, gameStat
       if (dr === 0 && dc === 0) continue;
       const row = sourceRow + dr;
       const col = sourceCol + dc;
-      if (getCellValue(gameState, row, col, cardState) === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
+      if (getCellValue(gameState, row, col, cardState) === enemyValue && !isUntargetableStone(cardState, row, col)) targets.push({ row, col });
     }
   }
   return targets;

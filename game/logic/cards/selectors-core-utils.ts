@@ -1,4 +1,11 @@
 import type { CardState } from '../../../src/types';
+import SpecialStoneRegistry = require('../../../shared/special-stone-registry');
+
+type SpecialStoneRegistryRuntimeLike = {
+    isInviolableCell?: (markers: unknown, row: unknown, col: unknown) => boolean;
+};
+
+const SpecialStoneRegistryRuntime = SpecialStoneRegistry as unknown as SpecialStoneRegistryRuntimeLike;
 
 interface SuperAttractionPoint {
     row: number;
@@ -114,6 +121,9 @@ function isGuardProtectedCell(cardState: CardState, row: number, col: number): b
 function isInviolableCell(cardState: CardState, row: number, col: number): boolean {
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    if (SpecialStoneRegistryRuntime && typeof SpecialStoneRegistryRuntime.isInviolableCell === 'function') {
+        return SpecialStoneRegistryRuntime.isInviolableCell(markers, row, col) === true;
+    }
     return markers.some((m: any) => (
         m &&
         m.row === row &&

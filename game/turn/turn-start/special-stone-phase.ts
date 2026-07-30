@@ -42,15 +42,7 @@ function isMarkerFrozenAtTurnStart(options: ProcessTurnStartSpecialStoneOptions,
     if (typeKey === 'FREEZE') return false;
     const row = marker && marker.row;
     const col = marker && marker.col;
-    if (typeKey !== 'SHINRA_BANSHO_GOD') {
-        return options.isFrozenCell(options.cardState, row, col);
-    }
-    return [
-        { row, col },
-        { row, col: col + 1 },
-        { row: row + 1, col },
-        { row: row + 1, col: col + 1 }
-    ].some((cell) => options.isFrozenCell(options.cardState, cell.row, cell.col));
+    return options.isFrozenCell(options.cardState, row, col);
 }
 
 function createTurnStartSpecialStoneProcessingState(): TurnStartSpecialStoneProcessingState {
@@ -247,7 +239,9 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
     const col = marker && marker.col;
     const p = opts.prng || undefined;
 
-    if (isMarkerFrozenAtTurnStart(opts, marker, typeKey)) return processingState;
+    if (typeKey !== 'SHINRA_BANSHO_GOD' && isMarkerFrozenAtTurnStart(opts, marker, typeKey)) {
+        return processingState;
+    }
 
     if (
         typeKey === 'SHINRA_BANSHO_GOD' &&

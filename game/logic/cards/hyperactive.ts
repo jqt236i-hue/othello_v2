@@ -684,7 +684,13 @@ function canExtremeHyperactiveSwapCell(cardState: CardState, row: number, col: n
     return true;
 }
 
-function isManifestTarget(cardState: CardState, row: number, col: number, deps: HyperactiveDeps = {}): boolean {
+function isUntargetableStone(cardState: CardState, row: number, col: number, deps: HyperactiveDeps = {}): boolean {
+    if (deps && typeof deps.isInviolableCell === 'function') {
+        return !!deps.isInviolableCell(cardState, row, col);
+    }
+    if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
+        return !!CardMarkersModule.isInviolableCell(cardState, row, col);
+    }
     if (deps && typeof deps.isManifestStoneAt === 'function') {
         return !!deps.isManifestStoneAt(cardState, row, col);
     }
@@ -1857,7 +1863,7 @@ function collectRobotVacuumTargets(cardState: CardState, gameState: GameState, o
             const col = originCol + dc;
             if (!hasBoardShapeCell(cardState, gameState, row, col)) continue;
             if (getBoardCell(cardState, gameState, row, col) !== enemyVal) continue;
-            if (isManifestTarget(cardState, row, col, deps)) continue;
+            if (isUntargetableStone(cardState, row, col, deps)) continue;
             targets.push({ row, col });
         }
     }

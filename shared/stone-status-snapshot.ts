@@ -322,8 +322,8 @@
         if (opts && opts.hasGuard) tags.push('守る意志適用中');
         if (manifestSnapshots.length > 0) {
             tags.push('顕現石');
-            tags.push('不可侵');
         }
+        if (snapshots.some((snapshot) => !!(snapshot && snapshot.inviolable))) tags.push('不可侵');
         if ((!opts || opts.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
         if (displayTimer !== null && primaryType === 'REGEN') tags.push(`復活 残り${displayTimer}回`);
         else if (displayTimer !== null) tags.push(`残り${displayTimer}T`);

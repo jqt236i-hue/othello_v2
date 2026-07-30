@@ -101,6 +101,7 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
         const collection = collectSpecialStoneEffectTargets(cardState);
         return collection.cells.filter((cell: any) => {
             if (findManifestMarkerAt(cardState, cell.row, cell.col)) return false;
+            if (isInviolableCell(cardState, cell.row, cell.col)) return false;
             if (isFrozenCellForCard(cardState, cell.row, cell.col)) return false;
             if (!hasBoardShapeCellForCard(cardState, gameState, cell.row, cell.col)) return false;
             if (includeHiddenOpponentTraps) return true;
