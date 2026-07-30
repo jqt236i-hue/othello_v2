@@ -5,6 +5,10 @@
     display: none;
 }
 
+.mobile-command-opponent-avatar {
+    display: none;
+}
+
 html.layout-profile-phone-portrait {
     --mobile-command-safe-top: max(10px, env(safe-area-inset-top));
     --mobile-command-safe-right: max(10px, env(safe-area-inset-right));
@@ -82,6 +86,14 @@ html.layout-profile-phone-portrait .mobile-command-menu-trigger {
     left: var(--mobile-command-safe-left);
 }
 
+html.layout-profile-phone-portrait .mobile-command-status-trigger {
+    top: var(--mobile-command-safe-top);
+    right: var(--mobile-command-safe-right);
+    min-width: 58px;
+    border-color: rgba(242, 201, 95, 0.58);
+    color: #fff0b5;
+}
+
 html.layout-profile-phone-portrait .mobile-command-quick-trigger {
     right: var(--mobile-command-safe-right);
     bottom: var(--mobile-command-safe-bottom);
@@ -124,6 +136,7 @@ html.layout-profile-phone-portrait .mobile-command-backdrop {
 }
 
 html.layout-profile-phone-portrait .mobile-command-drawer,
+html.layout-profile-phone-portrait .mobile-command-status-panel,
 html.layout-profile-phone-portrait .mobile-command-quick-sheet {
     position: fixed;
     z-index: 2;
@@ -176,7 +189,26 @@ html.layout-profile-phone-portrait .mobile-command-quick-sheet {
     transform: translateY(102%);
 }
 
-html.layout-profile-phone-portrait #mobile-command-surface:is(.is-drawer-open, .is-quick-open) .mobile-command-backdrop {
+html.layout-profile-phone-portrait .mobile-command-status-panel {
+    top: calc(var(--mobile-command-safe-top) + 58px);
+    right: var(--mobile-command-safe-right);
+    width: min(360px, calc(100vw - var(--mobile-command-safe-left) - var(--mobile-command-safe-right)));
+    max-height: calc(100dvh - var(--mobile-command-safe-top) - var(--mobile-command-safe-bottom) - 68px);
+    padding: 12px;
+    overflow: hidden auto;
+    border-radius: 14px;
+    box-shadow:
+        0 18px 44px rgba(0, 0, 0, 0.56),
+        inset 0 2px 0 rgba(242, 201, 95, 0.12);
+    transform: translateY(-8px) scale(0.98);
+    transform-origin: top right;
+}
+
+html.layout-profile-phone-portrait #mobile-command-surface:is(
+    .is-drawer-open,
+    .is-status-open,
+    .is-quick-open
+) .mobile-command-backdrop {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -184,6 +216,7 @@ html.layout-profile-phone-portrait #mobile-command-surface:is(.is-drawer-open, .
 }
 
 html.layout-profile-phone-portrait #mobile-command-surface.is-drawer-open .mobile-command-drawer,
+html.layout-profile-phone-portrait #mobile-command-surface.is-status-open .mobile-command-status-panel,
 html.layout-profile-phone-portrait #mobile-command-surface.is-quick-open .mobile-command-quick-sheet {
     opacity: 1;
     visibility: visible;
@@ -195,11 +228,20 @@ html.layout-profile-phone-portrait #mobile-command-surface.is-drawer-open .mobil
     transform: translateX(0);
 }
 
+html.layout-profile-phone-portrait #mobile-command-surface.is-status-open .mobile-command-status-panel {
+    transform: translateY(0) scale(1);
+}
+
 html.layout-profile-phone-portrait #mobile-command-surface.is-quick-open .mobile-command-quick-sheet {
     transform: translateY(0);
 }
 
-html.layout-profile-phone-portrait #mobile-command-surface:is(.is-drawer-open, .is-quick-open, .has-native-panel) .mobile-command-trigger {
+html.layout-profile-phone-portrait #mobile-command-surface:is(
+    .is-drawer-open,
+    .is-status-open,
+    .is-quick-open,
+    .has-native-panel
+) .mobile-command-trigger {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -373,6 +415,95 @@ html.layout-profile-phone-portrait .mobile-command-sheet-note {
     line-height: 1.5;
 }
 
+html.layout-profile-phone-portrait .mobile-command-status-content {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding-top: 12px;
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #manifest-effect-panel,
+html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-panel {
+    position: relative !important;
+    inset: auto !important;
+    box-sizing: border-box !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #manifest-effect-panel {
+    min-height: calc(var(--layout-anchor-manifest-effect-height) * var(--layout-stage-scale)) !important;
+    max-height: none !important;
+    overflow: hidden !important;
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-panel {
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: calc(10px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) !important;
+    overflow: visible !important;
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-panel .stone-info-name {
+    font-size: calc(15px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-panel .stone-info-desc {
+    font-size: calc(12px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-panel .stone-info-list-item {
+    flex-basis: calc(56px * var(--layout-stage-scale));
+    width: calc(56px * var(--layout-stage-scale));
+    min-height: calc(68px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-panel .stone-info-list-visual {
+    width: calc(38px * var(--layout-stage-scale));
+    height: calc(38px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .player-area-top .mobile-command-opponent-avatar {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: clamp(48px, 13vw, 56px);
+    height: clamp(48px, 13vw, 56px);
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid rgba(232, 197, 116, 0.62);
+    border-radius: 9px;
+    background: rgba(5, 20, 24, 0.9);
+    box-shadow:
+        0 7px 18px rgba(0, 0, 0, 0.42),
+        inset 0 0 0 1px rgba(126, 215, 255, 0.14);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html.layout-profile-phone-portrait .player-area-top .mobile-command-opponent-avatar[hidden] {
+    display: none;
+}
+
+html.layout-profile-phone-portrait .player-area-top .mobile-command-opponent-avatar:disabled {
+    cursor: default;
+}
+
+html.layout-profile-phone-portrait .mobile-command-opponent-avatar-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    pointer-events: none;
+}
+
 html.layout-profile-phone-portrait :is(
     .mobile-command-trigger,
     .mobile-command-layer-close,
@@ -380,7 +511,8 @@ html.layout-profile-phone-portrait :is(
     .mobile-command-menu-item,
     .mobile-command-quick-action,
     .mobile-command-bgm-select,
-    .mobile-command-help-filter-toggle
+    .mobile-command-help-filter-toggle,
+    .mobile-command-opponent-avatar
 ):focus-visible {
     border-color: var(--mobile-command-sky);
     outline: 3px solid rgba(126, 215, 255, 0.72);
@@ -390,7 +522,8 @@ html.layout-profile-phone-portrait :is(
 html.layout-profile-phone-portrait :is(
     .mobile-command-trigger,
     .mobile-command-menu-item,
-    .mobile-command-quick-action
+    .mobile-command-quick-action,
+    .mobile-command-opponent-avatar
 ):active {
     transform: translateY(1px) scale(0.985);
 }
@@ -675,6 +808,7 @@ html.layout-profile-phone-portrait textarea {
 @media (prefers-reduced-motion: reduce) {
     html.layout-profile-phone-portrait .mobile-command-backdrop,
     html.layout-profile-phone-portrait .mobile-command-drawer,
+    html.layout-profile-phone-portrait .mobile-command-status-panel,
     html.layout-profile-phone-portrait .mobile-command-quick-sheet,
     html.layout-profile-phone-portrait .mobile-command-help-filter-toggle::after {
         transition-duration: 0.01ms !important;

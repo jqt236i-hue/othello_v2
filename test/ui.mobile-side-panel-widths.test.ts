@@ -21,6 +21,17 @@ describe('mobile command surface panel contract', () => {
     expect(mobileCss).toMatch(/\.mobile-command-layer-close,[\s\S]*\.mobile-command-native-close[\s\S]*min-width:\s*44px[\s\S]*min-height:\s*44px/);
   });
 
+  test('phone portrait exposes battle status and a compact opponent avatar', () => {
+    const mobileCss = readRepoTextFile('styles-mobile-command-surface.css');
+
+    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.mobile-command-status-trigger[\s\S]*top:\s*var\(--mobile-command-safe-top\)[\s\S]*right:\s*var\(--mobile-command-safe-right\)/);
+    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.mobile-command-status-panel[\s\S]*width:\s*min\(360px,[\s\S]*max-height:\s*calc\(100dvh/);
+    expect(mobileCss).toMatch(/#mobile-command-surface\.is-status-open\s+\.mobile-command-status-panel[\s\S]*transform:\s*translateY\(0\)\s*scale\(1\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-status-content\s+#manifest-effect-panel,[\s\S]*\.mobile-command-status-content\s+#stone-info-panel[\s\S]*display:\s*block\s*!important/);
+    expect(mobileCss).toMatch(/\.player-area-top\s+\.mobile-command-opponent-avatar[\s\S]*width:\s*clamp\(48px,\s*13vw,\s*56px\)[\s\S]*min-height:\s*48px/);
+    expect(mobileCss).toMatch(/\.mobile-command-opponent-avatar-image[\s\S]*object-fit:\s*cover[\s\S]*object-position:\s*center top/);
+  });
+
   test('phone portrait keeps the board, status, card detail, and hand inside the viewport', () => {
     const mobileCss = readRepoTextFile('styles-mobile-command-surface.css');
     const responsiveCss = readRepoTextFile('styles-responsive.css');

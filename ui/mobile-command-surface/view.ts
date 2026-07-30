@@ -13,16 +13,22 @@ import type {
 interface MobileCommandSurfaceView {
   root: HTMLElement;
   menuTrigger: HTMLButtonElement;
+  statusTrigger: HTMLButtonElement;
   quickTrigger: HTMLButtonElement;
   backdrop: HTMLElement;
   drawer: HTMLElement;
   drawerClose: HTMLButtonElement;
   menuButtons: readonly HTMLButtonElement[];
+  statusPanel: HTMLElement;
+  statusClose: HTMLButtonElement;
+  statusContent: HTMLElement;
   quickSheet: HTMLElement;
   quickClose: HTMLButtonElement;
   quickButtonProxies: readonly HTMLButtonElement[];
   quickSelect: HTMLSelectElement | null;
   quickRange: HTMLInputElement | null;
+  opponentAvatarButton: HTMLButtonElement | null;
+  opponentAvatarImage: HTMLImageElement | null;
   destroy(): void;
 }
 
@@ -59,6 +65,15 @@ function createMobileCommandSurfaceView(
   const menuTriggerLabel = make('span', 'mobile-command-trigger-label');
   menuTriggerLabel.textContent = 'メニュー';
   menuTrigger.append(menuTriggerIcon, menuTriggerLabel);
+
+  const statusTrigger = make('button', 'mobile-command-trigger mobile-command-status-trigger');
+  statusTrigger.id = 'mobile-command-status-trigger';
+  statusTrigger.type = 'button';
+  statusTrigger.setAttribute('aria-haspopup', 'dialog');
+  statusTrigger.setAttribute('aria-controls', 'mobile-command-status-panel');
+  statusTrigger.setAttribute('aria-expanded', 'false');
+  statusTrigger.setAttribute('aria-label', '戦況を開く');
+  statusTrigger.textContent = '戦況';
 
   const quickTrigger = make('button', 'mobile-command-trigger mobile-command-quick-trigger');
   quickTrigger.id = 'mobile-command-quick-trigger';
@@ -154,6 +169,33 @@ function createMobileCommandSurfaceView(
   });
   drawer.append(drawerHeader, menuNav);
 
+  const statusPanel = make('section', 'mobile-command-status-panel');
+  statusPanel.id = 'mobile-command-status-panel';
+  statusPanel.setAttribute('role', 'dialog');
+  statusPanel.setAttribute('aria-modal', 'true');
+  statusPanel.setAttribute('aria-labelledby', 'mobile-command-status-title');
+  statusPanel.setAttribute('aria-hidden', 'true');
+  statusPanel.setAttribute('inert', '');
+
+  const statusHeader = make('div', 'mobile-command-layer-header');
+  const statusHeading = make('div');
+  const statusTitle = make('h2', 'mobile-command-layer-title');
+  statusTitle.id = 'mobile-command-status-title';
+  statusTitle.textContent = '戦況';
+  const statusSubtitle = make('p', 'mobile-command-layer-subtitle');
+  statusSubtitle.textContent = '使用カードと盤上の石';
+  statusHeading.append(statusTitle, statusSubtitle);
+  const statusClose = make('button', 'mobile-command-layer-close');
+  statusClose.id = 'mobile-command-status-close';
+  statusClose.type = 'button';
+  statusClose.setAttribute('aria-label', '戦況を閉じる');
+  statusClose.textContent = '×';
+  statusHeader.append(statusHeading, statusClose);
+
+  const statusContent = make('div', 'mobile-command-status-content');
+  statusContent.id = 'mobile-command-status-content';
+  statusPanel.append(statusHeader, statusContent);
+
   const quickSheet = make('section', 'mobile-command-quick-sheet');
   quickSheet.id = 'mobile-command-quick-sheet';
   quickSheet.setAttribute('role', 'dialog');
@@ -233,23 +275,55 @@ function createMobileCommandSurfaceView(
   const quickNote = make('p', 'mobile-command-sheet-note');
   quickNote.textContent = '設定値はゲーム本体の操作と同期します。';
   quickSheet.append(quickHeader, quickGrid, quickNote);
-  root.append(menuTrigger, quickTrigger, backdrop, drawer, quickSheet);
+  root.append(
+    menuTrigger,
+    statusTrigger,
+    quickTrigger,
+    backdrop,
+    drawer,
+    statusPanel,
+    quickSheet,
+  );
   documentRef.body.appendChild(root);
+
+  const opponentArea = documentRef.querySelector<HTMLElement>('.player-area-top');
+  const opponentSourceImage = byId<HTMLImageElement>('cpu-character-img');
+  let opponentAvatarButton: HTMLButtonElement | null = null;
+  let opponentAvatarImage: HTMLImageElement | null = null;
+  if (opponentArea && opponentSourceImage) {
+    opponentAvatarButton = make('button', 'mobile-command-opponent-avatar');
+    opponentAvatarButton.id = 'mobile-command-opponent-avatar';
+    opponentAvatarButton.type = 'button';
+    opponentAvatarButton.setAttribute('aria-label', '敵キャラクター');
+    opponentAvatarImage = make('img', 'mobile-command-opponent-avatar-image');
+    opponentAvatarImage.id = 'mobile-command-opponent-avatar-image';
+    opponentAvatarImage.alt = '';
+    opponentAvatarImage.setAttribute('aria-hidden', 'true');
+    opponentAvatarButton.appendChild(opponentAvatarImage);
+    opponentArea.appendChild(opponentAvatarButton);
+  }
 
   return {
     root,
     menuTrigger,
+    statusTrigger,
     quickTrigger,
     backdrop,
     drawer,
     drawerClose,
     menuButtons,
+    statusPanel,
+    statusClose,
+    statusContent,
     quickSheet,
     quickClose,
     quickButtonProxies,
     quickSelect,
     quickRange,
+    opponentAvatarButton,
+    opponentAvatarImage,
     destroy(): void {
+      opponentAvatarButton?.remove();
       root.remove();
     },
   };

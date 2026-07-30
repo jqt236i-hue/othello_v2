@@ -21,6 +21,9 @@ import {
   createMobileHistoryController,
 } from './mobile-command-surface/history';
 import {
+  createMobileStatusBridge,
+} from './mobile-command-surface/status-bridge';
+import {
   IDLE_MOBILE_SURFACE_STATE,
   getActiveLayer,
   getActivePanelId,
@@ -41,6 +44,7 @@ interface MobileCommandSurfaceSetupOptions {
 
 interface MobileCommandSurfaceController {
   openDrawer(): void;
+  openBattleStatus(): void;
   openQuickControls(): void;
   closeTop(): boolean;
   sync(): void;
@@ -120,6 +124,11 @@ function setupMobileCommandSurface(
   };
 
   const view = createMobileCommandSurfaceView(rootRef, documentRef);
+  const statusBridge = createMobileStatusBridge({
+    root: rootRef,
+    document: documentRef,
+    view,
+  });
   const historyController = createMobileHistoryController(rootRef);
   const proxyController = createMobileControlProxyController({
     root: rootRef,
@@ -164,21 +173,27 @@ function setupMobileCommandSurface(
     const activeLayer = getActiveLayer(state);
     const activePanel = getActivePanelId(state);
     view.root.classList.toggle('is-drawer-open', activeLayer === 'drawer');
+    view.root.classList.toggle('is-status-open', activeLayer === 'status');
     view.root.classList.toggle('is-quick-open', activeLayer === 'quick');
     view.root.classList.toggle('has-native-panel', activePanel !== null);
     view.menuTrigger.setAttribute('aria-expanded', String(activeLayer === 'drawer'));
+    view.statusTrigger.setAttribute('aria-expanded', String(activeLayer === 'status'));
     view.quickTrigger.setAttribute('aria-expanded', String(activeLayer === 'quick'));
 
     const drawerOpen = activeLayer === 'drawer';
     view.drawer.setAttribute('aria-hidden', String(!drawerOpen));
     view.drawer.toggleAttribute('inert', !drawerOpen);
+    const statusOpen = activeLayer === 'status';
+    view.statusPanel.setAttribute('aria-hidden', String(!statusOpen));
+    view.statusPanel.toggleAttribute('inert', !statusOpen);
+    statusBridge.setOpen(statusOpen);
     const quickOpen = activeLayer === 'quick';
     view.quickSheet.setAttribute('aria-hidden', String(!quickOpen));
     view.quickSheet.toggleAttribute('inert', !quickOpen);
     view.backdrop.hidden = activeLayer === null;
     view.backdrop.setAttribute('aria-hidden', String(activeLayer === null));
 
-    [view.menuTrigger, view.quickTrigger].forEach((trigger) => {
+    [view.menuTrigger, view.statusTrigger, view.quickTrigger].forEach((trigger) => {
       const hidden = activePanel !== null;
       trigger.toggleAttribute('inert', hidden);
       trigger.setAttribute('aria-hidden', String(hidden));
@@ -372,6 +387,7 @@ function setupMobileCommandSurface(
     if (destroyed) return;
     syncQueued = false;
     proxyController.sync();
+    statusBridge.sync();
     syncNativePanels();
   };
 
@@ -404,9 +420,11 @@ function setupMobileCommandSurface(
     const activeLayer = getActiveLayer(state);
     const layer = activeLayer === 'drawer'
       ? view.drawer
-      : activeLayer === 'quick'
-        ? view.quickSheet
-        : null;
+      : activeLayer === 'status'
+        ? view.statusPanel
+        : activeLayer === 'quick'
+          ? view.quickSheet
+          : null;
     getFocusable(layer)[0]?.focus({ preventScroll: true });
   };
 
@@ -422,6 +440,7 @@ function setupMobileCommandSurface(
   };
 
   const openDrawer = (): void => openLayer('drawer');
+  const openBattleStatus = (): void => openLayer('status');
   const openQuickControls = (): void => openLayer('quick');
 
   const openNativePanel = (panelId: MobileNativePanelId): void => {
@@ -469,8 +488,10 @@ function setupMobileCommandSurface(
   };
 
   listen(view.menuTrigger, 'click', openDrawer as EventListener);
+  listen(view.statusTrigger, 'click', openBattleStatus as EventListener);
   listen(view.quickTrigger, 'click', openQuickControls as EventListener);
   listen(view.drawerClose, 'click', (() => closeCustomLayer()) as EventListener);
+  listen(view.statusClose, 'click', (() => closeCustomLayer()) as EventListener);
   listen(view.quickClose, 'click', (() => closeCustomLayer()) as EventListener);
   listen(view.backdrop, 'pointerdown', (() => closeCustomLayer()) as EventListener);
 
@@ -501,7 +522,11 @@ function setupMobileCommandSurface(
     }
     const activeLayer = getActiveLayer(state);
     if (event.key !== 'Tab' || activeLayer === null) return;
-    const layer = activeLayer === 'drawer' ? view.drawer : view.quickSheet;
+    const layer = activeLayer === 'drawer'
+      ? view.drawer
+      : activeLayer === 'status'
+        ? view.statusPanel
+        : view.quickSheet;
     const focusable = getFocusable(layer);
     if (focusable.length === 0) return;
     const currentIndex = focusable.indexOf(documentRef.activeElement as HTMLElement);
@@ -562,6 +587,7 @@ function setupMobileCommandSurface(
 
   const controller: MobileCommandSurfaceController = {
     openDrawer,
+    openBattleStatus,
     openQuickControls,
     closeTop,
     sync,
@@ -573,6 +599,7 @@ function setupMobileCommandSurface(
       panelObserver.disconnect();
       profileObserver.disconnect();
       proxyController.destroy();
+      statusBridge.destroy();
       cleanupCallbacks.splice(0).reverse().forEach((cleanup) => cleanup());
       restoreAllNativePanelChrome();
       documentRef.documentElement.classList.remove('mobile-command-surface-locked');

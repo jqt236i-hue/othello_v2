@@ -5,6 +5,28 @@ function createFixture() {
   const dom = new JSDOM(`<!doctype html>
     <html class="layout-profile-phone-portrait" data-layout-profile="layout-profile-phone-portrait">
       <body>
+        <div id="cpu-character-panel">
+          <img id="cpu-character-img" data-card-reversi-logical-src="assets/images/cpu/level1.png" src="assets/images/cpu/level1.png" alt="敵CPU">
+          <button id="cpu-level-label" type="button" aria-disabled="false">Lv1 盤喰いの小鬼</button>
+        </div>
+        <div id="game-container">
+          <div class="player-area-top">
+            <div id="deck-white"></div>
+            <div id="hand-white"></div>
+          </div>
+          <div id="left-info-stack">
+            <div id="effect-live-panel">ROUND 1</div>
+            <div id="manifest-effect-panel" class="is-visible" aria-hidden="false">
+              <div id="manifest-effect-title">最後に使ったカード</div>
+              <div id="manifest-effect-lines">最後に使ったカードがここに表示されます</div>
+            </div>
+            <div id="stone-info-panel" class="stone-info-panel visible" aria-hidden="false">
+              <div id="stone-info-list-title">盤上の石</div>
+              <div id="stone-info-list-instruction">石を選ぶと情報を表示</div>
+              <div id="stone-info-list"></div>
+            </div>
+          </div>
+        </div>
         <div id="leftActionButtons">
           <button id="modeCpuBtn"><span class="left-action-icon left-action-icon-cpu"></span>CPU</button>
           <button id="modeNetworkBtn"><span class="left-action-icon left-action-icon-network"></span>ネット対戦</button>
@@ -91,7 +113,7 @@ function createFixture() {
 }
 
 describe('mobile command surface', () => {
-  test('initializes once and keeps the drawer and quick sheet mutually exclusive', () => {
+  test('initializes once and keeps drawer, battle status, and quick sheet mutually exclusive', () => {
     const fixture = createFixture();
     const controller = setupMobileCommandSurface({
       root: fixture.windowRef,
@@ -117,11 +139,153 @@ describe('mobile command surface', () => {
     expect(surface.classList.contains('is-drawer-open')).toBe(false);
     expect(surface.classList.contains('is-quick-open')).toBe(true);
 
+    controller!.openBattleStatus();
+    expect(surface.classList.contains('is-quick-open')).toBe(false);
+    expect(surface.classList.contains('is-status-open')).toBe(true);
+
     fixture.windowRef.dispatchEvent(new (fixture.windowRef as any).PopStateEvent('popstate'));
+    expect(surface.classList.contains('is-status-open')).toBe(false);
     expect(surface.classList.contains('is-quick-open')).toBe(false);
     expect(fixture.documentRef.body.classList.contains('mobile-command-surface-locked')).toBe(false);
 
     controller!.destroy();
+    fixture.dom.window.close();
+  });
+
+  test('shows existing status panels in reference order and restores their DOM location', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+    const stack = fixture.documentRef.getElementById('left-info-stack')!;
+    const manifest = fixture.documentRef.getElementById('manifest-effect-panel')!;
+    const stoneInfo = fixture.documentRef.getElementById('stone-info-panel')!;
+    const trigger = fixture.documentRef.getElementById(
+      'mobile-command-status-trigger',
+    ) as HTMLButtonElement;
+
+    trigger.focus();
+    trigger.click();
+
+    const surface = fixture.documentRef.getElementById('mobile-command-surface')!;
+    const statusPanel = fixture.documentRef.getElementById('mobile-command-status-panel')!;
+    const statusContent = fixture.documentRef.getElementById('mobile-command-status-content')!;
+    expect(surface.classList.contains('is-status-open')).toBe(true);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(statusPanel.getAttribute('aria-hidden')).toBe('false');
+    expect(Array.from(statusContent.children).map((element) => element.id)).toEqual([
+      'manifest-effect-panel',
+      'stone-info-panel',
+    ]);
+    expect(fixture.documentRef.activeElement?.id).toBe('mobile-command-status-close');
+
+    fixture.documentRef.dispatchEvent(new fixture.dom.window.KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(surface.classList.contains('is-status-open')).toBe(false);
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(fixture.documentRef.activeElement).toBe(trigger);
+    expect(manifest.parentElement).toBe(stack);
+    expect(stoneInfo.parentElement).toBe(stack);
+    expect(Array.from(stack.children).map((element) => element.id)).toEqual([
+      'effect-live-panel',
+      'manifest-effect-panel',
+      'stone-info-panel',
+    ]);
+
+    controller.openBattleStatus();
+    fixture.documentRef.documentElement.classList.remove('layout-profile-phone-portrait');
+    fixture.documentRef.documentElement.removeAttribute('data-layout-profile');
+    fixture.windowRef.dispatchEvent(new fixture.dom.window.Event('resize'));
+    expect(surface.classList.contains('is-status-open')).toBe(false);
+    expect(manifest.parentElement).toBe(stack);
+    expect(stoneInfo.parentElement).toBe(stack);
+
+    fixture.windowRef.history.replaceState({}, '');
+    fixture.documentRef.documentElement.classList.add('layout-profile-phone-portrait');
+    fixture.documentRef.documentElement.setAttribute(
+      'data-layout-profile',
+      'layout-profile-phone-portrait',
+    );
+    fixture.windowRef.dispatchEvent(new fixture.dom.window.Event('resize'));
+    controller.openBattleStatus();
+    controller.destroy();
+    expect(manifest.parentElement).toBe(stack);
+    expect(stoneInfo.parentElement).toBe(stack);
+    expect(fixture.documentRef.getElementById('mobile-command-opponent-avatar')).toBeNull();
+    fixture.dom.window.close();
+  });
+
+  test('keeps the compact enemy icon synchronized with CPU and network presentation', () => {
+    const fixture = createFixture();
+    const sourceImage = fixture.documentRef.getElementById('cpu-character-img') as HTMLImageElement;
+    const sourceLabel = fixture.documentRef.getElementById('cpu-level-label') as HTMLButtonElement;
+    const openCpuSettings = jest.fn();
+    const documentClicks = jest.fn();
+    const cpuMenu = fixture.documentRef.createElement('div');
+    cpuMenu.id = 'cpu-level-menu';
+    cpuMenu.hidden = true;
+    fixture.documentRef.body.appendChild(cpuMenu);
+    sourceLabel.addEventListener('click', openCpuSettings);
+    sourceLabel.addEventListener('click', () => {
+      cpuMenu.hidden = false;
+    });
+    fixture.documentRef.addEventListener('click', documentClicks);
+
+    const controller = setupMobileCommandSurface({
+      root: fixture.windowRef,
+      document: fixture.documentRef,
+    })!;
+    const avatar = fixture.documentRef.getElementById(
+      'mobile-command-opponent-avatar',
+    ) as HTMLButtonElement;
+    const avatarImage = fixture.documentRef.getElementById(
+      'mobile-command-opponent-avatar-image',
+    ) as HTMLImageElement;
+    jest.spyOn(avatar, 'getBoundingClientRect').mockReturnValue({
+      x: 334,
+      y: 68,
+      width: 51,
+      height: 51,
+      top: 68,
+      right: 385,
+      bottom: 119,
+      left: 334,
+      toJSON: () => ({}),
+    });
+
+    expect(avatarImage.getAttribute('src')).toBe('assets/images/cpu/face/level1.png');
+    expect(avatar.getAttribute('aria-label')).toContain('Lv1 盤喰いの小鬼');
+    avatar.click();
+    expect(openCpuSettings).toHaveBeenCalledTimes(1);
+    expect(documentClicks).toHaveBeenCalledTimes(1);
+    expect(cpuMenu.hidden).toBe(false);
+    expect(cpuMenu.style.top).toBe('125px');
+    expect(cpuMenu.style.right).toBe('639px');
+
+    sourceLabel.textContent = 'Lv4 盤面支配者';
+    sourceImage.setAttribute('src', 'assets/images/cpu/level4.png');
+    sourceImage.setAttribute('data-card-reversi-logical-src', 'assets/images/cpu/level4.png');
+    controller.sync();
+    expect(avatarImage.getAttribute('src')).toBe('assets/images/cpu/face/level4.png');
+
+    sourceLabel.textContent = '白: Alpha';
+    sourceLabel.setAttribute('aria-disabled', 'true');
+    sourceImage.setAttribute('src', 'assets/images/hero/hero.png');
+    sourceImage.setAttribute('data-card-reversi-logical-src', 'assets/images/hero/hero.png');
+    sourceImage.alt = '対戦相手の勇者';
+    controller.sync();
+    expect(avatarImage.getAttribute('src')).toBe('assets/images/hero/hero.png');
+    expect(avatar.disabled).toBe(true);
+    expect(avatar.getAttribute('aria-label')).toBe('白: Alpha');
+    avatar.click();
+    expect(openCpuSettings).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
     fixture.dom.window.close();
   });
 

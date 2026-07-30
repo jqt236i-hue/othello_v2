@@ -113,6 +113,44 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - Verification: `npm run typecheck`、focused Jest、`npm run build:browser`、`npm run build:vite`、必要なbrowser smoke、`git diff --check`、task-only diff/status
 - Done: 検証成功、設計・計画同期、タスク所有差分のコミットまで完了する。共有checkoutの既存未コミット生成物と分離できない出力は、混入させず検証結果へ明記する。
 
+## Step 14: 戦況・敵アイコン仕様を正本へ追加する
+
+- Outcome: スマホ縦画面の戦況入口、表示対象、閉じ方、敵アイコンの表示・操作条件がプレイヤー向け仕様で明確になる。
+- Files: `01-rulebook.md`, `docs/implementation/mobile-command-surface-design.md`, 本計画
+- Dependencies: 現行DOM、旧スマホ実装、参照画像の照合
+- Verification: `git diff --check`、該当節と設計Self-reviewの目視確認
+- Done: 戦況データを複製せず、既存panelを表示源にすることと、敵アイコンが既存敵表示へ追従することが規定される。
+
+## Step 15: 戦況layerと敵キャラクターbridgeを実装する
+
+- Outcome: 右上の戦況ボタンが既存の最後使用カード／顕現効果・盤上の石を開き、相手手札行に敵アイコンが表示される。
+- Files: `ui/mobile-command-surface.ts`, `ui/mobile-command-surface/config.ts`, `ui/mobile-command-surface/state.ts`, `ui/mobile-command-surface/view.ts`, `ui/mobile-command-surface/status-bridge.ts`, `styles-mobile-command-surface.css`, `assets/images/cpu/face/*`
+- Dependencies: Step 14
+- Verification: focused Jest、`npm run typecheck`、source inspection
+- Done: `status` が既存layerと排他的に動作し、panel nodeはclose/profile離脱/destroyで元位置へ戻り、敵アイコンはCPU・ネット相手表示へ追従する。
+
+## Step 16: 参照画像比較とゲームUI QAを完了する
+
+- Outcome: 主要スマホ幅で戦況の二パネルと敵アイコンを実画面上で確認し、操作・盤面・PC表示に回帰がない。
+- Files: project root `design-qa.md`、比較用スクリーンショット
+- Dependencies: Step 15、focused verification成功
+- Verification:
+  - 320x568、393x852、430x932で戦況ボタン、敵アイコン、横溢れ
+  - 戦況openで `#manifest-effect-panel` → `#stone-info-panel` の順序
+  - close、外側タップ、Escape、ブラウザ戻る、focus return
+  - CPUレベル変更と敵画像同期
+  - 1280x720で新UI非表示と既存敵キャラクター表示
+  - 参照画像と同一状態の結合比較、console/page error確認
+- Done: `design-qa.md` が `final result: passed` で、P0/P1/P2が残らない。
+
+## Step 17: 配信物同期・最終監査・コミット
+
+- Outcome: Classic/Vite/Worker mirrorが変更を配信し、タスク所有差分が一つの検証済みコミットになる。
+- Files: 正規build/prepareが生成するbrowser出力とmirror
+- Dependencies: Step 15〜16
+- Verification: focused Jest、`npm run typecheck`、`npm run checkall`、`npm run build:browser`、`npm run build:vite`、`npm run worker:prepare`、`git diff --check`、task-only status/diff
+- Done: 仕様・設計・実装・QA・生成物が一致し、コミット後の作業ツリーがクリーンになる。
+
 ## Completion checklist
 
 - [x] `01-rulebook.md` が新しいスマホ挙動を規定している
@@ -138,6 +176,20 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - [x] 盤面・石情報・カード詳細のスマホ寸法がresponsive CSSだけにある
 - [x] focused Jest、typecheck、browser build、必要な実ブラウザ確認が成功する
 - [x] 設計・計画・実装・生成確認が一致し、タスク所有差分がコミット対象として分離されている
+
+### 戦況・敵アイコン追加 completion checklist
+
+- [x] 右上に44px以上の `戦況` ボタンが表示される
+- [x] 戦況内に既存の最後使用カード／顕現効果と盤上の石が参照画像の順で表示される
+- [x] 戦況nodeがclose、profile離脱、destroyで元の親・順序へ戻る
+- [x] 相手手札行の右端に現在の敵キャラクターアイコンが表示される
+- [x] CPUレベル変更・ネット対戦相手表示・CPU設定の利用可否へ追従する
+- [x] drawer、status、quick、native panelが相互排他で、履歴・Escape・focusが機能する
+- [x] 320/393/430pxで横溢れと盤面操作の阻害がない
+- [x] 1280pxで新要素が非表示になり、既存PC UIへ回帰がない
+- [x] focused Jest、typecheck、checkall、browser/Vite build、Worker mirror同期が成功する
+- [x] `design-qa.md` が参照画像との比較を記録し、`final result: passed` になる
+- [x] 最終diffがタスク所有差分だけで、コミット後の作業ツリーがクリーンになる
 
 ## Verification results
 
@@ -166,6 +218,27 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
   - console error / page errorなし
 - 393x852のメニュー、ヘルプ、操作シートと1280x720のデスクトップ表示をスクリーンショットで目視確認
 
+### 戦況・敵アイコン追加 verification results
+
+- focused Jest 5 suites / 25 tests: 成功
+  - `test/ui.mobile-command-surface.test.ts`
+  - `test/ui.mobile-command-surface-state.test.ts`
+  - `test/ui.mobile-side-panel-widths.test.ts`
+  - `test/ui.mobile-quick-controls-layout.test.ts`
+  - `test/ui.left-rail-layout-contract.test.ts`
+- `npm run typecheck`: 成功（`build:vite` / `worker:prepare` 内でもroot・trainingを再確認）
+- `npm run build:browser`: 成功（module registry 1065 modules）
+- `npm run build:vite`: 成功（1450 modules、既知のchunk-size warningのみ）
+- `npm run worker:prepare`: 成功（Worker mirror 957 files）
+- `npm run checkall`: Worker mirror同期前の初回は新規face asset不足を正しく検出。`worker:prepare` 後の再実行は成功
+- Codex in-app Browser:
+  - タッチ条件の320x568、393x852、430x932で戦況ボタン、敵アイコン、panel順序、横溢れなしを確認
+  - close、Escape、ブラウザ戻る、focus return、profile離脱時の復元を確認
+  - 敵アイコンからCPU設定を開き、クリック伝播と画面内配置の回帰を修正・再確認
+  - 1280x720で新要素が非表示、既存敵キャラクターパネルが表示されることを確認
+  - console errorなし
+- `design-qa.md`: 添付画像と実装を同じ比較画像で確認し、`final result: passed`
+
 ## Self-review
 
 - 正本更新を実装より先に配置した。
@@ -176,4 +249,8 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - リファクタリングを単なるファイル分割で完了扱いにしないよう、Step 9とStep 12に復元可能性と再初期化の観測条件を追加した。
 - CSS変更は既存responsive正本を先に更新し、後勝ちoverrideを削除する順序にした。
 - 共有checkoutで別タスクのHEAD更新があったため、最新HEADからの最終statusとdiffで本タスク所有差分だけであることを再確認する。
-- プレイヤー向け仕様を変更しないため `01-rulebook.md` の追加更新は不要であり、既存12.11節との一致確認だけを行う。
+- 初回リファクタリングはプレイヤー向け挙動を変えなかったため既存12.11節との一致確認だけで完了したが、今回の戦況・敵アイコン追加は新しい表示仕様として正本更新が必要と判断した。
+- 戦況・敵アイコン追加はプレイヤー向け仕様を変更するため、Step 14で `01-rulebook.md` をコードより先に更新する。
+- 戦況内容のコピー実装を計画から除外し、既存panel nodeの一時配置と復元を独立したdone条件にした。
+- 参照画像に含まれないターン／スコア用 `#effect-live-panel` は対象外とし、表示対象を `#manifest-effect-panel` と `#stone-info-panel` に限定した。
+- 敵アイコンは旧版の実assetを再利用し、現在の敵表示とCPU設定入口だけへ同期するため、ゲーム／ネットワーク状態を新規所有しない。

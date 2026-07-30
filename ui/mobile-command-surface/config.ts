@@ -1,4 +1,4 @@
-type MobileCommandLayer = 'drawer' | 'quick';
+type MobileCommandLayer = 'drawer' | 'status' | 'quick';
 
 type MobileMenuGroupId = 'game' | 'collection' | 'information' | 'settings';
 

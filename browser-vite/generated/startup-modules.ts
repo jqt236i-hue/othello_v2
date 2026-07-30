@@ -568,6 +568,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/mobile-command-surface/dom-mutations": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/dom-mutations.js"),
   "ui/mobile-command-surface/history": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/history.js"),
   "ui/mobile-command-surface/state": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/state.js"),
+  "ui/mobile-command-surface/status-bridge": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/status-bridge.js"),
   "ui/mobile-command-surface/view": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface/view.js"),
   "ui/move-executor-visuals": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/move-executor-visuals.js"),
   "ui/network-client": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network-client.js"),
@@ -1282,6 +1283,7 @@ installBootModuleMetadata({
     "ui/mobile-command-surface/dom-mutations",
     "ui/mobile-command-surface/history",
     "ui/mobile-command-surface/state",
+    "ui/mobile-command-surface/status-bridge",
     "ui/mobile-command-surface/view",
     "ui/move-executor-visuals",
     "ui/network-client",
@@ -1500,4 +1502,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 699;
+export const startupModuleCount = 700;

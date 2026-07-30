@@ -62,3 +62,43 @@ No actionable P0, P1, or P2 mismatch remains.
 - `git diff --check` — passed.
 
 final result: passed after density correction; reviewer follow-up remains open for visual sign-off
+
+---
+
+# Mobile Battle Status and Opponent Icon Design QA
+
+- Source visual truth: `C:\Users\quarr\AppData\Local\Temp\codex-clipboard-20af56c6-1d67-497b-a3c0-f95e74f86186.png`
+- Closed-state screenshot: `C:\Users\quarr\.codex\visualizations\2026\07\30\019fb179-f8e9-7e82-9957-6bc6b0609e36\mobile-status-closed.png`
+- Final status screenshot: `C:\Users\quarr\.codex\visualizations\2026\07\30\019fb179-f8e9-7e82-9957-6bc6b0609e36\mobile-status-final.png`
+- Focused implementation screenshot: `C:\Users\quarr\.codex\visualizations\2026\07\30\019fb179-f8e9-7e82-9957-6bc6b0609e36\mobile-status-panel-final.png`
+- Combined comparison input: `C:\Users\quarr\.codex\visualizations\2026\07\30\019fb179-f8e9-7e82-9957-6bc6b0609e36\mobile-status-reference-comparison.png`
+- Opponent settings evidence: `C:\Users\quarr\.codex\visualizations\2026\07\30\019fb179-f8e9-7e82-9957-6bc6b0609e36\mobile-enemy-cpu-menu-fixed.png`
+- Viewports: 320 × 568, 393 × 852, and 430 × 932 with touch emulation
+- State: CPU match, battle-status modal open, last-used-card placeholder followed by the live board-stone panel
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- The reference and implementation use the same existing last-used-card and board-stone surfaces, in the same vertical order and with the same live copy.
+- The implementation adds a compact `戦況` dialog header and close control because the reference crop did not include navigation chrome. This is an intentional accessibility and mobile-navigation addition.
+- The 320px viewport wraps the placeholder line once but preserves both panels, touch targets, and horizontal containment.
+- The opponent face uses the legacy CPU face artwork rather than a generated approximation and remains aligned to the right side of the opponent row.
+
+## Interaction Evidence
+
+- Opened and closed `戦況` with its button, the close control, Escape, and browser-back history.
+- Confirmed focus moves to the close control and returns to the `戦況` trigger.
+- Confirmed the live `manifest-effect-panel` and `stone-info-panel` move into the dialog and restore to their original parent and order after closing.
+- Opened CPU/board settings from the enemy icon and confirmed the menu stays within the phone viewport.
+- Confirmed the page has no horizontal overflow at all three phone widths.
+- Confirmed at 1280 × 720 that the mobile status trigger and compact avatar are hidden while the existing desktop enemy-character panel remains visible.
+- Browser console errors after the final Vite build: none.
+
+## Iteration History
+
+1. Initial status implementation matched the reference hierarchy and passed responsive containment.
+2. Browser interaction exposed two opponent-icon defects: the delegated click was dismissed by bubbling, and the CPU menu positioned against the hidden desktop label.
+3. The bridge now stops only the avatar click from bubbling and reanchors the existing CPU menu to the visible avatar. The focused unit regression and live browser retest both pass.
+
+final result: passed

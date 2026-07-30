@@ -32,7 +32,13 @@ describe('mobile command surface internal contracts', () => {
     });
     expect(drawer).toEqual({ kind: 'layer', layer: 'drawer' });
 
-    const pending = reduceMobileSurfaceState(drawer, {
+    const status = reduceMobileSurfaceState(drawer, {
+      type: 'OPEN_LAYER',
+      layer: 'status',
+    });
+    expect(status).toEqual({ kind: 'layer', layer: 'status' });
+
+    const pending = reduceMobileSurfaceState(status, {
       type: 'BEGIN_PANEL',
       panelId: 'network',
     });
@@ -81,9 +87,14 @@ describe('mobile command surface internal contracts', () => {
     expect(historyController.owns()).toBe(false);
     expect(historyController.releaseOnPop()).toBe(false);
 
-    historyController.promote('quick');
+    historyController.promote('status');
+    expect(historyController.owns('status')).toBe(true);
     historyController.consume();
     expect(backSpy).toHaveBeenCalledTimes(1);
+
+    historyController.promote('quick');
+    historyController.consume();
+    expect(backSpy).toHaveBeenCalledTimes(2);
     expect(historyController.owns()).toBe(false);
     dom.window.close();
   });
