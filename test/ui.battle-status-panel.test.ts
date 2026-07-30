@@ -230,6 +230,49 @@ describe('battle status panel', () => {
     }
   });
 
+  test('keeps the phone turn arrival art fully inside the board frame', () => {
+    jest.useFakeTimers();
+    const { dom, window } = setupBattleStatusDom();
+
+    try {
+      window.document.documentElement.classList.add('layout-profile-phone-portrait');
+      window.document.documentElement.setAttribute(
+        'data-layout-profile',
+        'layout-profile-phone-portrait'
+      );
+      Object.defineProperty(window, 'innerWidth', { value: 393, configurable: true });
+      Object.defineProperty(window, 'innerHeight', { value: 852, configurable: true });
+      const boardFrame = window.document.getElementById('board-frame') as HTMLElement;
+      boardFrame.getBoundingClientRect = () => ({
+        left: 24,
+        top: 143,
+        width: 345,
+        height: 340,
+        right: 369,
+        bottom: 483,
+        x: 24,
+        y: 143,
+        toJSON: () => ({})
+      });
+
+      window.updateStatus();
+
+      const toast = window.document.getElementById('turn-arrival-toast') as HTMLElement;
+      Object.defineProperty(toast, 'offsetWidth', { value: 132, configurable: true });
+      Object.defineProperty(toast, 'offsetHeight', { value: 30, configurable: true });
+      window.updateStatus();
+
+      expect(toast.style.left).toBe('234px');
+      expect(toast.style.top).toBe('450px');
+      expect(Number.parseInt(toast.style.left, 10)).toBeGreaterThanOrEqual(24);
+      expect(Number.parseInt(toast.style.left, 10) + toast.offsetWidth).toBeLessThanOrEqual(369);
+      expect(Number.parseInt(toast.style.top, 10) + toast.offsetHeight).toBeLessThanOrEqual(483);
+    } finally {
+      teardownBattleStatusDom(dom);
+      jest.useRealTimers();
+    }
+  });
+
   test('uses actual turn color for arrival toast while preserving network local perspective', () => {
     jest.useFakeTimers();
     const { dom, window } = setupBattleStatusDom({

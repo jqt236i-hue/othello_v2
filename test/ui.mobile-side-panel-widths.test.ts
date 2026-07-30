@@ -41,7 +41,9 @@ describe('mobile command surface panel contract', () => {
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.mobile-command-status-panel[\s\S]*width:\s*min\(360px,[\s\S]*max-height:\s*calc\(100dvh/);
     expect(mobileCss).toMatch(/#mobile-command-surface\.is-status-open\s+\.mobile-command-status-panel[\s\S]*transform:\s*translateY\(0\)\s*scale\(1\)/);
     expect(mobileCss).toMatch(/\.mobile-command-status-content\s+#manifest-effect-panel,[\s\S]*\.mobile-command-status-content\s+#stone-info-panel[\s\S]*display:\s*block\s*!important/);
-    expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+#effect-live-panel[\s\S]*display:\s*grid\s*!important[\s\S]*width:\s*clamp\(188px,\s*50vw,\s*212px\)/);
+    expect(mobileCss).toMatch(/--mobile-command-top-center-width:\s*clamp\([\s\S]*calc\(100vw\s*-\s*var\(--mobile-command-safe-left\)\s*-\s*var\(--mobile-command-safe-right\)\s*-\s*154px\)[\s\S]*200px/);
+    expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s*\{[\s\S]*position:\s*fixed[\s\S]*top:\s*var\(--mobile-command-safe-top\)[\s\S]*left:\s*50%[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)[\s\S]*height:\s*var\(--mobile-command-top-row-height\)[\s\S]*translateX\(-50%\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+#effect-live-panel[\s\S]*display:\s*grid\s*!important[\s\S]*width:\s*100%/);
     expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+\.battle-status-latest[\s\S]*display:\s*none/);
     expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+\.battle-status-count-label[\s\S]*display:\s*inline/);
     expect(mobileCss).toMatch(/\.player-area-top\s+\.mobile-command-opponent-avatar[\s\S]*width:\s*clamp\(48px,\s*13vw,\s*56px\)[\s\S]*min-height:\s*48px/);

@@ -441,3 +441,110 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - 正本変更を先に行い、Worker mirrorは `worker:prepare` だけで生成する。
 - 完了条件を「ファイルがある」ではなく、PC入力条件でiframe内部のprofile・viewport・横溢れを実測する形にした。
 - 初回ブラウザ確認で `debug=1` が設定パネルを初期表示したため、対局画面確認用entryから除外し、設計・テストを最初の実装stepへ戻して修正する。
+
+## 追加要望: ラウンドHUDの上部同列配置
+
+### Step 23: 上部固定行の仕様と所有境界を更新する
+
+- Outcome: `メニュー`、コンパクト戦況、`戦況` を同じ高さへ揃える可視仕様と、既存戦況nodeを再利用する所有境界を明確にする。
+- Files: `01-rulebook.md`, `docs/implementation/mobile-command-surface-design.md`, 本計画
+- Verification: 該当節の整合確認、`git diff --check`
+- Done: 相手手札上という旧配置が残らず、320px幅の重なり防止と44px以上の操作領域が規定される。
+
+### Step 24: 上部コマンド行へhostを統合する
+
+- Outcome: ラウンドHUDのhostがメニュー・戦況ボタンと同じコマンドサーフェス配下に入り、safe area上端と共通48px行高で中央配置される。
+- Files: `ui/mobile-command-surface/view.ts`, `styles-mobile-command-surface.css`, focused Jest
+- Dependencies: Step 23
+- Verification: DOM所有契約、CSS契約、typecheck
+- Done: 状態や更新経路を複製せず、profile離脱・destroy時のnode復元も維持される。
+
+### Step 25: 配信同期とスマホ実画面QAを完了する
+
+- Outcome: 320x568、393x852、430x932で上部三要素の高さ、非重複、横溢れを確認し、ブラウザ配信物とタスク所有コミットを更新する。
+- Files: browser build生成物、必要なQA記録
+- Dependencies: Step 24
+- Verification: focused Jest、`npm run typecheck`、`npm run build:browser`、`mobile-preview.html` の実測、`git diff --check`
+- Done: 添付画像の意図どおりラウンドHUDが上部中央へ揃い、相手手札との間に旧ラウンド行の空白が残らない。
+
+### ラウンドHUD上部同列配置 completion checklist
+
+- [x] 上部三要素が同じsafe-area上端と48px行高を共有する
+- [x] コンパクト戦況hostがスマホコマンドサーフェス配下にある
+- [x] 320/393/430pxで左右ボタンと中央HUDが重ならない
+- [x] 相手手札上に旧host由来の空白が残らない
+- [x] profile離脱・destroyで既存戦況nodeが元位置へ復元される
+- [x] focused Jest、typecheck、browser build、実ブラウザ確認が成功する
+- [x] 最終diffを監査し、タスク所有差分をコミットする
+
+### ラウンドHUD上部同列配置 Self-review
+
+- 相手手札内のhostをCSSで固定配置するだけでは祖先レイアウトへの依存が残るため、上部入口と同じコマンドサーフェスへhost自体を移す。
+- 左右ボタンを縮めると操作性が下がるため48px行高を維持し、狭幅時は情報専用の中央HUDだけを可変幅にする。
+- `#effect-live-panel` の一時配置・復元bridgeは変更せず、表示状態やゲーム状態の新しい正本を作らない。
+
+## 追加要望: 操作入口と盤面フレーム内HUD
+
+### Step 26: プレイヤー行へ操作入口を統合する
+
+- Outcome: `操作` を44px角へ縮小し、自分の山札裏面の直上へ配置して手札・山札・カード詳細との重なりをなくす。
+- Files: `ui/mobile-command-surface/view.ts`, `styles-mobile-command-surface.css`, `styles-responsive.css`, focused Jest
+- Verification: DOM所有先、profile離脱時の非表示、destroy時の削除、320/393/430pxの矩形非重複
+- Done: 44pxの操作列を手札幅から予約しつつ山札の右端位置を維持し、画面端固定座標への依存を除いた。
+
+### Step 27: 布石・パス・ターン通知を盤面フレーム内へ収める
+
+- Outcome: 上下の布石、連続パス、盤面パス、停止中の `Your Turn` / `Enemy Turn` をPC版と同じ盤面フレーム文脈へ縮小配置する。
+- Files: `styles-responsive.css`, `ui/status-display.ts`, focused Jest
+- Dependencies: 既存 `#charge-hud-layer`、盤面パス、ターントーストのDOM正本
+- Verification: CSS配置契約、ターントーストの座標テスト、393px実表示で必要時HUDを強制表示した矩形包含
+- Done: ゲーム状態やPixi盤面へ新しい書き込み経路を作らず、スマホpresentationだけを変更した。ターン通知は停止位置をフレーム内へ収め、PC版と同じ入退場中の一時的突出を許容する。
+
+### Step 28: 配信同期・全幅QA・コミット
+
+- Outcome: root/Vite/Worker mirrorを同期し、320x568、393x852、430x932で横溢れ・重なり・フレーム包含を検証してタスク所有差分をコミットする。
+- Verification:
+  - focused Jest
+  - `npm run typecheck`
+  - `npm run build:browser`
+  - `npm run build:vite`
+  - `npm run worker:prepare`
+  - `git diff --check`
+  - 専用スマホプレビューで矩形実測とスクリーンショット確認
+- Done: 最小幅320pxを含む全確認幅で配置契約を満たし、生成物と仕様・設計を一致させる。
+
+### 操作入口と盤面フレーム内HUD completion checklist
+
+- [x] `操作` が自分の山札直上にあり、手札・山札・カード詳細と重ならない
+- [x] 320pxでも `操作` の44pxタップ領域を維持する
+- [x] 上下の布石量UIが盤面フレーム内の上中央・下中央に収まる
+- [x] 連続パスと盤面パスが必要時にフレーム左上・左下へ収まる
+- [x] 停止中のターン通知がフレーム右下へ収まる
+- [x] PC版のターン通知入退場演出を維持する
+- [x] Pixi/盤面writer・ゲーム状態・ネットワーク権威を変更しない
+- [x] focused test、browser/Vite build、Worker mirror同期、実ブラウザQAが成功する
+- [x] 最終diffを監査し、タスク所有差分をコミットする
+
+### 操作入口と盤面フレーム内HUD verification results
+
+- focused Jest 6 suites / 30 tests: 成功
+  - `test/ui.mobile-command-surface.test.ts`
+  - `test/ui.mobile-quick-controls-layout.test.ts`
+  - `test/ui.deck-fixed-hand-layout.test.ts`
+  - `test/ui.charge-hud-position-contract.test.ts`
+  - `test/ui.battle-status-panel.test.ts`
+  - `test/ui.layout-responsive.aspect-ratio.test.ts`
+- `npm run worker:prepare`: 成功（`build:browser`、`build:vite`、root/training typecheck、Worker mirror 958 filesを含む。既知のchunk-size warningのみ）
+- Codex in-app Browser:
+  - 393x852: `操作` と山札の縦間隔4.57px、手札との横間隔3.65px、重なり0
+  - 320x568: `操作` と山札の縦間隔3.05px、手札との横間隔2.43px、重なり0、`scrollWidth === 320`
+  - 430x932: `操作` と山札の縦間隔5px、手札との横間隔8px、重なり0、`scrollWidth === 430`
+  - 393x852で上下布石、連続パス、盤面パスの矩形がすべて盤面フレーム内
+  - 393x852で停止中ターン通知が盤面フレーム内。入退場中の一時的突出はユーザー指定どおり許容
+
+### 操作入口と盤面フレーム内HUD Self-review
+
+- 画面右下の固定ボタンを単に上へ動かすと320pxで手札へ重なるため、プレイヤー行のレイアウト項目として扱い、必要な横幅だけ予約した。
+- 山札自体を左へ動かさず、`utility width - deck width` の差だけ余白へ使うことで、既存の山札右端を維持した。
+- 盤面HUDは既存DOMと表示更新を再利用し、スマホ用の布石値・パス状態・手番状態を新設していない。
+- ターン通知の位置計算はphone profileだけフレーム内右下へ分岐し、PC/iPadの既存座標と横スライド演出を変更していない。

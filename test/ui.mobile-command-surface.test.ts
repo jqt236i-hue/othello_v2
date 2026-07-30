@@ -26,6 +26,10 @@ function createFixture() {
               <div id="stone-info-list"></div>
             </div>
           </div>
+          <div class="player-area-bottom">
+            <div id="hand-black"></div>
+            <div id="deck-black"></div>
+          </div>
         </div>
         <div id="leftActionButtons">
           <button id="modeCpuBtn"><span class="left-action-icon left-action-icon-cpu"></span>CPU</button>
@@ -134,6 +138,8 @@ describe('mobile command surface', () => {
       .toBe('emerald');
     expect(fixture.documentRef.getElementById('mobile-command-quick-trigger')?.dataset.mobileTone)
       .toBe('violet');
+    expect(fixture.documentRef.getElementById('mobile-command-quick-trigger')?.parentElement)
+      .toBe(fixture.documentRef.querySelector('.player-area-bottom'));
     expect(Object.fromEntries(
       Array.from(fixture.documentRef.querySelectorAll<HTMLElement>('[data-mobile-command]'))
         .map((element) => [element.dataset.mobileCommand, element.dataset.mobileTone]),
@@ -174,7 +180,7 @@ describe('mobile command surface', () => {
     fixture.dom.window.close();
   });
 
-  test('projects battle status above the opponent hand and restores every status node', () => {
+  test('projects battle status into the top command row and restores every status node', () => {
     const fixture = createFixture();
     const controller = setupMobileCommandSurface({
       root: fixture.windowRef,
@@ -190,7 +196,9 @@ describe('mobile command surface', () => {
     const trigger = fixture.documentRef.getElementById(
       'mobile-command-status-trigger',
     ) as HTMLButtonElement;
+    const surface = fixture.documentRef.getElementById('mobile-command-surface')!;
 
+    expect(battleStatusHost.parentElement).toBe(surface);
     expect(battleStatus.parentElement).toBe(battleStatusHost);
     expect(Array.from(stack.children).map((element) => element.id)).toEqual([
       'manifest-effect-panel',
@@ -200,7 +208,6 @@ describe('mobile command surface', () => {
     trigger.focus();
     trigger.click();
 
-    const surface = fixture.documentRef.getElementById('mobile-command-surface')!;
     const statusPanel = fixture.documentRef.getElementById('mobile-command-status-panel')!;
     const statusContent = fixture.documentRef.getElementById('mobile-command-status-content')!;
     expect(surface.classList.contains('is-status-open')).toBe(true);
@@ -263,6 +270,7 @@ describe('mobile command surface', () => {
     ]);
     expect(fixture.documentRef.getElementById('mobile-command-battle-status-host')).toBeNull();
     expect(fixture.documentRef.getElementById('mobile-command-opponent-avatar')).toBeNull();
+    expect(fixture.documentRef.getElementById('mobile-command-quick-trigger')).toBeNull();
     fixture.dom.window.close();
   });
 

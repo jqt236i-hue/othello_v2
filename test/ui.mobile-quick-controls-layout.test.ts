@@ -6,7 +6,9 @@ describe('mobile quick controls layout contract', () => {
     const classicHtml = readRepoTextFile('index.classic.html');
 
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+:is\(\s*#leftActionButtons,\s*#quick-controls-bar\s*\)[\s\S]*display:\s*none\s*!important/);
-    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.mobile-command-quick-trigger[\s\S]*right:\s*var\(--mobile-command-safe-right\)[\s\S]*bottom:\s*var\(--mobile-command-safe-bottom\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-quick-trigger\s*\{[\s\S]*display:\s*none/);
+    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.player-area-bottom\s+\.mobile-command-quick-trigger[\s\S]*position:\s*absolute[\s\S]*right:\s*0[\s\S]*bottom:\s*calc\(62px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*width:\s*44px[\s\S]*height:\s*44px/);
+    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\.mobile-command-surface-locked\s+\.mobile-command-quick-trigger[\s\S]*visibility:\s*hidden[\s\S]*pointer-events:\s*none/);
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.mobile-command-quick-sheet[\s\S]*max-height:\s*min\(78dvh,\s*620px\)[\s\S]*transform:\s*translateY\(102%\)/);
     expect(mobileCss).toMatch(/#mobile-command-surface\.is-quick-open\s+\.mobile-command-quick-sheet[\s\S]*transform:\s*translateY\(0\)/);
     expect(mobileCss).toMatch(/\.mobile-command-quick-grid[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);

@@ -281,8 +281,14 @@ function createMobileCommandSurfaceView(
   const quickNote = make('p', 'mobile-command-sheet-note');
   quickNote.textContent = '設定値はゲーム本体の操作と同期します。';
   quickSheet.append(quickHeader, quickGrid, quickNote);
+
+  const battleStatusHost = make('div', 'mobile-command-battle-status-host');
+  battleStatusHost.id = 'mobile-command-battle-status-host';
+  battleStatusHost.setAttribute('aria-label', '戦況');
+
   root.append(
     menuTrigger,
+    battleStatusHost,
     statusTrigger,
     quickTrigger,
     backdrop,
@@ -292,17 +298,15 @@ function createMobileCommandSurfaceView(
   );
   documentRef.body.appendChild(root);
 
+  const playerArea = documentRef.querySelector<HTMLElement>('.player-area-bottom');
+  if (playerArea) {
+    playerArea.appendChild(quickTrigger);
+  }
+
   const opponentArea = documentRef.querySelector<HTMLElement>('.player-area-top');
   const opponentSourceImage = byId<HTMLImageElement>('cpu-character-img');
-  let battleStatusHost: HTMLElement | null = null;
   let opponentAvatarButton: HTMLButtonElement | null = null;
   let opponentAvatarImage: HTMLImageElement | null = null;
-  if (opponentArea) {
-    battleStatusHost = make('div', 'mobile-command-battle-status-host');
-    battleStatusHost.id = 'mobile-command-battle-status-host';
-    battleStatusHost.setAttribute('aria-label', '戦況');
-    opponentArea.prepend(battleStatusHost);
-  }
   if (opponentArea && opponentSourceImage) {
     opponentAvatarButton = make('button', 'mobile-command-opponent-avatar');
     opponentAvatarButton.id = 'mobile-command-opponent-avatar';
@@ -338,6 +342,7 @@ function createMobileCommandSurfaceView(
     opponentAvatarImage,
     destroy(): void {
       opponentAvatarButton?.remove();
+      quickTrigger.remove();
       battleStatusHost?.remove();
       root.remove();
     },

@@ -28,6 +28,7 @@ const TURN_ARRIVAL_TOAST_ID = 'turn-arrival-toast';
 const TURN_ARRIVAL_TOAST_VISIBLE_MS = 15000;
 const TURN_ARRIVAL_TOAST_FADE_OUT_MS = 360;
 const TURN_ARRIVAL_TOAST_REFERENCE_WIDTH = 164;
+const TURN_ARRIVAL_TOAST_PHONE_REFERENCE_WIDTH = 132;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/hero.png';
 const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
@@ -491,6 +492,13 @@ function resolveBattleStatusTurnLabel(): string {
     return currentPlayer === localPlayer ? 'あなたのターン' : '相手のターン';
 }
 
+function isPhonePortraitStatusLayout(): boolean {
+    if (typeof document === 'undefined' || !document.documentElement) return false;
+    const root = document.documentElement;
+    return root.classList.contains('layout-profile-phone-portrait')
+        || root.getAttribute('data-layout-profile') === 'layout-profile-phone-portrait';
+}
+
 function resolveTurnArrivalToastState(): { signature: string; kind: 'self' | 'enemy'; playerSide: PlayerKey; text: string } | null {
     if (isNetworkSpectatorActiveForLabels()) return null;
     const state = getGameStateForStatusDisplay();
@@ -545,15 +553,31 @@ function positionTurnArrivalToast(): void {
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
     const toastWidth = Number.isFinite(Number(toast.offsetWidth)) ? Number(toast.offsetWidth) : 0;
     const measuredToastHeight = Number.isFinite(Number(toast.offsetHeight)) ? Number(toast.offsetHeight) : 0;
-    const toastHeight = measuredToastHeight > 0 ? measuredToastHeight : Math.round(40 * scale);
-    const targetRight = Math.max(8, Math.min(Math.round(boardRect.right + (6 * scale)), viewportWidth - 8));
-    const referenceWidth = Math.round(TURN_ARRIVAL_TOAST_REFERENCE_WIDTH * scale);
+    const isPhonePortrait = isPhonePortraitStatusLayout();
+    const toastHeight = measuredToastHeight > 0
+        ? measuredToastHeight
+        : Math.round((isPhonePortrait ? 30 : 40) * scale);
+    const boardEdgeInset = Math.max(1, Math.round(3 * scale));
+    const targetRight = isPhonePortrait
+        ? Math.max(8, Math.min(Math.round(boardRect.right - boardEdgeInset), viewportWidth - 8))
+        : Math.max(8, Math.min(Math.round(boardRect.right + (6 * scale)), viewportWidth - 8));
+    const referenceWidth = Math.round(
+        (isPhonePortrait ? TURN_ARRIVAL_TOAST_PHONE_REFERENCE_WIDTH : TURN_ARRIVAL_TOAST_REFERENCE_WIDTH) * scale
+    );
     const anchoredWidth = toastWidth > 0 ? Math.min(toastWidth, referenceWidth) : referenceWidth;
     const desiredLeft = targetRight - anchoredWidth;
     const maxLeft = Math.max(8, viewportWidth - toastWidth - 8);
-    const left = Math.max(8, Math.min(desiredLeft, maxLeft));
-    const targetBottom = Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (15 * scale)), viewportHeight - 8));
-    const top = Math.max(8, targetBottom - toastHeight);
+    const boardLeftInset = isPhonePortrait && Number.isFinite(boardRect.left)
+        ? Math.round(boardRect.left + boardEdgeInset)
+        : 8;
+    const left = Math.max(boardLeftInset, Math.min(desiredLeft, maxLeft));
+    const targetBottom = isPhonePortrait
+        ? Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom - boardEdgeInset), viewportHeight - 8))
+        : Math.max(8 + toastHeight, Math.min(Math.round(boardRect.bottom + (15 * scale)), viewportHeight - 8));
+    const boardTopInset = isPhonePortrait && Number.isFinite(boardRect.top)
+        ? Math.round(boardRect.top + boardEdgeInset)
+        : 8;
+    const top = Math.max(boardTopInset, targetBottom - toastHeight);
     toast.style.left = `${left}px`;
     toast.style.top = `${top}px`;
 }

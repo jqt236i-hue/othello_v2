@@ -9,11 +9,21 @@
     display: none;
 }
 
+.mobile-command-quick-trigger {
+    display: none;
+}
+
 html.layout-profile-phone-portrait {
     --mobile-command-safe-top: max(10px, env(safe-area-inset-top));
     --mobile-command-safe-right: max(10px, env(safe-area-inset-right));
     --mobile-command-safe-bottom: max(10px, env(safe-area-inset-bottom));
     --mobile-command-safe-left: max(10px, env(safe-area-inset-left));
+    --mobile-command-top-row-height: 48px;
+    --mobile-command-top-center-width: clamp(
+        144px,
+        calc(100vw - var(--mobile-command-safe-left) - var(--mobile-command-safe-right) - 154px),
+        200px
+    );
     --mobile-command-accent: #53d6d1;
     --mobile-command-accent-bright: #7ee7e2;
     --mobile-command-sky: #7ed7ff;
@@ -121,7 +131,7 @@ html.layout-profile-phone-portrait .mobile-command-trigger {
     position: fixed;
     z-index: 3;
     min-width: 56px;
-    min-height: 48px;
+    min-height: var(--mobile-command-top-row-height);
     padding: 7px 11px;
     border: 1px solid rgba(var(--mobile-tone-rgb), 0.56);
     border-radius: 14px;
@@ -156,10 +166,25 @@ html.layout-profile-phone-portrait .mobile-command-status-trigger {
     min-width: 58px;
 }
 
-html.layout-profile-phone-portrait .mobile-command-quick-trigger {
-    right: var(--mobile-command-safe-right);
-    bottom: var(--mobile-command-safe-bottom);
-    min-width: 68px;
+html.layout-profile-phone-portrait .player-area-bottom .mobile-command-quick-trigger {
+    position: absolute;
+    right: 0;
+    bottom: calc(62px * var(--layout-stage-scale));
+    display: block;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 5px 6px;
+    border-radius: 11px;
+    font-size: 10px;
+}
+
+html.layout-profile-phone-portrait.mobile-command-surface-locked .mobile-command-quick-trigger,
+html.layout-profile-phone-portrait body.mobile-command-surface-locked .mobile-command-quick-trigger {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 html.layout-profile-phone-portrait .mobile-command-menu-trigger-icon {
@@ -551,20 +576,19 @@ html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-pa
     height: calc(38px * var(--layout-stage-scale));
 }
 
-html.layout-profile-phone-portrait .player-area-top {
-    flex-wrap: wrap;
-    align-content: flex-start;
-    row-gap: calc(4px * var(--layout-stage-scale));
-}
-
 html.layout-profile-phone-portrait .mobile-command-battle-status-host {
-    order: -1;
-    display: flex;
-    flex: 0 0 100%;
+    position: fixed;
+    top: var(--mobile-command-safe-top);
+    left: 50%;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
-    justify-content: center;
-    min-width: 0;
-    min-height: max(calc(38px * var(--layout-stage-scale)), 38px);
+    justify-items: stretch;
+    width: var(--mobile-command-top-center-width);
+    height: var(--mobile-command-top-row-height);
+    transform: translateX(-50%);
+    pointer-events: none;
 }
 
 html:not(.layout-profile-phone-portrait) .mobile-command-battle-status-host {
@@ -581,7 +605,7 @@ html.layout-profile-phone-portrait .mobile-command-battle-status-host #effect-li
     column-gap: max(calc(8px * var(--layout-stage-scale)), 8px);
     row-gap: max(calc(1px * var(--layout-stage-scale)), 1px);
     box-sizing: border-box;
-    width: clamp(188px, 50vw, 212px);
+    width: 100%;
     min-height: max(calc(38px * var(--layout-stage-scale)), 38px);
     max-height: none;
     margin: 0;

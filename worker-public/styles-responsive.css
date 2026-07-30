@@ -160,6 +160,7 @@ html.layout-profile-phone-portrait {
     --layout-phone-portrait-player-row-width: min(calc(540px * var(--layout-stage-scale)), 96vw);
     --layout-phone-portrait-player-deck-width: calc(48px * var(--layout-stage-scale));
     --layout-phone-portrait-player-deck-gap: calc(4px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-utility-width: max(44px, var(--layout-phone-portrait-player-deck-width));
     --layout-phone-portrait-hand-fixed-card-width: calc(92px * var(--layout-stage-scale));
     --layout-phone-portrait-hand-fixed-padding-x: calc(10px * var(--layout-stage-scale));
     --layout-phone-portrait-hand-fixed-width: calc(
@@ -226,6 +227,120 @@ html.layout-profile-phone-portrait #board {
     --board-max-size: var(--board-frame-inner-size) !important;
     max-width: none;
     max-height: none;
+}
+
+/* Keep phone battle HUD chrome inside the board frame instead of outside its edges. */
+html.layout-profile-phone-portrait #charge-hud-layer {
+    inset: calc(-1px * var(--layout-stage-scale)) 0 calc(1px * var(--layout-stage-scale));
+    overflow: hidden;
+    border-radius: calc(3px * var(--layout-stage-scale));
+    transform: none;
+}
+
+html.layout-profile-phone-portrait .charge-display {
+    width: clamp(64px, calc(102px * var(--layout-stage-scale)), 94px);
+    height: clamp(18px, calc(21px * var(--layout-stage-scale)), 20px);
+    gap: calc(1px * var(--layout-stage-scale));
+    padding: 0 calc(10px * var(--layout-stage-scale));
+    filter: drop-shadow(0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.7));
+}
+
+html.layout-profile-phone-portrait .charge-display .charge-label {
+    font-size: max(6px, calc(7px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait .charge-display .charge-current {
+    font-size: max(12px, calc(15px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait .charge-display :is(.charge-separator, .charge-max) {
+    font-size: max(7px, calc(8px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait #charge-white {
+    top: calc(2px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #charge-black {
+    bottom: calc(2px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .charge-display .time-stop-status-badge {
+    padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    font-size: max(7px, calc(8px * var(--layout-stage-scale)));
+    letter-spacing: 0;
+}
+
+html.layout-profile-phone-portrait #charge-white .time-stop-status-badge {
+    top: calc(100% + (1px * var(--layout-stage-scale)));
+    bottom: auto;
+}
+
+html.layout-profile-phone-portrait #charge-black .time-stop-status-badge {
+    top: auto;
+    bottom: calc(100% + (1px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait .pass-streak-status {
+    left: calc(3px * var(--layout-stage-scale));
+    top: calc(2px * var(--layout-stage-scale));
+    bottom: auto;
+    height: max(16px, calc(18px * var(--layout-stage-scale)));
+    gap: calc(1px * var(--layout-stage-scale));
+    padding:
+        calc(1px * var(--layout-stage-scale))
+        calc(5px * var(--layout-stage-scale))
+        calc(1px * var(--layout-stage-scale))
+        calc(17px * var(--layout-stage-scale));
+    font-size: max(8px, calc(9px * var(--layout-stage-scale)));
+    transform: none;
+}
+
+html.layout-profile-phone-portrait .pass-streak-status::before {
+    left: calc(7px * var(--layout-stage-scale));
+    width: max(4px, calc(5px * var(--layout-stage-scale)));
+    height: max(10px, calc(12px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait .pass-streak-status::after,
+html.layout-profile-phone-portrait .pass-streak-status .pass-streak-note {
+    display: none;
+}
+
+html.layout-profile-phone-portrait :is(#reversi-pass-btn, #othello-pass-btn) {
+    display: none !important;
+}
+
+html.layout-profile-phone-portrait #board-frame-pass-btn {
+    left: calc(3px * var(--layout-stage-scale));
+    bottom: calc(2px * var(--layout-stage-scale));
+    min-width: max(52px, calc(72px * var(--layout-stage-scale)));
+    min-height: max(22px, calc(24px * var(--layout-stage-scale)));
+    padding:
+        calc(3px * var(--layout-stage-scale))
+        calc(7px * var(--layout-stage-scale))
+        calc(3px * var(--layout-stage-scale))
+        max(21px, calc(28px * var(--layout-stage-scale)));
+    border-width: max(1px, calc(1px * var(--layout-stage-scale)));
+    font-size: max(9px, calc(10px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait #board-frame-pass-btn::before {
+    left: calc(4px * var(--layout-stage-scale));
+    width: max(14px, calc(16px * var(--layout-stage-scale)));
+    height: max(14px, calc(16px * var(--layout-stage-scale)));
+    font-size: max(8px, calc(9px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait #board-frame-pass-btn::after {
+    left: max(19px, calc(24px * var(--layout-stage-scale)));
+    top: calc(4px * var(--layout-stage-scale));
+    bottom: calc(4px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .turn-arrival-toast {
+    width: calc(132px * var(--layout-stage-scale));
+    height: calc(30px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #info-panel {
@@ -485,7 +600,7 @@ html.layout-profile-phone-portrait #deck-black {
     align-self: flex-end;
     width: var(--layout-phone-portrait-player-deck-width);
     height: calc(66px * var(--layout-stage-scale));
-    margin-left: 0;
+    margin-left: calc(var(--layout-phone-portrait-player-utility-width) - var(--layout-phone-portrait-player-deck-width));
     margin-right: 0;
 }
 
@@ -535,8 +650,8 @@ html.layout-profile-phone-portrait #deck-white .deck-count {
 html.layout-profile-phone-portrait #hand-black {
     --layout-hand-fixed-card-width: var(--layout-phone-portrait-hand-fixed-card-width);
     order: 2;
-    flex: 0 1 min(var(--layout-phone-portrait-hand-fixed-width), calc(100% - var(--layout-phone-portrait-player-deck-width) - var(--layout-phone-portrait-player-deck-gap)));
-    width: min(var(--layout-phone-portrait-hand-fixed-width), calc(100% - var(--layout-phone-portrait-player-deck-width) - var(--layout-phone-portrait-player-deck-gap)));
+    flex: 0 1 min(var(--layout-phone-portrait-hand-fixed-width), calc(100% - var(--layout-phone-portrait-player-utility-width) - var(--layout-phone-portrait-player-deck-gap)));
+    width: min(var(--layout-phone-portrait-hand-fixed-width), calc(100% - var(--layout-phone-portrait-player-utility-width) - var(--layout-phone-portrait-player-deck-gap)));
     min-height: calc(108px * var(--layout-stage-scale));
     margin-top: 0;
 }

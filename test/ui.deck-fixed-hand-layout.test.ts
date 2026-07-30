@@ -21,11 +21,12 @@ describe('deck fixed hand layout contract', () => {
     const responsiveCss = readRepoTextFile('styles-responsive.css');
 
     expect(responsiveCss).toMatch(/--layout-phone-portrait-player-row-width:\s*min\(calc\(540px\s*\*\s*var\(--layout-stage-scale\)\),\s*96vw\)/);
+    expect(responsiveCss).toMatch(/--layout-phone-portrait-player-utility-width:\s*max\(44px,\s*var\(--layout-phone-portrait-player-deck-width\)\)/);
     expect(responsiveCss).toMatch(/--layout-phone-portrait-hand-fixed-card-width:\s*calc\(92px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/--layout-phone-portrait-hand-fixed-padding-x:\s*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/--layout-phone-portrait-hand-fixed-width:[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*var\(--layout-phone-portrait-hand-fixed-card-width\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait \.player-area-bottom\s*\{[\s\S]*width:\s*var\(--layout-phone-portrait-player-row-width\)/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #deck-black\s*\{[\s\S]*margin-left:\s*0/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #hand-black\s*\{[\s\S]*--layout-hand-fixed-card-width:\s*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*width:\s*min\(var\(--layout-phone-portrait-hand-fixed-width\),\s*calc\(100%\s*-\s*var\(--layout-phone-portrait-player-deck-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-gap\)\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #deck-black\s*\{[\s\S]*margin-left:\s*calc\(var\(--layout-phone-portrait-player-utility-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-width\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait #hand-black\s*\{[\s\S]*--layout-hand-fixed-card-width:\s*var\(--layout-phone-portrait-hand-fixed-card-width\)[\s\S]*width:\s*min\(var\(--layout-phone-portrait-hand-fixed-width\),\s*calc\(100%\s*-\s*var\(--layout-phone-portrait-player-utility-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-gap\)\)\)/);
   });
 });

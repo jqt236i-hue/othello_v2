@@ -105,6 +105,44 @@ final result: passed
 
 ---
 
+# Mobile Top Row, Operation Anchor, and Board-Frame HUD Design QA
+
+- User direction: align ROUND with `メニュー` / `戦況`, place the smaller `操作` immediately above the player deck without overlap, and keep charge/pass/settled turn UI inside the board frame
+- Preview entry: `http://127.0.0.1:4173/mobile-preview.html`
+- Responsive measurements: 320 × 568, 393 × 852, 430 × 932 CSS px
+- State: CPU match; ordinary state for operation/charge inspection, and temporary local QA visibility for pass-streak and board-pass geometry
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- The top row uses one 48px height for `メニュー`, compact ROUND/stone/turn status, and `戦況`; the three controls do not overlap at 320px.
+- `操作` is a 44px square anchored to the player-area right edge directly above the deck. It does not overlap the hand, deck, or card detail at any checked width.
+- Opponent and player charge counters are centered inside the top and bottom edges of the board frame.
+- Consecutive-pass status and board-pass action occupy the frame’s top-left and bottom-left corners only when required.
+- The settled `Your Turn` / `Enemy Turn` art occupies the frame’s bottom-right corner. The existing PC-style entrance/exit may cross the frame edge briefly, as explicitly permitted.
+- No alternate Pixi writer, gameplay state, or network authority path was introduced.
+
+## Measured Evidence
+
+| Viewport | Operation → deck gap | Hand → operation gap | Page overflow |
+| --- | ---: | ---: | --- |
+| 320 × 568 | 3.05px | 2.43px | none (`scrollWidth=320`) |
+| 393 × 852 | 4.57px | 3.65px | none (`scrollWidth=393`) |
+| 430 × 932 | 5.00px | 8.00px | none (`scrollWidth=430`) |
+
+At 393 × 852, all visible rectangles for opponent charge, player charge, consecutive-pass status, and board-pass action were contained by the measured `#board-frame` rectangle. The settled turn toast was also contained.
+
+## Verification Evidence
+
+- Focused Jest: 6 suites, 30 tests passed.
+- `npm run worker:prepare`: passed, including browser/Vite build, root/training typecheck, and 958-file Worker mirror verification.
+- Visual inspection at 320 and 393 confirmed readable charge counters, deck anchoring, top-row alignment, and no UI overlap.
+
+final result: passed
+
+---
+
 # Global Card Aspect Ratio Design QA
 
 - Specification baseline: game-card faces keep their horizontal width and move from roughly `1:1.32` to approximately `横4:縦5`
