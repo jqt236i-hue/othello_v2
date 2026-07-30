@@ -102,3 +102,59 @@ No actionable P0, P1, or P2 mismatch remains.
 3. The bridge now stops only the avatar click from bubbling and reanchors the existing CPU menu to the visible avatar. The focused unit regression and live browser retest both pass.
 
 final result: passed
+
+---
+
+# Mobile Command Color Diversity Design QA
+
+- Source visual truth:
+  - PC color-role reference: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\reference-desktop-ui-clean.png`
+  - Smartphone before state: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\before-mobile-menu.png`
+- Implementation screenshots:
+  - Closed state: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\after-mobile-closed.png`
+  - Menu: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\after-mobile-menu.png`
+  - Quick controls: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\after-mobile-quick.png`
+  - Desktop non-regression: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\after-desktop-non-regression-final.png`
+- Full-view comparison evidence: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\comparison-desktop-before-after-menu.png`
+- Focused quick-control comparison evidence: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-command-colors\comparison-before-after-quick.png`
+- Viewport and density:
+  - Smartphone source/implementation: 393 × 852 CSS px, 393 × 852 pixels, device scale factor 1; no density normalization required
+  - Desktop reference/non-regression: 1280 × 800 CSS px, 1280 × 800 pixels, device scale factor 1
+  - Responsive measurements: 320 × 568 and 430 × 932 CSS px
+- State: CPU match; smartphone menu open for the primary comparison, operation sheet open for the focused comparison, and all smartphone layers closed for the three-entry comparison
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- PCで使われている緑・青・金・橙・紫・セージ・赤の機能差が、スマホでは暗い共通surfaceを維持したまま左レール、枠、弱い光、アイコンへ反映されている。
+- `メニュー` / `戦況` / `操作` は金・緑・紫へ分かれ、盤面上の固定入口を位置だけでなく色でも見分けやすくなった。
+- 操作シートはリセット=赤、BGM=青、AUTO=金、ミュート=青となり、PC版の既存クイック操作色を保っている。BGMとミュートが同じ青なのはPC版由来の意図した共有で、文言と状態表示が識別を補う。
+- 色トークンは機能ラベルと既存アイコンを置き換えず、色だけへ依存しない。全トーンの文字コントラストは暗背景に対して16.64:1以上。
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: フォント、サイズ、ウェイト、行高、折返しは変更していない。393pxと320pxで日本語ラベルの欠け・不自然な折返しなし。
+- Spacing and layout rhythm: 既存の48px以上の項目高、8〜9pxの間隔、11〜14pxの角丸を維持。320pxで最小項目高51px、430pxでも既存密度を維持した。
+- Colors and visual tokens: 一律の青緑を8種の役割トーンへ置換。暗いsurfaceと高コントラスト文字は共通化し、彩色面積を左レール・枠・アイコン・弱いhaloへ限定したため、ゲーム背景や金属調フレームと競合しない。
+- Image quality and asset fidelity: 新規画像は追加していない。敵キャラクター、盤面、カード、既存アイコンmaskのsource/crop/解像度を変更せず、アイコンmaskへ役割色だけを適用した。
+- Copy and content: `CPU`、`ネット対戦`、`レート戦`、`リセット` など既存表示文言とARIAラベルは変更していない。色名や実装都合の説明をゲーム画面へ露出していない。
+- Responsiveness and accessibility: 320/393/430pxで `scrollWidth === innerWidth`。共通3px focus-visible、44px以上の入口、無効時の低彩度・低不透明度、ラベルとアイコンの二重手掛かりを維持した。
+
+## Interaction Evidence
+
+- スマホでメニュードロワーと操作シートを実際に開閉し、各代理操作の `data-mobile-tone`、BGMのactive状態、既存文言を確認した。
+- 320 × 568でドロワー幅275.1875px、最小項目高51px、横溢れなしを確認した。
+- 430 × 932でドロワー幅360px、最小項目高51px、横溢れなしを確認した。
+- 1280 × 800のPC入力条件で `layout-profile-16x9`、スマホsurface非表示、既存左レールとクイック操作表示、横溢れなしを確認した。
+- 最終ブラウザconsole error: 0件。
+
+## Comparison History
+
+1. Before capture:
+   - スマホメニューの全項目が同じ青緑の枠・surface・アイコンで、操作シートも主要4ボタンが同じsurfaceだった。
+2. First implementation comparison:
+   - PC版の役割色を型付きコマンド設定から描画し、before/afterを同じ393 × 852状態で結合比較した。
+   - 重要なラベル、密度、背景とのバランス、アイコン可読性にP0/P1/P2差分はなく、比較後の追加視覚修正は不要だった。
+
+final result: passed

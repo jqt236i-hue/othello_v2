@@ -128,6 +128,28 @@ describe('mobile command surface', () => {
     expect(second).toBe(controller);
     expect(fixture.documentRef.querySelectorAll('#mobile-command-surface')).toHaveLength(1);
     expect(fixture.documentRef.querySelector('#mobile-command-menu-action')).not.toBeNull();
+    expect(fixture.documentRef.getElementById('mobile-command-menu-trigger')?.dataset.mobileTone)
+      .toBe('gold');
+    expect(fixture.documentRef.getElementById('mobile-command-status-trigger')?.dataset.mobileTone)
+      .toBe('emerald');
+    expect(fixture.documentRef.getElementById('mobile-command-quick-trigger')?.dataset.mobileTone)
+      .toBe('violet');
+    expect(Object.fromEntries(
+      Array.from(fixture.documentRef.querySelectorAll<HTMLElement>('[data-mobile-command]'))
+        .map((element) => [element.dataset.mobileCommand, element.dataset.mobileTone]),
+    )).toEqual({
+      cpu: 'emerald',
+      network: 'azure',
+      rated: 'gold',
+      action: 'ember',
+      deck: 'azure',
+      gacha: 'ember',
+      appearance: 'violet',
+      ranking: 'gold',
+      profile: 'rose',
+      help: 'sage',
+      settings: 'sage',
+    });
 
     controller!.openDrawer();
     const surface = fixture.documentRef.getElementById('mobile-command-surface')!;
@@ -310,6 +332,15 @@ describe('mobile command surface', () => {
     controller.openQuickControls();
 
     const resetProxy = fixture.documentRef.querySelector<HTMLButtonElement>('[data-mobile-proxy="resetBtn"]')!;
+    expect(Object.fromEntries(
+      Array.from(fixture.documentRef.querySelectorAll<HTMLElement>('[data-mobile-proxy]'))
+        .map((element) => [element.dataset.mobileProxy, element.dataset.mobileTone]),
+    )).toEqual({
+      resetBtn: 'danger',
+      quickBgmToggleBtn: 'azure',
+      autoToggleBtn: 'gold',
+      muteBtn: 'azure',
+    });
     resetProxy.click();
     expect(confirmReset).toHaveBeenCalledWith('現在の対局をリセットしますか？');
     expect(resetHandler).not.toHaveBeenCalled();

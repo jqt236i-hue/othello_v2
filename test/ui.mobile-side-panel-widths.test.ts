@@ -21,6 +21,19 @@ describe('mobile command surface panel contract', () => {
     expect(mobileCss).toMatch(/\.mobile-command-layer-close,[\s\S]*\.mobile-command-native-close[\s\S]*min-width:\s*44px[\s\S]*min-height:\s*44px/);
   });
 
+  test('phone portrait command buttons use role tones without color-only state cues', () => {
+    const mobileCss = readRepoTextFile('styles-mobile-command-surface.css');
+
+    for (const tone of ['emerald', 'azure', 'gold', 'ember', 'violet', 'rose', 'sage', 'danger']) {
+      expect(mobileCss).toMatch(new RegExp(`\\[data-mobile-tone="${tone}"\\]`));
+    }
+    expect(mobileCss).toMatch(/\.mobile-command-trigger[\s\S]*rgba\(var\(--mobile-tone-rgb\),\s*0\.56\)[\s\S]*inset 3px 0 0 rgba\(var\(--mobile-tone-rgb\),\s*0\.46\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-menu-icon[\s\S]*var\(--mobile-tone-icon-top\)[\s\S]*var\(--mobile-tone-icon-bottom\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-quick-action\.is-active[\s\S]*var\(--mobile-tone-text\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-menu-item,[\s\S]*\.mobile-command-quick-action[\s\S]*\):disabled[\s\S]*filter:\s*saturate\(0\.45\)[\s\S]*opacity:\s*0\.48/);
+    expect(mobileCss).toMatch(/\):focus-visible\s*\{[\s\S]*outline:\s*3px solid rgba\(126,\s*215,\s*255,\s*0\.72\)/);
+  });
+
   test('phone portrait exposes battle status and a compact opponent avatar', () => {
     const mobileCss = readRepoTextFile('styles-mobile-command-surface.css');
 

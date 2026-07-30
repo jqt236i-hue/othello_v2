@@ -23,6 +23,66 @@ html.layout-profile-phone-portrait {
     --mobile-command-text: #f4ead8;
     --mobile-command-muted: rgba(244, 234, 216, 0.68);
     --mobile-command-z: calc(var(--z-modal-result) + 20);
+    --mobile-tone-rgb: 83, 214, 209;
+    --mobile-tone-text: #effff9;
+    --mobile-tone-icon-top: #effff9;
+    --mobile-tone-icon-bottom: #9bded9;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="emerald"] {
+    --mobile-tone-rgb: 106, 255, 172;
+    --mobile-tone-text: #e8fff2;
+    --mobile-tone-icon-top: #f7ffe8;
+    --mobile-tone-icon-bottom: #b8f2a6;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="azure"] {
+    --mobile-tone-rgb: 93, 171, 255;
+    --mobile-tone-text: #eef5ff;
+    --mobile-tone-icon-top: #eef5ff;
+    --mobile-tone-icon-bottom: #9fc2ff;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="gold"] {
+    --mobile-tone-rgb: 242, 201, 95;
+    --mobile-tone-text: #fff4c2;
+    --mobile-tone-icon-top: #fff9df;
+    --mobile-tone-icon-bottom: #f2c95f;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="ember"] {
+    --mobile-tone-rgb: 255, 137, 90;
+    --mobile-tone-text: #fff0e8;
+    --mobile-tone-icon-top: #fff4df;
+    --mobile-tone-icon-bottom: #ff9a69;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="violet"] {
+    --mobile-tone-rgb: 210, 130, 255;
+    --mobile-tone-text: #f8ecff;
+    --mobile-tone-icon-top: #fceaff;
+    --mobile-tone-icon-bottom: #d6a2f2;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="rose"] {
+    --mobile-tone-rgb: 242, 140, 177;
+    --mobile-tone-text: #fff0f5;
+    --mobile-tone-icon-top: #fff1f7;
+    --mobile-tone-icon-bottom: #f29abd;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="sage"] {
+    --mobile-tone-rgb: 120, 186, 171;
+    --mobile-tone-text: #effff9;
+    --mobile-tone-icon-top: #effff9;
+    --mobile-tone-icon-bottom: #9bd7c9;
+}
+
+html.layout-profile-phone-portrait [data-mobile-tone="danger"] {
+    --mobile-tone-rgb: 255, 138, 122;
+    --mobile-tone-text: #fff0ef;
+    --mobile-tone-icon-top: #fff3ef;
+    --mobile-tone-icon-bottom: #ff8a7a;
 }
 
 html.layout-profile-phone-portrait,
@@ -63,14 +123,18 @@ html.layout-profile-phone-portrait .mobile-command-trigger {
     min-width: 56px;
     min-height: 48px;
     padding: 7px 11px;
-    border: 1px solid rgba(126, 215, 255, 0.56);
+    border: 1px solid rgba(var(--mobile-tone-rgb), 0.56);
     border-radius: 14px;
     background:
-        linear-gradient(180deg, rgba(27, 63, 69, 0.97), rgba(4, 17, 21, 0.985));
-    color: var(--mobile-command-text);
+        radial-gradient(120% 100% at 16% 0%, rgba(var(--mobile-tone-rgb), 0.19), transparent 58%),
+        linear-gradient(90deg, rgba(var(--mobile-tone-rgb), 0.30) 0, transparent 4px),
+        linear-gradient(180deg, rgba(23, 34, 35, 0.97), rgba(4, 13, 16, 0.985));
+    color: var(--mobile-tone-text);
     box-shadow:
         0 8px 22px rgba(0, 0, 0, 0.38),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        0 0 16px rgba(var(--mobile-tone-rgb), 0.10),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 3px 0 0 rgba(var(--mobile-tone-rgb), 0.46);
     font: inherit;
     font-size: 12px;
     font-weight: 900;
@@ -90,16 +154,12 @@ html.layout-profile-phone-portrait .mobile-command-status-trigger {
     top: var(--mobile-command-safe-top);
     right: var(--mobile-command-safe-right);
     min-width: 58px;
-    border-color: rgba(242, 201, 95, 0.58);
-    color: #fff0b5;
 }
 
 html.layout-profile-phone-portrait .mobile-command-quick-trigger {
     right: var(--mobile-command-safe-right);
     bottom: var(--mobile-command-safe-bottom);
     min-width: 68px;
-    border-color: rgba(83, 214, 209, 0.72);
-    color: #dffffb;
 }
 
 html.layout-profile-phone-portrait .mobile-command-menu-trigger-icon {
@@ -315,10 +375,16 @@ html.layout-profile-phone-portrait .mobile-command-bgm-select {
     width: 100%;
     min-height: 48px;
     padding: 10px 12px;
-    border: 1px solid rgba(83, 214, 209, 0.26);
+    border: 1px solid rgba(var(--mobile-tone-rgb), 0.42);
     border-radius: 11px;
-    background: var(--mobile-command-surface-raised);
-    color: var(--mobile-command-text);
+    background:
+        radial-gradient(110% 90% at 14% 0%, rgba(var(--mobile-tone-rgb), 0.14), transparent 58%),
+        linear-gradient(90deg, rgba(var(--mobile-tone-rgb), 0.25) 0, transparent 5px),
+        var(--mobile-command-surface-raised);
+    color: var(--mobile-tone-text);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        inset 3px 0 0 rgba(var(--mobile-tone-rgb), 0.42);
     font: inherit;
     font-size: 14px;
     font-weight: 800;
@@ -339,7 +405,11 @@ html.layout-profile-phone-portrait .mobile-command-menu-icon {
     flex: 0 0 24px;
     width: 24px;
     height: 24px;
-    background: linear-gradient(180deg, #ecfbff, var(--mobile-command-sky));
+    background: linear-gradient(
+        180deg,
+        var(--mobile-tone-icon-top),
+        var(--mobile-tone-icon-bottom)
+    );
     -webkit-mask-image: var(--left-action-icon-mask);
     mask-image: var(--left-action-icon-mask);
     -webkit-mask-position: center;
@@ -376,10 +446,25 @@ html.layout-profile-phone-portrait .mobile-command-quick-action {
 }
 
 html.layout-profile-phone-portrait .mobile-command-quick-action.is-active {
-    border-color: rgba(126, 239, 234, 0.78);
+    border-color: rgba(var(--mobile-tone-rgb), 0.82);
     background:
-        linear-gradient(180deg, rgba(24, 82, 85, 0.95), rgba(9, 41, 46, 0.98));
-    color: #e9fffd;
+        radial-gradient(120% 100% at 16% 0%, rgba(var(--mobile-tone-rgb), 0.30), transparent 62%),
+        linear-gradient(90deg, rgba(var(--mobile-tone-rgb), 0.46) 0, transparent 5px),
+        linear-gradient(180deg, rgba(35, 42, 38, 0.98), rgba(8, 17, 18, 0.98));
+    color: var(--mobile-tone-text);
+    box-shadow:
+        0 0 18px rgba(var(--mobile-tone-rgb), 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 3px 0 0 rgba(var(--mobile-tone-rgb), 0.66);
+}
+
+html.layout-profile-phone-portrait :is(
+    .mobile-command-menu-item,
+    .mobile-command-quick-action
+):disabled {
+    cursor: not-allowed;
+    filter: saturate(0.45);
+    opacity: 0.48;
 }
 
 html.layout-profile-phone-portrait .mobile-command-bgm-select {

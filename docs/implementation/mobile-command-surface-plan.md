@@ -151,6 +151,34 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - Verification: focused Jest、`npm run typecheck`、`npm run checkall`、`npm run build:browser`、`npm run build:vite`、`npm run worker:prepare`、`git diff --check`、task-only status/diff
 - Done: 仕様・設計・実装・QA・生成物が一致し、コミット後の作業ツリーがクリーンになる。
 
+## Step 18: PC由来の役割別カラートークンを仕様化する
+
+- Outcome: スマホボタンの単色化を解消し、PC版の機能別カラーとアクセシビリティ条件を仕様・設計へ固定する。
+- Files: `01-rulebook.md`, `docs/implementation/mobile-command-surface-design.md`, 本計画
+- Dependencies: PC版左レール・クイック操作と現行スマホメニューの実画面比較
+- Verification: PC/スマホ比較スクリーンショット、設計Self-review、`git diff --check`
+- Done: 色の役割、適用対象、色だけへ依存しない条件、単一設定レジストリの所有が明記される。
+
+## Step 19: 単一コマンド設定から役割色を描画する
+
+- Outcome: 上部3入口、ドロワー項目、操作シート主要ボタンが機能別トーンで表示され、状態・代理操作・既存パネル挙動は変わらない。
+- Files: `ui/mobile-command-surface/config.ts`, `ui/mobile-command-surface/view.ts`, `styles-mobile-command-surface.css`
+- Dependencies: Step 18
+- Verification: typed build、focused Jest、色コントラスト測定、スマホ実画面
+- Done: `data-mobile-tone` が型付き設定から投影され、共通focus、active、disabled状態が全トーンで識別できる。
+
+## Step 20: 色分けの視覚QAと配信同期を完了する
+
+- Outcome: PC版を視覚基準に、スマホのメニュー・操作・閉状態で単色感が解消され、PC表示へ回帰がない。
+- Files: `test/ui.mobile-command-surface.test.ts`, `test/ui.mobile-side-panel-widths.test.ts`, `design-qa.md`, 正規build/prepare生成物
+- Dependencies: Step 19
+- Verification:
+  - 393x852で閉状態、メニュードロワー、操作シートのbefore/after比較
+  - 320x568、430x932で横溢れ、タップ領域、文字欠け確認
+  - 1280x800でPCレール・クイック操作とスマホsurface非表示を確認
+  - console error、focused Jest、typecheck、checkall、browser/Vite build、Worker mirror同期
+- Done: `design-qa.md` が結合比較を記録して `final result: passed` となり、検証済み差分がコミットされる。
+
 ## Completion checklist
 
 - [x] `01-rulebook.md` が新しいスマホ挙動を規定している
@@ -254,3 +282,45 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - 戦況内容のコピー実装を計画から除外し、既存panel nodeの一時配置と復元を独立したdone条件にした。
 - 参照画像に含まれないターン／スコア用 `#effect-live-panel` は対象外とし、表示対象を `#manifest-effect-panel` と `#stone-info-panel` に限定した。
 - 敵アイコンは旧版の実assetを再利用し、現在の敵表示とCPU設定入口だけへ同期するため、ゲーム／ネットワーク状態を新規所有しない。
+
+### 役割別カラー completion checklist
+
+- [x] 上部の `メニュー` / `戦況` / `操作` が金・緑・紫に分かれている
+- [x] ドロワー11機能が型付きコマンド設定から役割色を受け取る
+- [x] 操作シートのリセット・BGM・AUTO・ミュートがPC版由来の役割色を使う
+- [x] ラベルと既存アイコンを維持し、色だけを識別手段にしていない
+- [x] focus-visible、active、disabled状態が全トーンで識別できる
+- [x] 320/393/430pxで横溢れと文字欠けがない
+- [x] 1280pxのPC表示へスマホ色トークンが漏れない
+- [x] `design-qa.md` がPC、before、afterの結合比較を記録して `final result: passed` になる
+- [x] focused Jest、typecheck、checkall、browser/Vite build、Worker mirror同期が成功する
+
+### 役割別カラー verification results
+
+- focused Jest 5 suites / 26 tests: 成功
+  - `test/ui.mobile-command-surface.test.ts`
+  - `test/ui.mobile-command-surface-state.test.ts`
+  - `test/ui.mobile-side-panel-widths.test.ts`
+  - `test/ui.mobile-quick-controls-layout.test.ts`
+  - `test/ui.left-rail-layout-contract.test.ts`
+- `npm run typecheck`: 成功（root / training）
+- `npm run checkall`: 成功
+- `npm run build:browser`: 成功（module registry 1065 modules）
+- `npm run build:vite`: 成功（1450 modules、既知のchunk-size warningのみ）
+- `npm run worker:prepare`: 成功（Worker mirror 957 files）
+- 役割別文字色のコントラスト: 暗背景に対して16.64:1〜18.36:1
+- Codex in-app Browser:
+  - 393x852で閉状態、ドロワー、操作シートをbefore/after比較
+  - 320x568でドロワー幅275.1875px、最小項目高51px、横溢れなし
+  - 430x932でドロワー幅360px、最小項目高51px、横溢れなし
+  - 1280x800のPC入力条件で `layout-profile-16x9`、スマホsurface非表示、既存レール/クイック操作表示
+  - console errorなし
+- `design-qa.md`: PC版、旧スマホ、更新後スマホを同じ比較画像で確認し、P0/P1/P2なし、`final result: passed`
+
+### 役割別カラー Self-review
+
+- 任意の虹色化ではなく、PC版の既存トーンとクイック操作の意味をスマホへ投影した。
+- コマンドIDごとのCSS列挙を避け、既存の単一レジストリへ `tone` を持たせたため、機能追加時に挙動と配色が別正本へ分裂しない。
+- 彩色面積を左レール、枠、弱い光、アイコンへ限定し、暗いsurface、文字、フォーカスリングを共通化した。
+- BGMとミュートはPC版どおり同じ青を共有するが、文言、pressed状態、配置で識別できるため色だけに依存しない。
+- `プロフィール` と `ヘルプ` のPC未定義色は、個人識別のローズと補助情報のセージへ割り当て、設定とラベルに明示した。

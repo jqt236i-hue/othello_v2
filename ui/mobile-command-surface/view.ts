@@ -60,6 +60,7 @@ function createMobileCommandSurfaceView(
   menuTrigger.setAttribute('aria-controls', 'mobile-command-drawer');
   menuTrigger.setAttribute('aria-expanded', 'false');
   menuTrigger.setAttribute('aria-label', 'メニューを開く');
+  menuTrigger.dataset.mobileTone = 'gold';
   const menuTriggerIcon = make('span', 'mobile-command-menu-trigger-icon');
   menuTriggerIcon.setAttribute('aria-hidden', 'true');
   const menuTriggerLabel = make('span', 'mobile-command-trigger-label');
@@ -73,6 +74,7 @@ function createMobileCommandSurfaceView(
   statusTrigger.setAttribute('aria-controls', 'mobile-command-status-panel');
   statusTrigger.setAttribute('aria-expanded', 'false');
   statusTrigger.setAttribute('aria-label', '戦況を開く');
+  statusTrigger.dataset.mobileTone = 'emerald';
   statusTrigger.textContent = '戦況';
 
   const quickTrigger = make('button', 'mobile-command-trigger mobile-command-quick-trigger');
@@ -82,6 +84,7 @@ function createMobileCommandSurfaceView(
   quickTrigger.setAttribute('aria-controls', 'mobile-command-quick-sheet');
   quickTrigger.setAttribute('aria-expanded', 'false');
   quickTrigger.setAttribute('aria-label', '操作を開く');
+  quickTrigger.dataset.mobileTone = 'violet';
   quickTrigger.textContent = '操作';
 
   const backdrop = make('div', 'mobile-command-backdrop');
@@ -152,6 +155,7 @@ function createMobileCommandSurfaceView(
       button.id = `mobile-command-menu-${command.id}`;
       button.type = 'button';
       button.dataset.mobileCommand = command.id;
+      button.dataset.mobileTone = command.tone;
       button.setAttribute('aria-label', command.label);
 
       const icon = copyMenuIcon(source);
@@ -228,6 +232,7 @@ function createMobileCommandSurfaceView(
     const button = make('button', 'mobile-command-quick-action');
     button.type = 'button';
     button.dataset.mobileProxy = definition.sourceId;
+    button.dataset.mobileTone = definition.tone;
     button.textContent = source.textContent?.trim()
       || source.getAttribute('aria-label')
       || definition.sourceId;

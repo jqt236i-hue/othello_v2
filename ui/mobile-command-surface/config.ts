@@ -2,12 +2,23 @@ type MobileCommandLayer = 'drawer' | 'status' | 'quick';
 
 type MobileMenuGroupId = 'game' | 'collection' | 'information' | 'settings';
 
+type MobileCommandTone =
+  | 'emerald'
+  | 'azure'
+  | 'gold'
+  | 'ember'
+  | 'violet'
+  | 'rose'
+  | 'sage'
+  | 'danger';
+
 interface MobileActionCommandSpec {
   kind: 'action';
   id: string;
   label: string;
   group: MobileMenuGroupId;
   triggerId: string;
+  tone: MobileCommandTone;
 }
 
 interface MobileExistingHeaderChromeSpec {
@@ -31,6 +42,7 @@ interface MobilePanelCommandSpec {
   panelElementId: string;
   closeButtonId: string;
   chrome: MobileExistingHeaderChromeSpec | MobileInjectedHeaderChromeSpec;
+  tone: MobileCommandTone;
 }
 
 type MobileCommandSpec = MobileActionCommandSpec | MobilePanelCommandSpec;
@@ -43,7 +55,14 @@ const MOBILE_MENU_GROUP_LABELS: Readonly<Record<MobileMenuGroupId, string>> = {
 };
 
 const MOBILE_COMMANDS = [
-  { kind: 'action', id: 'cpu', label: 'CPU', group: 'game', triggerId: 'modeCpuBtn' },
+  {
+    kind: 'action',
+    id: 'cpu',
+    label: 'CPU',
+    group: 'game',
+    triggerId: 'modeCpuBtn',
+    tone: 'emerald',
+  },
   {
     kind: 'panel',
     id: 'network',
@@ -54,6 +73,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'networkOverlay',
     closeButtonId: 'networkCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'networkModalHeader' },
+    tone: 'azure',
   },
   {
     kind: 'panel',
@@ -65,8 +85,16 @@ const MOBILE_COMMANDS = [
     panelElementId: 'ratedMatchOverlay',
     closeButtonId: 'ratedMatchCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'ratedMatchModalHeader' },
+    tone: 'gold',
   },
-  { kind: 'action', id: 'action', label: '2Dアクション', group: 'game', triggerId: 'reversiDestinyOpenLink' },
+  {
+    kind: 'action',
+    id: 'action',
+    label: '2Dアクション',
+    group: 'game',
+    triggerId: 'reversiDestinyOpenLink',
+    tone: 'ember',
+  },
   {
     kind: 'panel',
     id: 'deck',
@@ -77,6 +105,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'deckBuilderOverlay',
     closeButtonId: 'deckBuilderCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'deckBuilderModalHeader' },
+    tone: 'azure',
   },
   {
     kind: 'panel',
@@ -88,6 +117,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'gachaOverlay',
     closeButtonId: 'gachaCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'gachaModalHeader' },
+    tone: 'ember',
   },
   {
     kind: 'panel',
@@ -99,6 +129,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'handSkinPanel',
     closeButtonId: 'handSkinCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'handSkinPanelHeader' },
+    tone: 'violet',
   },
   {
     kind: 'panel',
@@ -110,6 +141,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'leaderboardOverlay',
     closeButtonId: 'leaderboardCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'leaderboardModalHeader' },
+    tone: 'gold',
   },
   {
     kind: 'panel',
@@ -121,6 +153,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'profileOverlay',
     closeButtonId: 'profileCloseBtn',
     chrome: { kind: 'existing', headerElementId: 'profileModalHeader' },
+    tone: 'rose',
   },
   {
     kind: 'panel',
@@ -132,6 +165,7 @@ const MOBILE_COMMANDS = [
     panelElementId: 'rules-help-panel',
     closeButtonId: 'rules-help-close-btn',
     chrome: { kind: 'existing', headerElementId: 'rules-help-title-row' },
+    tone: 'sage',
   },
   {
     kind: 'panel',
@@ -147,6 +181,7 @@ const MOBILE_COMMANDS = [
       headerElementId: 'mobile-command-settings-header',
       containerElementId: 'control-panel',
     },
+    tone: 'sage',
   },
 ] as const satisfies readonly MobileCommandSpec[];
 
@@ -180,6 +215,7 @@ interface MobileQuickButtonSpec {
   kind: 'button';
   sourceId: string;
   confirm: 'local-reset' | null;
+  tone: MobileCommandTone;
 }
 
 interface MobileQuickSelectSpec {
@@ -202,10 +238,10 @@ type MobileQuickControlSpec =
   | MobileQuickRangeSpec;
 
 const MOBILE_QUICK_CONTROLS = [
-  { kind: 'button', sourceId: 'resetBtn', confirm: 'local-reset' },
-  { kind: 'button', sourceId: 'quickBgmToggleBtn', confirm: null },
-  { kind: 'button', sourceId: 'autoToggleBtn', confirm: null },
-  { kind: 'button', sourceId: 'muteBtn', confirm: null },
+  { kind: 'button', sourceId: 'resetBtn', confirm: 'local-reset', tone: 'danger' },
+  { kind: 'button', sourceId: 'quickBgmToggleBtn', confirm: null, tone: 'azure' },
+  { kind: 'button', sourceId: 'autoToggleBtn', confirm: null, tone: 'gold' },
+  { kind: 'button', sourceId: 'muteBtn', confirm: null, tone: 'azure' },
   {
     kind: 'select',
     sourceId: 'bgmTrackSelect',
@@ -237,6 +273,7 @@ export {
 export type {
   MobileCommandDefinition,
   MobileCommandLayer,
+  MobileCommandTone,
   MobileMenuGroupId,
   MobileNativePanelId,
   MobilePanelCommandDefinition,
