@@ -105,6 +105,49 @@ final result: passed
 
 ---
 
+# Mobile Bottom-Space Recovery and Board Enlargement Design QA
+
+- Source visual truth: `C:\Users\quarr\.codex\codex-remote-attachments\019fb179-f8e9-7e82-9957-6bc6b0609e36\61B7D8E4-789B-4CCE-AAD8-E301A0D2F29F\1-写真1.jpg`
+- Implementation screenshot: `C:\Users\quarr\AppData\Local\Temp\card-reversi-mobile-after-393x673.png`
+- Combined source/implementation comparison: `C:\Users\quarr\AppData\Local\Temp\card-reversi-mobile-density-comparison.png`
+- Viewport and density:
+  - The source game region is 591 × 1010 physical pixels and was normalized to 393 × 673 CSS pixels.
+  - The implementation was captured at an exact 393 × 673 CSS-pixel iframe viewport with device scale factor 1.
+  - The source crop was resized by approximately 0.665 to put both game regions in one same-size comparison input.
+- State: CPU match. Round, stones, hand cards, and board contents differ because they are live match data; all compared layout surfaces are the same. The transient turn-arrival toast was hidden only for the normalized QA capture.
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- The obsolete 58px reservation for the former bottom quick-control row is gone. The player deck now ends at y=663.83 in the 673px viewport, leaving 9.17px of safe bottom space.
+- The board outer frame increased from approximately 279px in the supplied source to 331.83px in the implementation. Its visual area is therefore materially larger without covering the top command row, card detail, player hand, deck, or `操作`.
+- At 320 × 568, the short-height cap produces a 258.47px outer board frame and keeps the player deck at y=555.59. The document remains 320 × 568 with no horizontal or vertical page overflow.
+- At 393 × 852, the board is width-limited at 376.36px. Card detail, hand, deck, and `操作` remain distinct and inside the viewport.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: no font family, weight, line height, round label, card label, or action copy changed.
+- Spacing and layout rhythm: recovered height is assigned to the board first; only the obsolete bottom reserve and excess player-side offset were reduced. A short-height media limit protects the dense 320px layout.
+- Colors and visual tokens: existing dark-teal, metal, gold, green, purple, and card-role colors are unchanged.
+- Image quality and asset fidelity: the current board, frame, cards, enemy portrait, and card-back assets are reused at their existing source quality. No raster asset was stretched or replaced.
+- Copy and content: all visible labels and live values keep their existing DOM/state paths.
+- Responsiveness and accessibility: 320 × 568, 393 × 673, and 393 × 852 remain within their document bounds; `操作` keeps its 44 × 44px target.
+
+## Comparison History
+
+1. Baseline measurement:
+   - 393 × 673 computed bottom padding was 68px, the board outer frame was 279.33px, and approximately 58px remained unused below the player deck.
+2. First implementation:
+   - Removed the stale quick-control reservation, enlarged the normal phone board constraint, and added a 620px short-height cap.
+3. Post-fix comparison:
+   - Source and implementation were combined at the same 393 × 673 visible game size.
+   - The requested bottom tightening and board enlargement are visible, while no actionable overlap, crop, typography, color, imagery, or copy regression remains.
+
+final result: passed
+
+---
+
 # Mobile Top Row, Operation Anchor, and Board-Frame HUD Design QA
 
 - User direction: align ROUND with `メニュー` / `戦況`, place the smaller `操作` immediately above the player deck without overlap, and keep charge/pass/settled turn UI inside the board frame

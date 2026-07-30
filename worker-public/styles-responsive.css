@@ -176,7 +176,7 @@ html.layout-profile-phone-portrait {
         var(--layout-phone-portrait-hand-fixed-padding-x)
     );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
-    --layout-phone-portrait-player-bottom-offset: calc(18px * var(--layout-stage-scale));
+    --layout-phone-portrait-player-bottom-offset: calc(10px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
     /* Clear the 57px mobile action rail including its border/padding. */
     --layout-phone-portrait-quick-controls-bottom-offset: calc(68px * var(--layout-stage-scale));
@@ -191,7 +191,7 @@ html.layout-profile-phone-portrait #game-container {
     min-height: 100dvh;
     justify-content: flex-start;
     padding-top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
-    padding-bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(102px * var(--layout-stage-scale)));
+    padding-bottom: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
     gap: calc(4px * var(--layout-stage-scale));
 }
 
@@ -218,9 +218,15 @@ html.layout-profile-phone-portrait .player-area-bottom {
 }
 
 html.layout-profile-phone-portrait #board-frame {
-    --board-frame-inner-size: min(78vw, calc(345px * var(--layout-stage-scale)), 37dvh);
+    --board-frame-inner-size: min(86vw, calc(418px * var(--layout-stage-scale)), 44.8dvh);
     --board-frame-padding: calc(7.5px * var(--layout-stage-scale));
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
+}
+
+@media (max-height: 620px) {
+    html.layout-profile-phone-portrait #board-frame {
+        --board-frame-inner-size: min(82vw, calc(385px * var(--layout-stage-scale)), 41dvh);
+    }
 }
 
 html.layout-profile-phone-portrait #board {

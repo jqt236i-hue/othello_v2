@@ -28,8 +28,8 @@ describe('hand and deck scale CSS contract', () => {
   test('phone portrait keeps the player deck after the fixed hand lane', () => {
     const responsiveCss = readRepoTextFile('styles-responsive.css');
 
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#deck-black\s*\{[\s\S]*width:\s*var\(--layout-phone-portrait-player-deck-width\);[\s\S]*height:\s*calc\(66px\s*\*\s*var\(--layout-stage-scale\)\);[\s\S]*margin-left:\s*0;/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#deck-black\s*\{[\s\S]*width:\s*var\(--layout-phone-portrait-player-deck-width\);[\s\S]*height:\s*calc\(66px\s*\*\s*var\(--layout-stage-scale\)\);[\s\S]*margin-left:\s*calc\(var\(--layout-phone-portrait-player-utility-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-width\)\);/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#deck-black\s+\.deck-count\s*\{[\s\S]*font-size:\s*calc\(11px\s*\*\s*var\(--layout-stage-scale\)\);/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black\s*\{[\s\S]*order:\s*2;[\s\S]*width:\s*min\(var\(--layout-phone-portrait-hand-fixed-width\),\s*calc\(100%\s*-\s*var\(--layout-phone-portrait-player-deck-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-gap\)\)\);[\s\S]*min-height:\s*calc\(108px\s*\*\s*var\(--layout-stage-scale\)\);/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black\s*\{[\s\S]*order:\s*2;[\s\S]*width:\s*min\(var\(--layout-phone-portrait-hand-fixed-width\),\s*calc\(100%\s*-\s*var\(--layout-phone-portrait-player-utility-width\)\s*-\s*var\(--layout-phone-portrait-player-deck-gap\)\)\);[\s\S]*min-height:\s*calc\(108px\s*\*\s*var\(--layout-stage-scale\)\);/);
   });
 });

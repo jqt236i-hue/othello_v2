@@ -77,7 +77,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black\s+\.card-item[\s\S]*width:\s*calc\(92px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*height:\s*calc\(110px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#round-display-panel[\s\S]*display:\s*none/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#cpu-speech-bubble[\s\S]*display:\s*none/);
-    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*--board-frame-inner-size:\s*min\(78vw/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*padding-bottom:\s*max\(calc\(8px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-bottom\)\)/);
+    expect(css).toMatch(/--layout-phone-portrait-player-bottom-offset:\s*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*--board-frame-inner-size:\s*min\(86vw,\s*calc\(418px\s*\*\s*var\(--layout-stage-scale\)\),\s*44\.8dvh\)/);
+    expect(css).toMatch(/@media\s*\(max-height:\s*620px\)[\s\S]*html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*min\(82vw,\s*calc\(385px\s*\*\s*var\(--layout-stage-scale\)\),\s*41dvh\)/);
     expect(css).not.toMatch(/html\.layout-phone-landscape-blocked\s+body::before/);
     expect(css).toMatch(/#effect-live-panel[\s\S]*left:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*top:\s*max\(calc\(240px\s*\*\s*var\(--layout-stage-scale\)\)/);

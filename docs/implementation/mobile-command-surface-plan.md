@@ -548,3 +548,45 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - 山札自体を左へ動かさず、`utility width - deck width` の差だけ余白へ使うことで、既存の山札右端を維持した。
 - 盤面HUDは既存DOMと表示更新を再利用し、スマホ用の布石値・パス状態・手番状態を新設していない。
 - ターン通知の位置計算はphone profileだけフレーム内右下へ分岐し、PC/iPadの既存座標と横スライド演出を変更していない。
+
+## 追加要望: 実機下端余白の回収と盤面拡大
+
+### Step 29: 実機比率から余白予算を確定する
+
+- Outcome: 添付実機写真と393x673の同一状態を比較し、下端未使用領域の所有元と盤面拡大可能量を数値化する。
+- Components: 実機写真、`styles-mobile-command-surface.css`、`styles-responsive.css`、`ui/layout-stage.ts`。
+- Dependencies: Step 26-28で `操作` が山札直上へ移動し、旧下部操作列が非表示であること。
+- Verification: 393x673で `#game-container`、`#board-frame`、自分手札、山札、`操作` の矩形とcomputed paddingを取得する。
+- Done: 旧操作列用58pxが不要な予約であり、safe area 10pxと盤面拡大量を同時に満たせることが実測できる。
+
+### Step 30: 下端予約を除去し、盤面を表示高別に最大化する
+
+- Outcome: スマホ縦画面の下端余白をsafe area基準へ縮小し、通常高では盤面を大きく、620px以下では操作可能性を保つ上限へ切り替える。
+- Components: `styles-mobile-command-surface.css`、`styles-responsive.css`、関連CSS契約テスト。
+- Dependencies: Step 29の余白予算。
+- Verification: focused Jest、393x673・320x568・393x852で盤面/山札/操作矩形、`scrollWidth` / `scrollHeight` を測定する。
+- Done: 393x673で盤面外枠が約332px、山札下端が664px以内、320x568でも縦横溢れとUI重なりがない。
+
+### Step 31: 比較QA、生成、コミット、デプロイを完了する
+
+- Outcome: 実機写真と実装後画面の結合比較でP0/P1/P2を解消し、root/Vite/Worker mirrorを同期して本番へ公開する。
+- Components: `design-qa.md`、ブラウザ/Vite生成物、Worker mirror、Cloudflare deployment。
+- Dependencies: Step 30完了。
+- Verification: focused Jest、`npm run worker:prepare`、`git diff --check`、同一viewport比較、`npm run worker:deploy`、本番HTML/CSS/API確認。
+- Done: `design-qa.md` が `final result: passed`、タスク差分がコミット済み、本番Version IDと配信内容が確認済み。
+
+### 実機下端余白と盤面拡大 completion checklist
+
+- [x] 下端は旧操作列の58px予約を持たず、safe area基準だけを確保する
+- [x] 393x673で盤面外枠が約332pxまで拡大する
+- [x] 393x673で山札・操作が673px内に収まり、下端に9px以上を確保する
+- [x] 320x568では短画面上限が働き、縦横溢れとUI欠けがない
+- [x] 393x852でも盤面・カード詳細・自分手札・操作が重ならない
+- [x] PC/iPad/横画面のレイアウト契約を変更しない
+- [ ] 比較QA、focused tests、生成、commit、deploy、本番確認が完了する
+
+### 実機下端余白と盤面拡大 Self-review
+
+- 下側全体を負のtransformで持ち上げる案は空白の原因を残し、短画面で上側UIとの重なりを起こすため採用しない。
+- 盤面係数を一律に上げるだけでは320x568で山札が下端を越えるため、620px以下へ明示的な短画面上限を追加した。
+- 盤面拡大は既存 `--board-frame-inner-size` の入力だけを変更し、Pixi application、canvas数、board writer、ゲーム状態へ新しい経路を作らない。

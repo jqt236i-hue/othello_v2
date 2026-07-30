@@ -110,7 +110,7 @@ html.layout-profile-phone-portrait body.mobile-command-surface-locked {
 
 html.layout-profile-phone-portrait #game-container {
     padding-top: calc(var(--mobile-command-safe-top) + 52px);
-    padding-bottom: calc(var(--mobile-command-safe-bottom) + 58px);
+    padding-bottom: var(--mobile-command-safe-bottom);
     overflow-x: clip;
 }
 

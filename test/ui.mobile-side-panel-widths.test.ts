@@ -55,7 +55,9 @@ describe('mobile command surface panel contract', () => {
     const responsiveCss = readRepoTextFile('styles-responsive.css');
 
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*overflow-x:\s*clip/);
-    expect(responsiveCss).toMatch(/--board-frame-inner-size:\s*min\([\s\S]*78vw,[\s\S]*37dvh[\s\S]*\)/);
+    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*padding-bottom:\s*var\(--mobile-command-safe-bottom\)/);
+    expect(responsiveCss).toMatch(/--board-frame-inner-size:\s*min\([\s\S]*86vw,[\s\S]*calc\(418px\s*\*\s*var\(--layout-stage-scale\)\),[\s\S]*44\.8dvh[\s\S]*\)/);
+    expect(responsiveCss).toMatch(/@media\s*\(max-height:\s*620px\)[\s\S]*html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*--board-frame-inner-size:\s*min\([\s\S]*82vw,[\s\S]*calc\(385px\s*\*\s*var\(--layout-stage-scale\)\),[\s\S]*41dvh[\s\S]*\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#left-info-stack\s*>\s*#stone-info-panel[\s\S]*display:\s*none/);
     expect(mobileCss).toMatch(/\.mobile-command-status-content\s+#stone-info-panel\s+\.stone-info-list-item[\s\S]*min-height:\s*calc\(68px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*max-height:\s*calc\(130px\s*\*\s*var\(--layout-stage-scale\)\)/);

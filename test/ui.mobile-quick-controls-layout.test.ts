@@ -6,6 +6,7 @@ describe('mobile quick controls layout contract', () => {
     const classicHtml = readRepoTextFile('index.classic.html');
 
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+:is\(\s*#leftActionButtons,\s*#quick-controls-bar\s*\)[\s\S]*display:\s*none\s*!important/);
+    expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*padding-top:\s*calc\(var\(--mobile-command-safe-top\)\s*\+\s*52px\)[\s\S]*padding-bottom:\s*var\(--mobile-command-safe-bottom\)/);
     expect(mobileCss).toMatch(/\.mobile-command-quick-trigger\s*\{[\s\S]*display:\s*none/);
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.player-area-bottom\s+\.mobile-command-quick-trigger[\s\S]*position:\s*absolute[\s\S]*right:\s*0[\s\S]*bottom:\s*calc\(62px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*width:\s*44px[\s\S]*height:\s*44px/);
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\.mobile-command-surface-locked\s+\.mobile-command-quick-trigger[\s\S]*visibility:\s*hidden[\s\S]*pointer-events:\s*none/);
