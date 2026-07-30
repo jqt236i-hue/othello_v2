@@ -370,3 +370,74 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - 彩色面積を左レール、枠、弱い光、アイコンへ限定し、暗いsurface、文字、フォーカスリングを共通化した。
 - BGMとミュートはPC版どおり同じ青を共有するが、文言、pressed状態、配置で識別できるため色だけに依存しない。
 - `プロフィール` と `ヘルプ` のPC未定義色は、個人識別のローズと補助情報のセージへ割り当て、設定とラベルに明示した。
+
+## 追加要望: PC固定スマホプレビューURL
+
+### Step 20: 固定プレビュー契約を設計する
+
+- Outcome: PCで幅を狭めるだけの不正確な確認経路を廃止し、393x852の実viewportを持つ再利用可能な専用URLを設計する。
+- Files: `docs/implementation/mobile-command-surface-design.md`, 本計画
+- Dependencies: 現行 `ui/layout-stage.ts`、スマホCSS、Worker root asset正本の調査
+- Verification: 設計Self-review、通常URL非回帰条件と専用preview gateの目視確認
+- Done: 専用iframe、専用preview限定profile override、通常URL非回帰、Worker同期の責務が明確である。
+
+### Step 21: プレビュー入口と専用preview限定profile overrideを実装する
+
+- Outcome: `mobile-preview.html` が393x852のゲームiframeを表示し、PC入力条件でもiframe内だけphone profileになる。
+- Files: `mobile-preview.html`, `ui/layout-stage.ts`, `scripts/prepare-worker-assets.ts`
+- Dependencies: Step 20
+- Verification: layout-stage focused Jest、静的entry契約test、typecheck
+- Done: `mobilePreview=1` + 専用iframe属性の組み合わせだけがphone profileを強制し、query単体や通常URLは変更しない。既存 `debug=1` は設定パネル初期展開を避けるため付与しない。
+
+### Step 22: 配信同期・実ブラウザQA・コミット
+
+- Outcome: local/Vite/Workerで専用URLが開き、PC上に正しいスマホ対局画面を再現した差分をコミットする。
+- Files: focused tests、browser/Vite/Worker生成物、必要なQA記録
+- Dependencies: Step 21
+- Verification:
+  - focused Jest
+  - `npm run typecheck`
+  - `npm run build:browser`
+  - `npm run build:vite`
+  - `npm run worker:prepare`
+  - PC入力条件で `mobile-preview.html` のiframeが393x852、`layout-profile-phone-portrait`、横溢れなし
+  - 通常 `index.html?debug=1` は `layout-profile-16x9`
+  - `git diff --check`、task-only diff/status
+- Done: 専用URLをPCから再読み込みしてもスマホUIが維持され、検証済みコミット後の作業ツリーがクリーンである。
+
+### PC固定スマホプレビュー completion checklist
+
+- [x] `mobile-preview.html` が393x852の同一originゲームiframeを持つ
+- [x] `mobilePreview=1` と専用iframe属性が揃う場合だけphone profileを強制する
+- [x] query単体と通常URLはPC profileを維持する
+- [x] Classic/Vite/Worker mirrorが専用URLを配信する
+- [x] PC上の専用URLで戦況、敵アイコン、盤面、操作入口がスマホ配置になる
+- [x] focused Jest、typecheck、browser/Vite build、Worker mirror同期が成功する
+- [x] 最終diff、QA、コミット、clean statusまで完了する
+
+### PC固定スマホプレビュー verification results
+
+- focused Jest 3 suites / 26 tests: 成功
+  - `test/ui.layout-stage.profile-selection.test.ts`
+  - `test/ui.mobile-preview-entry.test.ts`
+  - `test/scripts.prepare-worker-assets.test.ts`
+- `npm run typecheck`: 成功（root / training）
+- `npm run checkall`: 成功（`check:worker-mirror` を含む）
+- `npm run build:browser`: 成功（module registry 1065 modules）
+- `npm run worker:prepare`: 成功（Worker mirror 958 files）
+- Codex in-app Browser:
+  - 外側PC viewport 645x912、iframe 393x852、内部 `layout-profile-phone-portrait`
+  - 内部documentは `scrollWidth === clientWidth === 393`
+  - 通常状態で敵アイコン、相手手札上の戦況、盤面、スマホ操作入口を表示
+  - `戦況` を開くと最後使用カード領域と `#stone-info-panel` を表示し、close後は盤上の石を再び非表示
+  - トップレベル `index.html?mobilePreview=1` は1280x720で `layout-profile-16x9`
+  - console errorなし
+- `design-qa.md`: 閉状態と戦況表示をPC固定URLから撮影し、`final result: passed`
+
+### PC固定スマホプレビュー Self-review
+
+- classだけを付ける計画ではviewport依存の寸法が実機と一致しないため、固定iframeを先に作る順序へ修正した。
+- 通常URLへ汎用 `mobile=1` を追加すると誤用時に大きいviewportへphone profileを適用できるため、明示的な `mobilePreview=1` と専用iframe属性の両方を必須にした。
+- 正本変更を先に行い、Worker mirrorは `worker:prepare` だけで生成する。
+- 完了条件を「ファイルがある」ではなく、PC入力条件でiframe内部のprofile・viewport・横溢れを実測する形にした。
+- 初回ブラウザ確認で `debug=1` が設定パネルを初期表示したため、対局画面確認用entryから除外し、設計・テストを最初の実装stepへ戻して修正する。

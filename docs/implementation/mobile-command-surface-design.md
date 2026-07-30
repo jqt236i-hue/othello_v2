@@ -222,6 +222,37 @@ Non-goals: ゲームルール、カード効果、盤面描画、ネットワー
 - controllerは1回だけ初期化し、イベントリスナーと履歴所有を二重化しない。
 - 盤面のcanvas、ticker、ResizeObserver、描画状態へ触れないためSingle Visual Writerと描画性能に影響しない。
 
+## PC固定スマホプレビューURL
+
+### 問題と目的
+
+- 通常の `index.html?debug=1` は実viewportと入力能力からレイアウトを選ぶため、PCでブラウザ幅を狭めるだけでは `layout-profile-phone-portrait` にならない。
+- 一時的な端末エミュレーションはタブを開き直すと失われるため、URLを再利用して同じスマホ画面を確認できない。
+- PCから `mobile-preview.html` を開くだけで、393x852の実viewportを持つスマホ版ゲームを再現できる固定プレビュー入口を提供する。
+
+### 選択肢と採用設計
+
+- 通常ページへphone classだけを強制する案は、PCの大きいviewportを維持するため `vw` / `dvh` / Stage scaleが実機と一致せず採用しない。
+- URL queryだけでブラウザのviewportやpointer mediaを変更することはできないため、通常ページ単体の `?mobile=1` は採用しない。
+- `mobile-preview.html` が393x852の同一origin iframeを所有し、iframe内の `index.html?mobilePreview=1` だけがphone profileを強制する設計を採用する。これによりPC側の入力能力に関係なく、ゲーム側のviewport計算は393x852を正しく観測する。
+
+### 所有境界と制約
+
+- `mobile-preview.html` はviewport容器と案内だけを所有し、ゲームDOM、盤面、状態、入力処理を複製しない。
+- `ui/layout-stage.ts` は既存profile正本として専用preview要求を検証し、通常のdevice判定より前に `layout-profile-phone-portrait` を返す。
+- 強制条件は明示的な診断flag `mobilePreview=1` と、iframe要素の `data-card-reversi-mobile-preview="phone-portrait"` が一致した場合だけ有効とする。通常URLとqueryだけの直開きは変更しない。
+- 既存 `debug=1` は設定パネルを初期展開する契約を持つため、対局画面を直接確認するこの入口では付与しない。
+- iframeは `title` を持ち、393x852を固定する。外側ページは表示領域が小さいPCではスクロールを許可し、ゲームviewport自体は縮小しない。
+- Worker mirrorへは `scripts/prepare-worker-assets.ts` のroot file正本から同期し、mirrorを直接編集しない。
+
+### 検証と完了条件
+
+- fine pointer / hover capableなPC条件でも、専用iframe内では `layout-profile-phone-portrait` になる。
+- 通常トップレベルで `mobilePreview=1` を付けてもphone profileを強制しない。
+- `mobile-preview.html` のiframe内部が393x852で、相手手札上の戦況、スマホメニュー、敵アイコン、盤面、操作ボタンを表示し、横溢れしない。
+- 通常の `index.html?debug=1` はPC上で従来どおり `layout-profile-16x9` を選ぶ。
+- Classic/Vite/Worker mirrorが専用URLを配信し、focused Jest、typecheck、browser build、実ブラウザ確認が成功する。
+
 ## 検証戦略
 
 - Jest:
@@ -292,3 +323,8 @@ Non-goals: ゲームルール、カード効果、盤面描画、ネットワー
 - スマホ用ボタンを一律の青緑surfaceへ載せる初期案は、機能カテゴリと危険操作の判別を弱めていたため廃止した。PC版の既存トーンを役割単位で再利用し、暗い面と白系文字は共通のまま左レール・枠・アイコンだけを色分けする。
 - コマンドIDをCSSへ列挙する案は設定と見た目の正本を二重化するため採用せず、既存の単一コマンドレジストリへ型付き `tone` を追加する。
 - `プロフィール` はPC版で固有トーンが定義されていないため情報カテゴリ内の個人識別色として `rose`、`ヘルプ` は紫との競合を避けつつ落ち着いた補助色として `sage` を採用した。いずれもラベルとアイコンを維持するため、色覚差が操作可否へ影響しない。
+- PCで通常URLの幅だけを狭める案は実viewportと入力能力の両方を再現できず、今回の再現失敗の原因だったため廃止した。
+- iframe方式はゲームを複製せず、既存のlayout-stageへ専用preview限定のprofile入力を1つ追加するだけで、393x852の実viewportを保証できる最小構成と判断した。
+- queryだけの直開きでphone classを強制すると大きいPC viewport上で誤ったStage scaleになるため、専用iframe属性との組み合わせを必須にした。
+- 初回実ブラウザ確認で `debug=1` が既存の設定パネル初期展開を発生させることを確認した。`mobilePreview=1` を独立した明示診断flagとして扱い、対局画面を直接表示する設計へ修正した。
+- 通常プレイとWorker authorityへ影響せず、profile選択と静的配信だけの局所変更でfocused coverageが存在するため、独立レビューは不要と判断した。

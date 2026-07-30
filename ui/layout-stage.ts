@@ -26,6 +26,19 @@ function matchesMedia(query: string): boolean {
   }
 }
 
+function isForcedPhonePreview(): boolean {
+  try {
+    const params = new URLSearchParams(String(window.location?.search || ''));
+    if (params.get('mobilePreview') !== '1') return false;
+    const frame = window.frameElement;
+    return !!frame
+      && typeof frame.getAttribute === 'function'
+      && frame.getAttribute('data-card-reversi-mobile-preview') === 'phone-portrait';
+  } catch (e) {
+    return false;
+  }
+}
+
 function isDesktopLandscapeViewport(viewport: { width: number; height: number }): boolean {
   if (!viewport || !Number.isFinite(viewport.width) || !Number.isFinite(viewport.height)) return false;
   if (viewport.width < 901 || viewport.width < viewport.height) return false;
@@ -83,6 +96,9 @@ interface LayoutProfileResult {
 function resolveLayoutProfile(viewport: { width: number; height: number }, simAspect: number | null): LayoutProfileResult {
   if (!viewport || !Number.isFinite(viewport.width) || !Number.isFinite(viewport.height)) {
     return { profile: PROFILE_WIDE, blockPhoneLandscape: false };
+  }
+  if (isForcedPhonePreview()) {
+    return { profile: PROFILE_PHONE_PORTRAIT, blockPhoneLandscape: false };
   }
   const currentAspect = Number.isFinite(simAspect) && (simAspect as number) > 0
     ? simAspect as number

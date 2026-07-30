@@ -30,9 +30,11 @@ describe('prepare-worker-assets', () => {
         }
     });
 
-    test('verifies index.html as part of mirrored root files', () => {
+    test('verifies browser entries as part of mirrored root files', () => {
         expect(ROOT_FILES).toContain('index.html');
         expect(VERIFY_ROOT_FILES).toContain('index.html');
+        expect(ROOT_FILES).toContain('mobile-preview.html');
+        expect(VERIFY_ROOT_FILES).toContain('mobile-preview.html');
     });
 
     test('verifies assets as part of mirrored directories', () => {

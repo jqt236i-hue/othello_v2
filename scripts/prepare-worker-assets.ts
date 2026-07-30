@@ -103,6 +103,7 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     '.assetsignore',
     'index.html',
     'index.classic.html',
+    'mobile-preview.html',
     'entry-browser.js',
     'shared-constants.js',
     'styles-animations.css',

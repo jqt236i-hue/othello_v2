@@ -105,6 +105,44 @@ final result: passed
 
 ---
 
+# PC Fixed Smartphone Preview URL Design QA
+
+- Preview URL: `http://127.0.0.1:4173/mobile-preview.html`
+- Closed-state screenshot: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-preview-url\pc-fixed-mobile-preview.png`
+- Battle-status screenshot: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-preview-url\pc-fixed-mobile-preview-battle-status.png`
+- Outer PC viewport: 645 × 912 CSS px in the Codex in-app Browser
+- Embedded game viewport: exact 393 × 852 CSS px
+- State: CPU match; closed state for the full game view and `戦況` open for the status-content view
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- The PC browser remains in its normal desktop mode while the embedded game selects `layout-profile-phone-portrait`.
+- The embedded game shows the smartphone command surface, persistent compact battle status, enemy character icon, board, hand, and operation entry.
+- The normal smartphone view keeps `#stone-info-panel` hidden. Opening `戦況` moves it into `#mobile-command-status-content` and displays the latest-card area followed by `盤上の石`; closing restores the hidden normal state.
+- The embedded document measures `scrollWidth === clientWidth === 393`, so the page itself has no horizontal overflow.
+- Opening `index.html?mobilePreview=1` directly at 1280 × 720 remains `layout-profile-16x9`; the query alone cannot force the smartphone profile.
+- Final browser console errors: 0.
+
+## Interaction Evidence
+
+- Reloaded the dedicated URL without applying browser device emulation and remeasured the outer iframe as exactly 393 × 852.
+- Confirmed the embedded document reports 393 × 852 and `layout-profile-phone-portrait`.
+- Opened `戦況` from the visible smartphone button and confirmed the panel text contains `最後に使ったカードがここに表示されます` and `盤上の石`.
+- Confirmed `#stone-info-panel` changes from `display: none` to `display: block` only while the battle-status layer is open, then returns to `display: none` after closing.
+- Confirmed the side settings panel starts collapsed (`aria-hidden="true"`); the preview URL does not use the existing `debug=1` startup behavior.
+
+## Comparison History
+
+1. The prior PC check only changed the browser width while retaining the normal page URL, so the game continued to select the desktop profile.
+2. The first fixed-preview implementation included `debug=1`, which correctly selected the phone profile but also opened the settings panel by design.
+3. The final entry uses the independently gated `mobilePreview=1` flag plus the dedicated iframe marker, preserving the direct match view while leaving normal URLs unchanged.
+
+final result: passed
+
+---
+
 # Persistent Mobile Battle Status Design QA
 
 - Source visual truth: `C:\Users\quarr\AppData\Local\Temp\codex-clipboard-4f849402-0f4f-44ad-99fe-f67633ac72e9.png`

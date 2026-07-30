@@ -55,7 +55,9 @@ function runLayoutStage({
   userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
   maxTouchPoints = 0,
   simAspect = null,
-  touchStart = false
+  touchStart = false,
+  search = '',
+  phonePreviewFrame = false
 }) {
   const root = createMockRoot(simAspect ? { 'data-sim-aspect': simAspect } : {});
   const document = {
@@ -68,6 +70,14 @@ function runLayoutStage({
     innerWidth: width,
     innerHeight: height,
     devicePixelRatio: 1,
+    location: {
+      search
+    },
+    frameElement: phonePreviewFrame ? {
+      getAttribute(name) {
+        return name === 'data-card-reversi-mobile-preview' ? 'phone-portrait' : null;
+      }
+    } : null,
     screen: {
       height: screenHeight,
       availHeight
@@ -97,6 +107,7 @@ function runLayoutStage({
     setTimeout,
     clearTimeout,
     Promise,
+    URLSearchParams,
     module: { exports: {} },
     exports: {}
   };
@@ -154,5 +165,50 @@ describe('layout-stage profile selection', () => {
 
     expect(root.getAttribute('data-layout-profile')).toBe('layout-profile-tablet-4x3');
     expect(root.classList.contains('layout-profile-tablet-4x3')).toBe(true);
+  });
+
+  test('forces phone layout only inside the dedicated preview frame', () => {
+    const root = runLayoutStage({
+      width: 393,
+      height: 852,
+      media: {
+        '(pointer: fine)': true,
+        '(hover: hover)': true
+      },
+      search: '?mobilePreview=1',
+      phonePreviewFrame: true
+    });
+
+    expect(root.getAttribute('data-layout-profile')).toBe('layout-profile-phone-portrait');
+    expect(root.classList.contains('layout-profile-phone-portrait')).toBe(true);
+    expect(root.style.getPropertyValue('--layout-base-width')).toBe('430');
+    expect(root.style.getPropertyValue('--layout-base-height')).toBe('932');
+  });
+
+  test.each([
+    {
+      label: 'outside the dedicated preview frame',
+      search: '?mobilePreview=1',
+      phonePreviewFrame: false
+    },
+    {
+      label: 'without the explicit preview flag',
+      search: '',
+      phonePreviewFrame: true
+    }
+  ])('does not force phone layout $label', ({ search, phonePreviewFrame }) => {
+    const root = runLayoutStage({
+      width: 393,
+      height: 852,
+      media: {
+        '(pointer: fine)': true,
+        '(hover: hover)': true
+      },
+      search,
+      phonePreviewFrame
+    });
+
+    expect(root.getAttribute('data-layout-profile')).toBe('layout-profile-16x9');
+    expect(root.classList.contains('layout-profile-phone-portrait')).toBe(false);
   });
 });

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Reversi - スマホ版プレビュー</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+            background: #080d0f;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            min-width: 100%;
+            min-height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: grid;
+            place-items: center;
+            min-height: 100dvh;
+            padding: 20px;
+            overflow: auto;
+            color: #d9edf1;
+            background:
+                radial-gradient(circle at 50% 10%, rgba(45, 115, 126, 0.18), transparent 36%),
+                #080d0f;
+        }
+
+        .mobile-preview-shell {
+            display: grid;
+            justify-items: center;
+            gap: 10px;
+            width: max-content;
+        }
+
+        .mobile-preview-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            width: 100%;
+            gap: 20px;
+            padding: 0 4px;
+        }
+
+        .mobile-preview-title {
+            margin: 0;
+            color: #e7f7fa;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .mobile-preview-size {
+            color: #86a9b0;
+            font-family: Consolas, monospace;
+            font-size: 12px;
+        }
+
+        .mobile-preview-device {
+            width: 409px;
+            padding: 7px;
+            border: 1px solid rgba(122, 217, 231, 0.35);
+            border-radius: 18px;
+            background: #020607;
+            box-shadow:
+                0 22px 70px rgba(0, 0, 0, 0.58),
+                0 0 28px rgba(74, 182, 199, 0.12);
+        }
+
+        .mobile-preview-frame {
+            display: block;
+            width: 393px;
+            height: 852px;
+            border: 0;
+            border-radius: 11px;
+            background: #071114;
+        }
+    </style>
+</head>
+<body>
+    <main class="mobile-preview-shell">
+        <header class="mobile-preview-heading">
+            <h1 class="mobile-preview-title">Card Reversi スマホ版</h1>
+            <span class="mobile-preview-size">393 × 852</span>
+        </header>
+        <div class="mobile-preview-device">
+            <iframe
+                class="mobile-preview-frame"
+                data-card-reversi-mobile-preview="phone-portrait"
+                src="index.html?mobilePreview=1"
+                title="Card Reversi スマホ版プレビュー"
+                width="393"
+                height="852"
+                loading="eager"
+            ></iframe>
+        </div>
+    </main>
+</body>
+</html>
