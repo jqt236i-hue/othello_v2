@@ -4,6 +4,7 @@
  */
 
 import { setupSidePanelAnchor } from './side-panel-anchor';
+import { setupMobileCommandSurface } from '../mobile-command-surface';
 import GameKeyboardShortcuts = require('../game-keyboard-shortcuts');
 import FpsDisplay = require('../fps-display');
 
@@ -482,6 +483,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       button.addEventListener('click', wrapSpectatorReadOnly(root, passCurrentTurn));
     });
   }
+  setupMobileCommandSurface({ root });
 }
 
 export = {

@@ -101,6 +101,7 @@ describe('prepare-worker-assets', () => {
             expect(VERIFY_ROOT_FILES).toContain(`public/module-registry.optional.${group}.js`);
         }
         expect(ROOT_FILES).toContain('styles-leaderboard.css');
+        expect(ROOT_FILES).toContain('styles-mobile-command-surface.css');
         expect(ROOT_FILES).toEqual(expect.arrayContaining([
             'styles-feature-deck-builder.css',
             'styles-feature-deck-builder-responsive.css',
@@ -119,6 +120,7 @@ describe('prepare-worker-assets', () => {
         expect(VERIFY_ROOT_FILES).toContain('public/runtime.js');
         expect(VERIFY_ROOT_FILES).toContain('public/module-registry.js');
         expect(VERIFY_ROOT_FILES).toContain('styles-leaderboard.css');
+        expect(VERIFY_ROOT_FILES).toContain('styles-mobile-command-surface.css');
         expect(VERIFY_ROOT_FILES).toEqual(expect.arrayContaining([
             'styles-feature-deck-builder.css',
             'styles-feature-deck-builder-responsive.css',

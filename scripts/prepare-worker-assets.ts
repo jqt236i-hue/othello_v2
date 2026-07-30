@@ -129,6 +129,7 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-profile.css',
     'styles-responsive.css',
     'styles-stone-shadows.css',
+    'styles-mobile-command-surface.css',
     'styles-variables.css',
     'public/vendor/pixi-8.18.1.min.js',
     'public/vendor/pixi-unsafe-eval-8.18.1.min.js',

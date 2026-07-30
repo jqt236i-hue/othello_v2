@@ -562,6 +562,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/layout-read-batch": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/layout-read-batch.js"),
   "ui/layout-stage": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/layout-stage.js"),
   "ui/marker-bridge": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/marker-bridge.js"),
+  "ui/mobile-command-surface": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/mobile-command-surface.js"),
   "ui/move-executor-visuals": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/move-executor-visuals.js"),
   "ui/network-client": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network-client.js"),
   "ui/network/action-bridge": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/action-bridge.js"),
@@ -1269,6 +1270,7 @@ installBootModuleMetadata({
     "ui/layout-read-batch",
     "ui/layout-stage",
     "ui/marker-bridge",
+    "ui/mobile-command-surface",
     "ui/move-executor-visuals",
     "ui/network-client",
     "ui/network/action-bridge",
@@ -1486,4 +1488,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 692;
+export const startupModuleCount = 693;
