@@ -731,9 +731,11 @@ function ensureBattleStatusPanel(): any {
 function renderBattleStatusStoneCount(el: any, color: 'black' | 'white', count: number): void {
     if (!el) return;
     const label = color === 'white' ? '白石' : '黒石';
+    const compactLabel = color === 'white' ? '白' : '黒';
     el.setAttribute('aria-label', `${label} ${count}`);
     el.innerHTML = [
         `<span class="battle-status-stone battle-status-stone--${color}" aria-hidden="true"></span>`,
+        `<span class="battle-status-count-label" aria-hidden="true">${compactLabel}</span>`,
         `<span class="battle-status-count-value">${count}</span>`
     ].join('');
 }

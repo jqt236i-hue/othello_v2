@@ -174,18 +174,28 @@ describe('mobile command surface', () => {
     fixture.dom.window.close();
   });
 
-  test('shows existing status panels in reference order and restores their DOM location', () => {
+  test('projects battle status above the opponent hand and restores every status node', () => {
     const fixture = createFixture();
     const controller = setupMobileCommandSurface({
       root: fixture.windowRef,
       document: fixture.documentRef,
     })!;
     const stack = fixture.documentRef.getElementById('left-info-stack')!;
+    const battleStatus = fixture.documentRef.getElementById('effect-live-panel')!;
+    const battleStatusHost = fixture.documentRef.getElementById(
+      'mobile-command-battle-status-host',
+    )!;
     const manifest = fixture.documentRef.getElementById('manifest-effect-panel')!;
     const stoneInfo = fixture.documentRef.getElementById('stone-info-panel')!;
     const trigger = fixture.documentRef.getElementById(
       'mobile-command-status-trigger',
     ) as HTMLButtonElement;
+
+    expect(battleStatus.parentElement).toBe(battleStatusHost);
+    expect(Array.from(stack.children).map((element) => element.id)).toEqual([
+      'manifest-effect-panel',
+      'stone-info-panel',
+    ]);
 
     trigger.focus();
     trigger.click();
@@ -214,18 +224,24 @@ describe('mobile command surface', () => {
     expect(manifest.parentElement).toBe(stack);
     expect(stoneInfo.parentElement).toBe(stack);
     expect(Array.from(stack.children).map((element) => element.id)).toEqual([
-      'effect-live-panel',
       'manifest-effect-panel',
       'stone-info-panel',
     ]);
+    expect(battleStatus.parentElement).toBe(battleStatusHost);
 
     controller.openBattleStatus();
     fixture.documentRef.documentElement.classList.remove('layout-profile-phone-portrait');
     fixture.documentRef.documentElement.removeAttribute('data-layout-profile');
     fixture.windowRef.dispatchEvent(new fixture.dom.window.Event('resize'));
     expect(surface.classList.contains('is-status-open')).toBe(false);
+    expect(battleStatus.parentElement).toBe(stack);
     expect(manifest.parentElement).toBe(stack);
     expect(stoneInfo.parentElement).toBe(stack);
+    expect(Array.from(stack.children).map((element) => element.id)).toEqual([
+      'effect-live-panel',
+      'manifest-effect-panel',
+      'stone-info-panel',
+    ]);
 
     fixture.windowRef.history.replaceState({}, '');
     fixture.documentRef.documentElement.classList.add('layout-profile-phone-portrait');
@@ -234,10 +250,18 @@ describe('mobile command surface', () => {
       'layout-profile-phone-portrait',
     );
     fixture.windowRef.dispatchEvent(new fixture.dom.window.Event('resize'));
+    expect(battleStatus.parentElement).toBe(battleStatusHost);
     controller.openBattleStatus();
     controller.destroy();
+    expect(battleStatus.parentElement).toBe(stack);
     expect(manifest.parentElement).toBe(stack);
     expect(stoneInfo.parentElement).toBe(stack);
+    expect(Array.from(stack.children).map((element) => element.id)).toEqual([
+      'effect-live-panel',
+      'manifest-effect-panel',
+      'stone-info-panel',
+    ]);
+    expect(fixture.documentRef.getElementById('mobile-command-battle-status-host')).toBeNull();
     expect(fixture.documentRef.getElementById('mobile-command-opponent-avatar')).toBeNull();
     fixture.dom.window.close();
   });

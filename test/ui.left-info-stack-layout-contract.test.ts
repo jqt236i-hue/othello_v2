@@ -36,7 +36,7 @@ describe('left info stack layout contract', () => {
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*max-height:\s*calc\(var\(--layout-anchor-manifest-effect-height\)\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).not.toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#manifest-effect-panel[\s\S]*280px/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#left-info-stack[\s\S]*display:\s*contents/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*position:\s*relative[\s\S]*display:\s*block[\s\S]*flex:\s*0 0 auto[\s\S]*transform:\s*none/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#left-info-stack\s*>\s*#stone-info-panel[\s\S]*position:\s*relative[\s\S]*display:\s*none[\s\S]*transform:\s*none/);
   });
 
   test('left information HUD uses game-like readable panel treatments', () => {

@@ -123,8 +123,10 @@ describe('battle status panel', () => {
     expect(effectPanel.querySelector('.battle-status-round')?.textContent).toBe('ROUND 4');
     expect(effectPanel.querySelector('.battle-status-network-timer')?.textContent).toBe('');
     expect(effectPanel.querySelector('.battle-status-kicker')).toBeNull();
-    expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('4');
-    expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('4');
+    expect(effectPanel.querySelector('.battle-status-count--black .battle-status-count-label')?.textContent).toBe('黒');
+    expect(effectPanel.querySelector('.battle-status-count--white .battle-status-count-label')?.textContent).toBe('白');
+    expect(effectPanel.querySelector('.battle-status-count--black .battle-status-count-value')?.textContent).toBe('4');
+    expect(effectPanel.querySelector('.battle-status-count--white .battle-status-count-value')?.textContent).toBe('4');
     expect(effectPanel.querySelector('.battle-status-count--black')?.getAttribute('aria-label')).toBe('黒石 4');
     expect(effectPanel.querySelector('.battle-status-count--white')?.getAttribute('aria-label')).toBe('白石 4');
     expect(effectPanel.querySelector('.battle-status-count--black .battle-status-stone--black')).not.toBeNull();
@@ -157,8 +159,8 @@ describe('battle status panel', () => {
 
     window.updateStatus();
 
-    expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('4');
-    expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('5');
+    expect(effectPanel.querySelector('.battle-status-count--black .battle-status-count-value')?.textContent).toBe('4');
+    expect(effectPanel.querySelector('.battle-status-count--white .battle-status-count-value')?.textContent).toBe('5');
 
     teardownBattleStatusDom(dom);
   });

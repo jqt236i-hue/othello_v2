@@ -26,6 +26,7 @@ const STATUS_PANEL_IDS = [
 ] as const;
 
 const CPU_FACE_ASSET_PREFIX = 'assets/images/cpu/face/level';
+const PHONE_PROFILE = 'layout-profile-phone-portrait';
 
 function createMobileStatusBridge(
   options: MobileStatusBridgeOptions,
@@ -36,8 +37,15 @@ function createMobileStatusBridge(
   const avatarButton = view.opponentAvatarButton;
   const avatarImage = view.opponentAvatarImage;
   let statusNodeHomes: MobileStatusNodeHome[] = [];
+  let battleStatusNodeHome: MobileStatusNodeHome | null = null;
   let statusOpen = false;
   let destroyed = false;
+
+  const isPhonePortrait = (): boolean => {
+    const html = documentRef.documentElement;
+    return html.classList.contains(PHONE_PROFILE)
+      || html.getAttribute('data-layout-profile') === PHONE_PROFILE;
+  };
 
   const currentSourceImagePath = (): string => {
     if (!sourceImage) return '';
@@ -87,6 +95,33 @@ function createMobileStatusBridge(
       });
       view.statusContent.appendChild(node);
     });
+  };
+
+  const restoreBattleStatusNode = (): void => {
+    if (!battleStatusNodeHome) return;
+    const home = battleStatusNodeHome;
+    battleStatusNodeHome = null;
+    const reference = home.nextSibling?.parentNode === home.parent
+      ? home.nextSibling
+      : null;
+    home.parent.insertBefore(home.node, reference);
+  };
+
+  const syncBattleStatusNode = (): void => {
+    const host = view.battleStatusHost;
+    if (!isPhonePortrait() || !host) {
+      restoreBattleStatusNode();
+      return;
+    }
+    if (battleStatusNodeHome) return;
+    const node = documentRef.getElementById('effect-live-panel');
+    if (!node || !node.parentNode) return;
+    battleStatusNodeHome = {
+      node,
+      parent: node.parentNode,
+      nextSibling: node.nextSibling,
+    };
+    host.appendChild(node);
   };
 
   const syncAvatar = (): void => {
@@ -199,6 +234,7 @@ function createMobileStatusBridge(
     sync(): void {
       if (destroyed) return;
       syncAvatar();
+      syncBattleStatusNode();
       if (statusOpen) mountStatusNodes();
     },
     destroy(): void {
@@ -209,6 +245,7 @@ function createMobileStatusBridge(
       avatarButton?.removeEventListener('click', handleAvatarClick);
       avatarImage?.removeEventListener('error', handleAvatarError);
       restoreStatusNodes();
+      restoreBattleStatusNode();
     },
   };
 }

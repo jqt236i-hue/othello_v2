@@ -105,6 +105,64 @@ final result: passed
 
 ---
 
+# Persistent Mobile Battle Status Design QA
+
+- Source visual truth: `C:\Users\quarr\AppData\Local\Temp\codex-clipboard-4f849402-0f4f-44ad-99fe-f67633ac72e9.png`
+- Source image: 212 × 68 pixels; target component crop: x=11, y=20, 188 × 37 pixels
+- Before screenshot: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\before-phone-393x852.png`
+- Final phone screenshots:
+  - 320 × 568: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\after-phone-320x568-v2.png`
+  - 393 × 852: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\after-phone-393x852-final-v3.png`
+  - 430 × 932: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\after-phone-430x932-v2.png`
+- Battle-popup evidence: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\status-popup-phone-393x852.png`
+- Desktop non-regression: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\desktop-1280x800.png`
+- Focused source/implementation comparison: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\comparison-focused-source-vs-implementation-final.png`
+- Full before/after comparison: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-battle-strip\comparison-full-before-vs-after-final.png`
+- Viewport and density: browser captures use CSS pixels at device scale factor 1; the focused implementation crop was normalized to the source component's exact 188 × 37 pixel dimensions
+- State: CPU match, all smartphone layers closed for the persistent-strip comparison; battle-status popup open for stone-panel evidence
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- The compact strip is persistently positioned on its own row immediately above the opponent hand.
+- The live source remains the existing `#effect-live-panel`; no duplicate turn, round, or stone-count state was introduced.
+- The visible order matches the reference: stone icon, `黒` / `白` label, then count.
+- The normal smartphone layout no longer shows `盤上の石`. The same existing panel remains available inside `戦況`.
+- The implementation keeps a 38px minimum height at 320px instead of shrinking below the reference's readable density.
+- At desktop width, the moved live-status panel and stone panel return to their original left information stack.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: compact Mincho-style round/turn labels and readable black/white counts preserve the source hierarchy. The 320px layout keeps explicit minimum font sizes.
+- Spacing and layout rhythm: the source component is 188 × 37px; implementation uses 188–212px width and 38px minimum height, with a two-row grid and centered stone-count cluster.
+- Colors and visual tokens: dark teal surface, cyan edge, muted gold metadata, and black/white stone values align with the supplied crop while reusing project tokens.
+- Image quality and asset fidelity: the existing CSS-rendered black/white stones are reused at native UI resolution. No raster approximation or baked text was added.
+- Copy and content: `ROUND`, current turn, `黒`, `白`, and live counts remain DOM text and update through the existing status path. The latest-card copy is intentionally omitted from the compact strip.
+- Responsiveness and accessibility: 320/393/430px have no horizontal overflow; `戦況` remains keyboard/focus accessible, and its popup preserves the full `盤上の石` content.
+
+## Interaction Evidence
+
+- Opened `戦況` at 393 × 852 and confirmed the popup contains `#manifest-effect-panel` followed by `#stone-info-panel`.
+- Closed the popup and confirmed focus returned to the `戦況` trigger while the persistent compact strip remained above the opponent hand.
+- Confirmed the normal `#stone-info-panel` is hidden at 320/393/430px and visible again in the desktop left information stack.
+- Confirmed `documentElement.scrollWidth <= innerWidth` at all phone widths.
+- Final browser console errors: 0.
+
+## Comparison History
+
+1. Before capture:
+   - The mobile screen lacked the compact round/turn/stone-count strip and showed the full persistent `盤上の石` panel below the board.
+2. Initial implementation comparison:
+   - The strip was in the correct location, but the stone and `黒` / `白` labels were reversed relative to the source, and the 320px version compressed to 23px height.
+3. Post-fix comparison:
+   - Reordered each count to stone → label → number, enforced a 38px minimum height, and recaptured the exact-size focused comparison.
+   - No P0/P1/P2 mismatch remains.
+
+final result: passed
+
+---
+
 # Mobile Command Color Diversity Design QA
 
 - Source visual truth:

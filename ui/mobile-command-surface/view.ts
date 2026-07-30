@@ -27,6 +27,7 @@ interface MobileCommandSurfaceView {
   quickButtonProxies: readonly HTMLButtonElement[];
   quickSelect: HTMLSelectElement | null;
   quickRange: HTMLInputElement | null;
+  battleStatusHost: HTMLElement | null;
   opponentAvatarButton: HTMLButtonElement | null;
   opponentAvatarImage: HTMLImageElement | null;
   destroy(): void;
@@ -293,8 +294,15 @@ function createMobileCommandSurfaceView(
 
   const opponentArea = documentRef.querySelector<HTMLElement>('.player-area-top');
   const opponentSourceImage = byId<HTMLImageElement>('cpu-character-img');
+  let battleStatusHost: HTMLElement | null = null;
   let opponentAvatarButton: HTMLButtonElement | null = null;
   let opponentAvatarImage: HTMLImageElement | null = null;
+  if (opponentArea) {
+    battleStatusHost = make('div', 'mobile-command-battle-status-host');
+    battleStatusHost.id = 'mobile-command-battle-status-host';
+    battleStatusHost.setAttribute('aria-label', '戦況');
+    opponentArea.prepend(battleStatusHost);
+  }
   if (opponentArea && opponentSourceImage) {
     opponentAvatarButton = make('button', 'mobile-command-opponent-avatar');
     opponentAvatarButton.id = 'mobile-command-opponent-avatar';
@@ -325,10 +333,12 @@ function createMobileCommandSurfaceView(
     quickButtonProxies,
     quickSelect,
     quickRange,
+    battleStatusHost,
     opponentAvatarButton,
     opponentAvatarImage,
     destroy(): void {
       opponentAvatarButton?.remove();
+      battleStatusHost?.remove();
       root.remove();
     },
   };

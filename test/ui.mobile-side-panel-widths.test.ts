@@ -41,6 +41,9 @@ describe('mobile command surface panel contract', () => {
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+\.mobile-command-status-panel[\s\S]*width:\s*min\(360px,[\s\S]*max-height:\s*calc\(100dvh/);
     expect(mobileCss).toMatch(/#mobile-command-surface\.is-status-open\s+\.mobile-command-status-panel[\s\S]*transform:\s*translateY\(0\)\s*scale\(1\)/);
     expect(mobileCss).toMatch(/\.mobile-command-status-content\s+#manifest-effect-panel,[\s\S]*\.mobile-command-status-content\s+#stone-info-panel[\s\S]*display:\s*block\s*!important/);
+    expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+#effect-live-panel[\s\S]*display:\s*grid\s*!important[\s\S]*width:\s*clamp\(188px,\s*50vw,\s*212px\)/);
+    expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+\.battle-status-latest[\s\S]*display:\s*none/);
+    expect(mobileCss).toMatch(/\.mobile-command-battle-status-host\s+\.battle-status-count-label[\s\S]*display:\s*inline/);
     expect(mobileCss).toMatch(/\.player-area-top\s+\.mobile-command-opponent-avatar[\s\S]*width:\s*clamp\(48px,\s*13vw,\s*56px\)[\s\S]*min-height:\s*48px/);
     expect(mobileCss).toMatch(/\.mobile-command-opponent-avatar-image[\s\S]*object-fit:\s*cover[\s\S]*object-position:\s*center top/);
   });
@@ -51,7 +54,8 @@ describe('mobile command surface panel contract', () => {
 
     expect(mobileCss).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*overflow-x:\s*clip/);
     expect(responsiveCss).toMatch(/--board-frame-inner-size:\s*min\([\s\S]*78vw,[\s\S]*37dvh[\s\S]*\)/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel\s+\.stone-info-list-item[\s\S]*min-height:\s*calc\(50px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#left-info-stack\s*>\s*#stone-info-panel[\s\S]*display:\s*none/);
+    expect(mobileCss).toMatch(/\.mobile-command-status-content\s+#stone-info-panel\s+\.stone-info-list-item[\s\S]*min-height:\s*calc\(68px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel[\s\S]*max-height:\s*calc\(130px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(mobileCss).not.toMatch(/html\.layout-profile-phone-portrait\s+#board-frame/);
     expect(mobileCss).not.toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel/);

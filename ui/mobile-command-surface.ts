@@ -555,6 +555,7 @@ function setupMobileCommandSurface(
   }) as EventListener);
 
   const handleProfileChange = (): void => {
+    statusBridge.sync();
     if (isPhonePortrait()) {
       scheduleSync();
       return;

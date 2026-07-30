@@ -309,6 +309,52 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - `npm run build:vite`: 成功（1450 modules、既知のchunk-size warningのみ）
 - `npm run worker:prepare`: 成功（Worker mirror 957 files）
 - 役割別文字色のコントラスト: 暗背景に対して16.64:1〜18.36:1
+
+## 追加要望: 相手手札上のコンパクト戦況
+
+### Step 17: 仕様・設計の更新
+
+- [x] `01-rulebook.md` にスマホのコンパクト戦況常設と「盤上の石」の通常非表示を追加する
+- [x] `mobile-command-surface-design.md` に既存 `#effect-live-panel` の移設・復元契約を追加する
+- done: 実装前にプレイヤー向け仕様とpresentation境界を確定する
+
+### Step 18: 既存戦況DOMのスマホ投影
+
+- [x] 相手手札上の専用hostを `view.ts` で生成する
+- [x] スマホprofile中だけ `#effect-live-panel` をhostへ移し、profile離脱・destroyで元の親と順序へ戻す
+- [x] ROUND・黒白ラベル付き石数・現在手番を二段のコンパクトHUDとして表示する
+- [x] 通常画面の `#stone-info-panel` を非表示にし、戦況ポップアップ内では表示を維持する
+- done: 状態や数値を複製せず、既存status更新経路だけで双方の表示が更新される
+
+### Step 19: 検証と完了
+
+- [x] DOM復元、戦況ポップアップ順序、スマホCSS契約のfocused testを更新して成功させる
+- [x] `typecheck`、`checkall`、`build:browser`、`build:vite`、`worker:prepare`を成功させる
+- [x] 320x568、393x852、430x932で常設戦況、盤上の石の非表示、横溢れなしを確認する
+- [x] 1280px PC表示で戦況panelが左情報stackへ復帰することを確認する
+- [x] 添付参照と実装を同じ比較画像で確認し、`design-qa.md` を `final result: passed` にする
+- [x] タスク所有差分だけをコミットする
+
+### 相手手札上のコンパクト戦況 verification results
+
+- focused Jest 5 suites / 36 tests: 成功
+  - `test/ui.mobile-command-surface.test.ts`
+  - `test/ui.battle-status-panel.test.ts`
+  - `test/ui.layout-responsive.aspect-ratio.test.ts`
+  - `test/ui.left-info-stack-layout-contract.test.ts`
+  - `test/ui.mobile-side-panel-widths.test.ts`
+- `npm run typecheck`: 成功（root / training）
+- `npm run checkall`: 成功
+- `npm run build:browser`: 成功（module registry 1065 modules）
+- `npm run build:vite`: 初回はWindowsの一時的な `index.html` 書き込み競合で失敗し、即時再実行で成功（1450 modules、既知のchunk-size warningのみ）
+- `npm run worker:prepare`: 成功（Worker mirror 957 files）
+- Codex in-app Browser:
+  - 320x568、393x852、430x932でコンパクト戦況が相手手札上に常設され、`#stone-info-panel` は通常画面で非表示
+  - 393x852で `戦況` を開くと `#manifest-effect-panel` → `#stone-info-panel` の順で表示
+  - close後もコンパクト戦況はhostに残り、focusは `戦況` へ復帰
+  - 1280x800で `#effect-live-panel` と `#stone-info-panel` が左情報stackへ復帰
+  - 全確認サイズで横溢れなし、console errorなし
+- 添付参照の対象部分188x37pxと実装を同じ188x37pxへ正規化して比較し、P0/P1/P2なし
 - Codex in-app Browser:
   - 393x852で閉状態、ドロワー、操作シートをbefore/after比較
   - 320x568でドロワー幅275.1875px、最小項目高51px、横溢れなし

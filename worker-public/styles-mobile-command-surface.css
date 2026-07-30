@@ -551,6 +551,181 @@ html.layout-profile-phone-portrait .mobile-command-status-content #stone-info-pa
     height: calc(38px * var(--layout-stage-scale));
 }
 
+html.layout-profile-phone-portrait .player-area-top {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    row-gap: calc(4px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host {
+    order: -1;
+    display: flex;
+    flex: 0 0 100%;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: max(calc(38px * var(--layout-stage-scale)), 38px);
+}
+
+html:not(.layout-profile-phone-portrait) .mobile-command-battle-status-host {
+    display: none;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host #effect-live-panel {
+    position: relative;
+    inset: auto;
+    z-index: 1;
+    display: grid !important;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: max(calc(8px * var(--layout-stage-scale)), 8px);
+    row-gap: max(calc(1px * var(--layout-stage-scale)), 1px);
+    box-sizing: border-box;
+    width: clamp(188px, 50vw, 212px);
+    min-height: max(calc(38px * var(--layout-stage-scale)), 38px);
+    max-height: none;
+    margin: 0;
+    padding: max(calc(4px * var(--layout-stage-scale)), 4px) max(calc(8px * var(--layout-stage-scale)), 8px);
+    overflow: hidden;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(91, 211, 238, 0.58);
+    border-radius: max(calc(8px * var(--layout-stage-scale)), 8px);
+    background:
+        linear-gradient(180deg, rgba(5, 28, 35, 0.9), rgba(4, 22, 28, 0.86)),
+        radial-gradient(circle at 16% 10%, rgba(89, 208, 234, 0.14), transparent 38%);
+    box-shadow:
+        0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.38),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(151, 235, 255, 0.08);
+    clip-path: none;
+    transform: none;
+    backdrop-filter: blur(calc(5px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(5px * var(--layout-stage-scale)));
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host #effect-live-panel::before {
+    inset: max(calc(2px * var(--layout-stage-scale)), 2px);
+    border-color: rgba(126, 215, 255, 0.13);
+    border-radius: max(calc(6px * var(--layout-stage-scale)), 6px);
+    background: none;
+    box-shadow: none;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host #effect-live-panel::after {
+    display: none;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-topline {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    gap: calc(3px * var(--layout-stage-scale));
+    min-width: 0;
+    margin: 0;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-round {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    color: #b8eeff;
+    background: none;
+    box-shadow: none;
+    font-family: var(--selected-app-font-display-family);
+    font-size: max(calc(10px * var(--layout-stage-scale)), 10px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: max(calc(1.2px * var(--layout-stage-scale)), 1.2px);
+    text-shadow: 0 0 calc(6px * var(--layout-stage-scale)) rgba(126, 215, 255, 0.32);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-network-timer {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    font-size: max(calc(8px * var(--layout-stage-scale)), 8px);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-turn {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    color: #f3fbff;
+    background: none;
+    box-shadow: none;
+    font-size: max(calc(10px * var(--layout-stage-scale)), 10px);
+    font-weight: 800;
+    line-height: 1.1;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.74);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-turn::before {
+    display: none;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-score {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: max(calc(4px * var(--layout-stage-scale)), 4px);
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-score::before {
+    display: none;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-count {
+    gap: max(calc(2px * var(--layout-stage-scale)), 2px);
+    color: #f5f7f8;
+    font-size: max(calc(11px * var(--layout-stage-scale)), 11px);
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.82);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-count-label {
+    display: inline;
+    color: #f5f7f8;
+    font-size: max(calc(10px * var(--layout-stage-scale)), 10px);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-stone {
+    width: max(calc(9px * var(--layout-stage-scale)), 9px);
+    height: max(calc(9px * var(--layout-stage-scale)), 9px);
+    border-width: max(calc(1px * var(--layout-stage-scale)), 1px);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-count-value {
+    min-width: 0;
+    color: #f5f7f8;
+    text-align: left;
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-score-separator {
+    color: rgba(224, 244, 250, 0.9);
+    font-size: max(calc(10px * var(--layout-stage-scale)), 10px);
+}
+
+html.layout-profile-phone-portrait .mobile-command-battle-status-host .battle-status-latest {
+    display: none;
+}
+
 html.layout-profile-phone-portrait .player-area-top .mobile-command-opponent-avatar {
     display: grid;
     flex: 0 0 auto;

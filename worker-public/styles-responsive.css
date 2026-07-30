@@ -261,13 +261,13 @@ html.layout-profile-phone-portrait #left-info-stack {
     display: contents;
 }
 
-html.layout-profile-phone-portrait #stone-info-panel {
+html.layout-profile-phone-portrait #left-info-stack > #stone-info-panel {
     position: relative;
     left: auto;
     right: auto;
     top: auto;
     bottom: auto;
-    display: block;
+    display: none;
     flex: 0 0 auto;
     align-self: center;
     width: var(--layout-phone-portrait-main-column-width);
