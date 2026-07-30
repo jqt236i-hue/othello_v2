@@ -314,3 +314,56 @@ No actionable P0, P1, or P2 mismatch remains.
    - 重要なラベル、密度、背景とのバランス、アイコン可読性にP0/P1/P2差分はなく、比較後の追加視覚修正は不要だった。
 
 final result: passed
+
+---
+
+# Global Card Aspect Ratio 5:6 Refinement Design QA
+
+- User direction: make the globally shortened cards a little closer to square while keeping them recognizably rectangular
+- Previous target: approximately `横4:縦5`
+- Final target: approximately `横5:縦6`
+- Final screenshots:
+  - PC match, 1280 × 720: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\global-card-aspect-ratio\after-desktop-5x6-1280x720-clean.png`
+  - Fixed smartphone preview, embedded 393 × 852: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\global-card-aspect-ratio\after-mobile-5x6-393x852.png`
+  - Deck builder, 1280 × 720: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\global-card-aspect-ratio\after-deck-builder-5x6-1280x720.png`
+
+## Before / After Measurements
+
+| Surface | 4:5 rendered size | 5:6 rendered size | Final ratio |
+| --- | ---: | ---: | ---: |
+| PC player hand | 76 × 95.328 px | 76 × 91.328 px | 1.202 |
+| Smartphone player hand | 84.078 × 105.094 px | 84.078 × 100.531 px | 1.196 |
+| PC opponent cards, DEBUG catalog | 46.406 × 58.125 px | 46.406 × 55.578 px | 1.198 |
+| Deck builder sample | 103.328 × 89.328 px | 103.328 × 86 px | surface-specific compact preview |
+
+The horizontal dimensions are unchanged. The final hand cards remain 18px taller than their unscaled canonical widths, so the shape is visibly vertical rather than square.
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- The new rendered ratios are 1.196–1.202, matching the intended approximately 5:6 range.
+- PC DEBUG validation covered 99 player cards, 99 opponent cards, and 6 special cards. Card-name and cost-badge containment failures: 0.
+- The fixed smartphone preview remained `layout-profile-phone-portrait` at 393 × 852. Card-name and cost-badge containment both passed.
+- Smartphone card-name font remained 12.0916px; PC card-name font remained 11.4333px. Compactness came only from card height.
+- The deck builder rendered 123 cards. Card name, cost badge, detail button, and footer containment failures: 0.
+- PC, smartphone, and deck-builder pages reported no page-level horizontal overflow.
+- Final browser console errors: 0.
+
+## Verification Evidence
+
+- Focused Jest before generation: 5 suites, 30 tests passed.
+- Focused Jest after Worker mirror synchronization: 6 suites, 38 tests passed.
+- `npm run typecheck`: passed.
+- `npm run build:browser`: passed; 1065 module-registry entries generated.
+- `npm run worker:prepare`: passed; 958 mirrored files verified. The known Vite chunk-size warning remained non-blocking.
+- `npm run checkall`: all checks passed.
+
+## Iteration History
+
+1. Reloaded the previous 4:5 implementation and measured the live smartphone baseline at ratio 1.250.
+2. Selected 5:6 rather than a more aggressive 6:7 ratio to satisfy “もう少し” while retaining a clear vertical rectangle.
+3. Updated all shared and responsive canonical heights, regenerated browser/Worker outputs, and repeated dense-card and deck-builder QA.
+4. No typography, interaction, overflow, or containment correction was required after the 5:6 visual comparison.
+
+final result: passed

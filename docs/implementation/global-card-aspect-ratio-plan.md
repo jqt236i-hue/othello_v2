@@ -9,7 +9,7 @@
 
 ## Step 1: 仕様と寸法契約を確定する
 
-- Outcome: 横幅を維持し、高さだけを横4:縦5前後へ揃える寸法表を正本化する。
+- Outcome: 横幅を維持し、高さだけを横5:縦6前後へ揃える寸法表を正本化する。
 - Files: `01-rulebook.md`, `docs/implementation/global-card-aspect-ratio-design.md`, 本計画
 - Dependencies: 現行CSS・実ブラウザ採寸
 - Verification: 設計Self-review、全直接カード高selectorの検索
@@ -53,10 +53,10 @@
 
 ## Completion checklist
 
-- [x] 標準カード91x114、largeカード114x143
-- [x] tablet large 112x140
-- [x] スマホ相手61x76、自分92x115
-- [x] iPad縦88x110、小型横画面96x120
+- [x] 標準カード91x109、largeカード114x137
+- [x] tablet large 112x134
+- [x] スマホ相手61x73、自分92x110
+- [x] iPad縦88x106、小型横画面96x115
 - [x] デッキ構築の最小高が共通カード高+20pxへ追従
 - [x] 横幅、文字、バッジ、操作仕様は不変
 - [x] focused tests、typecheck、checkall、browser build、Worker mirrorが成功
@@ -70,3 +70,4 @@
 - 数値変更だけで終えず、直接overrideとデッキ構築の旧高依存を同じStepへ含めた。
 - 検証はCSS文字列だけでなく、実ブラウザの描画矩形と内容欠けをdone条件にした。
 - カード詳細パネルやネット対戦room entryまで「card」という名称だけで縮めないよう、対象を実カード面に限定した。
+- 第1調整の完了チェックをそのまま流用せず、第2調整の5:6寸法と再検証条件へ戻した。

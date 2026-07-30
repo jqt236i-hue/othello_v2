@@ -517,7 +517,7 @@ html.layout-profile-phone-portrait #hand-white {
 
 html.layout-profile-phone-portrait #hand-white .card-item {
     width: calc(61px * var(--layout-stage-scale));
-    height: calc(76px * var(--layout-stage-scale));
+    height: calc(73px * var(--layout-stage-scale));
     font-size: calc(8.5px * var(--layout-stage-scale));
 }
 
@@ -543,7 +543,7 @@ html.layout-profile-phone-portrait #hand-black {
 
 html.layout-profile-phone-portrait #hand-black .card-item {
     width: calc(92px * var(--layout-stage-scale));
-    height: calc(115px * var(--layout-stage-scale));
+    height: calc(110px * var(--layout-stage-scale));
     font-size: calc(13.5px * var(--layout-stage-scale));
 }
 
@@ -786,7 +786,7 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 
     #hand-black .card-item {
         width: calc(88px * var(--layout-stage-scale));
-        height: calc(110px * var(--layout-stage-scale));
+        height: calc(106px * var(--layout-stage-scale));
         font-size: calc(14px * var(--layout-stage-scale));
     }
 
@@ -1409,7 +1409,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 
     #hand-black .card-item {
         width: calc(96px * var(--layout-stage-scale));
-        height: calc(120px * var(--layout-stage-scale));
+        height: calc(115px * var(--layout-stage-scale));
         font-size: calc(15px * var(--layout-stage-scale));
     }
 

@@ -212,13 +212,13 @@
     --layout-size-deck-count-offset: calc(5px * var(--layout-stage-scale));
 
     --layout-size-card-width: calc(91px * var(--layout-stage-scale));
-    --layout-size-card-height: calc(114px * var(--layout-stage-scale));
+    --layout-size-card-height: calc(109px * var(--layout-stage-scale));
     --layout-size-card-radius: calc(5px * var(--layout-stage-scale));
     --layout-size-card-font: calc(14px * var(--layout-stage-scale));
     --layout-size-card-padding: calc(3px * var(--layout-stage-scale));
 
     --layout-size-card-large-width: calc(114px * var(--layout-stage-scale));
-    --layout-size-card-large-height: calc(143px * var(--layout-stage-scale));
+    --layout-size-card-large-height: calc(137px * var(--layout-stage-scale));
     --layout-size-card-large-font: calc(17.5px * var(--layout-stage-scale));
 
         --layout-size-card-badge-font: calc(11px * var(--layout-stage-scale));
@@ -357,7 +357,7 @@ html.layout-profile-tablet-4x3 {
     --layout-size-hand-min-height-top: calc(104px * var(--layout-stage-scale));
     --layout-size-hand-min-height-bottom: calc(168px * var(--layout-stage-scale));
     --layout-size-card-large-width: calc(112px * var(--layout-stage-scale));
-    --layout-size-card-large-height: calc(140px * var(--layout-stage-scale));
+    --layout-size-card-large-height: calc(134px * var(--layout-stage-scale));
     --layout-size-card-large-font: calc(16.8px * var(--layout-stage-scale));
     --layout-size-card-badge-large-font: calc(12px * var(--layout-stage-scale));
     --layout-priority-board-scale: 1.02;
@@ -398,7 +398,7 @@ html.layout-profile-tablet-4x3 {
         --layout-size-hand-min-height-top: calc(104px * var(--layout-stage-scale));
         --layout-size-hand-min-height-bottom: calc(168px * var(--layout-stage-scale));
         --layout-size-card-large-width: calc(112px * var(--layout-stage-scale));
-        --layout-size-card-large-height: calc(140px * var(--layout-stage-scale));
+        --layout-size-card-large-height: calc(134px * var(--layout-stage-scale));
         --layout-size-card-large-font: calc(16.8px * var(--layout-stage-scale));
         --layout-size-card-badge-large-font: calc(12px * var(--layout-stage-scale));
         --layout-priority-board-scale: 1.02;
