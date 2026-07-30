@@ -105,6 +105,66 @@ final result: passed
 
 ---
 
+# Global Card Aspect Ratio Design QA
+
+- Specification baseline: game-card faces keep their horizontal width and move from roughly `1:1.32` to approximately `横4:縦5`
+- Final screenshots:
+  - PC match, 1280 × 720: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\global-card-aspect-ratio\after-desktop-1280x720.png`
+  - Fixed smartphone preview, embedded 393 × 852: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\global-card-aspect-ratio\after-mobile-preview-393x852.png`
+  - Deck builder, 1280 × 720: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\global-card-aspect-ratio\after-deck-builder-1280x720.png`
+- State: CPU match with one normal player card for primary PC/mobile comparison; DEBUG catalog fill for normal, opponent, and special-card containment; deck editor open for dense-card verification
+
+## Before / After Measurements
+
+| Surface | Before rendered size | After rendered size | After ratio |
+| --- | ---: | ---: | ---: |
+| PC player hand | 76 × 100 px | 76 × 95.328 px | 1.254 |
+| Smartphone player hand | 84.078 × 112.406 px | 84.078 × 105.094 px | 1.250 |
+| PC opponent cards, DEBUG catalog | — | 46.406 × 58.125 px | 1.253 |
+| Deck builder sample | legacy fixed minimum followed the 140px token | 103.328 × 89.328 px in the dense grid | surface-specific compact preview |
+
+The PC and smartphone before/after measurements were taken at the same viewport and layout profile on each surface. Horizontal width stayed identical while only the vertical dimension decreased.
+
+## Findings
+
+No actionable card-ratio P0, P1, or P2 mismatch remains.
+
+- The player and opponent hand cards remain visibly vertical rectangles while reading closer to square.
+- PC DEBUG catalog validation covered 99 player cards, 99 opponent cards, and 6 special cards. Every checked card name and cost badge stayed within its card bounds.
+- The player-card rendered ratios were 1.254; opponent-card ratios were 1.253; hand special cards stayed within 1.253–1.254.
+- The smartphone card-name font stayed at 12.3384px. The change did not obtain compactness by reducing text.
+- The 393 × 852 embedded game and 1280 × 720 PC game both reported no page-level horizontal overflow. The hand lanes retain their intentional local horizontal scrolling.
+- The deck builder rendered 123 cards; card name, cost badge, detail button, and footer produced 0 containment failures. The modal itself had no page-level horizontal overflow.
+- The PC game tab produced 0 console errors. The claimed fixed-preview tab retained two `MutationObserver.observe` errors during reload; the wrapper has no script and the CSS-only card-ratio change does not create observers. Rendering, profile selection, containment, and interaction all completed, so this is recorded as pre-existing/non-task console noise rather than a card-ratio failure.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: text size, weight, plate styling, cost badge, and name fitting were preserved.
+- Spacing and layout rhythm: horizontal widths and hand scrolling behavior stayed unchanged; the freed space is strictly vertical.
+- Colors and visual tokens: card tier colors, special art, frames, and backgrounds were not changed.
+- Copy and content: card names, costs, types, detail actions, and footer guidance were not changed.
+- Responsiveness and accessibility: the shared standard/large tokens and every direct phone, iPad portrait, tablet, and compact-landscape override now follow the same approximately 4:5 rule without changing selectors or interactions.
+
+## Verification Evidence
+
+- Focused Jest: 6 suites, 38 tests passed after generated mirror synchronization.
+- TypeScript: `npm run typecheck` passed.
+- Browser generation: `npm run build:browser` passed and wrote 1065 module-registry entries.
+- Worker mirror: `npm run worker:prepare` completed and verified 958 mirrored files; its known Vite chunk-size warning was non-blocking.
+- Repository checks: `npm run checkall` passed all checks.
+- The first focused Jest run intentionally exposed the unsynchronized `worker-public` CSS mirror. After `worker:prepare`, the identical focused command passed completely.
+
+## Iteration History
+
+1. Audited shared card tokens, all responsive direct overrides, animation/overlay consumers, and deck-builder minimum height.
+2. Rejected a standalone `aspect-ratio` override because it would compete with the existing stage-scaled explicit dimensions.
+3. Updated every owned height to approximately 4:5 while preserving widths, then derived the deck-builder reserve from the shared card-height token.
+4. Synced browser and Worker outputs, reran focused and full checks, and validated normal, opponent, special, smartphone, and deck-builder surfaces in the real browser.
+
+final result: passed
+
+---
+
 # PC Fixed Smartphone Preview URL Design QA
 
 - Preview URL: `http://127.0.0.1:4173/mobile-preview.html`

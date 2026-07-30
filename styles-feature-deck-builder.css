@@ -1445,7 +1445,7 @@
 
 .deck-builder-card {
     position: relative;
-    min-height: calc(140px * var(--layout-stage-scale));
+    min-height: calc(var(--layout-size-card-height) + (20px * var(--layout-stage-scale)));
     cursor: pointer;
     padding-bottom: calc(24px * var(--layout-stage-scale));
     box-sizing: border-box;
