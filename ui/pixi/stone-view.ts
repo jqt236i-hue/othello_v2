@@ -597,7 +597,6 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
           alpha: 0.86,
           width: Math.max(1.5, cellSize * 0.035)
         });
-        showSpecialBadge('◆', cellSize * 0.24, cellSize * 0.24, context.theme.directionHint.color, 0.66);
       }
     }
 

@@ -778,6 +778,9 @@ describe('Pixi static retained views', () => {
       text: '反',
       position: { x: 24, y: 17 }
     });
+    expect(stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-special-badge'
+    ))).toMatchObject({ visible: false });
 
     const whiteTexture = { id: 'white-stone-texture' };
     const breedingTexture = { id: 'breeding-stone-texture' };
