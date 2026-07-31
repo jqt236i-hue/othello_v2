@@ -81,6 +81,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/--layout-phone-portrait-player-bottom-offset:\s*calc\(10px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*--board-frame-inner-size:\s*min\(86vw,\s*calc\(418px\s*\*\s*var\(--layout-stage-scale\)\),\s*44\.8dvh\)/);
     expect(css).toMatch(/@media\s*\(max-height:\s*620px\)[\s\S]*html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*min\(82vw,\s*calc\(385px\s*\*\s*var\(--layout-stage-scale\)\),\s*41dvh\)/);
+    expect(css).toMatch(/--layout-phone-portrait-card-detail-tag-reserve:\s*calc\(52px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/#game-container:has\(#card-detail-panel\.has-effect-tags\)\s+#board-frame[\s\S]*calc\(390px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*44\.8dvh\s*-\s*var\(--layout-phone-portrait-card-detail-tag-reserve\)/);
+    expect(css).toMatch(/#card-detail-panel\.has-effect-tags[\s\S]*max-height:\s*calc\(158px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/#card-detail-panel\.has-effect-tags\s+#card-detail-actions[\s\S]*margin-top:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).not.toMatch(/html\.layout-phone-landscape-blocked\s+body::before/);
     expect(css).toMatch(/#effect-live-panel[\s\S]*left:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*top:\s*max\(calc\(240px\s*\*\s*var\(--layout-stage-scale\)\)/);

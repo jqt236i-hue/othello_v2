@@ -105,6 +105,60 @@ final result: passed
 
 ---
 
+# Mobile Enemy Board Settings and Tagged Card Actions Design QA
+
+- Source visual truth:
+  - Board settings bug: `C:\Users\quarr\.codex\codex-remote-attachments\019fb179-f8e9-7e82-9957-6bc6b0609e36\759DFC2C-DB23-4938-A1EE-C5828462F0B2\2-写真2.jpg`
+  - Tagged-card overlap: `C:\Users\quarr\.codex\codex-remote-attachments\019fb179-f8e9-7e82-9957-6bc6b0609e36\759DFC2C-DB23-4938-A1EE-C5828462F0B2\1-写真1.jpg`
+- Final screenshots:
+  - Board settings, 393 × 673: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-ui-bugfixes\board-settings-fixed-393x673.png`
+  - Tagged card, 393 × 673: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\mobile-ui-bugfixes\tags-fixed-393x673.png`
+- State:
+  - CPU popup opened from the enemy icon and switched to `盤面設定`
+  - Debug `special_cards_ready` state with `理論の化身` selected and three effect tags visible
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- Before the fix, switching from `CPU選択` to `盤面設定` repositioned the menu from the enemy-avatar anchor to the hidden PC shortcut. The 393 × 852 menu moved from `x=224.16, y=125` to `x=-175.84, y=8`, leaving the size controls offscreen.
+- After the fix at 393 × 673, the selected board-settings panel remains fully visible at `x=83.80, y=129`, `268.20 × 240.91px`, with its right edge at `352px` and bottom edge at `369.91px`.
+- `通常` / `円形`, vertical size, horizontal size, and reset controls remain present in the selected tab. A live interaction also changed the summary to `Lv1 / 通常 10×12` and `Lv1 / 円形 10×10` before restoring `通常 8×8`.
+- With three effect tags, the tag union ends at `523.83px` and the action row starts at `531.03px`: gap `7.20px`, overlap `0px`.
+- The tagged state uses `has-effect-tags`, keeps the document at exactly `393 × 673`, and leaves the hand/deck bottom at `669.34px` and the `操作` bottom at `618.08px`.
+
+## Required Fidelity Surfaces
+
+- Fonts and typography: Japanese labels, card name, description, tag text, and action-button typography remain unchanged.
+- Spacing and layout rhythm: the action row moves below tags only when normalized effect tags exist; tagless cards retain the previous panel and board budget.
+- Colors and visual tokens: existing gold board-settings tab, effect-tag role colors, and blue/green/red action colors are preserved.
+- Image quality and asset fidelity: enemy portrait, card art, board frame, stones, and card-back assets are unchanged.
+- Copy and content: no player-facing label or card wording was changed.
+- Responsiveness and accessibility: the popup stays inside the 393px viewport, board settings remain native buttons/selects, and tagged-card actions remain separate focusable buttons.
+
+## Verification Evidence
+
+- Focused Jest: 5 suites, 61 tests passed after final generation.
+- `npm run worker:prepare`: passed; browser/Vite generation, root/training typecheck, and Worker mirror verification completed. The known Vite chunk-size warning remained non-blocking.
+- Browser measurements:
+  - board-settings popup fully visible: true
+  - board-settings tab selected: true
+  - tag/action overlap: 0px
+  - document horizontal/vertical overflow: none (`scrollWidth=393`, `scrollHeight=673`)
+- The normal local page emitted the repository's existing `MutationObserver.observe` initialization error once. The two changed interactions still completed successfully, and none of the touched modules creates that observer.
+
+## Iteration History
+
+1. Reproduced the offscreen board-settings panel and identified the hidden zero-size PC shortcut as the competing anchor.
+2. Preserved the enemy-avatar placement whenever the PC shortcut is not visible.
+3. Added a normalized `has-effect-tags` presentation state and initially reserved 28px from the board budget.
+4. Exact-height QA found the dense three-tag debug state extended the hand/deck below the 673px viewport, so the tag-only reserve was increased to 52px.
+5. Final 393 × 673 capture confirmed tag/action overlap 0px and hand/deck bottom 3.66px inside the viewport.
+
+final result: passed
+
+---
+
 # Mobile Bottom-Space Recovery and Board Enlargement Design QA
 
 - Source visual truth: `C:\Users\quarr\.codex\codex-remote-attachments\019fb179-f8e9-7e82-9957-6bc6b0609e36\61B7D8E4-789B-4CCE-AAD8-E301A0D2F29F\1-写真1.jpg`

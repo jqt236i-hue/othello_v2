@@ -611,3 +611,54 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - 下側全体を負のtransformで持ち上げる案は空白の原因を残し、短画面で上側UIとの重なりを起こすため採用しない。
 - 盤面係数を一律に上げるだけでは320x568で山札が下端を越えるため、620px以下へ明示的な短画面上限を追加した。
 - 盤面拡大は既存 `--board-frame-inner-size` の入力だけを変更し、Pixi application、canvas数、board writer、ゲーム状態へ新しい経路を作らない。
+
+## 追加要望: 敵アイコン盤面設定とタグ付き詳細操作列
+
+### Step 32: 再現値と所有境界を設計へ固定する
+
+- Outcome: 敵アイコン起点のタブ切替でCPU設定メニューが画面外へ移る再現値と、タグ列が操作列へはみ出すflex縮小条件を設計へ記録する。
+- Components: 実機写真、`ui/handlers/smart.ts`、`ui/mobile-command-surface/status-bridge.ts`、`cards/card-interaction-detail-panel.ts`、スマホCSS。
+- Dependencies: Step 29-31のスマホ表示密度と敵アイコン入口。
+- Verification: 393x852本番プレビューで敵アイコン→`盤面設定` の前後矩形を測定し、該当CSSとDOM順序を確認する。
+- Done: 状態複製なしで直せる2件のpresentation所有箇所と客観的完了条件が確定する。
+
+### Step 33: 可視アンカーとタグ有無の契約を実装する
+
+- Outcome: 非表示CPUラベルでメニュー位置を上書きせず、カード詳細へタグ有無classを同期する。
+- Components: `ui/handlers/smart.ts`、`cards/card-interaction-detail-panel.ts`、focused Jest。
+- Dependencies: Step 32完了。
+- Verification: CPU設定タブのゼロ矩形回帰テスト、カード詳細タグclassの追加/解除テスト。
+- Done: 既存CPU/盤面設定と既存タグ解決を正本にしたまま、スマホCSSが必要とする状態だけを公開する。
+
+### Step 34: タグ付きスマホ詳細の高さを再配分する
+
+- Outcome: タグ付きカードで操作列をタグの下へ分離し、追加高を盤面から一時的に回収して下側UIをviewport内に保つ。
+- Components: `styles-responsive.css`、カード/スマホレイアウト契約テスト。
+- Dependencies: Step 33の `has-effect-tags`。
+- Verification: 393x673、320x568、393x852でタグ/操作列矩形、盤面、手札、山札、`操作`、ページ溢れを測定する。
+- Done: タグと操作列の交差0、全下側UIがviewport内、タグなし状態の盤面サイズが不変。
+
+### Step 35: 生成・実ブラウザQA・commit・deployを完了する
+
+- Outcome: 2件の実操作と視覚状態を確認し、root/Vite/Worker mirrorを同期して本番へ公開する。
+- Components: focused Jest、`npm run worker:prepare`、`design-qa.md`、Cloudflare Worker。
+- Dependencies: Step 33-34完了。
+- Verification: 敵アイコン→盤面設定→サイズ変更、タグ付きカードのスクリーンショット、`git diff --check`、`npm run worker:deploy`、本番HTML/CSS/API確認。
+- Done: 2件とも本番で操作可能、比較QAにP0/P1/P2なし、差分がコミット済み、本番Version ID確認済み。
+
+### 敵アイコン盤面設定とタグ付き詳細 completion checklist
+
+- [x] 実機写真と本番393x852で2件を再現し、原因と所有箇所を特定する
+- [x] 敵アイコンから `盤面設定` へ切り替えてもメニューがviewport内に残る
+- [x] 通常/円形と盤面サイズ入力をタップ操作できる
+- [x] タグ付きカードでタグ列と操作列が交差しない
+- [x] タグ付き状態でも手札・山札・`操作` がviewport内に収まる
+- [x] タグなし状態、PC/iPad、ゲーム/盤面/network authorityへ回帰がない
+- [x] focused tests、browser build、Worker mirror、実ブラウザQAが成功する
+- [ ] 最終diffを監査し、タスク所有差分をコミットして本番確認する
+
+### 敵アイコン盤面設定とタグ付き詳細 Self-review
+
+- CPU設定の位置をスマホbridgeとPC handlerの両方で毎回再計算すると再び競合するため、PC handlerは可視アンカーだけを扱い、非表示アンカー時は既存位置を保持する順序にした。
+- タグ付きパネルを単純に拡大すると前タスクで回収した下端余白を失うため、タグ表示中だけ盤面表示予算を同量減らす。
+- `has-effect-tags` は既存の正規化済みタグ配列から同期し、CSS都合のタグ再判定やカードtype列挙を追加しない。

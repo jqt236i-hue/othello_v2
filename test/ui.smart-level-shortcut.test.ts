@@ -101,10 +101,21 @@ describe('smart cpu level shortcut', () => {
     expect(smartWhite.value).toBe('9-ending-ash');
     expect((global as any).cpuSmartness.white).toBe(9);
 
+    shortcutEl.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0,
+      toJSON() { return {}; }
+    });
+    if (menu) {
+      menu.style.top = '125px';
+      menu.style.right = '8px';
+      menu.style.left = 'auto';
+    }
     (menu?.querySelector('[data-cpu-config-tab="board"]') as HTMLButtonElement).click();
     expect(menu?.querySelector('[data-cpu-config-tab="board"]')?.getAttribute('aria-selected')).toBe('true');
     expect((menu?.querySelector('[data-cpu-config-panel="cpu"]') as HTMLElement).hidden).toBe(true);
     expect((menu?.querySelector('[data-cpu-config-panel="board"]') as HTMLElement).hidden).toBe(false);
+    expect(menu?.style.top).toBe('125px');
+    expect(menu?.style.right).toBe('8px');
 
     (menu?.querySelector('[data-cpu-board-shape="circle"]') as HTMLButtonElement).click();
     (menu?.querySelector('[data-cpu-circle-size="12"]') as HTMLButtonElement).click();

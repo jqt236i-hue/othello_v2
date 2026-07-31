@@ -337,6 +337,12 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         const documentRef = cfg.getDocumentRef();
         if (!documentRef) return;
         const normalizedTags = normalizeResolvedCardEffectTags(tags);
+        const panelEl = typeof tagsEl.closest === 'function'
+            ? tagsEl.closest('#card-detail-panel')
+            : null;
+        if (panelEl) {
+            panelEl.classList.toggle('has-effect-tags', normalizedTags.length > 0);
+        }
         const signature = JSON.stringify(normalizedTags);
         if (renderedEffectTagsSignatureByElement.get(tagsEl) === signature) return;
         tagsEl.textContent = '';

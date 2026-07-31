@@ -397,9 +397,10 @@ function getCpuLevelMenuItemClasses(profileValue: unknown): string[] {
   return classes;
 }
 
-function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement): void {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement): boolean {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return false;
   const rect = shortcut.getBoundingClientRect();
+  if (!(rect.width > 0 && rect.height > 0)) return false;
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
   const margin = CPU_LEVEL_MENU_VIEWPORT_MARGIN_PX;
@@ -425,6 +426,7 @@ function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement)
   menu.style.left = 'auto';
   menu.style.maxHeight = `${Math.round(maxHeight)}px`;
   menu.style.overflowY = 'auto';
+  return true;
 }
 
 function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | null {

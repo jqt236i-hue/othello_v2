@@ -82,10 +82,24 @@ describe('card detail effect tags', () => {
     expect(tagsEl).not.toBeNull();
     expect(getTagLabels()).toEqual(['特殊石', '8ターン持続', '反転保護']);
     expect(tagsEl.style.display).toBe('flex');
+    expect(document.getElementById('card-detail-panel').classList.contains('has-effect-tags')).toBe(true);
 
     const desc = document.getElementById('card-detail-desc').textContent;
     expect(desc).toContain('空きマス自由配置可');
     expect(desc).toContain('置いた石が龍化');
+
+    const noTagCardDef = {
+      id: 'triple_01',
+      name: '三連投石',
+      type: 'TRIPLE_PLACE',
+      cost: 24,
+      desc: '使用ターンだけ石を3連続で置ける。'
+    };
+    global.cardState.selectedCardId = noTagCardDef.id;
+    global.cardState.hands.black = [noTagCardDef.id];
+    global.CardLogic.getCardDef = () => noTagCardDef;
+    window.updateCardDetailPanel();
+    expect(document.getElementById('card-detail-panel').classList.contains('has-effect-tags')).toBe(false);
   });
 
   test('ROBOT_VACUUM_WILL shows the special stone tag together with duration tags', () => {

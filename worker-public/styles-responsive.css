@@ -177,6 +177,7 @@ html.layout-profile-phone-portrait {
     );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
     --layout-phone-portrait-player-bottom-offset: calc(10px * var(--layout-stage-scale));
+    --layout-phone-portrait-card-detail-tag-reserve: calc(52px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
     /* Clear the 57px mobile action rail including its border/padding. */
     --layout-phone-portrait-quick-controls-bottom-offset: calc(68px * var(--layout-stage-scale));
@@ -223,9 +224,25 @@ html.layout-profile-phone-portrait #board-frame {
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
 
+html.layout-profile-phone-portrait #game-container:has(#card-detail-panel.has-effect-tags) #board-frame {
+    --board-frame-inner-size: min(
+        86vw,
+        calc(390px * var(--layout-stage-scale)),
+        calc(44.8dvh - var(--layout-phone-portrait-card-detail-tag-reserve))
+    );
+}
+
 @media (max-height: 620px) {
     html.layout-profile-phone-portrait #board-frame {
         --board-frame-inner-size: min(82vw, calc(385px * var(--layout-stage-scale)), 41dvh);
+    }
+
+    html.layout-profile-phone-portrait #game-container:has(#card-detail-panel.has-effect-tags) #board-frame {
+        --board-frame-inner-size: min(
+            82vw,
+            calc(357px * var(--layout-stage-scale)),
+            calc(41dvh - var(--layout-phone-portrait-card-detail-tag-reserve))
+        );
     }
 }
 
@@ -463,6 +480,10 @@ html.layout-profile-phone-portrait #card-detail-panel {
     z-index: 40;
 }
 
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags {
+    max-height: calc(158px * var(--layout-stage-scale));
+}
+
 html.layout-profile-phone-portrait #card-detail-name {
     min-height: calc(16px * var(--layout-stage-scale));
     margin-bottom: calc(3px * var(--layout-stage-scale));
@@ -480,14 +501,26 @@ html.layout-profile-phone-portrait #card-detail-desc {
 }
 
 html.layout-profile-phone-portrait #card-detail-effect-tags {
+    flex: 0 0 auto;
     min-height: 0;
     margin-bottom: calc(4px * var(--layout-stage-scale));
 }
 
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-desc {
+    flex: 1 1 auto;
+    min-height: calc(28px * var(--layout-stage-scale));
+    max-height: calc(44px * var(--layout-stage-scale));
+}
+
 html.layout-profile-phone-portrait #card-detail-actions {
+    flex: 0 0 auto;
     margin-top: calc(3px * var(--layout-stage-scale));
     padding: calc(3px * var(--layout-stage-scale));
     gap: calc(5px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-actions {
+    margin-top: calc(6px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn),
