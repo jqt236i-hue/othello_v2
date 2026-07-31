@@ -757,3 +757,58 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - `#pass-btn` をCSSだけで隠す案は正規DOMと入力listenerを重複したまま残すため採用しない。正規HTMLから入口を除去し、既存の盤面左下ボタンへ一本化する。
 - タグを操作列の右へ絶対配置すると説明や使用不可理由の高さに依存するため採用しない。スマホのタグ付き詳細だけを明示的な2列下段にし、タグ側のoverflowを局所化する。
 - タグ数に応じて盤面を縮める案は今回の不具合原因なので廃止し、カード詳細と盤面の寸法予算を分離する。
+
+## 追加修正: スマホカード詳細下段の見切れ解消
+
+### Step 40: 実機高で縦横の見切れ量を測定する
+
+- Outcome: `理論の化身` の標準3タグ状態を393x673と393x852で再現し、パネル・操作列・タグ列・手札の矩形とoverflow量を特定する。
+- Components: 実機写真、`styles-responsive.css`、Codex in-app Browser。
+- Verification: 各要素の `getBoundingClientRect()` とタグ領域の `clientWidth` / `scrollWidth` を比較する。
+- Done: 不要なscrollbar gutter、過大な操作ボタン最小幅、進捗の独立行により、横32px・縦約9pxの見切れが生じることを特定する。
+
+### Step 41: パネル内の余白を再配分する
+
+- Outcome: 盤面・手札の寸法を変えず、標準3タグと3操作をカード詳細パネル内へ収める。
+- Components: `01-rulebook.md`、本設計書、`styles-responsive.css`、レイアウト契約テスト。
+- Dependencies: Step 40完了。
+- Verification: 進捗をカード名と同じ上段へ移し、スマホだけscrollbar gutterと横寸法へ上限を設ける。4タグ以上は局所横スクロールを維持する。
+- Done: 短画面・通常高とも標準3タグの全文と操作列がパネル内に入り、盤面寸法が不変になる。
+
+### Step 42: 生成・実ブラウザQA・差分監査・commitを完了する
+
+- Outcome: root/Vite/Worker mirrorを同期し、検証済み差分をコミットする。
+- Components: focused Jest、`npm run worker:prepare`、Codex in-app Browser、`git diff --check`。
+- Dependencies: Step 41完了。
+- Verification: 393x673、393x852、4タグ状態、生成物一致、最終statusを確認する。
+- Done: 検証済み差分が単一commitになり、未依頼の本番デプロイは行われていない。
+
+### スマホカード詳細下段の見切れ解消 completion checklist
+
+- [x] 標準3タグが短画面・通常高の両方で全文表示される
+- [x] 操作列とタグ列がカード詳細パネル下端で切れない
+- [x] 4タグ以上はタグ領域内だけを横スクロールできる
+- [x] 盤面・手札・`操作` の寸法とページ全体のoverflowに回帰がない
+- [x] focused tests、browser build、Worker mirror、実ブラウザQAが成功する
+- [x] 最終diffを監査し、タスク所有差分をコミットする
+
+### スマホカード詳細下段の見切れ解消 verification results
+
+- focused Jest 3 suites / 46 tests: 成功
+  - `test/ui.layout-responsive.aspect-ratio.test.ts`
+  - `test/ui.card-surface-layout-contract.test.ts`
+  - `test/ui.card-detail-effect-tags.test.ts`
+- `npm run worker:prepare`: 再試行で成功（`build:browser`、`build:vite`、root/training typecheck、Worker mirror 958 filesを含む）
+  - 1回目はVite完了後の `index.html` 書き戻し時にWindowsの一時的な `UNKNOWN open` で停止し、ファイル読取確認後の再試行で成功
+  - 既知のVite chunk-size warningのみ
+- Codex in-app Browser / `理論の化身`:
+  - 393x673: パネル下端563.66px、操作・タグ下端557.84px、内側余白5.81px。タグ `clientWidth=263` / `scrollWidth=263`
+  - 393x852: パネル下端672.17px、操作・タグ下端663.50px、内側余白8.67px。タグ `clientWidth=256` / `scrollWidth=256`
+  - 盤面はそれぞれ `331.83x327.48px`、`376.36x370.88px` で既存寸法を維持し、ページ全体の縦横overflowなし
+- `究極多動神` の4タグ状態: タグ `clientWidth=256` / `scrollWidth=265` / `overflow-x:auto`、タグ下端662.97pxはパネル下端669.44px以内
+
+### スマホカード詳細下段の見切れ解消 Self-review
+
+- カード詳細や盤面を選択カードごとに伸縮させず、スマホ内の不要なscrollbar gutterと過大な横最小幅だけを解放した。
+- 縦の見切れはパネル高を増やして手札を押し下げず、短い進捗をカード名と同じ上段へ移して既存のパネル内に収めた。
+- すべてのタグを無理に縮小せず、プレイヤーが同時に判断する標準3タグを全文表示し、4タグ以上には既存の局所スクロールを残した。

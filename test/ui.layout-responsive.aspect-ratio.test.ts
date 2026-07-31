@@ -83,8 +83,13 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/@media\s*\(max-height:\s*620px\)[\s\S]*html\.layout-profile-phone-portrait\s+#board-frame[\s\S]*min\(82vw,\s*calc\(385px\s*\*\s*var\(--layout-stage-scale\)\),\s*41dvh\)/);
     expect(css).not.toMatch(/--layout-phone-portrait-card-detail-tag-reserve|:has\(#card-detail-panel\.has-effect-tags\)/);
     expect(css).toMatch(/#card-detail-panel\.has-effect-tags\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\)/);
+    expect(css).not.toMatch(/#card-detail-panel\.has-effect-tags\s*\{[\s\S]*"state state"/);
+    expect(css).toMatch(/#card-detail-panel\.has-effect-tags\s+#card-detail-live-state\s*\{[\s\S]*grid-area:\s*name[\s\S]*justify-self:\s*end/);
     expect(css).toMatch(/#card-detail-panel\.has-effect-tags\s+#card-detail-actions\s*\{[\s\S]*grid-area:\s*actions[\s\S]*align-self:\s*end/);
     expect(css).toMatch(/#card-detail-panel\.has-effect-tags\s+#card-detail-effect-tags\s*\{[\s\S]*grid-area:\s*tags[\s\S]*flex-wrap:\s*nowrap[\s\S]*overflow-x:\s*auto/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#card-detail-panel\s*\{[\s\S]*scrollbar-gutter:\s*auto/);
+    expect(css).toMatch(/#card-detail-panel\.has-effect-tags\s+\.card-detail-effect-tag\s*\{[\s\S]*padding-inline:\s*min\(calc\(10px\s*\*\s*var\(--layout-stage-scale\)\),\s*4px\)[\s\S]*font-size:\s*min\(calc\(13px\s*\*\s*var\(--layout-stage-scale\)\),\s*9px\)/);
+    expect(css).toMatch(/#card-detail-actions\s*>\s*:is\(#toggle-card-detail-btn,\s*#use-card-btn,\s*#destroy-card-btn\),[\s\S]*min-width:\s*min\(calc\(54px\s*\*\s*var\(--layout-stage-scale\)\),\s*29px\)/);
     expect(css).not.toMatch(/html\.layout-phone-landscape-blocked\s+body::before/);
     expect(css).toMatch(/#effect-live-panel[\s\S]*left:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*top:\s*max\(calc\(240px\s*\*\s*var\(--layout-stage-scale\)\)/);

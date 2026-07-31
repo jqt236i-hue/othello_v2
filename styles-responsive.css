@@ -456,6 +456,7 @@ html.layout-profile-phone-portrait #card-detail-panel {
     padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
     transform: none;
     overflow: hidden;
+    scrollbar-gutter: auto;
     z-index: 40;
 }
 
@@ -487,12 +488,11 @@ html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags {
     grid-template-areas:
         "name name"
         "desc desc"
-        "state state"
         "actions tags"
         "more more"
         "cancel cancel"
         "reason reason";
-    column-gap: calc(6px * var(--layout-stage-scale));
+    column-gap: min(calc(6px * var(--layout-stage-scale)), 3px);
 }
 
 html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-name {
@@ -504,7 +504,15 @@ html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-deta
 }
 
 html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-live-state {
-    grid-area: state;
+    grid-area: name;
+    align-self: center;
+    justify-self: end;
+    max-width: 58%;
+    margin: 0;
+    padding-left: calc(6px * var(--layout-stage-scale));
+    white-space: nowrap;
+    text-align: right;
+    z-index: 2;
 }
 
 html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-more {
@@ -531,6 +539,11 @@ html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-deta
     scrollbar-width: thin;
 }
 
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags .card-detail-effect-tag {
+    padding-inline: min(calc(10px * var(--layout-stage-scale)), 4px);
+    font-size: min(calc(13px * var(--layout-stage-scale)), 9px);
+}
+
 html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #cancel-card-btn {
     grid-area: cancel;
 }
@@ -543,14 +556,14 @@ html.layout-profile-phone-portrait #card-detail-actions {
     flex: 0 0 auto;
     margin: calc(3px * var(--layout-stage-scale)) 0 0;
     padding: calc(3px * var(--layout-stage-scale));
-    gap: calc(5px * var(--layout-stage-scale));
+    gap: min(calc(5px * var(--layout-stage-scale)), 3px);
 }
 
 html.layout-profile-phone-portrait #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn),
 html.layout-profile-phone-portrait #card-detail-panel > #cancel-card-btn {
-    min-width: calc(54px * var(--layout-stage-scale));
+    min-width: min(calc(54px * var(--layout-stage-scale)), 29px);
     min-height: calc(28px * var(--layout-stage-scale));
-    padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    padding: calc(6px * var(--layout-stage-scale)) min(calc(9px * var(--layout-stage-scale)), 4px);
     font-size: calc(11px * var(--layout-stage-scale));
 }
 
