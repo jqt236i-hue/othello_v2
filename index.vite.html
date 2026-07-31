@@ -67,16 +67,16 @@
         data-card-reversi-feature-style-after="styles-stone-shadows.css">
     <base href="./">
     <meta name="card-reversi-classic-style" content="styles-variables.css?v=75762041009438">
-    <meta name="card-reversi-classic-style" content="styles-base.css?v=40528417729768">
-    <meta name="card-reversi-classic-style" content="styles-layout.css?v=248242689578909">
+    <meta name="card-reversi-classic-style" content="styles-base.css?v=223690041706185">
+    <meta name="card-reversi-classic-style" content="styles-layout.css?v=172191396209656">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=33539802130051">
     <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=103788322796301">
     <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=6665919561960">
     <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=2666866856487">
     <meta name="card-reversi-classic-style" content="styles-board.css?v=69133154091265">
-    <meta name="card-reversi-classic-style" content="styles-cards.css?v=173114256725840">
+    <meta name="card-reversi-classic-style" content="styles-cards.css?v=50105537479634">
     <meta name="card-reversi-classic-style" content="styles-animations.css?v=205530675374674">
-    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=33402430965144">
+    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=159862901597948">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=2581636328428">
     <meta name="card-reversi-classic-style" content="styles-mobile-command-surface.css?v=15427466298365">
     <meta name="card-reversi-startup-version" content="260237569410415">
@@ -283,7 +283,6 @@
             <div id="board-frame">
                 <div id="board"></div>
                 <div id="ratedMatchQueueTimer" class="rated-queue-timer" hidden aria-hidden="true" aria-live="polite" aria-atomic="true"></div>
-                <button id="reversi-pass-btn" type="button" hidden disabled>パス</button>
                 <button id="board-frame-pass-btn" type="button" hidden disabled aria-hidden="true" aria-label="パス">パス</button>
                 <!-- Occupancy UI (removed) -->
                 <!-- Card Animation FX Layer -->
@@ -347,7 +346,6 @@
                     <button id="toggle-card-detail-btn" type="button" disabled>詳細</button>
                     <button id="use-card-btn" type="button" disabled>使用</button>
                     <button id="destroy-card-btn" type="button" disabled>破壊</button>
-                    <button id="pass-btn" type="button" disabled>パス</button>
                 </div>
                 <button id="cancel-card-btn" type="button" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
                 <div id="use-card-reason"></div>

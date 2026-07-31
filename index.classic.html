@@ -34,8 +34,8 @@
     </script>
     <!-- CSS Split Modules -->
     <link rel="stylesheet" href="styles-variables.css?v=75762041009438">
-    <link rel="stylesheet" href="styles-base.css?v=40528417729768">
-    <link rel="stylesheet" href="styles-layout.css?v=248242689578909">
+    <link rel="stylesheet" href="styles-base.css?v=223690041706185">
+    <link rel="stylesheet" href="styles-layout.css?v=172191396209656">
     <link rel="stylesheet" href="styles-charge-hud.css?v=33539802130051">
     <link rel="stylesheet" href="styles-layout-controls.css?v=103788322796301">
     <meta data-card-reversi-feature-style-slot="network-layout-controls"
@@ -56,12 +56,12 @@
         data-card-reversi-feature-style-before="styles-layout-characters.css">
     <link rel="stylesheet" href="styles-layout-characters.css?v=2666866856487">
     <link rel="stylesheet" href="styles-board.css?v=69133154091265">
-    <link rel="stylesheet" href="styles-cards.css?v=173114256725840">
+    <link rel="stylesheet" href="styles-cards.css?v=50105537479634">
     <meta data-card-reversi-feature-style-slot="rules-help-cards"
         data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css?v=98671376079036"
         data-card-reversi-feature-style-after="styles-cards.css">
     <link rel="stylesheet" href="styles-animations.css?v=205530675374674">
-    <link rel="stylesheet" href="styles-responsive.css?v=33402430965144">
+    <link rel="stylesheet" href="styles-responsive.css?v=159862901597948">
     <meta data-card-reversi-feature-style-slot="network-responsive"
         data-card-reversi-feature-style-href="styles-feature-network-responsive.css?v=95998699245255"
         data-card-reversi-feature-style-after="styles-responsive.css">
@@ -263,7 +263,6 @@
             <div id="board-frame">
                 <div id="board"></div>
                 <div id="ratedMatchQueueTimer" class="rated-queue-timer" hidden aria-hidden="true" aria-live="polite" aria-atomic="true"></div>
-                <button id="reversi-pass-btn" type="button" hidden disabled>パス</button>
                 <button id="board-frame-pass-btn" type="button" hidden disabled aria-hidden="true" aria-label="パス">パス</button>
                 <!-- Occupancy UI (removed) -->
                 <!-- Card Animation FX Layer -->
@@ -327,7 +326,6 @@
                     <button id="toggle-card-detail-btn" type="button" disabled>詳細</button>
                     <button id="use-card-btn" type="button" disabled>使用</button>
                     <button id="destroy-card-btn" type="button" disabled>破壊</button>
-                    <button id="pass-btn" type="button" disabled>パス</button>
                 </div>
                 <button id="cancel-card-btn" type="button" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
                 <div id="use-card-reason"></div>

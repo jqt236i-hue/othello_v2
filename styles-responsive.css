@@ -177,7 +177,6 @@ html.layout-profile-phone-portrait {
     );
     --layout-phone-portrait-aux-panel-width: min(calc(360px * var(--layout-stage-scale)), 88vw);
     --layout-phone-portrait-player-bottom-offset: calc(10px * var(--layout-stage-scale));
-    --layout-phone-portrait-card-detail-tag-reserve: calc(52px * var(--layout-stage-scale));
     --layout-phone-portrait-rail-button-width: calc(54px * var(--layout-stage-scale));
     /* Clear the 57px mobile action rail including its border/padding. */
     --layout-phone-portrait-quick-controls-bottom-offset: calc(68px * var(--layout-stage-scale));
@@ -224,25 +223,9 @@ html.layout-profile-phone-portrait #board-frame {
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
 
-html.layout-profile-phone-portrait #game-container:has(#card-detail-panel.has-effect-tags) #board-frame {
-    --board-frame-inner-size: min(
-        86vw,
-        calc(390px * var(--layout-stage-scale)),
-        calc(44.8dvh - var(--layout-phone-portrait-card-detail-tag-reserve))
-    );
-}
-
 @media (max-height: 620px) {
     html.layout-profile-phone-portrait #board-frame {
         --board-frame-inner-size: min(82vw, calc(385px * var(--layout-stage-scale)), 41dvh);
-    }
-
-    html.layout-profile-phone-portrait #game-container:has(#card-detail-panel.has-effect-tags) #board-frame {
-        --board-frame-inner-size: min(
-            82vw,
-            calc(357px * var(--layout-stage-scale)),
-            calc(41dvh - var(--layout-phone-portrait-card-detail-tag-reserve))
-        );
     }
 }
 
@@ -328,10 +311,6 @@ html.layout-profile-phone-portrait .pass-streak-status::before {
 html.layout-profile-phone-portrait .pass-streak-status::after,
 html.layout-profile-phone-portrait .pass-streak-status .pass-streak-note {
     display: none;
-}
-
-html.layout-profile-phone-portrait :is(#reversi-pass-btn, #othello-pass-btn) {
-    display: none !important;
 }
 
 html.layout-profile-phone-portrait #board-frame-pass-btn {
@@ -480,10 +459,6 @@ html.layout-profile-phone-portrait #card-detail-panel {
     z-index: 40;
 }
 
-html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags {
-    max-height: calc(158px * var(--layout-stage-scale));
-}
-
 html.layout-profile-phone-portrait #card-detail-name {
     min-height: calc(16px * var(--layout-stage-scale));
     margin-bottom: calc(3px * var(--layout-stage-scale));
@@ -506,25 +481,72 @@ html.layout-profile-phone-portrait #card-detail-effect-tags {
     margin-bottom: calc(4px * var(--layout-stage-scale));
 }
 
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    grid-template-areas:
+        "name name"
+        "desc desc"
+        "state state"
+        "actions tags"
+        "more more"
+        "cancel cancel"
+        "reason reason";
+    column-gap: calc(6px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-name {
+    grid-area: name;
+}
+
 html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-desc {
-    flex: 1 1 auto;
-    min-height: calc(28px * var(--layout-stage-scale));
-    max-height: calc(44px * var(--layout-stage-scale));
+    grid-area: desc;
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-live-state {
+    grid-area: state;
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-more {
+    grid-area: more;
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-actions {
+    grid-area: actions;
+    align-self: end;
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-effect-tags {
+    grid-area: tags;
+    align-self: end;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    margin: calc(3px * var(--layout-stage-scale)) 0 0;
+    padding: calc(3px * var(--layout-stage-scale)) 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #cancel-card-btn {
+    grid-area: cancel;
+}
+
+html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #use-card-reason {
+    grid-area: reason;
 }
 
 html.layout-profile-phone-portrait #card-detail-actions {
     flex: 0 0 auto;
-    margin-top: calc(3px * var(--layout-stage-scale));
+    margin: calc(3px * var(--layout-stage-scale)) 0 0;
     padding: calc(3px * var(--layout-stage-scale));
     gap: calc(5px * var(--layout-stage-scale));
 }
 
-html.layout-profile-phone-portrait #card-detail-panel.has-effect-tags #card-detail-actions {
-    margin-top: calc(6px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn, #pass-btn),
-html.layout-profile-phone-portrait #card-detail-panel > #pass-btn,
+html.layout-profile-phone-portrait #card-detail-actions > :is(#toggle-card-detail-btn, #use-card-btn, #destroy-card-btn),
 html.layout-profile-phone-portrait #card-detail-panel > #cancel-card-btn {
     min-width: calc(54px * var(--layout-stage-scale));
     min-height: calc(28px * var(--layout-stage-scale));

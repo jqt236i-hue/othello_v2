@@ -684,3 +684,76 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - CPU設定の位置をスマホbridgeとPC handlerの両方で毎回再計算すると再び競合するため、PC handlerは可視アンカーだけを扱い、非表示アンカー時は既存位置を保持する順序にした。
 - タグ付きパネルを単純に拡大すると前タスクで回収した下端余白を失うため、タグ表示中だけ盤面表示予算を同量減らす。
 - `has-effect-tags` は既存の正規化済みタグ配列から同期し、CSS都合のタグ再判定やカードtype列挙を追加しない。
+
+## 追加要望: パス操作統一とスマホ詳細下段の固定化
+
+### Step 36: 現行の重複操作と寸法伝播を仕様・設計へ固定する
+
+- Outcome: カード詳細内・盤面下中央・盤面左下に分散したパス入口と、タグ有無が盤面寸法へ伝播する条件を特定し、現在の正本へ反映する。
+- Components: `01-rulebook.md`、本設計書、`index.classic.html`、`styles-responsive.css`、カード詳細契約テスト。
+- Dependencies: Step 32-35のタグ状態classとスマホ盤面密度。
+- Verification: 正規HTML、CSS cascade、パス同期handler、393x673実機写真を照合する。
+- Done: 盤面左下の赤いパスだけを残し、スマホの操作3ボタンとタグを同じ下段の左右へ分ける完了条件が確定する。
+
+### Step 37: 正規DOMとスマホ詳細レイアウトを実装する
+
+- Outcome: 正規HTMLから重複パスを除き、タグ付きスマホ詳細を左操作列・右タグ列に固定して、タグ有無による盤面縮小を廃止する。
+- Components: `index.classic.html`、`styles-cards.css`、`styles-responsive.css`。
+- Dependencies: Step 36完了。
+- Verification: HTML/CSSのfocused contract tests、タグなし/タグありDOMの矩形測定。
+- Done: 全プロファイルのカード詳細操作は3ボタンだけ、パスは盤面左下だけ、スマホでは操作列とタグ列の交差0で盤面寸法が一致する。
+
+### Step 38: 生成物同期と実ブラウザ回帰を行う
+
+- Outcome: Vite/Worker mirrorを正規sourceから再生成し、PC・スマホの操作と表示を確認する。
+- Components: focused Jest、`npm run worker:prepare`、Codex in-app Browser。
+- Dependencies: Step 37完了。
+- Verification: 393x673と393x852でタグ付きカード、PC相当でカード詳細、パス表示、横縦overflow、盤面矩形を確認する。
+- Done: focused tests、browser build、typecheck、mirror同期、実ブラウザQAが成功する。
+
+### Step 39: 差分監査とコミットを完了する
+
+- Outcome: タスク所有差分だけを監査・コミットし、配信可能な状態へ整える。
+- Components: `git diff --check`、`git status --short`、task-owned commit。
+- Dependencies: Step 38完了。
+- Verification: 仕様・設計・実装・生成物の一致とcommit内容を確認する。
+- Done: 検証済み差分が単一の整合したcommitになり、未依頼の本番デプロイは行われていない。
+
+### パス操作統一とスマホ詳細下段 completion checklist
+
+- [x] カード詳細内と盤面下中央の重複パスが全正規entryからなくなる
+- [x] 盤面フレーム左下の赤いパスが既存handlerで動作する
+- [x] スマホの操作3ボタンが左、効果タグが右の同一段に配置される
+- [x] タグが多い場合はタグ領域内だけを横スクロールできる
+- [x] タグ有無と説明文字数で盤面寸法が変わらない
+- [x] PC/iPad、カード操作、パス可否、ゲーム/盤面/network authorityへ回帰がない
+- [x] focused tests、browser build、Worker mirror、実ブラウザQAが成功する
+- [x] 最終diffを監査し、タスク所有差分をコミットする
+
+### パス操作統一とスマホ詳細下段 verification results
+
+- focused Jest 6 suites / 60 tests: 成功
+  - `test/ui.card-surface-layout-contract.test.ts`
+  - `test/ui.layout-responsive.aspect-ratio.test.ts`
+  - `test/ui.charge-hud-position-contract.test.ts`
+  - `test/ui.card-detail-effect-tags.test.ts`
+  - `test/ui.init-events-pass-buttons.test.ts`
+  - `test/ui.pass-stale-busy.test.ts`
+- `npm run worker:prepare`: 成功（`build:browser`、`build:vite`、root/training typecheck、Worker mirror 958 filesを含む。既知のchunk-size warningのみ）
+- Codex in-app Browser / 393x673:
+  - タグなし・タグ3個とも盤面外枠 `331.83x327.48px`、カード詳細パネル高 `93.86px` で一致
+  - 操作3ボタンの右端 `143.11px`、タグ領域の左端 `147.44px`、間隔 `4.33px`、交差0px
+  - タグ4個時はタグ領域 `clientWidth=221px`、`scrollWidth=274px`、`overflow-x: auto`
+  - 正規パス入口は `#board-frame-pass-btn` だけで、`#pass-btn`、`#reversi-pass-btn`、`#othello-pass-btn` は0件
+  - `scrollWidth=393`、`scrollHeight=673` でページ全体の溢れなし
+- PC相当 / 1440x900:
+  - カード詳細操作は `詳細`、`使用`、`破壊` の3件だけ
+  - 正規パス入口は `#board-frame-pass-btn` だけ
+  - 盤面外枠 `406.50x402.00px`、カード詳細パネル `252.00x183.75px`
+- in-app Browserでは旧・新bundleの両方でPixi側の既存 `MutationObserver` console errorを観測したが、削除したパス要素を参照するobserver/listenerはnull guard済みで、今回の操作・レイアウト検証は完遂した。
+
+### パス操作統一とスマホ詳細下段 Self-review
+
+- `#pass-btn` をCSSだけで隠す案は正規DOMと入力listenerを重複したまま残すため採用しない。正規HTMLから入口を除去し、既存の盤面左下ボタンへ一本化する。
+- タグを操作列の右へ絶対配置すると説明や使用不可理由の高さに依存するため採用しない。スマホのタグ付き詳細だけを明示的な2列下段にし、タグ側のoverflowを局所化する。
+- タグ数に応じて盤面を縮める案は今回の不具合原因なので廃止し、カード詳細と盤面の寸法予算を分離する。
