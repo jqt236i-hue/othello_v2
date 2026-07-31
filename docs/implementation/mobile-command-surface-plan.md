@@ -655,7 +655,29 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
 - [x] タグ付き状態でも手札・山札・`操作` がviewport内に収まる
 - [x] タグなし状態、PC/iPad、ゲーム/盤面/network authorityへ回帰がない
 - [x] focused tests、browser build、Worker mirror、実ブラウザQAが成功する
-- [ ] 最終diffを監査し、タスク所有差分をコミットして本番確認する
+- [x] 最終diffを監査し、タスク所有差分をコミットして本番確認する
+
+### 敵アイコン盤面設定とタグ付き詳細 verification results
+
+- focused Jest 5 suites / 61 tests: 成功
+  - `test/ui.smart-level-shortcut.test.ts`
+  - `test/ui.card-detail-effect-tags.test.ts`
+  - `test/ui.layout-responsive.aspect-ratio.test.ts`
+  - `test/ui.card-surface-layout-contract.test.ts`
+  - `test/ui.mobile-command-surface.test.ts`
+- `npm run worker:prepare`: 成功（`build:browser`、`build:vite`、root/training typecheck、Worker mirror 958 filesを含む。既知のchunk-size warningのみ）
+- Codex in-app Browser / 393x673:
+  - `盤面設定` タブ選択後のメニューは `x=83.80, y=129, 268.20x240.91px` でviewport内
+  - 通常10x12、円形10x10へ実操作で変更後、通常8x8へ復元
+  - 効果タグ3個の下端と操作列の間隔7.20px、交差0px
+  - 手札・山札下端669.34px、`操作` 下端618.08px、`scrollWidth=393`、`scrollHeight=673`
+- Cloudflare Worker:
+  - URL: `https://card.reversi-0.workers.dev`
+  - Version ID: `4b4707e6-862a-4ff1-94cd-42197defcf8d`
+  - `/`、`/mobile-preview.html`、`/styles-responsive.css`、`/api/match/list` はすべてHTTP 200
+  - 本番module registryに可視アンカーguardと `has-effect-tags`、本番CSSに52pxのタグ時盤面予約を確認
+  - 本番393x852で `盤面設定` は `x=106.48, y=125, 278.52x268.66px`、viewport内
+  - 本番393x673のタグ3個状態も間隔7.20px、交差0px、手札・山札下端669.34px
 
 ### 敵アイコン盤面設定とタグ付き詳細 Self-review
 

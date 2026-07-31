@@ -145,6 +145,11 @@ No actionable P0, P1, or P2 mismatch remains.
   - board-settings tab selected: true
   - tag/action overlap: 0px
   - document horizontal/vertical overflow: none (`scrollWidth=393`, `scrollHeight=673`)
+- Production verification:
+  - URL: `https://card.reversi-0.workers.dev`
+  - Version ID: `4b4707e6-862a-4ff1-94cd-42197defcf8d`
+  - 393 × 852 board-settings popup: `x=106.48, y=125`, `278.52 × 268.66px`, fully visible
+  - 393 × 673 three-tag state: gap `7.20px`, overlap `0px`, hand/deck bottom `669.34px`
 - The normal local page emitted the repository's existing `MutationObserver.observe` initialization error once. The two changed interactions still completed successfully, and none of the touched modules creates that observer.
 
 ## Iteration History
