@@ -482,6 +482,56 @@ describe('shared match command prepare and apply stages', () => {
     expect(capabilities.authority.validateAuthoritativePendingSelectionResult).toHaveBeenCalledTimes(1);
   });
 
+  test('clears timeout-owned card selection and pending state in the shared executor', () => {
+    const context: any = createAuthorityContext();
+    context.snapshot.cardState.selectedCardId = 'timeout_card';
+    context.snapshot.cardState.selectedCardOwnerKey = 'black';
+    context.snapshot.cardState.pendingEffectByPlayer.black = { type: 'SEED' };
+    const capabilities = createExecutionCapabilities();
+    const prepared = prepareMatchCommandExecution(
+      context,
+      {
+        actionType: 'pass',
+        action: { type: 'pass', forcePass: true, reason: 'timeout' }
+      },
+      capabilities
+    );
+    if (prepared.kind !== 'prepared') throw new Error('expected prepared command');
+
+    const applied = applyPreparedMatchCommandExecution(prepared.value, capabilities);
+    if ('ok' in applied) throw new Error('expected applied command');
+
+    expect(applied.nextSnapshot.cardState).toEqual(expect.objectContaining({
+      selectedCardId: null,
+      selectedCardOwnerKey: null,
+      pendingEffectByPlayer: expect.objectContaining({ black: null })
+    }));
+  });
+
+  test('does not clear another player selection for a timeout pass', () => {
+    const context: any = createAuthorityContext();
+    context.snapshot.cardState.selectedCardId = 'white_card';
+    context.snapshot.cardState.selectedCardOwnerKey = 'white';
+    const capabilities = createExecutionCapabilities();
+    const prepared = prepareMatchCommandExecution(
+      context,
+      {
+        actionType: 'pass',
+        action: { type: 'pass', timeoutPass: true }
+      },
+      capabilities
+    );
+    if (prepared.kind !== 'prepared') throw new Error('expected prepared command');
+
+    const applied = applyPreparedMatchCommandExecution(prepared.value, capabilities);
+    if ('ok' in applied) throw new Error('expected applied command');
+
+    expect(applied.nextSnapshot.cardState).toEqual(expect.objectContaining({
+      selectedCardId: 'white_card',
+      selectedCardOwnerKey: 'white'
+    }));
+  });
+
   test('keeps pipeline rejection raw events and rejects invalid authoritative pending results', () => {
     const rejectedCapabilities = createExecutionCapabilities();
     (rejectedCapabilities.pipeline.applyTurnSafe as jest.Mock).mockReturnValue({

@@ -85,7 +85,7 @@ describe('pass clears pending card effect', () => {
     expect(forcedPass.gameState.currentPlayer).toBe(Core.WHITE);
     expect(forcedPass.gameState.consecutivePasses).toBe(1);
     expect(forcedPass.events).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'pass', player: 'black' })
+      expect.objectContaining({ type: 'pass', player: 'black', reason: 'timeout' })
     ]));
   });
 

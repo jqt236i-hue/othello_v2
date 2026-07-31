@@ -276,6 +276,35 @@ function isAutoCommand(
     );
 }
 
+function isForcedTimeoutPass(actionValue: unknown): boolean {
+    const action = asRecord(actionValue);
+    return String(action.type || '').trim().toLowerCase() === 'pass'
+        && (
+            action.timeoutPass === true
+            || String(action.reason || '').trim().toLowerCase() === 'timeout'
+        );
+}
+
+function clearTimedOutPlayerSelectionState(
+    cardState: MatchCommandRecord,
+    playerKey: MatchCommandPlayerKey,
+    capabilities: MatchCommandExecutionCapabilities
+): void {
+    if (
+        capabilities.authority.parsePlayerKeyOptional(cardState.selectedCardOwnerKey) === playerKey
+    ) {
+        cardState.selectedCardId = null;
+        cardState.selectedCardOwnerKey = null;
+    }
+    if (
+        cardState.pendingEffectByPlayer
+        && typeof cardState.pendingEffectByPlayer === 'object'
+    ) {
+        const pendingByPlayer = asRecord(cardState.pendingEffectByPlayer);
+        pendingByPlayer[playerKey] = null;
+    }
+}
+
 function validateSharedCapabilityGroups(
     body: MatchCommandRecord,
     capabilities: MatchCommandExecutionCapabilities | null | undefined
@@ -323,6 +352,7 @@ function validateSharedCapabilityGroups(
         || !hasFunction(capabilities.presentation, 'collectActionPlaybackEvents')
         || !capabilities.authority
         || !hasFunction(capabilities.authority, 'normalizePlayerKey')
+        || !hasFunction(capabilities.authority, 'parsePlayerKeyOptional')
         || !hasFunction(capabilities.authority, 'getCurrentPlayerKey')
         || !hasFunction(capabilities.authority, 'validatePendingSelectionPublish')
         || !hasFunction(capabilities.authority, 'sanitizePendingSelectionActionForAuthority')
@@ -605,6 +635,13 @@ export function applyPreparedMatchCommandExecution(
 
     const gameState = asRecord(result.gameState);
     const cardState = asRecord(result.cardState);
+    if (isForcedTimeoutPass(prepared.resolvedAction)) {
+        clearTimedOutPlayerSelectionState(
+            cardState,
+            prepared.context.playerKey,
+            capabilities
+        );
+    }
     return {
         ...prepared,
         pipelineResult: result,

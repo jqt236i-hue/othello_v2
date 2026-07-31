@@ -1139,7 +1139,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
             }
         }
-        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events);
+        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason);
     }
 
     function applyUseCardOnlyActionStage(ctx: TurnPipelinePhaseContext): void {

@@ -263,7 +263,7 @@ describe('local match server room deck', () => {
           turnDeadlineAt: 0
         };
         room.snapshot = Object.assign({}, room.snapshot, {
-          cardState: { turnIndex }
+          cardState: { turnIndex, lastTurnStartedFor: 'black' }
         });
       });
       expect(patched).toBe(true);
