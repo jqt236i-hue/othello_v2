@@ -76,8 +76,8 @@ describe('special-stone playback phase batching', () => {
       eventCount: 42,
       phaseCount: 9,
       durationMs: 12400,
-      playbackDigest: 'fnv1a32:a92eff98',
-      soundDigest: 'fnv1a32:27c8cbd2'
+      playbackDigest: 'fnv1a32:0743f7b1',
+      soundDigest: 'fnv1a32:fb5bcb1a'
     });
   });
 

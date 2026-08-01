@@ -1,19 +1,28 @@
 import LocalMatchServer = require('./local-match-server');
 import Core = require('../game/logic/core');
+import MatchAuthority = require('../utils/match-authority');
 
-const { createLocalMatchServer, resetRoomsForTests } = LocalMatchServer;
+const { createLocalMatchServer, patchRoomSnapshotForTests, resetRoomsForTests } = LocalMatchServer;
 
 const DEFAULT_GAMES = 5;
 const DEFAULT_MAX_STEPS = 240;
 const PLAYER_VALUE_BY_SEAT = { black: 1, white: -1 };
 
 const CARD_PLANS = [
-    ['hard_01', 'ghost_01', 'silver_stone', 'afterimage_will_01', 'chest_01', 'regen_01'],
-    ['gold_stone', 'crystal_stone', 'afterimage_will_01', 'perma_01', 'hard_01', 'ghost_01'],
-    ['afterimage_will_01', 'silver_stone', 'regen_01', 'chest_01', 'gold_stone', 'crystal_stone'],
-    ['ghost_01', 'hard_01', 'perma_01', 'chest_01', 'silver_stone', 'afterimage_will_01'],
-    ['crystal_stone', 'gold_stone', 'chest_01', 'regen_01', 'hard_01', 'ghost_01']
+    ['hard_01', 'ghost_01', 'silver_stone', 'afterimage_will_01', 'chest_01'],
+    ['gold_stone', 'crystal_stone', 'afterimage_will_01', 'perma_01', 'hard_01'],
+    ['afterimage_will_01', 'silver_stone', 'regen_01', 'chest_01', 'gold_stone'],
+    ['ghost_01', 'hard_01', 'perma_01', 'chest_01', 'silver_stone'],
+    ['crystal_stone', 'gold_stone', 'chest_01', 'regen_01', 'hard_01']
 ];
+
+function expectedCardIdsForGames(games: number): string[] {
+    const expected = new Set<string>();
+    for (let gameIndex = 1; gameIndex <= games; gameIndex += 1) {
+        for (const cardId of CARD_PLANS[(gameIndex - 1) % CARD_PLANS.length]) expected.add(cardId);
+    }
+    return Array.from(expected).sort();
+}
 
 function readArgInteger(name: string, fallback: number): number {
     const key = `--${name}`;
@@ -98,26 +107,29 @@ function buildPublishBase(ctx: any, seatKey: 'black' | 'white', actionType: stri
     };
 }
 
-async function publishDebugFill(baseUrl: string, ctx: any, seatKey: 'black' | 'white', cardId: string, gameIndex: number, step: number): Promise<void> {
-    const body = {
-        ...buildPublishBase(ctx, seatKey, 'debug_fill_hand', `endgame_g${gameIndex}_s${step}_debug_${seatKey}`),
-        params: {
-            cardIds: [cardId],
-            replaceExisting: true,
-            charge: 99
-        },
-        action: {
-            type: 'debug_fill_hand',
-            playerKey: seatKey,
-            cardIds: [cardId],
-            replaceExisting: true,
-            charge: 99
+function prepareCardForSmoke(ctx: any, seatKey: 'black' | 'white', cardId: string): void {
+    let preparedSnapshot: any = null;
+    let preparedStateVersion: number | null = null;
+    const patched = patchRoomSnapshotForTests(ctx.roomId, (room: any) => {
+        const snapshot = room && room.snapshot;
+        const cardState = snapshot && snapshot.cardState;
+        if (!cardState || !cardState.hands || typeof cardState.hands !== 'object') {
+            throw new Error(`card fixture snapshot is invalid for ${seatKey}`);
         }
-    };
-    const response = await requestJson(baseUrl, 'POST', '/api/match/publish', body);
-    assertOk(response, `debug_fill_hand(${seatKey}, ${cardId})`);
-    ctx.snapshot = response.data.snapshot;
-    ctx.stateVersion = Number(response.data.stateVersion);
+        if (!cardState.charge || typeof cardState.charge !== 'object') {
+            cardState.charge = { black: 0, white: 0 };
+        }
+        cardState.hands[seatKey] = [cardId];
+        cardState.charge[seatKey] = 99;
+        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(snapshot);
+        preparedSnapshot = JSON.parse(JSON.stringify(snapshot));
+        preparedStateVersion = Number(room.stateVersion);
+    });
+    if (!patched || !preparedSnapshot || !Number.isFinite(preparedStateVersion)) {
+        throw new Error(`failed to prepare card fixture for ${seatKey}: ${cardId}`);
+    }
+    ctx.snapshot = preparedSnapshot;
+    ctx.stateVersion = preparedStateVersion;
 }
 
 async function publishUseCard(baseUrl: string, ctx: any, seatKey: 'black' | 'white', cardId: string, gameIndex: number, step: number): Promise<void> {
@@ -196,7 +208,9 @@ async function runGame(baseUrl: string, gameIndex: number, maxSteps: number): Pr
         playerName: `しろ${gameIndex}`
     });
     assertOk(joined, `join game ${gameIndex}`);
-    const networkDebugEnabled = created.data.networkDebugEnabled === true;
+    if (created.data.networkDebugEnabled !== false || joined.data.networkDebugEnabled !== false) {
+        throw new Error(`public network debug unexpectedly enabled for game ${gameIndex}`);
+    }
 
     const ctx = {
         roomId: created.data.roomId,
@@ -215,6 +229,9 @@ async function runGame(baseUrl: string, gameIndex: number, maxSteps: number): Pr
 
     for (let step = 1; step <= maxSteps; step += 1) {
         if (Core.isGameOver(ctx.snapshot.gameState)) {
+            if (cardCursor !== cardPlan.length) {
+                throw new Error(`game ${gameIndex} ended before all planned cards were used (${cardCursor}/${cardPlan.length})`);
+            }
             const counts = Core.countDiscs(ctx.snapshot.gameState, ctx.snapshot.cardState);
             return {
                 gameIndex,
@@ -234,9 +251,9 @@ async function runGame(baseUrl: string, gameIndex: number, maxSteps: number): Pr
             continue;
         }
 
-        if (networkDebugEnabled && cardCursor < cardPlan.length) {
+        if (cardCursor < cardPlan.length) {
             const cardId = cardPlan[cardCursor];
-            await publishDebugFill(baseUrl, ctx, seatKey, cardId, gameIndex, step);
+            prepareCardForSmoke(ctx, seatKey, cardId);
             await publishUseCard(baseUrl, ctx, seatKey, cardId, gameIndex, step);
             cardCursor += 1;
         }
@@ -270,10 +287,17 @@ async function main(): Promise<void> {
 
     console.log(`[network-endgame] server=${baseUrl} games=${games} maxSteps=${maxSteps}`);
     try {
+        const usedCardIds = new Set<string>();
         for (let gameIndex = 1; gameIndex <= games; gameIndex += 1) {
             const result = await runGame(baseUrl, gameIndex, maxSteps);
+            for (const cardId of result.usedCards) usedCardIds.add(cardId);
             console.log(`[network-endgame] game ${gameIndex} ok room=${result.roomId} version=${result.stateVersion} moves=${result.moves} passes=${result.passes} cards=${result.usedCards.join(',')} discs=${result.counts.black}-${result.counts.white}`);
         }
+        const missingCardIds = expectedCardIdsForGames(games).filter((cardId) => !usedCardIds.has(cardId));
+        if (missingCardIds.length > 0) {
+            throw new Error(`card coverage incomplete: ${missingCardIds.join(',')}`);
+        }
+        console.log(`[network-endgame] card coverage=${Array.from(usedCardIds).sort().join(',')}`);
         console.log('[network-endgame] success');
     } finally {
         await closeServer(server);

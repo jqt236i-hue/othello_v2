@@ -9,7 +9,6 @@ import type {
 } from '../board-visual/types';
 import BoardSkinCatalog = require('../board-skin/catalog');
 import StoneSkinCatalog = require('../stone-skin/catalog');
-import SpecialStoneRegistry = require('../../shared/special-stone-registry');
 import PixiRuntimeContract = require('./runtime-contract');
 import { parsePlayerSeatKey } from '../../shared/player-seat-contract';
 import {
@@ -148,6 +147,14 @@ export interface PixiBoardBackendDiagnostics {
     pooledViewCount: number;
     activePlaybackGhostCount: number;
     pooledPlaybackGhostCount: number;
+    createdPlaybackGhostCount: number;
+    destroyedPlaybackGhostCount: number;
+    pooledPlaybackStoneGhostCount: number;
+    createdPlaybackStoneGhostCount: number;
+    destroyedPlaybackStoneGhostCount: number;
+    pooledPlaybackMarkerGhostCount: number;
+    createdPlaybackMarkerGhostCount: number;
+    destroyedPlaybackMarkerGhostCount: number;
     activePlaybackHighlightLeaseCount: number;
     renderedPlaybackHighlightCount: number;
     pooledPlaybackHighlightCount: number;
@@ -363,12 +370,6 @@ function collectSpecialStones(frame: BoardVisualFrame): ReadonlyArray<{
         || markerTypeByKind[marker.kind]
         || ''
       ).trim().toUpperCase();
-      const specialStoneRegistry = SpecialStoneRegistry as any;
-      const markerSubjectKind = specialStoneRegistry
-        && typeof specialStoneRegistry.getMarkerSubjectKind === 'function'
-        ? specialStoneRegistry.getMarkerSubjectKind(markerType, marker.data)
-        : null;
-      if (markerSubjectKind && markerSubjectKind !== 'stone_body') continue;
       const markerOwner = marker.owner || stone?.owner || null;
       if (!markerType || (markerOwner !== 'black' && markerOwner !== 'white')) continue;
       byKey.set(`${markerType}:${markerOwner}`, Object.freeze({ type: markerType, owner: markerOwner }));
@@ -1847,6 +1848,14 @@ export function createPixiBoardVisualBackend(
         pooledViewCount: sceneDiagnostics.pooledViewCount,
         activePlaybackGhostCount: sceneDiagnostics.activePlaybackGhostCount || 0,
         pooledPlaybackGhostCount: sceneDiagnostics.pooledPlaybackGhostCount || 0,
+        createdPlaybackGhostCount: sceneDiagnostics.createdPlaybackGhostCount || 0,
+        destroyedPlaybackGhostCount: sceneDiagnostics.destroyedPlaybackGhostCount || 0,
+        pooledPlaybackStoneGhostCount: sceneDiagnostics.pooledPlaybackStoneGhostCount || 0,
+        createdPlaybackStoneGhostCount: sceneDiagnostics.createdPlaybackStoneGhostCount || 0,
+        destroyedPlaybackStoneGhostCount: sceneDiagnostics.destroyedPlaybackStoneGhostCount || 0,
+        pooledPlaybackMarkerGhostCount: sceneDiagnostics.pooledPlaybackMarkerGhostCount || 0,
+        createdPlaybackMarkerGhostCount: sceneDiagnostics.createdPlaybackMarkerGhostCount || 0,
+        destroyedPlaybackMarkerGhostCount: sceneDiagnostics.destroyedPlaybackMarkerGhostCount || 0,
         activePlaybackHighlightLeaseCount: sceneDiagnostics.activePlaybackHighlightLeaseCount || 0,
         renderedPlaybackHighlightCount: sceneDiagnostics.renderedPlaybackHighlightCount || 0,
         pooledPlaybackHighlightCount: sceneDiagnostics.pooledPlaybackHighlightCount || 0

@@ -1,4 +1,5 @@
 const { createCardBoardShapeAccess } = require('../game/logic/cards-internal/board-shape-access');
+const CardMarkers = require('../game/logic/cards/markers');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function createBoard(rows = 4, cols = 4, fill = 0) {
@@ -41,6 +42,7 @@ function createAccess(overrides: any = {}) {
         marker.data &&
         marker.data.type === 'BLOCKADE'
       )),
+      isBoardMarker: (marker: any) => CardMarkers.getMarkerRuleClass(marker) === 'board_marker',
       resolveDeterministicRandomIndex: () => 0
     })
   };

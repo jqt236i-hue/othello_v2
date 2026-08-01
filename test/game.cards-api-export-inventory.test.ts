@@ -24,7 +24,7 @@ describe('cards API export inventory', () => {
       .digest('hex');
 
     expect(new Set(keys).size).toBe(keys.length);
-    expect(keys).toHaveLength(262);
-    expect(signature).toBe('829025afa92462c85be19f479b86e1cb1d5ef441e9370fff105f8ef861ef5ad5');
+    expect(keys).toHaveLength(289);
+    expect(signature).toBe('4ca483a9609c4310f05c39f170a431c6a77c5857eaa472d1d2546e5814186087');
   });
 });

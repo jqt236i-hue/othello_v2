@@ -79,7 +79,9 @@ function goodBackendDiagnostics(): any {
     },
     pool: {
       activePlaybackGhostCount: 0,
-      pooledPlaybackGhostCount: 2,
+      pooledPlaybackGhostCount: 3,
+      pooledPlaybackStoneGhostCount: 2,
+      pooledPlaybackMarkerGhostCount: 1,
       activePlaybackHighlightLeaseCount: 0,
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 1
@@ -600,6 +602,37 @@ describe('Pixi playback browser scenario matrix', () => {
       expect.stringMatching(/final rendered cell semantics drifted/),
       expect.stringMatching(/parity digest is inconsistent/),
       expect.stringMatching(/DOM\/Pixi event, sound, or final-model digest drifted/)
+    ]));
+  });
+
+  test('bounds stone and marker ghost pools independently and validates their aggregate', () => {
+    const stoneOverflow = goodReport();
+    const stonePool = stoneOverflow.reports.find((entry: any) => (
+      entry.lane === 'classic' && entry.renderer === 'pixi' && entry.mode === 'normal'
+    )).scenarios[0].final.backendDiagnostics.pool;
+    stonePool.pooledPlaybackStoneGhostCount = 3;
+    stonePool.pooledPlaybackGhostCount = 4;
+    expect(Check.evaluatePixiPlaybackBrowserReport(stoneOverflow).errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/playback ghost pool exceeded the scenario-matrix bound/)
+    ]));
+
+    const markerOverflow = goodReport();
+    const markerPool = markerOverflow.reports.find((entry: any) => (
+      entry.lane === 'classic' && entry.renderer === 'pixi' && entry.mode === 'normal'
+    )).scenarios[0].final.backendDiagnostics.pool;
+    markerPool.pooledPlaybackMarkerGhostCount = 2;
+    markerPool.pooledPlaybackGhostCount = 4;
+    expect(Check.evaluatePixiPlaybackBrowserReport(markerOverflow).errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/playback ghost pool exceeded the scenario-matrix bound/)
+    ]));
+
+    const inconsistent = goodReport();
+    const inconsistentPool = inconsistent.reports.find((entry: any) => (
+      entry.lane === 'classic' && entry.renderer === 'pixi' && entry.mode === 'normal'
+    )).scenarios[0].final.backendDiagnostics.pool;
+    inconsistentPool.pooledPlaybackGhostCount = 2;
+    expect(Check.evaluatePixiPlaybackBrowserReport(inconsistent).errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/aggregate playback ghost-pool diagnostics are inconsistent/)
     ]));
   });
 

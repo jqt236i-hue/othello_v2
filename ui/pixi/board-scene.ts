@@ -433,9 +433,16 @@ export interface PixiBoardSceneDiagnostics {
   readonly activePlaybackGhostCount: number;
   /** DisplayObject-backed ghosts inside the current viewport materialization window. */
   readonly materializedPlaybackGhostCount: number;
+  /** Aggregate retained stone and marker ghost views. */
   readonly pooledPlaybackGhostCount: number;
   readonly createdPlaybackGhostCount: number;
   readonly destroyedPlaybackGhostCount: number;
+  readonly pooledPlaybackStoneGhostCount: number;
+  readonly createdPlaybackStoneGhostCount: number;
+  readonly destroyedPlaybackStoneGhostCount: number;
+  readonly pooledPlaybackMarkerGhostCount: number;
+  readonly createdPlaybackMarkerGhostCount: number;
+  readonly destroyedPlaybackMarkerGhostCount: number;
   readonly activePlaybackHighlightLeaseCount: number;
   readonly renderedPlaybackHighlightCount: number;
   readonly pooledPlaybackHighlightCount: number;
@@ -3126,6 +3133,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       pooledPlaybackGhostCount: ghostPoolDiagnostics.available + markerGhostPoolDiagnostics.available,
       createdPlaybackGhostCount: ghostPoolDiagnostics.created + markerGhostPoolDiagnostics.created,
       destroyedPlaybackGhostCount: ghostPoolDiagnostics.destroyed + markerGhostPoolDiagnostics.destroyed,
+      pooledPlaybackStoneGhostCount: ghostPoolDiagnostics.available,
+      createdPlaybackStoneGhostCount: ghostPoolDiagnostics.created,
+      destroyedPlaybackStoneGhostCount: ghostPoolDiagnostics.destroyed,
+      pooledPlaybackMarkerGhostCount: markerGhostPoolDiagnostics.available,
+      createdPlaybackMarkerGhostCount: markerGhostPoolDiagnostics.created,
+      destroyedPlaybackMarkerGhostCount: markerGhostPoolDiagnostics.destroyed,
       activePlaybackHighlightLeaseCount: playbackHighlightLeases.size,
       renderedPlaybackHighlightCount: playbackHighlightsByKey.size,
       pooledPlaybackHighlightCount: highlightPoolDiagnostics.available,

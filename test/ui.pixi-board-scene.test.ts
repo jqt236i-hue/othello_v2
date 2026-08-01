@@ -1836,7 +1836,9 @@ describe('Pixi board scene playback projection', () => {
       hiddenStoneCount: 1,
       activePlaybackGhostCount: 0,
       materializedPlaybackGhostCount: 0,
-      pooledPlaybackGhostCount: 1
+      pooledPlaybackGhostCount: 1,
+      pooledPlaybackStoneGhostCount: 1,
+      pooledPlaybackMarkerGhostCount: 0
     });
 
     const reused = scene.acquirePlaybackGhost(scope, { row: 5, col: 5, stone: whiteStone });
@@ -1844,7 +1846,9 @@ describe('Pixi board scene playback projection', () => {
       activePlaybackGhostCount: 1,
       materializedPlaybackGhostCount: 1,
       createdPlaybackGhostCount: 1,
-      pooledPlaybackGhostCount: 0
+      pooledPlaybackGhostCount: 0,
+      createdPlaybackStoneGhostCount: 1,
+      pooledPlaybackStoneGhostCount: 0
     });
     scene.applyFrame(frame);
     expect(scene.getPlaybackGhost(reused)).toBeNull();
@@ -1853,7 +1857,9 @@ describe('Pixi board scene playback projection', () => {
       playbackScopeKey: null,
       activePlaybackGhostCount: 0,
       materializedPlaybackGhostCount: 0,
-      pooledPlaybackGhostCount: 1
+      pooledPlaybackGhostCount: 1,
+      pooledPlaybackStoneGhostCount: 1,
+      pooledPlaybackMarkerGhostCount: 0
     });
   });
 
@@ -1901,7 +1907,10 @@ describe('Pixi board scene playback projection', () => {
     expect(scene.getDiagnostics()).toMatchObject({
       activePlaybackGhostCount: 0,
       materializedPlaybackGhostCount: 0,
-      pooledPlaybackGhostCount: 1
+      pooledPlaybackGhostCount: 1,
+      createdPlaybackMarkerGhostCount: 1,
+      pooledPlaybackStoneGhostCount: 0,
+      pooledPlaybackMarkerGhostCount: 1
     });
   });
 
@@ -2260,6 +2269,8 @@ describe('Pixi board scene playback projection', () => {
       activePlaybackGhostCount: 0,
       pooledPlaybackGhostCount: 0,
       destroyedPlaybackGhostCount: 1,
+      destroyedPlaybackStoneGhostCount: 1,
+      destroyedPlaybackMarkerGhostCount: 0,
       displayObjectCount: 0
     });
   });

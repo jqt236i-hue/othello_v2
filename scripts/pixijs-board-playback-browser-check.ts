@@ -3225,8 +3225,25 @@ function evaluateScenario(report: any, errors: string[]): void {
     || Number(scene.activeSourceTrajectoryTextureLeaseCount || 0) !== 0) {
     errors.push(`${prefix}: source trajectory resource remained active after settlement`);
   }
-  if (Number(pool.pooledPlaybackGhostCount || 0) > 2
-    || Number(pool.pooledPlaybackHighlightCount || 0) > 1
+  const pooledPlaybackGhostCount = Number(pool.pooledPlaybackGhostCount);
+  const pooledPlaybackStoneGhostCount = Number(pool.pooledPlaybackStoneGhostCount);
+  const pooledPlaybackMarkerGhostCount = Number(pool.pooledPlaybackMarkerGhostCount);
+  const hasSplitGhostPoolDiagnostics = Number.isFinite(pooledPlaybackStoneGhostCount)
+    && Number.isFinite(pooledPlaybackMarkerGhostCount);
+  if (!hasSplitGhostPoolDiagnostics) {
+    errors.push(`${prefix}: split playback ghost-pool diagnostics are missing`);
+  } else if (pooledPlaybackStoneGhostCount > 2
+    || pooledPlaybackMarkerGhostCount > 1
+    || pooledPlaybackStoneGhostCount < 0
+    || pooledPlaybackMarkerGhostCount < 0) {
+    errors.push(`${prefix}: playback ghost pool exceeded the scenario-matrix bound`);
+  }
+  if (!Number.isFinite(pooledPlaybackGhostCount)
+    || (hasSplitGhostPoolDiagnostics
+      && pooledPlaybackGhostCount !== pooledPlaybackStoneGhostCount + pooledPlaybackMarkerGhostCount)) {
+    errors.push(`${prefix}: aggregate playback ghost-pool diagnostics are inconsistent`);
+  }
+  if (Number(pool.pooledPlaybackHighlightCount || 0) > 1
     || Number(pool.pooledPlaybackEffectCount ?? scene.pooledPlaybackEffectCount ?? 0) > 4) {
     errors.push(`${prefix}: playback object pool exceeded the scenario-matrix bound`);
   }

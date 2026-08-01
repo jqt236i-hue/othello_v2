@@ -318,6 +318,12 @@ function createSceneFixture() {
       pooledPlaybackGhostCount: 2,
       createdPlaybackGhostCount: 2,
       destroyedPlaybackGhostCount: destroyed ? 2 : 0,
+      pooledPlaybackStoneGhostCount: 2,
+      createdPlaybackStoneGhostCount: 2,
+      destroyedPlaybackStoneGhostCount: destroyed ? 2 : 0,
+      pooledPlaybackMarkerGhostCount: 0,
+      createdPlaybackMarkerGhostCount: 0,
+      destroyedPlaybackMarkerGhostCount: 0,
       activePlaybackHighlightLeaseCount: 0,
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 1
@@ -591,6 +597,8 @@ describe('Pixi board backend integration', () => {
       pool: {
         activeViewCount: 1,
         pooledPlaybackGhostCount: 2,
+        pooledPlaybackStoneGhostCount: 2,
+        pooledPlaybackMarkerGhostCount: 0,
         pooledPlaybackHighlightCount: 1
       }
     });
