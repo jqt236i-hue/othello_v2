@@ -218,7 +218,7 @@
     "src": "browser-vite/generated-assets/optional-gacha.mjs"
   },
   "browser-vite/generated-assets/optional-leaderboard.mjs": {
-    "file": "assets/optional-leaderboard-D0gWgnx-.mjs",
+    "file": "assets/optional-leaderboard-CkMFxKF5.mjs",
     "src": "browser-vite/generated-assets/optional-leaderboard.mjs"
   },
   "browser-vite/generated-assets/optional-onnx.mjs": {
@@ -235,7 +235,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-BP70ovPu.js",
+    "file": "assets/index.vite-Bte3uq7L.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -253,7 +253,7 @@
     "assets": [
       "assets/optional-gacha-B00JGPIr.mjs",
       "assets/optional-cosmetic-DROcErS9.mjs",
-      "assets/optional-leaderboard-D0gWgnx-.mjs",
+      "assets/optional-leaderboard-CkMFxKF5.mjs",
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-UiDuVAOA.mjs",

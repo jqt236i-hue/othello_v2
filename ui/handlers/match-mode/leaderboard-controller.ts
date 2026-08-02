@@ -94,6 +94,8 @@ function createLeaderboardController(context: any) {
     const LEADERBOARD_CATEGORY_TIME_DEFENSE = 'timeDefense';
     const LEADERBOARD_CATEGORY_SHORTEST_TURNS = 'shortestTurns';
     const LEADERBOARD_CATEGORY_RATED = 'rated';
+    const LEADERBOARD_ERA_CURRENT = 'current';
+    const LEADERBOARD_ERA_LEGACY = 'legacy';
     const LEADERBOARD_CPU_LEVEL_NAMES = [
         '',
         '盤喰いの小鬼',
@@ -112,6 +114,7 @@ function createLeaderboardController(context: any) {
     let leaderboardUpdatedAt = 0;
     let leaderboardActiveFilter = LEADERBOARD_FILTER_ALL;
     let leaderboardActiveCategory = LEADERBOARD_CATEGORY_SCORE;
+    let leaderboardActiveEra = LEADERBOARD_ERA_CURRENT;
     let leaderboardCpuLevelFilter: number | null = null;
     let leaderboardCpuLevelMenuOpen = false;
     let leaderboardModeMenuOpen = false;
@@ -242,6 +245,14 @@ function createLeaderboardController(context: any) {
         return LEADERBOARD_CATEGORY_SCORE;
     }
 
+    function normalizeLeaderboardEra(value: any) {
+        return value === LEADERBOARD_ERA_LEGACY ? LEADERBOARD_ERA_LEGACY : LEADERBOARD_ERA_CURRENT;
+    }
+
+    function isLegacyLeaderboardActive(): boolean {
+        return leaderboardActiveEra === LEADERBOARD_ERA_LEGACY && !isRatedLeaderboardActive();
+    }
+
     function getLeaderboardModeLabel(filter: any): string {
         const normalized = normalizeLeaderboardFilter(filter);
         if (normalized === LEADERBOARD_FILTER_NETWORK) return '対人';
@@ -250,7 +261,7 @@ function createLeaderboardController(context: any) {
     }
 
     function getLeaderboardModeButtonLabel(): string {
-        return 'MODE';
+        return isLegacyLeaderboardActive() ? 'MODE・旧' : 'MODE';
     }
 
     function normalizeLeaderboardCpuLevel(value: any): number | null {
@@ -468,6 +479,13 @@ function createLeaderboardController(context: any) {
                 option.textContent = item.label;
                 modeMenu.appendChild(option);
             });
+            const eraToggle = document.createElement('button');
+            eraToggle.type = 'button';
+            eraToggle.id = 'leaderboardEraToggle';
+            eraToggle.className = 'leaderboard-mode-option leaderboard-era-toggle';
+            eraToggle.dataset.era = LEADERBOARD_ERA_LEGACY;
+            eraToggle.setAttribute('role', 'option');
+            modeMenu.appendChild(eraToggle);
             modeWrap.appendChild(modeBtn);
             modeWrap.appendChild(modeMenu);
             actions.appendChild(modeWrap);
@@ -531,7 +549,7 @@ function createLeaderboardController(context: any) {
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、スコアランキングとは分離する。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。速攻は15:00超過を有効記録にしない。';
+            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、スコアランキングとは分離する。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。MODEメニューの旧記録は、検証方式導入前の履歴を現行順位と分けて読むための表示で、新規登録には使わない。速攻は15:00超過を有効記録にしない。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');
@@ -604,9 +622,11 @@ function createLeaderboardController(context: any) {
             cpuLevelMenu: uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelMenu'),
             modeBtn: uiRefs.leaderboardPanel.querySelector('#leaderboardModeBtn'),
             modeMenu: uiRefs.leaderboardPanel.querySelector('#leaderboardModeMenu'),
+            eraToggle: uiRefs.leaderboardPanel.querySelector('#leaderboardEraToggle'),
             details,
             podium,
             table,
+            footnote,
             status,
             list,
             profileOverlay,
@@ -961,10 +981,34 @@ function createLeaderboardController(context: any) {
             menu.setAttribute('aria-hidden', leaderboardModeMenuOpen && visible ? 'false' : 'true');
             const options = Array.from(menu.querySelectorAll('.leaderboard-mode-option'));
             options.forEach((option: any) => {
+                if (option.classList.contains('leaderboard-era-toggle')) return;
                 const active = normalizeLeaderboardFilter(option && option.dataset ? option.dataset.filter : '') === leaderboardActiveFilter;
                 option.classList.toggle('is-active', active);
                 option.setAttribute('aria-selected', active ? 'true' : 'false');
             });
+            const eraToggle = menu.querySelector('#leaderboardEraToggle');
+            if (eraToggle) {
+                const legacyAvailable = visible;
+                const legacyActive = isLegacyLeaderboardActive();
+                eraToggle.textContent = legacyActive ? '現行記録を表示' : '旧記録を表示';
+                eraToggle.classList.toggle('is-active', legacyActive);
+                eraToggle.setAttribute('aria-selected', legacyActive ? 'true' : 'false');
+                eraToggle.hidden = !legacyAvailable;
+                eraToggle.disabled = !legacyAvailable;
+                eraToggle.setAttribute('aria-hidden', legacyAvailable ? 'false' : 'true');
+            }
+        }
+    }
+
+    function syncLeaderboardArchiveContext() {
+        if (!uiRefs.leaderboardPanel) return;
+        const legacyActive = isLegacyLeaderboardActive();
+        uiRefs.leaderboardPanel.classList.toggle('is-legacy-records', legacyActive);
+        const footnote = uiRefs.leaderboardPanel.querySelector('#leaderboardFootnote');
+        if (footnote) {
+            footnote.textContent = legacyActive
+                ? '旧記録は検証方式導入前の履歴です。現行順位や新規登録には含まれません'
+                : '現行ランキングはサーバー検証済みの記録です';
         }
     }
 
@@ -1113,6 +1157,7 @@ function createLeaderboardController(context: any) {
         syncLeaderboardFilterButtons();
         syncLeaderboardModeControl();
         syncLeaderboardCpuLevelControl();
+        syncLeaderboardArchiveContext();
         syncLeaderboardTableHeader();
         syncLeaderboardDetailsVisibility();
     }
@@ -1147,6 +1192,11 @@ function createLeaderboardController(context: any) {
                 delete fetchOptions.force;
                 fetchOptions.mode = requestedFilter;
                 fetchOptions.category = leaderboardActiveCategory;
+                if (isLegacyLeaderboardActive()) {
+                    fetchOptions.era = LEADERBOARD_ERA_LEGACY;
+                } else {
+                    delete fetchOptions.era;
+                }
                 if (requestedFilter === LEADERBOARD_FILTER_CPU && leaderboardCpuLevelFilter !== null) {
                     fetchOptions.cpuLevel = leaderboardCpuLevelFilter;
                 } else {
@@ -1170,7 +1220,8 @@ function createLeaderboardController(context: any) {
         leaderboardUpdatedAt = Number.isFinite(Number(result.updatedAt)) ? Number(result.updatedAt) : 0;
         renderLeaderboardView();
         const timeLabel = formatLeaderboardTime(result.updatedAt);
-        writeLeaderboardStatus(timeLabel ? `最終更新 ${timeLabel}` : 'ランキングを表示中', false);
+        const archiveSuffix = isLegacyLeaderboardActive() ? '（旧記録）' : '';
+        writeLeaderboardStatus(timeLabel ? `最終更新 ${timeLabel}${archiveSuffix}` : `ランキングを表示中${archiveSuffix}`, false);
     }
 
     function openLeaderboard(options?: any) {
@@ -1179,6 +1230,9 @@ function createLeaderboardController(context: any) {
         if (opts.mode) {
             leaderboardActiveFilter = normalizeLeaderboardFilter(opts.mode);
         }
+        if (opts.era) {
+            leaderboardActiveEra = normalizeLeaderboardEra(opts.era);
+        }
         leaderboardCpuLevelMenuOpen = false;
         leaderboardModeMenuOpen = false;
         setNetworkOverlayVisible(false);
@@ -1186,6 +1240,7 @@ function createLeaderboardController(context: any) {
         syncLeaderboardFilterButtons();
         syncLeaderboardModeControl();
         syncLeaderboardCpuLevelControl();
+        syncLeaderboardArchiveContext();
         refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
     }
 
@@ -1220,6 +1275,7 @@ function createLeaderboardController(context: any) {
                 syncLeaderboardFilterButtons();
                 syncLeaderboardModeControl();
                 syncLeaderboardCpuLevelControl();
+                syncLeaderboardArchiveContext();
                 refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
             });
         }
@@ -1243,6 +1299,19 @@ function createLeaderboardController(context: any) {
                     ? event.target.closest('.leaderboard-mode-option')
                     : null;
                 if (!target || !target.dataset) return;
+                if (target.classList.contains('leaderboard-era-toggle')) {
+                    if (isRatedLeaderboardActive()) return;
+                    leaderboardActiveEra = isLegacyLeaderboardActive()
+                        ? LEADERBOARD_ERA_CURRENT
+                        : LEADERBOARD_ERA_LEGACY;
+                    leaderboardModeMenuOpen = false;
+                    leaderboardCpuLevelMenuOpen = false;
+                    syncLeaderboardModeControl();
+                    syncLeaderboardCpuLevelControl();
+                    syncLeaderboardArchiveContext();
+                    refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
+                    return;
+                }
                 leaderboardActiveFilter = normalizeLeaderboardFilter(target.dataset.filter);
                 leaderboardModeMenuOpen = false;
                 leaderboardCpuLevelMenuOpen = false;
@@ -1389,6 +1458,7 @@ function createLeaderboardController(context: any) {
         syncLeaderboardFilterButtons();
         syncLeaderboardModeControl();
         syncLeaderboardCpuLevelControl();
+        syncLeaderboardArchiveContext();
         syncLeaderboardDetailsVisibility();
         setLeaderboardOverlayVisible(false);
     }

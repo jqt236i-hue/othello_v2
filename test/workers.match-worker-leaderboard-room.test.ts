@@ -39,7 +39,116 @@ function createController() {
   return { controller, storage };
 }
 
+function createRecoveryController() {
+  const storage = new Map<string, unknown>();
+  let currentTime = 1000;
+  const helpers = createMatchWorkerLeaderboardHelpers({
+    storageVersion: 4,
+    playerNameMax: 7,
+    playerIdPattern: /^[A-Za-z0-9_-]{8,80}$/,
+    defaultLimit: 10,
+    maxLimit: 100,
+    maxStoredPlayers: 200,
+    now: () => currentTime++
+  });
+  const controller = createMatchWorkerLeaderboardRoomController({
+    storage: {
+      get: async (key: string) => storage.get(key),
+      put: async (key: string, value: unknown) => void storage.set(key, value),
+      delete: async (key: string) => storage.delete(key)
+    },
+    storageKey: 'global_score_leaderboard_v4',
+    timeAttackStorageKey: 'global_time_attack_leaderboard_v2',
+    timeDefenseStorageKey: 'global_time_defense_leaderboard_v2',
+    shortestTurnsStorageKey: 'global_shortest_turns_leaderboard_v2',
+    legacyStorageKey: 'global_score_leaderboard_v3',
+    legacyTimeAttackStorageKey: 'global_time_attack_leaderboard_v1',
+    legacyTimeDefenseStorageKey: 'global_time_defense_leaderboard_v1',
+    legacyShortestTurnsStorageKey: 'global_shortest_turns_leaderboard_v1',
+    defaultLimit: 10,
+    helpers,
+    jsonResponse: createJsonResponse,
+    now: () => currentTime++
+  });
+
+  return { controller, storage };
+}
+
+function makeLegacyStore(category: 'score' | 'timeAttack' | 'timeDefense' | 'shortestTurns', entry: Record<string, unknown>) {
+  const property = category === 'timeAttack'
+    ? 'timeAttackPlayers'
+    : category === 'timeDefense'
+    ? 'timeDefensePlayers'
+    : category === 'shortestTurns'
+    ? 'shortestTurnsPlayers'
+    : 'players';
+  return {
+    version: 3,
+    [property]: {
+      [String(entry.playerId)]: entry
+    },
+    updatedAt: 777
+  };
+}
+
 describe('match worker leaderboard room controller', () => {
+  test('旧保存キーは読み取り専用の旧記録としてカテゴリごとに公開する', async () => {
+    const { controller, storage } = createRecoveryController();
+    storage.set('global_score_leaderboard_v4', makeLegacyStore('score', {
+      playerId: 'player_current_0001',
+      playerName: '現行',
+      bestScore: 5000,
+      mode: 'network'
+    }));
+
+    const legacyCases = [
+      {
+        category: 'score' as const,
+        key: 'global_score_leaderboard_v3',
+        entry: { playerId: 'player_legacy_score_0001', playerName: '旧スコア', bestScore: 9999, mode: 'cpu', cpuLevel: 6 },
+        expectedValue: 9999
+      },
+      {
+        category: 'timeAttack' as const,
+        key: 'global_time_attack_leaderboard_v1',
+        entry: { playerId: 'player_legacy_time_0001', playerName: '旧速攻', category: 'timeAttack', bestTimeMs: 123456, mode: 'cpu', cpuLevel: 6 },
+        expectedValue: 123456
+      },
+      {
+        category: 'timeDefense' as const,
+        key: 'global_time_defense_leaderboard_v1',
+        entry: { playerId: 'player_legacy_defense_0001', playerName: '旧最長', category: 'timeDefense', turnCount: 61, mode: 'cpu', cpuLevel: 6 },
+        expectedValue: 61
+      },
+      {
+        category: 'shortestTurns' as const,
+        key: 'global_shortest_turns_leaderboard_v1',
+        entry: { playerId: 'player_legacy_short_0001', playerName: '旧最短', category: 'shortestTurns', turnCount: 35, mode: 'cpu', cpuLevel: 6 },
+        expectedValue: 35
+      }
+    ];
+    legacyCases.forEach(({ category, key, entry }) => {
+      storage.set(key, makeLegacyStore(category, entry));
+    });
+    const before = Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)]);
+
+    for (const { category, entry, expectedValue } of legacyCases) {
+      const response = await controller.handleLeaderboardList(new URL(`https://room/api/leaderboard/list?limit=10&mode=all&category=${category}&era=legacy`));
+      const payload = await response.json();
+      expect(payload).toMatchObject({ ok: true, era: 'legacy', category, entries: [{ playerName: entry.playerName }] });
+      if (category === 'score') expect(payload.entries[0].bestScore).toBe(expectedValue);
+      if (category === 'timeAttack') expect(payload.entries[0].bestTimeMs).toBe(expectedValue);
+      if (category === 'timeDefense' || category === 'shortestTurns') expect(payload.entries[0].turnCount).toBe(expectedValue);
+    }
+
+    const currentResponse = await controller.handleLeaderboardList(new URL('https://room/api/leaderboard/list?limit=10&mode=all&category=score'));
+    await expect(currentResponse.json()).resolves.toMatchObject({
+      era: 'current',
+      entries: [{ playerName: '現行', bestScore: 5000 }]
+    });
+    expect(Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)])).toEqual(before);
+  });
+
   test('submit persists store and list returns ranked entries per filter', async () => {
     const { controller, storage } = createController();
 

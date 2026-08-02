@@ -90,6 +90,48 @@ function runInvalidSubmit() {
   return runScenario(runner);
 }
 
+function runLegacyRecoveryFlow() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const storage = new Map();",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key)",
+    "    }",
+    "  };",
+    "  const legacyEntry = { playerId: 'player_legacy_0001', playerName: '旧記録', bestScore: 9100, mode: 'cpu', cpuLevel: 6 };",
+    "  storage.set('global_score_leaderboard_v3', {",
+    "    version: 3,",
+    "    players: { [legacyEntry.playerId]: legacyEntry },",
+    "    playerModes: { [legacyEntry.playerId]: { cpu: legacyEntry } },",
+    "    playerCpuLevels: { [legacyEntry.playerId]: { '6': legacyEntry } },",
+    "    updatedAt: 700",
+    "  });",
+    "  const legacyBefore = JSON.stringify(storage.get('global_score_leaderboard_v3'));",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  await durableObject.fetch(new Request('https://room/internal/leaderboard/submit', {",
+    "    method: 'POST',",
+    "    headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ playerId: 'player_current_0001', playerName: '現行記録', score: 5200, category: 'score', mode: 'network', era: 'legacy', authorityVerified: true, authoritySource: 'match_room' })",
+    "  }));",
+    "  const legacyResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=all&category=score&era=legacy'));",
+    "  const currentResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=all&category=score'));",
+    "  const legacyPayload = await legacyResponse.json();",
+    "  const currentPayload = await currentResponse.json();",
+    "  process.stdout.write(JSON.stringify({ legacyPayload, currentPayload, legacyUnchanged: legacyBefore === JSON.stringify(storage.get('global_score_leaderboard_v3')) }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker shared leaderboard', () => {
   test('サーバー証明済み対人スコアの自己ベストを降順で返す', () => {
     const payload = runLeaderboardFlow();
@@ -129,5 +171,21 @@ describe('match worker shared leaderboard', () => {
     expect(result.status).toBe(403);
     expect(result.payload && result.payload.ok).toBe(false);
     expect(result.payload && result.payload.reason).toBe('LEADERBOARD_RESULT_PROOF_REQUIRED');
+  });
+
+  test('旧保存キーを現行のサーバー検証済み順位へ混在させず読み取り専用で公開する', () => {
+    const payload = runLegacyRecoveryFlow();
+    expect(payload.legacyPayload).toMatchObject({
+      ok: true,
+      era: 'legacy',
+      entries: [{ playerName: '旧記録', bestScore: 9100, mode: 'cpu' }]
+    });
+    expect(payload.currentPayload).toMatchObject({
+      ok: true,
+      era: 'current',
+      entries: [{ playerName: '現行記録', bestScore: 5200, mode: 'network' }]
+    });
+    expect(payload.currentPayload.entries.map((entry: { playerName: string }) => entry.playerName)).not.toContain('旧記録');
+    expect(payload.legacyUnchanged).toBe(true);
   });
 });

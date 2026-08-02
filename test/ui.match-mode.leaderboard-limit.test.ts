@@ -189,6 +189,16 @@ describe('match-mode shared leaderboard panel', () => {
         cpuLevel: 1,
         category: 'shortestTurns'
       }
+    ],
+    legacy: [
+      {
+        rank: 1,
+        playerId: 'player_legacy_0001',
+        playerName: '旧王',
+        bestScore: 9876,
+        mode: 'cpu',
+        cpuLevel: 6
+      }
     ]
   };
 
@@ -270,7 +280,9 @@ describe('match-mode shared leaderboard panel', () => {
     fetchLeaderboard = jest.fn(async (options) => ({
       ok: true,
       updatedAt: new Date('2026-06-20T06:40:00+09:00').getTime(),
-      entries: options && options.category === 'timeAttack'
+      entries: options && options.era === 'legacy'
+        ? leaderboardEntriesByMode.legacy
+        : options && options.category === 'timeAttack'
         ? leaderboardEntriesByMode.timeAttackCpu
         : options && options.category === 'timeDefense'
         ? leaderboardEntriesByMode.timeDefenseCpu
@@ -332,6 +344,32 @@ describe('match-mode shared leaderboard panel', () => {
     expect(document.getElementById('leaderboardOverlay').classList.contains('is-open')).toBe(true);
     expect(document.getElementById('leaderboardList').textContent).toContain('なれ。');
     expect(document.getElementById('leaderboardList').textContent).toContain('アルファ');
+  });
+
+  test('MODEメニューから旧記録を現行順位と分けて表示できる', async () => {
+    document.getElementById('leaderboardOpenBtn').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const modeBtn = document.getElementById('leaderboardModeBtn');
+    modeBtn.click();
+    await Promise.resolve();
+    const eraToggle = document.getElementById('leaderboardEraToggle');
+    expect(eraToggle?.textContent).toBe('旧記録を表示');
+
+    eraToggle?.click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({
+      limit: 100,
+      mode: 'all',
+      category: 'score',
+      era: 'legacy'
+    }));
+    expect(modeBtn?.textContent).toBe('MODE・旧');
+    expect(document.getElementById('leaderboardList')?.textContent).toContain('旧王');
+    expect(document.getElementById('leaderboardFootnote')?.textContent).toContain('現行順位や新規登録には含まれません');
   });
 
   test('ランキングクライアント未読込なら初回オープンでoptional runtimeを読む', async () => {

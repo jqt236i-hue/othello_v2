@@ -22,11 +22,17 @@ type MatchWorkerLeaderboardRoomControllerConfig = {
     timeAttackStorageKey?: string;
     timeDefenseStorageKey?: string;
     shortestTurnsStorageKey?: string;
+    legacyStorageKey?: string;
+    legacyTimeAttackStorageKey?: string;
+    legacyTimeDefenseStorageKey?: string;
+    legacyShortestTurnsStorageKey?: string;
     defaultLimit: number;
     helpers: MatchWorkerLeaderboardRoomHelpers;
     jsonResponse: (statusCode: number, payload: unknown) => Response;
     now?: () => number;
 };
+
+type MatchWorkerLeaderboardEra = 'current' | 'legacy';
 
 export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLeaderboardRoomControllerConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as MatchWorkerLeaderboardRoomControllerConfig;
@@ -35,8 +41,24 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
     const timeAttackStorageKey = cfg.timeAttackStorageKey || `${scoreStorageKey}_time_attack`;
     const timeDefenseStorageKey = cfg.timeDefenseStorageKey || `${scoreStorageKey}_time_defense`;
     const shortestTurnsStorageKey = cfg.shortestTurnsStorageKey || `${scoreStorageKey}_shortest_turns`;
+    const legacyScoreStorageKey = typeof cfg.legacyStorageKey === 'string' && cfg.legacyStorageKey
+        ? cfg.legacyStorageKey
+        : null;
+    const legacyTimeAttackStorageKey = typeof cfg.legacyTimeAttackStorageKey === 'string' && cfg.legacyTimeAttackStorageKey
+        ? cfg.legacyTimeAttackStorageKey
+        : null;
+    const legacyTimeDefenseStorageKey = typeof cfg.legacyTimeDefenseStorageKey === 'string' && cfg.legacyTimeDefenseStorageKey
+        ? cfg.legacyTimeDefenseStorageKey
+        : null;
+    const legacyShortestTurnsStorageKey = typeof cfg.legacyShortestTurnsStorageKey === 'string' && cfg.legacyShortestTurnsStorageKey
+        ? cfg.legacyShortestTurnsStorageKey
+        : null;
 
-    function storageKeyForCategory(category: unknown): string {
+    function normalizeEra(value: unknown): MatchWorkerLeaderboardEra {
+        return String(value || '').trim().toLowerCase() === 'legacy' ? 'legacy' : 'current';
+    }
+
+    function currentStorageKeyForCategory(category: unknown): string {
         const normalized = cfg.helpers.normalizeCategory(category);
         if (normalized === 'timeAttack') return timeAttackStorageKey;
         if (normalized === 'timeDefense') return timeDefenseStorageKey;
@@ -44,14 +66,29 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         return scoreStorageKey;
     }
 
-    async function loadLeaderboardStore(category?: unknown): Promise<MatchWorkerLeaderboardStore> {
-        const raw = await cfg.storage.get(storageKeyForCategory(category));
+    function legacyStorageKeyForCategory(category: unknown): string | null {
+        const normalized = cfg.helpers.normalizeCategory(category);
+        if (normalized === 'timeAttack') return legacyTimeAttackStorageKey;
+        if (normalized === 'timeDefense') return legacyTimeDefenseStorageKey;
+        if (normalized === 'shortestTurns') return legacyShortestTurnsStorageKey;
+        return legacyScoreStorageKey;
+    }
+
+    function storageKeyForCategory(category: unknown, era?: unknown): string | null {
+        return normalizeEra(era) === 'legacy'
+            ? legacyStorageKeyForCategory(category)
+            : currentStorageKeyForCategory(category);
+    }
+
+    async function loadLeaderboardStore(category?: unknown, era?: unknown): Promise<MatchWorkerLeaderboardStore> {
+        const storageKey = storageKeyForCategory(category, era);
+        const raw = storageKey ? await cfg.storage.get(storageKey) : null;
         return cfg.helpers.loadStore(raw);
     }
 
     async function saveLeaderboardStore(store: MatchWorkerLeaderboardStore, category?: unknown): Promise<void> {
         await cfg.storage.put(
-            storageKeyForCategory(category),
+            currentStorageKeyForCategory(category),
             cfg.helpers.serializeStore(store, category)
         );
     }
@@ -100,7 +137,10 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         const category = cfg.helpers.normalizeCategory(
             urlObj && urlObj.searchParams ? urlObj.searchParams.get('category') : 'score'
         );
-        const store = await loadLeaderboardStore(category);
+        const era = normalizeEra(
+            urlObj && urlObj.searchParams ? urlObj.searchParams.get('era') : 'current'
+        );
+        const store = await loadLeaderboardStore(category, era);
         const entries = listLeaderboardEntries(store, limit, mode, cpuLevel, category);
 
         return cfg.jsonResponse(200, {
@@ -110,6 +150,7 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
             mode,
             cpuLevel,
             category,
+            era,
             entries,
             updatedAt: store.updatedAt,
             serverTime: now()
@@ -120,6 +161,7 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         loadLeaderboardStore,
         saveLeaderboardStore,
         listLeaderboardEntries,
+        normalizeEra,
         handleLeaderboardSubmit,
         handleLeaderboardProfileUpdate,
         handleLeaderboardList

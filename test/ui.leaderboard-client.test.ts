@@ -75,6 +75,38 @@ describe('leaderboard client shortest turns category', () => {
     });
   });
 
+  test('fetchLeaderboard requests the read-only legacy record set only when selected', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        era: 'legacy',
+        updatedAt: 1000,
+        entries: [{
+          rank: 1,
+          playerId: 'player_legacy_0001',
+          playerName: '旧記録',
+          bestScore: 8765,
+          mode: 'cpu',
+          cpuLevel: 6
+        }]
+      })
+    });
+
+    const client = require('../ui/leaderboard-client.js');
+    const result = await client.fetchLeaderboard({ category: 'score', mode: 'all', era: 'legacy', limit: 100 });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/leaderboard/list?limit=100&mode=all&category=score&era=legacy', expect.objectContaining({
+      method: 'GET'
+    }));
+    expect(result).toMatchObject({
+      ok: true,
+      era: 'legacy',
+      entries: [{ playerName: '旧記録', bestScore: 8765 }]
+    });
+  });
+
   test('getRatedLeaderboard fetches rated leaderboard from rating endpoint', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,

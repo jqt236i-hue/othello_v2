@@ -105,6 +105,10 @@ const CHAT_HISTORY_LIMIT = Number(MatchAuthority.CHAT_HISTORY_LIMIT);
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
     ? Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX)
     : 7;
+const LEGACY_LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v3';
+const LEGACY_TIME_ATTACK_LEADERBOARD_STORAGE_KEY = 'global_time_attack_leaderboard_v1';
+const LEGACY_TIME_DEFENSE_LEADERBOARD_STORAGE_KEY = 'global_time_defense_leaderboard_v1';
+const LEGACY_SHORTEST_TURNS_LEADERBOARD_STORAGE_KEY = 'global_shortest_turns_leaderboard_v1';
 const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v4';
 const TIME_ATTACK_LEADERBOARD_STORAGE_KEY = 'global_time_attack_leaderboard_v2';
 const TIME_DEFENSE_LEADERBOARD_STORAGE_KEY = 'global_time_defense_leaderboard_v2';
@@ -1912,6 +1916,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 timeAttackStorageKey: TIME_ATTACK_LEADERBOARD_STORAGE_KEY,
                 timeDefenseStorageKey: TIME_DEFENSE_LEADERBOARD_STORAGE_KEY,
                 shortestTurnsStorageKey: SHORTEST_TURNS_LEADERBOARD_STORAGE_KEY,
+                legacyStorageKey: LEGACY_LEADERBOARD_STORAGE_KEY,
+                legacyTimeAttackStorageKey: LEGACY_TIME_ATTACK_LEADERBOARD_STORAGE_KEY,
+                legacyTimeDefenseStorageKey: LEGACY_TIME_DEFENSE_LEADERBOARD_STORAGE_KEY,
+                legacyShortestTurnsStorageKey: LEGACY_SHORTEST_TURNS_LEADERBOARD_STORAGE_KEY,
                 defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
                 helpers: MatchWorkerLeaderboardHelpers,
                 jsonResponse

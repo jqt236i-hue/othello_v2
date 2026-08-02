@@ -16,6 +16,7 @@ const PLAYER_NAME_MAX = 7;
 const DEFAULT_PLAYER_NAME = 'ななし';
 const LEADERBOARD_FETCH_LIMIT_MAX = 100;
 const LEADERBOARD_FETCH_MODES = new Set(['all', 'network', 'cpu']);
+const LEADERBOARD_FETCH_ERAS = new Set(['current', 'legacy']);
 
 function canUseStorage(): boolean {
   try {
@@ -261,8 +262,12 @@ async function fetchLeaderboard(options?: any): Promise<any> {
   const cpuLevel = mode === 'cpu' && Number.isFinite(Number(opts.cpuLevel))
     ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel))))
     : null;
+  const era = LEADERBOARD_FETCH_ERAS.has(String(opts.era || ''))
+    ? String(opts.era)
+    : 'current';
   const levelQuery = cpuLevel === null ? '' : `&cpuLevel=${encodeURIComponent(String(cpuLevel))}`;
-  const res = await requestJson('GET', `/api/leaderboard/list?limit=${limit}&mode=${encodeURIComponent(mode)}&category=${encodeURIComponent(category)}${levelQuery}`, null, opts);
+  const eraQuery = era === 'legacy' ? '&era=legacy' : '';
+  const res = await requestJson('GET', `/api/leaderboard/list?limit=${limit}&mode=${encodeURIComponent(mode)}&category=${encodeURIComponent(category)}${levelQuery}${eraQuery}`, null, opts);
   if (!res.ok) {
     return { ok: false, reason: res.reason || 'LIST_FAILED', entries: [], updatedAt: 0 };
   }
@@ -277,6 +282,7 @@ async function fetchLeaderboard(options?: any): Promise<any> {
     mode,
     category,
     cpuLevel,
+    era: res.data && res.data.era === 'legacy' ? 'legacy' : 'current',
     updatedAt: Number.isFinite(Number(res.data && res.data.updatedAt)) ? Number(res.data.updatedAt) : 0
   };
 }

@@ -522,6 +522,8 @@ Client projection, optimistic local state, and playback events are never canonic
 
 Rated match results are finalized by the match Durable Object as server authority. Glicko-2 calculation must use the pure shared implementation in `shared/glicko2-rating.ts`; persistent rating state, idempotency, active-rated-match locks, rated match history, and rated leaderboard ordering belong to the `card_ranked_v1` rating pool Durable Object. Client-submitted rating values, win/loss counts, match history, or rating deltas are never trusted. Score leaderboards, public profiles, and rated leaderboards must keep separate storage records and may only be combined at the UI presentation layer. Recent rated-match history endpoints are read-only projections of saved `RatingMatchRecord` data.
 
+Pre-verification score and time leaderboard stores may be exposed only as an explicit read-only legacy projection. Legacy records must remain physically and visually separate from current server-verified leaderboard stores, accept no submissions or profile rewrites, and never contribute to current ranks or rated ranking state.
+
 ### 8.3 Versioning and publish identity
 
 Network publishes depend on explicit version / identity contracts such as `stateVersion` and `operationId`.

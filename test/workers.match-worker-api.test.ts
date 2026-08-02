@@ -244,6 +244,35 @@ describe('match worker api controller', () => {
     ]);
   });
 
+  test('leaderboard list は旧記録指定を leaderboard Durable Object へそのまま転送する', async () => {
+    const seen: Array<{ roomId: string; url: string }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+    const env = createEnv((roomId, request) => {
+      seen.push({ roomId, url: request.url });
+      return jsonResponse(200, { ok: true, era: 'legacy', entries: [] });
+    });
+
+    const response = await controller.handleLeaderboardApi(
+      new Request('https://worker/api/leaderboard/list?limit=100&mode=cpu&category=timeAttack&era=legacy'),
+      env as any
+    );
+
+    expect(response.status).toBe(200);
+    expect(seen).toHaveLength(1);
+    expect(seen[0].roomId).toBe('__leaderboard__');
+    const forwardedUrl = new URL(seen[0].url);
+    expect(forwardedUrl.pathname).toBe('/api/leaderboard/list');
+    expect(forwardedUrl.searchParams.get('era')).toBe('legacy');
+    expect(forwardedUrl.searchParams.get('category')).toBe('timeAttack');
+  });
+
   test('leaderboard submit は playerToken が無ければ 403 fail-closed で返す', async () => {
     const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
     const controller = createMatchWorkerApiController({
