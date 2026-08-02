@@ -16,7 +16,7 @@ const PLAYER_NAME_MAX = 7;
 const DEFAULT_PLAYER_NAME = 'ななし';
 const LEADERBOARD_FETCH_LIMIT_MAX = 100;
 const LEADERBOARD_FETCH_MODES = new Set(['all', 'network', 'cpu']);
-const LEADERBOARD_FETCH_ERAS = new Set(['current', 'legacy']);
+const LEADERBOARD_FETCH_ERAS = new Set(['current', 'legacy', 'history']);
 
 function canUseStorage(): boolean {
   try {
@@ -163,6 +163,11 @@ function normalizeEntry(entry: any): any {
   const updatedAt = Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : 0;
   const mode = entry.mode === 'network' ? 'network' : 'cpu';
   const cpuLevel = Number.isFinite(Number(entry.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(entry.cpuLevel)))) : null;
+  const recordSource = entry.recordSource === 'legacy'
+    ? 'legacy'
+    : entry.recordSource === 'verified'
+    ? 'verified'
+    : null;
 
   return {
     rank,
@@ -176,7 +181,8 @@ function normalizeEntry(entry: any): any {
     cpuLevel,
     avatarStoneType: PlayerProfileContract.normalizeProfileAvatarStoneType(entry.avatarStoneType),
     bio: PlayerProfileContract.normalizeProfileBio(entry.bio),
-    updatedAt
+    updatedAt,
+    recordSource
   };
 }
 
@@ -266,7 +272,7 @@ async function fetchLeaderboard(options?: any): Promise<any> {
     ? String(opts.era)
     : 'current';
   const levelQuery = cpuLevel === null ? '' : `&cpuLevel=${encodeURIComponent(String(cpuLevel))}`;
-  const eraQuery = era === 'legacy' ? '&era=legacy' : '';
+  const eraQuery = era === 'current' ? '' : `&era=${encodeURIComponent(era)}`;
   const res = await requestJson('GET', `/api/leaderboard/list?limit=${limit}&mode=${encodeURIComponent(mode)}&category=${encodeURIComponent(category)}${levelQuery}${eraQuery}`, null, opts);
   if (!res.ok) {
     return { ok: false, reason: res.reason || 'LIST_FAILED', entries: [], updatedAt: 0 };
@@ -282,7 +288,9 @@ async function fetchLeaderboard(options?: any): Promise<any> {
     mode,
     category,
     cpuLevel,
-    era: res.data && res.data.era === 'legacy' ? 'legacy' : 'current',
+    era: res.data && LEADERBOARD_FETCH_ERAS.has(String(res.data.era || ''))
+      ? String(res.data.era)
+      : 'current',
     updatedAt: Number.isFinite(Number(res.data && res.data.updatedAt)) ? Number(res.data.updatedAt) : 0
   };
 }

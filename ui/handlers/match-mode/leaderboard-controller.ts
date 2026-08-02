@@ -95,6 +95,7 @@ function createLeaderboardController(context: any) {
     const LEADERBOARD_CATEGORY_SHORTEST_TURNS = 'shortestTurns';
     const LEADERBOARD_CATEGORY_RATED = 'rated';
     const LEADERBOARD_ERA_CURRENT = 'current';
+    const LEADERBOARD_ERA_HISTORY = 'history';
     const LEADERBOARD_ERA_LEGACY = 'legacy';
     const LEADERBOARD_CPU_LEVEL_NAMES = [
         '',
@@ -114,7 +115,7 @@ function createLeaderboardController(context: any) {
     let leaderboardUpdatedAt = 0;
     let leaderboardActiveFilter = LEADERBOARD_FILTER_ALL;
     let leaderboardActiveCategory = LEADERBOARD_CATEGORY_SCORE;
-    let leaderboardActiveEra = LEADERBOARD_ERA_CURRENT;
+    let leaderboardActiveEra = LEADERBOARD_ERA_HISTORY;
     let leaderboardCpuLevelFilter: number | null = null;
     let leaderboardCpuLevelMenuOpen = false;
     let leaderboardModeMenuOpen = false;
@@ -246,11 +247,17 @@ function createLeaderboardController(context: any) {
     }
 
     function normalizeLeaderboardEra(value: any) {
-        return value === LEADERBOARD_ERA_LEGACY ? LEADERBOARD_ERA_LEGACY : LEADERBOARD_ERA_CURRENT;
+        if (value === LEADERBOARD_ERA_LEGACY) return LEADERBOARD_ERA_LEGACY;
+        if (value === LEADERBOARD_ERA_HISTORY) return LEADERBOARD_ERA_HISTORY;
+        return LEADERBOARD_ERA_CURRENT;
     }
 
     function isLegacyLeaderboardActive(): boolean {
         return leaderboardActiveEra === LEADERBOARD_ERA_LEGACY && !isRatedLeaderboardActive();
+    }
+
+    function isHistoricalLeaderboardActive(): boolean {
+        return leaderboardActiveEra === LEADERBOARD_ERA_HISTORY && !isRatedLeaderboardActive();
     }
 
     function getLeaderboardModeLabel(filter: any): string {
@@ -261,6 +268,7 @@ function createLeaderboardController(context: any) {
     }
 
     function getLeaderboardModeButtonLabel(): string {
+        if (isHistoricalLeaderboardActive()) return 'MODE・通算';
         return isLegacyLeaderboardActive() ? 'MODE・旧' : 'MODE';
     }
 
@@ -353,7 +361,11 @@ function createLeaderboardController(context: any) {
             return `${games}戦 ${wins}勝 ${draws}分 ${losses}敗`;
         }
         const cpuSuffix = Number.isFinite(Number(entry && entry.cpuLevel)) ? ` Lv${entry.cpuLevel}` : '';
-        return entry && entry.mode === 'network' ? '対人' : `CPU${cpuSuffix}`;
+        const modeLabel = entry && entry.mode === 'network' ? '対人' : `CPU${cpuSuffix}`;
+        if (!isHistoricalLeaderboardActive()) return modeLabel;
+        if (entry && entry.recordSource === 'legacy') return `${modeLabel}・旧記録`;
+        if (entry && entry.recordSource === 'verified') return `${modeLabel}・検証済み`;
+        return modeLabel;
     }
 
     function createLeaderboardModeChip(entry: any) {
@@ -483,7 +495,7 @@ function createLeaderboardController(context: any) {
             eraToggle.type = 'button';
             eraToggle.id = 'leaderboardEraToggle';
             eraToggle.className = 'leaderboard-mode-option leaderboard-era-toggle';
-            eraToggle.dataset.era = LEADERBOARD_ERA_LEGACY;
+            eraToggle.dataset.era = LEADERBOARD_ERA_HISTORY;
             eraToggle.setAttribute('role', 'option');
             modeMenu.appendChild(eraToggle);
             modeWrap.appendChild(modeBtn);
@@ -549,7 +561,7 @@ function createLeaderboardController(context: any) {
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、スコアランキングとは分離する。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。MODEメニューの旧記録は、検証方式導入前の履歴を現行順位と分けて読むための表示で、新規登録には使わない。速攻は15:00超過を有効記録にしない。';
+            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、スコアランキングとは分離する。通算ランキングは旧記録を基準に、同じプレイヤーの検証済み新記録が上回った場合だけ表示を更新する。各行の「旧記録」「検証済み」で記録の由来を示す。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。速攻は15:00超過を有効記録にしない。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');
@@ -988,14 +1000,14 @@ function createLeaderboardController(context: any) {
             });
             const eraToggle = menu.querySelector('#leaderboardEraToggle');
             if (eraToggle) {
-                const legacyAvailable = visible;
-                const legacyActive = isLegacyLeaderboardActive();
-                eraToggle.textContent = legacyActive ? '現行記録を表示' : '旧記録を表示';
-                eraToggle.classList.toggle('is-active', legacyActive);
-                eraToggle.setAttribute('aria-selected', legacyActive ? 'true' : 'false');
-                eraToggle.hidden = !legacyAvailable;
-                eraToggle.disabled = !legacyAvailable;
-                eraToggle.setAttribute('aria-hidden', legacyAvailable ? 'false' : 'true');
+                const historyAvailable = visible;
+                const historyActive = isHistoricalLeaderboardActive();
+                eraToggle.textContent = historyActive ? '現行記録のみ表示' : '通算ランキングを表示';
+                eraToggle.classList.toggle('is-active', historyActive);
+                eraToggle.setAttribute('aria-selected', historyActive ? 'true' : 'false');
+                eraToggle.hidden = !historyAvailable;
+                eraToggle.disabled = !historyAvailable;
+                eraToggle.setAttribute('aria-hidden', historyAvailable ? 'false' : 'true');
             }
         }
     }
@@ -1003,10 +1015,14 @@ function createLeaderboardController(context: any) {
     function syncLeaderboardArchiveContext() {
         if (!uiRefs.leaderboardPanel) return;
         const legacyActive = isLegacyLeaderboardActive();
+        const historyActive = isHistoricalLeaderboardActive();
         uiRefs.leaderboardPanel.classList.toggle('is-legacy-records', legacyActive);
+        uiRefs.leaderboardPanel.classList.toggle('is-history-records', historyActive);
         const footnote = uiRefs.leaderboardPanel.querySelector('#leaderboardFootnote');
         if (footnote) {
-            footnote.textContent = legacyActive
+            footnote.textContent = historyActive
+                ? '通算ランキングは旧記録を基準に、上回った検証済み新記録だけを反映しています'
+                : legacyActive
                 ? '旧記録は検証方式導入前の履歴です。現行順位や新規登録には含まれません'
                 : '現行ランキングはサーバー検証済みの記録です';
         }
@@ -1192,7 +1208,9 @@ function createLeaderboardController(context: any) {
                 delete fetchOptions.force;
                 fetchOptions.mode = requestedFilter;
                 fetchOptions.category = leaderboardActiveCategory;
-                if (isLegacyLeaderboardActive()) {
+                if (isHistoricalLeaderboardActive()) {
+                    fetchOptions.era = LEADERBOARD_ERA_HISTORY;
+                } else if (isLegacyLeaderboardActive()) {
                     fetchOptions.era = LEADERBOARD_ERA_LEGACY;
                 } else {
                     delete fetchOptions.era;
@@ -1220,7 +1238,11 @@ function createLeaderboardController(context: any) {
         leaderboardUpdatedAt = Number.isFinite(Number(result.updatedAt)) ? Number(result.updatedAt) : 0;
         renderLeaderboardView();
         const timeLabel = formatLeaderboardTime(result.updatedAt);
-        const archiveSuffix = isLegacyLeaderboardActive() ? '（旧記録）' : '';
+        const archiveSuffix = isHistoricalLeaderboardActive()
+            ? '（通算）'
+            : isLegacyLeaderboardActive()
+            ? '（旧記録）'
+            : '';
         writeLeaderboardStatus(timeLabel ? `最終更新 ${timeLabel}${archiveSuffix}` : `ランキングを表示中${archiveSuffix}`, false);
     }
 
@@ -1301,9 +1323,9 @@ function createLeaderboardController(context: any) {
                 if (!target || !target.dataset) return;
                 if (target.classList.contains('leaderboard-era-toggle')) {
                     if (isRatedLeaderboardActive()) return;
-                    leaderboardActiveEra = isLegacyLeaderboardActive()
+                    leaderboardActiveEra = isHistoricalLeaderboardActive()
                         ? LEADERBOARD_ERA_CURRENT
-                        : LEADERBOARD_ERA_LEGACY;
+                        : LEADERBOARD_ERA_HISTORY;
                     leaderboardModeMenuOpen = false;
                     leaderboardCpuLevelMenuOpen = false;
                     syncLeaderboardModeControl();

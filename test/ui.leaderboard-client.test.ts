@@ -107,6 +107,48 @@ describe('leaderboard client shortest turns category', () => {
     });
   });
 
+  test('fetchLeaderboard requests the historical projection and retains each record source', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        era: 'history',
+        updatedAt: 1000,
+        entries: [{
+          rank: 1,
+          playerId: 'player_legacy_0001',
+          playerName: '基準記録',
+          bestScore: 9100,
+          mode: 'network',
+          recordSource: 'legacy'
+        }, {
+          rank: 2,
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerName: '検証済み',
+          bestScore: 9000,
+          mode: 'network',
+          recordSource: 'verified'
+        }]
+      })
+    });
+
+    const client = require('../ui/leaderboard-client.js');
+    const result = await client.fetchLeaderboard({ category: 'score', mode: 'all', era: 'history', limit: 100 });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/leaderboard/list?limit=100&mode=all&category=score&era=history', expect.objectContaining({
+      method: 'GET'
+    }));
+    expect(result).toMatchObject({
+      ok: true,
+      era: 'history',
+      entries: [
+        { playerName: '基準記録', recordSource: 'legacy' },
+        { playerName: '検証済み', recordSource: 'verified' }
+      ]
+    });
+  });
+
   test('getRatedLeaderboard fetches rated leaderboard from rating endpoint', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,

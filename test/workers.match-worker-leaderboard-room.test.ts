@@ -149,6 +149,70 @@ describe('match worker leaderboard room controller', () => {
     expect(Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)])).toEqual(before);
   });
 
+  test('通算一覧は旧記録を基準にし、上回った検証済み新記録だけを採用する', async () => {
+    const { controller, storage } = createRecoveryController();
+    const sharedLegacy = {
+      playerId: 'player_shared_0001',
+      playerName: '基準記録',
+      bestScore: 9000,
+      mode: 'network',
+      updatedAt: 100
+    };
+    const lowerVerified = {
+      playerId: 'player_shared_0001',
+      playerName: '新記録',
+      bestScore: 8800,
+      mode: 'network',
+      updatedAt: 900
+    };
+    const otherVerified = {
+      playerId: 'player_verified_0002',
+      playerName: '検証済み',
+      bestScore: 8900,
+      mode: 'network',
+      updatedAt: 800
+    };
+    storage.set('global_score_leaderboard_v3', makeLegacyStore('score', sharedLegacy));
+    storage.set('global_score_leaderboard_v4', {
+      version: 4,
+      players: {
+        [lowerVerified.playerId]: lowerVerified,
+        [otherVerified.playerId]: otherVerified
+      },
+      updatedAt: 900
+    });
+    const beforeLower = Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)]);
+
+    const lowerResponse = await controller.handleLeaderboardList(new URL('https://room/api/leaderboard/list?limit=10&mode=all&category=score&era=history'));
+    const lowerPayload = await lowerResponse.json();
+    expect(lowerPayload).toMatchObject({ ok: true, era: 'history' });
+    expect(lowerPayload.entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ playerId: sharedLegacy.playerId, bestScore: 9000, recordSource: 'legacy' }),
+      expect.objectContaining({ playerId: otherVerified.playerId, bestScore: 8900, recordSource: 'verified' })
+    ]));
+    expect(Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)])).toEqual(beforeLower);
+
+    const higherVerified = { ...lowerVerified, bestScore: 9200, updatedAt: 1000 };
+    storage.set('global_score_leaderboard_v4', {
+      version: 4,
+      players: {
+        [higherVerified.playerId]: higherVerified,
+        [otherVerified.playerId]: otherVerified
+      },
+      updatedAt: 1000
+    });
+    const beforeHigher = Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)]);
+
+    const higherResponse = await controller.handleLeaderboardList(new URL('https://room/api/leaderboard/list?limit=10&mode=all&category=score&era=history'));
+    const higherPayload = await higherResponse.json();
+    expect(higherPayload.entries[0]).toMatchObject({
+      playerId: sharedLegacy.playerId,
+      bestScore: 9200,
+      recordSource: 'verified'
+    });
+    expect(Array.from(storage.entries()).map(([key, value]) => [key, JSON.stringify(value)])).toEqual(beforeHigher);
+  });
+
   test('submit persists store and list returns ranked entries per filter', async () => {
     const { controller, storage } = createController();
 

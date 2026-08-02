@@ -256,11 +256,11 @@ describe('match worker api controller', () => {
     });
     const env = createEnv((roomId, request) => {
       seen.push({ roomId, url: request.url });
-      return jsonResponse(200, { ok: true, era: 'legacy', entries: [] });
+      return jsonResponse(200, { ok: true, era: 'history', entries: [] });
     });
 
     const response = await controller.handleLeaderboardApi(
-      new Request('https://worker/api/leaderboard/list?limit=100&mode=cpu&category=timeAttack&era=legacy'),
+      new Request('https://worker/api/leaderboard/list?limit=100&mode=cpu&category=timeAttack&era=history'),
       env as any
     );
 
@@ -269,7 +269,7 @@ describe('match worker api controller', () => {
     expect(seen[0].roomId).toBe('__leaderboard__');
     const forwardedUrl = new URL(seen[0].url);
     expect(forwardedUrl.pathname).toBe('/api/leaderboard/list');
-    expect(forwardedUrl.searchParams.get('era')).toBe('legacy');
+    expect(forwardedUrl.searchParams.get('era')).toBe('history');
     expect(forwardedUrl.searchParams.get('category')).toBe('timeAttack');
   });
 

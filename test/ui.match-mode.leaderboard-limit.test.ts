@@ -15,7 +15,8 @@ describe('match-mode shared leaderboard panel', () => {
         bio: '首位を狙っています',
         bestScore: 9131,
         mode: 'cpu',
-        cpuLevel: 1
+        cpuLevel: 1,
+        recordSource: 'legacy'
       },
       {
         rank: 2,
@@ -41,7 +42,8 @@ describe('match-mode shared leaderboard panel', () => {
         bio: '盤面を観測中です',
         bestScore: 8543,
         mode: 'network',
-        cpuLevel: null
+        cpuLevel: null,
+        recordSource: 'verified'
       },
       {
         rank: 5,
@@ -340,13 +342,13 @@ describe('match-mode shared leaderboard panel', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score' }));
+    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score', era: 'history' }));
     expect(document.getElementById('leaderboardOverlay').classList.contains('is-open')).toBe(true);
     expect(document.getElementById('leaderboardList').textContent).toContain('なれ。');
     expect(document.getElementById('leaderboardList').textContent).toContain('アルファ');
   });
 
-  test('MODEメニューから旧記録を現行順位と分けて表示できる', async () => {
+  test('MODEメニューから通算表示と現行記録のみの表示を切り替えられる', async () => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
     await Promise.resolve();
@@ -355,21 +357,24 @@ describe('match-mode shared leaderboard panel', () => {
     modeBtn.click();
     await Promise.resolve();
     const eraToggle = document.getElementById('leaderboardEraToggle');
-    expect(eraToggle?.textContent).toBe('旧記録を表示');
+    expect(modeBtn?.textContent).toBe('MODE・通算');
+    expect(eraToggle?.textContent).toBe('現行記録のみ表示');
+    expect(document.getElementById('leaderboardList')?.textContent).toContain('旧記録');
+    expect(document.getElementById('leaderboardFootnote')?.textContent).toContain('旧記録を基準に');
 
     eraToggle?.click();
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({
+    const currentFetchOptions = fetchLeaderboard.mock.calls[fetchLeaderboard.mock.calls.length - 1][0];
+    expect(currentFetchOptions).toEqual(expect.objectContaining({
       limit: 100,
       mode: 'all',
-      category: 'score',
-      era: 'legacy'
+      category: 'score'
     }));
-    expect(modeBtn?.textContent).toBe('MODE・旧');
-    expect(document.getElementById('leaderboardList')?.textContent).toContain('旧王');
-    expect(document.getElementById('leaderboardFootnote')?.textContent).toContain('現行順位や新規登録には含まれません');
+    expect(currentFetchOptions.era).toBeUndefined();
+    expect(modeBtn?.textContent).toBe('MODE');
+    expect(document.getElementById('leaderboardFootnote')?.textContent).toContain('サーバー検証済み');
   });
 
   test('ランキングクライアント未読込なら初回オープンでoptional runtimeを読む', async () => {
@@ -397,7 +402,7 @@ describe('match-mode shared leaderboard panel', () => {
 
     expect(document.getElementById('leaderboardOverlay').classList.contains('is-open')).toBe(true);
     expect(window.loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
-    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score' }));
+    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score', era: 'history' }));
     expect(document.getElementById('leaderboardStatusText').textContent).not.toBe('ランキング機能を利用できません');
   });
 
@@ -424,7 +429,7 @@ describe('match-mode shared leaderboard panel', () => {
     await Promise.resolve();
 
     const rows = Array.from(document.querySelectorAll('.leaderboard-row'));
-    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score' }));
+    expect(fetchLeaderboard).toHaveBeenCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'score', era: 'history' }));
     expect(rows).toHaveLength(14);
     expect(document.getElementById('leaderboardList').textContent).toContain('記録14');
   });
@@ -451,7 +456,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(document.getElementById('leaderboardCategoryScore')?.getAttribute('aria-pressed')).toBe('true');
     expect(document.getElementById('leaderboardCategoryTimeDefense')?.classList.contains('is-compact')).toBe(true);
     expect(document.getElementById('leaderboardCategoryShortestTurns')?.classList.contains('is-compact')).toBe(true);
-    expect(modeBtn?.textContent).toBe('MODE');
+    expect(modeBtn?.textContent).toBe('MODE・通算');
     expect(modeBtn?.getAttribute('aria-label')).toBe('表示モード: 総合');
     expect(infoBtn?.textContent).toBe('ⓘ');
     expect(infoBtn?.getAttribute('aria-label')).toBe('ランキング説明');
@@ -583,9 +588,9 @@ describe('match-mode shared leaderboard panel', () => {
     const levelControl = document.getElementById('leaderboardCpuLevelControl');
 
     expect(modeBtn.getAttribute('aria-expanded')).toBe('false');
-    expect(modeBtn.textContent).toBe('MODE');
+    expect(modeBtn.textContent).toBe('MODE・通算');
     expect(modeBtn.getAttribute('aria-label')).toBe('表示モード: 対人');
-    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'network', category: 'score' }));
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'network', category: 'score', era: 'history' }));
     expect(list?.textContent).not.toContain('なれ。');
     expect(list?.textContent).toContain('Rin');
     expect(list?.textContent).toContain('アルファ');
@@ -623,7 +628,8 @@ describe('match-mode shared leaderboard panel', () => {
       limit: 100,
       mode: 'cpu',
       cpuLevel: 6,
-      category: 'score'
+      category: 'score',
+      era: 'history'
     }));
     expect(levelBtn?.textContent).toContain('Lv6');
     expect(document.getElementById('leaderboardPodium').textContent).toContain('分岐');
@@ -643,7 +649,7 @@ describe('match-mode shared leaderboard panel', () => {
     const header = document.getElementById('leaderboardTableHeader');
 
     expect(timeTab.getAttribute('aria-pressed')).toBe('true');
-    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'timeAttack' }));
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'timeAttack', era: 'history' }));
     expect(header?.textContent).toContain('タイム');
     expect(header?.textContent).not.toContain('スコア');
     expect(podium?.textContent).toContain('速太');
@@ -665,7 +671,7 @@ describe('match-mode shared leaderboard panel', () => {
     const summary = document.getElementById('leaderboardSummary');
 
     expect(defenseTab.getAttribute('aria-pressed')).toBe('true');
-    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'timeDefense' }));
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'timeDefense', era: 'history' }));
     expect(header?.textContent).toContain('手数');
     expect(header?.textContent).not.toContain('タイム');
     expect(header?.textContent).not.toContain('スコア');
@@ -689,7 +695,7 @@ describe('match-mode shared leaderboard panel', () => {
     const summary = document.getElementById('leaderboardSummary');
 
     expect(shortestTab.getAttribute('aria-pressed')).toBe('true');
-    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'shortestTurns' }));
+    expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 100, mode: 'all', category: 'shortestTurns', era: 'history' }));
     expect(header?.textContent).toContain('手数');
     expect(header?.textContent).not.toContain('タイム');
     expect(header?.textContent).not.toContain('スコア');

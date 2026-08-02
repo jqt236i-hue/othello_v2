@@ -10,6 +10,7 @@ type MatchWorkerLeaderboardRoomHelpers = {
     applySubmit: (store: MatchWorkerLeaderboardStore, body: Record<string, unknown>) =>
         | { ok: true; store: MatchWorkerLeaderboardStore; payload: Record<string, unknown> }
         | { ok: false; reason: 'PLAYER_ID_REQUIRED' | 'TIME_ATTACK_INELIGIBLE' | 'TIME_DEFENSE_INELIGIBLE' | 'SHORTEST_TURNS_INELIGIBLE' | 'SCORE_INELIGIBLE' | 'BOARD_NOT_ELIGIBLE' };
+    mergeHistoricalStores: (legacyStore: MatchWorkerLeaderboardStore, currentStore: MatchWorkerLeaderboardStore, category?: unknown) => MatchWorkerLeaderboardStore;
     normalizeLimit: (value: unknown) => number;
     normalizeListMode: (value: unknown) => 'all' | 'cpu' | 'network';
     normalizeListCpuLevel: (value: unknown) => number | null;
@@ -32,7 +33,7 @@ type MatchWorkerLeaderboardRoomControllerConfig = {
     now?: () => number;
 };
 
-type MatchWorkerLeaderboardEra = 'current' | 'legacy';
+type MatchWorkerLeaderboardEra = 'current' | 'legacy' | 'history';
 
 export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLeaderboardRoomControllerConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as MatchWorkerLeaderboardRoomControllerConfig;
@@ -55,7 +56,10 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         : null;
 
     function normalizeEra(value: unknown): MatchWorkerLeaderboardEra {
-        return String(value || '').trim().toLowerCase() === 'legacy' ? 'legacy' : 'current';
+        const normalized = String(value || '').trim().toLowerCase();
+        if (normalized === 'legacy') return 'legacy';
+        if (normalized === 'history') return 'history';
+        return 'current';
     }
 
     function currentStorageKeyForCategory(category: unknown): string {
@@ -81,7 +85,22 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
     }
 
     async function loadLeaderboardStore(category?: unknown, era?: unknown): Promise<MatchWorkerLeaderboardStore> {
-        const storageKey = storageKeyForCategory(category, era);
+        const normalizedEra = normalizeEra(era);
+        if (normalizedEra === 'history') {
+            const [legacyRaw, currentRaw] = await Promise.all([
+                (async () => {
+                    const legacyStorageKey = legacyStorageKeyForCategory(category);
+                    return legacyStorageKey ? cfg.storage.get(legacyStorageKey) : null;
+                })(),
+                cfg.storage.get(currentStorageKeyForCategory(category))
+            ]);
+            return cfg.helpers.mergeHistoricalStores(
+                cfg.helpers.loadStore(legacyRaw),
+                cfg.helpers.loadStore(currentRaw),
+                category
+            );
+        }
+        const storageKey = storageKeyForCategory(category, normalizedEra);
         const raw = storageKey ? await cfg.storage.get(storageKey) : null;
         return cfg.helpers.loadStore(raw);
     }
@@ -93,8 +112,12 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         );
     }
 
-    function listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown, mode?: unknown, cpuLevel?: unknown, category?: unknown): Array<Record<string, unknown>> {
-        return cfg.helpers.listEntries(store, limit, mode, cpuLevel, category);
+    function listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown, mode?: unknown, cpuLevel?: unknown, category?: unknown, era?: unknown): Array<Record<string, unknown>> {
+        const normalizedEra = normalizeEra(era);
+        const entries = cfg.helpers.listEntries(store, limit, mode, cpuLevel, category);
+        if (normalizedEra === 'history') return entries;
+        const recordSource = normalizedEra === 'legacy' ? 'legacy' : 'verified';
+        return entries.map((entry) => ({ ...entry, recordSource }));
     }
 
     async function handleLeaderboardSubmit(body: Record<string, unknown>): Promise<Response> {
@@ -141,7 +164,7 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
             urlObj && urlObj.searchParams ? urlObj.searchParams.get('era') : 'current'
         );
         const store = await loadLeaderboardStore(category, era);
-        const entries = listLeaderboardEntries(store, limit, mode, cpuLevel, category);
+        const entries = listLeaderboardEntries(store, limit, mode, cpuLevel, category, era);
 
         return cfg.jsonResponse(200, {
             ok: true,

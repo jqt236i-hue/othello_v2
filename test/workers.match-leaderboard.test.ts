@@ -120,9 +120,11 @@ function runLegacyRecoveryFlow() {
     "  }));",
     "  const legacyResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=all&category=score&era=legacy'));",
     "  const currentResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=all&category=score'));",
+    "  const historyResponse = await durableObject.fetch(new Request('https://room/api/leaderboard/list?limit=10&mode=all&category=score&era=history'));",
     "  const legacyPayload = await legacyResponse.json();",
     "  const currentPayload = await currentResponse.json();",
-    "  process.stdout.write(JSON.stringify({ legacyPayload, currentPayload, legacyUnchanged: legacyBefore === JSON.stringify(storage.get('global_score_leaderboard_v3')) }));",
+    "  const historyPayload = await historyResponse.json();",
+    "  process.stdout.write(JSON.stringify({ legacyPayload, currentPayload, historyPayload, legacyUnchanged: legacyBefore === JSON.stringify(storage.get('global_score_leaderboard_v3')) }));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
@@ -173,7 +175,7 @@ describe('match worker shared leaderboard', () => {
     expect(result.payload && result.payload.reason).toBe('LEADERBOARD_RESULT_PROOF_REQUIRED');
   });
 
-  test('旧保存キーを現行のサーバー検証済み順位へ混在させず読み取り専用で公開する', () => {
+  test('旧保存キーを基準に通算順位を読み取り専用で投影する', () => {
     const payload = runLegacyRecoveryFlow();
     expect(payload.legacyPayload).toMatchObject({
       ok: true,
@@ -186,6 +188,14 @@ describe('match worker shared leaderboard', () => {
       entries: [{ playerName: '現行記録', bestScore: 5200, mode: 'network' }]
     });
     expect(payload.currentPayload.entries.map((entry: { playerName: string }) => entry.playerName)).not.toContain('旧記録');
+    expect(payload.historyPayload).toMatchObject({
+      ok: true,
+      era: 'history',
+      entries: [
+        { playerName: '旧記録', bestScore: 9100, recordSource: 'legacy' },
+        { playerName: '現行記録', bestScore: 5200, recordSource: 'verified' }
+      ]
+    });
     expect(payload.legacyUnchanged).toBe(true);
   });
 });

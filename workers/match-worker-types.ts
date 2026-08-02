@@ -83,6 +83,7 @@ export interface MatchWorkerLeaderboardStore {
 
 export type MatchWorkerLeaderboardMode = 'cpu' | 'network';
 export type MatchWorkerLeaderboardCategory = 'score' | 'timeAttack' | 'timeDefense' | 'shortestTurns';
+export type MatchWorkerLeaderboardRecordSource = 'legacy' | 'verified';
 
 export interface MatchWorkerLeaderboardModeEntries {
     cpu?: MatchWorkerLeaderboardEntry | null;
@@ -105,6 +106,7 @@ export interface MatchWorkerLeaderboardEntry {
     turnCount: number | null;
     updatedAt: number;
     submittedAt: number;
+    recordSource?: MatchWorkerLeaderboardRecordSource;
 }
 
 export interface MatchWorkerRatingStore {

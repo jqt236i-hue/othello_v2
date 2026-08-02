@@ -3,6 +3,7 @@ import type {
     MatchWorkerLeaderboardEntry,
     MatchWorkerLeaderboardMode,
     MatchWorkerLeaderboardModeEntries,
+    MatchWorkerLeaderboardRecordSource,
     MatchWorkerLeaderboardStore
 } from './match-worker-types';
 
@@ -46,6 +47,11 @@ type MatchWorkerPublicProfileUpdateInput = {
     playerName?: unknown;
     avatarStoneType?: unknown;
     bio?: unknown;
+};
+type MatchWorkerLeaderboardCategoryMaps = {
+    players: Record<string, MatchWorkerLeaderboardEntry>;
+    playerModes: Record<string, MatchWorkerLeaderboardModeEntries>;
+    playerCpuLevels: Record<string, Record<string, MatchWorkerLeaderboardEntry>>;
 };
 const TIME_ATTACK_LIMIT_MS = 900000;
 
@@ -257,6 +263,11 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         const submittedAt = Number.isFinite(Number(entry.submittedAt))
             ? Math.max(0, Math.trunc(Number(entry.submittedAt)))
             : updatedAt;
+        const recordSource = entry.recordSource === 'legacy'
+            ? 'legacy'
+            : entry.recordSource === 'verified'
+            ? 'verified'
+            : null;
 
         return {
             playerId,
@@ -272,7 +283,8 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             scoreVersion: Number.isFinite(Number(entry.scoreVersion)) ? Math.max(0, Math.trunc(Number(entry.scoreVersion))) : null,
             turnCount,
             updatedAt,
-            submittedAt
+            submittedAt,
+            ...(recordSource ? { recordSource } : {})
         };
     }
 
@@ -707,6 +719,179 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         return entries[0];
     }
 
+    function getCategoryMaps(store: MatchWorkerLeaderboardStore, category?: unknown): MatchWorkerLeaderboardCategoryMaps {
+        const normalizedCategory = normalizeCategory(category);
+        if (normalizedCategory === 'timeAttack') {
+            return {
+                players: (store && store.timeAttackPlayers) || {},
+                playerModes: (store && store.timeAttackPlayerModes) || {},
+                playerCpuLevels: (store && store.timeAttackPlayerCpuLevels) || {}
+            };
+        }
+        if (normalizedCategory === 'timeDefense') {
+            return {
+                players: (store && store.timeDefensePlayers) || {},
+                playerModes: (store && store.timeDefensePlayerModes) || {},
+                playerCpuLevels: (store && store.timeDefensePlayerCpuLevels) || {}
+            };
+        }
+        if (normalizedCategory === 'shortestTurns') {
+            return {
+                players: (store && store.shortestTurnsPlayers) || {},
+                playerModes: (store && store.shortestTurnsPlayerModes) || {},
+                playerCpuLevels: (store && store.shortestTurnsPlayerCpuLevels) || {}
+            };
+        }
+        return {
+            players: (store && store.players) || {},
+            playerModes: (store && store.playerModes) || {},
+            playerCpuLevels: (store && store.playerCpuLevels) || {}
+        };
+    }
+
+    function cloneHistoricalEntry(
+        value: unknown,
+        recordSource: MatchWorkerLeaderboardRecordSource,
+        fallbackPlayerId?: unknown,
+        fallbackMode?: unknown,
+        fallbackCategory?: unknown
+    ): MatchWorkerLeaderboardEntry | null {
+        const normalized = normalizeEntry(value, fallbackPlayerId, fallbackMode, fallbackCategory);
+        return normalized ? { ...normalized, recordSource } : null;
+    }
+
+    function compareHistoricalEntries(
+        a: MatchWorkerLeaderboardEntry,
+        b: MatchWorkerLeaderboardEntry,
+        category?: MatchWorkerLeaderboardCategory
+    ): number {
+        const sortCategory = category || a.category || b.category || 'score';
+        if (sortCategory === 'timeAttack') {
+            const aTime = Number.isFinite(Number(a.bestTimeMs)) ? Number(a.bestTimeMs) : Number.MAX_SAFE_INTEGER;
+            const bTime = Number.isFinite(Number(b.bestTimeMs)) ? Number(b.bestTimeMs) : Number.MAX_SAFE_INTEGER;
+            if (aTime !== bTime) return aTime - bTime;
+        } else if (sortCategory === 'timeDefense') {
+            const aTurns = Number.isFinite(Number(a.turnCount)) ? Number(a.turnCount) : 0;
+            const bTurns = Number.isFinite(Number(b.turnCount)) ? Number(b.turnCount) : 0;
+            if (aTurns !== bTurns) return bTurns - aTurns;
+        } else if (sortCategory === 'shortestTurns') {
+            const aTurns = Number.isFinite(Number(a.turnCount)) ? Number(a.turnCount) : Number.MAX_SAFE_INTEGER;
+            const bTurns = Number.isFinite(Number(b.turnCount)) ? Number(b.turnCount) : Number.MAX_SAFE_INTEGER;
+            if (aTurns !== bTurns) return aTurns - bTurns;
+        } else if (a.bestScore !== b.bestScore) {
+            return b.bestScore - a.bestScore;
+        }
+
+        const aIsLegacy = a.recordSource === 'legacy';
+        const bIsLegacy = b.recordSource === 'legacy';
+        if (aIsLegacy !== bIsLegacy) return aIsLegacy ? -1 : 1;
+        if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
+        return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'ja');
+    }
+
+    function selectHistoricalEntry(
+        entries: Array<MatchWorkerLeaderboardEntry | null>,
+        category?: MatchWorkerLeaderboardCategory
+    ): MatchWorkerLeaderboardEntry | null {
+        const candidates = entries.filter(isEntry);
+        if (!candidates.length) return null;
+        candidates.sort((a, b) => compareHistoricalEntries(a, b, category));
+        return candidates[0];
+    }
+
+    function mergeHistoricalStores(
+        legacyStore: MatchWorkerLeaderboardStore,
+        currentStore: MatchWorkerLeaderboardStore,
+        category?: unknown
+    ): MatchWorkerLeaderboardStore {
+        const normalizedCategory = normalizeCategory(category);
+        const mergedStore = createEmptyStore();
+        const legacyMaps = getCategoryMaps(legacyStore, normalizedCategory);
+        const currentMaps = getCategoryMaps(currentStore, normalizedCategory);
+        const mergedMaps = getCategoryMaps(mergedStore, normalizedCategory);
+        const sources: Array<{ maps: MatchWorkerLeaderboardCategoryMaps; recordSource: MatchWorkerLeaderboardRecordSource }> = [
+            { maps: legacyMaps, recordSource: 'legacy' },
+            { maps: currentMaps, recordSource: 'verified' }
+        ];
+        const playerIds = new Set<string>();
+
+        sources.forEach(({ maps }) => {
+            [maps.players, maps.playerModes, maps.playerCpuLevels].forEach((records) => {
+                Object.keys(records || {}).forEach((playerId) => {
+                    if (normalizePlayerId(playerId)) playerIds.add(playerId);
+                });
+            });
+        });
+
+        playerIds.forEach((playerId) => {
+            const levelKeys = new Set<string>();
+            sources.forEach(({ maps }) => {
+                Object.keys((maps.playerCpuLevels && maps.playerCpuLevels[playerId]) || {}).forEach((levelKey) => {
+                    if (normalizeCpuLevel(levelKey) !== null) levelKeys.add(levelKey);
+                });
+            });
+
+            const mergedCpuLevels: Record<string, MatchWorkerLeaderboardEntry> = {};
+            levelKeys.forEach((levelKey) => {
+                const level = normalizeCpuLevel(levelKey);
+                if (level === null) return;
+                const selected = selectHistoricalEntry(
+                    sources.map(({ maps, recordSource }) => cloneHistoricalEntry(
+                        maps.playerCpuLevels && maps.playerCpuLevels[playerId] && maps.playerCpuLevels[playerId][levelKey],
+                        recordSource,
+                        playerId,
+                        'cpu',
+                        normalizedCategory
+                    )),
+                    normalizedCategory
+                );
+                if (!selected) return;
+                selected.cpuLevel = level;
+                mergedCpuLevels[String(level)] = selected;
+            });
+
+            const mergedModes: MatchWorkerLeaderboardModeEntries = {};
+            (['cpu', 'network'] as MatchWorkerLeaderboardMode[]).forEach((modeKey) => {
+                const candidates = sources.map(({ maps, recordSource }) => cloneHistoricalEntry(
+                    maps.playerModes && maps.playerModes[playerId] && maps.playerModes[playerId][modeKey],
+                    recordSource,
+                    playerId,
+                    modeKey,
+                    normalizedCategory
+                ));
+                if (modeKey === 'cpu') {
+                    candidates.push(...Object.values(mergedCpuLevels));
+                }
+                const selected = selectHistoricalEntry(candidates, normalizedCategory);
+                if (selected) mergedModes[modeKey] = selected;
+            });
+
+            const overall = selectHistoricalEntry([
+                ...sources.map(({ maps, recordSource }) => cloneHistoricalEntry(
+                    maps.players && maps.players[playerId],
+                    recordSource,
+                    playerId,
+                    undefined,
+                    normalizedCategory
+                )),
+                mergedModes.cpu || null,
+                mergedModes.network || null
+            ], normalizedCategory);
+            if (overall) mergedMaps.players[playerId] = overall;
+            if (mergedModes.cpu || mergedModes.network) mergedMaps.playerModes[playerId] = mergedModes;
+            if (Object.keys(mergedCpuLevels).length) mergedMaps.playerCpuLevels[playerId] = mergedCpuLevels;
+        });
+
+        const legacyUpdatedAt = Number.isFinite(Number(legacyStore && legacyStore.updatedAt))
+            ? Math.max(0, Math.trunc(Number(legacyStore.updatedAt)))
+            : 0;
+        const currentUpdatedAt = Number.isFinite(Number(currentStore && currentStore.updatedAt))
+            ? Math.max(0, Math.trunc(Number(currentStore.updatedAt)))
+            : 0;
+        mergedStore.updatedAt = Math.max(legacyUpdatedAt, currentUpdatedAt);
+        return mergedStore;
+    }
+
     function listEntries(store: MatchWorkerLeaderboardStore, limit: unknown, mode?: unknown, cpuLevel?: unknown, category?: unknown): Array<Record<string, unknown>> {
         const normalizedCategory = normalizeCategory(category);
         const normalizedMode = normalizeListMode(mode);
@@ -769,7 +954,8 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             cpuLevel: entry.cpuLevel,
             updatedAt: entry.updatedAt,
             scoreVersion: entry.scoreVersion,
-            turnCount: entry.turnCount
+            turnCount: entry.turnCount,
+            recordSource: entry.recordSource || null
         }));
     }
 
@@ -1032,6 +1218,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         createEmptyStore,
         loadStore,
         serializeStore,
+        mergeHistoricalStores,
         listEntries,
         updatePublicProfile,
         applySubmit
