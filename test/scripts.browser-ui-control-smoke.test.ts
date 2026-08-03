@@ -23,6 +23,17 @@ function passingControls() {
 }
 
 describe('browser UI control smoke evaluation', () => {
+  test('maps hidden desktop controls to the player-visible mobile command drawer items', () => {
+    const byName = Object.fromEntries(REQUIRED_UI_CONTROL_SMOKE_TARGETS.map((target: any) => [target.name, target]));
+
+    expect(byName.handSkin.touchSelector).toBe('#mobile-command-menu-appearance');
+    expect(byName.gacha.touchSelector).toBe('#mobile-command-menu-gacha');
+    expect(byName.leaderboard.touchSelector).toBe('#mobile-command-menu-ranking');
+    expect(byName.network.touchSelector).toBe('#mobile-command-menu-network');
+    expect(byName.ratedMatch.touchSelector).toBe('#mobile-command-menu-rated');
+    expect(byName.debug.touchSelector).toBeUndefined();
+  });
+
   test('rejects startup-visible controls that are missing, unusable, or fail to open', () => {
     const controls = passingControls();
     controls.debug.present = false;

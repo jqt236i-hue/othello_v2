@@ -10,6 +10,7 @@ const ONNX_RUNTIME_PATH_FRAGMENT = 'onnxruntime-web/dist/ort.min.js';
 interface UiControlSmokeTarget {
   name: string;
   selector: string;
+  touchSelector?: string;
   panelSelector?: string;
   closeSelector?: string;
   stateAttribute?: string;
@@ -110,30 +111,35 @@ const REQUIRED_UI_CONTROL_SMOKE_TARGETS: UiControlSmokeTarget[] = [
   {
     name: 'handSkin',
     selector: '#handSkinBtn',
+    touchSelector: '#mobile-command-menu-appearance',
     panelSelector: '#handSkinPanel',
     closeSelector: '#handSkinCloseBtn'
   },
   {
     name: 'gacha',
     selector: '#gachaOpenBtn',
+    touchSelector: '#mobile-command-menu-gacha',
     panelSelector: '#gachaOverlay',
     closeSelector: '#gachaCloseBtn'
   },
   {
     name: 'leaderboard',
     selector: '#leaderboardOpenBtn',
+    touchSelector: '#mobile-command-menu-ranking',
     panelSelector: '#leaderboardOverlay',
     closeSelector: '#leaderboardCloseBtn'
   },
   {
     name: 'network',
     selector: '#modeNetworkBtn',
+    touchSelector: '#mobile-command-menu-network',
     panelSelector: '#networkOverlay',
     closeSelector: '#networkCloseBtn'
   },
   {
     name: 'ratedMatch',
     selector: '#ratedMatchOpenBtn',
+    touchSelector: '#mobile-command-menu-rated',
     panelSelector: '#ratedMatchOverlay',
     closeSelector: '#ratedMatchCloseBtn'
   }
@@ -419,6 +425,14 @@ async function closeControlPanel(page: any, target: UiControlSmokeTarget): Promi
     const closeButton = await page.$(target.closeSelector);
     if (closeButton) {
       await closeButton.click({ timeout: 5000 });
+      if (target.panelSelector) {
+        await page.waitForFunction((panelSelector: string) => {
+          const panel = document.querySelector(panelSelector) as HTMLElement | null;
+          if (!panel) return true;
+          return panel.getAttribute('aria-hidden') === 'true'
+            || (panel.hidden === true && !panel.classList.contains('is-open'));
+        }, target.panelSelector, { timeout: 5000 });
+      }
       await page.waitForTimeout(100);
     }
   } catch (_error) {
@@ -465,23 +479,87 @@ async function probeControl(
   target: UiControlSmokeTarget,
   interactionMode: 'mouse' | 'touch' = 'mouse'
 ): Promise<UiControlProbe> {
-  const probe = await readControlState(page, target);
+  const effectiveTarget = interactionMode === 'touch' && target.touchSelector
+    ? { ...target, selector: target.touchSelector }
+    : target;
+  if (effectiveTarget !== target) {
+    const triggerSelector = '#mobile-command-menu-trigger';
+    const drawerReady = await page.evaluate((selector: string) => {
+      const drawer = document.getElementById('mobile-command-drawer');
+      const control = document.querySelector(selector) as HTMLElement | null;
+      return !!drawer
+        && drawer.getAttribute('aria-hidden') === 'false'
+        && !!control;
+    }, effectiveTarget.selector);
+    if (!drawerReady) {
+      const waitForTriggerHitTarget = async (): Promise<boolean> => {
+        try {
+          await page.waitForFunction((selector: string) => {
+            const trigger = document.querySelector(selector) as HTMLElement | null;
+            if (!trigger || trigger.getAttribute('aria-hidden') === 'true') return false;
+            const rect = trigger.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const hit = document.elementFromPoint(x, y);
+            return rect.width > 0
+              && rect.height > 0
+              && !!hit
+              && (hit === trigger || trigger.contains(hit));
+          }, triggerSelector, { timeout: 1500 });
+          return true;
+        } catch (_error) {
+          return false;
+        }
+      };
+      let triggerReady = await waitForTriggerHitTarget();
+      for (let attempt = 0; !triggerReady && attempt < 2; attempt += 1) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(150);
+        triggerReady = await waitForTriggerHitTarget();
+      }
+      await tapControlAtVisiblePoint(page, triggerSelector);
+      await page.waitForFunction((selector: string) => {
+        const drawer = document.getElementById('mobile-command-drawer');
+        const control = document.querySelector(selector) as HTMLElement | null;
+        return !!drawer
+          && drawer.getAttribute('aria-hidden') === 'false'
+          && !!control;
+      }, effectiveTarget.selector, { timeout: 5000 });
+    }
+    await page.evaluate((selector: string) => {
+      document.querySelector(selector)?.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }, effectiveTarget.selector);
+    await page.waitForFunction((selector: string) => {
+      const drawer = document.getElementById('mobile-command-drawer');
+      const control = document.querySelector(selector) as HTMLElement | null;
+      if (!drawer || drawer.getAttribute('aria-hidden') !== 'false' || !control) return false;
+      const rect = control.getBoundingClientRect();
+      const style = window.getComputedStyle(control);
+      return rect.width > 0
+        && rect.height > 0
+        && style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && style.opacity !== '0';
+    }, effectiveTarget.selector, { timeout: 5000 });
+    await page.waitForTimeout(50);
+  }
+  const probe = await readControlState(page, effectiveTarget);
   if (!probe.present || !probe.visible || !probe.enabled) return probe;
   try {
     if (interactionMode === 'touch') {
-      await tapControlAtVisiblePoint(page, target.selector);
+      await tapControlAtVisiblePoint(page, effectiveTarget.selector);
     } else {
-      await page.click(target.selector, { timeout: 10000 });
+      await page.click(effectiveTarget.selector, { timeout: 10000 });
     }
     probe.clicked = true;
-    const opened = target.panelSelector
-      ? await waitForPanelOpen(page, target.panelSelector)
-      : await waitForStateChange(page, target, probe.beforeState);
+    const opened = effectiveTarget.panelSelector
+      ? await waitForPanelOpen(page, effectiveTarget.panelSelector)
+      : await waitForStateChange(page, effectiveTarget, probe.beforeState);
     probe.opened = opened;
-    probe.afterState = target.stateAttribute
-      ? await page.$eval(target.selector, (button: Element, attribute: string) => button.getAttribute(attribute), target.stateAttribute)
+    probe.afterState = effectiveTarget.stateAttribute
+      ? await page.$eval(effectiveTarget.selector, (button: Element, attribute: string) => button.getAttribute(attribute), effectiveTarget.stateAttribute)
       : null;
-    await closeControlPanel(page, target);
+    await closeControlPanel(page, effectiveTarget);
   } catch (error) {
     probe.error = error instanceof Error ? error.message : String(error);
     probe.hitTest = await page.evaluate((selector: string) => {
@@ -523,7 +601,7 @@ async function probeControl(
         railClientWidth: rail?.clientWidth ?? null,
         viewport: { width: window.innerWidth, height: window.innerHeight }
       };
-    }, target.selector);
+    }, effectiveTarget.selector);
   }
   return probe;
 }
