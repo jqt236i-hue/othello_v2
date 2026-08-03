@@ -1197,6 +1197,51 @@ describe('Pixi static board scene', () => {
     scene.destroy();
   });
 
+  test('unmasks only an attached expansion cell outside the fixed base viewport', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const baseKeys = rectangleKeys(0, 7, 0, 6);
+    const topology = makeTopology({
+      baseRows: 8,
+      baseCols: 7,
+      minCol: -1,
+      maxCol: 6,
+      baseKeys,
+      existingKeys: [...baseKeys, '7,-1']
+    });
+    const cells = topology.existingKeys.map((key) => {
+      const [row, col] = key.split(',').map(Number);
+      return makeCell(key, {
+        renderRow: row + topology.renderRowOffset,
+        renderCol: col + topology.renderColOffset,
+        expansionSide: col < 0 ? 'left' : null
+      });
+    });
+    const frame = makeFrame({
+      topology,
+      cells,
+      cellSize: 32,
+      visibleWindow: { minRow: 0, maxRow: 7, minCol: 0, maxCol: 6 }
+    });
+
+    scene.applyFrame(frame, {
+      canvasViewport: { sceneOffsetX: 64, sceneOffsetY: 64 }
+    });
+
+    for (const name of BoardScene.PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) {
+      const mask = scene.layers[name].mask as FakeGraphics;
+      expect(mask.commands).toEqual([
+        { op: 'rect', args: [64, 64, 224, 256] },
+        { op: 'fill', style: { color: '#ffffff', alpha: 1 } },
+        { op: 'rect', args: [32, 288, 32, 32] },
+        { op: 'fill', style: { color: '#ffffff', alpha: 1 } }
+      ]);
+    }
+    expect(scene.getRenderedCell(0, 0)).toMatchObject({ position: { x: 64, y: 64 } });
+    expect(scene.getRenderedCell(7, -1)).toMatchObject({ position: { x: 32, y: 288 } });
+    scene.destroy();
+  });
+
   test('ignores transaction generation when stable surface and stone resource identities are unchanged', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });

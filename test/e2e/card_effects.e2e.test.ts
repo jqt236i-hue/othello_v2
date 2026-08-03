@@ -504,8 +504,8 @@ describe('Card effects E2E', () => {
     await page.close();
   }, 60000);
 
-  test('盤面拡張は同一anchorの方向矢印を区別してcurrent shapeへ追加する', async () => {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  test('8x7盤面の盤面拡張は元盤面を動かさず外側へ1マスを取り付ける', async () => {
+    const page = await browser.newPage({ viewport: { width: 912, height: 831 } });
     const invalidMoveWarnings: string[] = [];
     page.on('console', (message: any) => {
       const text = message.text();
@@ -522,6 +522,8 @@ describe('Card effects E2E', () => {
     ), { timeout: 15000 });
 
     await page.evaluate(async () => {
+      const core = window.require('game/logic/core');
+      window.gameState = core.createGameState({ rows: 8, cols: 7, shape: 'rectangle' });
       window.DEBUG_UNLIMITED_USAGE = true;
       window.DEBUG_HUMAN_VS_HUMAN = true;
       window.MATCH_MODE = 'cpu';
@@ -561,14 +563,38 @@ describe('Card effects E2E', () => {
     const beforeExpansion = await page.evaluate(() => ({
       anchor: window.__boardVisualDebug.getRenderedCell(0, 0),
       anchorRect: window.__boardVisualDebug.getCellClientRect(0, 0),
+      centerRect: window.__boardVisualDebug.getCellClientRect(3, 3),
+      oppositeRect: window.__boardVisualDebug.getCellClientRect(7, 6),
       frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
       framePresentation: (() => {
         const board = document.getElementById('board');
         const frame = document.getElementById('board-frame');
         if (!board || !frame) return null;
+        const canvas = board.querySelector('canvas');
+        const boardRect = board.getBoundingClientRect();
+        const frameRect = frame.getBoundingClientRect();
+        const canvasRect = canvas && canvas.getBoundingClientRect();
         const frameStyle = getComputedStyle(frame);
         const frameArtStyle = getComputedStyle(frame, '::before');
         return {
+          boardRect: {
+            left: boardRect.left,
+            top: boardRect.top,
+            width: boardRect.width,
+            height: boardRect.height
+          },
+          frameRect: {
+            left: frameRect.left,
+            top: frameRect.top,
+            width: frameRect.width,
+            height: frameRect.height
+          },
+          canvasRect: canvasRect ? {
+            left: canvasRect.left,
+            top: canvasRect.top,
+            width: canvasRect.width,
+            height: canvasRect.height
+          } : null,
           boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
           frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
           frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
@@ -615,17 +641,43 @@ describe('Card effects E2E', () => {
     const result = await page.evaluate(() => ({
       pending: window.cardState.pendingEffectByPlayer.black,
       cells: window.gameState.boardExpansion.cells,
+      anchor: window.__boardVisualDebug.getRenderedCell(0, 0),
       expanded: window.__boardVisualDebug.getRenderedCell(0, -1),
       expandedRect: window.__boardVisualDebug.getCellClientRect(0, -1),
+      anchorRect: window.__boardVisualDebug.getCellClientRect(0, 0),
+      centerRect: window.__boardVisualDebug.getCellClientRect(3, 3),
+      oppositeRect: window.__boardVisualDebug.getCellClientRect(7, 6),
       frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
       backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics(),
       framePresentation: (() => {
         const board = document.getElementById('board');
         const frame = document.getElementById('board-frame');
         if (!board || !frame) return null;
+        const canvas = board.querySelector('canvas');
+        const boardRect = board.getBoundingClientRect();
+        const frameRect = frame.getBoundingClientRect();
+        const canvasRect = canvas && canvas.getBoundingClientRect();
         const frameStyle = getComputedStyle(frame);
         const frameArtStyle = getComputedStyle(frame, '::before');
         return {
+          boardRect: {
+            left: boardRect.left,
+            top: boardRect.top,
+            width: boardRect.width,
+            height: boardRect.height
+          },
+          frameRect: {
+            left: frameRect.left,
+            top: frameRect.top,
+            width: frameRect.width,
+            height: frameRect.height
+          },
+          canvasRect: canvasRect ? {
+            left: canvasRect.left,
+            top: canvasRect.top,
+            width: canvasRect.width,
+            height: canvasRect.height
+          } : null,
           boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
           frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
           frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
@@ -646,6 +698,31 @@ describe('Card effects E2E', () => {
       kind: 'playable'
     }));
     expect(result.expandedRect.width).toBeGreaterThan(0);
+    expect(result.framePresentation.boardRect).toEqual(beforeExpansion.framePresentation.boardRect);
+    expect(result.framePresentation.frameRect).toEqual(beforeExpansion.framePresentation.frameRect);
+    expect(result.framePresentation.canvasRect).not.toBeNull();
+    expect(beforeExpansion.framePresentation.canvasRect).not.toBeNull();
+    for (const key of ['anchorRect', 'centerRect', 'oppositeRect'] as const) {
+      expect(result[key].left).toBeCloseTo(beforeExpansion[key].left, 4);
+      expect(result[key].top).toBeCloseTo(beforeExpansion[key].top, 4);
+      expect(result[key].width).toBeCloseTo(beforeExpansion[key].width, 4);
+      expect(result[key].height).toBeCloseTo(beforeExpansion[key].height, 4);
+    }
+    expect(result.expandedRect.right).toBeCloseTo(beforeExpansion.anchorRect.left, 4);
+    expect(result.expandedRect.top).toBeCloseTo(beforeExpansion.anchorRect.top, 4);
+    expect(result.expandedRect.left).toBeLessThan(beforeExpansion.framePresentation.boardRect.left);
+    const beforePaintedAnchor = {
+      left: beforeExpansion.framePresentation.canvasRect.left + beforeExpansion.anchor.position.x,
+      top: beforeExpansion.framePresentation.canvasRect.top + beforeExpansion.anchor.position.y
+    };
+    const afterPaintedAnchor = {
+      left: result.framePresentation.canvasRect.left + result.anchor.position.x,
+      top: result.framePresentation.canvasRect.top + result.anchor.position.y
+    };
+    expect(afterPaintedAnchor.left).toBeCloseTo(beforePaintedAnchor.left, 4);
+    expect(afterPaintedAnchor.top).toBeCloseTo(beforePaintedAnchor.top, 4);
+    expect(afterPaintedAnchor.left).toBeCloseTo(result.anchorRect.left, 4);
+    expect(afterPaintedAnchor.top).toBeCloseTo(result.anchorRect.top, 4);
     expect(result.frameDigest).not.toBe(beforeExpansion.frameDigest);
     expect(result.framePresentation).toEqual(expect.objectContaining({
       boardHasRenderVoid: true,
