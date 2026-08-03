@@ -423,6 +423,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/multi-cell-stone": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/multi-cell-stone.js"),
   "shared/network-action-schema": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-action-schema.js"),
   "shared/network-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-contract.js"),
+  "shared/network-presentation-envelope": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-presentation-envelope.js"),
   "shared/network-presentation-frame": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/network-presentation-frame.js"),
   "shared/observation-gacha-catalog-shared": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/observation-gacha-catalog-shared.js"),
   "shared/observation-gacha-catalog.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/observation-gacha-catalog.generated.js"),
@@ -1129,6 +1130,7 @@ installBootModuleMetadata({
     "shared/multi-cell-stone",
     "shared/network-action-schema",
     "shared/network-contract",
+    "shared/network-presentation-envelope",
     "shared/network-presentation-frame",
     "shared/observation-gacha-catalog-shared",
     "shared/observation-gacha-catalog.generated",
@@ -1504,4 +1506,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 701;
+export const startupModuleCount = 702;
