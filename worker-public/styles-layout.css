@@ -280,7 +280,7 @@
 
 #hand-black,
 #deck-black {
-    transform: translateY(calc(9px * var(--layout-stage-scale)));
+    transform: translateY(var(--layout-player-hand-offset-y));
 }
 
 /* Hand Containers */

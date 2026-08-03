@@ -13,6 +13,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     const cssPath = path.join(__dirname, '..', 'styles-responsive.css');
     const css = fs.readFileSync(cssPath, 'utf8');
     const layoutCss = readLayoutCssSurface();
+    const variablesCss = readRepoTextFile('styles-variables.css');
 
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*16\/10\)/);
     expect(css).toMatch(/@media\s*\(max-aspect-ratio:\s*3\/2\)/);
@@ -48,6 +49,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*var\(--card-detail-landscape-top-anchor/);
     expect(css).toMatch(/html\.layout-profile-16x9\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*var\(--card-detail-landscape-top-anchor\)\s*\+\s*calc\(56px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(css).toMatch(/html\.layout-profile-16x9\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#log[\s\S]*width:\s*calc\(292px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/html\.layout-profile-16x9\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s*\{[\s\S]*--layout-anchor-board-size:\s*532px[\s\S]*--layout-player-hand-offset-y:\s*calc\(20px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/html\.layout-profile-16x9\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#game-container\s*\{[\s\S]*padding-top:\s*calc\(44px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*padding-bottom:\s*calc\(92px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-player-hand-offset-y:\s*calc\(9px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(layoutCss).toMatch(/#hand-black,[\s\S]*#deck-black\s*\{[\s\S]*transform:\s*translateY\(var\(--layout-player-hand-offset-y\)\)/);
     expect(layoutCss).not.toMatch(/#side-panel\.side-panel-collapsed\s+#log/);
     expect(css).toMatch(/@media\s*\(min-width:\s*(?:901px|56\.3125em)\)\s*\{[\s\S]*html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#game-container[\s\S]*padding-bottom:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#hero-label[\s\S]*font-size:\s*clamp\(11px/);

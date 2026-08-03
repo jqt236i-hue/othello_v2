@@ -1638,6 +1638,18 @@ html.sim-aspect-5-4 #effect-live-panel {
         padding-bottom: calc(108px * var(--layout-stage-scale));
     }
 
+    /* Desktop browser chrome: give the 8x8 board a little more room without crowding the hand lane. */
+    html.layout-profile-16x9.layout-stage-enabled:not(.layout-profile-phone-portrait) {
+        --layout-anchor-board-size: 532px;
+        --layout-player-hand-offset-y: calc(20px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-16x9.layout-stage-enabled:not(.layout-profile-phone-portrait) #game-container {
+        /* Keep the opponent lane at its current top edge while the larger board grows downward. */
+        padding-top: calc(44px * var(--layout-stage-scale));
+        padding-bottom: calc(92px * var(--layout-stage-scale));
+    }
+
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #board {
         --board-max-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
         max-width: none;

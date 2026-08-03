@@ -158,6 +158,7 @@
     --layout-size-hand-max-width: calc(800px * var(--layout-stage-scale));
     --layout-size-hand-min-height-top: calc(140px * var(--layout-stage-scale));
     --layout-size-hand-min-height-bottom: calc(170px * var(--layout-stage-scale));
+    --layout-player-hand-offset-y: calc(9px * var(--layout-stage-scale));
 
     --layout-size-control-padding-y: calc(14px * var(--layout-stage-scale));
     --layout-size-control-padding-x: calc(12px * var(--layout-stage-scale));
