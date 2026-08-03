@@ -391,11 +391,15 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
       const viewportHeight = Math.min(availableViewportHeight, topology.baseRows * cellSize);
       const logicalWidth = topology.renderCols * cellSize;
       const logicalHeight = topology.renderRows * cellSize;
+      // The viewport is a programmatic coordinate surface, not scroll-state
+      // authority. Browser DOM updates may reset its hidden offsets during a
+      // multi-cell topology commit; retain the last committed camera offsets
+      // and immediately project them back.
       const rawScrollLeft = continuesStableBoard && layout
-        ? viewport.scrollLeft
+        ? layout.camera.scrollLeft
         : seedLayout.camera.scrollLeft;
       const rawScrollTop = continuesStableBoard && layout
-        ? viewport.scrollTop
+        ? layout.camera.scrollTop
         : seedLayout.camera.scrollTop;
       const reconciled = preserveTopologyPosition && continuesStableBoard
         ? reconcilePixiBoardCameraScroll({

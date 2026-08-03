@@ -168,6 +168,48 @@ describe('Pixi board camera', () => {
     expect(harness.camera.getLayout().camera.scrollTop).toBe(40);
   });
 
+  test('restores committed offsets when the browser resets DOM scroll during multi-cell growth', () => {
+    const harness = createHarness();
+    const initial = topology({ baseRows: 8, baseCols: 7, maxRow: 7, maxCol: 6 });
+    harness.camera.sync(initial, seedLayout(initial), 'match:stable-board');
+
+    const onceExpanded = topology({
+      baseRows: 8,
+      baseCols: 7,
+      maxRow: 7,
+      minCol: -1,
+      maxCol: 6
+    });
+    harness.camera.sync(onceExpanded, seedLayout(onceExpanded), 'match:stable-board');
+    const before = harness.camera.getCellClientRect(3, 3);
+    expect(harness.camera.getLayout().camera.scrollLeft).toBe(40);
+
+    // Chromium can reset the hidden viewport when the focused direction
+    // controls are replaced during a six-cell 盤面拡張神 commit.
+    harness.camera.getViewportElement().scrollLeft = 0;
+
+    const godExpanded = topology({
+      baseRows: 8,
+      baseCols: 7,
+      minRow: -1,
+      maxRow: 8,
+      minCol: -1,
+      maxCol: 7
+    });
+    const result = harness.camera.sync(
+      godExpanded,
+      seedLayout(godExpanded),
+      'match:stable-board'
+    );
+
+    expect(result.camera).toMatchObject({ scrollLeft: 40, scrollTop: 40 });
+    expect(harness.camera.getViewportElement().scrollLeft).toBe(40);
+    expect(harness.camera.getCellClientRect(3, 3)).toMatchObject({
+      left: before.left,
+      top: before.top
+    });
+  });
+
   test('uses render-index compensation for rotated viewer orientation', () => {
     const harness = createHarness();
     const initial = topology({ maxRow: 7, maxCol: 7 });

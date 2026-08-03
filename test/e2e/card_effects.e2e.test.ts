@@ -862,11 +862,11 @@ describe('Card effects E2E', () => {
     await page.close();
   }, 60000);
 
-  test('盤面拡張神の6マス同時追加後も通常8x8の画像フレームを保持する', async () => {
-    // Keep this at the compact layout seen in production reports: the
-    // expansion must not displace the original 8x8 board when side gutters
-    // are tight.
-    const page = await browser.newPage({ viewport: { width: 720, height: 625 } });
+  test('既存拡張後の盤面拡張神でも8x7元盤面とフレームを動かさない', async () => {
+    // Reproduce the reported sequence: attach one cell to an 8x7 board, then
+    // add six cells with 盤面拡張神. Added cells may overlap the image
+    // frame, but every original cell must retain its exact client geometry.
+    const page = await browser.newPage({ viewport: { width: 1218, height: 875 } });
     await openPixiDebugLane(page, serverPort, true);
     await closeSidePanelIfPresent(page);
     await page.waitForFunction(() => !!(
@@ -877,6 +877,8 @@ describe('Card effects E2E', () => {
     ), { timeout: 15000 });
 
     await page.evaluate(() => {
+      const core = window.require('game/logic/core');
+      window.gameState = core.createGameState({ rows: 8, cols: 7, shape: 'rectangle' });
       window.DEBUG_UNLIMITED_USAGE = true;
       window.DEBUG_HUMAN_VS_HUMAN = true;
       window.MATCH_MODE = 'cpu';
@@ -898,30 +900,53 @@ describe('Card effects E2E', () => {
       };
       window.cardState.pendingEffectByPlayer = {
         black: {
-          type: 'BOARD_EXPANSION_GOD',
+          type: 'BOARD_EXPANSION_WILL',
           stage: 'selectTarget',
-          cardId: 'board_expand_god_01',
-          selectedCount: 0,
-          maxSelections: 2,
-          selectedTargets: []
+          cardId: 'board_expand_01'
         },
         white: null
       };
       window.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
-      window.cardState.lastUsedCardByPlayer = { black: 'board_expand_god_01', white: null };
+      window.cardState.lastUsedCardByPlayer = { black: 'board_expand_01', white: null };
       window.isProcessing = false;
       window.isCardAnimating = false;
       window.VisualPlaybackActive = false;
       window.renderBoard();
     });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+    const priorExpansionButton = page.locator('.board-accessibility-direction-button[data-cell-key="7,0"][data-direction="left"]');
+    expect(await priorExpansionButton.count()).toBe(1);
+    await priorExpansionButton.click();
+    await page.waitForFunction(() => {
+      const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
+      return Array.isArray(cells)
+        && cells.length === 1
+        && cells.some((cell: any) => cell.row === 7 && cell.col === -1);
+    }, null, { timeout: 10000 });
+    await page.evaluate(() => {
+      window.cardState.pendingEffectByPlayer.black = {
+        type: 'BOARD_EXPANSION_GOD',
+        stage: 'selectTarget',
+        cardId: 'board_expand_god_01',
+        selectedCount: 0,
+        maxSelections: 2,
+        selectedTargets: []
+      };
+      window.cardState.lastUsedCardByPlayer.black = 'board_expand_god_01';
+      window.renderBoard();
+    });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
     const beforeLayout = await page.evaluate(() => {
       const board = document.getElementById('board');
+      const frame = document.getElementById('board-frame');
       const viewport = document.getElementById('board-scroll-viewport');
       const anchorRect = window.__boardVisualDebug.getCellClientRect(3, 3);
-      if (!board || !viewport || !anchorRect) return null;
+      if (!board || !frame || !viewport || !anchorRect) return null;
       const boardRect = board.getBoundingClientRect();
+      const frameRect = frame.getBoundingClientRect();
+      const canvas = board.querySelector('canvas');
+      const canvasRect = canvas && canvas.getBoundingClientRect();
       const viewportRect = viewport.getBoundingClientRect();
       const viewportStyle = getComputedStyle(viewport);
       return {
@@ -933,6 +958,18 @@ describe('Card effects E2E', () => {
           centerX: boardRect.left + boardRect.width / 2,
           centerY: boardRect.top + boardRect.height / 2
         },
+        frameRect: {
+          left: frameRect.left,
+          top: frameRect.top,
+          width: frameRect.width,
+          height: frameRect.height
+        },
+        canvasRect: canvasRect ? {
+          left: canvasRect.left,
+          top: canvasRect.top,
+          width: canvasRect.width,
+          height: canvasRect.height
+        } : null,
         viewport: {
           clientWidth: viewport.clientWidth,
           clientHeight: viewport.clientHeight,
@@ -945,12 +982,20 @@ describe('Card effects E2E', () => {
           overflowX: viewportStyle.overflowX,
           overflowY: viewportStyle.overflowY
         },
-        anchorRect
+        anchorRect,
+        baseCellRects: Array.from({ length: 8 }, (_, row) => (
+          Array.from({ length: 7 }, (_, col) => ({
+            key: `${row},${col}`,
+            rect: window.__boardVisualDebug.getCellClientRect(row, col),
+            rendered: window.__boardVisualDebug.getRenderedCell(row, col)
+          }))
+        )).flat(),
+        backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
       };
     });
     expect(beforeLayout).not.toBeNull();
     if (!beforeLayout) throw new Error('initial Pixi board layout was unavailable');
-
+    expect(beforeLayout.viewport.scrollLeft).toBeGreaterThan(0);
     const upperLeftButton = page.locator('.board-accessibility-direction-button[data-cell-key="0,0"][data-direction="up-left"]');
     expect(await upperLeftButton.count()).toBe(1);
     await upperLeftButton.click();
@@ -962,12 +1007,12 @@ describe('Card effects E2E', () => {
     }, null, { timeout: 10000 });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
-    const lowerRightButton = page.locator('.board-accessibility-direction-button[data-cell-key="7,7"][data-direction="down-right"]');
+    const lowerRightButton = page.locator('.board-accessibility-direction-button[data-cell-key="7,6"][data-direction="down-right"]');
     expect(await lowerRightButton.count()).toBe(1);
     await lowerRightButton.click();
     await page.waitForFunction(() => {
       const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
-      return Array.isArray(cells) && cells.length === 6;
+      return Array.isArray(cells) && cells.length === 7;
     }, null, { timeout: 10000 });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
@@ -982,7 +1027,7 @@ describe('Card effects E2E', () => {
         cells: window.gameState.boardExpansion.cells,
         renderedCells: [
           window.__boardVisualDebug.getRenderedCell(-1, -1),
-          window.__boardVisualDebug.getRenderedCell(8, 8)
+          window.__boardVisualDebug.getRenderedCell(8, 7)
         ],
         boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
         frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
@@ -996,6 +1041,9 @@ describe('Card effects E2E', () => {
           const anchorRect = window.__boardVisualDebug.getCellClientRect(3, 3);
           if (!viewport || !anchorRect) return null;
           const boardRect = board.getBoundingClientRect();
+          const frameRect = frame.getBoundingClientRect();
+          const canvas = board.querySelector('canvas');
+          const canvasRect = canvas && canvas.getBoundingClientRect();
           const viewportRect = viewport.getBoundingClientRect();
           const viewportStyle = getComputedStyle(viewport);
           return {
@@ -1007,6 +1055,18 @@ describe('Card effects E2E', () => {
               centerX: boardRect.left + boardRect.width / 2,
               centerY: boardRect.top + boardRect.height / 2
             },
+            frameRect: {
+              left: frameRect.left,
+              top: frameRect.top,
+              width: frameRect.width,
+              height: frameRect.height
+            },
+            canvasRect: canvasRect ? {
+              left: canvasRect.left,
+              top: canvasRect.top,
+              width: canvasRect.width,
+              height: canvasRect.height
+            } : null,
             viewport: {
               clientWidth: viewport.clientWidth,
               clientHeight: viewport.clientHeight,
@@ -1019,7 +1079,14 @@ describe('Card effects E2E', () => {
               overflowX: viewportStyle.overflowX,
               overflowY: viewportStyle.overflowY
             },
-            anchorRect
+            anchorRect,
+            baseCellRects: Array.from({ length: 8 }, (_, row) => (
+              Array.from({ length: 7 }, (_, col) => ({
+                key: `${row},${col}`,
+                rect: window.__boardVisualDebug.getCellClientRect(row, col),
+                rendered: window.__boardVisualDebug.getRenderedCell(row, col)
+              }))
+            )).flat()
           };
         })(),
         backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
@@ -1029,13 +1096,15 @@ describe('Card effects E2E', () => {
     expect(result).not.toBeNull();
     if (!result) throw new Error('board expansion god frame result was unavailable');
     expect(result.pending).toBeNull();
+    expect(result.cells).toHaveLength(7);
     expect(result.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 7, col: -1 }),
       expect.objectContaining({ row: -1, col: -1 }),
-      expect.objectContaining({ row: 8, col: 8 })
+      expect.objectContaining({ row: 8, col: 7 })
     ]));
     expect(result.renderedCells).toEqual([
       expect.objectContaining({ key: '-1,-1', kind: 'playable' }),
-      expect.objectContaining({ key: '8,8', kind: 'playable' })
+      expect.objectContaining({ key: '8,7', kind: 'playable' })
     ]);
     expect(result).toEqual(expect.objectContaining({
       boardHasRenderVoid: true,
@@ -1059,14 +1128,37 @@ describe('Card effects E2E', () => {
     expect(result.layout.viewport.clientHeight).toBeCloseTo(result.layout.viewport.rectHeight, 0);
     expect(result.layout.viewport.scrollWidth).toBeGreaterThan(result.layout.viewport.clientWidth);
     expect(result.layout.viewport.scrollHeight).toBeGreaterThan(result.layout.viewport.clientHeight);
-    expect(result.layout.viewport.scrollLeft).toBeGreaterThan(0);
+    expect(result.backendDiagnostics.camera.renderSessionId)
+      .toBe(beforeLayout.backendDiagnostics.camera.renderSessionId);
+    expect(result.layout.viewport.scrollLeft).toBeCloseTo(beforeLayout.viewport.scrollLeft, 4);
     expect(result.layout.viewport.scrollTop).toBeGreaterThan(0);
     expect(result.layout.boardRect.centerX).toBeCloseTo(beforeLayout.boardRect.centerX, 4);
     expect(result.layout.boardRect.centerY).toBeCloseTo(beforeLayout.boardRect.centerY, 4);
+    expect(result.layout.frameRect).toEqual(beforeLayout.frameRect);
     expect(result.layout.anchorRect.left).toBeCloseTo(beforeLayout.anchorRect.left, 4);
     expect(result.layout.anchorRect.top).toBeCloseTo(beforeLayout.anchorRect.top, 4);
     expect(result.layout.anchorRect.width).toBeCloseTo(beforeLayout.anchorRect.width, 4);
     expect(result.layout.anchorRect.height).toBeCloseTo(beforeLayout.anchorRect.height, 4);
+    expect(result.layout.baseCellRects).toHaveLength(beforeLayout.baseCellRects.length);
+    expect(result.layout.canvasRect).not.toBeNull();
+    expect(beforeLayout.canvasRect).not.toBeNull();
+    for (let index = 0; index < beforeLayout.baseCellRects.length; index += 1) {
+      expect(result.layout.baseCellRects[index].key).toBe(beforeLayout.baseCellRects[index].key);
+      for (const key of ['left', 'top', 'width', 'height'] as const) {
+        expect(result.layout.baseCellRects[index].rect[key])
+          .toBeCloseTo(beforeLayout.baseCellRects[index].rect[key], 4);
+      }
+      const beforePainted = {
+        left: beforeLayout.canvasRect.left + beforeLayout.baseCellRects[index].rendered.position.x,
+        top: beforeLayout.canvasRect.top + beforeLayout.baseCellRects[index].rendered.position.y
+      };
+      const afterPainted = {
+        left: result.layout.canvasRect.left + result.layout.baseCellRects[index].rendered.position.x,
+        top: result.layout.canvasRect.top + result.layout.baseCellRects[index].rendered.position.y
+      };
+      expect(afterPainted.left).toBeCloseTo(beforePainted.left, 4);
+      expect(afterPainted.top).toBeCloseTo(beforePainted.top, 4);
+    }
     expect(result.backendDiagnostics).toEqual(expect.objectContaining({
       domCellCount: 0,
       scene: expect.objectContaining({
