@@ -200,6 +200,9 @@ function createMockScene(log: string[]) {
       log.push(`scene:scope:${normalized}`);
       return scope;
     }),
+    isPlaybackScopeActive: jest.fn((key: string | number) => (
+      scope?.key === String(key).trim()
+    )),
     hideStone: jest.fn((_scope: any, row: number, col: number) => {
       log.push(`scene:hide:${row},${col}`);
     }),
@@ -462,6 +465,7 @@ describe('Pixi board playback contract', () => {
 
     await harness.playback.playPhase(events, context());
 
+    expect(harness.scene.getDiagnostics).not.toHaveBeenCalled();
     const starts = harness.log
       .filter((entry) => entry.startsWith('record:pixi-playback:event-start'));
     expect(starts).toEqual([

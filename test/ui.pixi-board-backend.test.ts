@@ -287,6 +287,7 @@ function createSceneFixture() {
     }),
     invalidateStaticViews: jest.fn(),
     getRenderedCell: jest.fn((row: number, col: number) => row === 0 && col === 0 ? { key: '0,0' } : null),
+    isPlaybackScopeActive: jest.fn(() => false),
     getDiagnostics: jest.fn(() => ({
       destroyed,
       applyCount: applyCalls.length,
@@ -356,6 +357,8 @@ function createPlaybackFixture() {
     onFrameApplied: jest.fn(),
     abort: jest.fn(() => 0),
     abortAndWait: jest.fn(async () => 0),
+    hasActiveRuns: jest.fn(() => timeline.activeRunCount > 0),
+    getActiveRunCount: jest.fn(() => timeline.activeRunCount),
     getDiagnostics: jest.fn(() => Object.freeze({
       destroyed: false,
       activeScopeKey: null,
@@ -1121,7 +1124,8 @@ describe('Pixi board backend integration', () => {
   });
 
   test('committed-frame settlement waits for texture preparation and the final render', async () => {
-    const harness = createHarness();
+    const fixture = createPlaybackFixture();
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
     await harness.backend.mount(harness.host, {});
     const frame = makeFrame('committed', 3, { boardUrl: 'https://example.test/slow-commit.png' });
     const loading = harness.textures.deferUrl(frame.appearance.boardImageUrl);
@@ -1137,6 +1141,8 @@ describe('Pixi board backend integration', () => {
     expect(settled).toBe(true);
     expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('committed');
     expect(harness.app.instances[0].renderer.render).toHaveBeenCalledTimes(1);
+    expect(fixture.playback.getActiveRunCount).toHaveBeenCalled();
+    expect(fixture.playback.getDiagnostics).not.toHaveBeenCalled();
   });
 
   test('reveals only old/new topology additions while settling at the DOM-compatible first render', async () => {
@@ -1175,6 +1181,8 @@ describe('Pixi board backend integration', () => {
         tickerSubscribed: true
       }
     });
+    fixture.playback.hasActiveRuns.mockReturnValue(true);
+    fixture.playback.getActiveRunCount.mockReturnValue(1);
     const ticker = harness.app.instances[0].ticker;
     ticker.start();
     const stopCountBeforeRevealSettlement = ticker.stop.mock.calls.length;
@@ -1204,6 +1212,8 @@ describe('Pixi board backend integration', () => {
     reveal.resolve();
     await Promise.resolve();
     fixture.playback.getDiagnostics.mockReturnValue(idlePlaybackDiagnostics);
+    fixture.playback.hasActiveRuns.mockReturnValue(false);
+    fixture.playback.getActiveRunCount.mockReturnValue(0);
     await harness.backend.waitForVisualSettlement(expanded);
     expect(ticker.started).toBe(false);
     expect(harness.backend.getDiagnostics().settledFrameToken).toBe('topology-expanded');
@@ -1769,6 +1779,8 @@ describe('Pixi board backend integration', () => {
         tickerSubscribed: activeRunCount > 0
       })
     }));
+    fixture.playback.hasActiveRuns.mockImplementation(() => activeRunCount > 0);
+    fixture.playback.getActiveRunCount.mockImplementation(() => activeRunCount);
     const harness = createHarness({ playbackFactory: () => fixture.playback });
     await harness.backend.mount(harness.host, {});
     const ticker = harness.app.instances[0].ticker;

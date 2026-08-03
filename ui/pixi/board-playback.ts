@@ -117,6 +117,8 @@ export interface PixiBoardPlayback {
   abort(reason?: unknown): number;
   /** Abort every active effect and resolve only after stale callbacks can no longer touch the scene. */
   abortAndWait(reason?: unknown): Promise<number>;
+  hasActiveRuns(): boolean;
+  getActiveRunCount(): number;
   getDiagnostics(): PixiBoardPlaybackDiagnostics;
   destroy(): void;
 }
@@ -383,7 +385,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
 
   function synchronizeSceneScope(): void {
     if (!activeScope) return;
-    if (scene.getDiagnostics().playbackScopeKey !== activeScope.key) clearBookkeeping();
+    if (!scene.isPlaybackScopeActive(activeScope.key)) clearBookkeeping();
   }
 
   function normalizeInterruptionReason(reason?: unknown): unknown {
@@ -404,6 +406,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       },
       abort: (reason?: unknown) => timeline.abort(reason),
       destroy: () => timeline.destroy(),
+      hasActiveRuns: () => timeline.hasActiveRuns(),
+      getActiveRunCount: () => timeline.getActiveRunCount(),
       getDiagnostics: () => timeline.getDiagnostics()
     });
   }
@@ -738,7 +742,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     const handle = retainedFinalGhosts.get(key);
     if (!handle) return;
     retainedFinalGhosts.delete(key);
-    if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+    if (!scene.isPlaybackScopeActive(scope.key)) return;
     scene.releasePlaybackGhost(scope, handle);
   }
 
@@ -747,7 +751,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     if (!handle) return;
     retainedFinalEffects.delete(key);
     retainedFinalEffectKeysByHandle.delete(handle.id);
-    if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+    if (!scene.isPlaybackScopeActive(scope.key)) return;
     if (!scene.getPlaybackEffect(handle)) return;
     scene.releasePlaybackEffect(scope, handle);
   }
@@ -870,7 +874,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
         // A terminal backend destroy or successful canonical frame apply can
         // invalidate the old writer scope before an async `finally` resumes.
         // Releasing that stale handle must not touch a newer scope.
-        if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+        if (!scene.isPlaybackScopeActive(scope.key)) return;
         scene.releasePlaybackGhost(scope, handle);
       },
       acquireHighlight(
@@ -881,7 +885,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
         return scene.acquirePlaybackCellHighlight(scope, row, col, tone);
       },
       releaseHighlight(handle: PixiPlaybackCellHighlightHandle): void {
-        if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+        if (!scene.isPlaybackScopeActive(scope.key)) return;
         scene.releasePlaybackCellHighlight(scope, handle);
       },
       acquireEffect(effectOptions: PixiPlaybackEffectOptions): PixiPlaybackEffectHandle {
@@ -898,7 +902,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
         retainedFinalEffectKeysByHandle.set(handle.id, key);
       },
       releaseEffect(handle: PixiPlaybackEffectHandle): void {
-        if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+        if (!scene.isPlaybackScopeActive(scope.key)) return;
         const retainedKey = retainedFinalEffectKeysByHandle.get(handle.id);
         if (retainedKey) {
           retainedFinalEffectKeysByHandle.delete(handle.id);
@@ -946,7 +950,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       await Promise.allSettled(Array.from(inFlightEffects));
     }
     synchronizeSceneScope();
-    if (activeScope && scene.getDiagnostics().playbackScopeKey === activeScope.key) {
+    if (activeScope && scene.isPlaybackScopeActive(activeScope.key)) {
       scene.resetPlaybackProjection(activeScope);
     }
     clearBookkeeping();
@@ -1141,7 +1145,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     // await those cleanups before resetting the strict scene scope.
     if (inFlightEffects.size === 0) {
       synchronizeSceneScope();
-      if (activeScope && scene.getDiagnostics().playbackScopeKey === activeScope.key) {
+      if (activeScope && scene.isPlaybackScopeActive(activeScope.key)) {
         scene.resetPlaybackProjection(activeScope);
       }
       clearBookkeeping();
@@ -1170,6 +1174,14 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       timeline: timeline.getDiagnostics(),
       sourceTrajectory: sourceTrajectoryRenderer.getDiagnostics()
     });
+  }
+
+  function hasActiveRuns(): boolean {
+    return timeline.hasActiveRuns();
+  }
+
+  function getActiveRunCount(): number {
+    return timeline.getActiveRunCount();
   }
 
   function captureDebugFrameAtElapsed(
@@ -1203,6 +1215,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     captureDebugFrameAtElapsed,
     abort,
     abortAndWait,
+    hasActiveRuns,
+    getActiveRunCount,
     getDiagnostics,
     destroy
   });

@@ -1645,7 +1645,7 @@ export function createPixiBoardVisualBackend(
     // before its 260ms cosmetic reveal finishes. Do not stop the private
     // ticker while that timeline still owns a run; the timeline stops it when
     // its final frame releases the reveal lease.
-    const activeRunCount = Number(playback?.getDiagnostics()?.timeline?.activeRunCount || 0);
+    const activeRunCount = playback?.getActiveRunCount() || 0;
     if (activeRunCount === 0) application?.settleIdle();
   }
 
@@ -1683,7 +1683,7 @@ export function createPixiBoardVisualBackend(
       // Multiple board event branches in one presentation phase share this
       // backend timeline. A shorter sibling must not stop the private ticker
       // while another run still needs clock ticks to settle.
-      const activeRunCount = Number(playback?.getDiagnostics()?.timeline?.activeRunCount || 0);
+      const activeRunCount = playback?.getActiveRunCount() || 0;
       if (activeRunCount === 0) application?.settleIdle();
     } catch (error) {
       if (isPixiPlaybackControlledInterruption(error)) {

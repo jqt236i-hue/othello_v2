@@ -410,6 +410,8 @@ function createManualTimeline() {
       return count;
     },
     get runs() { return pending; },
+    hasActiveRuns: () => pending.some((entry) => !entry.settled),
+    getActiveRunCount: () => pending.filter((entry) => !entry.settled).length,
     getDiagnostics: () => ({ activeRunCount: pending.filter((entry) => !entry.settled).length })
   };
   return timeline;
@@ -420,6 +422,7 @@ function createMockScene(snapshot: BoardScene.PixiSourceTrajectoryGeometrySnapsh
   const records = new Map<number, any>();
   const scope = Object.freeze({ id: 1, key: 'trajectory-scope' });
   const scene: any = {
+    isPlaybackScopeActive: jest.fn((key: string | number) => scope.key === String(key).trim()),
     snapshotSourceTrajectoryGeometry: jest.fn(() => snapshot),
     acquireSourceTrajectory: jest.fn((_scope: any, options: any) => {
       const handle = Object.freeze({ id: nextId++, scopeId: scope.id });

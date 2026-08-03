@@ -112,6 +112,8 @@ export interface PixiTimeline {
   ): Promise<PixiTimelineDebugFrameCapture<T>>;
   abort(reason?: unknown): number;
   destroy(): void;
+  hasActiveRuns(): boolean;
+  getActiveRunCount(): number;
   getDiagnostics(): PixiTimelineDiagnostics;
 }
 
@@ -647,5 +649,21 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     });
   }
 
-  return Object.freeze({ run, captureDebugFrameAtElapsed, abort, destroy, getDiagnostics });
+  function hasActiveRuns(): boolean {
+    return activeRuns.size > 0;
+  }
+
+  function getActiveRunCount(): number {
+    return activeRuns.size;
+  }
+
+  return Object.freeze({
+    run,
+    captureDebugFrameAtElapsed,
+    abort,
+    destroy,
+    hasActiveRuns,
+    getActiveRunCount,
+    getDiagnostics
+  });
 }

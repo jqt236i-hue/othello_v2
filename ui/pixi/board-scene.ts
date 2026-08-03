@@ -479,6 +479,8 @@ export interface PixiBoardScene {
   /** Force retained views to rebuild after the active WebGL context is restored. */
   invalidateStaticViews(): void;
   beginPlaybackScope(scopeKey: string | number): PixiPlaybackProjectionScope;
+  /** O(1) normal-play scope check. Full scene diagnostics stay debug-only. */
+  isPlaybackScopeActive(scopeKey: string): boolean;
   retainStoneOverride(
     scope: PixiPlaybackProjectionScope,
     row: number,
@@ -1282,6 +1284,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     }
     playbackScope = Object.freeze({ id: nextPlaybackScopeId++, key });
     return playbackScope;
+  }
+
+  function isPlaybackScopeActive(scopeKey: string): boolean {
+    return !!playbackScope && playbackScope.key === String(scopeKey || '').trim();
   }
 
   function setPlaybackTransform(
@@ -3178,6 +3184,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     applyFrame,
     invalidateStaticViews,
     beginPlaybackScope,
+    isPlaybackScopeActive,
     retainStoneOverride,
     hideStone,
     acquirePlaybackGhost,

@@ -125,6 +125,8 @@ describe('Pixi board timeline', () => {
     const hooks = callbacks(log);
     const playback = timeline.run({ durationMs: 100, ...hooks });
 
+    expect(timeline.hasActiveRuns()).toBe(true);
+    expect(timeline.getActiveRunCount()).toBe(1);
     expect(log).toEqual(['start', 'update:0']);
     await Promise.resolve();
     expect(log).toEqual(['start', 'update:0', 'render', 'clock:subscribe', 'clock:start']);
@@ -148,6 +150,8 @@ describe('Pixi board timeline', () => {
       'clock:unsubscribe'
     ]);
     expect(clock.listenerCount).toBe(0);
+    expect(timeline.hasActiveRuns()).toBe(false);
+    expect(timeline.getActiveRunCount()).toBe(0);
     expect(timeline.getDiagnostics()).toMatchObject({
       state: 'idle', tickerRunning: false, tickerSubscribed: false,
       tickerStartCount: 1, tickerStopCount: 1

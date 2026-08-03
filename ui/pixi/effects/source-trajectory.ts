@@ -930,7 +930,7 @@ export function createPixiSourceTrajectoryRenderer(
       const current = handle;
       handle = null;
       if (!projection.scene.getSourceTrajectory(current)) return;
-      if (projection.scene.getDiagnostics().playbackScopeKey !== projection.scope.key) return;
+      if (!projection.scene.isPlaybackScopeActive(projection.scope.key)) return;
       projection.scene.releaseSourceTrajectory(projection.scope, current);
     };
     const run = projection.timeline.run({
