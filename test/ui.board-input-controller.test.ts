@@ -509,6 +509,55 @@ describe('board input controller', () => {
     expect(controller.hitTestClientPoint(15, 15)).toEqual({ row: 1, col: 1, key: '1,1' });
   });
 
+  test('reuses one affine hit projection and frozen hit result across pointer frames', () => {
+    const cells = Array.from({ length: 64 }, (_unused, index) => cell(
+      Math.floor(index / 8),
+      index % 8
+    ));
+    let layoutRevision = 3;
+    let offset = 0;
+    const getCellClientRect = jest.fn((row: number, col: number) => ({
+      left: offset + col * 10,
+      top: offset + row * 10,
+      right: offset + (col + 1) * 10,
+      bottom: offset + (row + 1) * 10,
+      width: 10,
+      height: 10,
+      layoutRevision
+    }));
+    const { controller } = createController({ getCellClientRect });
+    const renderModel = model(cells);
+    controller.syncModel(renderModel);
+
+    const firstHit = controller.hitTestClientPoint(75, 75);
+    for (let frame = 1; frame < 120; frame += 1) {
+      expect(controller.hitTestClientPoint(75, 75)).toBe(firstHit);
+    }
+
+    expect(firstHit).toEqual({ row: 7, col: 7, key: '7,7' });
+    expect(controller.getPerformanceDiagnostics()).toMatchObject({
+      hitTestCount: 120,
+      hitProjectionBuildCount: 1,
+      hitGeometryReadCount: 124,
+      hitFallbackCellVisitCount: 0,
+      hitCellCount: 64,
+      hitProjectionCached: true,
+      hitProjectionAffine: true
+    });
+
+    controller.syncModel({ ...renderModel, visualRevision: 2 });
+    expect(controller.hitTestClientPoint(75, 75)).toBe(firstHit);
+    expect(controller.getPerformanceDiagnostics().hitProjectionBuildCount).toBe(1);
+
+    layoutRevision += 1;
+    offset = 100;
+    expect(controller.hitTestClientPoint(175, 175)).toBe(firstHit);
+    expect(controller.getPerformanceDiagnostics()).toMatchObject({
+      hitProjectionBuildCount: 2,
+      hitGeometryReadCount: 130
+    });
+  });
+
   test('direction focus temporarily owns the single keyboard cursor overlay path', () => {
     const navigation = cell(0, 0, { interaction: {
       legal: true, legalFree: false, interactionLocked: false, directionHints: []

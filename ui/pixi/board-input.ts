@@ -72,6 +72,10 @@ export interface PixiBoardInputDiagnostics {
   readonly activeCellKey: string | null;
   readonly hoveredCellKey: string | null;
   readonly pendingRetryPointerId: number | null;
+  readonly pendingMoveCount: number;
+  readonly pendingMovePointerIds: readonly number[];
+  readonly rawPointerMoveCount: number;
+  readonly processedPointerMoveCount: number;
   readonly targetWidth: number;
   readonly targetHeight: number;
 }
@@ -86,6 +90,8 @@ export interface PixiBoardInput {
 type ActivePointer = Readonly<{
   pointerId: number;
   hit: PixiBoardInputHit;
+  startX: number;
+  startY: number;
 }>;
 
 type PointerSnapshot = Readonly<{
@@ -103,6 +109,11 @@ type PendingPointerRetry = Readonly<{
   event: PointerSnapshot;
   handle: unknown;
 }>;
+
+type PendingPointerMove = {
+  latest: PointerSnapshot;
+  activeMovement: PointerSnapshot;
+};
 
 function finite(value: unknown): number {
   const numeric = Number(value);
@@ -161,6 +172,11 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
   let active: ActivePointer | null = null;
   let hovered: PixiBoardInputHit | null = null;
   let pendingRetry: PendingPointerRetry | null = null;
+  const pendingMoves = new Map<number, PendingPointerMove>();
+  let pendingMoveFrame: unknown = null;
+  let pendingMoveFrameToken = 0;
+  let rawPointerMoveCount = 0;
+  let processedPointerMoveCount = 0;
   let lastPointerEvent: PointerSnapshot | null = null;
   let previousAutoPreventDefault: boolean | undefined;
   let previousStyle: Readonly<{ pointerEvents: string; touchAction: string; cursor: string }> | null = null;
@@ -234,6 +250,11 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     cancelFrame(pending.handle);
   };
 
+  const movementDistance = (event: PointerSnapshot, pointer: ActivePointer): number => Math.max(
+    Math.abs(event.clientX - pointer.startX),
+    Math.abs(event.clientY - pointer.startY)
+  );
+
   const resolveHit = (
     controller: PixiBoardInputControllerPort,
     event: PointerSnapshot
@@ -290,30 +311,97 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     }
     updateHover(controller, hit, event);
     if (!dispatch(controller, 'pointerdown', hit, event)) return;
-    active = Object.freeze({ pointerId: event.pointerId, hit });
+    active = Object.freeze({
+      pointerId: event.pointerId,
+      hit,
+      startX: event.clientX,
+      startY: event.clientY
+    });
   };
 
   const onPointerDown = (raw: unknown) => {
     lastPointerEvent = pointerSnapshot(raw);
+    flushPendingMoves(lastPointerEvent.pointerId);
     beginPointer(lastPointerEvent, true);
   };
 
-  const onGlobalPointerMove = (raw: unknown) => {
-    const event = pointerSnapshot(raw);
-    lastPointerEvent = event;
-    clearPendingRetry(event.pointerId);
+  const processPointerMove = (pending: PendingPointerMove): void => {
+    const event = pending.latest;
     const controller = resolveController();
     if (!controller) return;
     const hit = resolveHit(controller, event);
     if (active && active.pointerId === event.pointerId) {
       // Movement authority remains in BoardInputController. Keeping the press
       // cell here prevents a virtual-cell transition from orphaning longpress.
-      dispatch(controller, 'pointermove', active.hit, event);
+      dispatch(controller, 'pointermove', active.hit, pending.activeMovement);
     }
     updateHover(controller, hit, event);
+    processedPointerMoveCount += 1;
+  };
+
+  const flushPendingMoves = (expectedPointerId?: number): void => {
+    if (typeof expectedPointerId === 'number') {
+      const pending = pendingMoves.get(expectedPointerId);
+      if (!pending) return;
+      pendingMoves.delete(expectedPointerId);
+      if (pendingMoves.size === 0 && pendingMoveFrame != null) {
+        const handle = pendingMoveFrame;
+        pendingMoveFrame = null;
+        pendingMoveFrameToken += 1;
+        cancelFrame(handle);
+      }
+      processPointerMove(pending);
+      return;
+    }
+    for (const pending of pendingMoves.values()) processPointerMove(pending);
+    pendingMoves.clear();
+  };
+
+  const schedulePendingMoveFrame = (): void => {
+    if (pendingMoveFrame != null) return;
+    const token = ++pendingMoveFrameToken;
+    const handle = scheduleFrame(() => {
+      if (token !== pendingMoveFrameToken) return;
+      pendingMoveFrame = null;
+      flushPendingMoves();
+    });
+    if (handle == null) {
+      pendingMoveFrameToken += 1;
+      flushPendingMoves();
+      return;
+    }
+    pendingMoveFrame = handle;
+  };
+
+  const clearPendingMoves = (): void => {
+    pendingMoves.clear();
+    if (pendingMoveFrame == null) return;
+    const handle = pendingMoveFrame;
+    pendingMoveFrame = null;
+    pendingMoveFrameToken += 1;
+    cancelFrame(handle);
+  };
+
+  const onGlobalPointerMove = (raw: unknown) => {
+    const event = pointerSnapshot(raw);
+    lastPointerEvent = event;
+    rawPointerMoveCount += 1;
+    clearPendingRetry(event.pointerId);
+    const previous = pendingMoves.get(event.pointerId);
+    const activePointer = active?.pointerId === event.pointerId ? active : null;
+    const activeMovement = activePointer && previous
+      && movementDistance(previous.activeMovement, activePointer) > movementDistance(event, activePointer)
+      ? previous.activeMovement
+      : event;
+    pendingMoves.set(event.pointerId, {
+      latest: event,
+      activeMovement
+    });
+    schedulePendingMoveFrame();
   };
 
   const finishPointer = (event: PointerSnapshot, cancelled: boolean, outside = false) => {
+    flushPendingMoves(event.pointerId);
     clearPendingRetry(event.pointerId);
     if (!active || active.pointerId !== event.pointerId) return;
     const controller = resolveController();
@@ -340,6 +428,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
 
   const onNativePointerDown = (raw: Event) => {
     lastPointerEvent = pointerSnapshot(raw);
+    flushPendingMoves(lastPointerEvent.pointerId);
     beginPointer(lastPointerEvent, true);
   };
 
@@ -360,6 +449,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
   const onPointerLeave = (raw: unknown) => {
     const event = pointerSnapshot(raw);
     lastPointerEvent = event;
+    flushPendingMoves(event.pointerId);
     clearPendingRetry(event.pointerId);
     const controller = resolveController();
     if (!controller) return;
@@ -466,6 +556,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
   function destroy(): void {
     if (destroyed) return;
     clearPendingRetry();
+    clearPendingMoves();
     const controller = resolveController();
     if (controller && lastPointerEvent) {
       if (active) {
@@ -518,6 +609,10 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
       activeCellKey: active?.hit.key ?? null,
       hoveredCellKey: hovered?.key ?? null,
       pendingRetryPointerId: pendingRetry?.pointerId ?? null,
+      pendingMoveCount: pendingMoves.size,
+      pendingMovePointerIds: Object.freeze(Array.from(pendingMoves.keys())),
+      rawPointerMoveCount,
+      processedPointerMoveCount,
       targetWidth: viewport ? finite((viewport as any).width) : 0,
       targetHeight: viewport ? finite((viewport as any).height) : 0
     });

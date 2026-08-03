@@ -269,7 +269,11 @@ describe('Pixi board input adapter', () => {
     harness.pointer('pointerdown', { clientX: 2, clientY: 3 });
     expect(harness.animationFrames.size).toBe(1);
     harness.pointer('globalpointermove', { clientX: 4, clientY: 5 });
-    expect(harness.animationFrames.size).toBe(0);
+    expect(harness.adapter.getDiagnostics()).toMatchObject({
+      pendingRetryPointerId: null,
+      pendingMoveCount: 1
+    });
+    expect(harness.animationFrames.size).toBe(1);
     harness.flushAnimationFrame();
     expect(harness.events).toEqual([]);
 
@@ -277,6 +281,70 @@ describe('Pixi board input adapter', () => {
     harness.pointer('pointerupoutside', { clientX: 2, clientY: 3 });
     harness.flushAnimationFrame();
     expect(harness.events).toEqual([]);
+  });
+
+  test('coalesces high-frequency moves to one hit test and hover update per frame', () => {
+    const harness = createHarness();
+    harness.pointer('pointerdown', { pointerType: 'mouse' });
+    harness.controller.hitTestClientPoint.mockClear();
+    harness.controller.handlePointer.mockClear();
+    harness.events.length = 0;
+
+    for (let index = 0; index < 100; index += 1) {
+      harness.pointer('globalpointermove', {
+        pointerType: 'mouse',
+        clientX: index === 99 ? 60 : 20 + index / 10,
+        clientY: 30
+      });
+    }
+
+    expect(harness.controller.hitTestClientPoint).not.toHaveBeenCalled();
+    expect(harness.controller.handlePointer).not.toHaveBeenCalled();
+    expect(harness.adapter.getDiagnostics()).toMatchObject({
+      pendingMoveCount: 1,
+      pendingMovePointerIds: [7],
+      rawPointerMoveCount: 100,
+      processedPointerMoveCount: 0
+    });
+
+    harness.flushAnimationFrame();
+
+    expect(harness.controller.hitTestClientPoint).toHaveBeenCalledTimes(1);
+    expect(harness.events.map((event) => event.type)).toEqual([
+      'pointermove',
+      'pointerleave',
+      'pointerenter'
+    ]);
+    expect(harness.events.at(-1)).toMatchObject({ row: 2, col: 4, clientX: 60 });
+    expect(harness.adapter.getDiagnostics()).toMatchObject({
+      pendingMoveCount: 0,
+      rawPointerMoveCount: 100,
+      processedPointerMoveCount: 1
+    });
+  });
+
+  test('flushes before release and retains the largest press excursion in a coalesced frame', () => {
+    const harness = createHarness();
+    harness.pointer('pointerdown', { pointerType: 'mouse', clientX: 20, clientY: 30 });
+    harness.pointer('globalpointermove', { pointerType: 'mouse', clientX: 40, clientY: 30 });
+    harness.pointer('globalpointermove', { pointerType: 'mouse', clientX: 21, clientY: 30 });
+
+    expect(harness.animationFrames.size).toBe(1);
+    harness.pointer('pointerup', { pointerType: 'mouse', clientX: 21, clientY: 30 });
+
+    expect(harness.animationFrames.size).toBe(0);
+    expect(harness.events.map((event) => event.type)).toEqual([
+      'pointerenter',
+      'pointerdown',
+      'pointermove',
+      'pointerup'
+    ]);
+    expect(harness.events[2]).toMatchObject({ clientX: 40, clientY: 30 });
+    expect(harness.adapter.getDiagnostics()).toMatchObject({
+      pendingMoveCount: 0,
+      rawPointerMoveCount: 2,
+      processedPointerMoveCount: 1
+    });
   });
 
   test('does not retain a pointer rejected by the shared controller', () => {

@@ -89,6 +89,17 @@ type RecentDirectionActivation = {
   expiresAt: number;
 };
 
+type HitTestProjection = {
+  readonly modelIdentity: string;
+  readonly layoutRevision: number;
+  readonly anchor: BoardInputCell;
+  readonly anchorRect: BoardClientRect;
+  readonly rowPixels: number | null;
+  readonly colPixels: number | null;
+  readonly rectByKey: Map<string, BoardClientRect>;
+  readonly affine: boolean;
+};
+
 const DEFAULT_PRESS_MOVE_CANCEL_PX = 8;
 const DIRECTION_CLICK_THROUGH_GUARD_MS = 500;
 
@@ -114,6 +125,20 @@ function normalizePointerId(value: unknown): number {
 function normalizeCoordinate(value: unknown): number {
   const coordinate = Number(value);
   return Number.isFinite(coordinate) ? coordinate : 0;
+}
+
+function containsClientPoint(rect: BoardClientRect, x: number, y: number): boolean {
+  return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
+}
+
+function sameClientRect(left: BoardClientRect, right: BoardClientRect): boolean {
+  return left.layoutRevision === right.layoutRevision
+    && left.left === right.left
+    && left.top === right.top
+    && left.right === right.right
+    && left.bottom === right.bottom
+    && left.width === right.width
+    && left.height === right.height;
 }
 
 function resolveKeyboardDirection(code: string): BoardInputDirection | null {
@@ -184,6 +209,18 @@ function createBoardInputController(options: BoardInputControllerOptions) {
   let currentModel: BoardRenderModel | null = null;
   let currentCellByKey = new Map<string, BoardRenderModel['cells'][number]>();
   let currentSortedLegalCells: readonly BoardInputCell[] = Object.freeze([]);
+  let currentHitCells: readonly BoardInputCell[] = Object.freeze([]);
+  let currentInteractiveKeys = new Set<string>();
+  let currentHitByKey = new Map<string, Readonly<BoardInputCell>>();
+  let hitAnchor: BoardInputCell | null = null;
+  let hitRowReference: BoardInputCell | null = null;
+  let hitColReference: BoardInputCell | null = null;
+  let hitModelIdentity = '';
+  let hitProjection: HitTestProjection | null = null;
+  let hitTestCount = 0;
+  let hitProjectionBuildCount = 0;
+  let hitGeometryReadCount = 0;
+  let hitFallbackCellVisitCount = 0;
   let recentDirectionActivation: RecentDirectionActivation | null = null;
   let enabled = false;
   let destroyed = false;
@@ -404,16 +441,70 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     );
   };
 
+  const resetHitTestState = (): void => {
+    currentHitCells = Object.freeze([]);
+    currentInteractiveKeys = new Set();
+    currentHitByKey = new Map();
+    hitAnchor = null;
+    hitRowReference = null;
+    hitColReference = null;
+    hitModelIdentity = '';
+    hitProjection = null;
+  };
+
+  const readHitRect = (cell: BoardInputCell): BoardClientRect | null => {
+    hitGeometryReadCount += 1;
+    return options.getCellClientRect!(cell.row, cell.col);
+  };
+
   const syncModel = (model: BoardRenderModel): void => {
     if (destroyed) return;
     currentModel = model;
-    currentCellByKey = new Map(model.cells.map((cell) => [cell.key, cell]));
-    currentSortedLegalCells = Object.freeze(normalizeLegalCells(model.cells
-      .filter((cell) => (
-        cell.kind === 'playable'
-        && (cell.interaction.legal === true || cell.interaction.legalFree === true)
-      ))
-      .map((cell) => ({ row: cell.row, col: cell.col, key: cell.key }))));
+    const nextHitModelIdentity = [
+      Number(model.modelCommitId),
+      String(model.boardDigest || ''),
+      String(model.inputEpoch || '')
+    ].join('\u0000');
+    const rebuildHitContract = hitModelIdentity !== nextHitModelIdentity;
+    const nextCellByKey = new Map<string, BoardRenderModel['cells'][number]>();
+    const legalCells: BoardInputCell[] = [];
+    const nextHitCells: BoardInputCell[] | null = rebuildHitContract ? [] : null;
+    const nextInteractiveKeys = rebuildHitContract ? new Set<string>() : null;
+    const nextHitByKey = rebuildHitContract
+      ? new Map<string, Readonly<BoardInputCell>>()
+      : null;
+    const hasDynamicInteractiveCheck = typeof options.isCellInteractive === 'function';
+    for (const cell of model.cells) {
+      nextCellByKey.set(cell.key, cell);
+      if (cell.kind !== 'playable') continue;
+      if (cell.interaction.legal === true || cell.interaction.legalFree === true) {
+        legalCells.push({ row: cell.row, col: cell.col, key: cell.key });
+      }
+      if (!rebuildHitContract) continue;
+      if (!hasDynamicInteractiveCheck && cell.interaction.interactionLocked === true) continue;
+      const coordinateKey = toCellKey(cell.row, cell.col);
+      const hitCell = Object.freeze({ row: cell.row, col: cell.col, key: cell.key });
+      nextHitCells!.push(hitCell);
+      nextInteractiveKeys!.add(coordinateKey);
+      nextHitByKey!.set(coordinateKey, hitCell);
+    }
+    currentCellByKey = nextCellByKey;
+    currentSortedLegalCells = Object.freeze(normalizeLegalCells(legalCells));
+
+    if (rebuildHitContract) {
+      currentHitCells = Object.freeze(nextHitCells!);
+      currentInteractiveKeys = nextInteractiveKeys!;
+      currentHitByKey = nextHitByKey!;
+      hitAnchor = currentHitCells[0] || null;
+      hitRowReference = hitAnchor
+        ? currentHitCells.find((cell) => cell.col === hitAnchor!.col && cell.row !== hitAnchor!.row) || null
+        : null;
+      hitColReference = hitAnchor
+        ? currentHitCells.find((cell) => cell.row === hitAnchor!.row && cell.col !== hitAnchor!.col) || null
+        : null;
+      hitModelIdentity = nextHitModelIdentity;
+      hitProjection = null;
+    }
     if (!directionFocusCellKey && keyboardCursorKey == null && model.keyboardCursorKey) {
       keyboardCursorKey = String(model.keyboardCursorKey);
       lastOverlayCursorKey = keyboardCursorKey;
@@ -459,72 +550,101 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     const x = Number(clientX);
     const y = Number(clientY);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    const candidates = currentModel.cells.filter((cell) => (
-      cell.kind === 'playable' && isInteractive(cell.row, cell.col)
-    ));
-    const contains = (rect: BoardClientRect) => (
-      x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom
-    );
-    const anchor = candidates[0];
+    hitTestCount += 1;
+    const anchor = hitAnchor;
     if (!anchor) return null;
-    const anchorRect = options.getCellClientRect(anchor.row, anchor.col);
+    const anchorRect = readHitRect(anchor);
     if (!anchorRect) return null;
-    if (contains(anchorRect)) {
-      const verification = options.getCellClientRect(anchor.row, anchor.col);
-      if (!verification || verification.layoutRevision !== anchorRect.layoutRevision) return null;
-      return Object.freeze({ row: anchor.row, col: anchor.col, key: anchor.key });
-    }
-    const rowReference = candidates.find((cell) => (
-      cell.col === anchor.col && cell.row !== anchor.row
-    ));
-    const colReference = candidates.find((cell) => (
-      cell.row === anchor.row && cell.col !== anchor.col
-    ));
-    if (rowReference && colReference) {
-      const rowRect = options.getCellClientRect(rowReference.row, rowReference.col);
-      const colRect = options.getCellClientRect(colReference.row, colReference.col);
-      if (
-        !rowRect
-        || !colRect
-        || rowRect.layoutRevision !== anchorRect.layoutRevision
-        || colRect.layoutRevision !== anchorRect.layoutRevision
-      ) {
-        return null;
-      }
-      const rowPixels = (
-        (rowRect.top + rowRect.height / 2) - (anchorRect.top + anchorRect.height / 2)
-      ) / (rowReference.row - anchor.row);
-      const colPixels = (
-        (colRect.left + colRect.width / 2) - (anchorRect.left + anchorRect.width / 2)
-      ) / (colReference.col - anchor.col);
-      if (Number.isFinite(rowPixels) && rowPixels !== 0 && Number.isFinite(colPixels) && colPixels !== 0) {
-        const row = anchor.row + Math.round(
-          (y - (anchorRect.top + anchorRect.height / 2)) / rowPixels
-        );
-        const col = anchor.col + Math.round(
-          (x - (anchorRect.left + anchorRect.width / 2)) / colPixels
-        );
-        const key = toCellKey(row, col);
-        if (currentCellByKey.has(key) && isInteractive(row, col)) {
-          const rect = options.getCellClientRect(row, col);
-          if (
-            rect
-            && rect.layoutRevision === anchorRect.layoutRevision
-            && contains(rect)
-          ) {
-            return Object.freeze({ row, col, key });
-          }
+
+    let projection = hitProjection;
+    if (
+      !projection
+      || projection.modelIdentity !== hitModelIdentity
+      || !sameClientRect(projection.anchorRect, anchorRect)
+    ) {
+      const rectByKey = new Map<string, BoardClientRect>();
+      rectByKey.set(toCellKey(anchor.row, anchor.col), anchorRect);
+      let rowPixels: number | null = null;
+      let colPixels: number | null = null;
+      if (hitRowReference && hitColReference) {
+        const rowRect = readHitRect(hitRowReference);
+        const colRect = readHitRect(hitColReference);
+        if (
+          !rowRect
+          || !colRect
+          || rowRect.layoutRevision !== anchorRect.layoutRevision
+          || colRect.layoutRevision !== anchorRect.layoutRevision
+        ) {
+          hitProjection = null;
+          return null;
         }
+        rectByKey.set(toCellKey(hitRowReference.row, hitRowReference.col), rowRect);
+        rectByKey.set(toCellKey(hitColReference.row, hitColReference.col), colRect);
+        const nextRowPixels = (
+          (rowRect.top + rowRect.height / 2) - (anchorRect.top + anchorRect.height / 2)
+        ) / (hitRowReference.row - anchor.row);
+        const nextColPixels = (
+          (colRect.left + colRect.width / 2) - (anchorRect.left + anchorRect.width / 2)
+        ) / (hitColReference.col - anchor.col);
+        if (Number.isFinite(nextRowPixels) && nextRowPixels !== 0) rowPixels = nextRowPixels;
+        if (Number.isFinite(nextColPixels) && nextColPixels !== 0) colPixels = nextColPixels;
+      }
+      const verification = readHitRect(anchor);
+      if (!verification || !sameClientRect(anchorRect, verification)) {
+        hitProjection = null;
         return null;
       }
+      projection = {
+        modelIdentity: hitModelIdentity,
+        layoutRevision: anchorRect.layoutRevision,
+        anchor,
+        anchorRect,
+        rowPixels,
+        colPixels,
+        rectByKey,
+        affine: rowPixels !== null && colPixels !== null
+      };
+      hitProjection = projection;
+      hitProjectionBuildCount += 1;
     }
-    for (const cell of candidates.slice(1)) {
-      const rect = options.getCellClientRect(cell.row, cell.col);
-      if (!rect || rect.layoutRevision !== anchorRect.layoutRevision) return null;
-      if (contains(rect)) return Object.freeze({ row: cell.row, col: cell.col, key: cell.key });
+
+    if (projection.affine && projection.rowPixels !== null && projection.colPixels !== null) {
+      const row = anchor.row + Math.round(
+        (y - (projection.anchorRect.top + projection.anchorRect.height / 2)) / projection.rowPixels
+      );
+      const col = anchor.col + Math.round(
+        (x - (projection.anchorRect.left + projection.anchorRect.width / 2)) / projection.colPixels
+      );
+      const key = toCellKey(row, col);
+      const hit = currentHitByKey.get(key);
+      if (!hit || !currentInteractiveKeys.has(key) || !isInteractive(row, col)) return null;
+      let rect = projection.rectByKey.get(key) || null;
+      if (!rect) {
+        rect = readHitRect(hit);
+        if (!rect || rect.layoutRevision !== projection.layoutRevision) {
+          hitProjection = null;
+          return null;
+        }
+        projection.rectByKey.set(key, rect);
+      }
+      return containsClientPoint(rect, x, y) ? hit : null;
     }
-    const verification = options.getCellClientRect(anchor.row, anchor.col);
-    if (!verification || verification.layoutRevision !== anchorRect.layoutRevision) return null;
+
+    for (const cell of currentHitCells) {
+      hitFallbackCellVisitCount += 1;
+      if (!isInteractive(cell.row, cell.col)) continue;
+      const key = toCellKey(cell.row, cell.col);
+      let rect = projection.rectByKey.get(key) || null;
+      if (!rect) {
+        rect = readHitRect(cell);
+        if (!rect || rect.layoutRevision !== projection.layoutRevision) {
+          hitProjection = null;
+          return null;
+        }
+        projection.rectByKey.set(key, rect);
+      }
+      if (containsClientPoint(rect, x, y)) return currentHitByKey.get(key) || null;
+    }
     return null;
   };
 
@@ -705,6 +825,17 @@ function createBoardInputController(options: BoardInputControllerOptions) {
         spectator: isSpectator()
       });
     },
+    getPerformanceDiagnostics() {
+      return Object.freeze({
+        hitTestCount,
+        hitProjectionBuildCount,
+        hitGeometryReadCount,
+        hitFallbackCellVisitCount,
+        hitCellCount: currentHitCells.length,
+        hitProjectionCached: hitProjection !== null,
+        hitProjectionAffine: hitProjection?.affine === true
+      });
+    },
     reset(): void {
       clearPress();
       clearHover();
@@ -714,6 +845,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       currentModel = null;
       currentCellByKey = new Map();
       currentSortedLegalCells = Object.freeze([]);
+      resetHitTestState();
       clearRecentDirectionActivation();
     },
     destroy(): void {
@@ -727,6 +859,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       currentModel = null;
       currentCellByKey = new Map();
       currentSortedLegalCells = Object.freeze([]);
+      resetHitTestState();
       clearRecentDirectionActivation();
       destroyed = true;
     }
