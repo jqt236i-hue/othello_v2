@@ -443,6 +443,8 @@ export interface PixiBoardSceneDiagnostics {
   readonly pooledPlaybackMarkerGhostCount: number;
   readonly createdPlaybackMarkerGhostCount: number;
   readonly destroyedPlaybackMarkerGhostCount: number;
+  readonly playbackGhostStaticPrepareCount: number;
+  readonly playbackGhostTransformApplyCount: number;
   readonly activePlaybackHighlightLeaseCount: number;
   readonly renderedPlaybackHighlightCount: number;
   readonly pooledPlaybackHighlightCount: number;
@@ -452,6 +454,8 @@ export interface PixiBoardSceneDiagnostics {
   readonly pooledPlaybackEffectCount: number;
   readonly createdPlaybackEffectCount: number;
   readonly destroyedPlaybackEffectCount: number;
+  readonly playbackEffectStaticPaintCount: number;
+  readonly playbackEffectTransformApplyCount: number;
   readonly activeSourceTrajectoryCount: number;
   readonly activeSourceTrajectoryTextureLeaseCount: number;
   readonly pooledSourceTrajectoryCount: number;
@@ -569,6 +573,12 @@ interface PlaybackGhostRecord {
   row: number;
   col: number;
   transform: Required<PixiPlaybackGhostUpdate>;
+  paintedView: PlaybackGhostView | null;
+  paintedStoneRevisionSignature: string | null;
+  paintedSurfaceRevisionSignature: string | null;
+  paintedInteractionRevisionSignature: string | null;
+  paintedSceneX: number | null;
+  paintedSceneY: number | null;
 }
 
 interface PlaybackHighlightLease {
@@ -598,6 +608,9 @@ interface PlaybackEffectRecord {
     innerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
   }>;
   transform: Required<PixiPlaybackEffectUpdate>;
+  paintedView: PlaybackEffectView | null;
+  paintedCellSize: number | null;
+  paintedThemeRevision: number | null;
 }
 
 interface SourceTrajectoryView {
@@ -1207,6 +1220,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   let boardSurfaceSignature: string | null = null;
   let boardSurfaceUpdateCount = 0;
   let boardSurfaceSkippedCount = 0;
+  let playbackEffectStaticPaintCount = 0;
+  let playbackEffectTransformApplyCount = 0;
+  let playbackGhostStaticPrepareCount = 0;
+  let playbackGhostTransformApplyCount = 0;
 
   function assertAlive(): void {
     if (destroyed) throw new Error('PixiBoardScene is destroyed');
@@ -1312,11 +1329,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   function restoreRetainedStoneRoot(key: string, view: PixiStoneView): void {
     const root = view.root;
     const diagnostics = view.getDiagnostics();
-    setPixiPivot(root, 0, 0);
-    setPixiPosition(root, diagnostics.position.x, diagnostics.position.y);
-    setPixiScale(root, 1, 1);
-    root.rotation = 0;
-    root.alpha = 1;
+    view.applyTransform({ x: diagnostics.position.x, y: diagnostics.position.y });
     root.visible = retainedStoneBaseVisibility.get(key) === true;
   }
 
@@ -1326,7 +1339,17 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       restoreRetainedStoneRoot(key, view);
     } else {
       const position = view.getDiagnostics().position;
-      setPlaybackTransform(view.root, position.x, position.y, cellSize, override);
+      const center = cellSize / 2;
+      view.applyTransform({
+        x: position.x + center + override.offsetX,
+        y: position.y + center + override.offsetY,
+        pivotX: center,
+        pivotY: center,
+        scaleX: override.scaleX,
+        scaleY: override.scaleY,
+        rotation: override.rotation,
+        alpha: override.alpha
+      });
       view.root.visible = retainedStoneBaseVisibility.get(key) === true;
     }
     if (hiddenStoneKeys.has(key)) view.root.visible = false;
@@ -1453,6 +1476,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const owned = record.view;
     if (!owned) return;
     record.view = null;
+    record.paintedView = null;
+    record.paintedStoneRevisionSignature = null;
+    record.paintedSurfaceRevisionSignature = null;
+    record.paintedInteractionRevisionSignature = null;
+    record.paintedSceneX = null;
+    record.paintedSceneY = null;
     if (owned.kind === 'marker') playbackMarkerGhostPool.release(owned.view);
     else playbackGhostPool.release(owned.view);
   }
@@ -1478,14 +1507,46 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const root = owned.kind === 'marker' ? owned.view.markerRoot : owned.view.root;
       if (acquired) addPixiChild(layers.playback, root);
       const context = viewContextAt(record.row, record.col);
-      owned.view.update(record.cell, context);
-      setPlaybackTransform(
-        root,
-        context.sceneX,
-        context.sceneY,
-        context.layout.cellSize,
-        record.transform
-      );
+      const needsStaticPaint = record.paintedView !== owned
+        || (owned.kind === 'stone'
+          ? record.paintedStoneRevisionSignature !== context.stoneRevisionSignature
+          : record.paintedSurfaceRevisionSignature !== context.surfaceRevisionSignature
+            || record.paintedInteractionRevisionSignature !== context.interactionRevisionSignature
+            || record.paintedSceneX !== context.sceneX
+            || record.paintedSceneY !== context.sceneY);
+      if (needsStaticPaint) {
+        if (owned.kind === 'stone') owned.view.prepareStaticVisual(record.cell, context);
+        else owned.view.update(record.cell, context);
+        playbackGhostStaticPrepareCount += 1;
+        record.paintedView = owned;
+        record.paintedStoneRevisionSignature = context.stoneRevisionSignature;
+        record.paintedSurfaceRevisionSignature = context.surfaceRevisionSignature;
+        record.paintedInteractionRevisionSignature = context.interactionRevisionSignature;
+        record.paintedSceneX = context.sceneX;
+        record.paintedSceneY = context.sceneY;
+      }
+      if (owned.kind === 'stone') {
+        const center = context.layout.cellSize / 2;
+        owned.view.applyTransform({
+          x: context.sceneX + center + record.transform.offsetX,
+          y: context.sceneY + center + record.transform.offsetY,
+          pivotX: center,
+          pivotY: center,
+          scaleX: record.transform.scaleX,
+          scaleY: record.transform.scaleY,
+          rotation: record.transform.rotation,
+          alpha: record.transform.alpha
+        });
+      } else {
+        setPlaybackTransform(
+          root,
+          context.sceneX,
+          context.sceneY,
+          context.layout.cellSize,
+          record.transform
+        );
+      }
+      playbackGhostTransformApplyCount += 1;
       root.visible = true;
     } catch (error) {
       dematerializePlaybackGhost(record);
@@ -1552,7 +1613,13 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       cell: makePlaybackGhostCell(handle, options),
       row: transform.row,
       col: transform.col,
-      transform
+      transform,
+      paintedView: null,
+      paintedStoneRevisionSignature: null,
+      paintedSurfaceRevisionSignature: null,
+      paintedInteractionRevisionSignature: null,
+      paintedSceneX: null,
+      paintedSceneY: null
     };
     playbackGhosts.set(handle.id, record);
     try {
@@ -1722,10 +1789,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     white: Object.freeze({ fill: '#ffffff', stroke: '#ffffff' })
   });
 
-  function drawPlaybackEffect(record: PlaybackEffectRecord): void {
+  function paintPlaybackEffectStatic(
+    record: PlaybackEffectRecord,
+    context: PixiStaticViewContext
+  ): void {
     const view = record.view;
     if (!view) return;
-    const context = viewContextAt(record.options.row, record.options.col);
     const cellSize = context.layout.cellSize;
     const center = cellSize / 2;
     const palette = effectPalette[record.options.tone];
@@ -1803,17 +1872,31 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     }
 
     setPixiPivot(view.root, center, center);
+    playbackEffectStaticPaintCount += 1;
+  }
+
+  function applyPlaybackEffectTransform(
+    record: PlaybackEffectRecord,
+    context: PixiStaticViewContext
+  ): void {
+    const view = record.view;
+    if (!view) return;
+    const center = context.layout.cellSize / 2;
     setPixiPosition(view.root, context.sceneX + center, context.sceneY + center);
     setPixiScale(view.root, record.transform.scale, record.transform.scale);
     view.root.rotation = record.transform.rotation;
     view.root.alpha = record.transform.alpha;
     view.root.visible = true;
+    playbackEffectTransformApplyCount += 1;
   }
 
   function dematerializePlaybackEffect(record: PlaybackEffectRecord): void {
     const view = record.view;
     if (!view) return;
     record.view = null;
+    record.paintedView = null;
+    record.paintedCellSize = null;
+    record.paintedThemeRevision = null;
     playbackEffectPool.release(view);
   }
 
@@ -1835,7 +1918,20 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     }
     try {
       if (acquired) addPixiChild(layers.effect, view.root);
-      drawPlaybackEffect(record);
+      const context = viewContextAt(record.options.row, record.options.col);
+      const cellSize = context.layout.cellSize;
+      const themeRevision = context.theme.revision;
+      if (
+        record.paintedView !== view
+        || record.paintedCellSize !== cellSize
+        || record.paintedThemeRevision !== themeRevision
+      ) {
+        paintPlaybackEffectStatic(record, context);
+        record.paintedView = view;
+        record.paintedCellSize = cellSize;
+        record.paintedThemeRevision = themeRevision;
+      }
+      applyPlaybackEffectTransform(record, context);
     } catch (error) {
       dematerializePlaybackEffect(record);
       throw error;
@@ -1881,7 +1977,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       handle,
       view: null,
       options: effectOptions,
-      transform: normalizePlaybackEffectUpdate({})
+      transform: normalizePlaybackEffectUpdate({}),
+      paintedView: null,
+      paintedCellSize: null,
+      paintedThemeRevision: null
     };
     playbackEffects.set(handle.id, record);
     try {
@@ -2787,6 +2886,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   ): PixiStoneViewDiagnostics {
     return Object.freeze({
       updateCount: 0,
+      staticPrepareCount: 0,
+      transformApplyCount: 0,
       resetCount: 0,
       destroyed: false,
       key: cell.key,
@@ -3016,6 +3117,21 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       views.hint.invalidate();
     }
     for (const stoneView of activeStones.values()) stoneView.invalidate();
+    for (const record of playbackGhosts.values()) {
+      record.paintedView = null;
+      record.paintedStoneRevisionSignature = null;
+      record.paintedSurfaceRevisionSignature = null;
+      record.paintedInteractionRevisionSignature = null;
+      record.paintedSceneX = null;
+      record.paintedSceneY = null;
+      if (record.view?.kind === 'stone') record.view.view.invalidate();
+      else record.view?.view.invalidate();
+    }
+    for (const record of playbackEffects.values()) {
+      record.paintedView = null;
+      record.paintedCellSize = null;
+      record.paintedThemeRevision = null;
+    }
   }
 
   function reset(): void {
@@ -3145,6 +3261,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       pooledPlaybackMarkerGhostCount: markerGhostPoolDiagnostics.available,
       createdPlaybackMarkerGhostCount: markerGhostPoolDiagnostics.created,
       destroyedPlaybackMarkerGhostCount: markerGhostPoolDiagnostics.destroyed,
+      playbackGhostStaticPrepareCount,
+      playbackGhostTransformApplyCount,
       activePlaybackHighlightLeaseCount: playbackHighlightLeases.size,
       renderedPlaybackHighlightCount: playbackHighlightsByKey.size,
       pooledPlaybackHighlightCount: highlightPoolDiagnostics.available,
@@ -3154,6 +3272,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       pooledPlaybackEffectCount: effectPoolDiagnostics.available,
       createdPlaybackEffectCount: effectPoolDiagnostics.created,
       destroyedPlaybackEffectCount: effectPoolDiagnostics.destroyed,
+      playbackEffectStaticPaintCount,
+      playbackEffectTransformApplyCount,
       activeSourceTrajectoryCount: sourceTrajectories.size,
       activeSourceTrajectoryTextureLeaseCount: Array.from(sourceTrajectories.values())
         .filter((record) => !!record.textureLease && record.textureLease.released !== true).length,

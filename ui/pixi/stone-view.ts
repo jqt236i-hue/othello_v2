@@ -18,6 +18,7 @@ import {
   resolvePixiStaticTexture,
   setPixiAnchor,
   setPixiPosition,
+  setPixiScale,
   toPixiTextStyle,
   type PixiStaticViewContext,
   type PixiStaticViewRuntime
@@ -39,8 +40,16 @@ type StoneStatusSnapshot = NonNullable<ReturnType<NonNullable<StoneStatusSnapsho
 
 const StoneStatusSnapshot = StoneStatusSnapshotModule as unknown as StoneStatusSnapshotApi;
 
+function setPixiPivot(target: any, x: number, y = x): void {
+  if (!target) return;
+  if (target.pivot && typeof target.pivot.set === 'function') target.pivot.set(x, y);
+  else target.pivot = { x, y };
+}
+
 export interface PixiStoneViewDiagnostics {
   readonly updateCount: number;
+  readonly staticPrepareCount: number;
+  readonly transformApplyCount: number;
   readonly resetCount: number;
   readonly destroyed: boolean;
   readonly key: string | null;
@@ -57,8 +66,21 @@ export interface PixiStoneViewDiagnostics {
   readonly position: Readonly<{ x: number; y: number }>;
 }
 
+export interface PixiStoneViewTransform {
+  readonly x: number;
+  readonly y: number;
+  readonly pivotX?: number;
+  readonly pivotY?: number;
+  readonly scaleX?: number;
+  readonly scaleY?: number;
+  readonly rotation?: number;
+  readonly alpha?: number;
+}
+
 export interface PixiStoneView {
   readonly root: any;
+  prepareStaticVisual(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean;
+  applyTransform(transform: PixiStoneViewTransform): void;
   update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean;
   invalidate(): void;
   reset(): void;
@@ -298,6 +320,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
   let texturePurpose: string | null = null;
   let renderedMarkerKinds: string[] = [];
   let updateCount = 0;
+  let transformApplyCount = 0;
   let resetCount = 0;
   let destroyed = false;
   let position = { x: 0, y: 0 };
@@ -306,20 +329,19 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     if (destroyed) throw new Error('PixiStoneView is destroyed');
   }
 
-  function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
+  function prepareStaticVisual(
+    cell: MaterializedBoardCellVisualState,
+    context: PixiStaticViewContext
+  ): boolean {
     assertAlive();
     const nextSignature = JSON.stringify([
       context.stoneRevisionSignature,
-      context.sceneX,
-      context.sceneY,
       cell.stoneSignature
     ]);
     if (signature === nextSignature) return false;
     signature = nextSignature;
     key = cell.key;
     updateCount += 1;
-    position = { x: context.sceneX, y: context.sceneY };
-    setPixiPosition(root, position.x, position.y);
     clearPixiGraphics(shadow);
     clearPixiGraphics(aura);
     clearPixiGraphics(procedural);
@@ -851,6 +873,31 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     return true;
   }
 
+  function applyTransform(transform: PixiStoneViewTransform): void {
+    assertAlive();
+    const x = Number(transform?.x);
+    const y = Number(transform?.y);
+    const pivotX = Number(transform?.pivotX);
+    const pivotY = Number(transform?.pivotY);
+    const scaleX = Number(transform?.scaleX);
+    const scaleY = Number(transform?.scaleY);
+    const rotation = Number(transform?.rotation);
+    const alpha = Number(transform?.alpha);
+    setPixiPivot(root, Number.isFinite(pivotX) ? pivotX : 0, Number.isFinite(pivotY) ? pivotY : 0);
+    setPixiPosition(root, Number.isFinite(x) ? x : 0, Number.isFinite(y) ? y : 0);
+    setPixiScale(root, Number.isFinite(scaleX) ? scaleX : 1, Number.isFinite(scaleY) ? scaleY : 1);
+    root.rotation = Number.isFinite(rotation) ? rotation : 0;
+    root.alpha = Number.isFinite(alpha) ? alpha : 1;
+    transformApplyCount += 1;
+  }
+
+  function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
+    const changed = prepareStaticVisual(cell, context);
+    position = { x: context.sceneX, y: context.sceneY };
+    applyTransform({ x: position.x, y: position.y });
+    return changed;
+  }
+
   function invalidate(): void {
     if (!destroyed) signature = null;
   }
@@ -892,6 +939,8 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
   function getDiagnostics(): PixiStoneViewDiagnostics {
     return Object.freeze({
       updateCount,
+      staticPrepareCount: updateCount,
+      transformApplyCount,
       resetCount,
       destroyed,
       key,
@@ -909,5 +958,14 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     });
   }
 
-  return Object.freeze({ root, update, invalidate, reset, destroy, getDiagnostics });
+  return Object.freeze({
+    root,
+    prepareStaticVisual,
+    applyTransform,
+    update,
+    invalidate,
+    reset,
+    destroy,
+    getDiagnostics
+  });
 }

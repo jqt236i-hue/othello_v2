@@ -478,6 +478,26 @@ describe('Pixi static retained views', () => {
     expect(overlap).toEqual([]);
   });
 
+  test('moves a retained stone without rebuilding its static visual', () => {
+    const fixture = createFakeRuntime();
+    const stoneView = StoneView.createPixiStoneView(fixture.runtime);
+    const cell = materializedCell(makeCell('1,1', {
+      stone: { owner: 'black', value: 1, specialType: null, status: {} }
+    }));
+    const initial = viewContext({ sceneX: 32, sceneY: 48 });
+    const moved = viewContext({ sceneX: 96, sceneY: 112 });
+
+    expect(stoneView.update(cell, initial)).toBe(true);
+    const afterPaint = stoneView.getDiagnostics();
+    expect(stoneView.update(cell, moved)).toBe(false);
+
+    expect(stoneView.getDiagnostics()).toMatchObject({
+      staticPrepareCount: afterPaint.staticPrepareCount,
+      transformApplyCount: afterPaint.transformApplyCount + 1,
+      position: { x: 96, y: 112 }
+    });
+  });
+
   test('renders Shinra Bansho God as one 2x2 anchor sprite and hides member stone bodies', () => {
     const fixture = createFakeRuntime();
     const anchorView = StoneView.createPixiStoneView(fixture.runtime);
@@ -1912,6 +1932,58 @@ describe('Pixi board scene playback projection', () => {
       pooledPlaybackStoneGhostCount: 0,
       pooledPlaybackMarkerGhostCount: 1
     });
+  });
+
+  test('applies ghost and effect transforms without repainting their static graphics', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    scene.applyFrame(makeFrame({ topology, cellSize: 32 }));
+    const scope = scene.beginPlaybackScope('writer:transform-only');
+    const ghost = scene.acquirePlaybackGhost(scope, {
+      row: 2,
+      col: 2,
+      stone: { owner: 'black', value: 1, specialType: null, status: {} }
+    });
+    const effect = scene.acquirePlaybackEffect(scope, {
+      row: 2,
+      col: 2,
+      family: 'transform-only',
+      kind: 'impact',
+      tone: 'gold',
+      label: '1'
+    });
+    const before = scene.getDiagnostics();
+
+    for (let index = 0; index < 120; index += 1) {
+      const progress = index / 119;
+      scene.updatePlaybackGhost(scope, ghost, {
+        alpha: 1 - progress * 0.5,
+        scaleX: 1 + progress * 0.2,
+        scaleY: 1 + progress * 0.2
+      });
+      scene.updatePlaybackEffect(scope, effect, {
+        alpha: 1 - progress * 0.5,
+        scale: 1 + progress * 0.2,
+        rotation: progress * Math.PI
+      });
+    }
+    const after = scene.getDiagnostics();
+
+    expect(after.playbackGhostStaticPrepareCount).toBe(before.playbackGhostStaticPrepareCount);
+    expect(after.playbackEffectStaticPaintCount).toBe(before.playbackEffectStaticPaintCount);
+    expect(after.playbackGhostTransformApplyCount - before.playbackGhostTransformApplyCount).toBe(120);
+    expect(after.playbackEffectTransformApplyCount - before.playbackEffectTransformApplyCount).toBe(120);
+    scene.applyFrame(makeFrame({ topology, cellSize: 40, layoutRevision: 2 }), {
+      preservePlaybackProjection: true
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      playbackGhostStaticPrepareCount: after.playbackGhostStaticPrepareCount + 1,
+      playbackEffectStaticPaintCount: after.playbackEffectStaticPaintCount + 1
+    });
+    scene.releasePlaybackGhost(scope, ghost);
+    scene.releasePlaybackEffect(scope, effect);
+    scene.destroy();
   });
 
   test('bounds transient effect DisplayObjects by viewport while preserving offscreen logical records', () => {
