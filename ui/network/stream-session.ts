@@ -1,5 +1,7 @@
 'use strict';
 
+const PresentationEnvelopeContract = require('../../shared/network-presentation-envelope');
+
 function createNetworkStreamSessionController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const getState = typeof cfg.getState === 'function' ? cfg.getState : function () { return null; };
@@ -44,19 +46,23 @@ function createNetworkStreamSessionController(config?: any): any {
     const resumeQuery = resumeEventId
       ? '&lastEventId=' + encodeURIComponent(resumeEventId)
       : '';
+    const presentationEnvelopeQuery = '&presentationEnvelopeVersion='
+      + encodeURIComponent(PresentationEnvelopeContract.PRESENTATION_ENVELOPE_VERSION);
     if (String(state.viewerRole || '').trim().toLowerCase() === 'spectator') {
       return withTrailingSlashRemoved(state.serverUrl)
         + '/api/match/stream?roomId=' + encodeURIComponent(state.roomId)
         + '&viewerRole=spectator'
         + '&spectatorId=' + encodeURIComponent(state.spectatorId || '')
         + '&spectatorToken=' + encodeURIComponent(state.spectatorToken || '')
-        + resumeQuery;
+        + resumeQuery
+        + presentationEnvelopeQuery;
     }
     return withTrailingSlashRemoved(state.serverUrl)
       + '/api/match/stream?roomId=' + encodeURIComponent(state.roomId)
       + '&seatKey=' + encodeURIComponent(state.seatKey)
       + '&seatToken=' + encodeURIComponent(state.seatToken || '')
-      + resumeQuery;
+      + resumeQuery
+      + presentationEnvelopeQuery;
   }
 
   function openStream(options?: any): void {

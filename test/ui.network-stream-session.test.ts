@@ -74,7 +74,7 @@ describe('NetworkStreamSessionController', () => {
 
   test('builds reconnect stream URL with lastEventId', () => {
     expect(controller.buildStreamUrl({ reconnect: true })).toBe(
-      'http://localhost:8787/api/match/stream?roomId=ABC&seatKey=white&seatToken=token_white&lastEventId=evt-1'
+      'http://localhost:8787/api/match/stream?roomId=ABC&seatKey=white&seatToken=token_white&lastEventId=evt-1&presentationEnvelopeVersion=2'
     );
   });
 
@@ -86,7 +86,7 @@ describe('NetworkStreamSessionController', () => {
     stateObj.spectatorToken = 'spec-token';
 
     expect(controller.buildStreamUrl()).toBe(
-      'https://example.test/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spec-token'
+      'https://example.test/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spec-token&presentationEnvelopeVersion=2'
     );
   });
 

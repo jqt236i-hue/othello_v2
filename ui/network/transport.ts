@@ -1,5 +1,7 @@
 'use strict';
 
+const PresentationEnvelopeContract = require('../../shared/network-presentation-envelope');
+
 function createNetworkTransportController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const getState = typeof cfg.getState === 'function' ? cfg.getState : function () { return null; };
@@ -134,10 +136,15 @@ function createNetworkTransportController(config?: any): any {
   }
 
   async function publishRequestWithRetry(payload: any): Promise<any> {
+    const wirePayload = (payload && typeof payload === 'object')
+      ? Object.assign({}, payload, {
+        presentationEnvelopeVersion: PresentationEnvelopeContract.PRESENTATION_ENVELOPE_VERSION
+      })
+      : payload;
     let lastError: any = null;
     for (let attempt = 0; attempt < publishRetryMaxAttempts; attempt += 1) {
       try {
-        const res = await requestJson('POST', '/api/match/publish', payload);
+        const res = await requestJson('POST', '/api/match/publish', wirePayload);
         if (!isRetryablePublishStatus(res && res.status) || attempt >= (publishRetryMaxAttempts - 1)) {
           return res;
         }

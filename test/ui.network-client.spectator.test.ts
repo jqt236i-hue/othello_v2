@@ -168,7 +168,7 @@ describe('NetworkMatchClient spectator session', () => {
     expect(client.isSpectator()).toBe(true);
     expect(eventSources).toHaveLength(1);
     expect(eventSources[0].url).toBe(
-      'http://localhost:8787/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token'
+      'http://localhost:8787/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token&presentationEnvelopeVersion=2'
     );
 
     global.fetch.mockClear();
@@ -217,7 +217,7 @@ describe('NetworkMatchClient spectator session', () => {
     expect(client.isSpectator()).toBe(true);
     expect(eventSources).toHaveLength(1);
     expect(eventSources[0].url).toBe(
-      'http://localhost:8787/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token'
+      'http://localhost:8787/api/match/stream?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token&presentationEnvelopeVersion=2'
     );
     expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:8787/api/match/state?roomId=SPC&viewerRole=spectator&spectatorId=spec_12345678&spectatorToken=spectator-token',

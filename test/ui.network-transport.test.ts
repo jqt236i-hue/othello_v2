@@ -94,13 +94,22 @@ describe('NetworkTransportController', () => {
         json: async () => ({ ok: true })
       });
 
-    const promise = controller.publishRequestWithRetry({ operationId: 'op1' });
+    const canonicalPayload = { operationId: 'op1', baseVersion: 7 };
+    const promise = controller.publishRequestWithRetry(canonicalPayload);
     await Promise.resolve();
     await Promise.resolve();
     await jest.advanceTimersByTimeAsync(25);
     const res = await promise;
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(canonicalPayload).toEqual({ operationId: 'op1', baseVersion: 7 });
+    for (const call of fetchImpl.mock.calls) {
+      expect(JSON.parse(call[1].body)).toEqual({
+        operationId: 'op1',
+        baseVersion: 7,
+        presentationEnvelopeVersion: 2
+      });
+    }
     expect(res).toEqual({
       ok: true,
       status: 200,

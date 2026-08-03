@@ -240,6 +240,8 @@ describe('NetworkMatchClient queued publish', () => {
     expect(publishPayloads).toHaveLength(2);
     expect(publishPayloads[0].baseVersion).toBe(10);
     expect(publishPayloads[1].baseVersion).toBe(11);
+    expect(publishPayloads[0].presentationEnvelopeVersion).toBe(2);
+    expect(publishPayloads[1].presentationEnvelopeVersion).toBe(2);
   });
 
   test('stream snapshot適用後の次回publishは更新済みstateVersionをbaseVersionに使う', async () => {
@@ -286,6 +288,7 @@ describe('NetworkMatchClient queued publish', () => {
     expect(publishPayloads).toHaveLength(1);
     expect(publishPayloads[0].baseVersion).toBe(11);
     expect(publishPayloads[0].turnIndex).toBe(2);
+    expect(publishPayloads[0].presentationEnvelopeVersion).toBe(2);
   });
 
   test('後続送信は待機中でも呼び出し時点のスナップショットを保持する', async () => {
