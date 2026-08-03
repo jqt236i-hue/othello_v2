@@ -23,9 +23,14 @@ export interface NetworkSnapshotEnvelope {
   force: boolean;
   skipResultOverlay: boolean;
   receivedAt: number;
+  intakeError: string | null;
+  presentationEnvelopeVersion: number | null;
+  resolvedPresentationReferenceCount: number;
   trackedPublish?: unknown;
   applyOptions?: Record<string, unknown>;
 }
+
+const PresentationEnvelopeContract = require('../../shared/network-presentation-envelope');
 
 export interface NormalizeNetworkSnapshotEnvelopeInput {
   source: NetworkIntakeSource | string;
@@ -114,9 +119,19 @@ function firstInteger(values: unknown[]): number | null {
 
 export function normalizeNetworkSnapshotEnvelope(input: NormalizeNetworkSnapshotEnvelopeInput): NetworkSnapshotEnvelope {
   const sourceInput = input && typeof input === 'object' ? input : { source: 'state_sync' };
-  const payload = sourceInput.payload && typeof sourceInput.payload === 'object'
+  const wirePayload = sourceInput.payload && typeof sourceInput.payload === 'object'
     ? sourceInput.payload
     : {};
+  const resolvedEnvelope = PresentationEnvelopeContract
+    && typeof PresentationEnvelopeContract.resolveNetworkPresentationEnvelope === 'function'
+    ? PresentationEnvelopeContract.resolveNetworkPresentationEnvelope(wirePayload)
+    : { ok: true, payload: wirePayload, resolvedReferenceCount: 0 };
+  const payload = resolvedEnvelope && resolvedEnvelope.ok === true
+    ? resolvedEnvelope.payload
+    : wirePayload;
+  const intakeError = resolvedEnvelope && resolvedEnvelope.ok === false
+    ? String(resolvedEnvelope.reason || 'presentation_envelope_invalid')
+    : null;
   const snapshot = pickSnapshot(sourceInput, payload);
   const presentationCursor = normalizePresentationCursor(
     Object.prototype.hasOwnProperty.call(sourceInput, 'presentationCursor')
@@ -144,13 +159,13 @@ export function normalizeNetworkSnapshotEnvelope(input: NormalizeNetworkSnapshot
     operationId: normalizeOperationId(sourceInput.operationId) ?? normalizeOperationId(payload.operationId),
     stateVersion,
     visualSeq,
-    snapshot,
-    presentationFrames: normalizeArray(
+    snapshot: intakeError ? null : snapshot,
+    presentationFrames: intakeError ? [] : normalizeArray(
       Object.prototype.hasOwnProperty.call(sourceInput, 'presentationFrames')
         ? sourceInput.presentationFrames
         : payload.presentationFrames
     ),
-    playbackEvents: normalizeArray(
+    playbackEvents: intakeError ? [] : normalizeArray(
       Object.prototype.hasOwnProperty.call(sourceInput, 'playbackEvents')
         ? sourceInput.playbackEvents
         : payload.playbackEvents
@@ -159,6 +174,11 @@ export function normalizeNetworkSnapshotEnvelope(input: NormalizeNetworkSnapshot
     force: sourceInput.force === true,
     skipResultOverlay: sourceInput.skipResultOverlay === true,
     receivedAt,
+    intakeError,
+    presentationEnvelopeVersion: toIntegerOrNull(payload.presentationEnvelopeVersion),
+    resolvedPresentationReferenceCount: resolvedEnvelope && resolvedEnvelope.ok === true
+      ? Math.max(0, toIntegerOrNull(resolvedEnvelope.resolvedReferenceCount) ?? 0)
+      : 0,
     trackedPublish: sourceInput.trackedPublish,
     applyOptions: sourceInput.applyOptions && typeof sourceInput.applyOptions === 'object'
       ? sourceInput.applyOptions as Record<string, unknown>

@@ -951,6 +951,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 source: meta && meta.source ? String(meta.source) : 'network_intake'
             }),
             recoverPresentationContinuity: (envelope: any, meta: any) => {
+                if (envelope && envelope.intakeError) {
+                    recoverPresentationFromAuthoritativeState(
+                        meta && meta.reason ? meta.reason : envelope.intakeError,
+                        meta && meta.source ? meta.source : 'network_intake'
+                    );
+                    return false;
+                }
                 const rebased = syncVisualCursorForSnapshotNoPlayback({
                     roomId: envelope && envelope.roomId,
                     snapshot: envelope && envelope.snapshot,

@@ -1,4 +1,5 @@
 import { normalizeNetworkSnapshotEnvelope } from '../ui/network/intake-envelope';
+import { compactNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
 
 describe('network intake envelope normalizer', () => {
   test('normalizes publish response envelope', () => {
@@ -78,5 +79,77 @@ describe('network intake envelope normalizer', () => {
     expect(envelope.presentationFrames).toEqual([
       { visualSeq: '10', stateVersionFrom: 11, stateVersionTo: 12 }
     ]);
+  });
+
+  test('resolves V2 snapshot references before canonical frame normalization', () => {
+    const snapshot = {
+      stateVersion: 7,
+      _meta: {
+        version: 7,
+        projectedForSeat: 'black',
+        projectedSnapshotHash: 'hash-7'
+      }
+    };
+    const full = {
+      roomId: 'ROOM-V2',
+      stateVersion: 7,
+      snapshot,
+      playbackEvents: [{ type: 'duplicate_top_level' }],
+      presentationFrames: [{
+        roomId: 'ROOM-V2',
+        visualSeq: 5,
+        stateVersionFrom: 6,
+        stateVersionTo: 7,
+        playbackEvents: [{ type: 'frame_event' }],
+        projectedSnapshotHash: 'hash-7',
+        snapshotAfter: JSON.parse(JSON.stringify(snapshot))
+      }]
+    };
+    const compact = compactNetworkPresentationEnvelope(full, 2);
+    const envelope = normalizeNetworkSnapshotEnvelope({ source: 'stream', payload: compact });
+
+    expect(envelope.intakeError).toBeNull();
+    expect(envelope.presentationEnvelopeVersion).toBe(2);
+    expect(envelope.resolvedPresentationReferenceCount).toBe(1);
+    expect(envelope.playbackEvents).toEqual([]);
+    expect((envelope.presentationFrames[0] as any).snapshotAfter).toBe(snapshot);
+    expect((envelope.presentationFrames[0] as any)).not.toHaveProperty('snapshotAfterRef');
+  });
+
+  test('marks malformed V2 references invalid without exposing snapshot or frames for apply', () => {
+    const envelope = normalizeNetworkSnapshotEnvelope({
+      source: 'stream',
+      payload: {
+        presentationEnvelopeVersion: 2,
+        roomId: 'ROOM-V2',
+        stateVersion: 7,
+        snapshot: {
+          stateVersion: 7,
+          _meta: {
+            version: 7,
+            projectedForSeat: 'black',
+            projectedSnapshotHash: 'hash-7'
+          }
+        },
+        presentationFrames: [{
+          roomId: 'ROOM-V2',
+          visualSeq: 5,
+          stateVersionFrom: 6,
+          stateVersionTo: 7,
+          playbackEvents: [],
+          projectedSnapshotHash: 'hash-7',
+          snapshotAfterRef: {
+            kind: 'envelope-snapshot',
+            stateVersion: 7,
+            projectedSnapshotHash: 'tampered'
+          }
+        }]
+      }
+    });
+
+    expect(envelope.intakeError).toBe('presentation_envelope_reference_mismatch');
+    expect(envelope.snapshot).toBeNull();
+    expect(envelope.presentationFrames).toEqual([]);
+    expect(envelope.playbackEvents).toEqual([]);
   });
 });

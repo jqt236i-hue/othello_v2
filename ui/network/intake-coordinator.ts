@@ -268,6 +268,44 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
   function submit(envelope: NetworkSnapshotEnvelope): NetworkIntakeSubmitResult {
     const key = operationVersionKey(envelope);
     const meta = createApplyMeta(envelope);
+    if (envelope.intakeError) {
+      let recoveredVisualContinuity = false;
+      if (typeof cfg.recoverPresentationContinuity === 'function') {
+        recoveredVisualContinuity = cfg.recoverPresentationContinuity(envelope, {
+          ...meta,
+          reason: envelope.intakeError
+        }) === true;
+      }
+      const result: NetworkIntakeSubmitResult = {
+        appliedSnapshot: false,
+        enqueuedFrameCount: 0,
+        requestedBoardRefresh: false,
+        duplicateOperation: false,
+        skippedReason: envelope.intakeError,
+        recoveredVisualContinuity
+      };
+      trace('network_intake_submit', {
+        source: envelope.source,
+        roomId: envelope.roomId,
+        operationId: envelope.operationId,
+        stateVersion: envelope.stateVersion,
+        visualSeq: envelope.visualSeq,
+        boardWriter: 'none',
+        playbackActive: readPlaybackActive(cfg),
+        decision: 'rejected',
+        accepted: false,
+        appliedSnapshot: false,
+        enqueuedFrameCount: 0,
+        requestedBoardRefresh: false,
+        recoveredVisualContinuity,
+        continuityGap: false,
+        invalidFrameReason: envelope.intakeError,
+        partialFrameEnqueue: false,
+        reason: envelope.intakeError,
+        skippedReason: envelope.intakeError
+      });
+      return result;
+    }
     const visualCursorBefore = readVisualCursor();
     const applyDecision = shouldApplySnapshot(envelope, key);
     let appliedSnapshot = false;

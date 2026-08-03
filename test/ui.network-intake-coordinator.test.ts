@@ -15,6 +15,9 @@ function envelope(overrides: Partial<NetworkSnapshotEnvelope>): NetworkSnapshotE
     force: false,
     skipResultOverlay: false,
     receivedAt: 1,
+    intakeError: null,
+    presentationEnvelopeVersion: null,
+    resolvedPresentationReferenceCount: 0,
     ...overrides
   };
 }
@@ -356,5 +359,45 @@ describe('network intake coordinator', () => {
       recoveredVisualContinuity: true,
       requestedBoardRefresh: true
     });
+  });
+
+  test('rejects a malformed V2 envelope before canonical apply and requests authoritative recovery', () => {
+    const applyCanonicalSnapshot = jest.fn(() => true);
+    const enqueuePresentationFrames = jest.fn(() => 1);
+    const recoverPresentationContinuity = jest.fn(() => false);
+    const requestBoardRefresh = jest.fn(() => true);
+    const recordTrace = jest.fn();
+    const coordinator = createNetworkIntakeCoordinator({
+      applyCanonicalSnapshot,
+      enqueuePresentationFrames,
+      recoverPresentationContinuity,
+      requestBoardRefresh,
+      recordTrace
+    });
+
+    const result = coordinator.submit(envelope({
+      stateVersion: 8,
+      visualSeq: 6,
+      intakeError: 'presentation_envelope_reference_mismatch'
+    }));
+
+    expect(applyCanonicalSnapshot).not.toHaveBeenCalled();
+    expect(enqueuePresentationFrames).not.toHaveBeenCalled();
+    expect(requestBoardRefresh).not.toHaveBeenCalled();
+    expect(recoverPresentationContinuity).toHaveBeenCalledWith(
+      expect.objectContaining({ intakeError: 'presentation_envelope_reference_mismatch' }),
+      expect.objectContaining({ reason: 'presentation_envelope_reference_mismatch' })
+    );
+    expect(result).toMatchObject({
+      appliedSnapshot: false,
+      enqueuedFrameCount: 0,
+      requestedBoardRefresh: false,
+      skippedReason: 'presentation_envelope_reference_mismatch'
+    });
+    expect(recordTrace).toHaveBeenCalledWith('network_intake_submit', expect.objectContaining({
+      decision: 'rejected',
+      accepted: false,
+      invalidFrameReason: 'presentation_envelope_reference_mismatch'
+    }));
   });
 });
