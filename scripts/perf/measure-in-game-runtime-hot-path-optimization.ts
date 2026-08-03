@@ -13,11 +13,7 @@ import type {
   PixiSourceTrajectoryGeometrySnapshot,
   PixiSourceTrajectoryVisualState
 } from '../../ui/pixi/board-scene';
-import {
-  compilePixiSourceTrajectoryRenderPlan,
-  type PixiSourceTrajectoryRenderPlan,
-  type PixiSourceTrajectoryScalarState
-} from '../../ui/pixi/effects/source-trajectory-render-plan';
+import { compilePixiSourceTrajectoryRenderPlan } from '../../ui/pixi/effects/source-trajectory-render-plan';
 import {
   compactNetworkPresentationEnvelope,
   resolveNetworkPresentationEnvelope
