@@ -589,16 +589,20 @@ describe('Card effects E2E', () => {
     const screenshot = await page.screenshot();
     expect(screenshot.byteLength).toBeGreaterThan(1000);
 
-    const upDirectionButton = page.locator('.board-accessibility-direction-button[data-cell-key="0,0"][data-direction="up"]');
-    expect(await upDirectionButton.count()).toBe(1);
-    await upDirectionButton.click();
+    // Use the visible Pixi arrow rather than the semantic accessibility
+    // control: this is the player-facing input path for a direction-sensitive
+    // expansion target.
+    await page.mouse.click(
+      beforeExpansion.anchorRect.left + beforeExpansion.anchorRect.width * 0.2,
+      beforeExpansion.anchorRect.top + beforeExpansion.anchorRect.height * 0.5
+    );
     await page.waitForFunction(() => {
       const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
-      return Array.isArray(cells) && cells.some((cell) => cell && cell.row === -1 && cell.col === 0);
+      return Array.isArray(cells) && cells.some((cell) => cell && cell.row === 0 && cell.col === -1);
     }, null, { timeout: 10000 });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
     await page.waitForFunction(() => {
-      const expanded = window.__boardVisualDebug.getRenderedCell(-1, 0);
+      const expanded = window.__boardVisualDebug.getRenderedCell(0, -1);
       return expanded && expanded.kind === 'playable';
     }, null, { timeout: 10000 });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
@@ -606,8 +610,8 @@ describe('Card effects E2E', () => {
     const result = await page.evaluate(() => ({
       pending: window.cardState.pendingEffectByPlayer.black,
       cells: window.gameState.boardExpansion.cells,
-      expanded: window.__boardVisualDebug.getRenderedCell(-1, 0),
-      expandedRect: window.__boardVisualDebug.getCellClientRect(-1, 0),
+      expanded: window.__boardVisualDebug.getRenderedCell(0, -1),
+      expandedRect: window.__boardVisualDebug.getCellClientRect(0, -1),
       frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
       backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics(),
       framePresentation: (() => {
@@ -629,11 +633,11 @@ describe('Card effects E2E', () => {
     }));
     expect(result.pending).toBeNull();
     expect(result.cells).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: -1, col: 0 })
+      expect.objectContaining({ row: 0, col: -1 })
     ]));
-    expect(result.cells.some((cell: any) => cell.row === 0 && cell.col === -1)).toBe(false);
+    expect(result.cells.some((cell: any) => cell.row === -1 && cell.col === 0)).toBe(false);
     expect(result.expanded).toEqual(expect.objectContaining({
-      key: '-1,0',
+      key: '0,-1',
       kind: 'playable'
     }));
     expect(result.expandedRect.width).toBeGreaterThan(0);
@@ -776,7 +780,10 @@ describe('Card effects E2E', () => {
   }, 60000);
 
   test('盤面拡張神の6マス同時追加後も通常8x8の画像フレームを保持する', async () => {
-    const page = await browser.newPage({ viewport: { width: 912, height: 793 } });
+    // Keep this at the compact layout seen in production reports: the
+    // expansion must not displace the original 8x8 board when side gutters
+    // are tight.
+    const page = await browser.newPage({ viewport: { width: 720, height: 625 } });
     await openPixiDebugLane(page, serverPort, true);
     await closeSidePanelIfPresent(page);
     await page.waitForFunction(() => !!(

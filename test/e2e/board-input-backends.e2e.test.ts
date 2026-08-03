@@ -94,11 +94,15 @@ describe('board input backend E2E', () => {
     server = null;
   }, 30000);
 
-  async function openBoard(backend: BackendKind, hasTouch = false): Promise<BoardSession> {
+  async function openBoard(
+    backend: BackendKind,
+    hasTouch = false,
+    viewport: Readonly<{ width: number; height: number }> = { width: 1280, height: 1000 }
+  ): Promise<BoardSession> {
     if (!browser || serverPort == null) throw new Error('E2E runtime is not initialized');
     const context = await browser.newContext({
       hasTouch,
-      viewport: { width: 1280, height: 1000 }
+      viewport
     });
     const page = await context.newPage();
     await page.goto(
@@ -361,6 +365,135 @@ describe('board input backend E2E', () => {
       await dispatchMouse(session.page, target);
       await expectPointerType(session.page, 'mouse');
       await waitForCanonicalMove(session.page, target);
+    } finally {
+      await closeSession(session);
+    }
+  }, 60000);
+
+  test('dom keeps the original cells fixed in the compact layout when a left expansion is attached', async () => {
+    let session: BoardSession | null = null;
+    try {
+      session = await openBoard('dom', false, { width: 720, height: 625 });
+      const base = browserFixtureByName('rectangle-8x8-four-stars');
+      const expanded = browserFixtureByName('rectangle-8x8-expanded-left');
+      await applyInputFixture(session.page, base);
+      const before = await session.page.evaluate(() => {
+        const root = window as any;
+        const frame = document.getElementById('board-frame');
+        const anchor = root.__boardVisualDebug.getCellClientRect(3, 0);
+        const boardRect = document.getElementById('board')?.getBoundingClientRect();
+        const frameRect = frame?.getBoundingClientRect();
+        return { anchor, boardRect, frameRect };
+      });
+      await applyInputFixture(session.page, expanded);
+      const after = await session.page.evaluate(() => {
+        const root = window as any;
+        const anchor = root.__boardVisualDebug.getCellClientRect(3, 0);
+        const expansion = root.__boardVisualDebug.getCellClientRect(4, -1);
+        const boardRect = document.getElementById('board')?.getBoundingClientRect();
+        const frameRect = document.getElementById('board-frame')?.getBoundingClientRect();
+        return {
+          anchor,
+          expansion,
+          boardRect,
+          frameRect
+        };
+      });
+      expect(before.anchor).toEqual(expect.objectContaining({ width: expect.any(Number), height: expect.any(Number) }));
+      expect(after.anchor).toEqual(expect.objectContaining({ width: expect.any(Number), height: expect.any(Number) }));
+      expect(after.expansion).toEqual(expect.objectContaining({ width: expect.any(Number), height: expect.any(Number) }));
+      expect(after.anchor.left).toBeCloseTo(before.anchor.left, 4);
+      expect(after.anchor.top).toBeCloseTo(before.anchor.top, 4);
+      expect(after.anchor.width).toBeCloseTo(before.anchor.width, 4);
+      expect(after.anchor.height).toBeCloseTo(before.anchor.height, 4);
+      expect(after.expansion.right).toBeCloseTo(after.anchor.left, 4);
+      expect(after.boardRect.left).toBeCloseTo(before.boardRect.left, 4);
+      expect(after.boardRect.top).toBeCloseTo(before.boardRect.top, 4);
+      expect(after.boardRect.width).toBeCloseTo(before.boardRect.width, 4);
+      expect(after.boardRect.height).toBeCloseTo(before.boardRect.height, 4);
+      expect(after.frameRect.left + after.frameRect.width / 2)
+        .toBeCloseTo(before.frameRect.left + before.frameRect.width / 2, 4);
+      expect(after.frameRect.top + after.frameRect.height / 2)
+        .toBeCloseTo(before.frameRect.top + before.frameRect.height / 2, 4);
+      expect(after.frameRect.width).toBeCloseTo(before.frameRect.width, 4);
+      expect(after.frameRect.height).toBeCloseTo(before.frameRect.height, 4);
+    } finally {
+      await closeSession(session);
+    }
+  }, 60000);
+
+  test('dom commits a board-expansion direction from the visible hint in the compact layout', async () => {
+    let session: BoardSession | null = null;
+    try {
+      session = await openBoard('dom', false, { width: 720, height: 625 });
+      await session.page.evaluate(async () => {
+        const root = window as any;
+        root.DEBUG_UNLIMITED_USAGE = true;
+        root.DEBUG_HUMAN_VS_HUMAN = true;
+        root.MATCH_MODE = 'cpu';
+        root.LOCAL_PLAYER_KEY = 'black';
+        for (const key of ['__uiImpl_turn_manager', '__uiImpl_move_executor', '__uiImpl']) {
+          root[key] = root[key] || {};
+          root[key].DEBUG_UNLIMITED_USAGE = true;
+          root[key].DEBUG_HUMAN_VS_HUMAN = true;
+          root[key].MATCH_MODE = 'cpu';
+        }
+        root.gameState.currentPlayer = 1;
+        root.gameState.boardExpansion = {
+          active: false,
+          side: null,
+          row: null,
+          owner: 0,
+          usedByPlayer: { black: false, white: false },
+          cells: []
+        };
+        root.cardState.pendingEffectByPlayer = {
+          black: { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget', cardId: 'board_expand_01' },
+          white: null
+        };
+        root.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
+        root.cardState.lastUsedCardByPlayer = { black: 'board_expand_01', white: null };
+        root.isProcessing = false;
+        root.isCardAnimating = false;
+        root.VisualPlaybackActive = false;
+        await Promise.resolve(root.renderBoard());
+        await root.__boardVisualDebug.waitForIdle();
+      });
+
+      await session.page.waitForFunction(() => {
+        const root = window as any;
+        const frame = root.require('ui/board-renderer').getBoardVisualController().getSettledFrame();
+        const anchor = frame?.model?.cells?.find((cell) => cell && cell.row === 0 && cell.col === 0);
+        return Array.isArray(anchor?.interaction?.directionHints)
+          && anchor.interaction.directionHints.some((hint) => hint && hint.directionKey === 'left');
+      }, undefined, { timeout: 10000 });
+      const anchorBeforeSelection = await session.page.evaluate(() => (
+        (window as any).__boardVisualDebug.getCellClientRect(0, 0)
+      ));
+      await session.page.mouse.click(
+        anchorBeforeSelection.left + anchorBeforeSelection.width * 0.14,
+        anchorBeforeSelection.top + anchorBeforeSelection.height * 0.5
+      );
+      await session.page.waitForFunction(() => {
+        const cells = (window as any).gameState?.boardExpansion?.cells;
+        return Array.isArray(cells) && cells.some((cell) => cell && cell.row === 0 && cell.col === -1);
+      }, undefined, { timeout: 10000 });
+      await session.page.evaluate(async () => (window as any).__boardVisualDebug.waitForIdle());
+
+      const result = await session.page.evaluate(() => {
+        const root = window as any;
+        const anchor = root.__boardVisualDebug.getCellClientRect(0, 0);
+        const expansion = root.__boardVisualDebug.getCellClientRect(0, -1);
+        return {
+          pending: root.cardState.pendingEffectByPlayer.black,
+          anchor,
+          expansion
+        };
+      });
+      expect(result.pending).toBeNull();
+      expect(result.anchor).toEqual(expect.objectContaining({ width: expect.any(Number), height: expect.any(Number) }));
+      expect(result.expansion).toEqual(expect.objectContaining({ width: expect.any(Number), height: expect.any(Number) }));
+      expect(result.expansion.right).toBeCloseTo(result.anchor.left, 4);
     } finally {
       await closeSession(session);
     }

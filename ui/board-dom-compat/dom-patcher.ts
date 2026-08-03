@@ -36,11 +36,13 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
     } = capabilities || {};
     const {
         getBoardShape: _getBoardShapeForDiff,
+        getBaseBoardShape: _getBaseBoardShapeForDiff,
         resolveGameState: _resolveGameStateForDiffRender,
         isExpansionCoordinate: _isExpansionCoordinateForDiff,
         isExpansionCell: _isExpansionCellForDiff,
         resolveExpansionSide: _resolveExpansionSideForDiff,
         applyBoardGridPosition: _applyBoardGridPositionForDiff,
+        applyExpansionLayerPosition: _applyExpansionLayerPositionForDiff,
         applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
         applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
         applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
@@ -83,7 +85,9 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
     } = stoneCapabilities || {};
 
     const gameState = _resolveGameStateForDiffRender();
-    const boardShape = _getBoardShapeForDiff(gameState);
+    const boardShape = typeof _getBaseBoardShapeForDiff === 'function'
+        ? _getBaseBoardShapeForDiff(gameState)
+        : _getBoardShapeForDiff(gameState);
     const isExpansionCell = typeof _isExpansionCellForDiff === 'function'
         ? _isExpansionCellForDiff(row, col, gameState)
         : _isExpansionCoordinateForDiff(row, col, gameState);
@@ -174,10 +178,17 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         if (expansionSide) {
             cell.classList.add(`cell-expanded-${expansionSide}`);
         }
-        if (typeof _applyBoardGridPositionForDiff !== 'function') {
+        const isAttachedExpansion = !!(
+            cell.parentElement
+            && cell.parentElement.id === 'board-expansion-layer'
+        );
+        if (isAttachedExpansion && typeof _applyExpansionLayerPositionForDiff === 'function') {
+            _applyExpansionLayerPositionForDiff(cell, row, col, boardShape);
+        } else if (typeof _applyBoardGridPositionForDiff === 'function') {
+            _applyBoardGridPositionForDiff(cell, row, col, gameState);
+        } else {
             throw new Error('[BoardDomCompat] canonical board grid positioning unavailable');
         }
-        _applyBoardGridPositionForDiff(cell, row, col, gameState);
     } else {
         _applyBoardEdgeClassesForDiff(cell, row, col, boardShape);
         if (typeof _applyBoardGridPositionForDiff === 'function') {

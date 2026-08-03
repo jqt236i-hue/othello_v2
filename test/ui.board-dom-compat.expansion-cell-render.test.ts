@@ -61,17 +61,19 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const expansionCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(expansionCell).toBeTruthy();
-    expect(expansionLayer.querySelector('.cell')).toBeNull();
+    expect(boardEl.querySelector('.cell-expanded')).toBeNull();
     expect(expansionCell.classList.contains('cell-expanded')).toBe(true);
-    expect(expansionCell.style.gridRow).toBe('3');
-    expect(expansionCell.style.gridColumn).toBe('1');
+    expect(expansionCell.style.gridRow).toBe('');
+    expect(expansionCell.style.gridColumn).toBe('');
+    expect(expansionCell.style.left).toBe('-12.5%');
+    expect(expansionCell.style.top).toBe('25%');
     expect(expansionCell.classList.contains('cell-expanded-reveal')).toBe(false);
 
     diff.renderBoardDiff(boardEl);
 
-    const expansionCellAfter = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionCellAfter = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(expansionCellAfter).toBeTruthy();
     expect(expansionCellAfter.classList.contains('cell-expanded')).toBe(true);
   });
@@ -94,11 +96,11 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const leftCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
-    const rightCell = boardEl.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
+    const leftCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const rightCell = expansionLayer.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
     expect(leftCell).toBeTruthy();
     expect(rightCell).toBeTruthy();
-    expect(expansionLayer.querySelector('.cell')).toBeNull();
+    expect(boardEl.querySelector('.cell-expanded')).toBeNull();
     expect(boardEl.classList.contains('board-expanded-left')).toBe(true);
     expect(boardEl.classList.contains('board-expanded-right')).toBe(true);
   });
@@ -122,21 +124,21 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const topCell = boardEl.querySelector('.cell-expanded-top[data-row="-1"][data-col="0"]');
-    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
-    const bottomCell = boardEl.querySelector('.cell-expanded-bottom[data-row="8"][data-col="7"]');
+    const topCell = expansionLayer.querySelector('.cell-expanded-top[data-row="-1"][data-col="0"]');
+    const cornerCell = expansionLayer.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    const bottomCell = expansionLayer.querySelector('.cell-expanded-bottom[data-row="8"][data-col="7"]');
 
     expect(topCell).toBeTruthy();
     expect(cornerCell).toBeTruthy();
     expect(bottomCell).toBeTruthy();
 
-    expect(topCell.style.gridRow).toBe('1');
-    expect(topCell.style.gridColumn).toBe('2');
-    expect(cornerCell.style.gridRow).toBe('1');
-    expect(cornerCell.style.gridColumn).toBe('1');
-    expect(bottomCell.style.gridRow).toBe('10');
-    expect(bottomCell.style.gridColumn).toBe('9');
-    expect(expansionLayer.querySelector('.cell')).toBeNull();
+    expect(topCell.style.left).toBe('0%');
+    expect(topCell.style.top).toBe('-12.5%');
+    expect(cornerCell.style.left).toBe('-12.5%');
+    expect(cornerCell.style.top).toBe('-12.5%');
+    expect(bottomCell.style.left).toBe('87.5%');
+    expect(bottomCell.style.top).toBe('100%');
+    expect(boardEl.querySelector('.cell-expanded')).toBeNull();
 
     expect(boardEl.classList.contains('board-expanded-top')).toBe(true);
     expect(boardEl.classList.contains('board-expanded-bottom')).toBe(true);
@@ -188,7 +190,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    const cornerCell = document.getElementById('board-expansion-layer')
+      .querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
     expect(cornerCell).toBeTruthy();
     expect(cornerCell.classList.contains('legal-free')).toBe(true);
     expect(cornerCell.classList.contains('legal')).toBe(false);
@@ -211,7 +214,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const newCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const newCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(newCell).toBeTruthy();
     expect(newCell.classList.contains('cell-expanded-reveal')).toBe(true);
 
@@ -228,8 +231,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
     };
     diff.renderBoardDiff(boardEl);
 
-    const oldCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
-    const addedCell = boardEl.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
+    const oldCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const addedCell = expansionLayer.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
     expect(oldCell).toBeTruthy();
     expect(addedCell).toBeTruthy();
     expect(oldCell.classList.contains('cell-expanded-reveal')).toBe(false);
@@ -388,7 +391,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
     };
     diff.renderBoardDiff(boardEl);
 
-    const cornerCell = boardEl.querySelector('.cell[data-row="-1"][data-col="-1"]');
+    const cornerCell = document.getElementById('board-expansion-layer').querySelector('.cell[data-row="-1"][data-col="-1"]');
     expect(cornerCell.classList.contains('cell-expanded-top')).toBe(true);
     expect(cornerCell.classList.contains('cell-expanded-left')).toBe(false);
     expect(boardEl.classList.contains('board-expanded-top')).toBe(true);

@@ -215,9 +215,19 @@ function _getStateBoardShapeForDiff(state: any) {
 
 function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
     const shape = _getBoardRenderGeometryForDiff(gameState);
+    const cssShape = !!(
+        boardEl
+        && typeof boardEl.getAttribute === 'function'
+        && boardEl.getAttribute('data-board-renderer') === 'dom'
+    )
+        ? _getBaseBoardShapeForDiff(gameState)
+        : shape;
     if (boardEl && boardEl.style) {
-        boardEl.style.setProperty('--board-rows', String(shape.rows));
-        boardEl.style.setProperty('--board-cols', String(shape.cols));
+        // The DOM compatibility host is the fixed initial board. Expansion
+        // coordinates are rendered in its sibling layer, so they must not
+        // turn this grid into an expanded rectangle between pixel-size syncs.
+        boardEl.style.setProperty('--board-rows', String(cssShape.rows));
+        boardEl.style.setProperty('--board-cols', String(cssShape.cols));
     }
     const syncBoardPixelSizing = _getBoardRendererHelperForDiff('syncBoardPixelSizing');
     if (syncBoardPixelSizing) {
@@ -230,9 +240,29 @@ function _getBoardTopologyForDiff(gameState: any, cardStateOverride?: any) {
     return _createBoardViewForDiff(gameState, cardStateOverride).topology;
 }
 
-function _getBoardRenderGeometryForDiff(gameState: any) {
-    const baseShape = _getBoardShapeForDiff(gameState);
+function _getBaseBoardShapeForDiff(gameState: any) {
     const topology = _getBoardTopologyForDiff(gameState);
+    const topologyRows = Number(topology && topology.baseRows);
+    const topologyCols = Number(topology && topology.baseCols);
+    if (Number.isFinite(topologyRows) && Number.isFinite(topologyCols)) {
+        return {
+            rows: Math.max(1, Math.trunc(topologyRows)),
+            cols: Math.max(1, Math.trunc(topologyCols))
+        };
+    }
+    return _getBoardShapeForDiff(gameState);
+}
+
+function _getBoardRenderGeometryForDiff(gameState: any) {
+    const topology = _getBoardTopologyForDiff(gameState);
+    const topologyRows = Number(topology && topology.baseRows);
+    const topologyCols = Number(topology && topology.baseCols);
+    const baseShape = Number.isFinite(topologyRows) && Number.isFinite(topologyCols)
+        ? {
+            rows: Math.max(1, Math.trunc(topologyRows)),
+            cols: Math.max(1, Math.trunc(topologyCols))
+        }
+        : _getBoardShapeForDiff(gameState);
     const bounds = topology && topology.renderBounds;
     if (!bounds) return { ...baseShape, minRow: 0, maxRow: baseShape.rows - 1, minCol: 0, maxCol: baseShape.cols - 1 };
     return {
@@ -249,11 +279,31 @@ function _getBoardRenderGeometryForDiff(gameState: any) {
 
 function _applyBoardGridPositionForDiff(cell: any, row: any, col: any, gameState: any) {
     if (!cell || !cell.style) return;
-    const geometry = _getBoardRenderGeometryForDiff(gameState);
-    cell.style.gridRow = String(row - geometry.minRow + 1);
-    cell.style.gridColumn = String(col - geometry.minCol + 1);
+    // The DOM compatibility board itself always represents the initial board
+    // rectangle. Sparse expansion coordinates live in the sibling expansion
+    // layer, so negative render bounds must not reindex or move base cells.
+    cell.style.gridRow = String(row + 1);
+    cell.style.gridColumn = String(col + 1);
     cell.style.top = '';
     cell.style.left = '';
+    cell.style.right = '';
+    cell.style.bottom = '';
+}
+
+function _isOutsideBaseBoardBoundsForDiff(row: any, col: any, boardShape: any) {
+    const rows = Math.max(1, Math.trunc(Number(boardShape && boardShape.rows) || 8));
+    const cols = Math.max(1, Math.trunc(Number(boardShape && boardShape.cols) || 8));
+    return row < 0 || row >= rows || col < 0 || col >= cols;
+}
+
+function _applyExpansionLayerPositionForDiff(cell: any, row: any, col: any, boardShape: any) {
+    if (!cell || !cell.style) return;
+    const rows = Math.max(1, Math.trunc(Number(boardShape && boardShape.rows) || 8));
+    const cols = Math.max(1, Math.trunc(Number(boardShape && boardShape.cols) || 8));
+    cell.style.gridRow = '';
+    cell.style.gridColumn = '';
+    cell.style.left = `${(Number(col) / cols) * 100}%`;
+    cell.style.top = `${(Number(row) / rows) * 100}%`;
     cell.style.right = '';
     cell.style.bottom = '';
 }
@@ -592,7 +642,7 @@ function _getExpansionDescriptorForDiff(gameState: any) {
 }
 
 function _getBoardDomSignatureForDiff(gameState: any) {
-    const boardShape = _getBoardShapeForDiff(gameState);
+    const boardShape = _getBaseBoardShapeForDiff(gameState);
     const topology = _getBoardTopologyForDiff(gameState);
     const baseShape = topology && topology.baseKeys
         && typeof topology.baseKeys.has === 'function'
@@ -2011,7 +2061,7 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
     }
     const gameState = _resolveGameStateForDiffRender();
     _applyBoardCssVarsForDiff(boardEl, gameState);
-    const boardShape = _getBoardShapeForDiff(gameState);
+    const boardShape = _getBaseBoardShapeForDiff(gameState);
     const expansions: any[] = boardRenderModel.cells
         .filter((cell: any) => cell && cell.expansionSide)
         .map((cell: any) => ({
@@ -2060,16 +2110,20 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
             cell.className = 'cell';
             cell.dataset.row = String(r);
             cell.dataset.col = String(c);
-            _applyBoardGridPositionForDiff(cell, r, c, gameState);
             const key = `${r},${c}`;
             const exists = renderedCell.kind !== 'void';
             if (!exists) {
                 hasVoidCells = true;
+                if (_isOutsideBaseBoardBoundsForDiff(r, c, boardShape)) continue;
+                _applyBoardGridPositionForDiff(cell, r, c, gameState);
                 cell.classList.add('cell-void');
                 cell.setAttribute('aria-hidden', 'true');
                 boardEl.appendChild(cell);
                 continue;
             }
+            const isAttachedExpansion = !!renderedCell.expansionSide
+                && _isOutsideBaseBoardBoundsForDiff(r, c, boardShape)
+                && !!expansionLayer;
             if (renderedCell.expansionSide) {
                 const expansion = expansions.find((desc: any) => desc && desc.row === r && desc.col === c);
                 cell.classList.add('cell-expanded');
@@ -2078,7 +2132,13 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
             _applyBoardEdgeClassesForDiff(cell, r, c, boardShape);
             _applyBoardContourEdgeClassesForDiff(cell, r, c, gameState);
             attachBoardCellInteraction(cell, r, c);
-            boardEl.appendChild(cell);
+            if (isAttachedExpansion) {
+                _applyExpansionLayerPositionForDiff(cell, r, c, boardShape);
+                expansionLayer.appendChild(cell);
+            } else {
+                _applyBoardGridPositionForDiff(cell, r, c, gameState);
+                boardEl.appendChild(cell);
+            }
             _cacheCell(r, c, cell);
     }
 
@@ -2286,11 +2346,13 @@ function _createCellDomPatcherContextForDiff() {
     return {
         board: {
             getBoardShape: _getBoardShapeForDiff,
+            getBaseBoardShape: _getBaseBoardShapeForDiff,
             resolveGameState: _resolveGameStateForDiffRender,
             isExpansionCoordinate: _isExpansionCoordinateForDiff,
             isExpansionCell: _isExpansionCellForDiff,
             resolveExpansionSide: _resolveExpansionSideForDiff,
             applyBoardGridPosition: _applyBoardGridPositionForDiff,
+            applyExpansionLayerPosition: _applyExpansionLayerPositionForDiff,
             applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
             applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
             applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,

@@ -505,13 +505,40 @@ function _clearBoardExpansionLayerGeometry(boardElement: any) {
     expansionLayer.style.removeProperty('--board-cols');
 }
 
+function _isDomCompatibilityBoardForPixelSizing(boardElement: any) {
+    return !!(
+        boardElement
+        && typeof boardElement.getAttribute === 'function'
+        && boardElement.getAttribute('data-board-renderer') === 'dom'
+    );
+}
+
+function _getBaseViewportShapeForPixelSizing(shape: any) {
+    const baseRows = Number.isFinite(shape && shape.baseRows) ? Math.max(1, Math.trunc(shape.baseRows)) : shape.rows;
+    const baseCols = Number.isFinite(shape && shape.baseCols) ? Math.max(1, Math.trunc(shape.baseCols)) : shape.cols;
+    return {
+        rows: baseRows,
+        cols: baseCols,
+        baseRows,
+        baseCols,
+        minRow: 0,
+        minCol: 0,
+        maxRow: baseRows - 1,
+        maxCol: baseCols - 1
+    };
+}
+
 function syncBoardExpansionLayerGeometry(boardElement: any, shapeInput?: any) {
     const expansionLayer = resolveBoardExpansionLayerElement(boardElement, true);
     const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
     if (!expansionLayer || !expansionLayer.style) return shape;
+    const baseViewportShape = _getBaseViewportShapeForPixelSizing(shape);
 
-    expansionLayer.style.setProperty('--board-rows', String(shape.rows));
-    expansionLayer.style.setProperty('--board-cols', String(shape.cols));
+    // The compatibility expansion layer is positioned over the fixed initial
+    // board viewport. Its percentages must therefore use the initial shape,
+    // not the sparse render bounds that include attached expansion cells.
+    expansionLayer.style.setProperty('--board-rows', String(baseViewportShape.rows));
+    expansionLayer.style.setProperty('--board-cols', String(baseViewportShape.cols));
 
     if (!boardElement) return shape;
 
@@ -765,6 +792,7 @@ function _getFrameElementIdentityToken(el: any): number {
 //   11: --layout-stage-scale (inline root style, layout profile scale)
 //   12-15: --board-frame-padding-{top,right,bottom,left} (frame skin switch)
 //   16: window.devicePixelRatio (DPR shift)
+//   17: active renderer kind (DOM compatibility uses the fixed base viewport)
 // getComputedStyle() is intentionally avoided here (would force layout
 // inside the very gate that exists to avoid layout).
 function _computeBoardPixelSizingSignature(boardElement: any, shape: any): string {
@@ -776,6 +804,9 @@ function _computeBoardPixelSizingSignature(boardElement: any, shape: any): strin
         ? String((window as any).devicePixelRatio) : '0';
     const boardSkinId = rootDataset ? String((rootDataset as any).boardSkinId || '') : '';
     const frameSkinId = rootDataset ? String((rootDataset as any).boardFrameSkinId || '') : '';
+    const rendererKind = boardElement && typeof boardElement.getAttribute === 'function'
+        ? String(boardElement.getAttribute('data-board-renderer') || '')
+        : '';
     const layoutScale = rootStyle ? rootStyle.getPropertyValue('--layout-stage-scale') : '';
     const padTop = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-top') : '';
     const padRight = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-right') : '';
@@ -794,7 +825,8 @@ function _computeBoardPixelSizingSignature(boardElement: any, shape: any): strin
         frameSkinId,
         layoutScale,
         padTop, padRight, padBottom, padLeft,
-        dpr
+        dpr,
+        rendererKind
     ].join('|');
 }
 
@@ -912,8 +944,12 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
         return shape;
     }
 
+    const isDomCompatibilityBoard = _isDomCompatibilityBoardForPixelSizing(boardElement);
+    const viewportShape = isDomCompatibilityBoard
+        ? _getBaseViewportShapeForPixelSizing(shape)
+        : shape;
     const boxMetrics = _getBoardBoxMetricsForPixelSizing(boardElement);
-    const measurement = _measureBoardPixelSizing(boardElement, shape);
+    const measurement = _measureBoardPixelSizing(boardElement, viewportShape);
     if (!measurement) {
         _clearBoardPixelSizingVars(boardElement);
         return shape;
@@ -922,8 +958,8 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
 
     const discInset = Math.max(1, Math.round(cellSize * 0.0505));
     const discSize = Math.max(1, cellSize - (discInset * 2));
-    const contentWidth = cellSize * shape.cols;
-    const contentHeight = cellSize * shape.rows;
+    const contentWidth = cellSize * viewportShape.cols;
+    const contentHeight = cellSize * viewportShape.rows;
     const outerWidth = contentWidth + (boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderX : 0);
     const outerHeight = contentHeight + (boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderY : 0);
     boardElement.style.width = `${outerWidth}px`;
@@ -932,13 +968,15 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     boardElement.style.setProperty('--board-cell-scale', baselineCellSize > 0 ? String(cellSize / baselineCellSize) : '1');
     boardElement.style.setProperty('--board-disc-inset-px', `${discInset}px`);
     boardElement.style.setProperty('--board-disc-size-px', `${discSize}px`);
-    _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, shape);
+    boardElement.style.setProperty('--board-rows', String(viewportShape.rows));
+    boardElement.style.setProperty('--board-cols', String(viewportShape.cols));
+    _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, viewportShape);
 
-    const anchorOffset = _getBoardAnchorOffsetForPixelSizing(shape, cellSize);
+    const anchorOffset = _getBoardAnchorOffsetForPixelSizing(viewportShape, cellSize);
     boardElement.style.left = anchorOffset.x ? `${anchorOffset.x}px` : '';
     boardElement.style.top = anchorOffset.y ? `${anchorOffset.y}px` : '';
     boardElement.style.removeProperty('transform');
-    if (typeof boardElement.getBoundingClientRect === 'function') {
+    if (!isDomCompatibilityBoard && typeof boardElement.getBoundingClientRect === 'function') {
         const snappedRect = boardElement.getBoundingClientRect();
         const snapX = Number.isFinite(snappedRect.left) ? (Math.round(snappedRect.left) - snappedRect.left) : 0;
         const snapY = Number.isFinite(snappedRect.top) ? (Math.round(snappedRect.top) - snappedRect.top) : 0;

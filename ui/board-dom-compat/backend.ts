@@ -57,11 +57,25 @@ function createDomBoardVisualBackend(options?: {
     return renderer;
   };
 
+  const getRenderedCellRoots = (): HTMLElement[] => {
+    if (!host) return [];
+    const roots: HTMLElement[] = [host];
+    const boardStack = typeof host.closest === 'function'
+      ? host.closest('#board-stack')
+      : host.parentElement;
+    const expansionLayer = boardStack && typeof boardStack.querySelector === 'function'
+      ? boardStack.querySelector<HTMLElement>('#board-expansion-layer')
+      : null;
+    if (expansionLayer && expansionLayer !== host) roots.push(expansionLayer);
+    return roots;
+  };
+
   const findRenderedCellElement = (row: number, col: number): HTMLElement | null => {
-    if (!host) return null;
-    const cells = host.querySelectorAll<HTMLElement>('.cell[data-row][data-col]');
-    for (const cell of Array.from(cells)) {
-      if (Number(cell.dataset.row) === row && Number(cell.dataset.col) === col) return cell;
+    for (const root of getRenderedCellRoots()) {
+      const cells = root.querySelectorAll<HTMLElement>('.cell[data-row][data-col]');
+      for (const cell of Array.from(cells)) {
+        if (Number(cell.dataset.row) === row && Number(cell.dataset.col) === col) return cell;
+      }
     }
     return null;
   };
@@ -115,9 +129,10 @@ function createDomBoardVisualBackend(options?: {
     });
   };
 
-  const getDomCellCount = (): number => host
-    ? host.querySelectorAll('.cell[data-row][data-col]').length
-    : 0;
+  const getDomCellCount = (): number => getRenderedCellRoots().reduce(
+    (count, root) => count + root.querySelectorAll('.cell[data-row][data-col]').length,
+    0
+  );
 
   const isComputedStyleReady = (): boolean => {
     if (!host) return false;
@@ -208,22 +223,18 @@ function createDomBoardVisualBackend(options?: {
       await playPhase(events, context);
     },
     getCellClientRect(row: number, col: number): BoardClientRect | null {
-      if (!host) return null;
-      const cells = host.querySelectorAll<HTMLElement>('.cell[data-row][data-col]');
-      for (const cell of Array.from(cells)) {
-        if (Number(cell.dataset.row) !== row || Number(cell.dataset.col) !== col) continue;
-        const rect = cell.getBoundingClientRect();
-        return Object.freeze({
-          left: rect.left,
-          top: rect.top,
-          right: rect.right,
-          bottom: rect.bottom,
-          width: rect.width,
-          height: rect.height,
-          layoutRevision: 0
-        });
-      }
-      return null;
+      const cell = findRenderedCellElement(row, col);
+      if (!cell) return null;
+      const rect = cell.getBoundingClientRect();
+      return Object.freeze({
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        layoutRevision: 0
+      });
     },
     getRenderedCell,
     getDiagnostics() {
