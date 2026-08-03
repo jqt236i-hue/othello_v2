@@ -47,6 +47,7 @@ export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
 export interface MatchWorkerSseStreamInfo {
     writer: WritableStreamDefaultWriter<Uint8Array>;
     viewer: MatchAuthorityViewer;
+    presentationEnvelopeVersion: 2 | null;
 }
 
 export interface MatchWorkerPublicSeatState {

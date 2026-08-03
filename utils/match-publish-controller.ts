@@ -1,3 +1,5 @@
+import { compactNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
+
 export function createMatchPublishController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
 
@@ -29,11 +31,15 @@ export function createMatchPublishController(config?: any): any {
   }
 
   async function handlePublish(body: Record<string, unknown>): Promise<any> {
+    const respond = (statusCode: number, payload: unknown): any => cfg.jsonResponse(
+      statusCode,
+      compactNetworkPresentationEnvelope(payload, body && body.presentationEnvelopeVersion)
+    );
     await cfg.loadRoom(body);
     const room = cfg.getRoom();
 
     if (!room) {
-      return cfg.jsonResponse(404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
+      return respond(404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
     }
 
     await cfg.applyExpiredTurnTimeoutIfNeeded();
@@ -64,7 +70,7 @@ export function createMatchPublishController(config?: any): any {
     }
 
     if (!cfg.asRecord(room.seats)[seatKey]) {
-      return cfg.jsonResponse(403, cfg.buildPublishPayload(room, viewerSeatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+      return respond(403, cfg.buildPublishPayload(room, viewerSeatKey, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'SEAT_NOT_JOINED',
         publishKind: 'rejected',
@@ -80,7 +86,7 @@ export function createMatchPublishController(config?: any): any {
         && cfg.MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, seatKey) === true
         && cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState) === playerKey;
       if (!isFateWillControllerForOwner) {
-        return cfg.jsonResponse(403, cfg.buildPublishPayload(room, viewerSeatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        return respond(403, cfg.buildPublishPayload(room, viewerSeatKey, cfg.MatchAuthority.buildPublishResponseOptions({
           ok: false,
           rejectedReason: 'SEAT_MISMATCH',
           publishKind: 'rejected',
@@ -93,7 +99,7 @@ export function createMatchPublishController(config?: any): any {
     }
 
         if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-      return cfg.jsonResponse(403, cfg.buildPublishPayload(room, null, cfg.MatchAuthority.buildPublishResponseOptions({
+      return respond(403, cfg.buildPublishPayload(room, null, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'SEAT_TOKEN_MISMATCH',
         publishKind: 'rejected',
@@ -105,7 +111,7 @@ export function createMatchPublishController(config?: any): any {
     }
 
     if (!cfg.MatchAuthority.hasRequiredOperationId(operationId)) {
-      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+      return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'OPERATION_ID_REQUIRED',
         publishKind: 'rejected',
@@ -148,7 +154,7 @@ export function createMatchPublishController(config?: any): any {
       const replayEffectLogs = replayPublicFrame && Array.isArray(replayPublicFrame.effectLogs)
         ? replayPublicFrame.effectLogs
         : [];
-      return cfg.jsonResponse(200, cfg.buildPublishPayload(room, seatKey, Object.assign(
+      return respond(200, cfg.buildPublishPayload(room, seatKey, Object.assign(
         cfg.MatchAuthority.buildPublishResponseOptions({
           ok: true,
           idempotentReplay: true,
@@ -187,7 +193,7 @@ export function createMatchPublishController(config?: any): any {
         stateHashBefore: room.authoritativeStateHash,
         rejectedReason
       }, undefined);
-      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, versionRejectedOptions));
+      return respond(409, cfg.buildPublishPayload(room, seatKey, versionRejectedOptions));
     }
 
     const expectedPlayerKey = cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState);
@@ -196,7 +202,7 @@ export function createMatchPublishController(config?: any): any {
       && typeof cfg.isSnapshotGameOver === 'function'
       && await cfg.isSnapshotGameOver(room.snapshot)
     ) {
-      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+      return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'GAME_ALREADY_OVER',
         publishKind: 'rejected',
@@ -218,7 +224,7 @@ export function createMatchPublishController(config?: any): any {
       && !isRematchResetAction
       && !isNetworkDebugAction
     ) {
-      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+      return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'TURN_CONTROLLED_BY_FATE_WILL',
         publishKind: 'rejected',
@@ -233,7 +239,7 @@ export function createMatchPublishController(config?: any): any {
       const allowOutOfTurnNetworkDebug = isNetworkDebugAction && cfg.toPublicNetworkDebugEnabled(room);
       const allowFateWillController = cfg.MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
       if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
-        return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
           ok: false,
           rejectedReason: 'OUT_OF_TURN',
           publishKind: 'rejected',
@@ -273,7 +279,7 @@ export function createMatchPublishController(config?: any): any {
           nextSnapshot = await cfg.makeInitialSnapshot(rematchSeed, cfg.buildInitialDeckSnapshotOptions(room));
           room.seed = rematchSeed;
         } catch (e) {
-          return cfg.jsonResponse(500, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+          return respond(500, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'REMATCH_RESET_FAILED',
             publishKind: 'rejected',
@@ -297,7 +303,7 @@ export function createMatchPublishController(config?: any): any {
           pendingEffectId: commandResult.pendingEffectId || null,
           rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
         }, undefined);
-        return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
           ok: false,
           rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
           errorMessage: commandResult.errorMessage || null,
@@ -315,7 +321,7 @@ export function createMatchPublishController(config?: any): any {
       commandAction = commandResult.action || null;
       pendingEffectId = commandResult.pendingEffectId || null;
     } else {
-      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+      return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
         ok: false,
         rejectedReason: 'COMMAND_REQUIRED',
         publishKind: 'rejected',
@@ -342,7 +348,7 @@ export function createMatchPublishController(config?: any): any {
           rejectedReason: 'INVALID_BOARD_CONTRACT',
           boardContractErrors: boardContractInspection && boardContractInspection.errors
         }, undefined);
-        return cfg.jsonResponse(500, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        return respond(500, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
           ok: false,
           rejectedReason: 'INVALID_BOARD_CONTRACT',
           publishKind: 'rejected',
@@ -450,7 +456,7 @@ export function createMatchPublishController(config?: any): any {
       ...meta,
       __preparedSnapshot: preparedSnapshot
     });
-    return cfg.jsonResponse(200, responsePayload);
+    return respond(200, responsePayload);
   }
 
   return {

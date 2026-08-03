@@ -9,6 +9,7 @@ import type {
     MatchWorkerSseStreamInfo
 } from './match-worker-types';
 import { createMatchStreamPreparationController } from '../utils/match-stream-preparation-controller';
+import { normalizePresentationEnvelopeCapability } from '../shared/network-presentation-envelope';
 
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
@@ -87,7 +88,13 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
         const writer = writable.getWriter();
 
         const streamId = cfg.makeSseStreamId(now(), cfg.cryptoLike || null);
-        cfg.getStreams().set(streamId, { writer, viewer });
+        cfg.getStreams().set(streamId, {
+            writer,
+            viewer,
+            presentationEnvelopeVersion: normalizePresentationEnvelopeCapability(
+                urlObj.searchParams.get('presentationEnvelopeVersion')
+            )
+        });
         if (typeof cfg.onStreamOpened === 'function') {
             await cfg.onStreamOpened(streamId);
         }

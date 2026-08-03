@@ -36,6 +36,7 @@ const DeckSpecHelpers = require('../shared/deck-spec');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
 const RatedMatchmaking = require('../shared/rated-matchmaking');
 const SharedBoardUtils = require('../shared/shared-board-utils');
+const PresentationEnvelopeContract = require('../shared/network-presentation-envelope');
 const { createMatchWorkerRatingHelpers } = require('../workers/match-worker-rating');
 
 function readArgValue(name: any) {
@@ -1165,7 +1166,13 @@ function safeWriteToStream(room: any, streamId: any, eventName: any, payload: an
         return;
     }
     try {
-        writeSse(streamInfo.res, eventName, payload, eventId);
+        const wirePayload = String(eventName || '').trim().toLowerCase() === 'snapshot'
+            ? PresentationEnvelopeContract.compactNetworkPresentationEnvelope(
+                payload,
+                streamInfo.presentationEnvelopeVersion
+            )
+            : payload;
+        writeSse(streamInfo.res, eventName, wirePayload, eventId);
     } catch (e) {
         try { streamInfo.res.end(); } catch (endError) { /* ignore */ }
         removeStream(room, streamId);
@@ -2587,7 +2594,13 @@ async function handleStream(req: any, res: any, urlObj: any) {
     });
 
     const streamId = MatchAuthority.makeSseStreamId(Date.now());
-    room.streams.set(streamId, { res, viewer });
+    room.streams.set(streamId, {
+        res,
+        viewer,
+        presentationEnvelopeVersion: PresentationEnvelopeContract.normalizePresentationEnvelopeCapability(
+            urlObj.searchParams.get('presentationEnvelopeVersion')
+        )
+    });
     MatchRoomLobby.clearRoomInactive(room);
     ensureHeartbeatLoop();
     const cleanupStream = () => {
@@ -2597,10 +2610,10 @@ async function handleStream(req: any, res: any, urlObj: any) {
     if (Array.isArray(replayEvents)) {
         if (replayEvents.length > 0) {
             for (const event of replayEvents) {
-                writeSse(res, event.eventName, event.payload, event.eventId);
+                safeWriteToStream(room, streamId, event.eventName, event.payload, event.eventId);
             }
         } else {
-            writeSse(res, 'heartbeat', buildHeartbeatPayload(room, Date.now()), null);
+            safeWriteToStream(room, streamId, 'heartbeat', buildHeartbeatPayload(room, Date.now()), null);
         }
 
         req.on('close', cleanupStream);
@@ -2608,14 +2621,14 @@ async function handleStream(req: any, res: any, urlObj: any) {
         return;
     }
 
-    writeSse(res, 'snapshot', buildSnapshotPayload(room, {
+    safeWriteToStream(room, streamId, 'snapshot', buildSnapshotPayload(room, {
         playbackEvents: [],
         operationId: null,
         playerKey: null,
         actionType: null
     }, viewer), nextSseEventId(room));
 
-    writeSse(res, 'chat', withPublicSeatState(room, {
+    safeWriteToStream(room, streamId, 'chat', withPublicSeatState(room, {
         ok: true,
         roomId,
         type: 'history',

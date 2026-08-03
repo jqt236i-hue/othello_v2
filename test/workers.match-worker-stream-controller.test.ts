@@ -144,6 +144,66 @@ describe('match worker stream controller', () => {
     expect(ctx.getClosed()).toEqual(['closed']);
   });
 
+  test('compacts only snapshot delivery for an explicitly V2 stream without mutating the buffered payload', async () => {
+    const ctx = createController();
+    ctx.streams.get('stream1').presentationEnvelopeVersion = 2;
+    const snapshot = {
+      stateVersion: 3,
+      _meta: {
+        version: 3,
+        projectedForSeat: 'black',
+        projectedSnapshotHash: 'hash-3'
+      }
+    };
+    const payload: any = {
+      ok: true,
+      roomId: 'SSE1',
+      stateVersion: 3,
+      snapshot,
+      playbackEvents: [{ type: 'duplicate' }],
+      presentationFrames: [{
+        roomId: 'SSE1',
+        visualSeq: 2,
+        stateVersionFrom: 2,
+        stateVersionTo: 3,
+        playbackEvents: [{ type: 'frame' }],
+        projectedSnapshotHash: 'hash-3',
+        snapshotAfter: JSON.parse(JSON.stringify(snapshot))
+      }]
+    };
+    const before = JSON.stringify(payload);
+
+    await ctx.controller.sendSse('stream1', 'snapshot', payload, { eventId: 'SSE1_3_2' });
+
+    const chunk = ctx.getWritten()[0];
+    const dataLine = chunk.split('\n').find((line) => line.startsWith('data: '));
+    const wire = JSON.parse(String(dataLine || '').slice('data: '.length));
+    expect(wire.presentationEnvelopeVersion).toBe(2);
+    expect(wire).not.toHaveProperty('playbackEvents');
+    expect(wire.presentationFrames[0]).not.toHaveProperty('snapshotAfter');
+    expect(wire.presentationFrames[0].snapshotAfterRef).toEqual({
+      kind: 'envelope-snapshot',
+      stateVersion: 3,
+      projectedSnapshotHash: 'hash-3'
+    });
+    expect(JSON.stringify(payload)).toBe(before);
+  });
+
+  test('keeps legacy snapshot stream delivery self-contained', async () => {
+    const ctx = createController();
+    const payload = {
+      ok: true,
+      roomId: 'SSE1',
+      playbackEvents: [{ type: 'legacy' }],
+      presentationFrames: []
+    };
+
+    await ctx.controller.sendSse('stream1', 'snapshot', payload, { eventId: 'SSE1_2_2' });
+
+    expect(ctx.getWritten()[0]).toContain(`data: ${JSON.stringify(payload)}`);
+    expect(ctx.getWritten()[0]).not.toContain('presentationEnvelopeVersion');
+  });
+
   test('production write timeout stays below the browser request deadline', () => {
     expect(MATCH_WORKER_SSE_WRITE_TIMEOUT_MS).toBeGreaterThan(0);
     expect(MATCH_WORKER_SSE_WRITE_TIMEOUT_MS).toBeLessThan(10000);

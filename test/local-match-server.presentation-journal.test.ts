@@ -5,6 +5,7 @@ import {
   patchRoomSnapshotForTests,
   resetRoomsForTests
 } from '../scripts/local-match-server.js';
+import { resolveNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
 
 function requestJson(port: number, method: string, path: string, payload?: unknown): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
@@ -128,6 +129,92 @@ describe('local match server presentation journal', () => {
       expect(recovery.data.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([1]);
       expect(recovery.data.presentationFrames[0].snapshotAfter.stateVersion).toBe(publish.data.stateVersion);
       expect(recovery.data.presentationFrames[0].playbackEvents).toEqual(publish.data.playbackEvents);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('negotiates V2 per publish replay while keeping legacy and journal payloads self-contained', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black' });
+      const move = pickFirstLegalMove(created.data.snapshot);
+      const body = {
+        roomId: created.data.roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: created.data.seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_presentation_envelope_v2',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: move.row, col: move.col },
+        turnIndex: created.data.snapshot.cardState.turnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: move.row,
+          col: move.col,
+          turnIndex: created.data.snapshot.cardState.turnIndex
+        }
+      };
+
+      const legacy = await requestJson(port, 'POST', '/api/match/publish', body);
+      const v2Replay = await requestJson(port, 'POST', '/api/match/publish', {
+        ...body,
+        presentationEnvelopeVersion: 2
+      });
+      const unknownReplay = await requestJson(port, 'POST', '/api/match/publish', {
+        ...body,
+        presentationEnvelopeVersion: 999
+      });
+      const journal = await requestJson(
+        port,
+        'GET',
+        `/api/match/presentation-journal?roomId=${encodeURIComponent(created.data.roomId)}`
+          + `&seatKey=black&seatToken=${encodeURIComponent(created.data.seatToken)}`
+          + '&afterVisualSeq=0&presentationEnvelopeVersion=2'
+      );
+
+      expect(legacy.status).toBe(200);
+      expect(legacy.data).not.toHaveProperty('presentationEnvelopeVersion');
+      expect(legacy.data).toHaveProperty('playbackEvents');
+      expect(legacy.data.presentationFrames[0]).toHaveProperty('snapshotAfter');
+      expect(legacy.data.presentationFrames[0]).not.toHaveProperty('snapshotAfterRef');
+
+      expect(v2Replay.status).toBe(200);
+      expect(v2Replay.data.idempotentReplay).toBe(true);
+      expect(v2Replay.data.presentationEnvelopeVersion).toBe(2);
+      expect(v2Replay.data).not.toHaveProperty('playbackEvents');
+      expect(v2Replay.data.presentationFrames[0]).not.toHaveProperty('snapshotAfter');
+      expect(v2Replay.data.presentationFrames[0].snapshotAfterRef).toEqual({
+        kind: 'envelope-snapshot',
+        stateVersion: legacy.data.stateVersion,
+        projectedSnapshotHash: legacy.data.snapshot._meta.projectedSnapshotHash
+      });
+      const resolved = resolveNetworkPresentationEnvelope(v2Replay.data);
+      expect(resolved.ok).toBe(true);
+      if (!resolved.ok) throw new Error(resolved.reason);
+      expect((resolved.payload.presentationFrames as any[])[0].snapshotAfter).toBe(v2Replay.data.snapshot);
+      expect((resolved.payload.presentationFrames as any[])[0].playbackDigest).toBe(
+        legacy.data.presentationFrames[0].playbackDigest
+      );
+      expect(v2Replay.data.stateVersion).toBe(legacy.data.stateVersion);
+      expect(v2Replay.data.snapshot._meta.projectedSnapshotHash).toBe(
+        legacy.data.snapshot._meta.projectedSnapshotHash
+      );
+
+      expect(unknownReplay.status).toBe(200);
+      expect(unknownReplay.data).not.toHaveProperty('presentationEnvelopeVersion');
+      expect(unknownReplay.data).toHaveProperty('playbackEvents');
+      expect(unknownReplay.data.presentationFrames[0]).toHaveProperty('snapshotAfter');
+
+      expect(journal.status).toBe(200);
+      expect(journal.data).not.toHaveProperty('presentationEnvelopeVersion');
+      expect(journal.data.presentationFrames[0]).toHaveProperty('snapshotAfter');
+      expect(journal.data.presentationFrames[0]).not.toHaveProperty('snapshotAfterRef');
     } finally {
       await closeServer(server);
     }

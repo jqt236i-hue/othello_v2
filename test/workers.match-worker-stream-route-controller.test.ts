@@ -143,7 +143,8 @@ describe('match worker stream route controller', () => {
 
     expect(response.status).toBe(200);
     expect(streams.get('stream-1')).toMatchObject({
-      viewer: { role: 'spectator', spectatorId: 'spec_test0001' }
+      viewer: { role: 'spectator', spectatorId: 'spec_test0001' },
+      presentationEnvelopeVersion: null
     });
     expect(deliveries[0]).toMatchObject({
       initialPayload: {
@@ -192,7 +193,7 @@ describe('match worker stream route controller', () => {
     const room = createRoom();
     const ctx = createController(room);
     const response = await ctx.controller.handleStream(
-      new Request('https://room/api/match/stream?seatKey=black&seatToken=black-token&lastEventId=SSE1_2_1')
+      new Request('https://room/api/match/stream?seatKey=black&seatToken=black-token&lastEventId=SSE1_2_1&presentationEnvelopeVersion=2')
     );
 
     expect(response.status).toBe(200);
@@ -201,7 +202,10 @@ describe('match worker stream route controller', () => {
     expect(ctx.getLoadCount()).toBe(1);
     expect(ctx.getTimeoutChecks()).toBe(1);
     expect(ctx.getHeartbeatEnsures()).toBe(1);
-    expect(ctx.streams.get('stream-1')).toMatchObject({ viewer: { role: 'seat', seatKey: 'black' } });
+    expect(ctx.streams.get('stream-1')).toMatchObject({
+      viewer: { role: 'seat', seatKey: 'black' },
+      presentationEnvelopeVersion: 2
+    });
     expect(ctx.deliveries).toHaveLength(1);
     expect(ctx.deliveries[0]).toMatchObject({
       room,

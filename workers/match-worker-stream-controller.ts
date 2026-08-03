@@ -3,6 +3,7 @@ import type {
     MatchAuthorityBufferedSseEventRecordInput
 } from '../utils/match-authority-types';
 import type { MatchWorkerRoomState, MatchWorkerSseStreamInfo } from './match-worker-types';
+import { compactNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
 
 // Keep stale SSE writers well below the browser request timeout (10 seconds).
 // A timed-out writer is removed, while the already-buffered event remains replayable.
@@ -134,7 +135,10 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
         const timeoutMs = Number.isFinite(Number(opts.timeoutMs))
             ? Math.max(0, Math.trunc(Number(opts.timeoutMs)))
             : cfg.writeTimeoutMs;
-            const chunk = cfg.sseChunk(eventName, payload, eventId);
+        const wirePayload = String(eventName || '').trim().toLowerCase() === 'snapshot'
+            ? compactNetworkPresentationEnvelope(payload, stream.presentationEnvelopeVersion)
+            : payload;
+        const chunk = cfg.sseChunk(eventName, wirePayload, eventId);
         try {
             const writePromise = stream.writer.write(cfg.encoder.encode(chunk));
             if (timeoutMs > 0) {
