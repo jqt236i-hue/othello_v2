@@ -675,7 +675,7 @@ function renderMarkdown(report: any): string {
     `総合結果: **${report.gates.nodePerformancePassed ? 'PASS' : 'FAIL'}**`,
     ''
   );
-  return lines.join('\n');
+  return lines.join('\n').trimEnd();
 }
 
 function parsePositiveInteger(name: string, fallback: number): number {
@@ -709,7 +709,7 @@ export function runMeasurement(options?: Partial<MeasurementOptions>): any {
       commit: git(['rev-parse', 'HEAD']),
       node: process.version,
       platform: `${process.platform} ${os.release()} ${os.arch()}`,
-      cpu: os.cpus()[0]?.model || 'unknown'
+      cpu: (os.cpus()[0]?.model || 'unknown').trim()
     },
     conditions: {
       warmup: measurementOptions.warmup,

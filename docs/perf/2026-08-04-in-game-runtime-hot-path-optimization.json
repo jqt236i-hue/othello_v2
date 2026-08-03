@@ -1,11 +1,11 @@
 {
   "schemaVersion": "in_game_runtime_hot_path_optimization.v1",
-  "capturedAt": "2026-08-03T19:29:39.203Z",
+  "capturedAt": "2026-08-03T19:30:42.968Z",
   "environment": {
-    "commit": "4be7d93752a50afb8a426751656688d126140ba6",
+    "commit": "f3dff04725bcfb5a3ae0d6fc2e9140b92b346a7a",
     "node": "v24.12.0",
     "platform": "win32 10.0.26200 x64",
-    "cpu": "AMD Ryzen 7 9700X 8-Core Processor             "
+    "cpu": "AMD Ryzen 7 9700X 8-Core Processor"
   },
   "conditions": {
     "warmup": 30,
@@ -25,10 +25,10 @@
       "legacy": {
         "timingMsPerBatch": {
           "count": 120,
-          "min": 8.3281,
-          "median": 8.8092,
-          "p95": 11.2819,
-          "max": 11.8831
+          "min": 8.1407,
+          "median": 8.6966,
+          "p95": 10.8795,
+          "max": 11.7141
         },
         "dynamicDescriptorsPerAnimationSecond": 26160,
         "checksum": 15974400
@@ -36,18 +36,18 @@
       "candidate": {
         "timingMsPerBatch": {
           "count": 120,
-          "min": 0.0858,
-          "median": 0.0913,
-          "p95": 0.1383,
-          "max": 0.1851
+          "min": 0.086,
+          "median": 0.0909,
+          "p95": 0.1334,
+          "max": 0.4132
         },
         "dynamicDescriptorsPerAnimationSecond": 0,
         "compileEightPlansMs": {
           "count": 120,
-          "min": 0.0237,
-          "median": 0.0344,
-          "p95": 0.0689,
-          "max": 0.0977
+          "min": 0.0249,
+          "median": 0.0371,
+          "p95": 0.086,
+          "max": 0.34
         },
         "staticDescriptorCount": 436,
         "checksum": 454077.090726
@@ -74,10 +74,10 @@
       "legacy": {
         "timingMs": {
           "count": 120,
-          "min": 15.2381,
-          "median": 17.5071,
-          "p95": 22.3696,
-          "max": 26.8575
+          "min": 15.1836,
+          "median": 17.1222,
+          "p95": 21.4063,
+          "max": 27.123
         },
         "structure": {
           "deepBoardInspections": 2,
@@ -88,10 +88,10 @@
       "candidate": {
         "timingMs": {
           "count": 120,
-          "min": 9.0976,
-          "median": 10.09,
-          "p95": 12.9268,
-          "max": 14.4795
+          "min": 9.0663,
+          "median": 10.1164,
+          "p95": 13.587,
+          "max": 17.6016
         },
         "structure": {
           "deepBoardInspections": 1,
@@ -108,7 +108,7 @@
         "equal": true
       },
       "reduction": {
-        "p95Percent": 42.213
+        "p95Percent": 36.528
       },
       "gates": {
         "acceptedDeepInspectionExactlyOnce": true,
