@@ -21,8 +21,10 @@ let turnArrivalToastFadeTimer: any = null;
 let turnArrivalToastPositionTimer: any = null;
 let turnArrivalToastLastSignature = '';
 let turnArrivalToastViewportHandlersBound = false;
+let turnArrivalToastResizeObserver: any = null;
 let latestBattleStatusEventText = '';
 let battleStatusNetworkTimerInfo: any = null;
+const battleStatusRenderSignatureByElement = new WeakMap<object, string>();
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const TURN_ARRIVAL_TOAST_ID = 'turn-arrival-toast';
 const TURN_ARRIVAL_TOAST_VISIBLE_MS = 15000;
@@ -307,6 +309,10 @@ function keepPortraitSpeechBubbleOutsideBoard(bubble: any, role: string, boardRe
 
 function positionPortraitSpeechBubble(value: any): void {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
+    // Both portrait callouts are CSS-hidden in the phone portrait profile.
+    // Keep their text/state intact so an orientation change can reveal and
+    // position them, but avoid forced layout reads while they cannot paint.
+    if (isPhonePortraitStatusLayout()) return;
     const config = resolvePortraitSpeechConfig(value);
     const bubble = getPortraitSpeechBubbleElement(config.role);
     if (!bubble || !bubble.classList.contains('is-visible')) return;
@@ -611,6 +617,15 @@ function bindTurnArrivalToastViewportHandlers(): void {
     window.addEventListener('resize', reposition);
     window.addEventListener('orientationchange', reposition);
     window.addEventListener('scroll', reposition, { passive: true });
+    if (typeof ResizeObserver === 'function') {
+        try {
+            const boardAnchor = getRoundDisplayBoardAnchorElement();
+            if (boardAnchor) {
+                turnArrivalToastResizeObserver = new ResizeObserver(reposition);
+                turnArrivalToastResizeObserver.observe(boardAnchor);
+            }
+        } catch (e) { /* ignore */ }
+    }
 }
 
 function hideTurnArrivalToast(): void {
@@ -664,7 +679,6 @@ function syncTurnArrivalToast(): void {
     const state = resolveTurnArrivalToastState();
     if (!state) return;
     if (state.signature === turnArrivalToastLastSignature) {
-        positionTurnArrivalToast();
         return;
     }
     turnArrivalToastLastSignature = state.signature;
@@ -714,11 +728,14 @@ function resolveBattleStatusNetworkTimerText(): { text: string; ariaLabel: strin
 function renderBattleStatusNetworkTimer(el: any): void {
     if (!el) return;
     const display = resolveBattleStatusNetworkTimerText();
-    el.textContent = display.text;
-    el.hidden = !display.text;
+    if (el.textContent !== display.text) el.textContent = display.text;
+    const hidden = !display.text;
+    if (el.hidden !== hidden) el.hidden = hidden;
     if (display.ariaLabel) {
-        el.setAttribute('aria-label', display.ariaLabel);
-    } else {
+        if (el.getAttribute('aria-label') !== display.ariaLabel) {
+            el.setAttribute('aria-label', display.ariaLabel);
+        }
+    } else if (el.hasAttribute('aria-label')) {
         el.removeAttribute('aria-label');
     }
 }
@@ -754,6 +771,8 @@ function ensureBattleStatusPanel(): any {
 
 function renderBattleStatusStoneCount(el: any, color: 'black' | 'white', count: number): void {
     if (!el) return;
+    const signature = `${color}:${count}`;
+    if (battleStatusRenderSignatureByElement.get(el) === signature) return;
     const label = color === 'white' ? '白石' : '黒石';
     const compactLabel = color === 'white' ? '白' : '黒';
     el.setAttribute('aria-label', `${label} ${count}`);
@@ -762,6 +781,11 @@ function renderBattleStatusStoneCount(el: any, color: 'black' | 'white', count: 
         `<span class="battle-status-count-label" aria-hidden="true">${compactLabel}</span>`,
         `<span class="battle-status-count-value">${count}</span>`
     ].join('');
+    battleStatusRenderSignatureByElement.set(el, signature);
+}
+
+function setBattleStatusTextIfChanged(el: any, text: string): void {
+    if (el && el.textContent !== text) el.textContent = text;
 }
 
 function updateBattleStatusPanel(): void {
@@ -774,11 +798,11 @@ function updateBattleStatusPanel(): void {
     const turnEl = panel.querySelector('.battle-status-turn');
     const latestEl = panel.querySelector('.battle-status-latest');
     const counts = countBoardStonesForBattleStatus();
-    if (roundEl) roundEl.textContent = `ROUND ${resolveRoundNumberForStatusDisplay()}`;
+    setBattleStatusTextIfChanged(roundEl, `ROUND ${resolveRoundNumberForStatusDisplay()}`);
     renderBattleStatusNetworkTimer(timerEl);
     renderBattleStatusStoneCount(blackEl, 'black', counts.black);
     renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
-    if (turnEl) turnEl.textContent = resolveBattleStatusTurnLabel();
+    setBattleStatusTextIfChanged(turnEl, resolveBattleStatusTurnLabel());
     renderBattleStatusLatestText(latestEl, resolveBattleStatusLatestText());
     syncTurnArrivalToast();
 }
@@ -830,16 +854,20 @@ function updateHeroCharacterForBlackCpuProfile(): void {
 
 function renderBattleStatusLatestText(el: any, text: string): void {
     if (!el) return;
+    const valueText = text || '-';
+    const signature = `latest:${valueText}`;
+    if (battleStatusRenderSignatureByElement.get(el) === signature) return;
     el.textContent = '';
     const label = document.createElement('span');
     label.className = 'battle-status-latest-label';
     label.textContent = '直近';
     const value = document.createElement('span');
     value.className = 'battle-status-latest-value';
-    value.textContent = text || '-';
+    value.textContent = valueText;
     el.appendChild(label);
     el.appendChild(document.createTextNode(' '));
     el.appendChild(value);
+    battleStatusRenderSignatureByElement.set(el, signature);
 }
 
 function compactBattleStatusText(value: any): string {

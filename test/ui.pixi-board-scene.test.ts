@@ -379,7 +379,6 @@ function materializedCell(raw: any): any {
       raw.interaction.legal,
       raw.interaction.legalFree,
       raw.interaction.selectable,
-      raw.interaction.interactionLocked,
       raw.interaction.directionHints
     ]),
     interactionSignature: JSON.stringify([raw.kind, raw.interaction]),
@@ -670,7 +669,7 @@ describe('Pixi static retained views', () => {
     expect(hintView.interactionRoot.hitArea.contains(32, 16)).toBe(false);
   });
 
-  test('syncs lock-only input state without repainting hint Graphics', () => {
+  test('keeps lock-only state out of retained input geometry', () => {
     const fixture = createFakeRuntime();
     const hintView = HintView.createPixiHintView(fixture.runtime);
     const unlocked = materializedCell(makeCell('2,3', {
@@ -690,20 +689,20 @@ describe('Pixi static retained views', () => {
     const surfaceCommands = (hintView.surfaceRoot as FakeGraphics).commands.slice();
 
     expect(hintView.updateDetailed(locked, context)).toEqual({
-      changed: true,
+      changed: false,
       painted: false,
-      inputSynced: true
+      inputSynced: false
     });
     expect((hintView.root as FakeGraphics).commands).toEqual(paintedCommands);
     expect((hintView.surfaceRoot as FakeGraphics).commands).toEqual(surfaceCommands);
     expect(hintView.interactionRoot).toMatchObject({
       eventMode: 'static',
-      cursor: 'default'
+      cursor: 'pointer'
     });
     expect(hintView.getDiagnostics()).toMatchObject({
-      updateCount: 2,
+      updateCount: 1,
       hintPaintCount: 1,
-      hintInputSyncCount: 2,
+      hintInputSyncCount: 1,
       interactionLocked: true
     });
   });
@@ -1483,7 +1482,7 @@ describe('Pixi static board scene', () => {
     expect(scene.getDiagnostics()).toMatchObject({ boardSurfaceSkippedCount: expect.any(Number) });
   });
 
-  test('keeps lock-only frame changes out of cell, stone, and hint paint work', () => {
+  test('applies lock-only frame changes once at the interaction layer', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
     const topology = makeTopology({ baseRows: 8, baseCols: 8 });
@@ -1508,11 +1507,12 @@ describe('Pixi static board scene', () => {
     expect(locked).toMatchObject({
       updatedCellViews: 0,
       updatedStoneViews: 0,
-      updatedHintViews: 64,
+      updatedHintViews: 0,
       hintPaintCount: 0,
-      hintInputSyncCount: 64,
-      skippedViews: 0
+      hintInputSyncCount: 0,
+      skippedViews: 64
     });
+    expect(scene.layers.interaction).toMatchObject({ eventMode: 'none', hitArea: null });
 
     const unlocked = scene.applyFrame(makeFrame({
       topology,
@@ -1523,16 +1523,21 @@ describe('Pixi static board scene', () => {
     expect(unlocked).toMatchObject({
       updatedCellViews: 0,
       updatedStoneViews: 0,
-      updatedHintViews: 64,
+      updatedHintViews: 0,
       hintPaintCount: 0,
-      hintInputSyncCount: 64
+      hintInputSyncCount: 0,
+      skippedViews: 64
+    });
+    expect(scene.layers.interaction).toMatchObject({
+      eventMode: 'static',
+      hitArea: { width: 256, height: 256 }
     });
     expect(scene.getDiagnostics()).toMatchObject({
       cumulativeUpdatedCellViewCount: 64,
       cumulativeUpdatedStoneViewCount: 0,
-      cumulativeUpdatedHintViewCount: 192,
+      cumulativeUpdatedHintViewCount: 64,
       cumulativeHintPaintCount: 64,
-      cumulativeHintInputSyncCount: 192
+      cumulativeHintInputSyncCount: 64
     });
   });
 

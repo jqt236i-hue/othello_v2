@@ -140,7 +140,7 @@ describe('BoardRenderModel sparse projection', () => {
     const lockChanged = project(createCell('0,0'), { interactionLocked: true });
     expect(lockChanged.interactionSignature).not.toBe(base.interactionSignature);
     expect(lockChanged.hintPaintSignature).toBe(base.hintPaintSignature);
-    expect(lockChanged.hintInputSignature).not.toBe(base.hintInputSignature);
+    expect(lockChanged.hintInputSignature).toBe(base.hintInputSignature);
     expect(lockChanged.surfaceSignature).toBe(base.surfaceSignature);
     expect(lockChanged.stoneSignature).toBe(base.stoneSignature);
 

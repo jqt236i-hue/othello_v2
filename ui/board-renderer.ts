@@ -250,6 +250,7 @@ function _getBoardShapeForBoardRenderer() {
 //     - pageshow (bfcache restoration)
 let _boardPixelSizingSignature: string | null = null;
 let _boardPixelSizingDirty = true;
+let _boardPixelSizingRevision = 0;
 let boardPixelSizingObserver: any = null;
 let boardPixelSizingObservedFrame: any = null;
 let boardPixelSizingObservedElement: any = null;
@@ -260,6 +261,8 @@ const _frameElementIdentityToken = new WeakMap<any, number>();
 let _nextBoardElementIdentity = 1;
 let _nextFrameElementIdentity = 1;
 const _boardPixelSizingShapeByElement = new WeakMap<any, any>();
+const _boardPixelSizingMeasurementByElement = new WeakMap<any, { signature: string; measurement: any }>();
+const _pixiViewportSizingSignatureByElement = new WeakMap<any, string>();
 const STANDARD_BOARD_BASELINE_ROWS = 8;
 const STANDARD_BOARD_BASELINE_COLS = 8;
 const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
@@ -848,8 +851,16 @@ function _getBoardAnchorOffsetForPixelSizing(shape: any, cellSize: number) {
 }
 
 function _measureBoardPixelSizing(boardElement: any, shape: any) {
+    const signature = _computeBoardPixelSizingSignature(boardElement, shape);
+    const cached = boardElement && _boardPixelSizingMeasurementByElement.get(boardElement);
+    if (!_boardPixelSizingDirty && cached && cached.signature === signature) {
+        return cached.measurement;
+    }
     const baseSize = _getBoardBaseSizeForPixelSizing(boardElement);
-    if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) return null;
+    if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) {
+        if (boardElement) _boardPixelSizingMeasurementByElement.delete(boardElement);
+        return null;
+    }
     const measuredCellSize = Math.max(1, Math.floor(Math.min(baseSize.width / shape.cols, baseSize.height / shape.rows)));
     const baselineCellSize = Math.max(0, Number(baseSize.baselineCellSize) || 0);
     const baseRows = Number.isFinite(shape.baseRows) ? shape.baseRows : shape.rows;
@@ -864,7 +875,11 @@ function _measureBoardPixelSizing(boardElement: any, shape: any) {
     const cellSize = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
         ? scaledBaselineCellSize
         : Math.max(1, Math.max(measuredCellSize, baselineCellSize));
-    return cellSize > 0 ? { baseSize, baselineCellSize, cellSize } : null;
+    const measurement = cellSize > 0 ? { baseSize, baselineCellSize, cellSize } : null;
+    if (boardElement && measurement) {
+        _boardPixelSizingMeasurementByElement.set(boardElement, { signature, measurement });
+    }
+    return measurement;
 }
 
 function _handleBoardPixelSizingViewportChange() {
@@ -991,6 +1006,9 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     // the next call (with the same signature) can early-return.
     _boardPixelSizingSignature = _currentSig;
     _boardPixelSizingDirty = false;
+    _boardPixelSizingRevision = _boardPixelSizingRevision >= Number.MAX_SAFE_INTEGER
+        ? 1
+        : _boardPixelSizingRevision + 1;
     return shape;
     } finally {
         if (PerfBenchmarks) PerfBenchmarks.perfEnd('syncBoardPixelSizing');
@@ -2401,6 +2419,8 @@ function _captureBoardVisualApplyDomSnapshotForBoardRenderer(host: any) {
             }
             _boardPixelSizingSignature = null;
             _boardPixelSizingDirty = true;
+            _boardPixelSizingMeasurementByElement.delete(host);
+            _pixiViewportSizingSignatureByElement.delete(host);
         }
     };
 }
@@ -2475,6 +2495,19 @@ function _readBoardPresentationScalesForBoardRenderer(host: any) {
 
 function _capPixiBoardViewportForBoardRenderer(host: any, topology: any) {
     const cellSize = _readBoardCellSizeForLayout(host, topology);
+    const viewportSizingSignature = [
+        _boardPixelSizingRevision,
+        Number(topology && topology.renderRows) || 0,
+        Number(topology && topology.renderCols) || 0,
+        Number(topology && topology.baseRows) || 0,
+        Number(topology && topology.baseCols) || 0,
+        Number(topology && topology.minRow) || 0,
+        Number(topology && topology.minCol) || 0,
+        cellSize
+    ].join('|');
+    if (host && _pixiViewportSizingSignatureByElement.get(host) === viewportSizingSignature) {
+        return;
+    }
     const shape = _normalizeBoardShapeForPixelSizing({
         rows: topology.renderRows,
         cols: topology.renderCols,
@@ -2519,6 +2552,7 @@ function _capPixiBoardViewportForBoardRenderer(host: any, topology: any) {
         if (Math.abs(snapX) > 0.001) host.style.left = `${snapX}px`;
         if (Math.abs(snapY) > 0.001) host.style.top = `${snapY}px`;
     }
+    if (host) _pixiViewportSizingSignatureByElement.set(host, viewportSizingSignature);
 }
 
 function _createCommittedWorldStateCallbackForBoardRenderer(frame: any, backendKind: unknown) {
@@ -2607,6 +2641,10 @@ function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: 
 }
 
 function _readBoardCellSizeForLayout(host: any, topology?: any) {
+    try {
+        const value = parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-size-px') || ''));
+        if (Number.isFinite(value) && value > 0) return value;
+    } catch (e: any) { /* use live measurement fallback */ }
     if (host && topology) {
         const shape = _normalizeBoardShapeForPixelSizing({
             rows: topology.renderRows,
@@ -2619,10 +2657,6 @@ function _readBoardCellSizeForLayout(host: any, topology?: any) {
         const measurement = _measureBoardPixelSizing(host, shape);
         if (measurement && measurement.cellSize > 0) return measurement.cellSize;
     }
-    try {
-        const value = parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-size-px') || ''));
-        if (Number.isFinite(value) && value > 0) return value;
-    } catch (e: any) { /* ignore */ }
     return 1;
 }
 

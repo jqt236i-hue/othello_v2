@@ -137,4 +137,41 @@ describe('debug-only CPU turn performance harness', () => {
     expect(snapshot.invalidEntryCount).toBe(1);
     expect((snapshot.clockDomain as any).compatible).toBe(true);
   });
+
+  test('reports only aggregate Pixi scene work counters', () => {
+    installEnvironment('?perf=1');
+    let moduleRef: any;
+    jest.isolateModules(() => { moduleRef = require('../ui/perf-benchmarks'); });
+    const harness = moduleRef.installCpuTurnPerformanceHarness();
+
+    const diagnostics = {
+      scene: {
+        applyCount: 4,
+        cumulativeUpdatedViewCount: 256,
+        cumulativeUpdatedCellViewCount: 0,
+        cumulativeUpdatedStoneViewCount: 3,
+        cumulativeUpdatedHintViewCount: 256,
+        cumulativeHintPaintCount: 12,
+        cumulativeHintInputSyncCount: 256,
+        cumulativeSkippedViewCount: 0,
+        cumulativeReleasedViewCount: 0,
+        staticBakeCount: 1,
+        retainedKeys: ['must-not-leak']
+      }
+    };
+    expect(harness.beginScenario('lv1-empty-or-unusable-hand-place-8x8', {
+      pixiDiagnosticsBefore: diagnostics
+    })).toBe(true);
+    const snapshot = harness.endScenario({ pixiDiagnosticsAfter: diagnostics }) as any;
+
+    expect(snapshot.pixiDiagnosticsBefore).toMatchObject({
+      sceneUpdatedCellViewCount: 0,
+      sceneUpdatedStoneViewCount: 3,
+      sceneUpdatedHintViewCount: 256,
+      sceneHintPaintCount: 12,
+      sceneHintInputSyncCount: 256,
+      sceneStaticBakeCount: 1
+    });
+    expect(JSON.stringify(snapshot)).not.toContain('must-not-leak');
+  });
 });

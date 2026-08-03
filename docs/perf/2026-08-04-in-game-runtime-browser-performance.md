@@ -55,3 +55,42 @@ classicの3 interval以外は、cross-lane identity、browser environment、全s
 対象のPixi heavy scenarioではRAF p95 16.7～16.8 ms、最大16.8 ms、50 ms以上stall 0件を確認した。長時間stabilityも、干渉を除いたclassic単独再測定と標準Vite測定の両方で50 ms以上stall 0件だった。
 
 これはWindows / Chromium / RTX 2070の1環境における結果である。Chrome / Firefox / WebKit × desktop / mobile × Pixi / DOMの12 smokeは別途通過しているが、mobileは実機performance測定ではなくemulationである。
+
+## 6. スマホ配置時負荷のfollow-up
+
+スマホで石を置く瞬間が重いという実機報告を受け、390 × 844、DPR 2、touch有効のChromium contextにCPU slowdownを加えて再調査した。従来のmobile smokeは機能互換確認であり、物理端末の性能証拠ではなかったため、性能reportには `physicalDevice: false` を明記した。
+
+調査で確認した重複処理と対処は次のとおり。
+
+- 手番lockのたびに64セルすべての透明なPixi入力Graphicsとhit areaを再構築していた。セル固有の入力signatureから全体lockを外し、interaction親layerを1回だけ有効・無効にする形へ変更した。通常配置2手の `hintInputSyncCount` は256回から8回へ減った。
+- 盤面サイズが変わらない反映でも、一時DOM要素の追加・計測・削除とviewport寸法の再設定を繰り返していた。セルサイズ・frame計測・viewport capをレイアウトrevision単位で再利用し、resize、skin、DPR、盤面形状変更時だけ再計測するようにした。
+- 同一ターンのログ更新ごとにターン告知座標を再計測し、石数・直近ログDOMを再生成していた。告知は初回、次RAF、180 ms後、resize / scroll / board ResizeObserverで従来どおり補正し、同一内容のDOM更新だけを省略した。
+- スマホ縦画面ではCSSで非表示になるCPU・勇者の台詞吹き出しにも、画像・盤面・吹き出しの同期座標計測が走っていた。表示状態と台詞内容は保持したまま非表示profile中の配置計算だけを止め、回転時は既存のresize処理で再配置するようにした。4倍CPU profile全体で、この吹き出し由来の `getBoundingClientRect` self timeは178.7 msから0 msになった。
+- opponent-action harnessにmobile viewport、touch、CPU slowdown、CPU profileを追加した。通常プレイに存在しないdebug console負荷を避けるため、最終測定は `perf=1` と診断契約の事前注入で行った。
+
+4倍CPU slowdownの同一debug条件では、レイアウト計測最適化前後で次の変化を確認した。各scenarioはwarmup 1回後に5回取得した。
+
+| scenario | sync p95 before / after | RAF max before / after | 50 ms以上RAF before / after |
+| --- | ---: | ---: | ---: |
+| 通常配置 | 62.9 / 58.2 ms | 116.7 / 116.7 ms | 17 / 19 |
+| 使用可能カード→配置 | 148.2 / 101.7 ms | 250.0 / 116.7 ms | 34 / 20 |
+| 多対象カード→配置 | 151.0 / 65.4 ms | 333.3 / 116.7 ms | 35 / 22 |
+| Lv6 Worker配置 | 125.4 / 48.5 ms | 283.4 / 100.0 ms | 25 / 11 |
+| 高更新再生 | 204.2 / 49.4 ms | 333.4 / 100.0 ms | 26 / 12 |
+
+CPU profile全体では、`getBoundingClientRect` self timeが3,632.2 msから721.2 msへ約80%減り、GC self timeが723.2 msから384.4 msへ約47%減った。通常配置の最大値は4倍条件で横ばいだが、2回目の測定でRAF p95は16.8 msへ戻っており、最初の33.3 msは再現しなかった。
+
+debugログ無効・2倍CPU slowdownでは、通常配置のsync p95は25.8 ms、RAF最大は50.0 ms、Lv6配置のRAF最大は33.4 msだった。Pixi hardware経路で合法手をtouch操作し、CPU応答後にwriterがidleへ戻ること、canvasが1枚であること、page errorが0件であること、石・合法手・布石・ターン告知・カード領域の表示が維持されることも確認した。
+
+raw reportとprofileはGit管理外の次の場所に保存した。
+
+- `artifacts/opponent-action-frame-stall/mobile-placement-throttle4.json`
+- `artifacts/opponent-action-frame-stall/mobile-placement-throttle4.cpuprofile`
+- `artifacts/opponent-action-frame-stall/mobile-placement-optimized-safe-throttle4-rep2.json`
+- `artifacts/opponent-action-frame-stall/mobile-placement-optimized-safe-throttle4.cpuprofile`
+- `artifacts/opponent-action-frame-stall/mobile-placement-normal-log-safe2.json`
+- `artifacts/opponent-action-frame-stall/mobile-placement-post-bubble-safe4.cpuprofile`
+- `artifacts/opponent-action-frame-stall/mobile-placement-post-bubble-profile-safe4.json`
+- `artifacts/mobile-placement-after-pixi.png`
+
+このfollow-upも物理Android / iPhoneのpaint、GPU、thermal throttlingを代替しない。実機reportは `docs/perf/pixijs-playfield-mobile/` の既存手順で追加する。

@@ -158,4 +158,25 @@ describe('status-display portrait commentary bubbles', () => {
       teardownPortraitBubbleDom(dom);
     }
   });
+
+  test('skips hidden portrait bubble layout reads on phone portrait', () => {
+    const { dom, window, boardFrame } = setupPortraitBubbleDom();
+    try {
+      window.document.documentElement.classList.add('layout-profile-phone-portrait');
+      const cpuImg = window.document.getElementById('cpu-character-img');
+      const boardRectSpy = jest.spyOn(boardFrame, 'getBoundingClientRect');
+      const anchorRectSpy = jest.spyOn(cpuImg, 'getBoundingClientRect');
+
+      window.showCpuSpeechBubble('非表示中の発言');
+
+      const cpuBubble = window.document.getElementById('cpu-speech-bubble');
+      expect(cpuBubble).not.toBeNull();
+      expect(cpuBubble.textContent).toBe('非表示中の発言');
+      expect(cpuBubble.classList.contains('is-visible')).toBe(true);
+      expect(boardRectSpy).not.toHaveBeenCalled();
+      expect(anchorRectSpy).not.toHaveBeenCalled();
+    } finally {
+      teardownPortraitBubbleDom(dom);
+    }
+  });
 });

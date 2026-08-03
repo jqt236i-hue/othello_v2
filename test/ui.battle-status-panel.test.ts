@@ -220,7 +220,7 @@ describe('battle status panel', () => {
       Object.defineProperty(toast, 'offsetWidth', { value: 188, configurable: true });
       Object.defineProperty(toast, 'offsetHeight', { value: 42, configurable: true });
 
-      window.updateStatus();
+      jest.advanceTimersByTime(180);
 
       expect(toast.style.left).toBe('1082px');
       expect(toast.style.top).toBe('705px');
@@ -260,7 +260,7 @@ describe('battle status panel', () => {
       const toast = window.document.getElementById('turn-arrival-toast') as HTMLElement;
       Object.defineProperty(toast, 'offsetWidth', { value: 132, configurable: true });
       Object.defineProperty(toast, 'offsetHeight', { value: 30, configurable: true });
-      window.updateStatus();
+      jest.advanceTimersByTime(180);
 
       expect(toast.style.left).toBe('234px');
       expect(toast.style.top).toBe('450px');
@@ -366,5 +366,33 @@ describe('battle status panel', () => {
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
 
     teardownBattleStatusDom(dom);
+  });
+
+  test('keeps unchanged status nodes and toast geometry without rebuilding them', () => {
+    jest.useFakeTimers();
+    const { dom, window, effectPanel } = setupBattleStatusDom();
+
+    try {
+      const boardFrame = window.document.getElementById('board-frame') as any;
+      const readBoardRect = jest.fn(boardFrame.getBoundingClientRect);
+      boardFrame.getBoundingClientRect = readBoardRect;
+
+      window.updateStatus();
+
+      const blackCount = effectPanel.querySelector('.battle-status-count--black .battle-status-count-value');
+      const latestValue = effectPanel.querySelector('.battle-status-latest-value');
+      const boardReadCount = readBoardRect.mock.calls.length;
+
+      window.recordBattleStatusEvent('黒: 数字マスD3: 布石+3');
+      window.recordBattleStatusEvent('黒がドローしました');
+      window.recordBattleStatusEvent('黒: D3 に置き、2枚反転');
+
+      expect(effectPanel.querySelector('.battle-status-count--black .battle-status-count-value')).toBe(blackCount);
+      expect(effectPanel.querySelector('.battle-status-latest-value')).toBe(latestValue);
+      expect(readBoardRect).toHaveBeenCalledTimes(boardReadCount);
+    } finally {
+      teardownBattleStatusDom(dom);
+      jest.useRealTimers();
+    }
   });
 });

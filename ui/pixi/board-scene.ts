@@ -3219,14 +3219,23 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     topologyPatchKeys = new Set(Array.isArray(context.topologyRevealKeys)
       ? context.topologyRevealKeys
       : Array.from(topologyReveals.values()).flatMap((value) => Array.from(value.keys)));
-    // This one static parent receives Federated global moves and delegates
-    // cell authority to the shared O(1) controller. Child hit areas exist
-    // only for materialized sparse cells; no dense void model is allocated.
-    layers.interaction.eventMode = 'static';
-    layers.interaction.hitArea = rectangularHitArea(
-      frame.layout.camera.viewportWidth,
-      frame.layout.camera.viewportHeight
-    );
+    // Lock state is global presentation state. Apply it once at the parent so
+    // placement/playback lock transitions do not clear and rebuild every
+    // retained cell's transparent Graphics hit area. BoardInputController
+    // remains the action authority and also rejects locked native input.
+    const interactionLocked = frame.model.cells[0]?.interaction.interactionLocked !== false;
+    layers.interaction.eventMode = interactionLocked ? 'none' : 'static';
+    layers.interaction.cursor = 'default';
+    if (interactionLocked) {
+      layers.interaction.hitArea = null;
+    } else {
+      const width = frame.layout.camera.viewportWidth;
+      const height = frame.layout.camera.viewportHeight;
+      const hitArea = layers.interaction.hitArea;
+      if (!hitArea || Number(hitArea.width) !== width || Number(hitArea.height) !== height) {
+        layers.interaction.hitArea = rectangularHitArea(width, height);
+      }
+    }
     const nextBoardTextureMode = updateBoardSurface(frame, context, sceneOffsetX, sceneOffsetY);
     const materialized = materializeBoardViewport({
       model: frame.model,

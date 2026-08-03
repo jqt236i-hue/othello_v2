@@ -157,6 +157,11 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     context: PixiStaticViewContext
   ): PixiHintViewUpdateResult {
     assertAlive();
+    const interaction = cell.interaction;
+    // Locking is global board state and is applied once by BoardScene's
+    // interaction layer. Keep diagnostics current without invalidating every
+    // retained cell hit area during placement/playback lock transitions.
+    diagnosticsState.interactionLocked = interaction.interactionLocked;
     const nextPaintSignature = JSON.stringify([
       context.interactionRevisionSignature,
       context.sceneX,
@@ -202,7 +207,6 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       );
       clearPixiGraphics(interactionRoot);
     }
-    const interaction = cell.interaction;
     diagnosticsState = {
       legal: interaction.legal,
       selectable: interaction.selectable,
@@ -225,7 +229,10 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       // commands still flow through BoardInputController and handleCellClick;
       // Pixi never computes legality or becomes gameplay authority.
       interactionRoot.eventMode = visible ? 'static' : 'none';
-      interactionRoot.cursor = !interaction.interactionLocked && (
+      // Per-cell cursors represent eligibility only. The scene's O(1) parent
+      // lock suppresses all descendants and restores the default cursor while
+      // playback owns the board.
+      interactionRoot.cursor = (
         interaction.legal
         || interaction.legalFree
         || interaction.selectable

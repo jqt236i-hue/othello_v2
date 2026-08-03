@@ -112,8 +112,14 @@ const REPORT_DIAGNOSTIC_KEYS = new Set([
   'tickerListenerCount',
   'sceneApplyCount',
   'sceneUpdatedViewCount',
+  'sceneUpdatedCellViewCount',
+  'sceneUpdatedStoneViewCount',
+  'sceneUpdatedHintViewCount',
+  'sceneHintPaintCount',
+  'sceneHintInputSyncCount',
   'sceneSkippedViewCount',
   'sceneReleasedViewCount',
+  'sceneStaticBakeCount',
   'timelineStartedRunCount',
   'timelineCompletedRunCount',
   'timelineFailedRunCount',
@@ -494,6 +500,16 @@ export function buildFrameStallReport(
     buildMode: string;
     captureOrder: readonly string[];
     graphics: DesktopGraphicsEnvironment;
+    emulation?: Readonly<{
+      mode: 'desktop' | 'mobile-layout';
+      viewportWidth: number;
+      viewportHeight: number;
+      deviceScaleFactor: number;
+      isMobile: boolean;
+      hasTouch: boolean;
+      cpuThrottleRate: number;
+      physicalDevice: false;
+    }>;
     minimumValidSamples?: number;
     generatedAt?: string;
   }>
@@ -594,7 +610,8 @@ export function buildFrameStallReport(
       captureIterations: options.captureIterations,
       buildMode: options.buildMode,
       captureOrder: Object.freeze(options.captureOrder.slice()),
-      graphics: options.graphics
+      graphics: options.graphics,
+      emulation: options.emulation || null
     }),
     scenarios: Object.freeze(scenarios)
   });
@@ -625,6 +642,9 @@ export function evaluateBlockingPerformanceGate(
   }
   if (JSON.stringify(baseline.capture?.captureOrder || null) !== JSON.stringify(candidate.capture?.captureOrder || null)) {
     errors.push('capture order mismatch');
+  }
+  if (JSON.stringify(baseline.capture?.emulation || null) !== JSON.stringify(candidate.capture?.emulation || null)) {
+    errors.push('capture emulation mismatch');
   }
   const baselineArtifactHash = String(baseline.capture?.browserArtifactSha256 || '').trim();
   const candidateArtifactHash = String(candidate.capture?.browserArtifactSha256 || '').trim();
@@ -1183,19 +1203,31 @@ function parseArgs(argv: readonly string[]): Readonly<{
   profile: string;
   outputPath: string;
   quick: boolean;
+  mobile: boolean;
+  cpuThrottleRate: number;
+  cpuProfilePath: string | null;
 }> {
   let profile = 'desktop';
   let outputPath = path.join('artifacts', 'opponent-action-frame-stall', 'candidate.json');
   let quick = false;
+  let mobile = false;
+  let cpuThrottleRate = 1;
+  let cpuProfilePath: string | null = null;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--profile' && argv[index + 1]) profile = String(argv[++index]);
     else if (arg === '--output' && argv[index + 1]) outputPath = String(argv[++index]);
     else if (arg === '--quick') quick = true;
+    else if (arg === '--mobile') mobile = true;
+    else if (arg === '--cpu-throttle' && argv[index + 1]) cpuThrottleRate = Number(argv[++index]);
+    else if (arg === '--cpu-profile' && argv[index + 1]) cpuProfilePath = String(argv[++index]);
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (!/^[a-z0-9][a-z0-9._-]{0,31}$/i.test(profile)) throw new Error('profile must be an allowlisted identifier');
-  return Object.freeze({ profile, outputPath, quick });
+  if (!Number.isFinite(cpuThrottleRate) || cpuThrottleRate < 1 || cpuThrottleRate > 20) {
+    throw new Error('cpu throttle must be between 1 and 20');
+  }
+  return Object.freeze({ profile, outputPath, quick, mobile, cpuThrottleRate, cpuProfilePath });
 }
 
 async function runCli(): Promise<void> {
@@ -1215,16 +1247,44 @@ async function runCli(): Promise<void> {
     browser = await chromium.launch(createDesktopChromiumLaunchOptions());
     graphics = await readDesktopGraphicsEnvironment(browser);
     assertHardwareAcceleratedGraphics(graphics);
-    const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
+    const viewport = args.mobile
+      ? { width: 390, height: 844 }
+      : { width: 1366, height: 900 };
+    const context = await browser.newContext({
+      viewport,
+      deviceScaleFactor: args.mobile ? 2 : 1,
+      isMobile: args.mobile,
+      hasTouch: args.mobile
+    });
+    await context.addInitScript(() => {
+      Object.defineProperty(window, '__BOARD_VISUAL_TEST__', {
+        value: true,
+        configurable: true,
+        enumerable: false,
+        writable: false
+      });
+    });
+    const page = await context.newPage();
+    const cdp = args.cpuThrottleRate > 1 || args.cpuProfilePath
+      ? await context.newCDPSession(page)
+      : null;
+    if (args.cpuThrottleRate > 1 && cdp) {
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: args.cpuThrottleRate });
+    }
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
     page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     page.on('pageerror', (error) => pageErrors.push(error.message));
-    await page.goto(`${baseUrl}/vite-dist/index.vite.html?debug=1&perf=1&boardRenderer=pixi&eagerCpuPolicy=1`, {
+    await page.goto(`${baseUrl}/vite-dist/index.vite.html?perf=1&boardRenderer=pixi&eagerCpuPolicy=1`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000
     });
     await waitForReady(page);
+    if (args.cpuProfilePath && cdp) {
+      await cdp.send('Profiler.enable');
+      await cdp.send('Profiler.setSamplingInterval', { interval: 100 });
+      await cdp.send('Profiler.start');
+    }
     let fixtureIndex = 0;
     for (const scenarioId of SCENARIO_IDS) {
       for (let iteration = 0; iteration < warmupIterations + captureIterations; iteration += 1) {
@@ -1247,9 +1307,23 @@ async function runCli(): Promise<void> {
         process.stdout.write(`[perf] ${scenarioId} ${warmup ? 'warmup' : 'capture'} ${iteration + 1}/${warmupIterations + captureIterations}\n`);
       }
     }
-    await page.close();
+    if (args.cpuProfilePath && cdp) {
+      const capturedProfile = await cdp.send('Profiler.stop');
+      const profilePath = path.resolve(rootDir, args.cpuProfilePath);
+      fs.mkdirSync(path.dirname(profilePath), { recursive: true });
+      fs.writeFileSync(profilePath, `${JSON.stringify(capturedProfile.profile)}\n`, 'utf8');
+      process.stdout.write(`[perf] wrote ${path.relative(rootDir, profilePath)}\n`);
+    }
+    await context.close();
     if (consoleErrors.length || pageErrors.length) {
-      throw new Error(`browser emitted ${consoleErrors.length} console errors and ${pageErrors.length} page errors`);
+      const details = [...consoleErrors, ...pageErrors]
+        .map((value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 240))
+        .filter(Boolean)
+        .slice(0, 10);
+      throw new Error(
+        `browser emitted ${consoleErrors.length} console errors and ${pageErrors.length} page errors`
+        + (details.length ? `: ${JSON.stringify(details)}` : '')
+      );
     }
   } finally {
     if (browser) await browser.close();
@@ -1268,6 +1342,16 @@ async function runCli(): Promise<void> {
     buildMode: 'vite-production',
     captureOrder: SCENARIO_IDS,
     graphics,
+    emulation: Object.freeze({
+      mode: args.mobile ? 'mobile-layout' as const : 'desktop' as const,
+      viewportWidth: args.mobile ? 390 : 1366,
+      viewportHeight: args.mobile ? 844 : 900,
+      deviceScaleFactor: args.mobile ? 2 : 1,
+      isMobile: args.mobile,
+      hasTouch: args.mobile,
+      cpuThrottleRate: args.cpuThrottleRate,
+      physicalDevice: false as const
+    }),
     minimumValidSamples: args.quick ? 5 : 20
   });
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });

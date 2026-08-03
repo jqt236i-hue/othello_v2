@@ -123,12 +123,27 @@ describe('opponent action frame-stall report helpers', () => {
         webgl: 'enabled_on',
         devices: []
       },
+      emulation: {
+        mode: 'mobile-layout',
+        viewportWidth: 390,
+        viewportHeight: 844,
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+        cpuThrottleRate: 4,
+        physicalDevice: false
+      },
       generatedAt: '2026-07-20T00:00:00.000Z'
     }) as any;
     expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v2');
     expect(report.capture.graphics).toMatchObject({
       hardwareAccelerated: true,
       displayType: 'ANGLE_D3D11'
+    });
+    expect(report.capture.emulation).toMatchObject({
+      mode: 'mobile-layout',
+      cpuThrottleRate: 4,
+      physicalDevice: false
     });
     expect(report.scenarios[SCENARIO_IDS[0]].syncInvocationMs.p95).toBe(20);
     expect(() => assertNoForbiddenReportKeys(report)).not.toThrow();

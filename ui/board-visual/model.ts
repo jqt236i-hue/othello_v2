@@ -236,7 +236,6 @@ function signatureForHintInput(cell: UnsignedBoardCellVisualState): string {
     interaction.legal,
     interaction.legalFree,
     interaction.selectable,
-    interaction.interactionLocked,
     interaction.directionHints
   ]);
 }
