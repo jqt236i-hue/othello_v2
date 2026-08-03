@@ -506,6 +506,11 @@ describe('Card effects E2E', () => {
 
   test('盤面拡張は同一anchorの方向矢印を区別してcurrent shapeへ追加する', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const invalidMoveWarnings: string[] = [];
+    page.on('console', (message: any) => {
+      const text = message.text();
+      if (text.includes('[MOVE] Invalid move attempted')) invalidMoveWarnings.push(text);
+    });
     await openPixiDebugLane(page, serverPort, true);
     await closeSidePanelIfPresent(page);
     await page.waitForFunction(() => !!(
@@ -589,12 +594,12 @@ describe('Card effects E2E', () => {
     const screenshot = await page.screenshot();
     expect(screenshot.byteLength).toBeGreaterThan(1000);
 
-    // Use the visible Pixi arrow rather than the semantic accessibility
-    // control: this is the player-facing input path for a direction-sensitive
-    // expansion target.
-    await page.mouse.click(
+    // A rapid second click must not fall through to the board after the first
+    // click removes the direction control.
+    await page.mouse.dblclick(
       beforeExpansion.anchorRect.left + beforeExpansion.anchorRect.width * 0.2,
-      beforeExpansion.anchorRect.top + beforeExpansion.anchorRect.height * 0.5
+      beforeExpansion.anchorRect.top + beforeExpansion.anchorRect.height * 0.5,
+      { delay: 30 }
     );
     await page.waitForFunction(() => {
       const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
@@ -656,6 +661,7 @@ describe('Card effects E2E', () => {
       playback: expect.objectContaining({ inFlightEffectCount: 0 }),
       timeline: expect.objectContaining({ state: 'idle' })
     }));
+    expect(invalidMoveWarnings).toEqual([]);
 
     const expandedScreenshot = await page.screenshot();
     expect(expandedScreenshot.byteLength).toBeGreaterThan(1000);

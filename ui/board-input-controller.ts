@@ -1,7 +1,12 @@
 import type { BoardClientRect, BoardRenderModel } from './board-visual/types';
 
 type BoardInputDirection = 'up' | 'down' | 'left' | 'right';
-type BoardInputBlockReason = 'locked' | 'spectator' | 'stale-model' | 'invalid-direction';
+type BoardInputBlockReason =
+  | 'locked'
+  | 'spectator'
+  | 'stale-model'
+  | 'invalid-direction'
+  | 'direction-click-through';
 type BoardInputSource = 'pointer' | 'keyboard' | 'direction';
 type BoardInputPointerEventType =
   | 'pointerdown'
@@ -62,6 +67,7 @@ interface BoardInputControllerOptions {
   onBlocked?: (reason: BoardInputBlockReason, source: BoardInputSource) => void;
   setHoveredCell?: (row: number, col: number) => void;
   clearHoveredCell?: () => void;
+  now?: () => number;
 }
 
 type ActivePress = {
@@ -77,7 +83,14 @@ type ActivePress = {
   boardDigest?: string;
 };
 
+type RecentDirectionActivation = {
+  row: number;
+  col: number;
+  expiresAt: number;
+};
+
 const DEFAULT_PRESS_MOVE_CANCEL_PX = 8;
+const DIRECTION_CLICK_THROUGH_GUARD_MS = 500;
 
 function toCellKey(row: number, col: number): string {
   return `${row},${col}`;
@@ -171,8 +184,39 @@ function createBoardInputController(options: BoardInputControllerOptions) {
   let currentModel: BoardRenderModel | null = null;
   let currentCellByKey = new Map<string, BoardRenderModel['cells'][number]>();
   let currentSortedLegalCells: readonly BoardInputCell[] = Object.freeze([]);
+  let recentDirectionActivation: RecentDirectionActivation | null = null;
   let enabled = false;
   let destroyed = false;
+
+  const readNow = (): number => {
+    try {
+      const value = Number(options.now?.());
+      if (Number.isFinite(value)) return value;
+    } catch (_error) { /* fall back to the browser clock */ }
+    return Date.now();
+  };
+
+  const clearRecentDirectionActivation = (): void => {
+    recentDirectionActivation = null;
+  };
+
+  const isDirectionClickThrough = (row: number, col: number): boolean => {
+    const recent = recentDirectionActivation;
+    if (!recent) return false;
+    if (readNow() > recent.expiresAt) {
+      clearRecentDirectionActivation();
+      return false;
+    }
+    return recent.row === row && recent.col === col;
+  };
+
+  const rememberDirectionActivation = (row: number, col: number): void => {
+    recentDirectionActivation = {
+      row,
+      col,
+      expiresAt: readNow() + DIRECTION_CLICK_THROUGH_GUARD_MS
+    };
+  };
 
   const isLocked = (): boolean => {
     if (!enabled || destroyed) return true;
@@ -288,6 +332,10 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       notifyBlocked(blocked, source);
       return false;
     }
+    if (isDirectionClickThrough(row, col)) {
+      notifyBlocked('direction-click-through', source);
+      return false;
+    }
     if (!matchesCurrentModel(expectedModel)) {
       notifyBlocked('stale-model', source);
       return false;
@@ -298,6 +346,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       return false;
     }
     options.handleCellClick(row, col, directionKey);
+    if (directionKey) rememberDirectionActivation(row, col);
     return true;
   };
 
@@ -491,6 +540,10 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     if (event.type === 'pointerdown') {
       clearPress();
       if (Number(event.button ?? 0) !== 0 || isLocked() || !isInteractive(row, col)) return false;
+      if (isDirectionClickThrough(row, col)) {
+        notifyBlocked('direction-click-through', 'pointer');
+        return false;
+      }
       const press: ActivePress = {
         pointerId,
         row,
@@ -607,6 +660,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       enabled = false;
       clearPress();
       clearHover();
+      clearRecentDirectionActivation();
       return true;
     },
     handlePointer,
@@ -660,6 +714,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       currentModel = null;
       currentCellByKey = new Map();
       currentSortedLegalCells = Object.freeze([]);
+      clearRecentDirectionActivation();
     },
     destroy(): void {
       if (destroyed) return;
@@ -672,6 +727,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       currentModel = null;
       currentCellByKey = new Map();
       currentSortedLegalCells = Object.freeze([]);
+      clearRecentDirectionActivation();
       destroyed = true;
     }
   };

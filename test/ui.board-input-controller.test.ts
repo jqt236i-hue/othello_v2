@@ -114,6 +114,76 @@ describe('board input controller', () => {
     expect(info).toEqual([]);
   });
 
+  test('blocks a rapid click-through on the cell whose direction control just disappeared', () => {
+    let now = 1000;
+    const direction = cell(3, 0, {
+      interaction: {
+        legal: false,
+        legalFree: false,
+        interactionLocked: false,
+        directionHints: [{
+          id: 'board-expansion-will:3,0:left',
+          kind: 'board-expansion-will',
+          directionKey: 'left'
+        }]
+      }
+    });
+    const { controller, actions, blocked } = createController({ now: () => now });
+    controller.syncModel(model([direction]));
+
+    expect(controller.activateDirection(
+      3,
+      0,
+      'left',
+      'board-expansion-will:3,0:left'
+    )).toBe(true);
+
+    const nextModel = {
+      ...model([cell(3, 0)]),
+      modelCommitId: 2,
+      boardDigest: 'board.v1.after-expansion'
+    };
+    controller.syncModel(nextModel);
+    expect(controller.handlePointer({
+      type: 'pointerdown',
+      row: 3,
+      col: 0,
+      pointerId: 9,
+      pointerType: 'mouse',
+      button: 0
+    })).toBe(false);
+    expect(controller.handlePointer({
+      type: 'pointerup',
+      row: 3,
+      col: 0,
+      pointerId: 9,
+      pointerType: 'mouse'
+    })).toBe(false);
+    expect(actions).toEqual([{ row: 3, col: 0, directionKey: 'left' }]);
+    expect(blocked).toContain('direction-click-through:pointer');
+
+    now += 501;
+    expect(controller.handlePointer({
+      type: 'pointerdown',
+      row: 3,
+      col: 0,
+      pointerId: 10,
+      pointerType: 'mouse',
+      button: 0
+    })).toBe(true);
+    expect(controller.handlePointer({
+      type: 'pointerup',
+      row: 3,
+      col: 0,
+      pointerId: 10,
+      pointerType: 'mouse'
+    })).toBe(true);
+    expect(actions).toEqual([
+      { row: 3, col: 0, directionKey: 'left' },
+      { row: 3, col: 0 }
+    ]);
+  });
+
   test('touch short press performs only the board action', () => {
     const order: string[] = [];
     const controller = BoardInputControllerModule.createBoardInputController({
