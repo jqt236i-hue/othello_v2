@@ -296,6 +296,11 @@ function createMockScene(log: string[]) {
       if (current) sourceTrajectories.set(handle.id, { ...current, ...visual });
       log.push(`scene:source-update:${handle.id}`);
     }),
+    updateSourceTrajectoryProgress: jest.fn((_scope: any, handle: any, progress: number) => {
+      const current = sourceTrajectories.get(handle.id);
+      if (current) sourceTrajectories.set(handle.id, { ...current, progress });
+      log.push(`scene:source-update:${handle.id}`);
+    }),
     releaseSourceTrajectory: jest.fn((_scope: any, handle: any) => {
       const current = sourceTrajectories.get(handle.id);
       if (current) {

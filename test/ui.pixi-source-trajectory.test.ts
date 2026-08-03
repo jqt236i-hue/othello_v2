@@ -12,6 +12,7 @@ import {
   createPixiSourceTrajectoryRenderer,
   resolvePixiSourceTrajectoryTiming
 } from '../ui/pixi/effects/source-trajectory';
+import { compilePixiSourceTrajectoryRenderPlan } from '../ui/pixi/effects/source-trajectory-render-plan';
 import type { PixiTimelineRunOptions } from '../ui/pixi/timeline';
 import { PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE } from '../ui/board-visual/playback-interruption';
 import {
@@ -433,6 +434,13 @@ function createMockScene(snapshot: BoardScene.PixiSourceTrajectoryGeometrySnapsh
     updateSourceTrajectory: jest.fn((_scope: any, handle: any, visual: any) => {
       const current = records.get(handle.id);
       if (current) current.visual = visual;
+    }),
+    updateSourceTrajectoryProgress: jest.fn((_scope: any, handle: any, progress: number) => {
+      const current = records.get(handle.id);
+      if (!current?.options?.renderPlan) return;
+      const state = current.scalar || current.options.renderPlan.createScalarState();
+      current.options.renderPlan.sampleInto(progress, state);
+      current.scalar = state;
     }),
     releaseSourceTrajectory: jest.fn((_scope: any, handle: any) => {
       const current = records.get(handle.id);
@@ -873,6 +881,40 @@ describe('Pixi board source trajectory renderer', () => {
     expect(crossing.visibleSegment).not.toBeNull();
     expect(outside.visibleSegment).toBeNull();
     expect(scene.getDiagnostics().activeSourceTrajectoryCount).toBe(0);
+    scene.destroy();
+  });
+
+  test('actual scene prepares trajectory graphics once and applies only scalar progress on ticks', () => {
+    const runtime = fakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime, effectGutterCells: 2 });
+    scene.applyFrame(makeFrame(), { canvasViewport: { sceneOffsetX: 64, sceneOffsetY: 64 } });
+    const request = requestFor('lightningDestroyed', { row: 1, col: 1 }, { row: 5, col: 5 });
+    const snapshot = scene.snapshotSourceTrajectoryGeometry(request);
+    const plan = compilePixiSourceTrajectoryRenderPlan(request, snapshot);
+    const scope = scene.beginPlaybackScope('prepared-steady-tick');
+    const handle = scene.acquireSourceTrajectory(scope, {
+      trajectoryId: request.trajectoryId,
+      profileKey: request.profileKey,
+      primitive: 'lightning',
+      geometry: snapshot,
+      clipRect: plan.clipRect,
+      renderPlan: plan
+    });
+    const before = scene.getDiagnostics();
+
+    for (let index = 0; index < 120; index += 1) {
+      scene.updateSourceTrajectoryProgress(scope, handle, index / 119);
+    }
+    const after = scene.getDiagnostics();
+
+    expect(after.sourceTrajectoryStaticPrepareCount).toBe(before.sourceTrajectoryStaticPrepareCount);
+    expect(after.sourceTrajectoryScalarApplyCount - before.sourceTrajectoryScalarApplyCount).toBe(120);
+    expect(after.sourceTrajectoryLegacyRedrawCount).toBe(before.sourceTrajectoryLegacyRedrawCount);
+    expect(scene.getSourceTrajectory(handle)).toMatchObject({
+      prepared: true,
+      staticDescriptorCount: plan.staticDescriptorCount
+    });
+    scene.releaseSourceTrajectory(scope, handle);
     scene.destroy();
   });
 

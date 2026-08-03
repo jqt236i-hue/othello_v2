@@ -33,6 +33,7 @@ import {
   drawPixiLine,
   drawPixiPolygon,
   drawPixiRect,
+  removeAndDestroyPixiChildren,
   removePixiFromParent,
   resolvePixiStaticTexture,
   setPixiAnchor,
@@ -57,6 +58,14 @@ import {
   createPixiStaticBoardLayer,
   type PixiStaticBoardLayer
 } from './static-board-layer';
+import type {
+  PixiPreparedTrajectoryCircle,
+  PixiPreparedTrajectoryFang,
+  PixiPreparedTrajectoryLineSet,
+  PixiPreparedTrajectoryRadialRays,
+  PixiSourceTrajectoryRenderPlan,
+  PixiSourceTrajectoryScalarState
+} from './effects/source-trajectory-render-plan';
 
 export const PIXI_BOARD_SCENE_LAYER_ORDER = Object.freeze([
   'surface',
@@ -195,6 +204,8 @@ export interface PixiSourceTrajectoryOptions {
   readonly clipRect?: PixiSourceTrajectoryRect | null;
   /** Ownership transfers to the scene record and is released exactly once. */
   readonly textureLease?: PixiSourceTrajectoryTextureLease | null;
+  /** Prepared once per run; normal playback updates only its mutable scalar state. */
+  readonly renderPlan?: PixiSourceTrajectoryRenderPlan | null;
 }
 
 export interface PixiSourceTrajectoryTextureLease {
@@ -222,6 +233,8 @@ export interface PixiSourceTrajectoryDiagnostics {
   readonly circleCount: number;
   readonly polygonCount: number;
   readonly geometry: PixiSourceTrajectoryGeometrySnapshot;
+  readonly prepared: boolean;
+  readonly staticDescriptorCount: number;
 }
 
 export interface PixiSourceTrajectoryCounterDiagnostics {
@@ -461,6 +474,9 @@ export interface PixiBoardSceneDiagnostics {
   readonly pooledSourceTrajectoryCount: number;
   readonly createdSourceTrajectoryViewCount: number;
   readonly destroyedSourceTrajectoryViewCount: number;
+  readonly sourceTrajectoryStaticPrepareCount: number;
+  readonly sourceTrajectoryScalarApplyCount: number;
+  readonly sourceTrajectoryLegacyRedrawCount: number;
   readonly sourceTrajectoryByProfile: Readonly<Record<BoardSourceTrajectoryProfileKey, PixiSourceTrajectoryCounterDiagnostics>>;
   readonly sourceTrajectoryByPrimitive: Readonly<Record<BoardSourceTrajectoryPrimitive, PixiSourceTrajectoryCounterDiagnostics>>;
   readonly activeTopologyRevealCount: number;
@@ -540,6 +556,11 @@ export interface PixiBoardScene {
     handle: PixiSourceTrajectoryHandle,
     visual: PixiSourceTrajectoryVisualState
   ): void;
+  updateSourceTrajectoryProgress(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle,
+    progress: number
+  ): void;
   releaseSourceTrajectory(
     scope: PixiPlaybackProjectionScope,
     handle: PixiSourceTrajectoryHandle
@@ -617,7 +638,37 @@ interface SourceTrajectoryView {
   readonly root: any;
   readonly mask: any;
   readonly graphics: any;
+  readonly preparedRoot: any;
   readonly sprite: any | null;
+}
+
+interface PreparedTrajectoryLineRuntime {
+  readonly definition: PixiPreparedTrajectoryLineSet;
+  readonly graphics: any;
+  readonly revealMask: any | null;
+}
+
+interface PreparedTrajectoryCircleRuntime {
+  readonly definition: PixiPreparedTrajectoryCircle;
+  readonly graphics: any;
+}
+
+interface PreparedTrajectoryRayRuntime {
+  readonly definition: PixiPreparedTrajectoryRadialRays;
+  readonly root: any;
+  readonly rays: readonly any[];
+}
+
+interface PreparedTrajectoryFangRuntime {
+  readonly definition: PixiPreparedTrajectoryFang;
+  readonly graphics: any;
+}
+
+interface PreparedSourceTrajectoryRuntime {
+  readonly lines: readonly PreparedTrajectoryLineRuntime[];
+  readonly circles: readonly PreparedTrajectoryCircleRuntime[];
+  readonly rays: readonly PreparedTrajectoryRayRuntime[];
+  readonly fangs: readonly PreparedTrajectoryFangRuntime[];
 }
 
 interface SourceTrajectoryRecord {
@@ -627,7 +678,10 @@ interface SourceTrajectoryRecord {
   readonly primitive: BoardSourceTrajectoryPrimitive;
   readonly geometry: PixiSourceTrajectoryGeometrySnapshot;
   readonly textureLease: PixiSourceTrajectoryTextureLease | null;
+  readonly renderPlan: PixiSourceTrajectoryRenderPlan | null;
+  readonly scalarState: PixiSourceTrajectoryScalarState | null;
   view: SourceTrajectoryView | null;
+  preparedRuntime: PreparedSourceTrajectoryRuntime | null;
   visual: PixiSourceTrajectoryVisualState;
   disposed: boolean;
 }
@@ -1139,15 +1193,17 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const root = createPixiContainer(runtime, 'pixi-source-trajectory');
       const mask = createPixiGraphics(runtime, 'pixi-source-trajectory-mask');
       const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-graphics');
+      const preparedRoot = createPixiContainer(runtime, 'pixi-source-trajectory-prepared');
       const sprite = createPixiSprite(runtime, 'pixi-source-trajectory-sprite');
-      addPixiChild(root, graphics, sprite);
+      addPixiChild(root, graphics, preparedRoot, sprite);
       root.eventMode = 'none';
-      return Object.freeze({ root, mask, graphics, sprite });
+      return Object.freeze({ root, mask, graphics, preparedRoot, sprite });
     },
     reset: (view) => {
       view.root.mask = null;
       clearPixiGraphics(view.mask);
       clearPixiGraphics(view.graphics);
+      removeAndDestroyPixiChildren(view.preparedRoot);
       if (view.sprite) {
         view.sprite.texture = runtime.Texture?.EMPTY || null;
         view.sprite.visible = false;
@@ -1224,6 +1280,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   let playbackEffectTransformApplyCount = 0;
   let playbackGhostStaticPrepareCount = 0;
   let playbackGhostTransformApplyCount = 0;
+  let sourceTrajectoryStaticPrepareCount = 0;
+  let sourceTrajectoryScalarApplyCount = 0;
+  let sourceTrajectoryLegacyRedrawCount = 0;
 
   function assertAlive(): void {
     if (destroyed) throw new Error('PixiBoardScene is destroyed');
@@ -1234,23 +1293,57 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     sceneOffsetX: number,
     sceneOffsetY: number
   ): void {
-    viewportClipRect = Object.freeze({
+    const fixedViewportClipRect = Object.freeze({
       x: sceneOffsetX,
       y: sceneOffsetY,
       width: frame.layout.camera.viewportWidth,
       height: frame.layout.camera.viewportHeight
+    });
+    viewportClipRect = fixedViewportClipRect;
+    const viewportRight = fixedViewportClipRect.x + fixedViewportClipRect.width;
+    const viewportBottom = fixedViewportClipRect.y + fixedViewportClipRect.height;
+    const canvasRight = viewportRight + sceneOffsetX;
+    const canvasBottom = viewportBottom + sceneOffsetY;
+    const expansionRects = frame.model.cells.flatMap((cell) => {
+      if (cell.expansionSide === null) return [];
+      const scene = worldToScene(frame.model.topology, frame.layout, cell.row, cell.col);
+      const x = scene.x + sceneOffsetX;
+      const y = scene.y + sceneOffsetY;
+      const right = x + frame.layout.cellSize;
+      const bottom = y + frame.layout.cellSize;
+      const outsideViewport = x < fixedViewportClipRect.x
+        || y < fixedViewportClipRect.y
+        || right > viewportRight
+        || bottom > viewportBottom;
+      const intersectsBoundedCanvas = right > 0
+        && bottom > 0
+        && x < canvasRight
+        && y < canvasBottom;
+      return outsideViewport && intersectsBoundedCanvas
+        ? [{ x, y, width: frame.layout.cellSize, height: frame.layout.cellSize }]
+        : [];
     });
     for (const name of PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) {
       const mask = viewportMasks[name];
       clearPixiGraphics(mask);
       drawPixiRect(
         mask,
-        viewportClipRect.x,
-        viewportClipRect.y,
-        viewportClipRect.width,
-        viewportClipRect.height,
+        fixedViewportClipRect.x,
+        fixedViewportClipRect.y,
+        fixedViewportClipRect.width,
+        fixedViewportClipRect.height,
         { color: '#ffffff', alpha: 1 }
       );
+      // The original board viewport is immutable. Expansion cells are sparse
+      // attachments painted through the already-bounded canvas gutter, so
+      // union only their actual footprints into the mask instead of moving
+      // the camera or widening the base-board clip over empty frame space.
+      for (const rect of expansionRects) {
+        drawPixiRect(mask, rect.x, rect.y, rect.width, rect.height, {
+          color: '#ffffff',
+          alpha: 1
+        });
+      }
     }
   }
 
@@ -2130,10 +2223,192 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     });
   }
 
+  function prepareSourceTrajectoryRuntime(record: SourceTrajectoryRecord): void {
+    const view = record.view;
+    const plan = record.renderPlan;
+    if (!view || !plan) return;
+    removeAndDestroyPixiChildren(view.preparedRoot);
+    const lines: PreparedTrajectoryLineRuntime[] = [];
+    const circles: PreparedTrajectoryCircleRuntime[] = [];
+    const rays: PreparedTrajectoryRayRuntime[] = [];
+    const fangs: PreparedTrajectoryFangRuntime[] = [];
+    for (const definition of plan.lineSets) {
+      const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-prepared-lines');
+      for (const segment of definition.segments) {
+        drawPixiLine(
+          graphics,
+          segment[0].x,
+          segment[0].y,
+          segment[1].x,
+          segment[1].y,
+          {
+            color: definition.color,
+            alpha: definition.baseAlpha,
+            width: definition.width
+          }
+        );
+      }
+      let revealMask: any | null = null;
+      if (definition.revealChannel && definition.revealStart) {
+        revealMask = createPixiGraphics(runtime, 'pixi-source-trajectory-reveal-mask');
+        drawPixiRect(
+          revealMask,
+          0,
+          -definition.revealHalfExtent,
+          definition.revealLength,
+          definition.revealHalfExtent * 2,
+          { color: 0xffffff, alpha: 1 }
+        );
+        setPixiPosition(revealMask, definition.revealStart.x, definition.revealStart.y);
+        revealMask.rotation = definition.revealAngle;
+        graphics.mask = revealMask;
+        addPixiChild(view.preparedRoot, revealMask);
+      }
+      addPixiChild(view.preparedRoot, graphics);
+      lines.push(Object.freeze({ definition, graphics, revealMask }));
+    }
+    for (const definition of plan.circles) {
+      const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-prepared-circle');
+      drawPixiCircle(graphics, 0, 0, definition.radius, {
+        color: definition.color,
+        alpha: definition.baseAlpha
+      });
+      setPixiPosition(graphics, definition.x, definition.y);
+      addPixiChild(view.preparedRoot, graphics);
+      circles.push(Object.freeze({ definition, graphics }));
+    }
+    for (const definition of plan.radialRays) {
+      const rayRoot = createPixiContainer(runtime, 'pixi-source-trajectory-prepared-rays');
+      const rayViews: any[] = [];
+      for (let index = 0; index < definition.angles.length; index += 1) {
+        const ray = createPixiGraphics(runtime, 'pixi-source-trajectory-prepared-ray');
+        drawPixiLine(ray, 0, 0, 1, 0, {
+          color: definition.color,
+          alpha: definition.baseAlpha,
+          width: definition.width
+        });
+        ray.rotation = definition.angles[index];
+        addPixiChild(rayRoot, ray);
+        rayViews.push(ray);
+      }
+      addPixiChild(view.preparedRoot, rayRoot);
+      rays.push(Object.freeze({ definition, root: rayRoot, rays: Object.freeze(rayViews) }));
+    }
+    for (const definition of plan.fangs) {
+      const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-prepared-fang');
+      drawPixiPolygon(
+        graphics,
+        definition.points,
+        { color: definition.color, alpha: 1 },
+        {
+          color: definition.strokeColor,
+          alpha: definition.strokeAlphaRatio,
+          width: definition.strokeWidth
+        }
+      );
+      addPixiChild(view.preparedRoot, graphics);
+      fangs.push(Object.freeze({ definition, graphics }));
+    }
+    record.preparedRuntime = Object.freeze({
+      lines: Object.freeze(lines),
+      circles: Object.freeze(circles),
+      rays: Object.freeze(rays),
+      fangs: Object.freeze(fangs)
+    });
+    sourceTrajectoryStaticPrepareCount += 1;
+  }
+
+  function scalarChannel(
+    state: PixiSourceTrajectoryScalarState,
+    channel: PixiPreparedTrajectoryLineSet['alphaChannel']
+  ): number {
+    return channel === 'beamAlpha'
+      ? state.beamAlpha
+      : channel === 'lightningMainAlpha'
+        ? state.lightningMainAlpha
+        : channel === 'lightningBranchAlpha'
+          ? state.lightningBranchAlpha
+          : state.shadowAlpha;
+  }
+
+  function revealChannel(
+    state: PixiSourceTrajectoryScalarState,
+    channel: PixiPreparedTrajectoryLineSet['revealChannel']
+  ): number {
+    return channel === 'pathReveal'
+      ? state.pathReveal
+      : channel === 'biteCrawl'
+        ? state.biteCrawl
+        : 1;
+  }
+
+  function applyPreparedSourceTrajectory(record: SourceTrajectoryRecord): void {
+    const view = record.view;
+    const state = record.scalarState;
+    const prepared = record.preparedRuntime;
+    const plan = record.renderPlan;
+    if (!view || !state || !prepared || !plan) return;
+    view.root.visible = state.visible;
+    for (const entry of prepared.lines) {
+      entry.graphics.alpha = scalarChannel(state, entry.definition.alphaChannel);
+      entry.graphics.visible = entry.definition.segments.length > 0;
+      if (entry.revealMask) {
+        setPixiScale(entry.revealMask, revealChannel(state, entry.definition.revealChannel), 1);
+      }
+    }
+    for (const entry of prepared.circles) {
+      entry.graphics.alpha = state.muzzleAlpha;
+      entry.graphics.visible = state.muzzleVisible;
+      setPixiScale(entry.graphics, state.muzzleScale, state.muzzleScale);
+    }
+    for (const entry of prepared.rays) {
+      entry.root.alpha = state.impactAlpha;
+      entry.root.visible = state.impactAlpha > 0;
+      for (let index = 0; index < entry.rays.length; index += 1) {
+        const ray = entry.rays[index];
+        const angle = entry.definition.angles[index];
+        const directionX = Math.cos(angle);
+        const directionY = Math.sin(angle);
+        const startRadius = state.impactRadius * 0.18;
+        const length = Math.max(0, state.impactRadius * (entry.definition.endScales[index] - 0.18));
+        setPixiPosition(
+          ray,
+          entry.definition.center.x + directionX * startRadius,
+          entry.definition.center.y + directionY * startRadius
+        );
+        setPixiScale(ray, length, 1);
+      }
+    }
+    for (const entry of prepared.fangs) {
+      const offset = state.fangGap * entry.definition.sign;
+      setPixiPosition(
+        entry.graphics,
+        entry.definition.center.x + entry.definition.normalX * offset,
+        entry.definition.center.y + entry.definition.normalY * offset
+      );
+      entry.graphics.alpha = state.fangAlpha;
+      entry.graphics.visible = state.fangAlpha > 0;
+    }
+    if (view.sprite) {
+      view.sprite.visible = state.visible && state.spriteVisible;
+      if (view.sprite.visible) {
+        setPixiAnchor(view.sprite, 0.5);
+        setPixiPosition(view.sprite, state.spriteX, state.spriteY);
+        setPixiScale(view.sprite, 1, 1);
+        view.sprite.width = state.spriteSize * state.spriteScale;
+        view.sprite.height = state.spriteSize * state.spriteScale;
+        view.sprite.alpha = state.spriteAlpha;
+        view.sprite.rotation = state.spriteRotation;
+      }
+    }
+    sourceTrajectoryScalarApplyCount += 1;
+  }
+
   function drawSourceTrajectoryVisual(record: SourceTrajectoryRecord): void {
     const view = record.view;
     if (!view) return;
     const visual = record.visual;
+    sourceTrajectoryLegacyRedrawCount += 1;
     clearPixiGraphics(view.graphics);
     view.root.visible = visual.visible !== false;
     const lines = Array.isArray(visual.lines) ? visual.lines : [];
@@ -2233,6 +2508,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     primitiveCounter.released += 1;
     const view = record.view;
     record.view = null;
+    record.preparedRuntime = null;
     try {
       if (view) sourceTrajectoryPool.release(view);
     } finally {
@@ -2272,7 +2548,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       primitive: rawOptions.primitive,
       geometry: rawOptions.geometry,
       textureLease: rawOptions.textureLease || null,
+      renderPlan: rawOptions.renderPlan || null,
+      scalarState: rawOptions.renderPlan?.createScalarState() || null,
       view: null,
+      preparedRuntime: null,
       visual: Object.freeze({ visible: false }),
       disposed: false
     };
@@ -2283,6 +2562,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         view.sprite.texture = record.textureLease?.texture || runtime.Texture?.EMPTY || null;
         view.sprite.visible = false;
       }
+      if (record.renderPlan) prepareSourceTrajectoryRuntime(record);
       drawPixiRect(
         view.mask,
         clipRect.left,
@@ -2326,6 +2606,19 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     drawSourceTrajectoryVisual(record);
   }
 
+  function updateSourceTrajectoryProgress(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle,
+    progress: number
+  ): void {
+    const record = findSourceTrajectory(scope, handle);
+    if (!record.renderPlan || !record.scalarState || !record.preparedRuntime) {
+      throw new Error('Pixi source trajectory has no prepared render plan');
+    }
+    record.renderPlan.sampleInto(progress, record.scalarState);
+    applyPreparedSourceTrajectory(record);
+  }
+
   function releaseSourceTrajectory(
     scope: PixiPlaybackProjectionScope,
     handle: PixiSourceTrajectoryHandle
@@ -2352,7 +2645,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       lineCount: Array.isArray(visual.lines) ? visual.lines.length : 0,
       circleCount: Array.isArray(visual.circles) ? visual.circles.length : 0,
       polygonCount: Array.isArray(visual.polygons) ? visual.polygons.length : 0,
-      geometry: record.geometry
+      geometry: record.geometry,
+      prepared: !!record.renderPlan,
+      staticDescriptorCount: record.renderPlan?.staticDescriptorCount || 0
     });
   }
 
@@ -3280,6 +3575,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       pooledSourceTrajectoryCount: sourceTrajectoryPoolDiagnostics.available,
       createdSourceTrajectoryViewCount: sourceTrajectoryPoolDiagnostics.created,
       destroyedSourceTrajectoryViewCount: sourceTrajectoryPoolDiagnostics.destroyed,
+      sourceTrajectoryStaticPrepareCount,
+      sourceTrajectoryScalarApplyCount,
+      sourceTrajectoryLegacyRedrawCount,
       sourceTrajectoryByProfile: freezeTrajectoryCounters(sourceTrajectoryByProfile),
       sourceTrajectoryByPrimitive: freezeTrajectoryCounters(sourceTrajectoryByPrimitive),
       activeTopologyRevealCount: topologyReveals.size,
@@ -3318,6 +3616,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     snapshotSourceTrajectoryGeometry,
     acquireSourceTrajectory,
     updateSourceTrajectory,
+    updateSourceTrajectoryProgress,
     releaseSourceTrajectory,
     getSourceTrajectory,
     getPlaybackGhost,

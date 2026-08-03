@@ -23,6 +23,7 @@ import type {
 } from './types';
 import * as PresentationVisualSeed from '../../presentation/visual-seed';
 import { isPixiPlaybackControlledInterruption } from '../../board-visual/playback-interruption';
+import { compilePixiSourceTrajectoryRenderPlan } from './source-trajectory-render-plan';
 
 export interface PixiSourceTrajectoryTiming {
   readonly animationDurationMs: number;
@@ -869,9 +870,9 @@ export function createPixiSourceTrajectoryRenderer(
     }
     const geometry = projection.scene.snapshotSourceTrajectoryGeometry(request);
     const timing = resolvePixiSourceTrajectoryTiming(request, geometry, projection);
-    const preparedLightning = profile.primitive === 'lightning' && geometry.visibleSegment
-      ? buildLightningGeometry(request, geometry)
-      : undefined;
+    const renderPlan = timing.noObjectReason
+      ? null
+      : compilePixiSourceTrajectoryRenderPlan(request, geometry);
     markNoObject(request, timing.noObjectReason);
     record('pixi-source-trajectory:start', {
       trajectoryId: request.trajectoryId,
@@ -913,7 +914,8 @@ export function createPixiSourceTrajectoryRenderer(
           primitive: profile.primitive,
           geometry,
           clipRect: profilePaintRect(geometry, profile),
-          textureLease
+          textureLease,
+          renderPlan
         });
       } catch (error) {
         // Scene acquisition normally takes ownership even on pool failure.
@@ -939,11 +941,7 @@ export function createPixiSourceTrajectoryRenderer(
       event: request.event,
       onStart() {
         if (handle) {
-          projection.scene.updateSourceTrajectory(
-            projection.scope,
-            handle,
-            buildVisualState(request, geometry, 0, preparedLightning)
-          );
+          projection.scene.updateSourceTrajectoryProgress(projection.scope, handle, 0);
         }
       },
       onUpdate(_progress, frame) {
@@ -951,11 +949,7 @@ export function createPixiSourceTrajectoryRenderer(
         const visualProgress = timing.animationDurationMs <= 0
           ? 1
           : clamp(frame.elapsedMs / timing.animationDurationMs);
-        projection.scene.updateSourceTrajectory(
-          projection.scope,
-          handle,
-          buildVisualState(request, geometry, visualProgress, preparedLightning)
-        );
+        projection.scene.updateSourceTrajectoryProgress(projection.scope, handle, visualProgress);
       }
     });
     return run.then(() => undefined).finally(releaseHandle);
