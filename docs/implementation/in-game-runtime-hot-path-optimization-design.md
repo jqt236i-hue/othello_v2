@@ -2,13 +2,14 @@
 
 ## 文書情報
 
-- 状態: 実装着手可能な設計
+- 状態: 実装・検証完了
 - 作成日: 2026-08-04
 - 対象: 通常のPixi盤面、盤面入力、カメラ、オンラインsnapshot intake / presentation delivery
 - プレイヤー向け仕様: 変更しない
 - 関連契約: `01-rulebook.md`、`正本/演出正本.md`、`正本/ターン進行正本.md`、`正本/共通ルール正本.md`、`docs/architecture-contracts.md`
 - 既存の前提設計: `docs/implementation/pixijs-board-source-trajectory-design.md`、`docs/implementation/network-presentation-continuity-repair-design.md`
 - 実装計画: `docs/implementation/in-game-runtime-hot-path-optimization-plan.md`
+- 実測結果: `docs/perf/2026-08-04-in-game-runtime-hot-path-optimization.md`、`docs/perf/2026-08-04-in-game-runtime-browser-performance.md`
 
 ## 1. 結論
 
@@ -566,3 +567,23 @@ mutable global、readonly visual snapshot、server authorityのownershipが混�
 - live payloadの重複をjournalまで除去する案は再接続契約を壊すため撤回し、保存/bufferはfull、deliveryだけversioned compactとした。
 - V2をserver側で自動選択する案は旧client互換性がないため、publish responseとSSE connectionの個別opt-inへ修正した。
 - 既存の正本を照合し、画面外clip、着弾後の結果、直列再生、入力lock、最終settlementを明示的な受入条件へ追加した。
+
+## 13. 実装・検証結果
+
+2026-08-04に本設計の実装と検証を完了した。採用した境界は設計どおりで、演出の品質、時間、順序、入力解放、canonical result、network authority、visual settlementは変更していない。
+
+| 領域 | 完了内容 | 主commit |
+| --- | --- | --- |
+| operational query | scope / active run確認をO(1) APIへ分離 | `469ad07d3` |
+| frame fingerprint | visual / interaction fingerprintを1回のcanonical passへ統合 | `d8b0e95ed` |
+| static view | stone、ghost、effectのstatic paintとdynamic transformを分離 | `ab8513f65` |
+| source trajectory | geometry、clip、primitive、easingを事前compileし、steady tickをscalar-only化 | `5abe4f1bc` |
+| input / camera | affine hit projection、pointermoveとcamera eventのrAF coalescingを実装 | `4e5368766`、`fe03fb0c4` |
+| snapshot intake | accepted candidateのclone / deep inspectionを1回へ統合 | `8b6392239` |
+| presentation V2 | shared resolve契約、Worker/local配信、client opt-inを段階導入 | `78bf19025`、`de54e2c73`、`4be7d9375` |
+
+構造・CPU・wireの合否はすべて通過した。8対象・60 tickのtrajectory動的descriptorは26,160件から0件、tick batch p95は10.8795 msから0.1334 ms、snapshot 32-intake batch p95は21.4063 msから13.587 ms、viewer別V2 payloadは約49.4%削減された。semantic digestはlegacyとV2で同一である。
+
+ブラウザではheavy scenarioのPixi RAF p95が16.7～16.8 ms、最大16.8 ms、50 ms以上stallが0件だった。4 laneの標準長時間測定では、測定と並行したローカル処理中のclassic laneだけに計3件のstallが記録されたが、同一artifact・同一commitでclassic Pixi / DOMを各10分単独再測定すると、合計71,840 RAF intervalで50 ms以上stallは0件だった。初回失敗を破棄せず、環境干渉を含む結果と単独再測定を `docs/perf/2026-08-04-in-game-runtime-browser-performance.md` に併記した。
+
+focused / parity / browser verificationではnetwork parity 35 suite・563 test、Pixi playback 232 scenario、Chrome / Firefox / WebKit × desktop / mobile × Pixi / DOMの12 smoke、runtime fallback、visual regressionの0 pixel差を確認した。`01-rulebook.md` と `正本/` は変更していない。

@@ -2,7 +2,7 @@
 
 ## 文書情報
 
-- 状態: 未実装
+- 状態: 実装・検証完了
 - 作成日: 2026-08-04
 - 設計正本: `docs/implementation/in-game-runtime-hot-path-optimization-design.md`
 - 内部契約: `docs/architecture-contracts.md`
@@ -15,6 +15,8 @@
 プレイヤー向け仕様を変えないため、通常は `01-rulebook.md` と `正本/` を編集しない。実装中に現状と正本の矛盾を見つけた場合は作業を止め、仕様変更と最適化を同じcommitへ混ぜない。
 
 root sourceが正本である。`dist/`、`public/module-registry.js`、`worker-public/` は手編集せず、最後に既存generatorから更新する。依存追加は行わない。
+
+本書中の未チェック項目は、着手前に定義した作業分解を履歴として保持している。完了判定の正本は末尾の「20. 実装結果」であり、実施していない任意計測まで一括で完了表示へ書き換えない。
 
 ## 2. 実装前の固定条件
 
@@ -599,3 +601,48 @@ old clientはfield/queryを送らないためlegacyを受ける。new clientがo
 - timeline allocation整理を必須化すると調査範囲が広がるため、trajectory移行後もprofile上位に残る場合だけ行う条件付き項目へ変更した。
 - visual regressionだけではtiming/settlement差を捕捉できないため、semantic digest、event trace、duration、input unlock、sound/log countを同じgateへ追加した。
 - performance目標未達時に品質を下げる逃げ道をなくし、構造gateとplayer-visible contractを優先するStop条件を追加した。
+
+## 20. 実装結果
+
+### 20.1 Phase完了表
+
+| Phase | 結果 | 証拠 |
+| --- | --- | --- |
+| 0 baseline / characterization | 完了 | debug/test counterと `perf:in-game-hot-path` を追加し、candidate / baseline条件を保存 |
+| 1 operational query | 完了 | normal control flowからfull diagnostics構築を除去 |
+| 2 fingerprint | 完了 | 2 fingerprintを1 sort / 1 pass化し、model identity cacheを追加 |
+| 3 static paint | 完了 | transform-only更新時のstone / ghost / effect再paintを除去 |
+| 4 trajectory | 完了 | 全profileをprepared render planへ移行し、steady tick descriptor生成を0件化 |
+| 5 input | 完了 | O(1) affine lookupとpointermove coalescing、terminal同期処理を検証 |
+| 6 camera | 完了 | event burst、client-only、render-spaceを分類し、重複scene renderを除去 |
+| 7 snapshot | 完了 | accepted deep inspectionを2回から1回へ削減し、fail-closed ownershipを維持 |
+| 8 presentation V2 | 完了 | legacy互換、version negotiation、Worker/local、live/replay/journalを検証 |
+| 9 integration | 完了 | architecture、browser artifacts、Worker mirror、performance / visual / browser検証を完了 |
+
+### 20.2 Performance gate
+
+| Gate | baseline | candidate | 判定 |
+| --- | ---: | ---: | --- |
+| R1 descriptor / 60 tick / 8 target | 26,160 | 0 | PASS、100%削減 |
+| R1 tick batch p95 | 10.8795 ms | 0.1334 ms | PASS、98.774%削減 |
+| N1 accepted deep inspection | 2 | 1 | PASS |
+| N1 32-intake batch p95 | 21.4063 ms | 13.587 ms | PASS、36.528%削減 |
+| N2 viewer別wire byte | 90.4 KB前後 | 45.8 KB前後 | PASS、約49.4%削減 |
+
+詳細値とfixture条件は `docs/perf/2026-08-04-in-game-runtime-hot-path-optimization.md` に保存した。N1の単一intake測定はsub-ms timer / GCノイズの影響が大きかったため、同じ処理を32回まとめてbaseline / candidate交互実行する測定へ固定した。品質やauthorityを弱める代替は採用していない。
+
+### 20.3 統合検証
+
+- rendering / input focused: 12 suite、260 testが成功した。
+- snapshot / network intake: 10 suite、139 test、authority / local 5 suite・63 test、local publish 34 testが成功した。
+- Worker journal / idempotency / persistence 25 test、Worker SSE 9 test、公式network parity 35 suite・563 testが成功した。
+- Pixi playbackは232 scenario、runtime fallback、board selector contractが成功した。
+- Chrome / Firefox / WebKitのdesktop / mobile、Pixi / DOMを組み合わせた12 browser smokeが成功した。
+- visual regressionは現行の意図されたPC盤面寸法にbaselineを同期後、通常実行で差分0 pixelを確認した。baseline不一致の原因は本最適化ではなく、先行するPC盤面拡大commitだった。
+- `npm run checkall`、`npm run typecheck`、`npm run build:ts`、browser / Vite build、Worker mirror生成・照合が成功した。
+
+標準browser performance captureはclassic / Vite × Pixi / DOMを各約10分測定した。Vite 2 laneは50 ms以上stall 0件、全heavy scenarioは合格した。classic 2 laneでは並行ローカル処理中に計3件だけstallが出たため初回全体判定は失敗として残した。同一artifactとcommitでclassic 2 laneを単独再測定し、Pixi 36,016 interval、DOM 35,824 intervalの両方で50 ms以上stall 0件を確認した。詳細は `docs/perf/2026-08-04-in-game-runtime-browser-performance.md` に記録した。
+
+### 20.4 仕様差分と残存リスク
+
+プレイヤー向けの見た目、演出時間、演出順、効果音、入力結果、settlement、ゲーム結果に意図した差分はない。そのため `01-rulebook.md` と `正本/` は変更していない。残存リスクは、長時間performance測定がWindows / Chromium / RTX 2070の1環境であること、mobile検証が実機ではなく3 browser engineのmobile emulationであることに限定される。
