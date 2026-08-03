@@ -441,6 +441,8 @@ function createHarness(options: {
   const textures = createTextureRuntime();
   const scene = createSceneFixture();
   const leases: Array<{ release: jest.Mock<boolean, []>; label: string }> = [];
+  let viewportWidth = 160;
+  let viewportHeight = 120;
   let resizeCallback: (() => void) | null = null;
   let observerDisconnected = false;
   const viewportListeners = new Map<string, Set<EventListener>>();
@@ -469,7 +471,7 @@ function createHarness(options: {
     allowSoftwareRenderer: options.allowSoftwareRenderer,
     webglPreflight: () => options.webglAvailable !== false,
     textureRuntime: textures.runtime as any,
-    measureViewport: () => ({ width: 160, height: 120 }),
+    measureViewport: () => ({ width: viewportWidth, height: viewportHeight }),
     visualViewport: visualViewport as any,
     createResizeObserver: (callback: any) => {
       resizeCallback = callback;
@@ -509,6 +511,10 @@ function createHarness(options: {
     leases,
     backend,
     matchMedia,
+    setViewportSize(width: number, height: number) {
+      viewportWidth = width;
+      viewportHeight = height;
+    },
     fireResize() { resizeCallback?.(); },
     observerDisconnected: () => observerDisconnected,
     viewportListeners
@@ -959,6 +965,7 @@ describe('Pixi board backend integration', () => {
     playbackOptions.application.startTicker();
     const ticker = harness.app.instances[0].ticker;
     const stopCountBeforeReflow = ticker.stop.mock.calls.length;
+    harness.setViewportSize(159, 119);
     harness.fireResize();
     expect(harness.scene.applyCalls.at(-1)!.context).toMatchObject({
       preservePlaybackProjection: true
@@ -1303,8 +1310,15 @@ describe('Pixi board backend integration', () => {
     expect(diagnostics.canvasBackingWidth).toBeLessThan(640 * 2);
     harness.fireResize();
     expect(harness.backend.getDiagnostics()).toMatchObject({
+      resizeRenderCount: 0,
+      application: { resizeCount: 1, resizeSkippedCount: 0 },
+      camera: { noopLayoutChangeCount: 1 }
+    });
+    harness.setViewportSize(159, 119);
+    harness.fireResize();
+    expect(harness.backend.getDiagnostics()).toMatchObject({
       resizeRenderCount: 1,
-      application: { resizeCount: 1, resizeSkippedCount: 1 }
+      application: { resizeCount: 2, resizeSkippedCount: 0 }
     });
 
     harness.backend.destroy();
@@ -1362,6 +1376,7 @@ describe('Pixi board backend integration', () => {
     harness.app.instances[0].renderer.render.mockImplementationOnce(() => {
       throw renderFailure;
     });
+    harness.setViewportSize(159, 119);
     harness.fireResize();
 
     const refreshError = await harness.backend.waitForVisualSettlement(frame).catch((error) => error);
@@ -1438,6 +1453,7 @@ describe('Pixi board backend integration', () => {
     harness.app.instances[0].renderer.render.mockImplementationOnce(() => {
       throw renderFailure;
     });
+    harness.setViewportSize(159, 119);
     harness.fireResize();
 
     const playbackError = await phasePromise.catch((error) => error);

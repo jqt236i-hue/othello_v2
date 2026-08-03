@@ -17,6 +17,8 @@ export interface PixiBoardCanvasViewport {
   readonly sceneOffsetY: number;
 }
 
+export type PixiBoardCameraLayoutChangeKind = 'client-only' | 'render-space';
+
 export interface PixiBoardCameraDiagnostics {
   readonly mounted: boolean;
   readonly destroyed: boolean;
@@ -33,6 +35,14 @@ export interface PixiBoardCameraDiagnostics {
   readonly resizeObserverActive: boolean;
   readonly visualViewportListenerCount: number;
   readonly scrollListenerCount: number;
+  readonly pendingRefresh: boolean;
+  readonly refreshEventCount: number;
+  readonly refreshApplyCount: number;
+  readonly refreshCoalescedCount: number;
+  readonly layoutApplyCount: number;
+  readonly renderLayoutChangeCount: number;
+  readonly clientLayoutChangeCount: number;
+  readonly noopLayoutChangeCount: number;
 }
 
 interface ResizeObserverLike {
@@ -60,9 +70,12 @@ export interface PixiBoardCameraOptions {
     left?: number;
     top?: number;
   }>;
+  readonly requestAnimationFrame?: (callback: FrameRequestCallback) => unknown;
+  readonly cancelAnimationFrame?: (handle: unknown) => void;
   readonly onLayoutChange?: (
     layout: BoardViewportLayout,
-    canvasViewport: PixiBoardCanvasViewport
+    canvasViewport: PixiBoardCanvasViewport,
+    kind: PixiBoardCameraLayoutChangeKind
   ) => void;
 }
 
@@ -242,6 +255,23 @@ function layoutFingerprint(
   ]);
 }
 
+function renderLayoutFingerprint(
+  topology: BoardRenderTopologyModel,
+  layout: Omit<BoardViewportLayout, 'revision' | 'visibleWorldWindow'>
+): string {
+  return JSON.stringify([
+    topologySignature(topology),
+    layout.cellSize,
+    layout.dpr,
+    layout.stageScale,
+    layout.cellScale,
+    layout.orientation,
+    layout.camera,
+    layout.logicalWidth,
+    layout.logicalHeight
+  ]);
+}
+
 function removeOwnedElement(element: HTMLElement | null): void {
   if (element && element.parentNode) element.parentNode.removeChild(element);
 }
@@ -262,12 +292,22 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
   let latestRenderSessionId: string | null = null;
   let revision = 0;
   let fingerprint: string | null = null;
+  let renderFingerprint: string | null = null;
   let destroyed = false;
   let resizeObserver: ResizeObserverLike | null = null;
   let resizeObserverActive = false;
   let visualViewportListenerCount = 0;
   let scrollListenerCount = 0;
   let syncing = false;
+  let pendingRefreshFrame: unknown = null;
+  let pendingRefreshToken = 0;
+  let refreshEventCount = 0;
+  let refreshApplyCount = 0;
+  let refreshCoalescedCount = 0;
+  let layoutApplyCount = 0;
+  let renderLayoutChangeCount = 0;
+  let clientLayoutChangeCount = 0;
+  let noopLayoutChangeCount = 0;
 
   const doc = options.document || (typeof document !== 'undefined' ? document : null);
   const visualViewport = typeof options.visualViewport !== 'undefined'
@@ -278,6 +318,26 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     : (typeof ResizeObserver === 'function'
       ? (callback: ResizeObserverCallback) => new ResizeObserver(callback)
       : null);
+
+  const requestFrame = (callback: FrameRequestCallback): unknown => {
+    if (options.requestAnimationFrame) return options.requestAnimationFrame(callback);
+    const ownerWindow = doc?.defaultView;
+    return typeof ownerWindow?.requestAnimationFrame === 'function'
+      ? ownerWindow.requestAnimationFrame(callback)
+      : null;
+  };
+
+  const cancelFrame = (handle: unknown): void => {
+    if (handle == null) return;
+    if (options.cancelAnimationFrame) {
+      options.cancelAnimationFrame(handle);
+      return;
+    }
+    const ownerWindow = doc?.defaultView;
+    if (typeof ownerWindow?.cancelAnimationFrame === 'function') {
+      ownerWindow.cancelAnimationFrame(Number(handle));
+    }
+  };
 
   function assertAlive(): void {
     if (destroyed) throw new Error('PixiBoardCamera is destroyed');
@@ -316,6 +376,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     if (syncing && layout) return layout;
     syncing = true;
     try {
+      layoutApplyCount += 1;
       const nextStableIdentity = stableBoardIdentity(topology, renderSessionId);
       const continuesStableBoard = stableIdentity === nextStableIdentity;
       if (stableCellSize == null || !continuesStableBoard) {
@@ -348,8 +409,10 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
         })
         : { scrollLeft: rawScrollLeft, scrollTop: rawScrollTop };
 
-      surface.style.width = `${logicalWidth}px`;
-      surface.style.height = `${logicalHeight}px`;
+      const surfaceWidth = `${logicalWidth}px`;
+      const surfaceHeight = `${logicalHeight}px`;
+      if (surface.style.width !== surfaceWidth) surface.style.width = surfaceWidth;
+      if (surface.style.height !== surfaceHeight) surface.style.height = surfaceHeight;
       const nextScrollLeft = clamp(reconciled.scrollLeft, 0, Math.max(0, logicalWidth - viewportWidth));
       const nextScrollTop = clamp(reconciled.scrollTop, 0, Math.max(0, logicalHeight - viewportHeight));
       if (viewport.scrollLeft !== nextScrollLeft) viewport.scrollLeft = nextScrollLeft;
@@ -389,8 +452,18 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
         logicalHeight
       };
       const nextFingerprint = layoutFingerprint(topology, candidateWithoutRevision);
-      if (nextFingerprint !== fingerprint) revision += 1;
+      const nextRenderFingerprint = renderLayoutFingerprint(topology, candidateWithoutRevision);
+      if (nextFingerprint === fingerprint && layout && canvasViewport) {
+        latestTopology = topology;
+        latestSeedLayout = seedLayout;
+        latestRenderSessionId = renderSessionId;
+        noopLayoutChangeCount += 1;
+        return layout;
+      }
+      revision += 1;
       fingerprint = nextFingerprint;
+      const renderLayoutChanged = nextRenderFingerprint !== renderFingerprint;
+      renderFingerprint = nextRenderFingerprint;
       const nextLayout = createBoardViewportLayout(topology, {
         revision,
         cellSize,
@@ -404,30 +477,76 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
         camera: candidateWithoutRevision.camera
       });
       const gutterPx = effectGutterCells * cellSize;
-      const nextCanvasViewport = Object.freeze({
-        width: viewportWidth + gutterPx * 2,
-        height: viewportHeight + gutterPx * 2,
-        gutterPx,
-        sceneOffsetX: gutterPx,
-        sceneOffsetY: gutterPx
-      });
-      updateCanvasLayer(nextCanvasViewport);
+      const nextCanvasWidth = viewportWidth + gutterPx * 2;
+      const nextCanvasHeight = viewportHeight + gutterPx * 2;
+      const canvasViewportChanged = !canvasViewport
+        || canvasViewport.width !== nextCanvasWidth
+        || canvasViewport.height !== nextCanvasHeight
+        || canvasViewport.gutterPx !== gutterPx;
+      const nextCanvasViewport = canvasViewportChanged
+        ? Object.freeze({
+          width: nextCanvasWidth,
+          height: nextCanvasHeight,
+          gutterPx,
+          sceneOffsetX: gutterPx,
+          sceneOffsetY: gutterPx
+        })
+        : canvasViewport!;
+      if (canvasViewportChanged) updateCanvasLayer(nextCanvasViewport);
       latestTopology = topology;
       latestSeedLayout = seedLayout;
       latestRenderSessionId = renderSessionId;
       layout = nextLayout;
       canvasViewport = nextCanvasViewport;
-      options.onLayoutChange?.(nextLayout, nextCanvasViewport);
+      if (renderLayoutChanged) {
+        renderLayoutChangeCount += 1;
+        options.onLayoutChange?.(nextLayout, nextCanvasViewport, 'render-space');
+      } else {
+        clientLayoutChangeCount += 1;
+        options.onLayoutChange?.(nextLayout, nextCanvasViewport, 'client-only');
+      }
       return nextLayout;
     } finally {
       syncing = false;
     }
   }
 
-  const refreshListener: EventListener = () => {
+  const applyRefresh = (): void => {
     if (!latestTopology || !latestSeedLayout || destroyed) return;
+    refreshApplyCount += 1;
     applySync(latestTopology, latestSeedLayout, latestRenderSessionId, false);
   };
+
+  const cancelPendingRefresh = (): void => {
+    if (pendingRefreshFrame == null) return;
+    const handle = pendingRefreshFrame;
+    pendingRefreshFrame = null;
+    pendingRefreshToken += 1;
+    cancelFrame(handle);
+  };
+
+  const queueRefresh = (): void => {
+    if (!latestTopology || !latestSeedLayout || destroyed) return;
+    refreshEventCount += 1;
+    if (pendingRefreshFrame != null) {
+      refreshCoalescedCount += 1;
+      return;
+    }
+    const token = ++pendingRefreshToken;
+    const handle = requestFrame(() => {
+      if (token !== pendingRefreshToken) return;
+      pendingRefreshFrame = null;
+      applyRefresh();
+    });
+    if (handle == null) {
+      pendingRefreshToken += 1;
+      applyRefresh();
+      return;
+    }
+    pendingRefreshFrame = handle;
+  };
+
+  const refreshListener: EventListener = () => queueRefresh();
 
   function mount(nextHost: HTMLElement): HTMLElement {
     assertAlive();
@@ -475,7 +594,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     viewport.addEventListener('scroll', refreshListener, { passive: true });
     scrollListenerCount = 1;
     if (createResizeObserver) {
-      resizeObserver = createResizeObserver(() => refreshListener(new Event('resize')));
+      resizeObserver = createResizeObserver(queueRefresh);
       resizeObserver.observe(viewport);
       resizeObserverActive = true;
     }
@@ -493,17 +612,21 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     renderSessionId?: string
   ): BoardViewportLayout {
     if (!topology || !seedLayout) throw new Error('PixiBoardCamera sync requires topology and layout');
+    cancelPendingRefresh();
     return applySync(topology, seedLayout, normalizedRenderSessionId(renderSessionId), true);
   }
 
   function refresh(): BoardViewportLayout | null {
     if (!latestTopology || !latestSeedLayout) return null;
+    cancelPendingRefresh();
+    refreshApplyCount += 1;
     return applySync(latestTopology, latestSeedLayout, latestRenderSessionId, false);
   }
 
   function destroy(): void {
     if (destroyed) return;
     destroyed = true;
+    cancelPendingRefresh();
     if (viewport && scrollListenerCount) viewport.removeEventListener('scroll', refreshListener);
     scrollListenerCount = 0;
     if (resizeObserver) resizeObserver.disconnect();
@@ -527,6 +650,8 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     stableCellSize = null;
     stableIdentity = null;
     latestRenderSessionId = null;
+    fingerprint = null;
+    renderFingerprint = null;
   }
 
   function getDiagnostics(): PixiBoardCameraDiagnostics {
@@ -545,7 +670,15 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
       effectGutterCells,
       resizeObserverActive,
       visualViewportListenerCount,
-      scrollListenerCount
+      scrollListenerCount,
+      pendingRefresh: pendingRefreshFrame !== null,
+      refreshEventCount,
+      refreshApplyCount,
+      refreshCoalescedCount,
+      layoutApplyCount,
+      renderLayoutChangeCount,
+      clientLayoutChangeCount,
+      noopLayoutChangeCount
     });
   }
 

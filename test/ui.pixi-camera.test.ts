@@ -56,6 +56,8 @@ function createHarness(options: Record<string, unknown> = {}) {
   let top = 207;
   let resizeCallback: (() => void) | null = null;
   let observerDisconnected = false;
+  const animationFrames = new Map<number, FrameRequestCallback>();
+  let nextAnimationFrameId = 1;
   const listeners = new Map<string, Set<EventListener>>();
   const visualViewport = {
     scale: 1,
@@ -80,7 +82,13 @@ function createHarness(options: Record<string, unknown> = {}) {
       resizeCallback = callback;
       return { observe() {}, disconnect() { observerDisconnected = true; } };
     },
-    onLayoutChange: (layout: any, canvas: any) => changes.push({ layout, canvas }),
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      const handle = nextAnimationFrameId++;
+      animationFrames.set(handle, callback);
+      return handle;
+    },
+    cancelAnimationFrame: (handle: unknown) => animationFrames.delete(Number(handle)),
+    onLayoutChange: (layout: any, canvas: any, kind: string) => changes.push({ layout, canvas, kind }),
     ...options
   });
   camera.mount(host);
@@ -93,6 +101,12 @@ function createHarness(options: Record<string, unknown> = {}) {
     setSize(nextWidth: number, nextHeight: number) { width = nextWidth; height = nextHeight; },
     setPosition(nextLeft: number, nextTop: number) { left = nextLeft; top = nextTop; },
     fireResize() { resizeCallback?.(); },
+    flushAnimationFrame() {
+      const callbacks = Array.from(animationFrames.values());
+      animationFrames.clear();
+      callbacks.forEach((callback) => callback(16));
+    },
+    animationFrames,
     observerDisconnected: () => observerDisconnected
   };
 }
@@ -268,6 +282,7 @@ describe('Pixi board camera', () => {
     harness.visualViewport.offsetTop = 13;
     harness.setSize(200, 180);
     harness.fireResize();
+    harness.flushAnimationFrame();
     const second = harness.camera.getLayout();
     const secondRect = harness.camera.getCellClientRect(0, 0);
 
@@ -287,6 +302,7 @@ describe('Pixi board camera', () => {
 
     harness.setPosition(145, 257);
     harness.fireResize();
+    harness.flushAnimationFrame();
 
     const second = harness.camera.getLayout();
     const secondRect = harness.camera.getCellClientRect(0, 0);
@@ -295,6 +311,53 @@ describe('Pixi board camera', () => {
     expect(second.camera).toMatchObject({ viewportWidth: 160, viewportHeight: 120 });
     expect(secondRect.left).toBe(firstRect.left + 40);
     expect(secondRect.top).toBe(firstRect.top + 50);
+    expect(harness.changes).toHaveLength(2);
+    expect(harness.changes.at(-1)).toMatchObject({ kind: 'client-only' });
+    expect(harness.camera.getDiagnostics()).toMatchObject({
+      renderLayoutChangeCount: 1,
+      clientLayoutChangeCount: 1
+    });
+  });
+
+  test('coalesces observer bursts and renders only render-space layout changes', () => {
+    const harness = createHarness();
+    const nextTopology = topology();
+    harness.camera.sync(nextTopology, seedLayout(nextTopology));
+    harness.changes.length = 0;
+
+    for (let event = 0; event < 50; event += 1) harness.fireResize();
+    expect(harness.animationFrames.size).toBe(1);
+    expect(harness.camera.getDiagnostics()).toMatchObject({
+      pendingRefresh: true,
+      refreshEventCount: 50,
+      refreshApplyCount: 0,
+      refreshCoalescedCount: 49
+    });
+    harness.flushAnimationFrame();
+    expect(harness.changes).toHaveLength(0);
+
+    harness.setPosition(145, 257);
+    for (let event = 0; event < 10; event += 1) harness.fireResize();
+    harness.flushAnimationFrame();
+    expect(harness.changes).toHaveLength(1);
+    expect(harness.changes.at(-1)).toMatchObject({ kind: 'client-only' });
+
+    harness.setSize(159, 119);
+    for (let event = 0; event < 10; event += 1) harness.fireResize();
+    harness.flushAnimationFrame();
+
+    expect(harness.changes).toHaveLength(2);
+    expect(harness.changes.at(-1)).toMatchObject({ kind: 'render-space' });
+    expect(harness.camera.getDiagnostics()).toMatchObject({
+      pendingRefresh: false,
+      refreshEventCount: 70,
+      refreshApplyCount: 3,
+      refreshCoalescedCount: 67,
+      layoutApplyCount: 4,
+      renderLayoutChangeCount: 2,
+      clientLayoutChangeCount: 1,
+      noopLayoutChangeCount: 1
+    });
   });
 
   test('does not advance layout revision for an identical apply and releases observers/listeners', () => {

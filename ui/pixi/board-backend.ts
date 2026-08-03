@@ -18,6 +18,7 @@ import {
 } from './application';
 import {
   createPixiBoardCamera,
+  type PixiBoardCameraLayoutChangeKind,
   type PixiBoardCamera,
   type PixiBoardCameraOptions,
   type PixiBoardCanvasViewport
@@ -1257,9 +1258,14 @@ export function createPixiBoardVisualBackend(
 
   function onCameraLayoutChange(
     layout: BoardViewportLayout,
-    canvasViewport: PixiBoardCanvasViewport
+    canvasViewport: PixiBoardCanvasViewport,
+    kind: PixiBoardCameraLayoutChangeKind = 'render-space'
   ): void {
     if (suppressCameraCallback || state !== 'ready') return;
+    if (kind === 'client-only') {
+      if (currentFrame) currentFrame = Object.freeze({ ...currentFrame, layout });
+      return;
+    }
     try {
       renderCurrentAtLayout(layout, canvasViewport);
     } catch (error) {
