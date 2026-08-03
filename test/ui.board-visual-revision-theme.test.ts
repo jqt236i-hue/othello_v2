@@ -176,6 +176,51 @@ describe('board visual independent revision contract', () => {
     ]).toEqual([1, 2, 3]);
   });
 
+  test('treats cell order as non-semantic while deriving both revision channels', () => {
+    const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
+    const cellA = { key: '0,0', visualSignature: 'visual:A', hintInputSignature: 'input:A' };
+    const cellB = { key: '0,1', visualSignature: 'visual:B', hintInputSignature: 'input:B' };
+    const first = composer.compose(makeRawFrame({ model: { cells: [cellB, cellA] } }));
+    const second = composer.compose(makeRawFrame({
+      frameToken: 'idle:ordered',
+      model: { cells: [cellA, cellB] }
+    }));
+
+    expect(second.model.visualRevision).toBe(first.model.visualRevision);
+    expect(second.model.modelCommitId).toBe(first.model.modelCommitId);
+  });
+
+  test('reuses the combined fingerprint for the same frozen model identity', () => {
+    let keyReads = 0;
+    const cell = Object.freeze({
+      get key() {
+        keyReads += 1;
+        return '0,0';
+      },
+      visualSignature: 'visual:A',
+      hintInputSignature: 'input:A'
+    });
+    const raw = makeRawFrame({ model: { cells: Object.freeze([cell]) } });
+    for (const keys of [
+      raw.model.topology.baseKeys,
+      raw.model.topology.existingKeys,
+      raw.model.topology.playableKeys,
+      raw.model.topology.holeKeys
+    ]) Object.freeze(keys);
+    Object.freeze(raw.model.topology);
+    Object.freeze(raw.model);
+    const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
+
+    const first = composer.compose(raw);
+    const readsAfterFirstCompose = keyReads;
+    const second = composer.compose({ ...raw, frameToken: 'idle:cached' });
+
+    expect(readsAfterFirstCompose).toBeGreaterThan(0);
+    expect(keyReads).toBe(readsAfterFirstCompose);
+    expect(second.model.visualRevision).toBe(first.model.visualRevision);
+    expect(second.model.modelCommitId).toBe(first.model.modelCommitId);
+  });
+
   test('input epoch changes invalidate input identity even when board and hints are unchanged', () => {
     const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
     const inputEpoch = (

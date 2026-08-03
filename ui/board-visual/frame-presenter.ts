@@ -25,6 +25,13 @@ type RevisionChannel = {
   fingerprint: string | null;
 };
 
+type ModelFingerprintPair = Readonly<{
+  visual: string;
+  interaction: string;
+}>;
+
+const modelFingerprintCache = new WeakMap<object, ModelFingerprintPair>();
+
 function stableDescriptorString(value: unknown, ancestors = new Set<object>()): string {
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
@@ -64,47 +71,55 @@ function descriptorFingerprint(value: Record<string, unknown>, revisionField: st
   return stableDescriptorString(descriptor);
 }
 
-function modelFingerprint(model: BoardRenderModel): string {
+function canCacheModelFingerprints(model: BoardRenderModel): boolean {
+  return Object.isFrozen(model)
+    && Object.isFrozen(model.topology)
+    && Object.isFrozen(model.cells);
+}
+
+function modelFingerprints(model: BoardRenderModel): ModelFingerprintPair {
+  if (canCacheModelFingerprints(model)) {
+    const cached = modelFingerprintCache.get(model as object);
+    if (cached) return cached;
+  }
   const topology = model.topology;
-  const sortedKeys = (values: readonly string[]) => Array.from(values || []).sort();
-  const cells = Array.from(model.cells || [])
-    .map((cell) => ({
-      key: String(cell && cell.key || ''),
+  const cells = Array.from(model.cells || []).sort((left, right) => (
+    String(left && left.key || '').localeCompare(String(right && right.key || ''))
+  ));
+  const visualCells: Array<Record<string, unknown>> = [];
+  const interactionCells: Array<Record<string, unknown>> = [];
+  for (const cell of cells) {
+    const key = String(cell && cell.key || '');
+    visualCells.push({
+      key,
       visualSignature: typeof cell?.visualSignature === 'string' ? cell.visualSignature : cell
-    }))
-    .sort((left, right) => left.key.localeCompare(right.key));
-  return stableDescriptorString({
+    });
+    interactionCells.push({
+      key,
+      expansionSide: cell?.expansionSide || null,
+      hintInputSignature: typeof cell?.hintInputSignature === 'string'
+        ? cell.hintInputSignature
+        : ''
+    });
+  }
+  const visual = stableDescriptorString({
     boardDigest: model.boardDigest,
     inputEpoch: model.inputEpoch,
     topology: {
       ...topology,
-      baseKeys: sortedKeys(topology.baseKeys),
-      existingKeys: sortedKeys(topology.existingKeys),
-      playableKeys: sortedKeys(topology.playableKeys),
-      holeKeys: sortedKeys(topology.holeKeys)
+      baseKeys: topology.baseKeys,
+      existingKeys: topology.existingKeys,
+      playableKeys: topology.playableKeys,
+      holeKeys: topology.holeKeys
     },
-    cells,
+    cells: visualCells,
     keyboardCursorKey: model.keyboardCursorKey,
     viewerContext: model.viewerContext,
     currentPlayer: model.currentPlayer,
     canControlCurrentTurn: model.canControlCurrentTurn,
     isHumanTurn: model.isHumanTurn
   });
-}
-
-function modelInteractionFingerprint(model: BoardRenderModel): string {
-  const topology = model.topology;
-  const sortedKeys = (values: readonly string[]) => Array.from(values || []).sort();
-  const cells = Array.from(model.cells || [])
-    .map((cell) => ({
-      key: String(cell && cell.key || ''),
-      expansionSide: cell?.expansionSide || null,
-      hintInputSignature: typeof cell?.hintInputSignature === 'string'
-        ? cell.hintInputSignature
-        : ''
-    }))
-    .sort((left, right) => left.key.localeCompare(right.key));
-  return stableDescriptorString({
+  const interaction = stableDescriptorString({
     boardDigest: model.boardDigest,
     inputEpoch: model.inputEpoch,
     topology: {
@@ -119,17 +134,20 @@ function modelInteractionFingerprint(model: BoardRenderModel): string {
       renderColOffset: topology.renderColOffset,
       renderRows: topology.renderRows,
       renderCols: topology.renderCols,
-      baseKeys: sortedKeys(topology.baseKeys),
-      existingKeys: sortedKeys(topology.existingKeys),
-      playableKeys: sortedKeys(topology.playableKeys),
-      holeKeys: sortedKeys(topology.holeKeys)
+      baseKeys: topology.baseKeys,
+      existingKeys: topology.existingKeys,
+      playableKeys: topology.playableKeys,
+      holeKeys: topology.holeKeys
     },
-    cells,
+    cells: interactionCells,
     viewerContext: model.viewerContext,
     currentPlayer: model.currentPlayer,
     canControlCurrentTurn: model.canControlCurrentTurn,
     isHumanTurn: model.isHumanTurn
   });
+  const pair = Object.freeze({ visual, interaction });
+  if (canCacheModelFingerprints(model)) modelFingerprintCache.set(model as object, pair);
+  return pair;
 }
 
 function resolveChannelRevision(channel: RevisionChannel, fingerprint: string): number {
@@ -159,14 +177,9 @@ function createBoardVisualFrameRevisionComposer() {
       if (!frame || !frame.model || !frame.layout || !frame.appearance || !frame.theme) {
         throw new Error('A complete board visual frame is required for revision composition');
       }
-      const modelRevision = resolveChannelRevision(
-        model,
-        modelFingerprint(frame.model)
-      );
-      const modelCommitId = resolveChannelRevision(
-        interaction,
-        modelInteractionFingerprint(frame.model)
-      );
+      const fingerprints = modelFingerprints(frame.model);
+      const modelRevision = resolveChannelRevision(model, fingerprints.visual);
+      const modelCommitId = resolveChannelRevision(interaction, fingerprints.interaction);
       const layoutRevision = resolveChannelRevision(
         layout,
         descriptorFingerprint(frame.layout as unknown as Record<string, unknown>, 'revision')
@@ -184,6 +197,9 @@ function createBoardVisualFrameRevisionComposer() {
         modelCommitId,
         visualRevision: modelRevision
       });
+      if (canCacheModelFingerprints(frame.model)) {
+        modelFingerprintCache.set(nextModel as object, fingerprints);
+      }
       const nextLayout: BoardViewportLayout = Object.freeze({ ...frame.layout, revision: layoutRevision });
       const nextAppearance: BoardAppearanceDescriptor = Object.freeze({
         ...frame.appearance,
