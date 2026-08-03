@@ -38,6 +38,7 @@
     "assets:ui-images:check": "npm run build:ts && node dist/scripts/assets/build-optimized-ui-images.js --check",
     "assets:optimized:check": "npm run assets:fonts:check && npm run assets:backgrounds:check && npm run assets:ui-images:check",
     "perf:network-special-stone": "npm run build:browser && node scripts/perf/measure-network-special-stone-late-game.js",
+    "perf:in-game-hot-path": "npm run build:ts && node dist/scripts/perf/measure-in-game-runtime-hot-path-optimization.js",
     "perf:opponent-action-stall": "npm run build:vite && node dist/scripts/perf/measure-opponent-action-frame-stall.js",
     "perf:ux-optimization:capture": "node dist/scripts/perf/capture-ux-optimization-monitor.js",
     "perf:ux-optimization:validate": "npm run build:ts && node dist/scripts/perf/validate-ux-optimization-monitor.js",

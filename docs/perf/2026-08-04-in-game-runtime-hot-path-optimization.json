@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "in_game_runtime_hot_path_optimization.v1",
+  "capturedAt": "2026-08-03T19:29:39.203Z",
+  "environment": {
+    "commit": "4be7d93752a50afb8a426751656688d126140ba6",
+    "node": "v24.12.0",
+    "platform": "win32 10.0.26200 x64",
+    "cpu": "AMD Ryzen 7 9700X 8-Core Processor             "
+  },
+  "conditions": {
+    "warmup": 30,
+    "samples": 120,
+    "batchCycles": 4,
+    "foregroundBrowser": false
+  },
+  "measurements": {
+    "trajectory": {
+      "fixture": {
+        "profileKey": "lightningDestroyed",
+        "targets": 8,
+        "progressTicks": 60,
+        "batchCyclesPerSample": 4,
+        "legacyRevision": "ab8513f6562db0ebf8f5ed45849ef371612f7cd1"
+      },
+      "legacy": {
+        "timingMsPerBatch": {
+          "count": 120,
+          "min": 8.3281,
+          "median": 8.8092,
+          "p95": 11.2819,
+          "max": 11.8831
+        },
+        "dynamicDescriptorsPerAnimationSecond": 26160,
+        "checksum": 15974400
+      },
+      "candidate": {
+        "timingMsPerBatch": {
+          "count": 120,
+          "min": 0.0858,
+          "median": 0.0913,
+          "p95": 0.1383,
+          "max": 0.1851
+        },
+        "dynamicDescriptorsPerAnimationSecond": 0,
+        "compileEightPlansMs": {
+          "count": 120,
+          "min": 0.0237,
+          "median": 0.0344,
+          "p95": 0.0689,
+          "max": 0.0977
+        },
+        "staticDescriptorCount": 436,
+        "checksum": 454077.090726
+      },
+      "reduction": {
+        "dynamicDescriptorPercent": 100,
+        "steadyTickP95Percent": 98.774
+      },
+      "gates": {
+        "steadyTickDescriptorAllocationReductionAtLeast90Percent": true,
+        "steadyTickP95ReductionAtLeast70Percent": true,
+        "candidateDynamicDescriptorCountIsZero": true
+      }
+    },
+    "snapshotIntake": {
+      "fixture": {
+        "rows": 16,
+        "cols": 16,
+        "occupiedCells": 256,
+        "markerCount": 64,
+        "jsonBytes": 18331,
+        "batchCyclesPerSample": 32
+      },
+      "legacy": {
+        "timingMs": {
+          "count": 120,
+          "min": 15.2381,
+          "median": 17.5071,
+          "p95": 22.3696,
+          "max": 26.8575
+        },
+        "structure": {
+          "deepBoardInspections": 2,
+          "snapshotClones": 1
+        },
+        "checksum": 307200
+      },
+      "candidate": {
+        "timingMs": {
+          "count": 120,
+          "min": 9.0976,
+          "median": 10.09,
+          "p95": 12.9268,
+          "max": 14.4795
+        },
+        "structure": {
+          "deepBoardInspections": 1,
+          "snapshotClones": 1
+        },
+        "checksum": 307200
+      },
+      "staleGate": {
+        "deepBoardInspections": 0
+      },
+      "semantic": {
+        "legacyHash": "fnv1a32:742c81ba",
+        "candidateHash": "fnv1a32:742c81ba",
+        "equal": true
+      },
+      "reduction": {
+        "p95Percent": 42.213
+      },
+      "gates": {
+        "acceptedDeepInspectionExactlyOnce": true,
+        "acceptedSnapshotCloneExactlyOnce": true,
+        "staleDeepInspectionIsZero": true,
+        "preparedSnapshotSemanticHashEqual": true,
+        "p95ReductionAtLeast30Percent": true
+      }
+    },
+    "presentationEnvelope": {
+      "fixture": "late-special-20",
+      "viewers": {
+        "black": {
+          "legacyBytes": 90409,
+          "compactBytes": 45754,
+          "reductionPercent": 49.392,
+          "resolvedReferenceCount": 1,
+          "semanticEqual": true,
+          "legacySelfContained": true,
+          "topLevelPlaybackOmitted": true,
+          "latestFrameSnapshotReferenced": true,
+          "gatePassed": true
+        },
+        "white": {
+          "legacyBytes": 90427,
+          "compactBytes": 45763,
+          "reductionPercent": 49.392,
+          "resolvedReferenceCount": 1,
+          "semanticEqual": true,
+          "legacySelfContained": true,
+          "topLevelPlaybackOmitted": true,
+          "latestFrameSnapshotReferenced": true,
+          "gatePassed": true
+        },
+        "spectator": {
+          "legacyBytes": 90453,
+          "compactBytes": 45776,
+          "reductionPercent": 49.393,
+          "resolvedReferenceCount": 1,
+          "semanticEqual": true,
+          "legacySelfContained": true,
+          "topLevelPlaybackOmitted": true,
+          "latestFrameSnapshotReferenced": true,
+          "gatePassed": true
+        }
+      },
+      "gates": {
+        "everyViewerAtLeast30PercentSmaller": true,
+        "legacyEnvelopeRemainsSelfContained": true
+      }
+    }
+  },
+  "gates": {
+    "nodePerformancePassed": true
+  }
+}
