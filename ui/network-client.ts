@@ -415,8 +415,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         pendingForceSyncPlaybackSignature: '',
         lastStateSyncRecoveredPlaybackSignature: '',
         authoritativeMatchState: {
-            gameState: null as any,
-            cardState: null as any,
+            authoritativeTurnIndex: null as any,
             stateVersion: null as any,
             authority: null as any,
             projectedForSeat: null as any,
@@ -1366,6 +1365,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 assertNetworkPresentationTimelineDisposedForSessionBoundary();
                 clearPendingRematchRequest();
                 state.lastStreamEventId = '';
+                state.authoritativeMatchState.authoritativeTurnIndex = null;
+                state.authoritativeMatchState.stateVersion = null;
+                state.authoritativeMatchState.authority = null;
+                state.authoritativeMatchState.projectedForSeat = null;
+                state.authoritativeMatchState.turnStartReconciled = false;
+                state.authoritativeMatchState.projectedSnapshotHash = null;
+                state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
                 const activationSnapshotVersion = getSnapshotStateVersion(payload && payload.snapshot);
                 state.appliedStateVersion = activationSnapshotVersion;
                 const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
@@ -1399,8 +1405,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 }
                 resetNetworkVisualStateStoreForSessionBoundary(networkVisualStateStore);
                 state.lastStreamEventId = '';
-                state.authoritativeMatchState.gameState = null;
-                state.authoritativeMatchState.cardState = null;
+                state.authoritativeMatchState.authoritativeTurnIndex = null;
                 state.authoritativeMatchState.stateVersion = null;
                 state.authoritativeMatchState.authority = null;
                 state.authoritativeMatchState.projectedForSeat = null;
@@ -2084,17 +2089,19 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function getCurrentPublishTurnIndex() {
-        const authoritativeCardState = state.authoritativeMatchState && state.authoritativeMatchState.cardState
-            && typeof state.authoritativeMatchState.cardState === 'object'
-            ? state.authoritativeMatchState.cardState
-            : null;
         const liveCardState = root && root.cardState && typeof root.cardState === 'object'
             ? root.cardState
             : ((typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object')
                 ? (globalThis as any).cardState
                 : null);
-        const authoritativeTurnIndex = authoritativeCardState && Number.isFinite(Number(authoritativeCardState.turnIndex))
-            ? Math.trunc(Number(authoritativeCardState.turnIndex))
+        const authoritativeTurnIndexValue = state.authoritativeMatchState
+            ? state.authoritativeMatchState.authoritativeTurnIndex
+            : null;
+        const authoritativeTurnIndex = authoritativeTurnIndexValue !== null
+            && typeof authoritativeTurnIndexValue !== 'undefined'
+            && String(authoritativeTurnIndexValue).trim() !== ''
+            && Number.isFinite(Number(authoritativeTurnIndexValue))
+            ? Math.trunc(Number(authoritativeTurnIndexValue))
             : null;
         const liveTurnIndex = liveCardState && Number.isFinite(Number(liveCardState.turnIndex))
             ? Math.trunc(Number(liveCardState.turnIndex))
@@ -3753,8 +3760,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             resetNetworkVisualStateStoreForSessionBoundary(networkVisualStateStore);
             state.lastStateSyncRecoveredPlaybackSignature = '';
             state.lastStreamEventId = '';
-            state.authoritativeMatchState.gameState = null;
-            state.authoritativeMatchState.cardState = null;
+            state.authoritativeMatchState.authoritativeTurnIndex = null;
             state.authoritativeMatchState.stateVersion = null;
             state.authoritativeMatchState.authority = null;
             state.authoritativeMatchState.projectedForSeat = null;

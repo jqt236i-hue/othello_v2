@@ -44,7 +44,11 @@ function createNetworkSnapshotController(config: any): any {
     const snapshotPlaybackModule = resolveNetworkSnapshotModuleOrNull('./snapshot-playback', 'NetworkSnapshotPlaybackModule');
     const playbackStateManagerModule = resolveNetworkSnapshotModuleOrNull('../playback-state-manager', 'PlaybackStateManager');
 
-    if (!snapshotCanonicalModule || typeof snapshotCanonicalModule.inspectAuthoritativeSnapshot !== 'function') {
+    if (
+        !snapshotCanonicalModule
+        || typeof snapshotCanonicalModule.inspectAuthoritativeSnapshotEnvelope !== 'function'
+        || typeof snapshotCanonicalModule.prepareIncomingAuthoritativeSnapshot !== 'function'
+    ) {
         throw new Error('NetworkSnapshotCanonicalModule is required before ui/network/snapshot.js');
     }
     if (!snapshotPresentationModule || typeof snapshotPresentationModule.reconcilePresentationQueues !== 'function') {
@@ -152,26 +156,8 @@ function createNetworkSnapshotController(config: any): any {
         return snapshotCanonicalModule.normalizeSeatKey(value);
     }
 
-    function getSnapshotMeta(snapshot: any): any {
-        return snapshotCanonicalModule.getSnapshotMeta(snapshot);
-    }
-
     function getSnapshotVersion(snapshot: any): any {
         return snapshotCanonicalModule.getSnapshotVersion(snapshot);
-    }
-
-    function shouldRejectSnapshotByAuthority(snapshot: any, state: any, opts: any): boolean {
-        const inspection = snapshotCanonicalModule.inspectAuthoritativeSnapshot(snapshot, {
-            force: opts && opts.force === true,
-            localSeatKey: state && state.seatKey,
-            viewerRole: state && state.viewerRole,
-            skipVersionChecks: true
-        });
-        if (inspection && inspection.ok === true) return false;
-        if (inspection && inspection.telemetryType) {
-            emitTelemetry(inspection.telemetryType, inspection.telemetryDetails || {});
-        }
-        return true;
     }
 
     function normalizeChargeDeltaEventList(events: any[]): any[] {
@@ -234,28 +220,30 @@ function createNetworkSnapshotController(config: any): any {
         return null;
     }
 
-    function compareBoardGeometry(previousValue: any, nextValue: any): any {
-        const boardUtils = resolveSharedBoardUtils();
-        if (boardUtils && typeof boardUtils.compareBoardGeometry === 'function') {
-            try {
-                return boardUtils.compareBoardGeometry(previousValue, nextValue);
-            } catch (e) { /* ignore */ }
-        }
-        const previous = readBoardGeometry(previousValue);
-        const next = readBoardGeometry(nextValue);
+    function compareBoardGeometryDescriptors(previous: any, next: any): any {
         return {
             previous,
             next,
             changed: !!(
                 previous
                 && next
-                && (previous.rows !== next.rows || previous.cols !== next.cols)
+                && (
+                    previous.rows !== next.rows
+                    || previous.cols !== next.cols
+                    || previous.shape !== next.shape
+                )
             )
         };
     }
 
-    function sanitizeIncomingSnapshot(snapshot: any): any {
-        const result = snapshotCanonicalModule.sanitizeIncomingSnapshot(snapshot, { cloneData });
+    function prepareIncomingSnapshot(snapshot: any, state: any, opts: any, currentAppliedVersion: any): any {
+        const result = snapshotCanonicalModule.prepareIncomingAuthoritativeSnapshot(snapshot, {
+            cloneData,
+            force: opts && opts.force === true,
+            localSeatKey: state && state.seatKey,
+            viewerRole: state && state.viewerRole,
+            currentAppliedVersion
+        });
         if (result && result.transientStateStripped) {
             emitTelemetry('snapshot_transient_state_stripped', result.transientStateStripped);
         }
@@ -619,9 +607,12 @@ function createNetworkSnapshotController(config: any): any {
     function readFirstPresentationFrame(options: any): any {
         const frames = Array.isArray(options && options.presentationFrames) ? options.presentationFrames : [];
         if (frames.length <= 0) return null;
-        return frames
-            .slice()
-            .sort((a: any, b: any) => Number(a && a.visualSeq) - Number(b && b.visualSeq))[0] || null;
+        let first = frames[0] || null;
+        for (let index = 1; index < frames.length; index += 1) {
+            const candidate = frames[index];
+            if (Number(candidate && candidate.visualSeq) < Number(first && first.visualSeq)) first = candidate;
+        }
+        return first;
     }
 
     function buildSnapshotEnvelope(snapshot: any, stateVersion: any): any {
@@ -638,6 +629,12 @@ function createNetworkSnapshotController(config: any): any {
         if (!store || typeof store.setBaseVisualSnapshot !== 'function') return;
         const firstFrame = readFirstPresentationFrame(options);
         if (!firstFrame) return;
+        if (typeof store.getDiagnostics === 'function') {
+            try {
+                const diagnostics = store.getDiagnostics();
+                if (diagnostics && diagnostics.hasVisualSnapshot === true) return;
+            } catch (e) { /* preserveExisting remains the final ownership guard */ }
+        }
         const stateVersionFrom = Number.isFinite(Number(firstFrame.stateVersionFrom))
             ? Math.trunc(Number(firstFrame.stateVersionFrom))
             : (Number.isFinite(Number(state && state.lastVisualVersion))
@@ -769,9 +766,20 @@ function createNetworkSnapshotController(config: any): any {
         const opts = options || {};
         const state = resolveState();
         const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
-        const previousGameState = cloneData(resolveGlobalObject('gameState'));
-        const previousCardState = cloneData(resolveGlobalObject('cardState'));
-        const preservedQueues = captureTransientPresentationQueues(resolveGlobalObject('cardState'));
+        const previousGameState = resolveGlobalObject('gameState');
+        const previousCardState = resolveGlobalObject('cardState');
+        const previousBoardGeometry = readBoardGeometry(previousGameState);
+        const previousChargeState = {
+            charge: {
+                black: previousCardState && previousCardState.charge
+                    ? previousCardState.charge.black
+                    : 0,
+                white: previousCardState && previousCardState.charge
+                    ? previousCardState.charge.white
+                    : 0
+            }
+        };
+        const preservedQueues = captureTransientPresentationQueues(previousCardState);
         const busyStateBeforeSnapshot = readBusyStateSnapshot();
         const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
 
@@ -785,7 +793,7 @@ function createNetworkSnapshotController(config: any): any {
         } catch (e) { /* ignore */ }
 
         const cardStateRef = resolveGlobalObject('cardState');
-        const synthesizedChargeDeltaEvents = buildMissingChargeDeltaEvents(previousCardState, cardStateRef, opts);
+        const synthesizedChargeDeltaEvents = buildMissingChargeDeltaEvents(previousChargeState, cardStateRef, opts);
         setTransientChargeDeltaEvents(synthesizedChargeDeltaEvents);
         const syncPendingSelectionActionCache = resolveGlobalFunction('syncPendingSelectionActionCache', cfg.syncPendingSelectionActionCache);
         if (syncPendingSelectionActionCache && cardStateRef) {
@@ -794,7 +802,10 @@ function createNetworkSnapshotController(config: any): any {
             } catch (e) { /* ignore */ }
         }
 
-        const boardGeometry = compareBoardGeometry(previousGameState, resolveGlobalObject('gameState'));
+        const boardGeometry = compareBoardGeometryDescriptors(
+            previousBoardGeometry,
+            readBoardGeometry(resolveGlobalObject('gameState'))
+        );
         if (boardGeometry.changed) {
             emitTelemetry('snapshot_board_geometry_changed', {
                 previousRows: boardGeometry.previous.rows,
@@ -817,8 +828,9 @@ function createNetworkSnapshotController(config: any): any {
         }
         if (state && state.authoritativeMatchState && typeof state.authoritativeMatchState === 'object') {
             state.authoritativeMatchState.stateVersion = nextVersion;
-            state.authoritativeMatchState.gameState = cloneData(snapshot.gameState);
-            state.authoritativeMatchState.cardState = cloneData(snapshot.cardState);
+            state.authoritativeMatchState.authoritativeTurnIndex = Number.isFinite(Number(snapshot.cardState && snapshot.cardState.turnIndex))
+                ? Math.trunc(Number(snapshot.cardState.turnIndex))
+                : null;
             state.authoritativeMatchState.authority = snapshotMeta ? snapshotMeta.authority : null;
             state.authoritativeMatchState.projectedForSeat = snapshotMeta ? snapshotMeta.projectedForSeat : null;
             state.authoritativeMatchState.turnStartReconciled = snapshotMeta ? snapshotMeta.turnStartReconciled : false;
@@ -850,24 +862,62 @@ function createNetworkSnapshotController(config: any): any {
             return false;
         }
 
-        if (shouldRejectSnapshotByAuthority(snapshot, state, opts)) {
-            return false;
-        }
-
-        const snapshotMeta = getSnapshotMeta(snapshot);
-        const nextVersion = getSnapshotVersion(snapshot);
         const currentAppliedVersion = Number.isFinite(Number(state && state.appliedStateVersion))
             ? Number(state.appliedStateVersion)
             : (Number.isFinite(Number(state && state.stateVersion)) ? Number(state.stateVersion) : null);
-
-        if (!opts.force && nextVersion === null) {
-            emitTelemetry('snapshot_missing_state_version_rejected', {
-                force: false
-            });
+        const envelopeInspection = snapshotCanonicalModule.inspectAuthoritativeSnapshotEnvelope(snapshot, {
+            force: opts.force === true,
+            localSeatKey: state && state.seatKey,
+            viewerRole: state && state.viewerRole,
+            currentAppliedVersion
+        });
+        if (!envelopeInspection || envelopeInspection.ok !== true) {
+            const nextVersion = envelopeInspection ? envelopeInspection.version : getSnapshotVersion(snapshot);
+            if (envelopeInspection && envelopeInspection.rejectionType === 'stale_snapshot'
+                && opts.allowStaleShadowPlayback === true && shadowPlaybackEvents.length > 0) {
+                emitTelemetry('snapshot_shadow_playback_emitted', {
+                    nextVersion,
+                    currentVersion: currentAppliedVersion,
+                    shadowPlaybackCount: shadowPlaybackEvents.length
+                });
+                emitPlaybackEvents(shadowPlaybackEvents, {
+                    source: opts.shadowPlaybackSource || 'self_snapshot_sync',
+                    suppressPlayback: true
+                });
+                setBusyState(true);
+                armBoardUpdateDuringPlayback(
+                    opts.shadowPlaybackSource || 'self_snapshot_sync',
+                    'stale_shadow_playback_board_sync'
+                );
+                refreshUi({
+                    deferCardUiUntilPlaybackIdle: true
+                });
+                setBusyState(false);
+                return false;
+            }
+            if (envelopeInspection && envelopeInspection.telemetryType) {
+                emitTelemetry(envelopeInspection.telemetryType, envelopeInspection.telemetryDetails || {});
+            }
             return false;
         }
 
+        const preparedSnapshot = prepareIncomingSnapshot(snapshot, state, opts, currentAppliedVersion);
+        if (!preparedSnapshot || preparedSnapshot.ok !== true) {
+            if (preparedSnapshot && preparedSnapshot.telemetryType) {
+                emitTelemetry(preparedSnapshot.telemetryType, preparedSnapshot.telemetryDetails || {});
+            } else {
+                emitTelemetry('snapshot_invalid_shape_rejected', {
+                    reason: preparedSnapshot && preparedSnapshot.reason || 'invalid_snapshot'
+                });
+            }
+            return false;
+        }
+
+        const nextVersion = preparedSnapshot.version;
+        const snapshotMeta = preparedSnapshot.meta;
         if (!opts.force && nextVersion !== null && currentAppliedVersion !== null && nextVersion <= currentAppliedVersion) {
+            // The prepared clone is checked again to fail closed if getters or
+            // an injected clone produced a different authority envelope.
             if (opts.allowStaleShadowPlayback === true && shadowPlaybackEvents.length > 0) {
                 emitTelemetry('snapshot_shadow_playback_emitted', {
                     nextVersion,
@@ -897,15 +947,7 @@ function createNetworkSnapshotController(config: any): any {
             return false;
         }
 
-        const sanitizedSnapshot = sanitizeIncomingSnapshot(snapshot);
-        if (!sanitizedSnapshot.ok) {
-            emitTelemetry('snapshot_invalid_shape_rejected', {
-                reason: sanitizedSnapshot.reason || 'invalid_snapshot'
-            });
-            return false;
-        }
-
-        const applyContext = applyAuthoritativeSnapshotState(sanitizedSnapshot.snapshot, effectiveOptions, nextVersion, snapshotMeta);
+        const applyContext = applyAuthoritativeSnapshotState(preparedSnapshot.snapshot, effectiveOptions, nextVersion, snapshotMeta);
         finalizeSnapshotPresentation(nextVersion, effectiveOptions, applyContext);
         if (presentationFrames.length > 0) {
             enqueuePresentationFramesFromOptions(opts);

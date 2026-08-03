@@ -104,7 +104,7 @@ function getSnapshotMeta(snapshot: any): SnapshotMeta | null {
   };
 }
 
-function inspectBoardContract(snapshot: any, options?: any): any {
+function inspectBoardContractEnvelope(snapshot: any, options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const rawMeta = snapshot && snapshot._meta && typeof snapshot._meta === 'object'
     ? snapshot._meta
@@ -133,27 +133,41 @@ function inspectBoardContract(snapshot: any, options?: any): any {
   ) {
     return { ok: false, version, reason: 'incomplete_board_snapshot' };
   }
+  return { ok: true, version, legacy: !hasVersion, hasVersion };
+}
+
+function inspectBoardContract(snapshot: any, options?: any): any {
+  const envelopeInspection = inspectBoardContractEnvelope(snapshot, options);
+  if (!envelopeInspection.ok) return envelopeInspection;
   if (!SharedBoardUtils || typeof SharedBoardUtils.inspectBoardState !== 'function') {
-    return { ok: false, version, reason: 'board_inspector_unavailable' };
+    return {
+      ok: false,
+      version: envelopeInspection.version,
+      reason: 'board_inspector_unavailable'
+    };
   }
   try {
     const inspection = SharedBoardUtils.inspectBoardState(
       snapshot.gameState,
       snapshot.cardState,
-      { strict: hasVersion }
+      { strict: envelopeInspection.hasVersion === true }
     );
     return inspection && inspection.ok === true
-      ? { ok: true, version, legacy: !hasVersion }
+      ? {
+        ok: true,
+        version: envelopeInspection.version,
+        legacy: envelopeInspection.legacy === true
+      }
       : {
         ok: false,
-        version,
+        version: envelopeInspection.version,
         reason: 'invalid_board_state',
         errors: inspection && Array.isArray(inspection.errors) ? inspection.errors.slice() : []
       };
   } catch (error) {
     return {
       ok: false,
-      version,
+      version: envelopeInspection.version,
       reason: 'invalid_board_state',
       errors: [error instanceof Error ? error.message : String(error)]
     };
@@ -168,7 +182,22 @@ function getSnapshotVersion(snapshot: any): number | null {
     : null;
 }
 
-function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
+function boardContractRejection(meta: SnapshotMeta | null, version: number | null, inspection: any): any {
+  return {
+    ok: false,
+    rejectionType: 'invalid_board_contract',
+    telemetryType: 'snapshot_board_contract_rejected',
+    telemetryDetails: {
+      boardContractVersion: inspection.version,
+      reason: inspection.reason,
+      errors: inspection.errors || []
+    },
+    meta,
+    version
+  };
+}
+
+function inspectAuthoritativeSnapshotEnvelope(snapshot: any, options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const meta = getSnapshotMeta(snapshot);
   if (!meta) {
@@ -227,20 +256,9 @@ function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
     };
   }
 
-  const boardContractInspection = inspectBoardContract(snapshot, opts);
+  const boardContractInspection = inspectBoardContractEnvelope(snapshot, opts);
   if (!boardContractInspection.ok) {
-    return {
-      ok: false,
-      rejectionType: 'invalid_board_contract',
-      telemetryType: 'snapshot_board_contract_rejected',
-      telemetryDetails: {
-        boardContractVersion: boardContractInspection.version,
-        reason: boardContractInspection.reason,
-        errors: boardContractInspection.errors || []
-      },
-      meta,
-      version: getSnapshotVersion(snapshot)
-    };
+    return boardContractRejection(meta, getSnapshotVersion(snapshot), boardContractInspection);
   }
 
   const version = getSnapshotVersion(snapshot);
@@ -295,6 +313,20 @@ function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
     meta,
     version
   };
+}
+
+function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
+  const envelopeInspection = inspectAuthoritativeSnapshotEnvelope(snapshot, options);
+  if (!envelopeInspection || envelopeInspection.ok !== true) return envelopeInspection;
+  const boardContractInspection = inspectBoardContract(snapshot, options);
+  if (!boardContractInspection.ok) {
+    return boardContractRejection(
+      envelopeInspection.meta,
+      envelopeInspection.version,
+      boardContractInspection
+    );
+  }
+  return envelopeInspection;
 }
 
 function normalizeChargeValue(value: any): number {
@@ -409,29 +441,9 @@ function buildMissingChargeDeltaEvents(previousCardState: any, nextCardState: an
   return events;
 }
 
-function sanitizeIncomingSnapshot(snapshot: any, options?: any): any {
-  if (!snapshot || typeof snapshot !== 'object') {
-    return { ok: false, reason: 'invalid_snapshot' };
-  }
-  if (!snapshot.gameState || typeof snapshot.gameState !== 'object') {
-    return { ok: false, reason: 'invalid_game_state' };
-  }
-  if (!snapshot.cardState || typeof snapshot.cardState !== 'object') {
-    return { ok: false, reason: 'invalid_card_state' };
-  }
-  const boardContractInspection = inspectBoardContract(snapshot, options);
-  if (!boardContractInspection.ok) {
-    return {
-      ok: false,
-      reason: 'invalid_board_contract',
-      boardContractReason: boardContractInspection.reason,
-      boardContractErrors: boardContractInspection.errors || []
-    };
-  }
-
-  const nextSnapshot = cloneData(snapshot, options && options.cloneData);
-  const gameState = nextSnapshot.gameState;
-  const cardState = nextSnapshot.cardState;
+function stripTransientPresentationState(snapshot: any): any {
+  const gameState = snapshot.gameState;
+  const cardState = snapshot.cardState;
   const liveQueueCount = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
   const persistentQueueCount = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
   const hadCurrentActionMeta = Object.prototype.hasOwnProperty.call(cardState, '_currentActionMeta');
@@ -443,17 +455,91 @@ function sanitizeIncomingSnapshot(snapshot: any, options?: any): any {
   delete gameState.__resultShown;
   normalizeChargeDataForSnapshot(cardState);
 
+  return (liveQueueCount > 0 || persistentQueueCount > 0 || hadCurrentActionMeta || hadResultShown)
+    ? {
+      liveQueueCount,
+      persistentQueueCount,
+      hadCurrentActionMeta,
+      hadResultShown
+    }
+    : null;
+}
+
+function cloneSnapshotCandidate(snapshot: any, options?: any): any {
+  try {
+    return {
+      ok: true,
+      snapshot: cloneData(snapshot, options && options.cloneData)
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'snapshot_clone_failed',
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+function sanitizeIncomingSnapshot(snapshot: any, options?: any): any {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return { ok: false, reason: 'invalid_snapshot' };
+  }
+  if (!snapshot.gameState || typeof snapshot.gameState !== 'object') {
+    return { ok: false, reason: 'invalid_game_state' };
+  }
+  if (!snapshot.cardState || typeof snapshot.cardState !== 'object') {
+    return { ok: false, reason: 'invalid_card_state' };
+  }
+  const cloned = cloneSnapshotCandidate(snapshot, options);
+  if (!cloned.ok) return cloned;
+  const nextSnapshot = cloned.snapshot;
+  const boardContractInspection = inspectBoardContract(nextSnapshot, options);
+  if (!boardContractInspection.ok) {
+    return {
+      ok: false,
+      reason: 'invalid_board_contract',
+      boardContractReason: boardContractInspection.reason,
+      boardContractErrors: boardContractInspection.errors || []
+    };
+  }
+
   return {
     ok: true,
     snapshot: nextSnapshot,
-    transientStateStripped: (liveQueueCount > 0 || persistentQueueCount > 0 || hadCurrentActionMeta || hadResultShown)
-      ? {
-        liveQueueCount,
-        persistentQueueCount,
-        hadCurrentActionMeta,
-        hadResultShown
-      }
-      : null
+    transientStateStripped: stripTransientPresentationState(nextSnapshot)
+  };
+}
+
+function prepareIncomingAuthoritativeSnapshot(snapshot: any, options?: any): any {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const cloned = cloneSnapshotCandidate(snapshot, opts);
+  if (!cloned.ok) {
+    return {
+      ...cloned,
+      rejectionType: 'snapshot_clone_failed',
+      telemetryType: 'snapshot_clone_failed',
+      telemetryDetails: { error: cloned.error || null },
+      meta: null,
+      version: getSnapshotVersion(snapshot)
+    };
+  }
+  const nextSnapshot = cloned.snapshot;
+  const envelopeInspection = inspectAuthoritativeSnapshotEnvelope(nextSnapshot, opts);
+  if (!envelopeInspection || envelopeInspection.ok !== true) return envelopeInspection;
+  const boardContractInspection = inspectBoardContract(nextSnapshot, opts);
+  if (!boardContractInspection.ok) {
+    return boardContractRejection(
+      envelopeInspection.meta,
+      envelopeInspection.version,
+      boardContractInspection
+    );
+  }
+  return {
+    ok: true,
+    snapshot: nextSnapshot,
+    meta: envelopeInspection.meta,
+    version: envelopeInspection.version,
+    transientStateStripped: stripTransientPresentationState(nextSnapshot)
   };
 }
 
@@ -462,8 +548,11 @@ const SnapshotCanonical = {
   normalizeSeatKey,
   getSnapshotMeta,
   getSnapshotVersion,
+  inspectBoardContractEnvelope,
   inspectBoardContract,
+  inspectAuthoritativeSnapshotEnvelope,
   inspectAuthoritativeSnapshot,
+  prepareIncomingAuthoritativeSnapshot,
   normalizeChargeDeltaEvent,
   normalizeChargeDeltaEventList,
   normalizeChargeDataForSnapshot,

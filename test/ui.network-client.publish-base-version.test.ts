@@ -271,6 +271,10 @@ describe('NetworkMatchClient queued publish', () => {
 
     expect(client.getStateVersion()).toBe(11);
 
+    // A local preview/rollback may temporarily expose an older live turn.
+    // Publish freshness must retain the accepted authoritative scalar.
+    global.cardState.turnIndex = 1;
+
     const publishResult = await client.publishSnapshot({
       playerKey: 'black',
       actionType: 'place',

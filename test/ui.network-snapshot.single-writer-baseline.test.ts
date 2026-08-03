@@ -121,7 +121,7 @@ describe('applySnapshot single-writer baseline', () => {
     if (dom) dom.window.close();
   });
 
-  function createController(stateObj, playbackStateOverrides = {}) {
+  function createController(stateObj, playbackStateOverrides = {}, configOverrides = {}) {
     const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     const playbackState = Object.assign({
       setBusyState: (flags) => busyStateCalls.push(flags),
@@ -143,7 +143,8 @@ describe('applySnapshot single-writer baseline', () => {
       emitBoardUpdate: global.emitBoardUpdate,
       renderCardUI: global.renderCardUI,
       playbackState,
-      boardUpdateSyncRuntime
+      boardUpdateSyncRuntime,
+      ...configOverrides
     });
   }
 
@@ -659,10 +660,56 @@ describe('applySnapshot single-writer baseline', () => {
     expect(stateObj.stateVersion).toBe(11);
     expect(stateObj.authoritativeMatchState).toEqual(expect.objectContaining({
       stateVersion: 11,
+      authoritativeTurnIndex: 1,
       authority: 'server',
       projectedForSeat: null,
       turnStartReconciled: true
     }));
+    expect(stateObj.authoritativeMatchState).not.toHaveProperty('gameState');
+    expect(stateObj.authoritativeMatchState).not.toHaveProperty('cardState');
+  });
+
+  test('stale intake performs no deep board inspection and accepted intake performs one', () => {
+    const boardUtils = require('../shared/shared-board-utils');
+    const inspectBoardState = jest.spyOn(boardUtils, 'inspectBoardState');
+    const stateObj = { stateVersion: 10, authoritativeMatchState: {} };
+    const ctrl = createController(stateObj);
+
+    try {
+      expect(ctrl.applySnapshot(createSnapshot(9), { playbackEvents: [] })).toBe(false);
+      expect(inspectBoardState).not.toHaveBeenCalled();
+
+      expect(ctrl.applySnapshot(createSnapshot(11), { playbackEvents: [] })).toBe(true);
+      expect(inspectBoardState).toHaveBeenCalledTimes(1);
+    } finally {
+      inspectBoardState.mockRestore();
+    }
+  });
+
+  test('strict playback base snapshot is copied only at the first visual ownership boundary', () => {
+    const Store = require('../ui/network/visual-state-store.ts');
+    const cloneReasons = [];
+    const visualStateStore = Store.createNetworkVisualStateStore({
+      onClone: (reason) => cloneReasons.push(reason)
+    });
+    const stateObj = {
+      stateVersion: 10,
+      appliedStateVersion: 10,
+      lastVisualSeq: 0,
+      lastVisualVersion: 10,
+      authoritativeMatchState: {}
+    };
+    const ctrl = createController(stateObj, {}, { visualStateStore });
+
+    expect(ctrl.applySnapshot(createSnapshot(11), {
+      presentationFrames: [{ visualSeq: 1, stateVersionFrom: 10 }]
+    })).toBe(true);
+    expect(ctrl.applySnapshot(createSnapshot(12), {
+      presentationFrames: [{ visualSeq: 2, stateVersionFrom: 11 }]
+    })).toBe(true);
+
+    expect(cloneReasons.filter((reason) => reason === 'setBaseVisualSnapshot')).toHaveLength(1);
+    expect(cloneReasons.filter((reason) => reason === 'setCanonicalSnapshot')).toHaveLength(2);
   });
 
   test('force:true なら stale version でも適用される', () => {

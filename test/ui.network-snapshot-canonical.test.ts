@@ -19,7 +19,7 @@ describe('NetworkSnapshotCanonicalModule', () => {
 
   beforeEach(() => {
     jest.resetModules();
-    canonical = require('../ui/network/snapshot-canonical.js');
+    canonical = require('../ui/network/snapshot-canonical.ts');
   });
 
   describe('normalizeSeatKey', () => {
@@ -388,6 +388,81 @@ describe('NetworkSnapshotCanonicalModule', () => {
       });
 
       expect(result.ok).toBe(true);
+    });
+
+    test('cheap envelope inspection rejects stale versions without scanning the board', () => {
+      const boardUtils = require('../shared/shared-board-utils');
+      const inspectBoardState = jest.spyOn(boardUtils, 'inspectBoardState');
+      const snapshot = createCompleteLegacySnapshot({
+        _meta: { authority: 'server', version: 5 }
+      });
+
+      try {
+        expect(canonical.inspectAuthoritativeSnapshotEnvelope(snapshot, {
+          currentAppliedVersion: 10
+        })).toEqual(expect.objectContaining({
+          ok: false,
+          rejectionType: 'stale_snapshot',
+          version: 5
+        }));
+        expect(inspectBoardState).not.toHaveBeenCalled();
+      } finally {
+        inspectBoardState.mockRestore();
+      }
+    });
+
+    test('prepares one owned clone and inspects that accepted clone exactly once', () => {
+      const boardUtils = require('../shared/shared-board-utils');
+      const inspectBoardState = jest.spyOn(boardUtils, 'inspectBoardState');
+      const cloneData = jest.fn((value) => JSON.parse(JSON.stringify(value)));
+      const snapshot = createCompleteLegacySnapshot({
+        _meta: { authority: 'server', version: 10, boardContractVersion: 2 },
+        cardState: {
+          presentationEvents: [{ type: 'transient' }],
+          charge: { black: 4, white: 7 }
+        }
+      });
+
+      try {
+        const result = canonical.prepareIncomingAuthoritativeSnapshot(snapshot, {
+          currentAppliedVersion: 9,
+          cloneData
+        });
+
+        expect(result).toEqual(expect.objectContaining({
+          ok: true,
+          version: 10,
+          meta: expect.objectContaining({ authority: 'server' }),
+          transientStateStripped: expect.objectContaining({ liveQueueCount: 1 })
+        }));
+        expect(result.snapshot).not.toBe(snapshot);
+        expect(result.snapshot.cardState.presentationEvents).toEqual([]);
+        expect(snapshot.cardState.presentationEvents).toHaveLength(1);
+        expect(cloneData).toHaveBeenCalledTimes(1);
+        expect(inspectBoardState).toHaveBeenCalledTimes(1);
+        expect(inspectBoardState.mock.calls[0][0]).toBe(result.snapshot.gameState);
+      } finally {
+        inspectBoardState.mockRestore();
+      }
+    });
+
+    test('clone failure is rejected without applying or mutating the raw snapshot', () => {
+      const snapshot = createCompleteLegacySnapshot({
+        _meta: { authority: 'server', version: 10 },
+        cardState: { presentationEvents: [{ type: 'raw' }] }
+      });
+
+      const result = canonical.prepareIncomingAuthoritativeSnapshot(snapshot, {
+        currentAppliedVersion: 9,
+        cloneData: () => { throw new Error('clone failed'); }
+      });
+
+      expect(result).toEqual(expect.objectContaining({
+        ok: false,
+        rejectionType: 'snapshot_clone_failed',
+        telemetryType: 'snapshot_clone_failed'
+      }));
+      expect(snapshot.cardState.presentationEvents).toEqual([{ type: 'raw' }]);
     });
   });
 
