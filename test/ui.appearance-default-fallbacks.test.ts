@@ -58,10 +58,10 @@ describe('appearance default fallbacks without catalog globals', () => {
     expect(window.localStorage.getItem(selection.BOARD_SKIN_STORAGE_KEY)).toBe('bluegreen-felt');
     expect(window.localStorage.getItem(selection.LEGACY_BOARD_SKIN_STORAGE_KEY)).toBe('bluegreen-felt');
 
-    expect(selection.readStoredBoardFrameSkinId(window)).toBe('marsh-forged-iron');
+    expect(selection.readStoredBoardFrameSkinId(window)).toBe('submerged-wood');
     expect(selection.writeStoredBoardFrameSkinId(window, 'missing')).toBe(true);
-    expect(window.localStorage.getItem(selection.BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('marsh-forged-iron');
-    expect(window.localStorage.getItem(selection.LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('marsh-forged-iron');
+    expect(window.localStorage.getItem(selection.BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('submerged-wood');
+    expect(window.localStorage.getItem(selection.LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('submerged-wood');
   });
 
   test('uses the configured stone default when the stone catalog is unavailable', () => {

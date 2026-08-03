@@ -264,7 +264,7 @@ function resolveBoardAppearanceDescriptor(
     || String(boardCatalog && boardCatalog.DEFAULT_BOARD_SKIN_ID || 'bluegreen-felt');
   const requestedFrameSkinId = datasetValue(boardFrame, 'boardFrameSkinId')
     || datasetValue(rootElement, 'boardFrameSkinId')
-    || String(boardCatalog && boardCatalog.DEFAULT_BOARD_FRAME_SKIN_ID || 'marsh-forged-iron');
+    || String(boardCatalog && boardCatalog.DEFAULT_BOARD_FRAME_SKIN_ID || 'submerged-wood');
   const requestedStoneSkinId = datasetValue(rootElement, 'stoneSkinId')
     || String(stoneCatalog && stoneCatalog.DEFAULT_STONE_SKIN_ID || 'o-stone');
   const board = resolveDefinition(boardCatalog, 'getBoardSkinDefinition', requestedBoardSkinId, root);

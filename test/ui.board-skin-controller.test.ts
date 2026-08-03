@@ -121,7 +121,10 @@ describe('board skin controller', () => {
     const api = controller.setupBoardSkinControls({ root: window });
     const catalog = require('../ui/board-skin/catalog.js');
 
-    expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('marsh-forged-iron');
+    expect(api.getSelectedFrameSkinId()).toBe('submerged-wood');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
+    expect(document.getElementById('board-frame')!.style.getPropertyValue('--board-frame-image')).toBe('url("assets/images/board/board-frame-submerged-wood-v1.png")');
+    expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('submerged-wood');
     expect(catalog.getAllBoardFrameSkins().find((skin: { id: string }) => skin.id === 'marsh-forged-iron')?.label).toBe('既定');
     expect(catalog.getAllBoardFrameSkins().map((skin: { id: string }) => skin.id)).toEqual([
       'black-gold-lacquer',

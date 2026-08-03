@@ -354,7 +354,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
 ]);
 
 const BOARD_FRAME_SKINS = BASE_BOARD_FRAME_SKINS.slice();
-const DEFAULT_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
+const DEFAULT_BOARD_FRAME_SKIN_ID = 'submerged-wood';
 
 function cloneSkin(skin: BoardSkinItem): BoardSkinItem {
   return { ...skin };

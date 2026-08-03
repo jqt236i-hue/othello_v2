@@ -106,7 +106,7 @@ interface BoardDisplayLeaseState {
 }
 
 const FALLBACK_BOARD_SKIN_ID = 'bluegreen-felt';
-const FALLBACK_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
+const FALLBACK_BOARD_FRAME_SKIN_ID = 'submerged-wood';
 const displayLeaseStates = new WeakMap<object, BoardDisplayLeaseState>();
 const frameImageGenerations = new WeakMap<object, symbol>();
 const pendingFrameApplications = new WeakMap<object, Promise<BoardSkinDefinition | null>>();

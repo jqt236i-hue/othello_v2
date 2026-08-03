@@ -30,7 +30,7 @@ const LEGACY_BOARD_SKIN_STORAGE_KEY = 'othello.boardSkin';
 const BOARD_FRAME_SKIN_STORAGE_KEY = 'reversi.boardFrameSkin';
 const LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY = 'othello.boardFrameSkin';
 const FALLBACK_BOARD_SKIN_ID = 'bluegreen-felt';
-const FALLBACK_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
+const FALLBACK_BOARD_FRAME_SKIN_ID = 'submerged-wood';
 
 function requireBoardSkinCatalogModuleOrNull(): BoardSkinCatalogModule | null {
   if (typeof _require !== 'function') return null;
