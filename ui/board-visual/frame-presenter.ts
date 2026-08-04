@@ -374,7 +374,12 @@ function presentBoardFrame(host: HTMLElement, frame: BoardVisualFrame) {
     setAttributeIfChanged(boardFrame, 'data-board-frame-skin-id', appearance.boardFrameSkinId);
     applyFrameLayout(boardFrame, appearance.boardFrameLayout);
   }
-  const oversize = topologyNeedsOversizeLayout(frame.model.topology);
+  // Pixi keeps expansion inside its fixed physical viewport and projects
+  // added cells through the camera/effect gutter. Repeated frame presentation
+  // must not re-enable the page-scrolling layout that exists for the DOM
+  // compatibility renderer's physically enlarged board.
+  const usesFixedPixiViewport = host.getAttribute('data-board-renderer') === 'pixi';
+  const oversize = !usesFixedPixiViewport && topologyNeedsOversizeLayout(frame.model.topology);
   if (doc && doc.body && doc.body.classList) doc.body.classList.toggle('board-oversize-active', oversize);
   const gameContainer = boardFrame && typeof boardFrame.closest === 'function'
     ? boardFrame.closest('#game-container')

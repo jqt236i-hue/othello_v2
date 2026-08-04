@@ -86,6 +86,36 @@ describe('board visual frame descriptor and presenter', () => {
     expect(boardFrame.classList.contains('board-has-base-void-cells')).toBe(false);
   });
 
+  test('keeps Pixi expansion topology out of page oversize layout across repeated presentation', () => {
+    const doc = dom.window.document;
+    const host = doc.getElementById('board') as HTMLElement;
+    host.dataset.boardRenderer = 'pixi';
+    const appearance = FramePresenter.resolveBoardAppearanceDescriptor(host, 4);
+    const theme = Theme.resolveBoardVisualThemeDescriptor(host, 4);
+    const baseKeys = rectangleKeys(8, 8);
+    const topology = {
+      baseRows: 8, baseCols: 8,
+      minRow: -1, maxRow: 8, minCol: -1, maxCol: 8,
+      renderRowOffset: 1, renderColOffset: 1,
+      renderRows: 10, renderCols: 10,
+      baseKeys,
+      existingKeys: [...baseKeys, '-1,-1', '-1,0', '0,-1', '7,8', '8,7', '8,8'],
+      playableKeys: [...baseKeys, '-1,-1', '-1,0', '0,-1', '7,8', '8,7', '8,8'],
+      holeKeys: []
+    };
+    const frame = {
+      frameToken: 'idle:4',
+      model: { visualRevision: 4, topology, cells: [], keyboardCursorKey: null, viewerContext: 'black' },
+      layout: {}, appearance, theme
+    };
+
+    for (let pass = 0; pass < 2; pass += 1) {
+      FramePresenter.presentBoardFrame(host, frame);
+      expect(doc.body.classList.contains('board-oversize-active')).toBe(false);
+      expect(doc.getElementById('game-container')?.classList.contains('board-oversize-active')).toBe(false);
+    }
+  });
+
   test('disables the image-frame policy only when the initial board mask has voids', () => {
     const doc = dom.window.document;
     const host = doc.getElementById('board') as HTMLElement;

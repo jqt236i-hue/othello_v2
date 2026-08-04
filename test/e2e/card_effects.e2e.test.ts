@@ -949,6 +949,8 @@ describe('Card effects E2E', () => {
       const canvasRect = canvas && canvas.getBoundingClientRect();
       const viewportRect = viewport.getBoundingClientRect();
       const viewportStyle = getComputedStyle(viewport);
+      const bodyStyle = getComputedStyle(document.body);
+      const gameContainer = document.getElementById('game-container');
       return {
         boardRect: {
           left: boardRect.left,
@@ -981,6 +983,16 @@ describe('Card effects E2E', () => {
           scrollTop: viewport.scrollTop,
           overflowX: viewportStyle.overflowX,
           overflowY: viewportStyle.overflowY
+        },
+        page: {
+          clientWidth: document.documentElement.clientWidth,
+          clientHeight: document.documentElement.clientHeight,
+          bodyOversize: document.body.classList.contains('board-oversize-active'),
+          gameContainerOversize: !!gameContainer?.classList.contains('board-oversize-active'),
+          overflowX: bodyStyle.overflowX,
+          overflowY: bodyStyle.overflowY,
+          scrollX: window.scrollX,
+          scrollY: window.scrollY
         },
         anchorRect,
         baseCellRects: Array.from({ length: 8 }, (_, row) => (
@@ -1015,6 +1027,11 @@ describe('Card effects E2E', () => {
       return Array.isArray(cells) && cells.length === 7;
     }, null, { timeout: 10000 });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+    // Re-present the settled topology just like the following turn/HUD update.
+    // A cached Pixi viewport must not let frame presentation re-enable page
+    // oversize scrolling after the camera has already fixed its dimensions.
+    await page.evaluate(() => window.renderBoard());
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
     const result = await page.evaluate(() => {
       const board = document.getElementById('board');
@@ -1046,6 +1063,8 @@ describe('Card effects E2E', () => {
           const canvasRect = canvas && canvas.getBoundingClientRect();
           const viewportRect = viewport.getBoundingClientRect();
           const viewportStyle = getComputedStyle(viewport);
+          const bodyStyle = getComputedStyle(document.body);
+          const gameContainer = document.getElementById('game-container');
           return {
             boardRect: {
               left: boardRect.left,
@@ -1078,6 +1097,16 @@ describe('Card effects E2E', () => {
               scrollTop: viewport.scrollTop,
               overflowX: viewportStyle.overflowX,
               overflowY: viewportStyle.overflowY
+            },
+            page: {
+              clientWidth: document.documentElement.clientWidth,
+              clientHeight: document.documentElement.clientHeight,
+              bodyOversize: document.body.classList.contains('board-oversize-active'),
+              gameContainerOversize: !!gameContainer?.classList.contains('board-oversize-active'),
+              overflowX: bodyStyle.overflowX,
+              overflowY: bodyStyle.overflowY,
+              scrollX: window.scrollX,
+              scrollY: window.scrollY
             },
             anchorRect,
             baseCellRects: Array.from({ length: 8 }, (_, row) => (
@@ -1132,6 +1161,16 @@ describe('Card effects E2E', () => {
       .toBe(beforeLayout.backendDiagnostics.camera.renderSessionId);
     expect(result.layout.viewport.scrollLeft).toBeCloseTo(beforeLayout.viewport.scrollLeft, 4);
     expect(result.layout.viewport.scrollTop).toBeGreaterThan(0);
+    expect(result.layout.page).toEqual({
+      clientWidth: beforeLayout.page.clientWidth,
+      clientHeight: beforeLayout.page.clientHeight,
+      bodyOversize: false,
+      gameContainerOversize: false,
+      overflowX: 'hidden',
+      overflowY: 'hidden',
+      scrollX: beforeLayout.page.scrollX,
+      scrollY: beforeLayout.page.scrollY
+    });
     expect(result.layout.boardRect.centerX).toBeCloseTo(beforeLayout.boardRect.centerX, 4);
     expect(result.layout.boardRect.centerY).toBeCloseTo(beforeLayout.boardRect.centerY, 4);
     expect(result.layout.frameRect).toEqual(beforeLayout.frameRect);
