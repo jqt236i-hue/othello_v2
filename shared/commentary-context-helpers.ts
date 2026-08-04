@@ -69,6 +69,14 @@
         cRiskDiff: number;
     }
 
+    interface CommentaryBoardHeuristics {
+        board: unknown;
+        playerValue: number;
+        corners: { ownCorners: number; oppCorners: number };
+        edges: { ownEdges: number; oppEdges: number };
+        risk: { ownX: number; oppX: number; ownC: number; oppC: number };
+    }
+
     interface CommentaryContext extends Record<string, unknown> {
         eventType: string;
         playerKey: string;
@@ -353,6 +361,39 @@
         return out;
     }
 
+    function buildCommentaryBoardHeuristics(board: unknown, playerValue: number): CommentaryBoardHeuristics {
+        return {
+            board,
+            playerValue,
+            corners: countCornerControl(board, playerValue),
+            edges: countEdgeControl(board, playerValue),
+            risk: countCornerRiskCells(board, playerValue)
+        };
+    }
+
+    function resolvePreparedBoardHeuristics(
+        options: Record<string, unknown>,
+        board: unknown,
+        playerValue: number
+    ): CommentaryBoardHeuristics {
+        const prepared = options.preparedBoardHeuristics;
+        if (
+            prepared &&
+            typeof prepared === 'object' &&
+            (prepared as CommentaryBoardHeuristics).board === board &&
+            (prepared as CommentaryBoardHeuristics).playerValue === playerValue &&
+            !!(prepared as CommentaryBoardHeuristics).corners &&
+            typeof (prepared as CommentaryBoardHeuristics).corners === 'object' &&
+            !!(prepared as CommentaryBoardHeuristics).edges &&
+            typeof (prepared as CommentaryBoardHeuristics).edges === 'object' &&
+            !!(prepared as CommentaryBoardHeuristics).risk &&
+            typeof (prepared as CommentaryBoardHeuristics).risk === 'object'
+        ) {
+            return prepared as CommentaryBoardHeuristics;
+        }
+        return buildCommentaryBoardHeuristics(board, playerValue);
+    }
+
     function resolveAdvantageProfile(phase: string): Readonly<AdvantageProfile> {
         return ADVANTAGE_PROFILES[phase] || ADVANTAGE_PROFILES.middle;
     }
@@ -402,9 +443,10 @@
 
         const playerValue = resolvePlayerValue(normalizedKey);
         const profile = resolveAdvantageProfile(phase);
-        const corners = countCornerControl(board, playerValue);
-        const edges = countEdgeControl(board, playerValue);
-        const risk = countCornerRiskCells(board, playerValue);
+        const heuristics = resolvePreparedBoardHeuristics(opts, board, playerValue);
+        const corners = heuristics.corners;
+        const edges = heuristics.edges;
+        const risk = heuristics.risk;
         const cornerDiff = (corners.ownCorners || 0) - (corners.oppCorners || 0);
         const edgeDiff = (edges.ownEdges || 0) - (edges.oppEdges || 0);
         const preparedMobility = opts.mobility && typeof opts.mobility === 'object'
@@ -469,18 +511,23 @@
             black: board ? countLegalMoves(board, 1) : 0,
             white: board ? countLegalMoves(board, -1) : 0
         });
+        const playerValue = resolvePlayerValue(playerKey);
+        const preparedBoardHeuristics = board
+            ? buildCommentaryBoardHeuristics(board, playerValue)
+            : null;
         const advantageScore = resolveCommentaryAdvantageScore(playerKey, counts, Object.assign({}, opts.advantageOptions || {}, {
             board,
             turnNumber,
             occupiedCells,
             phase,
-            mobility
+            mobility,
+            preparedBoardHeuristics
         }));
         const advantage = advantageScore.score >= advantageScore.threshold
             ? 'ahead'
             : (advantageScore.score <= -advantageScore.threshold ? 'behind' : 'even');
-        const cornerControl = board
-            ? countCornerControl(board, resolvePlayerValue(playerKey))
+        const cornerControl = preparedBoardHeuristics
+            ? preparedBoardHeuristics.corners
             : { ownCorners: 0, oppCorners: 0 };
         return Object.freeze({
             counts: Object.freeze({ ...counts }),

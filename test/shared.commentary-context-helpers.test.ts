@@ -150,6 +150,35 @@ describe('CommentaryContextHelpers.buildCommentaryContext', () => {
     }
   });
 
+  test('reuses one board-control scan inside prepared commentary metrics', () => {
+    const board = createBoard();
+    board[0][0] = -1;
+    board[3][3] = -1;
+    board[3][4] = 1;
+    board[4][3] = 1;
+    board[4][4] = -1;
+    const cornerSpy = jest.spyOn(sharedBoardUtils, 'countCornerControl');
+    const edgeSpy = jest.spyOn(sharedBoardUtils, 'countEdgeControl');
+    try {
+      const metrics = helpers.buildCpuCommentaryMetrics({
+        board,
+        turnNumber: 9,
+        playerKey: 'white'
+      });
+
+      expect(cornerSpy).toHaveBeenCalledTimes(1);
+      expect(edgeSpy).toHaveBeenCalledTimes(1);
+      expect(metrics.corners).toEqual({ own: 1, opp: 0 });
+      expect(metrics.advantageScore).toMatchObject({
+        cornerDiff: 1,
+        usesBoardHeuristics: true
+      });
+    } finally {
+      cornerSpy.mockRestore();
+      edgeSpy.mockRestore();
+    }
+  });
+
   test('uses BoardContext topology for expansion discs, effective corners, and meteor holes', () => {
     const board = Array.from({ length: 4 }, () => Array(4).fill(0));
     board[0][0] = 1;
