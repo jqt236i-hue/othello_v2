@@ -587,3 +587,110 @@ mutable global、readonly visual snapshot、server authorityのownershipが混�
 ブラウザではheavy scenarioのPixi RAF p95が16.7～16.8 ms、最大16.8 ms、50 ms以上stallが0件だった。4 laneの標準長時間測定では、測定と並行したローカル処理中のclassic laneだけに計3件のstallが記録されたが、同一artifact・同一commitでclassic Pixi / DOMを各10分単独再測定すると、合計71,840 RAF intervalで50 ms以上stallは0件だった。初回失敗を破棄せず、環境干渉を含む結果と単独再測定を `docs/perf/2026-08-04-in-game-runtime-browser-performance.md` に併記した。
 
 focused / parity / browser verificationではnetwork parity 35 suite・563 test、Pixi playback 232 scenario、Chrome / Firefox / WebKit × desktop / mobile × Pixi / DOMの12 smoke、runtime fallback、visual regressionの0 pixel差を確認した。`01-rulebook.md` と `正本/` は変更していない。
+
+## 14. 2026-08-04 モバイル配置残存負荷フォローアップ
+
+### 14.1 背景と実測
+
+前節までの最適化後も、スマートフォン相当のCPU 4倍throttle、390 × 844、DPR 2、touch条件では石を置いた瞬間の同期処理が44.5～62.4 ms、RAF最大が50～116.7 msに達した。通常手でも同期処理p95は57.3 msだった。profileではGC、texture upload、layout read、Pixi render/path buildが同じ配置transactionへ集中している。
+
+追加調査で、残存負荷を次の6経路へ絞り込んだ。
+
+| 経路 | 現状の構造 | 配置時に集中する理由 |
+| --- | --- | --- |
+| 効果音warmup | 最初のgestureでcritical 5音に続き残り全effectを順次fetch/decode | 初手tapと約23 MiB相当のPCM準備が重なる |
+| Pixi静的盤面 | marker変化でも全cell viewを生成し、RenderTextureを交換して全破棄 | 石配置によるmarker/status更新とtexture upload/GCが重なる |
+| frame revision | model生成後に全cellを再sortし、visual/interactionを再serialize | `renderBoard`要求ごとに同じ正規化情報を再走査する |
+| layout | board host/frameと手札glowで不変geometryを再計測 | DOM write後の同期readが配置transactionへ混在する |
+| CPU commentary | corner controlを同一metrics生成内で重複走査 | CPU応答や配置後commentaryと盤面更新が同じturnへ入る |
+| network refresh | accepted snapshotで即時emit、scheduler flush、playback後emitを重ねる | 一つのauthoritative frameが複数のboard requestを発生させる |
+
+ロード時のbundle転送量は初期表示には影響するが、上記の配置瞬間の主因ではない。本フォローアップでは、初回gesture後に走るdecodeとゲーム中のCPU/GPU/GC/layoutだけを対象にする。
+
+### 14.2 非変更契約
+
+- 石、盤面、マーカー、演出、文字、効果音、音量、再生タイミング、入力結果、turn順、network authorityを変更しない。
+- normal Pixi laneは引き続き1 application、1 canvas、1 WebGL context、1 writerとする。
+- `events[]` の順序、playback claim、settlement、authoritative snapshot適用順を変更しない。
+- DOM compatibility backendをnormal Pixiの部分fallbackとして読み込まない。
+- local stateは同一objectのままmutationされ得るため、game/card stateの参照同一性だけでrender modelを再利用しない。
+- exact revisionを維持し、衝突し得る非暗号hashへ置き換えない。
+
+### 14.3 採用設計
+
+#### A. 効果音decodeをcriticalとidle chunkへ分離する
+
+最初のgestureではAudioContext unlockと、直後に必要になり得るcritical 5音だけを準備する。残りは `requestIdleCallback` が使える場合はidle callback、ない場合は短いtimer taskへ1音ずつ分割する。base path変更、reset、engine破棄ではgenerationを進め、予約済みjobが旧URLをdecodeしないようcancelする。
+
+未準備音を実際に再生する既存経路は、従来どおりWebAudioの非同期primeとHTMLAudio fallbackを使う。音源、key、volume、同時発音、再生要求時点は変えない。
+
+#### B. 静的盤面をbase textureと疎なretained markerへ分離する
+
+cellのsurface効果とgridは従来の描画順を保ったままstatic RenderTextureへ焼く。一方、board bonus、seed、generic blockadeなど盤面上に疎に存在し、値が変わりやすいmarkerだけを既存marker layer上のretained viewとして更新する。
+
+`PixiCellView` には `all`、`base-only`、`markers-only` の内部render modeを追加する。defaultは `all` とし、playback ghostや既存consumerを変えない。static bake用base viewとsource containerはsceneが所有して再利用し、毎bakeの大量生成・全破棄をなくす。marker viewは必要cellだけpoolし、stone layerより下という既存のz-orderを維持する。
+
+static base signatureには実際にbase textureへ描く情報だけを含める。topology、境界、board-frame hole、poison/scorched/healingの存在、star-point抑制条件は含めるが、retained markerのlabel値は含めない。RenderTextureは寸法とresolutionが同じなら同じobjectへ再renderし、context/寸法変更時だけ交換する。
+
+#### C. model生成中にexact frame fingerprintを完成させる
+
+`createBoardRenderModel` は既にtopologyを正規化し、各cellのvisual/interaction signatureを計算している。このcanonical passの終端でexact fingerprintを作り、readonly model metadataとして保持する。frame presenterはこの値を優先し、外部fixtureや旧形式modelに限って従来のsort/serialize fallbackを使う。
+
+これによりrevision意味論は維持したまま、通常frameの二度目のsort、cell serialization、配列生成を除去する。full modelのidentity cacheは採用しない。
+
+#### D. layout readを安全なinvalidation単位で再利用する
+
+board frameが存在する通常経路では、未使用のhost rectを先に読まない。frame paddingはframe/layout profile/stage scale/class/style/root layout signatureが変わるまでcacheし、移動し得るframe rect自体は各live layoutで読む。
+
+手札availability glowは「利用可能状態」と「geometry」を別signatureにする。chargeやusable classだけが変わった場合は既存rectを再利用し、resize、scroll、child構造、card ID/order、transform/layout条件が変わった場合だけ再計測する。DOM writeをまたぐ広域global batchは、古いgeometryを使う危険があるため採用しない。
+
+#### E. CPU commentaryの盤面heuristicを1回だけ計算する
+
+commentary metrics構築時にcorner/edge/risk controlを各1回計算し、advantage scoreへprepared値として渡す。同じmoment内の既存invocation cacheは維持するが、stateVersionが保証されない別momentをまたぐcacheは行わない。
+
+#### F. authoritative snapshotごとのboard requestを単一路へする
+
+snapshot acceptance後のboard refreshは、既存のboard update dispatcher契約と同じく `emitBoardUpdate` を第一経路、schedulerを失敗時fallbackとする。即時emitと同期scheduler flushを同時実行せず、同じsnapshotのためだけの追加 `waitForPlaybackIdle` emitを削除する。
+
+playback claim解放時の最終syncはpresentation/controller側の既存契約に任せる。canonical apply、visual sequence、strict frame、reconnect recoveryは変更しない。
+
+### 14.4 不採用案
+
+- model object全体のmemoize: in-place mutationを見逃し、markerやstoneが古くなるため不採用。
+- markerをstoneより上の別canvas/DOMへ移す: z-orderとSingle Visual Writerを壊すため不採用。
+- poison/scorch/heal面をgridより上のdynamic layerへ移す: pixel orderが変わるため不採用。
+- 全音声warmupを削除: 後半カードの初回効果音遅延が増えるため不採用。idle chunkで維持する。
+- 全layout readの1-frame global cache: 同じtransaction内のDOM write後に古い値を返すため不採用。
+- network renderを常にschedulerだけへ変更: existing emitter/DI ownershipを迂回するため不採用。既存優先順位を守る。
+- console logを一括削除: 診断契約とtestへの影響が広い一方、主要profile比率が小さいため本変更には含めない。
+
+### 14.5 検証と構造gate
+
+| 領域 | 必須gate |
+| --- | --- |
+| sound | gesture taskがremaining全件を開始しない、idle 1 callbackあたり最大1 decode、reset後に旧jobが継続しない、on-demand fallback維持 |
+| static board | marker値変更だけではbase bake/texture allocationが増えない、同寸texture identityを維持、pixel/diagnostics/playback test成功 |
+| fingerprint | model metadataとlegacy fallbackのrevision一致、normal presenterでsort/serialize fallback 0回 |
+| layout | frameありでhost rect 0回、availability-only更新でcard rect 0回、resize/scroll/structure変更で再計測 |
+| commentary | 1 metrics生成あたりcorner/edge/risk各1回、score/context値不変 |
+| network | accepted snapshot 1件につきprimary board request 1回、emitter失敗時scheduler 1回、playback settlement不変 |
+
+focused Jest、typecheck、browser build、Pixi playback/fallback/cross-platform smoke、network parityをblast radiusに応じて通す。最後にmobile touch条件で通常配置、カード使用、多対象演出、CPU応答、online snapshotを操作し、見た目と操作結果に差がなくstallが改善することを確認する。
+
+### 14.6 Stop条件
+
+- marker、grid、surface、stoneの重なりやalphaが1 pixelでも意図せず変わる。
+- 未準備の効果音が再生要求時に無音になり、既存fallbackで補えない。
+- exact fingerprintが従来revisionと一致しないfixtureがある。
+- snapshot 1件を1 requestへ統合した結果、playback後の最終盤面がsettleしない。
+- DOM compatibility、context recovery、expanded boardのいずれかが失敗する。
+- task外のdirty diffと安全に分離できない。
+
+### 14.7 Self-review
+
+- 初案ではsurface marker全体をdynamic化したが、poison/scorch/healはgridとの描画順が変わるため、base textureへ残し、疎なbadge/label markerだけをretained化した。
+- static signatureからmarkerを一括除外する案はboard-frame holeやstar point抑制を古くするため、実際にbaseへ描くvisual presenceだけを残した。
+- frame modelをstate identityでcacheする案はlocal mutation契約に反するため撤回し、canonical pass中のexact fingerprint metadataに限定した。
+- board geometryをframe全体でcacheする案はcamera/scale直後のlive rectを古くするため、paddingと不要host readだけを対象にした。
+- networkのpost-playback callbackを削るだけではschedulerとの二重更新が残るため、emitter優先・scheduler fallbackという単一dispatchへ統合した。
+- 効果音を全てidle化すると初手の石音が遅れ得るため、critical setはgesture直後に維持した。

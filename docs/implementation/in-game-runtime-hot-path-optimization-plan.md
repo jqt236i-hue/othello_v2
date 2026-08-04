@@ -646,3 +646,94 @@ old clientはfield/queryを送らないためlegacyを受ける。new clientがo
 ### 20.4 仕様差分と残存リスク
 
 プレイヤー向けの見た目、演出時間、演出順、効果音、入力結果、settlement、ゲーム結果に意図した差分はない。そのため `01-rulebook.md` と `正本/` は変更していない。残存リスクは、長時間performance測定がWindows / Chromium / RTX 2070の1環境であること、mobile検証が実機ではなく3 browser engineのmobile emulationであることに限定される。
+
+## 21. モバイル配置残存負荷フォローアップ実装計画
+
+### 21.1 状態
+
+2026-08-04開始。前回最適化後のmobile CPU throttle profileを新baselineとし、`docs/implementation/in-game-runtime-hot-path-optimization-design.md` 14節の非変更契約を受入条件とする。player-visible specは変えないため、`01-rulebook.md` と `正本/` は更新対象外である。
+
+### 21.2 実装phase
+
+| Phase | 実装 | 主対象 | focused verification | commit単位 |
+| --- | --- | --- | --- | --- |
+| F0 | baseline、設計、計画、既存dirty確認 | implementation/perf docs | `git diff --check`、自己review | docsのみ |
+| F1 | first-gesture warmupをcritical + idle chunkへ分割 | `sound-engine.ts`、sound tests | default BGM/effect warmup test、typecheck | sound単独 |
+| F2 | cell render mode、疎なmarker view、static source/view/texture再利用 | `ui/pixi/cell-view.ts`、`board-scene.ts`、`static-board-layer.ts` | cell/scene/static layer tests、Pixi playback/fallback | Pixi static surface単独 |
+| F3 | exact model fingerprint metadataとpresenter fallback | `ui/board-visual/model.ts`、`frame-presenter.ts` | model/presenter/revision tests、typecheck | frame revision単独 |
+| F4 | board padding/host readとhand glow geometry cache | `ui/board-renderer.ts`、`cards/card-renderer.ts` | board renderer/card renderer/layout tests | layout単独 |
+| F5 | commentary heuristicのprepared値共有 | `shared/commentary-context-helpers.ts`、CPU tests | commentary/context/CPU focused tests | commentary単独 |
+| F6 | snapshot board requestをemitter優先の単一路へ統合 | `ui/network-client.ts`、network snapshot tests | focused network tests、network parity | network単独 |
+| F7 | browser artifact、統合/実機相当performance検証、結果記録 | generated browser/worker surfaces、perf doc | build/browser/Pixi/smoke/parity/playtest | generated/docs単独 |
+
+### 21.3 phase内の実行順
+
+1. 各phase開始時にsource-of-truthと既存testを読む。
+2. characterizationまたは既存assertで旧構造を固定する。
+3. 最小の境界変更を実装し、player-visible値を変えない。
+4. focused test、typecheckまたは該当contract checkを実行する。
+5. `git diff --check` とtask-owned diffをreviewする。
+6. 成功したphaseだけを独立commitする。失敗したphaseは後続へ混ぜない。
+
+### 21.4 詳細チェックリスト
+
+#### F1 sound
+
+- [ ] critical 5音はunlock後すぐprimeする。
+- [ ] remaining effectはidle/timer 1 taskにつき1 keyだけprimeする。
+- [ ] reset/base-path変更でpending jobをcancelする。
+- [ ] cache/promise dedupe、HTMLAudio fallback、effect volumeを維持する。
+
+#### F2 Pixi static board
+
+- [ ] `all` modeの既存出力を変更しない。
+- [ ] `base-only` はsurface/gridだけ、`markers-only` はmarkerだけを所有する。
+- [ ] marker layerはstoneより下、surface/gridより上の既存位置を維持する。
+- [ ] base bake view/sourceをpoolし、bake後にdestroyしない。
+- [ ] 同寸RenderTextureを再利用する。
+- [ ] context loss、resize、theme、expanded boardで正しくinvalidateする。
+
+#### F3 frame revision
+
+- [ ] canonical cell順でvisual/interaction exact fingerprintを1 pass生成する。
+- [ ] presenterはmetadataを優先し、legacy fixtureにfallbackする。
+- [ ] revision増分、interaction-only revision、recovery contractを維持する。
+
+#### F4 layout
+
+- [ ] frameあり通常pathでhost rectを読まない。
+- [ ] padding cache keyへlayout/scale/style/root条件を含める。
+- [ ] hand geometryはresize/scroll/structure/order/transformでinvalidateする。
+- [ ] charge/availability-only更新では再計測しない。
+
+#### F5 commentary
+
+- [ ] corner/edge/riskをmetrics生成内で各1回にする。
+- [ ] score、move counts、context payload、moment順を変えない。
+- [ ] stateをまたぐ新規cacheを追加しない。
+
+#### F6 network
+
+- [ ] accepted snapshotのprimary board requestを1回にする。
+- [ ] emitter unavailable/false/throw時だけschedulerへfallbackする。
+- [ ] forced synchronous flushと同snapshot専用post-idle emitを除去する。
+- [ ] strict frame、presentation claim、reconnect、visual sequenceを維持する。
+
+#### F7 integration
+
+- [ ] `npm run typecheck` と該当focused Jestを通す。
+- [ ] `npm run build:browser`、`npm run build:vite` を通す。
+- [ ] Pixi playback、runtime fallback、cross-platform smoke、selector checkを通す。
+- [ ] `npm run test:network:parity` を通す。
+- [ ] mobile touchで通常配置、CPU応答、カード、多対象演出、online snapshotを確認する。
+- [ ] baseline/candidate、無効sample、残存riskをperf docへ追記する。
+- [ ] generated/mirrorはgeneratorからのみ更新する。
+
+### 21.5 Self-review
+
+- F2を一括置換せず、render mode、view/source reuse、texture reuseを同じ描画境界内の独立assertで検証できるようにした。
+- F3とF4を分離し、pure model revisionの失敗とDOM geometry cacheの失敗を同じcommitへ混ぜない。
+- commentaryとnetworkはCPU負荷という点では近いが、headless contractとauthority contractのblast radiusが異なるため別phaseにした。
+- browser artifact生成は各browser source変更の最終統合後に1回行い、途中のgenerated churnをcommitへ混ぜない。
+- 実測が改善しなくても、品質低下、低解像度化、animation省略、音声省略を代替合格条件にしない。
+- 実機を所有しない環境ではmobile emulationの限界を明記し、実機確認済みとは報告しない。
