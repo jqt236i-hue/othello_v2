@@ -660,6 +660,12 @@ describe('Pixi static retained views', () => {
       directionKeys: ['up-left', 'right'],
       interactionLocked: false
     });
+    expect(hintView.root).toBeInstanceOf(FakeContainer);
+    expect(hintView.root.children.map((child: FakeDisplayObject) => child.label)).toEqual([
+      'pixi-hint-foreground',
+      'pixi-direction-hint:up-left',
+      'pixi-direction-hint:right'
+    ]);
     expect(hintView.interactionRoot.eventMode).toBe('static');
     expect(hintView.interactionRoot.cursor).toBe('pointer');
     expect(hintView.interactionRoot.position).toMatchObject({ x: 32, y: 64 });
@@ -685,7 +691,10 @@ describe('Pixi static retained views', () => {
       painted: true,
       inputSynced: true
     });
-    const paintedCommands = (hintView.root as FakeGraphics).commands.slice();
+    const foreground = hintView.root.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-hint-foreground'
+    )) as FakeGraphics;
+    const paintedCommands = foreground.commands.slice();
     const surfaceCommands = (hintView.surfaceRoot as FakeGraphics).commands.slice();
 
     expect(hintView.updateDetailed(locked, context)).toEqual({
@@ -693,7 +702,7 @@ describe('Pixi static retained views', () => {
       painted: false,
       inputSynced: false
     });
-    expect((hintView.root as FakeGraphics).commands).toEqual(paintedCommands);
+    expect(foreground.commands).toEqual(paintedCommands);
     expect((hintView.surfaceRoot as FakeGraphics).commands).toEqual(surfaceCommands);
     expect(hintView.interactionRoot).toMatchObject({
       eventMode: 'static',
@@ -729,10 +738,13 @@ describe('Pixi static retained views', () => {
       && child.position.x === targetPosition.x
       && child.position.y === targetPosition.y
     )) as FakeGraphics;
-    const foreground = scene.layers.hint.children.find((child: FakeDisplayObject) => (
+    const foregroundRoot = scene.layers.hint.children.find((child: FakeDisplayObject) => (
       child.label === 'pixi-hint-view'
       && child.position.x === targetPosition.x
       && child.position.y === targetPosition.y
+    )) as FakeDisplayObject;
+    const foreground = foregroundRoot.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-hint-foreground'
     )) as FakeGraphics;
     expect(surface.commands).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -1348,7 +1360,7 @@ describe('Pixi static board scene', () => {
     });
   });
 
-  test('rebakes the static texture for surface dependencies while keeping star count stable', () => {
+  test('rebakes only base-surface dependencies and reuses the retained texture', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
     const topology = makeTopology({ baseRows: 8, baseCols: 8 });
@@ -1360,16 +1372,60 @@ describe('Pixi static board scene', () => {
       topology,
       theme: Object.freeze({ ...baseTheme, revision: 99, markerColor: '#abcdef' })
     }));
-    expect(scene.getDiagnostics().staticBakeCount).toBe(initialBakeCount + 1);
+    expect(scene.getDiagnostics().staticBakeCount).toBe(initialBakeCount);
 
     scene.applyFrame(makeFrame({
       topology,
       theme: Object.freeze({ ...baseTheme, revision: 99, surfaceColor: '#445566' })
     }));
     expect(scene.getDiagnostics()).toMatchObject({
-      staticBakeCount: initialBakeCount + 2,
+      staticBakeCount: initialBakeCount + 1,
       starPointCount: 4,
-      staticTemporaryObjectCount: 0
+      staticTemporaryObjectCount: 0,
+      staticTextureAllocationCount: 1,
+      staticTextureReuseCount: 1
+    });
+  });
+
+  test('updates a sparse cell marker without rebaking the base board', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const cells = topology.existingKeys.map((key) => makeCell(key, {
+      markers: key === '1,1'
+        ? [{ kind: 'board-bonus', owner: null, value: 12, data: {} }]
+        : []
+    }));
+    scene.applyFrame(makeFrame({ topology, cells, modelRevision: 1 }));
+    const initialBakeCount = scene.getDiagnostics().staticBakeCount;
+    const changedCells = topology.existingKeys.map((key) => makeCell(key, {
+      markers: key === '1,1'
+        ? [{ kind: 'board-bonus', owner: null, value: 10, data: {} }]
+        : []
+    }));
+
+    expect(scene.applyFrame(makeFrame({
+      topology,
+      cells: changedCells,
+      modelRevision: 2
+    }))).toMatchObject({
+      updatedCellViews: 0,
+      updatedMarkerViews: 1,
+      updatedStoneViews: 0,
+      updatedHintViews: 0,
+      skippedViews: 63
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      staticBakeCount: initialBakeCount,
+      activeCellMarkerViewCount: 1,
+      activeStaticBaseViewCount: 64
+    });
+    expect(scene.getRenderedCell(1, 1)).toMatchObject({
+      cell: {
+        markerCount: 1,
+        renderedMarkerKinds: ['board-bonus'],
+        markerLabels: ['10']
+      }
     });
   });
 
@@ -1568,7 +1624,7 @@ describe('Pixi static board scene', () => {
 
     const fontTheme = Object.freeze({ ...stoneTheme, revision: 4, fontReadyEpoch: stoneTheme.fontReadyEpoch + 1 });
     expect(scene.applyFrame(makeFrame({ topology, theme: fontTheme }))).toMatchObject({
-      updatedCellViews: 64,
+      updatedCellViews: 0,
       updatedStoneViews: 0,
       updatedHintViews: 64
     });
@@ -2408,10 +2464,22 @@ describe('Pixi board scene playback projection', () => {
       minCol: 0,
       maxCol: 8
     });
-    const frame = makeFrame({ topology, cellSize: 32, layoutRevision: 1 });
+    const cells = topology.existingKeys.map((key) => makeCell(key, {
+      markers: key === '0,8'
+        ? [{ kind: 'board-bonus', owner: null, value: 4, data: {} }]
+        : []
+    }));
+    const frame = makeFrame({ topology, cells, cellSize: 32, layoutRevision: 1 });
     scene.applyFrame(frame);
     const handle = scene.beginTopologyReveal(['0,8']);
     expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 0 });
+    const markerContainer = scene.layers.surface.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-retained-cell-markers'
+    )) as FakeDisplayObject;
+    const markerRoot = markerContainer.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-cell-markers'
+    )) as FakeDisplayObject;
+    expect(markerRoot.alpha).toBe(0);
 
     scene.updateTopologyReveal(handle, 0.35);
     const beforeReflow = scene.getRenderedCell(0, 8)!;
@@ -2421,6 +2489,7 @@ describe('Pixi board scene playback projection', () => {
     ));
     expect(staticPatch).toBeTruthy();
     expect(staticPatch.alpha).toBeCloseTo(0.35);
+    expect(markerRoot.alpha).toBeCloseTo(0.35);
     const expectedRoots = [
       ['cell', 'pixi-cell-hint-surface'],
       ['hint', 'pixi-hint-view'],
@@ -2439,7 +2508,7 @@ describe('Pixi board scene playback projection', () => {
       expect(display.alpha).toBeCloseTo(0.35);
     }
 
-    const reflow = makeFrame({ topology, cellSize: 40, layoutRevision: 2 });
+    const reflow = makeFrame({ topology, cells, cellSize: 40, layoutRevision: 2 });
     scene.applyFrame(reflow, { preservePlaybackProjection: true });
     expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 0.35 });
     expect(scene.getDiagnostics()).toMatchObject({
@@ -2449,6 +2518,7 @@ describe('Pixi board scene playback projection', () => {
 
     scene.endTopologyReveal(handle);
     expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 1 });
+    expect(markerRoot.alpha).toBe(1);
     const createdBeforeReset = scene.getDiagnostics().createdViewCount;
     const resetHandle = scene.beginTopologyReveal(['0,8']);
     scene.updateTopologyReveal(resetHandle, 0.12);

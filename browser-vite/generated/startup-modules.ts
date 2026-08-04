@@ -482,6 +482,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-skin/selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-skin/selection.js"),
   "ui/board-update-dispatch": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-update-dispatch.js"),
   "ui/board-update-sync-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-update-sync-runtime.js"),
+  "ui/board-visual/cell-render-signatures": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/cell-render-signatures.js"),
   "ui/board-visual/controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/controller.js"),
   "ui/board-visual/diagnostics": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/diagnostics.js"),
   "ui/board-visual/effect-bounds": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/effect-bounds.js"),
@@ -1198,6 +1199,7 @@ installBootModuleMetadata({
     "ui/board-skin/selection",
     "ui/board-update-dispatch",
     "ui/board-update-sync-runtime",
+    "ui/board-visual/cell-render-signatures",
     "ui/board-visual/controller",
     "ui/board-visual/diagnostics",
     "ui/board-visual/effect-bounds",
@@ -1506,4 +1508,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 702;
+export const startupModuleCount = 703;

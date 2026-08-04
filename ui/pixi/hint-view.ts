@@ -9,7 +9,6 @@ import {
   drawPixiCircle,
   drawPixiLine,
   drawPixiRect,
-  removeAndDestroyPixiChildren,
   removePixiFromParent,
   setPixiAnchor,
   setPixiPosition,
@@ -123,10 +122,10 @@ function renderDirectionHints(
 
 export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView {
   const surfaceRoot = createPixiGraphics(runtime, 'pixi-cell-hint-surface');
-  const root = createPixiGraphics(runtime, 'pixi-hint-view');
+  const root = createPixiContainer(runtime, 'pixi-hint-view');
+  const foreground = createPixiGraphics(runtime, 'pixi-hint-foreground');
   const interactionRoot = createPixiGraphics(runtime, 'pixi-interaction-hit-area');
-  const directionRoot = createPixiContainer(runtime, 'pixi-direction-hints');
-  addPixiChild(root, directionRoot);
+  addPixiChild(root, foreground);
   let paintSignature: string | null = null;
   let inputSignature: string | null = null;
   let key: string | null = null;
@@ -150,6 +149,14 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
 
   function assertAlive(): void {
     if (destroyed) throw new Error('PixiHintView is destroyed');
+  }
+
+  function clearDirectionHints(): void {
+    for (const child of Array.from(root.children || []) as any[]) {
+      if (child === foreground) continue;
+      removePixiFromParent(child);
+      destroyPixiDisplayObject(child);
+    }
   }
 
   function updateDetailed(
@@ -191,8 +198,8 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       setPixiPosition(surfaceRoot, position.x, position.y);
       setPixiPosition(root, position.x, position.y);
       clearPixiGraphics(surfaceRoot);
-      clearPixiGraphics(root);
-      removeAndDestroyPixiChildren(directionRoot);
+      clearPixiGraphics(foreground);
+      clearDirectionHints();
     }
     if (inputSynced) {
       hintInputSyncCount += 1;
@@ -268,7 +275,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     ) => {
       const inset = cellSize * insetRatio;
       drawPixiRect(
-        root,
+        foreground,
         inset,
         inset,
         Math.max(0, cellSize - inset * 2),
@@ -304,10 +311,10 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       };
       for (let start = low; start < high; start += dash + gap) {
         const end = Math.min(high, start + dash);
-        drawPixiLine(root, start, low, end, low, stroke);
-        drawPixiLine(root, start, high, end, high, stroke);
-        drawPixiLine(root, low, start, low, end, stroke);
-        drawPixiLine(root, high, start, high, end, stroke);
+        drawPixiLine(foreground, start, low, end, low, stroke);
+        drawPixiLine(foreground, start, high, end, high, stroke);
+        drawPixiLine(foreground, low, start, low, end, stroke);
+        drawPixiLine(foreground, high, start, high, end, stroke);
       }
     }
     if (previewKinds.has('super-attraction-path')) {
@@ -334,7 +341,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       // after the legal class, so circle/hole boards keep only the ring.
       if (context.boardTextureMode !== 'per-cell') drawSurface('#146457', 0.72);
       const legalLineWidth = Math.max(1, cellSize * legalStyle.lineWidthRatio);
-      drawPixiCircle(root, center, center, Math.max(0, cellSize * 0.34 - legalLineWidth * 0.5), null, {
+      drawPixiCircle(foreground, center, center, Math.max(0, cellSize * 0.34 - legalLineWidth * 0.5), null, {
         color: legalStyle.ringColor,
         alpha: 0.72,
         width: legalLineWidth
@@ -370,7 +377,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       drawInsetOutline(0.056, '#ffe178', 0.96, 0.032, 0.065);
       drawInsetOutline(0.075, '#ffeb96', 0.12, 0.018, 0.055);
     }
-    renderDirectionHints(runtime, directionRoot, interaction.directionHints, context);
+    renderDirectionHints(runtime, root, interaction.directionHints, context);
     return Object.freeze({ changed: true, painted, inputSynced });
   }
 
@@ -407,9 +414,9 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     interactionRoot.eventMode = 'none';
     interactionRoot.hitArea = null;
     clearPixiGraphics(surfaceRoot);
-    clearPixiGraphics(root);
+    clearPixiGraphics(foreground);
     clearPixiGraphics(interactionRoot);
-    removeAndDestroyPixiChildren(directionRoot);
+    clearDirectionHints();
     removePixiFromParent(surfaceRoot);
     removePixiFromParent(root);
     removePixiFromParent(interactionRoot);

@@ -135,6 +135,15 @@ function createContext(revisionSignature = 'cell-view:1'): any {
         color: '#ffffff',
         doubleDigitScale: 0.86,
         shadows: []
+      },
+      boardBonus: {
+        fontFamily: 'sans-serif',
+        fontWeight: '700',
+        fontSizeRatio: 0.42,
+        lineHeight: 1,
+        color: '#ffffff',
+        doubleDigitScale: 0.86,
+        shadows: []
       }
     },
     surfaceRevisionSignature: revisionSignature,
@@ -168,6 +177,77 @@ function readSegments(graphics: FakeGraphics): Array<{ from: number[]; to: numbe
 }
 
 describe('Pixi temporary cell rendering', () => {
+  test('splits stable cell paint from sparse marker paint without changing either visual', () => {
+    const runtime = createRuntime();
+    const baseView = CellView.createPixiCellView(runtime);
+    const markerView = CellView.createPixiCellView(runtime);
+    const cell = createCell('surface:split:3', {
+      kind: 'poison-cell',
+      owner: null,
+      value: null,
+      data: { remainingTurns: 3 }
+    });
+    cell.kind = 'playable';
+    cell.markers.push({ kind: 'board-bonus', owner: null, value: 12, data: {} });
+
+    expect(baseView.update(cell, {
+      ...createContext(),
+      cellRenderMode: 'base-only'
+    })).toBe(true);
+    expect(baseView.getDiagnostics()).toMatchObject({
+      markerCount: 0,
+      renderedMarkerKinds: [],
+      markerLabels: []
+    });
+    expect(childWithLabel(baseView.surfaceRoot, 'pixi-cell-poison-surface')).toMatchObject({
+      visible: true
+    });
+    expect(baseView.markerRoot.children).toHaveLength(0);
+
+    expect(markerView.update(cell, {
+      ...createContext(),
+      cellRenderMode: 'markers-only'
+    })).toBe(true);
+    expect(markerView.getDiagnostics()).toMatchObject({
+      markerCount: 2,
+      renderedMarkerKinds: ['poison-cell', 'board-bonus'],
+      markerLabels: ['3', '12']
+    });
+    expect(markerView.surfaceRoot.visible).toBe(false);
+    expect(childWithLabel(markerView.surfaceRoot, 'pixi-cell-poison-surface')).toMatchObject({
+      visible: false,
+      commands: []
+    });
+  });
+
+  test('base-only signature ignores countdown labels while marker-only signature tracks them', () => {
+    const runtime = createRuntime();
+    const baseView = CellView.createPixiCellView(runtime);
+    const markerView = CellView.createPixiCellView(runtime);
+    const first = createCell('surface:poison:3', {
+      kind: 'poison-cell',
+      owner: null,
+      value: null,
+      data: { remainingTurns: 3 }
+    });
+    first.kind = 'playable';
+    const second = createCell('surface:poison:2', {
+      kind: 'poison-cell',
+      owner: null,
+      value: null,
+      data: { remainingTurns: 2 }
+    });
+    second.kind = 'playable';
+
+    const baseContext = { ...createContext(), cellRenderMode: 'base-only' };
+    const markerContext = { ...createContext(), cellRenderMode: 'markers-only' };
+    expect(baseView.update(first, baseContext)).toBe(true);
+    expect(baseView.update(second, baseContext)).toBe(false);
+    expect(markerView.update(first, markerContext)).toBe(true);
+    expect(markerView.update(second, markerContext)).toBe(true);
+    expect(markerView.getDiagnostics().markerLabels).toEqual(['2']);
+  });
+
   test('repaints an existing normal cell as a red scorched cell', () => {
     const view = CellView.createPixiCellView(createRuntime());
     const normalCell = createCell('surface:normal', {

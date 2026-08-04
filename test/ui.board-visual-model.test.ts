@@ -161,6 +161,8 @@ describe('BoardRenderModel sparse projection', () => {
     surfaceCell.markers = [{ kind: 'board-bonus', owner: null, value: 3, data: {} }];
     const surfaceChanged = project(surfaceCell);
     expect(surfaceChanged.surfaceSignature).not.toBe(base.surfaceSignature);
+    expect(surfaceChanged.baseSurfaceSignature).toBe(base.baseSurfaceSignature);
+    expect(surfaceChanged.markerSignature).not.toBe(base.markerSignature);
     expect(surfaceChanged.stoneSignature).toBe(base.stoneSignature);
     expect(surfaceChanged.interactionSignature).toBe(base.interactionSignature);
 
@@ -173,8 +175,21 @@ describe('BoardRenderModel sparse projection', () => {
     }];
     const scorchedChanged = project(scorchedCell);
     expect(scorchedChanged.surfaceSignature).not.toBe(base.surfaceSignature);
+    expect(scorchedChanged.baseSurfaceSignature).not.toBe(base.baseSurfaceSignature);
+    expect(scorchedChanged.markerSignature).not.toBe(base.markerSignature);
     expect(scorchedChanged.stoneSignature).toBe(base.stoneSignature);
     expect(scorchedChanged.interactionSignature).toBe(base.interactionSignature);
+
+    const scorchedCountdownCell: any = createCell('0,0');
+    scorchedCountdownCell.markers = [{
+      kind: 'scorched-cell',
+      owner: 'black',
+      value: null,
+      data: { remainingTurns: 9 }
+    }];
+    const scorchedCountdownChanged = project(scorchedCountdownCell);
+    expect(scorchedCountdownChanged.baseSurfaceSignature).toBe(scorchedChanged.baseSurfaceSignature);
+    expect(scorchedCountdownChanged.markerSignature).not.toBe(scorchedChanged.markerSignature);
 
     expect(new Set([
       base.visualSignature,

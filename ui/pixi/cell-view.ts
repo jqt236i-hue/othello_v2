@@ -4,6 +4,13 @@ import type {
   BoardViewportLayout,
   MaterializedBoardCellVisualState
 } from '../board-visual/types';
+import {
+  createBoardCellBaseSurfaceSignature,
+  createBoardCellMarkerSignature,
+  hasBoardCellMarkerVisual,
+  isBoardCellMarkerVisual,
+  isBoardFrameHoleMarker
+} from '../board-visual/cell-render-signatures';
 
 export interface PixiStaticViewRuntime {
   readonly Container: new (...args: any[]) => any;
@@ -22,6 +29,7 @@ export type PixiStaticTextureSource =
   };
 
 export type PixiStaticBoardTextureMode = 'none' | 'single-surface' | 'per-cell';
+export type PixiCellRenderMode = 'all' | 'base-only' | 'markers-only';
 
 export interface PixiStaticViewContext {
   readonly layout: BoardViewportLayout;
@@ -35,6 +43,7 @@ export interface PixiStaticViewContext {
   readonly sceneY: number;
   readonly textures?: PixiStaticTextureSource | null;
   readonly boardTextureMode?: PixiStaticBoardTextureMode;
+  readonly cellRenderMode?: PixiCellRenderMode;
 }
 
 export interface PixiCellViewDiagnostics {
@@ -427,15 +436,6 @@ function isBoardBonusMarker(kind: unknown): boolean {
 const BOARD_FRAME_INNER_BOUNDARY_EDGES = ['top', 'right', 'bottom', 'left'] as const;
 export type BoardFrameInnerBoundaryEdge = typeof BOARD_FRAME_INNER_BOUNDARY_EDGES[number];
 
-function isBoardFrameHoleMarker(
-  marker: MaterializedBoardCellVisualState['markers'][number]
-): boolean {
-  if (String(marker && marker.kind || '').trim().toLowerCase().replace(/_/g, '-') !== 'blockade') return false;
-  const data = marker && marker.data && typeof marker.data === 'object' ? marker.data : {};
-  return String(data.type || '').trim().toUpperCase() === 'METEOR_HOLE'
-    && String(data.visualVariant || '').trim().toUpperCase() === 'BOARD_FRAME';
-}
-
 function readBoardFrameInnerBoundaryEdges(
   marker: MaterializedBoardCellVisualState['markers'][number] | null
 ): readonly BoardFrameInnerBoundaryEdge[] {
@@ -552,7 +552,23 @@ export function drawPixiBoardFrameHoleInnerEdges(
   }
 }
 
-const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell', 'scorched-cell', 'healing-cell']);
+function pixiCellMarkerVisuals(
+  cell: MaterializedBoardCellVisualState
+): readonly MaterializedBoardCellVisualState['markers'][number][] {
+  return cell.markers.filter((marker) => isBoardCellMarkerVisual(cell, marker));
+}
+
+export function hasPixiCellMarkerVisual(cell: MaterializedBoardCellVisualState): boolean {
+  return hasBoardCellMarkerVisual(cell);
+}
+
+export function pixiCellBaseSignature(cell: MaterializedBoardCellVisualState): string {
+  return String(cell.baseSurfaceSignature || createBoardCellBaseSurfaceSignature(cell));
+}
+
+export function pixiCellMarkerSignature(cell: MaterializedBoardCellVisualState): string {
+  return String(cell.markerSignature || createBoardCellMarkerSignature(cell));
+}
 
 export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView {
   const surfaceRoot = createPixiContainer(runtime, 'pixi-cell-surface');
@@ -597,11 +613,20 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
 
   function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
     assertAlive();
+    const renderMode = context.cellRenderMode || 'all';
+    const renderBase = renderMode !== 'markers-only';
+    const renderMarkers = renderMode !== 'base-only';
+    const cellSignature = renderMode === 'base-only'
+      ? pixiCellBaseSignature(cell)
+      : renderMode === 'markers-only'
+        ? pixiCellMarkerSignature(cell)
+        : cell.surfaceSignature;
     const nextSignature = JSON.stringify([
+      renderMode,
       context.surfaceRevisionSignature,
       context.sceneX,
       context.sceneY,
-      cell.surfaceSignature
+      cellSignature
     ]);
     if (signature === nextSignature) return false;
     signature = nextSignature;
@@ -616,9 +641,9 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     setPixiPosition(surfaceRoot, position.x, position.y);
     setPixiPosition(cellRoot, position.x, position.y);
     setPixiPosition(markerRoot, position.x, position.y);
-    surfaceRoot.visible = cell.kind !== 'void';
-    cellRoot.visible = cell.kind !== 'void';
-    markerRoot.visible = cell.kind !== 'void';
+    surfaceRoot.visible = renderBase && cell.kind !== 'void';
+    cellRoot.visible = renderBase && cell.kind !== 'void';
+    markerRoot.visible = renderMarkers && cell.kind !== 'void';
     clearPixiGraphics(surface);
     clearPixiGraphics(poisonSurface);
     clearPixiGraphics(scorchedSurface);
@@ -636,15 +661,21 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
       : null;
     boardFrameHole = !!boardFrameHoleMarker;
     boardFrameInnerBoundaryEdges = readBoardFrameInnerBoundaryEdges(boardFrameHoleMarker);
-    boardFrameHoleSurface.visible = boardFrameHole;
-    boardFrameHoleInnerEdges.visible = boardFrameHole;
-    grid.visible = !boardFrameHole;
+    boardFrameHoleSurface.visible = renderBase && boardFrameHole;
+    boardFrameHoleInnerEdges.visible = renderBase && boardFrameHole;
+    grid.visible = renderBase && !boardFrameHole;
+    if (!renderBase) {
+      poisonSurface.visible = false;
+      scorchedSurface.visible = false;
+      healingSurface.visible = false;
+    }
 
     if (cell.kind === 'void') {
       if (surfaceTexture) surfaceTexture.visible = false;
       return true;
     }
 
+    if (renderBase) {
     const shouldUseCellBoardTexture = typeof context.boardTextureMode === 'undefined'
       || context.boardTextureMode === 'per-cell'
       || (context.boardTextureMode === 'single-surface' && cell.expansionSide !== null);
@@ -799,15 +830,14 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         width: boundaryWidth
       });
     }
+    } else if (surfaceTexture) {
+      surfaceTexture.visible = false;
+    }
+
+    if (!renderMarkers) return true;
 
     let badgeIndex = 0;
-    for (const marker of cell.markers) {
-      if (!CELL_MARKER_KINDS.has(marker.kind)) continue;
-      // The board-frame material is the complete visual for this blockade.
-      // Keeping the generic badge would diverge from the DOM mark and resemble
-      // a second effect layered over the hole.
-      if (marker === boardFrameHoleMarker) continue;
-      if (marker.kind === 'seed' && cell.stone) continue;
+    for (const marker of pixiCellMarkerVisuals(cell)) {
       const label = markerLabel(marker);
       markerLabels.push(label);
       renderedMarkerKinds.push(marker.kind);

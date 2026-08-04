@@ -81,6 +81,10 @@ export interface BoardCellVisualState {
   visualSignature: string;
   /** Pixi cell-surface semantic dependencies only. */
   surfaceSignature: string;
+  /** Static Pixi surface/grid dependencies; excludes retained labels and badges. */
+  baseSurfaceSignature: string;
+  /** Sparse retained cell marker dependencies only. */
+  markerSignature: string;
   /** Pixi stone/status semantic dependencies only. */
   stoneSignature: string;
   /** Pixi hint Graphics semantic dependencies; excludes lock-only input state. */

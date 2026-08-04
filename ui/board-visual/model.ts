@@ -7,10 +7,16 @@ import type {
   BoardWorldWindow,
   MaterializedBoardCellVisualState
 } from './types';
+import {
+  createBoardCellBaseSurfaceSignature,
+  createBoardCellMarkerSignature
+} from './cell-render-signatures';
 
 type BoardCellSignatureField =
   | 'visualSignature'
   | 'surfaceSignature'
+  | 'baseSurfaceSignature'
+  | 'markerSignature'
   | 'stoneSignature'
   | 'hintPaintSignature'
   | 'hintInputSignature'
@@ -290,6 +296,8 @@ export function createBoardRenderModel(options: {
       ...overlaid,
       visualSignature: signatureForCell(overlaid),
       surfaceSignature: signatureForSurface(overlaid),
+      baseSurfaceSignature: createBoardCellBaseSurfaceSignature(overlaid),
+      markerSignature: createBoardCellMarkerSignature(overlaid),
       stoneSignature: signatureForStone(overlaid),
       hintPaintSignature: signatureForHintPaint(overlaid),
       hintInputSignature: signatureForHintInput(overlaid),
@@ -371,6 +379,8 @@ export function materializeBoardViewport(options: {
         },
         visualSignature: `void:${key}`,
         surfaceSignature: 'surface:void',
+        baseSurfaceSignature: 'base-surface:void',
+        markerSignature: 'marker:void',
         stoneSignature: 'stone:void',
         hintPaintSignature: 'hint-paint:void',
         hintInputSignature: 'hint-input:void:locked',

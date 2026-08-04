@@ -95,7 +95,17 @@ describe('Pixi static board layer', () => {
     expect(renderer.render).toHaveBeenCalledTimes(1);
     expect(layer.getDiagnostics().bakeSkipCount).toBe(1);
 
-    layer.applyPatch({ ...base, signature: 'surface:1:patch' });
+    expect(layer.applyBase({ ...base, signature: 'surface:2' })).toBe(true);
+    expect(renderer.render).toHaveBeenCalledTimes(2);
+    expect(renderer.render.mock.calls[1][0]).toMatchObject({ target: textures[0] });
+    expect(textures).toHaveLength(1);
+    expect(textures[0].destroy).not.toHaveBeenCalled();
+    expect(layer.getDiagnostics()).toMatchObject({
+      textureAllocationCount: 1,
+      textureReuseCount: 1
+    });
+
+    layer.applyPatch({ ...base, signature: 'surface:2:patch' });
     layer.setPatchAlpha(0.35);
     expect(parent.children.map((child) => child.label)).toEqual([
       'pixi-static-board-texture',
@@ -107,8 +117,18 @@ describe('Pixi static board layer', () => {
     layer.applyPatch(null);
     expect(parent.children).toHaveLength(1);
     expect(textures[1].destroy).toHaveBeenCalled();
+
+    layer.invalidate();
+    expect(textures[0].destroy).toHaveBeenCalled();
+    expect(layer.applyBase({ ...base, signature: 'surface:3' })).toBe(true);
+    expect(textures).toHaveLength(3);
+    expect(layer.getDiagnostics()).toMatchObject({
+      textureAllocationCount: 3,
+      textureReuseCount: 1
+    });
+
     layer.destroy();
     expect(parent.children).toHaveLength(0);
-    expect(textures[0].destroy).toHaveBeenCalled();
+    expect(textures[2].destroy).toHaveBeenCalled();
   });
 });

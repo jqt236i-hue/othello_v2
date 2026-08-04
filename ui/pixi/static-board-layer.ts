@@ -29,6 +29,8 @@ export interface PixiStaticBoardLayerDiagnostics {
   readonly bakeCount: number;
   readonly bakeSkipCount: number;
   readonly patchBakeCount: number;
+  readonly textureAllocationCount: number;
+  readonly textureReuseCount: number;
   readonly attachedObjectCount: number;
   readonly temporaryObjectCount: 0;
   readonly texturePhysicalWidth: number;
@@ -53,6 +55,12 @@ interface SyntheticRenderTexture {
   readonly resolution: number;
   destroyed: boolean;
   destroy(): void;
+}
+
+interface RenderTextureSpec {
+  readonly width: number;
+  readonly height: number;
+  readonly resolution: number;
 }
 
 function normalizedDimension(value: unknown): number {
@@ -80,6 +88,24 @@ function createSyntheticTexture(width: number, height: number, resolution: numbe
   };
 }
 
+function renderTextureSpec(bake: PixiStaticBoardBakeOptions): RenderTextureSpec {
+  return Object.freeze({
+    width: normalizedDimension(bake.width),
+    height: normalizedDimension(bake.height),
+    resolution: normalizedResolution(bake.resolution)
+  });
+}
+
+function matchesRenderTextureSpec(
+  current: RenderTextureSpec | null,
+  next: RenderTextureSpec
+): boolean {
+  return !!current
+    && current.width === next.width
+    && current.height === next.height
+    && current.resolution === next.resolution;
+}
+
 export function createPixiStaticBoardLayer(
   options: PixiStaticBoardLayerOptions
 ): PixiStaticBoardLayer {
@@ -96,10 +122,14 @@ export function createPixiStaticBoardLayer(
   addPixiChild(options.parent, sprite);
   let texture: any = null;
   let patchTexture: any = null;
+  let textureSpec: RenderTextureSpec | null = null;
+  let patchTextureSpec: RenderTextureSpec | null = null;
   let signature: string | null = null;
   let bakeCount = 0;
   let bakeSkipCount = 0;
   let patchBakeCount = 0;
+  let textureAllocationCount = 0;
+  let textureReuseCount = 0;
   let texturePhysicalWidth = 0;
   let texturePhysicalHeight = 0;
   let destroyed = false;
@@ -108,18 +138,17 @@ export function createPixiStaticBoardLayer(
     if (destroyed) throw new Error('Pixi static board layer is destroyed');
   };
 
-  const renderTexture = (bake: PixiStaticBoardBakeOptions): any => {
-    const width = normalizedDimension(bake.width);
-    const height = normalizedDimension(bake.height);
-    const resolution = normalizedResolution(bake.resolution);
+  const renderTexture = (bake: PixiStaticBoardBakeOptions, reusable: any = null): any => {
+    const spec = renderTextureSpec(bake);
     const renderTextureFactory = (runtime as any).RenderTexture;
     if (!renderer) {
-      return createSyntheticTexture(width, height, resolution);
+      return reusable || createSyntheticTexture(spec.width, spec.height, spec.resolution);
     }
     if (!renderTextureFactory || typeof renderTextureFactory.create !== 'function') {
       throw new Error('Pixi RenderTexture runtime is unavailable');
     }
-    const candidate = renderTextureFactory.create({ width, height, resolution });
+    const candidate = reusable || renderTextureFactory.create(spec);
+    const created = !reusable;
     try {
       const sourcePosition = bake.source?.position;
       const previousX = Number(sourcePosition?.x) || 0;
@@ -132,7 +161,7 @@ export function createPixiStaticBoardLayer(
       }
       return candidate;
     } catch (error) {
-      destroyTexture(candidate);
+      if (created) destroyTexture(candidate);
       throw error;
     }
   };
@@ -153,30 +182,43 @@ export function createPixiStaticBoardLayer(
         bakeSkipCount += 1;
         return false;
       }
-      const nextTexture = renderTexture(bake);
+      const nextSpec = renderTextureSpec(bake);
+      const reusable = matchesRenderTextureSpec(textureSpec, nextSpec) ? texture : null;
+      const nextTexture = renderTexture(bake, reusable);
       const previous = texture;
       texture = nextTexture;
+      textureSpec = nextSpec;
       signature = bake.signature;
       bakeCount += 1;
+      if (reusable) textureReuseCount += 1;
+      else textureAllocationCount += 1;
       texturePhysicalWidth = normalizedDimension(bake.width) * normalizedResolution(bake.resolution);
       texturePhysicalHeight = normalizedDimension(bake.height) * normalizedResolution(bake.resolution);
       installTexture(sprite, nextTexture, bake);
-      destroyTexture(previous);
+      if (previous !== nextTexture) destroyTexture(previous);
       return true;
     },
     applyPatch(bake: PixiStaticBoardBakeOptions | null) {
       assertAlive();
       const previous = patchTexture;
-      patchTexture = null;
       patchSprite.visible = false;
       removePixiFromParent(patchSprite);
       if (bake) {
-        patchTexture = renderTexture(bake);
+        const nextSpec = renderTextureSpec(bake);
+        const reusable = matchesRenderTextureSpec(patchTextureSpec, nextSpec) ? patchTexture : null;
+        patchTexture = renderTexture(bake, reusable);
+        patchTextureSpec = nextSpec;
         patchBakeCount += 1;
+        if (reusable) textureReuseCount += 1;
+        else textureAllocationCount += 1;
         installTexture(patchSprite, patchTexture, bake);
         addPixiChild(options.parent, patchSprite);
+        if (previous !== patchTexture) destroyTexture(previous);
+      } else {
+        patchTexture = null;
+        patchTextureSpec = null;
+        destroyTexture(previous);
       }
-      destroyTexture(previous);
     },
     setPatchAlpha(alpha: number) {
       if (destroyed || !patchTexture) return;
@@ -186,6 +228,17 @@ export function createPixiStaticBoardLayer(
     invalidate() {
       if (destroyed) return;
       signature = null;
+      sprite.texture = runtime.Texture?.EMPTY || null;
+      patchSprite.texture = runtime.Texture?.EMPTY || null;
+      sprite.visible = false;
+      patchSprite.visible = false;
+      removePixiFromParent(patchSprite);
+      destroyTexture(texture);
+      destroyTexture(patchTexture);
+      texture = null;
+      patchTexture = null;
+      textureSpec = null;
+      patchTextureSpec = null;
     },
     reset() {
       if (destroyed) return;
@@ -201,6 +254,8 @@ export function createPixiStaticBoardLayer(
       destroyTexture(patchTexture);
       texture = null;
       patchTexture = null;
+      textureSpec = null;
+      patchTextureSpec = null;
     },
     destroy() {
       if (destroyed) return;
@@ -216,6 +271,8 @@ export function createPixiStaticBoardLayer(
         bakeCount,
         bakeSkipCount,
         patchBakeCount,
+        textureAllocationCount,
+        textureReuseCount,
         attachedObjectCount: destroyed ? 0 : (patchTexture ? 2 : 1),
         temporaryObjectCount: 0 as const,
         texturePhysicalWidth,
