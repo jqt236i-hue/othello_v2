@@ -11,6 +11,7 @@ import {
   createBoardCellBaseSurfaceSignature,
   createBoardCellMarkerSignature
 } from './cell-render-signatures';
+import { createBoardRenderModelRevisionFingerprints } from './revision-fingerprint';
 
 type BoardCellSignatureField =
   | 'visualSignature'
@@ -278,6 +279,7 @@ export function createBoardRenderModel(options: {
   const holeKeys = new Set(topology.holeKeys);
   const overlay = validateBoardPresentationOverlayState(options.overlay);
   const seen = new Set<string>();
+  const cellsByKey = new Map<string, BoardCellVisualState>();
   const cells = options.cells.map((rawCell) => {
     if (rawCell.kind !== 'playable' && rawCell.kind !== 'hole') {
       throw new Error(`BoardRenderModel cannot contain ${String((rawCell as any).kind)} cells`);
@@ -292,7 +294,7 @@ export function createBoardRenderModel(options: {
       throw new Error(`Board model playable mismatch: ${rawCell.key}`);
     }
     const overlaid = withOverlayInteraction(rawCell, overlay);
-    return deepFreeze({
+    const cell = deepFreeze({
       ...overlaid,
       visualSignature: signatureForCell(overlaid),
       surfaceSignature: signatureForSurface(overlaid),
@@ -303,12 +305,27 @@ export function createBoardRenderModel(options: {
       hintInputSignature: signatureForHintInput(overlaid),
       interactionSignature: signatureForInteraction(overlaid)
     });
+    cellsByKey.set(cell.key, cell);
+    return cell;
   });
   if (seen.size !== existingKeys.size) {
     const missing = topology.existingKeys.filter((key) => !seen.has(key));
     throw new Error(`Board model omitted existing cells: ${missing.slice(0, 8).join(',')}`);
   }
-  return deepFreeze({
+  const viewerContext: BoardRenderModel['viewerContext'] = options.viewerContext === 'white' || options.viewerContext === 'spectator'
+    ? options.viewerContext
+    : 'black';
+  const currentPlayer: BoardRenderModel['currentPlayer'] = options.currentPlayer === 'white'
+    || (typeof options.currentPlayer === 'undefined' && options.viewerContext === 'white')
+    ? 'white'
+    : 'black';
+  const canControlCurrentTurn = typeof options.canControlCurrentTurn === 'boolean'
+    ? options.canControlCurrentTurn
+    : options.viewerContext !== 'spectator';
+  const isHumanTurn = typeof options.isHumanTurn === 'boolean'
+    ? options.isHumanTurn
+    : options.viewerContext !== 'spectator';
+  const modelBase: Omit<BoardRenderModel, 'revisionFingerprints'> = {
     boardDigest,
     inputEpoch: String(options.inputEpoch || ''),
     modelCommitId: Math.max(0, Math.trunc(Number(options.modelCommitId) || 0)),
@@ -316,18 +333,14 @@ export function createBoardRenderModel(options: {
     topology,
     cells,
     keyboardCursorKey: overlay.keyboardCursorKey,
-    viewerContext: options.viewerContext === 'white' || options.viewerContext === 'spectator' ? options.viewerContext : 'black',
-    currentPlayer: options.currentPlayer === 'white'
-      || (typeof options.currentPlayer === 'undefined' && options.viewerContext === 'white')
-      ? 'white'
-      : 'black',
-    canControlCurrentTurn: typeof options.canControlCurrentTurn === 'boolean'
-      ? options.canControlCurrentTurn
-      : options.viewerContext !== 'spectator',
-    isHumanTurn: typeof options.isHumanTurn === 'boolean'
-      ? options.isHumanTurn
-      : options.viewerContext !== 'spectator'
-  });
+    viewerContext,
+    currentPlayer,
+    canControlCurrentTurn,
+    isHumanTurn
+  };
+  const orderedCells = topology.existingKeys.map((key) => cellsByKey.get(key)!);
+  const revisionFingerprints = createBoardRenderModelRevisionFingerprints(modelBase, { orderedCells });
+  return deepFreeze({ ...modelBase, revisionFingerprints });
 }
 
 export function materializeBoardViewport(options: {

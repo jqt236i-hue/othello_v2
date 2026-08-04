@@ -221,6 +221,31 @@ describe('board visual independent revision contract', () => {
     expect(second.model.modelCommitId).toBe(first.model.modelCommitId);
   });
 
+  test('uses prepared exact fingerprints without visiting model cells', () => {
+    const cell = {
+      get key() {
+        throw new Error('prepared fingerprint path visited a cell');
+      },
+      visualSignature: 'visual:unread',
+      hintInputSignature: 'input:unread'
+    };
+    const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
+    const frame = makeRawFrame({
+      model: {
+        cells: [cell],
+        revisionFingerprints: {
+          visual: 'prepared:visual',
+          interaction: 'prepared:interaction'
+        }
+      }
+    });
+
+    expect(() => composer.compose(frame)).not.toThrow();
+    const composed = composer.compose({ ...frame, frameToken: 'idle:prepared' });
+    expect(composed.model.visualRevision).toBe(1);
+    expect(composed.model.modelCommitId).toBe(1);
+  });
+
   test('input epoch changes invalidate input identity even when board and hints are unchanged', () => {
     const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
     const inputEpoch = (

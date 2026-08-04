@@ -134,6 +134,8 @@ export interface BoardRenderModel {
   currentPlayer: 'black' | 'white';
   canControlCurrentTurn: boolean;
   isHumanTurn: boolean;
+  /** Exact presenter fingerprints produced during canonical model construction. */
+  revisionFingerprints?: Readonly<{ visual: string; interaction: string }>;
 }
 
 export interface BoardDirectionHint {

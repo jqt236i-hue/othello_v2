@@ -1,4 +1,5 @@
 const BoardVisualModel = require('../ui/board-visual/model');
+const RevisionFingerprint = require('../ui/board-visual/revision-fingerprint');
 const BoardVisualModelBuilder = require('../ui/board-visual/model-builder');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 
@@ -198,6 +199,27 @@ describe('BoardRenderModel sparse projection', () => {
       surfaceChanged.visualSignature,
       scorchedChanged.visualSignature
     ])).toHaveProperty('size', 5);
+  });
+
+  test('stores exact presenter fingerprints during canonical model construction', () => {
+    const topology = createTopology(['0,0', '0,1'], [], {
+      minRow: 0,
+      maxRow: 0,
+      minCol: 0,
+      maxCol: 1
+    });
+    const model = BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.prepared-fingerprint',
+      inputEpoch: 'epoch:7',
+      topology,
+      cells: [createCell('0,1'), createCell('0,0')]
+    });
+    const fallback = RevisionFingerprint.createBoardRenderModelRevisionFingerprints(model);
+
+    expect(model.revisionFingerprints).toEqual(fallback);
+    expect(Object.isFrozen(model.revisionFingerprints)).toBe(true);
+    expect(model.revisionFingerprints.visual.length).toBeGreaterThan(0);
+    expect(model.revisionFingerprints.interaction.length).toBeGreaterThan(0);
   });
 
   test('far expansion does not create a dense void model or unbounded narrow materialization', () => {

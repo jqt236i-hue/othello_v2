@@ -6,6 +6,11 @@ import type {
   BoardVisualFrame,
   BoardVisualThemeDescriptor
 } from './types';
+import {
+  createBoardRenderModelRevisionFingerprints,
+  stableDescriptorString,
+  type BoardRenderModelRevisionFingerprints
+} from './revision-fingerprint';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
@@ -25,43 +30,7 @@ type RevisionChannel = {
   fingerprint: string | null;
 };
 
-type ModelFingerprintPair = Readonly<{
-  visual: string;
-  interaction: string;
-}>;
-
-const modelFingerprintCache = new WeakMap<object, ModelFingerprintPair>();
-
-function stableDescriptorString(value: unknown, ancestors = new Set<object>()): string {
-  if (value === null) return 'null';
-  if (value === undefined) return 'undefined';
-  if (typeof value === 'string') return JSON.stringify(value);
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'number') {
-    if (Number.isNaN(value)) return 'number:NaN';
-    if (value === Infinity) return 'number:Infinity';
-    if (value === -Infinity) return 'number:-Infinity';
-    if (Object.is(value, -0)) return 'number:-0';
-    return `number:${value}`;
-  }
-  if (typeof value === 'bigint') return `bigint:${value.toString()}`;
-  if (typeof value === 'function' || typeof value === 'symbol') {
-    throw new Error('Board visual frame descriptors must not contain functions or symbols');
-  }
-  const objectValue = value as object;
-  if (ancestors.has(objectValue)) throw new Error('Board visual frame descriptors must not contain cycles');
-  ancestors.add(objectValue);
-  try {
-    if (Array.isArray(value)) {
-      return `[${value.map((entry) => stableDescriptorString(entry, ancestors)).join(',')}]`;
-    }
-    const record = value as Record<string, unknown>;
-    const keys = Object.keys(record).sort();
-    return `{${keys.map((key) => `${JSON.stringify(key)}:${stableDescriptorString(record[key], ancestors)}`).join(',')}}`;
-  } finally {
-    ancestors.delete(objectValue);
-  }
-}
+const modelFingerprintCache = new WeakMap<object, BoardRenderModelRevisionFingerprints>();
 
 function descriptorFingerprint(value: Record<string, unknown>, revisionField: string): string {
   const descriptor: Record<string, unknown> = {};
@@ -77,75 +46,18 @@ function canCacheModelFingerprints(model: BoardRenderModel): boolean {
     && Object.isFrozen(model.cells);
 }
 
-function modelFingerprints(model: BoardRenderModel): ModelFingerprintPair {
+function modelFingerprints(model: BoardRenderModel): BoardRenderModelRevisionFingerprints {
+  const prepared = model.revisionFingerprints;
+  if (prepared
+    && typeof prepared.visual === 'string'
+    && typeof prepared.interaction === 'string') {
+    return prepared;
+  }
   if (canCacheModelFingerprints(model)) {
     const cached = modelFingerprintCache.get(model as object);
     if (cached) return cached;
   }
-  const topology = model.topology;
-  const cells = Array.from(model.cells || []).sort((left, right) => (
-    String(left && left.key || '').localeCompare(String(right && right.key || ''))
-  ));
-  const visualCells: Array<Record<string, unknown>> = [];
-  const interactionCells: Array<Record<string, unknown>> = [];
-  for (const cell of cells) {
-    const key = String(cell && cell.key || '');
-    visualCells.push({
-      key,
-      visualSignature: typeof cell?.visualSignature === 'string' ? cell.visualSignature : cell
-    });
-    interactionCells.push({
-      key,
-      expansionSide: cell?.expansionSide || null,
-      hintInputSignature: typeof cell?.hintInputSignature === 'string'
-        ? cell.hintInputSignature
-        : ''
-    });
-  }
-  const visual = stableDescriptorString({
-    boardDigest: model.boardDigest,
-    inputEpoch: model.inputEpoch,
-    topology: {
-      ...topology,
-      baseKeys: topology.baseKeys,
-      existingKeys: topology.existingKeys,
-      playableKeys: topology.playableKeys,
-      holeKeys: topology.holeKeys
-    },
-    cells: visualCells,
-    keyboardCursorKey: model.keyboardCursorKey,
-    viewerContext: model.viewerContext,
-    currentPlayer: model.currentPlayer,
-    canControlCurrentTurn: model.canControlCurrentTurn,
-    isHumanTurn: model.isHumanTurn
-  });
-  const interaction = stableDescriptorString({
-    boardDigest: model.boardDigest,
-    inputEpoch: model.inputEpoch,
-    topology: {
-      baseShape: topology.baseShape,
-      baseRows: topology.baseRows,
-      baseCols: topology.baseCols,
-      minRow: topology.minRow,
-      maxRow: topology.maxRow,
-      minCol: topology.minCol,
-      maxCol: topology.maxCol,
-      renderRowOffset: topology.renderRowOffset,
-      renderColOffset: topology.renderColOffset,
-      renderRows: topology.renderRows,
-      renderCols: topology.renderCols,
-      baseKeys: topology.baseKeys,
-      existingKeys: topology.existingKeys,
-      playableKeys: topology.playableKeys,
-      holeKeys: topology.holeKeys
-    },
-    cells: interactionCells,
-    viewerContext: model.viewerContext,
-    currentPlayer: model.currentPlayer,
-    canControlCurrentTurn: model.canControlCurrentTurn,
-    isHumanTurn: model.isHumanTurn
-  });
-  const pair = Object.freeze({ visual, interaction });
+  const pair = createBoardRenderModelRevisionFingerprints(model);
   if (canCacheModelFingerprints(model)) modelFingerprintCache.set(model as object, pair);
   return pair;
 }
