@@ -142,6 +142,8 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     delete global.emitCardStateChange;
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
+    delete (global as any).waitForPlaybackIdle;
+    delete (global as any).RenderScheduler;
     delete global.renderCardUI;
     delete (global as any).GameEvents;
     delete global.EventSource;
@@ -253,6 +255,93 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     ]));
     expect(global.addLog).not.toHaveBeenCalled();
   });
+
+  test('accepted snapshot requests one board update without a post-playback duplicate', async () => {
+    const waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+    const renderScheduler = {
+      requestBoardRender: jest.fn(() => true),
+      flushVisualUpdates: jest.fn(() => true)
+    };
+    (global as any).waitForPlaybackIdle = waitForPlaybackIdle;
+    (global as any).RenderScheduler = renderScheduler;
+    (window as any).waitForPlaybackIdle = waitForPlaybackIdle;
+    (window as any).RenderScheduler = renderScheduler;
+    (window as any).emitBoardUpdate = global.emitBoardUpdate;
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    global.emitBoardUpdate.mockClear();
+    waitForPlaybackIdle.mockClear();
+    renderScheduler.requestBoardRender.mockClear();
+    renderScheduler.flushVisualUpdates.mockClear();
+
+    eventSourceInstance.onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'remote-place-one-refresh',
+        playerKey: 'white',
+        actionType: 'place',
+        playbackEvents: [],
+        presentationCursor: { visualSeq: 7, stateVersion: 4 },
+        snapshot: createSnapshot(4)
+      })
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+    expect(renderScheduler.requestBoardRender).not.toHaveBeenCalled();
+    expect(renderScheduler.flushVisualUpdates).not.toHaveBeenCalled();
+    expect(waitForPlaybackIdle).not.toHaveBeenCalled();
+  });
+
+  test.each(['reported-failure', 'throw'])(
+    'falls back to one scheduled board update when the emitter %s',
+    async (failureMode) => {
+      const renderScheduler = {
+        requestBoardRender: jest.fn(() => true),
+        flushVisualUpdates: jest.fn(() => true)
+      };
+      (global as any).RenderScheduler = renderScheduler;
+      (window as any).RenderScheduler = renderScheduler;
+      (window as any).emitBoardUpdate = global.emitBoardUpdate;
+      require('../ui/network-client.js');
+      const client = window.NetworkMatchClient;
+
+      await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+      global.emitBoardUpdate.mockClear();
+      renderScheduler.requestBoardRender.mockClear();
+      renderScheduler.flushVisualUpdates.mockClear();
+      if (failureMode === 'throw') {
+        global.emitBoardUpdate.mockImplementation(() => {
+          throw new Error('emitter unavailable');
+        });
+      } else {
+        global.emitBoardUpdate.mockReturnValue(false);
+      }
+
+      eventSourceInstance.onmessage({
+        data: JSON.stringify({
+          ok: true,
+          roomId: 'ABC',
+          operationId: `remote-place-${failureMode}`,
+          playerKey: 'white',
+          actionType: 'place',
+          playbackEvents: [],
+          presentationCursor: { visualSeq: 8, stateVersion: 4 },
+          snapshot: createSnapshot(4)
+        })
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+      expect(renderScheduler.requestBoardRender).toHaveBeenCalledTimes(1);
+      expect(renderScheduler.flushVisualUpdates).not.toHaveBeenCalled();
+    }
+  );
 
   test('network debug telemetry goes to console instead of the effect-log channel', async () => {
     const syncSnapshot = createSnapshot(4);

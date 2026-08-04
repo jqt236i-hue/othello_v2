@@ -35,6 +35,7 @@ describe('network intake coordinator', () => {
         shadowPlaybackEvents: [{ type: 'old_shadow' }],
         shadowPlaybackSource: 'legacy_shadow',
         presentationFrames: [{ visualSeq: 3 }],
+        skipBoardUpdate: false,
         custom: 'kept'
       }
     })).toEqual({
@@ -44,6 +45,7 @@ describe('network intake coordinator', () => {
       playbackEvents: [],
       shadowPlaybackEvents: [],
       networkCanonicalIntake: true,
+      skipBoardUpdate: true,
       presentationFrameSource: 'stream',
       deferResultUntilVisualSeq: 4,
       networkRoomId: null,

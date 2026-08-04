@@ -744,7 +744,7 @@ function createNetworkSnapshotController(config: any): any {
         }
         const refreshState = refreshUi({
             deferCardUiUntilPlaybackIdle: playbackEvents.length > 0 || shouldEmitShadowPlayback,
-            skipBoardUpdate: deferImmediateBoardRefreshForPlayback
+            skipBoardUpdate: opts.skipBoardUpdate === true || deferImmediateBoardRefreshForPlayback
         });
 
         if (shouldEmitShadowPlayback) {

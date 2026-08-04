@@ -112,6 +112,11 @@ export function buildNetworkIntakeApplyOptions(meta: NetworkIntakeApplyMeta | nu
   applyOptions.shadowPlaybackEvents = [];
   delete applyOptions.shadowPlaybackSource;
   applyOptions.networkCanonicalIntake = true;
+  // Canonical intake owns board delivery after snapshot application: either
+  // ordered presentation frames drive the timeline, or requestBoardRefresh
+  // issues the single no-playback sync below. Snapshot refreshUi must not
+  // create a parallel board writer request for the same accepted envelope.
+  applyOptions.skipBoardUpdate = true;
   applyOptions.source = sourceMeta && sourceMeta.source ? String(sourceMeta.source) : 'network_intake';
   return applyOptions;
 }
