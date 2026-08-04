@@ -444,6 +444,37 @@ describe('board input controller', () => {
     expect(controller.hitTestClientPoint(45, 45)).toBeNull();
   });
 
+  test('retains playable hit geometry through lock-only model transitions', () => {
+    const getCellClientRect = jest.fn((row: number, col: number) => ({
+      left: col * 10,
+      top: row * 10,
+      right: (col + 1) * 10,
+      bottom: (row + 1) * 10,
+      width: 10,
+      height: 10,
+      layoutRevision: 4
+    }));
+    const { controller } = createController({ getCellClientRect });
+    const locked = cell(2, 3, { interaction: {
+      legal: true, legalFree: false, interactionLocked: true, directionHints: []
+    } });
+    controller.syncModel(model([locked]));
+
+    expect(controller.getPerformanceDiagnostics()).toMatchObject({ hitCellCount: 1 });
+    expect(controller.hitTestClientPoint(35, 25)).toBeNull();
+
+    const unlocked = cell(2, 3, { interaction: {
+      legal: true, legalFree: false, interactionLocked: false, directionHints: []
+    } });
+    controller.syncModel({ ...model([unlocked]), visualRevision: 2 });
+
+    expect(controller.hitTestClientPoint(35, 25)).toEqual({ row: 2, col: 3, key: '2,3' });
+    expect(controller.getPerformanceDiagnostics()).toMatchObject({
+      hitCellCount: 1,
+      hitProjectionBuildCount: 1
+    });
+  });
+
   test('hit testing stays sparse and O(1) across large rotated topology bounds', () => {
     const target = cell(-50000, 70000, { interaction: {
       legal: true, legalFree: false, interactionLocked: false, directionHints: []

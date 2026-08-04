@@ -473,7 +473,6 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     const nextHitByKey = rebuildHitContract
       ? new Map<string, Readonly<BoardInputCell>>()
       : null;
-    const hasDynamicInteractiveCheck = typeof options.isCellInteractive === 'function';
     for (const cell of model.cells) {
       nextCellByKey.set(cell.key, cell);
       if (cell.kind !== 'playable') continue;
@@ -481,7 +480,10 @@ function createBoardInputController(options: BoardInputControllerOptions) {
         legalCells.push({ row: cell.row, col: cell.col, key: cell.key });
       }
       if (!rebuildHitContract) continue;
-      if (!hasDynamicInteractiveCheck && cell.interaction.interactionLocked === true) continue;
+      // Locking is transient presentation state and is intentionally excluded
+      // from the model identity. Keep playable coordinates in the retained hit
+      // contract so an unlock-only frame can become interactive without
+      // rebuilding geometry; isLocked()/isInteractive() remain the live gates.
       const coordinateKey = toCellKey(cell.row, cell.col);
       const hitCell = Object.freeze({ row: cell.row, col: cell.col, key: cell.key });
       nextHitCells!.push(hitCell);
