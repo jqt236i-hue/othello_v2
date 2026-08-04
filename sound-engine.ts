@@ -91,6 +91,8 @@ const SoundEngine = {
     _lastEffectFailures: {} as Record<string, string>,
     effectAudioPoolSize: 3,
     _effectWarmupStarted: false,
+    _remainingEffectWarmupGeneration: 0,
+    _remainingEffectWarmupJob: null as any,
     specialCardUseBgmMuteMs: 3000,
     _temporaryBgmMutedBySpecialCardUse: false,
     _specialCardUseBgmMuteTimer: null as any,
@@ -274,7 +276,7 @@ const SoundEngine = {
                     return;
                 }
                 await this.primeCriticalEffectSounds();
-                await this.primeRemainingEffectSounds();
+                this.scheduleRemainingEffectSounds();
             } catch (e) {
                 this._recordEffectFailure('__unlock__', e);
                 this._audioUnlockListenersInstalled = false;
@@ -1086,6 +1088,7 @@ const SoundEngine = {
     },
 
     _resetEffectWarmup() {
+        this._cancelRemainingEffectWarmup();
         this._effectAudioPools = {};
         this._effectBufferCache = {};
         this._effectBufferPromises = {};
@@ -1314,6 +1317,112 @@ const SoundEngine = {
             chain = chain.then((count) => this.primeEffectBuffer(key).then((loaded) => count + (loaded ? 1 : 0)));
         });
         return chain;
+    },
+
+    _scheduleRemainingEffectWarmupTask(callback: () => void) {
+        const rootRef = this._resolveRootRef();
+        const requestIdle = rootRef && typeof rootRef.requestIdleCallback === 'function'
+            ? rootRef.requestIdleCallback.bind(rootRef)
+            : null;
+        const cancelIdle = rootRef && typeof rootRef.cancelIdleCallback === 'function'
+            ? rootRef.cancelIdleCallback.bind(rootRef)
+            : null;
+        if (requestIdle) {
+            const handle = requestIdle(callback, { timeout: 1000 });
+            return {
+                handle,
+                cancel: () => {
+                    if (cancelIdle) cancelIdle(handle);
+                }
+            };
+        }
+        const scheduleTimeout = rootRef && typeof rootRef.setTimeout === 'function'
+            ? rootRef.setTimeout.bind(rootRef)
+            : null;
+        const cancelTimeout = rootRef && typeof rootRef.clearTimeout === 'function'
+            ? rootRef.clearTimeout.bind(rootRef)
+            : null;
+        if (!scheduleTimeout) return null;
+        const handle = scheduleTimeout(callback, 32);
+        return {
+            handle,
+            cancel: () => {
+                if (cancelTimeout) cancelTimeout(handle);
+            }
+        };
+    },
+
+    _cancelRemainingEffectWarmup() {
+        this._remainingEffectWarmupGeneration += 1;
+        const job = this._remainingEffectWarmupJob;
+        if (!job) return false;
+        this._remainingEffectWarmupJob = null;
+        if (typeof job.cancel === 'function') {
+            try { job.cancel(); } catch (e) { /* ignore */ }
+        }
+        if (typeof job.resolve === 'function') {
+            job.resolve(job.loadedCount || 0);
+        }
+        return true;
+    },
+
+    scheduleRemainingEffectSounds() {
+        const activeJob = this._remainingEffectWarmupJob;
+        if (activeJob && activeJob.promise) return activeJob.promise;
+        const critical = new Set(Array.isArray(this._criticalEffectKeys) ? this._criticalEffectKeys : []);
+        const keys = Object.keys(this.effectSoundFiles || {}).filter((key) => !critical.has(key));
+        if (keys.length === 0) return Promise.resolve(0);
+
+        const generation = this._remainingEffectWarmupGeneration + 1;
+        this._remainingEffectWarmupGeneration = generation;
+        const job: any = {
+            generation,
+            keys,
+            index: 0,
+            loadedCount: 0,
+            cancel: null,
+            resolve: null,
+            promise: null
+        };
+        job.promise = new Promise<number>((resolve) => {
+            job.resolve = resolve;
+        });
+        this._remainingEffectWarmupJob = job;
+
+        const finish = () => {
+            if (this._remainingEffectWarmupJob !== job) return;
+            this._remainingEffectWarmupJob = null;
+            job.cancel = null;
+            job.resolve(job.loadedCount);
+        };
+        const scheduleNext = () => {
+            if (this._remainingEffectWarmupJob !== job
+                || this._remainingEffectWarmupGeneration !== generation) return;
+            if (job.index >= job.keys.length) {
+                finish();
+                return;
+            }
+            const scheduled = this._scheduleRemainingEffectWarmupTask(() => {
+                if (this._remainingEffectWarmupJob !== job
+                    || this._remainingEffectWarmupGeneration !== generation) return;
+                job.cancel = null;
+                const key = job.keys[job.index++];
+                Promise.resolve(this.primeEffectBuffer(key))
+                    .then((loaded) => {
+                        if (loaded) job.loadedCount += 1;
+                    })
+                    .catch(() => undefined)
+                    .then(scheduleNext);
+            });
+            if (!scheduled) {
+                finish();
+                return;
+            }
+            job.cancel = scheduled.cancel;
+        };
+
+        scheduleNext();
+        return job.promise;
     },
 
     _toNonNegativeNumber(value: any, fallback: number) {

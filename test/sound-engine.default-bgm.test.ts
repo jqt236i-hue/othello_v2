@@ -262,7 +262,7 @@ describe('SoundEngine default BGM', () => {
     soundEngine.ctx = context;
     soundEngine.unlockAudio = jest.fn(async () => true);
     soundEngine.primeCriticalEffectSounds = jest.fn(async () => 3);
-    soundEngine.primeRemainingEffectSounds = jest.fn(async () => 10);
+    soundEngine.scheduleRemainingEffectSounds = jest.fn(() => Promise.resolve(10));
 
     expect(soundEngine.installUserGestureUnlock(doc)).toBe(true);
     expect(soundEngine.installUserGestureUnlock(doc)).toBe(false);
@@ -274,7 +274,7 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.unlockAudio).toHaveBeenCalledTimes(1);
     expect(soundEngine.primeCriticalEffectSounds).toHaveBeenCalledTimes(1);
-    expect(soundEngine.primeRemainingEffectSounds).toHaveBeenCalledTimes(1);
+    expect(soundEngine.scheduleRemainingEffectSounds).toHaveBeenCalledTimes(1);
     expect(doc.removeEventListener).toHaveBeenCalledWith('pointerdown', listeners.pointerdown.handler, true);
   });
 
@@ -291,7 +291,7 @@ describe('SoundEngine default BGM', () => {
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
     soundEngine.primeCriticalEffectSounds = jest.fn(async () => 3);
-    soundEngine.primeRemainingEffectSounds = jest.fn(async () => 10);
+    soundEngine.scheduleRemainingEffectSounds = jest.fn(() => Promise.resolve(10));
 
     expect(soundEngine.installUserGestureUnlock(doc)).toBe(true);
     const firstHandler = listeners.pointerdown.handler;
@@ -308,7 +308,66 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.unlockAudio).toHaveBeenCalledTimes(2);
     expect(soundEngine.primeCriticalEffectSounds).toHaveBeenCalledTimes(1);
-    expect(soundEngine.primeRemainingEffectSounds).toHaveBeenCalledTimes(1);
+    expect(soundEngine.scheduleRemainingEffectSounds).toHaveBeenCalledTimes(1);
+  });
+
+  test('remaining effect warmup primes at most one sound per idle callback', async () => {
+    const idleCallbacks = [];
+    const requestIdleCallback = jest.fn((callback) => {
+      idleCallbacks.push(callback);
+      return idleCallbacks.length;
+    });
+    const soundEngine = loadSoundEngine({
+      requestIdleCallback,
+      cancelIdleCallback: jest.fn()
+    });
+    soundEngine._criticalEffectKeys = ['critical'];
+    soundEngine.effectSoundFiles = {
+      critical: 'critical.mp3',
+      deferred_a: 'a.mp3',
+      deferred_b: 'b.mp3'
+    };
+    soundEngine.primeEffectBuffer = jest.fn(async () => true);
+
+    const warmupPromise = soundEngine.scheduleRemainingEffectSounds();
+
+    expect(requestIdleCallback).toHaveBeenCalledTimes(1);
+    expect(soundEngine.primeEffectBuffer).not.toHaveBeenCalled();
+
+    idleCallbacks.shift()();
+    await flushMicrotasks();
+    expect(soundEngine.primeEffectBuffer).toHaveBeenCalledTimes(1);
+    expect(soundEngine.primeEffectBuffer).toHaveBeenLastCalledWith('deferred_a');
+    expect(requestIdleCallback).toHaveBeenCalledTimes(2);
+
+    idleCallbacks.shift()();
+    await expect(warmupPromise).resolves.toBe(2);
+    expect(soundEngine.primeEffectBuffer).toHaveBeenCalledTimes(2);
+    expect(soundEngine.primeEffectBuffer).toHaveBeenLastCalledWith('deferred_b');
+  });
+
+  test('effect warmup reset cancels a queued idle decode and settles the job', async () => {
+    const idleCallbacks = [];
+    const cancelIdleCallback = jest.fn();
+    const soundEngine = loadSoundEngine({
+      requestIdleCallback: jest.fn((callback) => {
+        idleCallbacks.push(callback);
+        return 41;
+      }),
+      cancelIdleCallback
+    });
+    soundEngine._criticalEffectKeys = [];
+    soundEngine.effectSoundFiles = { deferred: 'deferred.mp3' };
+    soundEngine.primeEffectBuffer = jest.fn(async () => true);
+
+    const warmupPromise = soundEngine.scheduleRemainingEffectSounds();
+    soundEngine._resetEffectWarmup();
+
+    await expect(warmupPromise).resolves.toBe(0);
+    expect(cancelIdleCallback).toHaveBeenCalledWith(41);
+    idleCallbacks[0]();
+    await flushMicrotasks();
+    expect(soundEngine.primeEffectBuffer).not.toHaveBeenCalled();
   });
 
   test('playEffectByKey keeps HTMLAudio fallback when Web Audio effect buffers are unavailable', () => {
