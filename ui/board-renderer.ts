@@ -6,6 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const RuntimeStateAccessModule = _require('./runtime-state-access');
+const BoardDomLayoutGeometryModule = _require('./board-visual/dom-layout-geometry');
 
 // PR1: debug-only perf benchmark helper (window.__DEV_PERF__ === true or ?perf=1).
 // OFF path is zero-cost: every helper early-returns after the internal flag check.
@@ -2661,47 +2662,11 @@ function _readBoardCellSizeForLayout(host: any, topology?: any) {
 }
 
 function _readBoardFrameGeometryForLayout(host: any, appearance: any) {
-    const fallbackRect = host && typeof host.getBoundingClientRect === 'function'
-        ? host.getBoundingClientRect()
-        : { left: 0, top: 0 };
-    const frame = host && typeof host.closest === 'function' ? host.closest('#board-frame') : null;
-    if (!frame || typeof frame.getBoundingClientRect !== 'function') {
-        return {
-            clientOrigin: { x: Number(fallbackRect.left) || 0, y: Number(fallbackRect.top) || 0 },
-            frameInset: { top: 0, right: 0, bottom: 0, left: 0 }
-        };
-    }
-    const frameRect = frame.getBoundingClientRect();
-    let computed: any = null;
-    try {
-        computed = typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
-            ? window.getComputedStyle(frame)
-            : null;
-    } catch (e: any) { computed = null; }
-    let stageScale = 1;
-    try {
-        const rawScale = document && document.documentElement && document.documentElement.style
-            ? document.documentElement.style.getPropertyValue('--layout-stage-scale')
-            : '';
-        const parsedScale = Number.parseFloat(String(rawScale || ''));
-        if (Number.isFinite(parsedScale) && parsedScale > 0) stageScale = parsedScale;
-    } catch (e: any) { /* use unit scale */ }
-    const descriptor = appearance && appearance.boardFrameLayout || {};
-    const inset = (cssField: string, descriptorField: string) => {
-        const cssValue = Number.parseFloat(String(computed && computed[cssField] || ''));
-        if (Number.isFinite(cssValue)) return cssValue;
-        const descriptorValue = Number(descriptor[descriptorField]);
-        return Number.isFinite(descriptorValue) ? descriptorValue * stageScale : 0;
-    };
-    return {
-        clientOrigin: { x: Number(frameRect.left) || 0, y: Number(frameRect.top) || 0 },
-        frameInset: {
-            top: inset('paddingTop', 'paddingTop'),
-            right: inset('paddingRight', 'paddingRight'),
-            bottom: inset('paddingBottom', 'paddingBottom'),
-            left: inset('paddingLeft', 'paddingLeft')
-        }
-    };
+    return BoardDomLayoutGeometryModule.readBoardFrameGeometryForLayout(
+        host,
+        appearance,
+        _boardPixelSizingRevision
+    );
 }
 
 function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualStateOverride?: any) {
