@@ -327,6 +327,18 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 : 30;
         }
 
+        function getAllCardsDeckCardIds(): string[] {
+            let cardIds: any[] = [];
+            if (DeckSpecHelpers && typeof DeckSpecHelpers.getAllCardsDeckCardIds === 'function') {
+                cardIds = DeckSpecHelpers.getAllCardsDeckCardIds();
+            } else if (DeckSpecHelpers && typeof DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds === 'function') {
+                cardIds = DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds();
+            }
+            return Array.from(new Set((Array.isArray(cardIds) ? cardIds : [])
+                .map((cardId: any) => String(cardId || '').trim())
+                .filter((cardId: string) => !!cardId)));
+        }
+
         function createStandardChoice(context: any) {
             const ctx = (context && typeof context === 'object') ? context : {};
             return {
@@ -337,6 +349,21 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 deckSpec: null,
                 deckSize: getDefaultDeckSize(),
                 presetId: ctx.presetId || ''
+            };
+        }
+
+        function createAllCardsChoice(context: any) {
+            const ctx = (context && typeof context === 'object') ? context : {};
+            const deckCardIds = getAllCardsDeckCardIds();
+            return {
+                source: ctx.source || 'all-cards',
+                mode: 'all-cards',
+                name: normalizeChoiceLabel(ctx.name, '全カードデッキ'),
+                deckCode: '',
+                deckSpec: null,
+                deckCardIds,
+                deckSize: deckCardIds.length,
+                presetId: ''
             };
         }
 
@@ -578,6 +605,9 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         }
 
         function syncNetworkDeckSelection(choice: any) {
+            if (choice && choice.mode === 'all-cards') {
+                return Promise.resolve({ ok: true, skipped: true, reason: 'ALL_CARDS_DECK_LOCAL_ONLY' });
+            }
             const networkClient = resolveNetworkMatchClientForDeckBuilder('updateDeckSelection');
             if (!networkClient || typeof networkClient.updateDeckSelection !== 'function') {
                 return Promise.resolve({ ok: true, skipped: true, reason: 'NO_NETWORK_CLIENT' });
@@ -962,17 +992,21 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             return null;
         }
 
-        function buildCpuDeckInitOptions(blackDeckSpec: any) {
+        function buildCpuDeckInitOptions(blackDeckSpec: any, blackDeckCardIds?: any) {
             const blackStartupOptions = resolveCpuStartupOptions('black');
             const whiteStartupOptions = resolveCpuStartupOptions('white');
             const profileBlackDeckCardIds = resolveCpuDeckCardIds(blackStartupOptions);
             const whiteDeckCardIds = resolveCpuDeckCardIds(whiteStartupOptions);
             const profileBlackDeckSpec = resolveCpuDeckSpec(blackStartupOptions);
             const whiteDeckSpec = resolveCpuDeckSpec(whiteStartupOptions);
+            const localBlackDeckCardIds = Array.isArray(blackDeckCardIds)
+                ? blackDeckCardIds.slice()
+                : null;
             const initialDeckCardIdsByPlayer: any = {};
             const initialDeckSpecByPlayer: any = {};
             if (profileBlackDeckCardIds) initialDeckCardIdsByPlayer.black = profileBlackDeckCardIds;
             else if (profileBlackDeckSpec) initialDeckSpecByPlayer.black = profileBlackDeckSpec;
+            else if (localBlackDeckCardIds) initialDeckCardIdsByPlayer.black = localBlackDeckCardIds;
             else if (blackDeckSpec) initialDeckSpecByPlayer.black = blackDeckSpec;
             if (whiteDeckCardIds) initialDeckCardIdsByPlayer.white = whiteDeckCardIds;
             else if (whiteDeckSpec) initialDeckSpecByPlayer.white = whiteDeckSpec;
@@ -1010,6 +1044,13 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             }
 
             const effective = getEffectiveChoice();
+            if (effective.choice && effective.choice.mode === 'all-cards' && Array.isArray(effective.choice.deckCardIds)) {
+                const deckCardIds = effective.choice.deckCardIds.slice();
+                if (readCurrentMatchMode() === 'cpu') {
+                    return Object.assign(baseOptions, buildCpuDeckInitOptions(null, deckCardIds));
+                }
+                return Object.assign(baseOptions, { initialDeckCardIds: deckCardIds });
+            }
             if (effective.choice && effective.choice.mode === 'custom' && effective.choice.deckSpec) {
                 if (effective.roomOverrideActive) {
                     return Object.assign(baseOptions, { initialDeckSpec: effective.choice.deckSpec });
@@ -1051,6 +1092,9 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
 
         function formatLocalChoiceSummary(choice: any) {
             const targetChoice = choice || createStandardChoice({ source: 'standard' });
+            if (targetChoice.mode === 'all-cards') {
+                return `全カードデッキ / ${targetChoice.deckSize}枚`;
+            }
             if (targetChoice.mode === 'custom') {
                 return `${normalizeChoiceLabel(targetChoice.name, 'カスタムデッキ')} / ${targetChoice.deckSize}枚`;
             }
@@ -1229,6 +1273,8 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 noticeText: state.noticeText,
                 noticeIsError: state.noticeIsError,
                 standardSummaryText: `${getDefaultDeckSize()}枚 / 有効カードから重複なしランダム`,
+                allCardsDeckSize: getAllCardsDeckCardIds().length,
+                allCardsDeckActive: !!(state.activeLocalChoice && state.activeLocalChoice.mode === 'all-cards'),
                 builtInPresets: buildBuiltInPresetViewModel(),
                 presets: buildPresetViewModel(),
                 editor: buildEditorViewModel()
@@ -1250,6 +1296,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             const viewModel = refs.body ? buildViewModel() : buildShellViewModel();
             DeckBuilderRendererModule.renderDeckBuilder(refs, viewModel, {
                 onUseStandard: useStandardDeck,
+                onUseAllCards: useAllCardsDeck,
                 onUseBuiltInPreset: useBuiltInDeckPreset,
                 onUsePreset: usePreset,
                 onEditPreset: editPreset,
@@ -1369,6 +1416,24 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         function useStandardDeck() {
             setLocalActiveChoice(createStandardChoice({ source: 'standard' }));
             clearNotice();
+            render();
+        }
+
+        function useAllCardsDeck() {
+            const choice = createAllCardsChoice({ source: 'all-cards' });
+            if (!choice.deckCardIds.length) {
+                emitNotice('全カードデッキを作れませんでした', true, false);
+                render();
+                return;
+            }
+
+            const networkMatchActive = !!resolveNetworkMatchClientForDeckBuilder('updateDeckSelection');
+            setLocalActiveChoice(choice);
+            if (networkMatchActive) {
+                emitNotice('全カードデッキはローカル対戦用に設定しました。ネット対戦では部屋作成時の「両者全カードデッキ」を使います。', false, false);
+            } else {
+                clearNotice();
+            }
             render();
         }
 

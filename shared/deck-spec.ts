@@ -225,8 +225,12 @@
         return BUILT_IN_DECK_PRESETS[3].deckCode;
     }
 
-    function getCpuLv9EndingAshDeckCardIds(): string[] {
+    function getAllCardsDeckCardIds(): string[] {
         return getEnabledCardIds().filter((cardId) => !CPU_LV9_ENDING_ASH_FORBIDDEN_CARD_ID_SET.has(cardId));
+    }
+
+    function getCpuLv9EndingAshDeckCardIds(): string[] {
+        return getAllCardsDeckCardIds();
     }
 
     function getBuiltInDeckPresets(): BuiltInDeckPreset[] {
@@ -490,6 +494,7 @@
         getCpuLv6BoardExecutorWhiteDeckCode,
         getCpuLv7TheoryIncarnationWhiteDeckCode,
         getCpuLv8EndingAshDeckCode,
+        getAllCardsDeckCardIds,
         getCpuLv9EndingAshDeckCardIds,
         getBuiltInDeckPresets,
         sampleDefaultDeckCardIds,

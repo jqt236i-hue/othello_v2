@@ -696,6 +696,53 @@ function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): H
   return card;
 }
 
+function createAllCardsDeckHero(viewModel: any, onUse: any, isActive: boolean): HTMLElement {
+  const deckSize = Math.max(0, Math.floor(Number(viewModel && viewModel.allCardsDeckSize) || 0));
+  const card = document.createElement('div');
+  card.className = `deck-builder-preset-card deck-builder-standard-card deck-builder-default-hero deck-builder-all-cards-hero ${isActive ? 'is-active' : 'is-filled'}`;
+  card.dataset.slotState = 'all-cards';
+
+  if (isActive) {
+    card.appendChild(createActiveSealElement('全カードデッキ'));
+  }
+
+  const sigil = document.createElement('div');
+  sigil.className = 'deck-builder-hero-sigil';
+  sigil.setAttribute('aria-hidden', 'true');
+  sigil.textContent = 'ALL CARDS';
+  card.appendChild(sigil);
+
+  const title = document.createElement('div');
+  title.className = 'deck-builder-preset-title';
+  title.textContent = '全カードデッキ';
+  card.appendChild(title);
+
+  const sub = document.createElement('div');
+  sub.className = 'deck-builder-preset-summary';
+  const count = document.createElement('b');
+  count.textContent = `${deckSize}枚`;
+  sub.appendChild(count);
+  sub.appendChild(document.createTextNode(' · 使用可能カード全種'));
+  card.appendChild(sub);
+
+  const metaRow = document.createElement('div');
+  metaRow.className = 'deck-builder-hero-meta';
+  const pill = document.createElement('span');
+  pill.className = 'deck-builder-format-pill';
+  pill.textContent = 'ALL CARDS';
+  metaRow.appendChild(pill);
+  const metaText = document.createElement('span');
+  metaText.className = 'deck-builder-hero-meta-text';
+  metaText.textContent = 'フォーマット: 全カード';
+  metaRow.appendChild(metaText);
+  card.appendChild(metaRow);
+
+  const cta = createButton('使 用', 'btn-small deck-builder-hero-cta', typeof onUse === 'function' ? onUse : undefined);
+  card.appendChild(cta);
+
+  return card;
+}
+
 function createSectionIcon(svgInner: string): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'deck-builder-section-icon';
@@ -750,10 +797,14 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
 
   const savedPresets = Array.isArray(viewModel.presets) ? viewModel.presets : [];
   const builtInPresets = Array.isArray(viewModel.builtInPresets) ? viewModel.builtInPresets : [];
-  const isStandardActive = !savedPresets.some((preset: any) => preset && preset.isActive)
+  const isAllCardsActive = viewModel.allCardsDeckActive === true;
+  const isStandardActive = !isAllCardsActive
+    && !savedPresets.some((preset: any) => preset && preset.isActive)
     && !builtInPresets.some((preset: any) => preset && preset.isActive);
   const standardCard = createDefaultDeckHero(viewModel, handlers.onUseStandard, isStandardActive);
   defaultPresetRow.appendChild(standardCard);
+  const allCardsCard = createAllCardsDeckHero(viewModel, handlers.onUseAllCards, isAllCardsActive);
+  defaultPresetRow.appendChild(allCardsCard);
 
   if (builtInPresets.length > 0) {
     const builtInSection = document.createElement('div');
