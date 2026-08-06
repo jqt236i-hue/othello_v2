@@ -1,4 +1,8 @@
-import { createExpansionSockets } from "../shared/board/expansion-sockets";
+import {
+  createExpansionSockets,
+  mapBoardExpansionSocketTarget,
+  resolveBoardExpansionTargetSide,
+} from "../shared/board/expansion-sockets";
 
 const SharedBoardUtils = require("../shared/shared-board-utils");
 
@@ -217,5 +221,49 @@ describe("shared board expansion sockets", () => {
     expect(SharedBoardUtils.getBoardExpansionCornerSockets(context)).toEqual(
       leaf.getBoardExpansionCornerSockets(context),
     );
+  });
+
+  test("maps edge and corner sockets to stable public expansion targets", () => {
+    const context = createContext();
+    const edgeSocket = leaf.getBoardExpansionEdgeSockets(context)[0];
+    const cornerSocket = leaf.getBoardExpansionCornerSockets(context)[0];
+
+    expect(resolveBoardExpansionTargetSide("UP")).toBe("top");
+    expect(resolveBoardExpansionTargetSide("down-right")).toBeNull();
+    expect(mapBoardExpansionSocketTarget(edgeSocket)).toEqual({
+      row: 0,
+      col: 0,
+      side: "top",
+      direction: { row: -1, col: 0 },
+      directionKey: "up",
+      additions: [{ row: -1, col: 0 }],
+    });
+    expect(mapBoardExpansionSocketTarget(cornerSocket)).toEqual({
+      row: 0,
+      col: 0,
+      side: null,
+      direction: { row: -1, col: -1 },
+      directionKey: "up-left",
+      additions: [
+        { row: -1, col: 0 },
+        { row: 0, col: -1 },
+        { row: -1, col: -1 },
+      ],
+    });
+    expect(SharedBoardUtils.mapBoardExpansionSocketTarget(edgeSocket)).toEqual(
+      mapBoardExpansionSocketTarget(edgeSocket),
+    );
+  });
+
+  test("rejects malformed expansion socket targets without retaining invalid additions", () => {
+    expect(mapBoardExpansionSocketTarget(null)).toBeNull();
+    expect(mapBoardExpansionSocketTarget({ anchor: { row: 0, col: 0 } })).toBeNull();
+    expect(
+      mapBoardExpansionSocketTarget({
+        anchor: { row: 0, col: 0 },
+        directionKey: "up",
+        additions: [{ row: "-1", col: 0 }],
+      }),
+    ).toBeNull();
   });
 });

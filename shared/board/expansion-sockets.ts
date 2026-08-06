@@ -28,6 +28,17 @@ export interface BoardExpansionSocket {
   additions: CellCoord[];
 }
 
+export type BoardExpansionTargetSide = "left" | "right" | "top" | "bottom";
+
+export interface BoardExpansionTarget {
+  row: number;
+  col: number;
+  side: BoardExpansionTargetSide | null;
+  direction: CellCoord | null;
+  directionKey: string;
+  additions: CellCoord[];
+}
+
 export interface ExpansionSocketDependencies {
   toBoardCellKey: (row: number, col: number) => string;
   buildBoardTopology: (boardOrState: unknown, options?: unknown) => {
@@ -52,6 +63,57 @@ const CORNER_DIRECTIONS = [
   { key: "down-right", row: 1, col: 1 },
   { key: "down-left", row: 1, col: -1 },
 ] as const;
+
+export function resolveBoardExpansionTargetSide(
+  directionKey: unknown,
+): BoardExpansionTargetSide | null {
+  const key = String(directionKey || "").toLowerCase();
+  if (key === "left") return "left";
+  if (key === "right") return "right";
+  if (key === "up") return "top";
+  if (key === "down") return "bottom";
+  return null;
+}
+
+export function mapBoardExpansionSocketTarget(
+  socket: unknown,
+): BoardExpansionTarget | null {
+  const candidate = socket as any;
+  if (
+    !candidate ||
+    !candidate.anchor ||
+    !Number.isInteger(candidate.anchor.row) ||
+    !Number.isInteger(candidate.anchor.col)
+  )
+    return null;
+  const additions = Array.isArray(candidate.additions)
+    ? candidate.additions
+        .filter(
+          (cell: any) =>
+            cell && Number.isInteger(cell.row) && Number.isInteger(cell.col),
+        )
+        .map((cell: any) => ({ row: cell.row, col: cell.col }))
+    : [];
+  if (
+    !additions.length ||
+    typeof candidate.directionKey !== "string" ||
+    !candidate.directionKey
+  )
+    return null;
+  return {
+    row: candidate.anchor.row,
+    col: candidate.anchor.col,
+    side: resolveBoardExpansionTargetSide(candidate.directionKey),
+    direction:
+      candidate.direction &&
+      Number.isInteger(candidate.direction.row) &&
+      Number.isInteger(candidate.direction.col)
+        ? { row: candidate.direction.row, col: candidate.direction.col }
+        : null,
+    directionKey: candidate.directionKey,
+    additions,
+  };
+}
 
 export function createExpansionSockets(deps: ExpansionSocketDependencies) {
   function isWithinBounds(row: number, col: number, bounds: Bounds): boolean {
@@ -208,5 +270,7 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
     getExteriorVoidKeys,
     getBoardExpansionEdgeSockets,
     getBoardExpansionCornerSockets,
+    resolveBoardExpansionTargetSide,
+    mapBoardExpansionSocketTarget,
   };
 }

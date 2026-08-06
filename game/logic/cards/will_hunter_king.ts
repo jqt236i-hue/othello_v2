@@ -55,22 +55,13 @@ if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
 
 if (!BoardUtils ||
     typeof BoardUtils.createBoardContext !== 'function' ||
-    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.collectBoardCellValues !== 'function' ||
     typeof BoardUtils.getCellValue !== 'function') {
     throw new Error('SharedBoardUtils BoardContext access is required by CardWillHunterKing');
 }
 
 function createBoardContext(gameState: GameState, cardState: any): any {
     return BoardUtils.createBoardContext(gameState, cardState);
-}
-
-function collectBoardCells(gameState: GameState, cardState: any): Array<{ row: number; col: number; owner: number | null }> {
-    const context = createBoardContext(gameState, cardState);
-    return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
-        row: cell.row,
-        col: cell.col,
-        owner: BoardUtils.getCellValue(context, cell.row, cell.col)
-    }));
 }
 
 function getCellValue(gameState: GameState, row: number, col: number, cardState: any): number | null {
@@ -160,7 +151,7 @@ function isGuardProtectedTarget(cardState: any, row: number, col: number): boole
 function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: number) {
     const specialTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
     const normalTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
-    for (const cell of collectBoardCells(gameState, cardState)) {
+    for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
         if (cell.owner !== enemyValue)
             continue;
         if (isManifestTarget(cardState, cell.row, cell.col))

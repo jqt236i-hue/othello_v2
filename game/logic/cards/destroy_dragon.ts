@@ -97,8 +97,7 @@ interface DestroyDragonRandomSourceModule {
 }
 
 interface DestroyDragonCardMarkersModule {
-  isManifestStoneAt?: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
-  isInviolableCell?: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
+  isInviolableCell: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
 }
 
 interface DestroyDragonBoardKernelModule {
@@ -179,7 +178,6 @@ if (RAW_BLACK === undefined || RAW_WHITE === undefined || RAW_EMPTY === undefine
 const BLACK: DestroyDragonOwnerValue = RAW_BLACK;
 const WHITE: DestroyDragonOwnerValue = RAW_WHITE;
 const EMPTY: DestroyDragonOwnerValue = RAW_EMPTY;
-const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (!BoardKernelModule ||
     typeof BoardKernelModule.createBoardContext !== 'function' ||
@@ -191,6 +189,11 @@ const RequiredBoardKernelModule = BoardKernelModule as Required<Pick<
   DestroyDragonBoardKernelModule,
   'createBoardContext' | 'getCellValue' | 'setCellValue'
 >>;
+
+if (!CardMarkersModule || typeof CardMarkersModule.isInviolableCell !== 'function') {
+  throw new Error('CardMarkers.isInviolableCell is required by CardDestroyDragon');
+}
+const RequiredCardMarkersModule: DestroyDragonCardMarkersModule = CardMarkersModule;
 
 function createDestroyDragonBoardContext(
   cardState: DestroyDragonCardState,
@@ -248,22 +251,6 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function isUntargetableStone(cardState: DestroyDragonCardState, row: number, col: number): boolean {
-  if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
-    return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
-  }
-  if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
-    return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
-  }
-  return (cardState.markers || []).some((marker) => (
-    marker &&
-    marker.row === row &&
-    marker.col === col &&
-    (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-    MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
-  ));
-}
-
 function collectAdjacentEnemyTargets(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, sourceRow: number, sourceCol: number, enemyValue: DestroyDragonOwnerValue): DestroyDragonEffectPosition[] {
   const targets: DestroyDragonEffectPosition[] = [];
   for (let dr = -1; dr <= 1; dr++) {
@@ -271,7 +258,10 @@ function collectAdjacentEnemyTargets(cardState: DestroyDragonCardState, gameStat
       if (dr === 0 && dc === 0) continue;
       const row = sourceRow + dr;
       const col = sourceCol + dc;
-      if (getCellValue(gameState, row, col, cardState) === enemyValue && !isUntargetableStone(cardState, row, col)) targets.push({ row, col });
+      if (
+        getCellValue(gameState, row, col, cardState) === enemyValue &&
+        RequiredCardMarkersModule.isInviolableCell(cardState, row, col) !== true
+      ) targets.push({ row, col });
     }
   }
   return targets;

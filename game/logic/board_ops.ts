@@ -30,14 +30,12 @@ function getRuntimeGlobalValue(key: string): any {
     return null;
 }
 
-let CardExpansionModule: any = null;
 let CardMarkersModule: any = null;
 let SharedBoardUtilsModule: any = null;
 let CardFlipsModule: any = null;
 let CardProtectionContextModule: any = null;
 let CardChargeLedgerModule: any = null;
 
-CardExpansionModule = safeRequire('./cards/expansion') || getRuntimeGlobalValue('CardExpansion');
 CardMarkersModule = safeRequire('./cards/markers') || getRuntimeGlobalValue('CardMarkers');
 SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
 CardFlipsModule = safeRequire('./cards/flips') || getRuntimeGlobalValue('CardFlips');
@@ -51,10 +49,6 @@ const EvasionDestination = safeRequire('./cards-internal/evasion-destination') |
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
-
-function getCardExpansionModule(): any {
-    return CardExpansionModule || null;
-}
 
 function getCardMarkersModule(): any {
     return CardMarkersModule || null;
@@ -192,13 +186,6 @@ function isMainBoardCell(row: number, col: number, boardOrState: any): boolean {
     return BoardUtils.isMainBoardCell(row, col, boardOrState);
 }
 
-function resolveExpansionSide(side: string | null, row: number, col: number, boardOrState: any): string | null {
-    if (!BoardUtils || typeof BoardUtils.resolveExpansionSide !== 'function') {
-        throw new Error('SharedBoardUtils.resolveExpansionSide is required by BoardOps');
-    }
-    return BoardUtils.resolveExpansionSide(side, row, col, boardOrState);
-}
-
 function isExpansionCoordinate(row: number, col: number, boardOrState: any): boolean {
     if (!BoardUtils || typeof BoardUtils.isExpansionCoordinate !== 'function') {
         throw new Error('SharedBoardUtils.isExpansionCoordinate is required by BoardOps');
@@ -235,20 +222,6 @@ function ensureResultTotals(cardState: any): void {
     if (!Number.isFinite(Number(cardState.cornerCaptureCountByPlayer.white))) cardState.cornerCaptureCountByPlayer.white = 0;
 }
 
-function normalizeExpansionOwner(owner: number): number {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.normalizeExpansionOwnerForCard === 'function') {
-        return cardExpansion.normalizeExpansionOwnerForCard(owner);
-    }
-    if (BoardUtils && typeof BoardUtils.normalizeOwner === 'function') {
-        const normalizedOwner = BoardUtils.normalizeOwner(owner);
-        return (normalizedOwner === SharedConstants.BLACK || normalizedOwner === SharedConstants.WHITE)
-            ? normalizedOwner
-            : EMPTY;
-    }
-    return (owner === SharedConstants.BLACK || owner === SharedConstants.WHITE) ? owner : EMPTY;
-}
-
 function getExpansionDescriptors(gameState: any, cardState: any = null): Array<{ side: string | null; row: number; col: number; owner: number }> {
     if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
         throw new Error('SharedBoardUtils.createBoardView is required by BoardOps');
@@ -262,62 +235,6 @@ function getExpansionDescriptors(gameState: any, cardState: any = null): Array<{
         col: cell.col,
         owner: cell.owner
     }));
-}
-
-function syncLegacyExpansionFields(expansion: any, gameState: any): void {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.syncLegacyExpansionFieldsForCard === 'function') {
-        cardExpansion.syncLegacyExpansionFieldsForCard(expansion, gameState);
-        return;
-    }
-    if (!expansion || typeof expansion !== 'object') return;
-    if (!Array.isArray(expansion.cells)) expansion.cells = [];
-    const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
-    expansion.active = !!latest;
-    expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
-    expansion.row = latest ? latest.row : null;
-    expansion.col = latest ? latest.col : null;
-    expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
-}
-
-function ensureExpansionStateMutable(gameState: any, cardState: any = null): any {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.ensureMutableBoardExpansionForCard === 'function') {
-        return cardExpansion.ensureMutableBoardExpansionForCard(cardState, gameState);
-    }
-    if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
-        gameState.boardExpansion = {
-            active: false,
-            side: null,
-            row: null,
-            col: null,
-            owner: EMPTY,
-            usedByPlayer: { black: false, white: false },
-            cells: []
-        };
-        return gameState.boardExpansion;
-    }
-    const expansion = gameState.boardExpansion;
-    if (!expansion.usedByPlayer || typeof expansion.usedByPlayer !== 'object') {
-        expansion.usedByPlayer = { black: false, white: false };
-    } else {
-        expansion.usedByPlayer.black = !!expansion.usedByPlayer.black;
-        expansion.usedByPlayer.white = !!expansion.usedByPlayer.white;
-    }
-    const descriptors = getExpansionDescriptors(gameState, cardState);
-    expansion.cells = descriptors.map((desc) => ({
-        side: desc.side,
-        row: desc.row,
-        col: desc.col,
-        owner: normalizeExpansionOwner(desc.owner)
-    }));
-    syncLegacyExpansionFields(expansion, gameState);
-    return expansion;
-}
-
-function getExpansionDescriptor(gameState: any, cardState: any = null): any {
-    const descriptors = getExpansionDescriptors(gameState, cardState);
-    return descriptors.length > 0 ? descriptors[0] : null;
 }
 
 function isExpansionCell(gameState: any, row: number, col: number, cardState: any = null): boolean {

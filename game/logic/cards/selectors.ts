@@ -917,48 +917,29 @@ function getExpansionCells(cardState: CardState, gameState: GameState): Expansio
     );
 }
 
-function resolveExpansionTargetSide(directionKey: any): string | null {
-    const key = String(directionKey || '').toLowerCase();
-    if (key === 'left') return 'left';
-    if (key === 'right') return 'right';
-    if (key === 'up') return 'top';
-    if (key === 'down') return 'bottom';
-    return null;
-}
-
-function mapExpansionSocketTarget(socket: any): TargetCell | null {
-    if (!socket || !socket.anchor || !Number.isInteger(socket.anchor.row) || !Number.isInteger(socket.anchor.col)) return null;
-    const additions = Array.isArray(socket.additions)
-        ? socket.additions
-            .filter((cell: any) => cell && Number.isInteger(cell.row) && Number.isInteger(cell.col))
-            .map((cell: any) => ({ row: cell.row, col: cell.col }))
-        : [];
-    if (!additions.length || typeof socket.directionKey !== 'string' || !socket.directionKey) return null;
-    return {
-        row: socket.anchor.row,
-        col: socket.anchor.col,
-        side: resolveExpansionTargetSide(socket.directionKey),
-        direction: socket.direction && Number.isInteger(socket.direction.row) && Number.isInteger(socket.direction.col)
-            ? { row: socket.direction.row, col: socket.direction.col }
-            : null,
-        directionKey: socket.directionKey,
-        additions
-    };
-}
-
 function getBoardExpansionSocketTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const board = getShapeAwareBoard(cardState, gameState);
-    if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getBoardExpansionEdgeSockets !== 'function') return [];
+    if (
+        !board ||
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.getBoardExpansionEdgeSockets !== 'function' ||
+        typeof SharedBoardUtils.mapBoardExpansionSocketTarget !== 'function'
+    ) return [];
     return SharedBoardUtils.getBoardExpansionEdgeSockets(board)
-        .map(mapExpansionSocketTarget)
+        .map((socket: any) => SharedBoardUtils.mapBoardExpansionSocketTarget(socket))
         .filter((target: TargetCell | null): target is TargetCell => !!target);
 }
 
 function getBoardExpansionGodSocketTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const board = getShapeAwareBoard(cardState, gameState);
-    if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getBoardExpansionCornerSockets !== 'function') return [];
+    if (
+        !board ||
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.getBoardExpansionCornerSockets !== 'function' ||
+        typeof SharedBoardUtils.mapBoardExpansionSocketTarget !== 'function'
+    ) return [];
     return SharedBoardUtils.getBoardExpansionCornerSockets(board)
-        .map(mapExpansionSocketTarget)
+        .map((socket: any) => SharedBoardUtils.mapBoardExpansionSocketTarget(socket))
         .filter((target: TargetCell | null): target is TargetCell => !!target);
 }
 

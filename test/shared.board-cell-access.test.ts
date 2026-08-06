@@ -42,6 +42,12 @@ describe("shared board cell access", () => {
       { row: 0, col: 0 },
       { row: 3, col: 3 },
     ]));
+    expect(SharedBoardUtils.collectBoardCellValues(board)).toEqual(
+      SharedBoardUtils.collectBoardCoordinates(board).map((cell: { row: number; col: number }) => ({
+        ...cell,
+        owner: SharedBoardUtils.getCellValue(board, cell.row, cell.col),
+      })),
+    );
 
     expect(SharedBoardUtils.resolveBoardBounds(context)).toEqual({
       minRow: 0,
@@ -60,6 +66,16 @@ describe("shared board cell access", () => {
         { row: 0, col: 4 },
         { row: 3, col: 3 },
       ]),
+    );
+    expect(SharedBoardUtils.collectBoardCellValues(context)).toEqual(
+      expect.arrayContaining([
+        { row: 0, col: 1, owner: 0 },
+        { row: 0, col: 4, owner: 1 },
+        { row: 3, col: 3, owner: 0 },
+      ]),
+    );
+    expect(SharedBoardUtils.collectBoardCellValues(context)).not.toContainEqual(
+      expect.objectContaining({ row: 0, col: 0 }),
     );
   });
 });

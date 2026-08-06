@@ -22,6 +22,10 @@
         col: number;
     }
 
+    interface BoardCellValue extends CellCoord {
+        owner: number | null;
+    }
+
     interface DiscCounts {
         black: number;
         white: number;
@@ -462,6 +466,14 @@
             : denseCollectBoardCoordinates(board);
     }
 
+    function collectBoardCellValues(board: unknown): BoardCellValue[] {
+        return collectBoardCoordinates(board).map((cell) => ({
+            row: cell.row,
+            col: cell.col,
+            owner: getCellValue(board, cell.row, cell.col)
+        }));
+    }
+
     function getCellValue(board: unknown, row: number, col: number): number | null {
         if (isBoardSearchContext(board)) {
             return BoardSearchState.getCellValue(board, row, col);
@@ -617,6 +629,8 @@
     const getExteriorVoidKeys = BoardExpansionSockets.getExteriorVoidKeys;
     const getBoardExpansionEdgeSockets = BoardExpansionSockets.getBoardExpansionEdgeSockets;
     const getBoardExpansionCornerSockets = BoardExpansionSockets.getBoardExpansionCornerSockets;
+    const resolveBoardExpansionTargetSide = BoardExpansionSockets.resolveBoardExpansionTargetSide;
+    const mapBoardExpansionSocketTarget = BoardExpansionSockets.mapBoardExpansionSocketTarget;
 
     if (!CanonicalBoardEncodingModule) throw new Error('CanonicalBoardEncoding is required by SharedBoardUtils');
     const CanonicalBoardEncoding = CanonicalBoardEncodingModule.createCanonicalBoardEncoding({ resolveBoardBounds, collectBoardCoordinates, getCellValue });
@@ -818,6 +832,8 @@
         getExteriorVoidKeys,
         getBoardExpansionEdgeSockets,
         getBoardExpansionCornerSockets,
+        resolveBoardExpansionTargetSide,
+        mapBoardExpansionSocketTarget,
         forEachBoardShapeCell,
         collectMainBoardCoordinates,
         createEmptyBoard,
@@ -829,6 +845,7 @@
         isBoardSearchContext,
         hasPlayableCell,
         collectBoardCoordinates,
+        collectBoardCellValues,
         countDiscsByPlayer,
         countDiscs,
         getCellValue,

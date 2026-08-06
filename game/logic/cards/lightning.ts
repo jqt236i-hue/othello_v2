@@ -97,8 +97,7 @@ interface LightningRandomSourceModule {
 }
 
 interface LightningCardMarkersModule {
-  isManifestStoneAt?: (cardState: LightningCardState, row: number, col: number) => boolean;
-  isInviolableCell?: (cardState: LightningCardState, row: number, col: number) => boolean;
+  isInviolableCell: (cardState: LightningCardState, row: number, col: number) => boolean;
 }
 
 type LightningRandomLike = (() => number) | { random: () => number };
@@ -174,27 +173,22 @@ if (RAW_BLACK === undefined || RAW_WHITE === undefined || RAW_EMPTY === undefine
 const BLACK: LightningOwnerValue = RAW_BLACK;
 const WHITE: LightningOwnerValue = RAW_WHITE;
 const EMPTY: LightningOwnerValue = RAW_EMPTY;
-const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (!BoardUtils ||
     typeof BoardUtils.createBoardContext !== 'function' ||
-    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.collectBoardCellValues !== 'function' ||
     typeof BoardUtils.getCellValue !== 'function' ||
     typeof BoardUtils.setCellValue !== 'function') {
   throw new Error('SharedBoardUtils BoardContext access is required by CardLightning');
 }
 
+if (!CardMarkersModule || typeof CardMarkersModule.isInviolableCell !== 'function') {
+  throw new Error('CardMarkers.isInviolableCell is required by CardLightning');
+}
+const RequiredCardMarkersModule: LightningCardMarkersModule = CardMarkersModule;
+
 function createBoardContext(gameState: LightningGameState, cardState: LightningCardState): any {
   return BoardUtils.createBoardContext(gameState, cardState);
-}
-
-function collectBoardCells(gameState: LightningGameState, cardState: LightningCardState): Array<{ row: number; col: number; owner: LightningOwnerValue | null }> {
-  const context = createBoardContext(gameState, cardState);
-  return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
-    row: cell.row,
-    col: cell.col,
-    owner: BoardUtils.getCellValue(context, cell.row, cell.col)
-  }));
 }
 
 function getCellValue(gameState: LightningGameState, row: number, col: number, cardState: LightningCardState): LightningOwnerValue | null {
@@ -240,27 +234,11 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function isUntargetableStone(cardState: LightningCardState, row: number, col: number): boolean {
-  if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
-    return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
-  }
-  if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
-    return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
-  }
-  return (cardState.markers || []).some((marker) => (
-    marker &&
-    marker.row === row &&
-    marker.col === col &&
-    (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-    MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
-  ));
-}
-
 function collectEnemyTargets(cardState: LightningCardState, gameState: LightningGameState, enemyValue: LightningOwnerValue): LightningEffectPosition[] {
   const targets: LightningEffectPosition[] = [];
-  for (const cell of collectBoardCells(gameState, cardState)) {
+  for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
     if (cell.owner !== enemyValue) continue;
-    if (isUntargetableStone(cardState, cell.row, cell.col)) continue;
+    if (RequiredCardMarkersModule.isInviolableCell(cardState, cell.row, cell.col) === true) continue;
     targets.push({ row: cell.row, col: cell.col });
   }
   return targets;

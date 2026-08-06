@@ -173,27 +173,21 @@ const CardSniper = /**
     if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants missing required values');
     }
-    const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
     if (!BoardUtils ||
         typeof BoardUtils.createBoardContext !== 'function' ||
-        typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+        typeof BoardUtils.collectBoardCellValues !== 'function' ||
         typeof BoardUtils.getCellValue !== 'function' ||
         typeof BoardUtils.setCellValue !== 'function') {
         throw new Error('SharedBoardUtils BoardContext access is required by CardSniper');
     }
 
-    function createBoardContext(gameState: SniperGameState, cardState: SniperCardState): any {
-        return BoardUtils.createBoardContext(gameState, cardState);
+    if (!CardMarkersModule || typeof CardMarkersModule.isInviolableCell !== 'function') {
+        throw new Error('CardMarkers.isInviolableCell is required by CardSniper');
     }
 
-    function collectBoardCells(gameState: SniperGameState, cardState: SniperCardState): Array<{ row: number; col: number; owner: SniperOwnerValue | null }> {
-        const context = createBoardContext(gameState, cardState);
-        return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
-            row: cell.row,
-            col: cell.col,
-            owner: BoardUtils.getCellValue(context, cell.row, cell.col)
-        }));
+    function createBoardContext(gameState: SniperGameState, cardState: SniperCardState): any {
+        return BoardUtils.createBoardContext(gameState, cardState);
     }
 
     function getCellValue(gameState: SniperGameState, row: number, col: number, cardState: SniperCardState): SniperOwnerValue | null {
@@ -230,27 +224,11 @@ const CardSniper = /**
         return playerKey === 'black' ? 'white' : 'black';
     }
 
-    function isUntargetableStone(cardState: SniperCardState, row: number, col: number): boolean {
-        if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
-            return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
-        }
-        if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
-            return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
-        }
-        return (cardState.markers || []).some((marker) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col &&
-            (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-            MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
-        ));
-    }
-
     function pickNearestEnemyTarget(cardState: SniperCardState, gameState: SniperGameState, sourceRow: number, sourceCol: number, enemyValue: SniperOwnerValue, randomFn: () => number): SniperEffectTarget | null {
         const candidates: SniperEffectTarget[] = [];
-        for (const cell of collectBoardCells(gameState, cardState)) {
+        for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
             if (cell.owner !== enemyValue) continue;
-            if (isUntargetableStone(cardState, cell.row, cell.col)) continue;
+            if (CardMarkersModule.isInviolableCell(cardState, cell.row, cell.col) === true) continue;
             const dr = cell.row - sourceRow;
             const dc = cell.col - sourceCol;
             const distSq = (dr * dr) + (dc * dc);

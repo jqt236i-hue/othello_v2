@@ -4,12 +4,20 @@ import {
   type BoardSourceTrajectoryProfileKey,
   type BoardSourceTrajectoryRequest
 } from '../../board-visual/source-trajectory';
-import * as PresentationVisualSeed from '../../presentation/visual-seed';
 import type {
   PixiSourceTrajectoryGeometrySnapshot,
   PixiSourceTrajectoryPoint,
   PixiSourceTrajectoryRect
 } from '../board-scene';
+import {
+  buildSourceTrajectoryLightningPaths as lightningPaths,
+  clamp,
+  cubicBezierProgress,
+  getSourceTrajectoryPaintRect as paintRect,
+  lerp,
+  point,
+  pointInsideRect
+} from './source-trajectory-geometry';
 
 export type PixiSourceTrajectoryScalarChannel =
   | 'beamAlpha'
@@ -109,7 +117,6 @@ export interface PixiSourceTrajectoryRenderPlan {
   sampleInto(progress: number, target: PixiSourceTrajectoryScalarState): void;
 }
 
-const EMPTY_POINTS = Object.freeze([]) as readonly PixiSourceTrajectoryPoint[];
 const EMPTY_SEGMENTS = Object.freeze([]) as readonly (readonly [PixiSourceTrajectoryPoint, PixiSourceTrajectoryPoint])[];
 const EMPTY_LINES = Object.freeze([]) as readonly PixiPreparedTrajectoryLineSet[];
 const EMPTY_CIRCLES = Object.freeze([]) as readonly PixiPreparedTrajectoryCircle[];
@@ -135,19 +142,6 @@ const LIGHTNING_BRANCH_ALPHA = Object.freeze([
 const BITE_SHADOW_ALPHA = Object.freeze([[0, 0], [0.14, 0.74], [0.64, 0.82], [1, 0]] as const);
 const BITE_FANG_ALPHA = Object.freeze([[0, 0], [0.42, 0], [0.56, 0.72], [0.82, 0.64], [1, 0]] as const);
 
-function clamp(value: unknown, min = 0, max = 1): number {
-  const numeric = Number(value);
-  return Math.max(min, Math.min(max, Number.isFinite(numeric) ? numeric : min));
-}
-
-function lerp(from: number, to: number, progress: number): number {
-  return from + (to - from) * clamp(progress);
-}
-
-function point(x: number, y: number): PixiSourceTrajectoryPoint {
-  return Object.freeze({ x, y });
-}
-
 function keyframed(progress: number, frames: readonly (readonly [number, number])[]): number {
   const t = clamp(progress);
   if (t <= frames[0][0]) return frames[0][1];
@@ -162,27 +156,6 @@ function keyframed(progress: number, frames: readonly (readonly [number, number]
   return frames[frames.length - 1][1];
 }
 
-function cubicBezierProgress(progress: number, x1: number, y1: number, x2: number, y2: number): number {
-  const target = clamp(progress);
-  if (target === 0 || target === 1) return target;
-  let lower = 0;
-  let upper = 1;
-  let parameter = target;
-  for (let iteration = 0; iteration < 14; iteration += 1) {
-    const inverse = 1 - parameter;
-    const x = 3 * inverse * inverse * parameter * x1
-      + 3 * inverse * parameter * parameter * x2
-      + parameter * parameter * parameter;
-    if (x < target) lower = parameter;
-    else upper = parameter;
-    parameter = (lower + upper) / 2;
-  }
-  const inverse = 1 - parameter;
-  return 3 * inverse * inverse * parameter * y1
-    + 3 * inverse * parameter * parameter * y2
-    + parameter * parameter * parameter;
-}
-
 function compileEasing(profile: BoardSourceTrajectoryProfile): (progress: number) => number {
   const match = /^cubic-bezier\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)$/i
     .exec(profile.easing);
@@ -192,34 +165,6 @@ function compileEasing(profile: BoardSourceTrajectoryProfile): (progress: number
   const x2 = Number(match[3]);
   const y2 = Number(match[4]);
   return (progress: number) => cubicBezierProgress(progress, x1, y1, x2, y2);
-}
-
-function intersectRect(a: PixiSourceTrajectoryRect, b: PixiSourceTrajectoryRect): PixiSourceTrajectoryRect {
-  const left = Math.max(a.left, b.left);
-  const top = Math.max(a.top, b.top);
-  const right = Math.max(left, Math.min(a.right, b.right));
-  const bottom = Math.max(top, Math.min(a.bottom, b.bottom));
-  return Object.freeze({ left, top, right, bottom, width: right - left, height: bottom - top });
-}
-
-function paintRect(
-  geometry: PixiSourceTrajectoryGeometrySnapshot,
-  profile: BoardSourceTrajectoryProfile
-): PixiSourceTrajectoryRect {
-  const halo = Math.max(0, profile.haloCells * geometry.cellSize);
-  return intersectRect(geometry.paintedHaloClip, Object.freeze({
-    left: geometry.visibleClip.left - halo,
-    top: geometry.visibleClip.top - halo,
-    right: geometry.visibleClip.right + halo,
-    bottom: geometry.visibleClip.bottom + halo,
-    width: geometry.visibleClip.width + halo * 2,
-    height: geometry.visibleClip.height + halo * 2
-  }));
-}
-
-function pointInsideRect(candidate: PixiSourceTrajectoryPoint, rect: PixiSourceTrajectoryRect): boolean {
-  return candidate.x >= rect.left && candidate.x <= rect.right
-    && candidate.y >= rect.top && candidate.y <= rect.bottom;
 }
 
 function squareIntersectsRect(x: number, y: number, sideLength: number, rect: PixiSourceTrajectoryRect): boolean {
@@ -277,71 +222,6 @@ function clipPath(
     if (clipped) segments.push(clipped);
   }
   return Object.freeze(segments);
-}
-
-function hashText(value: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function jaggedPath(
-  start: PixiSourceTrajectoryPoint,
-  end: PixiSourceTrajectoryPoint,
-  segments: number,
-  jitter: number,
-  random: () => number
-): readonly PixiSourceTrajectoryPoint[] {
-  const count = Math.max(2, Math.trunc(segments));
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.max(1, Math.hypot(dx, dy));
-  const normalX = -dy / length;
-  const normalY = dx / length;
-  const output: PixiSourceTrajectoryPoint[] = [];
-  for (let index = 0; index <= count; index += 1) {
-    const progress = index / count;
-    let x = start.x + dx * progress;
-    let y = start.y + dy * progress;
-    if (index > 0 && index < count) {
-      const centerWeight = 1 - Math.abs(progress * 2 - 1);
-      const offset = (random() - 0.5) * jitter * (0.45 + centerWeight);
-      x += normalX * offset;
-      y += normalY * offset;
-    }
-    output.push(point(x, y));
-  }
-  return Object.freeze(output);
-}
-
-function lightningPaths(
-  request: BoardSourceTrajectoryRequest,
-  geometry: PixiSourceTrajectoryGeometrySnapshot
-): Readonly<{ main: readonly PixiSourceTrajectoryPoint[]; branches: readonly (readonly PixiSourceTrajectoryPoint[])[] }> {
-  const seed = Number.isInteger(request.visualSeed)
-    ? Number(request.visualSeed) >>> 0
-    : hashText(request.trajectoryId);
-  const random = PresentationVisualSeed.createVisualRandom(seed);
-  const segmentCount = Math.max(5, Math.min(11, Math.round(geometry.distancePx / 42)));
-  const jitter = Math.max(8, Math.min(24, Math.round(geometry.distancePx / 13)));
-  const main = jaggedPath(geometry.movementStart, geometry.movementEnd, segmentCount, jitter, random);
-  const branches: Array<readonly PixiSourceTrajectoryPoint[]> = [];
-  const firstIndex = Math.floor(main.length * 0.34);
-  const secondIndex = Math.floor(main.length * 0.62);
-  for (const rawIndex of [firstIndex, secondIndex]) {
-    const index = Math.max(1, Math.min(main.length - 1, rawIndex));
-    const anchor = main[index];
-    if (!anchor) continue;
-    const branchEnd = point(
-      anchor.x + ((random() - 0.5) * 54) + ((geometry.movementEnd.x - geometry.movementStart.x) * 0.12),
-      anchor.y + ((random() - 0.5) * 54) - ((geometry.movementEnd.y - geometry.movementStart.y) * 0.08)
-    );
-    branches.push(jaggedPath(anchor, branchEnd, Math.max(3, segmentCount - 3), Math.max(5, jitter * 0.68), random));
-  }
-  return Object.freeze({ main, branches: Object.freeze(branches) });
 }
 
 function lineSet(

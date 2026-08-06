@@ -637,6 +637,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/pixi/effects/move": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/move.js"),
   "ui/pixi/effects/place": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/place.js"),
   "ui/pixi/effects/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/source-trajectory.js"),
+  "ui/pixi/effects/source-trajectory-geometry": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/source-trajectory-geometry.js"),
   "ui/pixi/effects/source-trajectory-render-plan": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/source-trajectory-render-plan.js"),
   "ui/pixi/effects/spawn": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/spawn.js"),
   "ui/pixi/effects/special-stone": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/special-stone.js"),
@@ -1366,6 +1367,7 @@ installBootModuleMetadata({
     "ui/pixi/effects/move",
     "ui/pixi/effects/place",
     "ui/pixi/effects/source-trajectory",
+    "ui/pixi/effects/source-trajectory-geometry",
     "ui/pixi/effects/source-trajectory-render-plan",
     "ui/pixi/effects/spawn",
     "ui/pixi/effects/special-stone",
@@ -1530,4 +1532,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 714;
+export const startupModuleCount = 715;

@@ -26,6 +26,7 @@ describe('shared board context facade', () => {
       'isStandardBoard8x8',
       'hasPlayableCell',
       'collectBoardCoordinates',
+      'collectBoardCellValues',
       'getCellValue',
       'setCellValue',
       'setCellValues',

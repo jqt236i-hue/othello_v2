@@ -1,6 +1,6 @@
 # Post-convergence safe refactor drift remediation design
 
-- Status: reviewed design
+- Status: implemented and verified
 - Target: behavior-preserving repository-wide refactor drift introduced after the July 2026 full-refactor convergence baseline
 - Sources of truth: root `AGENTS.md`, `docs/architecture-contracts.md`, `01-rulebook.md`, `docs/superpowers/specs/2026-07-11-behavior-preserving-full-refactor-design.md`, and `docs/superpowers/plans/2026-07-11-behavior-preserving-full-refactor-master-plan.md`
 - Non-goals: gameplay, card text, timing, animation appearance, network protocol, public rule changes, broad compatibility-loader rewrites, speculative large-file splitting, removal of legacy unused declarations without positive proof, generated-file source edits, or Git-history rewriting
@@ -9,7 +9,7 @@
 
 The July 2026 behavior-preserving full-refactor program closed its non-destructive phases and established a clean structural baseline. A new repository-wide audit confirms that its architecture remains healthy, but later board-kernel and Pixi trajectory work introduced a small amount of mechanically provable drift:
 
-- eleven unused declarations whose introducing or most-recent blame commits are newer than the Phase 11 cleanup baseline;
+- eleven compiler-reported unused declarations whose introducing or most-recent blame commits are newer than the Phase 11 cleanup baseline, plus six support declarations or bindings made unreachable by their removal;
 - six copies of the same shaped-board cell/value projection;
 - two copies of the same board-expansion socket-to-target projection;
 - four copies of an automatic-target protection decision already owned by `CardMarkers.isInviolableCell`;
@@ -42,6 +42,8 @@ Running TypeScript with `noUnusedLocals` reports 359 diagnostics. The Phase 11 b
 
 Repository-wide identifier searches show that these exact local declarations have no consumers. Similarly named functions in canonical leaf modules are independently used and remain in place.
 
+Removing the eleven directly reported declarations also made six private support declarations or bindings unreachable: `CardExpansionModule`, `getCardExpansionModule`, `resolveExpansionSide`, `normalizeExpansionOwner`, `syncLegacyExpansionFields`, and `ExpansionCellRef`. They are removed in the same dead-code closure. The compiler diagnostic count still changes by exactly eleven, from 359 to the established 348 baseline; the implementation removes seventeen declarations or bindings in total.
+
 ### Duplicate-implementation audit
 
 An exact AST-token scan found 67 cross-file duplicate groups of at least 60 tokens. Comparing blame to the Phase 11 baseline found 32 groups with at least one newer copy. They were classified as follows:
@@ -64,7 +66,7 @@ This classification is the complete implementation scope produced by the current
 
 ### 1. Remove only post-baseline dead declarations
 
-Delete the eleven declarations listed above without changing the canonical leaf functions they previously wrapped. Add the now-clean Meteor God and source-trajectory render-plan files to the existing clean-runtime unused-declaration guard. Do not enable `noUnusedLocals` repository-wide and do not delete any of the 348 older diagnostics without separate positive reachability proof.
+Delete the eleven directly reported declarations listed above and the six private declarations or bindings that become unreachable with them, without changing the canonical leaf functions they previously wrapped. Add the now-clean Meteor God and source-trajectory render-plan files to the existing clean-runtime unused-declaration guard. Do not enable `noUnusedLocals` repository-wide and do not delete any of the 348 older diagnostics without separate positive reachability proof.
 
 ### 2. Make shared board projections canonical
 
@@ -138,7 +140,7 @@ No dependency points from `game/` or `shared/` into `ui/`, DOM, sound, timers, o
 
 ## Completion conditions
 
-- The eleven post-baseline unused declarations are gone and the diagnostic count returns to 348.
+- The eleven post-baseline diagnostics and their six-member transitive dead closure are gone, for seventeen removed declarations or bindings in total, and the diagnostic count returns to 348.
 - All six shaped-board cell/value copies delegate to one facade operation.
 - Both expansion target paths use one canonical mapper.
 - All four automatic destroy modules use `CardMarkers.isInviolableCell` without local manifestation sets.

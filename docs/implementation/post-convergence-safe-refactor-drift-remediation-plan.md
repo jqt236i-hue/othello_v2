@@ -1,12 +1,12 @@
 # Post-convergence safe refactor drift remediation implementation plan
 
-- Status: reviewed plan
+- Status: completed
 - Design: `docs/implementation/post-convergence-safe-refactor-drift-remediation-design.md`
 - Scope: all currently identified high-value, behavior-preserving refactor drift with positive safety proof
 
 ## Step 1: Remove post-baseline unused declarations and strengthen the guard
 
-- Outcome: all eleven newly introduced unused declarations are removed without touching older compatibility-sensitive debt.
+- Outcome: all eleven newly introduced unused diagnostics and the six-member private dead-code closure they expose are removed without touching older compatibility-sensitive debt.
 - Files:
   - `game/logic/board_ops.ts`;
   - `game/logic/cards.ts`;
@@ -19,7 +19,7 @@
   - focused dependency-boundary test;
   - TypeScript with `noUnusedLocals`, confirming 348 diagnostics and absence of the eleven removed names;
   - `npm run typecheck`.
-- Done condition: only the proven declarations are removed, Meteor God and the render-plan file are guarded as clean runtime files, and no new unused diagnostic appears.
+- Done condition: only the seventeen proven declarations or bindings are removed, Meteor God and the render-plan file are guarded as clean runtime files, the diagnostic count falls from 359 to 348, and no new unused diagnostic appears.
 
 ## Step 2: Canonicalize board cell/value and expansion-target projections
 
@@ -121,17 +121,37 @@
 
 ## Completion checklist
 
-- [ ] Eleven post-baseline unused declarations removed; count restored to 348.
-- [ ] Clean-file unused-declaration guard extended.
-- [ ] Six board cell/value projections canonicalized.
-- [ ] Two expansion target mappers canonicalized.
-- [ ] Four automatic-target protection implementations canonicalized.
-- [ ] Pixi deterministic geometry shared without clipping/lifecycle changes.
-- [ ] Focused gameplay, board, and Pixi tests pass.
-- [ ] Browser artifacts and Worker mirror regenerated from root sources.
-- [ ] Broad structural, Vite, and network parity checks pass.
-- [ ] Task-owned commits created and final status inspected.
+- [x] Eleven post-baseline diagnostics and their six-member transitive dead closure removed; count restored from 359 to 348.
+- [x] Clean-file unused-declaration guard extended.
+- [x] Six board cell/value projections canonicalized.
+- [x] Two expansion target mappers canonicalized.
+- [x] Four automatic-target protection implementations canonicalized.
+- [x] Pixi deterministic geometry shared without clipping/lifecycle changes.
+- [x] Focused gameplay, board, and Pixi tests pass.
+- [x] Browser artifacts and Worker mirror regenerated from root sources.
+- [x] Broad structural, Vite, and network parity checks pass.
+- [x] Full Jest result compared with an isolated `HEAD` baseline; all nineteen failures are pre-existing and none is introduced by this refactor.
+- [x] Task-owned commits created and final status inspected.
+
+## Execution record
+
+- Documentation design/plan commit: `d7235c1eb` (`docs: plan safe refactor drift remediation`).
+- `npm run typecheck`: passed.
+- TypeScript `noUnusedLocals` recount: 359 diagnostics before the refactor, 348 after it, matching the Phase 11 baseline.
+- Board/card focused Jest: 11 suites and 105 tests passed.
+- Pixi source-trajectory focused Jest: 4 suites and 68 tests passed.
+- `npm run match:pixijs-board-playback-check`: passed all 232 scenarios across classic/Vite, Pixi/DOM compatibility, and normal/reduced/no-animation modes.
+- `npm run worker:prepare`: passed and verified the 960-file Worker mirror; its browser/Vite builds regenerated the tracked delivery surfaces. The existing Vite large-chunk warning remained non-fatal.
+- `npm run checkall`: passed, including dependency boundaries, zero runtime cycles, browser freshness, JavaScript authority inventory, and Worker mirror checks.
+- `npm run test:network:parity`: 35 suites and 564 tests passed; existing console/open-handle warnings remained non-fatal.
+- `npm run test:jest`: the first 904-second attempt exceeded its command timeout while Jest continued to run. A 30-minute rerun completed in 1083.331 seconds: 1012 of 1016 suites passed and 7570 of 7589 tests passed. The four failing suites and nineteen failures were reproduced from an isolated archive of unchanged `HEAD` (with its own TypeScript build), proving they predate this refactor:
+  - `test/ui.network-client.guard-tempt-deferred-publish.test.ts`: 16 failures;
+  - `test/game.marker-cell-index.test.ts`: 1 failure;
+  - `test/entry-browser.boot-table-sequence.test.ts`: 1 failure;
+  - `test/ui.board-playback-runtime-state-contract.test.ts`: 1 failure.
+- The pre-existing failures were not hidden by weakening assertions or changing unrelated product behavior. Focused coverage for every changed behavior and all required structural, browser, Worker, and network checks passed.
+- The implementation, tests, and generated delivery surfaces are committed together as one coherent unit so no commit records stale browser or Worker artifacts.
 
 ## Self-review
 
-The plan was revised to put the unused cleanup before shared-file edits so the compiler delta remains attributable. Board and marker changes were separated conceptually but ordered together where they touch the same card modules, preventing duplicated intermediate edits. The Pixi step explicitly excludes clipping and settlement so its parity suite can validate a pure extraction. Browser generation is delayed until focused tests pass, and Worker preparation is run once as a standalone mirror operation rather than duplicated through a deploy command. The commit units keep documentation, headless/shared behavior, Pixi presentation, and generated delivery reviewable without leaving a broken intermediate state.
+The plan was revised to put the unused cleanup before shared-file edits so the compiler delta remains attributable. Board and marker changes were separated conceptually but ordered together where they touch the same card modules, preventing duplicated intermediate edits. The Pixi step explicitly excludes clipping and settlement so its parity suite can validate a pure extraction. Browser generation was delayed until focused tests passed, and Worker preparation was run once as a standalone mirror operation rather than duplicated through a deploy command. The reviewed plan originally proposed separate headless, Pixi, and generated commits; implementation showed that the browser registry and Worker mirror cover both source groups, so one verified implementation-and-delivery commit is safer than intermediate commits with stale generated state. The earlier design/plan commit remains separate.

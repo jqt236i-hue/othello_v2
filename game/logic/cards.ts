@@ -1505,10 +1505,6 @@ const {
         return CardExpansionModule.ensureMutableBoardExpansionForCard(cardState, gameState);
     }
 
-    function writeExpansionDescriptorsForCard(cardState: any, gameState: any, cells: any) {
-        return CardExpansionModule.writeExpansionDescriptorsForCard(cardState, gameState, cells);
-    }
-
     function getCellValueForCard(cardState: any, gameState: any, row: any, col: any) {
         return CardExpansionModule.getCellValueForCard(cardState, gameState, row, col);
     }
@@ -1572,10 +1568,6 @@ const {
 
     function toBoardCellKey(row: any, col: any) {
         return requireCardBoardShapeAccessMethod('toBoardCellKey')(row, col);
-    }
-
-    function hasMeteorHoleAtForCard(cardState: any, gameState: any, row: any, col: any) {
-        return requireCardBoardShapeAccessMethod('hasMeteorHoleAtForCard')(cardState, gameState, row, col);
     }
 
     function hasBoardShapeCellForCard(cardState: any, gameState: any, row: any, col: any) {
@@ -2334,24 +2326,12 @@ const {
         return false;
     }
 
-    function countDiscsForCardComparison(cardState: any, gameState: any) {
-        return requireCardAvailability().countDiscsForCardComparison(cardState, gameState);
-    }
-
-    function getDiscDisadvantageForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return requireCardAvailability().getDiscDisadvantageForPlayer(cardState, gameState, playerKey);
-    }
-
     function getEqualityWillBoardCounts(cardState: any, gameState: any) {
         return requireCardAvailability().getEqualityWillBoardCounts(cardState, gameState);
     }
 
     function getEqualityWillChargeState(cardState: any, playerKey: any) {
         return requireCardAvailability().getEqualityWillChargeState(cardState, playerKey);
-    }
-
-    function hasFewerDiscsThanOpponentForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return requireCardAvailability().hasFewerDiscsThanOpponentForPlayer(cardState, gameState, playerKey);
     }
 
     function canUseLastResortForPlayer(cardState: any, gameState: any, playerKey: any) {

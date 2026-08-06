@@ -31,12 +31,14 @@ const RUNTIME_NEUTRAL_UNUSED_DECLARATION_KINDS = new Set([
 const CLEAN_RUNTIME_UNUSED_DIAGNOSTIC_FILES = new Set([
   'game/cpu-decision-move-selection.ts',
   'game/cpu-turn-handler.ts',
+  'game/logic/cards/meteor_god.ts',
   'scripts/board-source-trajectory-browser-check.ts',
   'scripts/build-module-registry.ts',
   'ui/board-visual/model-builder.ts',
   'ui/handlers/match-mode/network-buttons.ts',
   'ui/pixi/board-scene.ts',
   'ui/pixi/effects/common.ts',
+  'ui/pixi/effects/source-trajectory-render-plan.ts',
   'ui/presentation/committed-world-state.ts'
 ]);
 

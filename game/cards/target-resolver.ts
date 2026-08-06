@@ -87,7 +87,8 @@ const Flips = CardFlips || {};
             typeof BoardUtils.createBoardView !== 'function' ||
             typeof BoardUtils.resolveExpansionSide !== 'function' ||
             typeof BoardUtils.getBoardExpansionEdgeSockets !== 'function' ||
-            typeof BoardUtils.getBoardExpansionCornerSockets !== 'function'
+            typeof BoardUtils.getBoardExpansionCornerSockets !== 'function' ||
+            typeof BoardUtils.mapBoardExpansionSocketTarget !== 'function'
         ) {
             throw new Error('[target-resolver] SharedBoardUtils board kernel is required');
         }
@@ -447,35 +448,6 @@ const Flips = CardFlips || {};
         return flips;
     }
 
-    function resolveExpansionTargetSide(directionKey: any) {
-        const key = String(directionKey || '').toLowerCase();
-        if (key === 'left') return 'left';
-        if (key === 'right') return 'right';
-        if (key === 'up') return 'top';
-        if (key === 'down') return 'bottom';
-        return null;
-    }
-
-    function mapExpansionSocketTarget(socket: any) {
-        if (!socket || !socket.anchor || !Number.isInteger(socket.anchor.row) || !Number.isInteger(socket.anchor.col)) return null;
-        const additions = Array.isArray(socket.additions)
-            ? socket.additions
-                .filter((cell: any) => cell && Number.isInteger(cell.row) && Number.isInteger(cell.col))
-                .map((cell: any) => ({ row: cell.row, col: cell.col }))
-            : [];
-        if (!additions.length || typeof socket.directionKey !== 'string' || !socket.directionKey) return null;
-        return {
-            row: socket.anchor.row,
-            col: socket.anchor.col,
-            side: resolveExpansionTargetSide(socket.directionKey),
-            direction: socket.direction && Number.isInteger(socket.direction.row) && Number.isInteger(socket.direction.col)
-                ? { row: socket.direction.row, col: socket.direction.col }
-                : null,
-            directionKey: socket.directionKey,
-            additions
-        };
-    }
-
     function getExpansionSocketTargets(cardState: any, gameState: any, kind: 'edge' | 'corner') {
         const boardUtils = requireBoardUtils();
         const context = createBoardContext(cardState, gameState);
@@ -483,7 +455,7 @@ const Flips = CardFlips || {};
             ? boardUtils.getBoardExpansionCornerSockets(context)
             : boardUtils.getBoardExpansionEdgeSockets(context);
         return sockets
-            .map(mapExpansionSocketTarget)
+            .map((socket: any) => boardUtils.mapBoardExpansionSocketTarget(socket))
             .filter((target: any) => !!target);
     }
 

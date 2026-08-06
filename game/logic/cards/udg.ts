@@ -55,7 +55,7 @@ const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'O
 
 if (!BoardUtils ||
     typeof BoardUtils.createBoardContext !== 'function' ||
-    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.collectBoardCellValues !== 'function' ||
     typeof BoardUtils.getCellValue !== 'function' ||
     typeof BoardUtils.setCellValue !== 'function') {
     throw new Error('SharedBoardUtils BoardContext access is required by CardUdG');
@@ -63,15 +63,6 @@ if (!BoardUtils ||
 
 function createBoardContext(gameState: GameState, cardState: CardState): any {
     return BoardUtils.createBoardContext(gameState, cardState);
-}
-
-function collectBoardCells(gameState: GameState, cardState: CardState): Array<{ row: number; col: number; owner: any }> {
-    const context = createBoardContext(gameState, cardState);
-    return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
-        row: cell.row,
-        col: cell.col,
-        owner: BoardUtils.getCellValue(context, cell.row, cell.col)
-    }));
 }
 
 function getCellValue(gameState: GameState, row: number, col: number, cardState: CardState): any {
@@ -158,7 +149,7 @@ function getRandomTurnStartMoveDestination(cardState: CardState, gameState: Game
     }
     const candidates: Array<{ row: number; col: number }> = [];
     const markersAt = createUdgMarkersAtLookup(cardState);
-    for (const cell of collectBoardCells(gameState, cardState)) {
+    for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
         if (cell.row === fromRow && cell.col === fromCol) continue;
         if (cell.owner !== EMPTY) continue;
         if (isBlockedDestinationCell(cardState, cell.row, cell.col, markersAt)) continue;

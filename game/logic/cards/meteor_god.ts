@@ -91,8 +91,7 @@ interface MeteorGodRandomLike {
 }
 
 interface MeteorGodCardMarkersModule {
-  isManifestStoneAt?: (cardState: MeteorGodCardState, row: number, col: number) => boolean;
-  isInviolableCell?: (cardState: MeteorGodCardState, row: number, col: number) => boolean;
+  isInviolableCell: (cardState: MeteorGodCardState, row: number, col: number) => boolean;
 }
 
 interface MeteorGodProcessDeps {
@@ -188,15 +187,18 @@ if (!SharedConstants ||
 
 const BLACK = SharedConstants.BLACK;
 const WHITE = SharedConstants.WHITE;
-const EMPTY = SharedConstants.EMPTY;
-const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
 if (!BoardUtils ||
     typeof BoardUtils.createBoardContext !== 'function' ||
-    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.collectBoardCellValues !== 'function' ||
     typeof BoardUtils.getCellValue !== 'function') {
   throw new Error('SharedBoardUtils BoardContext access is required by CardMeteorGod');
 }
+
+if (!CardMarkersModule || typeof CardMarkersModule.isInviolableCell !== 'function') {
+  throw new Error('CardMarkers.isInviolableCell is required by CardMeteorGod');
+}
+const RequiredCardMarkersModule: MeteorGodCardMarkersModule = CardMarkersModule;
 
 if (!CardCellRemoval ||
     typeof CardCellRemoval.applyHoleStyleCellRemoval !== 'function' ||
@@ -206,15 +208,6 @@ if (!CardCellRemoval ||
 
 function createBoardContext(gameState: MeteorGodGameState, cardState: MeteorGodCardState): any {
   return BoardUtils.createBoardContext(gameState, cardState);
-}
-
-function collectBoardCells(gameState: MeteorGodGameState, cardState: MeteorGodCardState): Array<{ row: number; col: number; owner: MeteorGodOwnerValue | null }> {
-  const context = createBoardContext(gameState, cardState);
-  return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
-    row: cell.row,
-    col: cell.col,
-    owner: BoardUtils.getCellValue(context, cell.row, cell.col)
-  }));
 }
 
 function getCellValue(gameState: MeteorGodGameState, row: number, col: number, cardState: MeteorGodCardState): MeteorGodOwnerValue | null {
@@ -256,27 +249,11 @@ function resolveRandomIndex(length: number, randomFn: () => number): number {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function isUntargetableStone(cardState: MeteorGodCardState, row: number, col: number): boolean {
-  if (CardMarkersModule && typeof CardMarkersModule.isInviolableCell === 'function') {
-    return CardMarkersModule.isInviolableCell(cardState, row, col) === true;
-  }
-  if (CardMarkersModule && typeof CardMarkersModule.isManifestStoneAt === 'function') {
-    return CardMarkersModule.isManifestStoneAt(cardState, row, col) === true;
-  }
-  return (cardState.markers || []).some((marker) => (
-    marker &&
-    marker.row === row &&
-    marker.col === col &&
-    (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-    MANIFEST_STONE_TYPES.has(String(marker.data && marker.data.type || '').toUpperCase())
-  ));
-}
-
 function collectEnemyTargets(cardState: MeteorGodCardState, gameState: MeteorGodGameState, enemyValue: MeteorGodOwnerValue): MeteorGodEffectPosition[] {
   const targets: MeteorGodEffectPosition[] = [];
-  for (const cell of collectBoardCells(gameState, cardState)) {
+  for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
     if (cell.owner !== enemyValue) continue;
-    if (isUntargetableStone(cardState, cell.row, cell.col)) continue;
+    if (RequiredCardMarkersModule.isInviolableCell(cardState, cell.row, cell.col) === true) continue;
     targets.push({ row: cell.row, col: cell.col });
   }
   return targets;

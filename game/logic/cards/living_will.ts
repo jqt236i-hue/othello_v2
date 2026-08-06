@@ -81,7 +81,7 @@ const HYPERACTIVE_TYPES = new Set([
 
 if (!BoardUtils ||
     typeof BoardUtils.createBoardContext !== 'function' ||
-    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.collectBoardCellValues !== 'function' ||
     typeof BoardUtils.getCellValue !== 'function') {
     throw new Error('SharedBoardUtils BoardContext access is required by CardLivingWill');
 }
@@ -301,15 +301,6 @@ function getBoardOps(deps: LivingWillDeps): any {
 
 function createBoardContext(gameState: GameState, cardState: CardState): any {
     return BoardUtils.createBoardContext(gameState, cardState);
-}
-
-function collectBoardCells(gameState: GameState, cardState: CardState): Array<{ row: number; col: number; owner: any }> {
-    const context = createBoardContext(gameState, cardState);
-    return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
-        row: cell.row,
-        col: cell.col,
-        owner: BoardUtils.getCellValue(context, cell.row, cell.col)
-    }));
 }
 
 function getCellValue(gameState: GameState, row: number, col: number, cardState: CardState, _deps: LivingWillDeps): any {
@@ -653,7 +644,7 @@ function collectEmptyReviveCells(cardState: CardState, gameState: GameState, sou
     const blockingSet = new Set(
         getBlockingMarkers(cardState).map((marker: any) => `${normalizeBoardIndex(marker.row)},${normalizeBoardIndex(marker.col)}`)
     );
-    for (const cell of collectBoardCells(gameState, cardState)) {
+    for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
         if (cell.row === sourceRow && cell.col === sourceCol) continue;
         if (cell.owner !== EMPTY) continue;
         if (blockingSet.has(`${cell.row},${cell.col}`)) continue;

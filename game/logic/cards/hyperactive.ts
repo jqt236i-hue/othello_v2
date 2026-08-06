@@ -171,13 +171,6 @@ interface BoardConfig {
     };
 }
 
-interface ExpansionCellRef {
-    expansion: any;
-    index: number;
-    cell: any;
-    legacy: boolean;
-}
-
 interface MarkerEntry {
     kind?: string;
     row: number;
@@ -334,16 +327,8 @@ function resolveExpansionSide(side: string | null, row: number, col: number, gam
     return invokeBoardShapeMethod('resolveExpansionSide', [side, row, col, gameState]);
 }
 
-function getExpansionCellRef(cardState: CardState, gameState: GameState, row: number, col: number): ExpansionCellRef | null {
-    return invokeBoardShapeMethod('getExpansionCellRef', [gameState, row, col, cardState]);
-}
-
 function hasBoardShapeCell(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
     return invokeBoardShapeMethod('hasBoardShapeCell', [gameState, row, col, cardState]);
-}
-
-function getExpansionCells(cardState: CardState, gameState: GameState): any[] {
-    return invokeBoardShapeMethod('getExpansionCells', [gameState, cardState]);
 }
 
 function forEachBoardShapeCell(cardState: CardState, gameState: GameState, visitor: (row: number, col: number, value: any, side?: string) => void): void {
