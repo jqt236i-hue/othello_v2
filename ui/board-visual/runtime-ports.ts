@@ -1,7 +1,9 @@
 import type {
   BoardClientRect,
   BoardPlaybackPhaseScope,
+  BoardVisualCommitReceipt,
   BoardVisualFrame,
+  BoardWriterMode,
   BoardWriterToken
 } from './types';
 
@@ -19,14 +21,14 @@ export interface BoardVisualControllerPort {
   waitForIdle?(): Promise<void>;
   isReady?(): boolean;
   isIdleSettlementPending?(): boolean;
-  getMode?(): string;
-  getActiveFrameToken?(): string | null;
+  getMode(): BoardWriterMode;
+  getActiveFrameToken(): string | null;
   getActiveWriterToken?(): BoardWriterToken | null;
   getBackendKind?(): 'dom' | 'pixi';
   getCellClientRect?(row: number, col: number): BoardClientRect | null;
   submitFrame(frame: BoardVisualFrame): boolean;
   claimWriter(frameToken: string, mode: 'local' | 'network'): BoardWriterToken;
-  reclaimWriter?(token: BoardWriterToken, frameToken: string, mode: 'local' | 'network'): BoardWriterToken;
+  reclaimWriter(token: BoardWriterToken, frameToken: string, mode: 'local' | 'network'): BoardWriterToken;
   validatePhase?(
     events: readonly unknown[],
     strictNetworkPlayback: boolean,
@@ -98,7 +100,10 @@ export interface BoardVisualWriterPort {
   cancelBoardVisualWriterAfterHandoff(token: BoardWriterToken, checkpoint?: BoardVisualFrame): Promise<boolean>;
   settleBoardVisualWriter(token: BoardWriterToken): Promise<boolean>;
   beginBoardVisualFrameCommit(token: BoardWriterToken): unknown;
-  applyCommittedBoardVisualFrame(token: BoardWriterToken, receipt?: unknown): Promise<boolean>;
+  applyCommittedBoardVisualFrame(
+    token: BoardWriterToken,
+    receipt: BoardVisualCommitReceipt
+  ): Promise<boolean>;
   enterBoardVisualRecovery(token: BoardWriterToken, error?: unknown): unknown;
   settleAutoBoardVisualWriter(): Promise<boolean>;
 }

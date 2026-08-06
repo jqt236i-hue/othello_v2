@@ -312,6 +312,19 @@ export interface BoardWriterToken {
   mode: 'local' | 'network';
 }
 
+/**
+ * Store-issued proof that one strict network visual snapshot was committed.
+ * Runtime settlement still verifies object identity against the visual store;
+ * this shape only prevents callers from omitting the required proof.
+ */
+export interface BoardVisualCommitReceipt {
+  readonly kind: 'network-visual-commit';
+  readonly visualSeq: number;
+  readonly visualVersion: number;
+  readonly source?: string;
+  readonly snapshotOwnership?: 'copy_on_commit';
+}
+
 export interface BoardVisualBackendDeps {
   diagnostics?: { record: (event: string, detail?: unknown) => void };
 }

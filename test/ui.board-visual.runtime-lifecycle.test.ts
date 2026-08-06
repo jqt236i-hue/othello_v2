@@ -3,6 +3,7 @@ import { JSDOM } from 'jsdom';
 const { createBoardLayoutRuntime } = require('../ui/board-visual/layout-runtime');
 const { createBoardInputRuntime } = require('../ui/board-visual/input-runtime');
 const { createBoardBackendRuntime } = require('../ui/board-visual/backend-runtime');
+const { createBoardWriterRuntime } = require('../ui/board-visual/writer-runtime');
 
 describe('board visual runtime lifecycle ownership', () => {
   test('session reset retains layout listeners while page destroy removes them', () => {
@@ -117,5 +118,55 @@ describe('board visual runtime lifecycle ownership', () => {
     expect(beforeControllerReplace).toHaveBeenCalledTimes(2);
     expect(installHostResources).toHaveBeenCalledTimes(1);
     expect(afterControllerReplace).toHaveBeenCalledTimes(1);
+  });
+
+  test('legacy writer controllers fail explicitly when synthetic ownership cannot be reclaimed', () => {
+    let mode = 'idle';
+    const syntheticToken = Object.freeze({
+      id: 1,
+      frameToken: 'legacy-playback:1',
+      mode: 'local'
+    });
+    const controller = {
+      getMode: jest.fn(() => mode),
+      claimWriter: jest.fn(() => {
+        mode = 'playback';
+        return syntheticToken;
+      })
+    };
+    const runtime = createBoardWriterRuntime({
+      getController: () => controller,
+      getNextFrameSerial: () => 1,
+      shouldDeferRenderForPlayback: () => true,
+      renderBoard: jest.fn(),
+      buildFrame: jest.fn(),
+      getRenderStateSource: jest.fn(),
+      updateOccupancy: jest.fn()
+    });
+
+    expect(runtime.preparePlaybackOwnership(controller, true)).toEqual({});
+    expect(controller.claimWriter).toHaveBeenCalledWith('legacy-playback:1', 'local');
+    expect(runtime.checkInvalidation(controller)).toEqual({ invalidated: true });
+    expect(() => runtime.claim('network:2', 'network'))
+      .toThrow('Board visual controller cannot reclaim synthetic writer ownership');
+  });
+
+  test('legacy writer controllers fail explicitly when playback mode is unavailable', () => {
+    const controller = {
+      claimWriter: jest.fn()
+    };
+    const runtime = createBoardWriterRuntime({
+      getController: () => controller,
+      getNextFrameSerial: () => 1,
+      shouldDeferRenderForPlayback: () => true,
+      renderBoard: jest.fn(),
+      buildFrame: jest.fn(),
+      getRenderStateSource: jest.fn(),
+      updateOccupancy: jest.fn()
+    });
+
+    expect(() => runtime.preparePlaybackOwnership(controller, true))
+      .toThrow('Board visual controller cannot report writer mode for playback ownership');
+    expect(controller.claimWriter).not.toHaveBeenCalled();
   });
 });

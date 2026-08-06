@@ -458,9 +458,14 @@ export function createBoardFrameRuntime(dependencies: BoardFrameRuntimeDependenc
               viewportHeight: model.topology.renderRows * layoutCellSize
           }
       });
-      const frameToken = controller && controller.getActiveFrameToken()
+      const activeFrameToken = controller && typeof controller.getActiveFrameToken === 'function'
           ? controller.getActiveFrameToken()
-          : `idle:${frameSerial}`;
+          : (
+              controller && typeof controller.getActiveWriterToken === 'function'
+                  ? controller.getActiveWriterToken()?.frameToken || null
+                  : null
+          );
+      const frameToken = activeFrameToken || `idle:${frameSerial}`;
       if (!BoardVisualFrameRevisionComposerForBoardRenderer) {
           BoardVisualFrameRevisionComposerForBoardRenderer = FramePresenterModule.createBoardVisualFrameRevisionComposer();
       }

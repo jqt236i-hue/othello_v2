@@ -87,7 +87,14 @@ export function createBoardRenderSubmissionRuntime(
       if (prepared.deferredUntilAutoWriter === true || prepared.invalidated === true) return;
       const playbackDeferred = prepared.playbackDeferred === true;
       const applied = controller.submitFrame(prepared.frame);
-      if (applied === true || (!playbackDeferred && controller.getMode() === 'idle')) {
+      if (
+        applied === true
+        || (
+          !playbackDeferred
+          && typeof controller.getMode === 'function'
+          && controller.getMode() === 'idle'
+        )
+      ) {
         dependencies.updateOccupancy();
       }
     } finally {

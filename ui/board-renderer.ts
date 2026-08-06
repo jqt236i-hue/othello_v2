@@ -5,6 +5,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 import type { BoardRendererFacade } from './board-visual/runtime-ports';
+import type { BoardVisualCommitReceipt } from './board-visual/types';
 
 const RuntimeStateAccessModule = _require('./runtime-state-access');
 const BoardDomLayoutGeometryModule = _require('./board-visual/dom-layout-geometry');
@@ -722,7 +723,7 @@ function beginBoardVisualFrameCommit(token: any) {
     return _getBoardWriterRuntimeForBoardRenderer().beginFrameCommit(token);
 }
 
-function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
+function applyCommittedBoardVisualFrame(token: any, receipt: BoardVisualCommitReceipt) {
     return _getBoardWriterRuntimeForBoardRenderer().applyCommittedFrame(token, receipt);
 }
 

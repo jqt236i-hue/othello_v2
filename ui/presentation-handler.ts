@@ -6,6 +6,7 @@ import type {
   BoardVisualGeometryPort,
   BoardVisualWriterPort
 } from './board-visual/runtime-ports';
+import type { BoardVisualCommitReceipt } from './board-visual/types';
 
 type BoardPresentationRendererPort = BoardVisualWriterPort
   & Pick<BoardVisualControllerPortApi, 'getBoardVisualControllerReady'>
@@ -838,7 +839,7 @@ function createStrictNetworkSettlementHandle(options: {
   const publicHandle = Object.freeze({
     kind: 'strict-network-settlement' as const,
     visualSeq: options.visualSeq,
-    async applyCommittedFrame(receipt: any) {
+    async applyCommittedFrame(receipt: BoardVisualCommitReceipt) {
       assertOwned();
       if (terminalOperation) throw new Error('Strict network settlement is already terminating');
       if (committedFrameApplied) return true;

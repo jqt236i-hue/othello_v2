@@ -104,6 +104,24 @@ describe('board-renderer font-ready theme refresh', () => {
     expect(after.theme.fontReadyEpoch).toBe(before.theme.fontReadyEpoch + 1);
   });
 
+  test('keeps the untyped legacy injection path safe when read capabilities are absent', () => {
+    const renderer = require('../ui/board-renderer.js');
+    const controller = createController();
+    delete (controller as any).getMode;
+    delete (controller as any).getActiveFrameToken;
+    controller.submitFrame.mockImplementation((frame: any) => {
+      controller.frames.push(frame);
+      return false;
+    });
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+
+    renderer.configureBoardVisualController(controller, { host });
+
+    expect(() => renderer.renderBoard()).not.toThrow();
+    expect(controller.submitFrame).toHaveBeenCalledTimes(1);
+    expect(controller.frames[0].frameToken).toMatch(/^idle:/);
+  });
+
   test('occupancy excludes an expansion stone hidden by METEOR_HOLE', () => {
     const legacyOccupancy = jest.fn();
     (dom.window as any).updateOccupancyUI = legacyOccupancy;

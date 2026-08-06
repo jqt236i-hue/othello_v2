@@ -1,5 +1,7 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+import type { BoardVisualCommitReceipt } from './types';
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
@@ -33,7 +35,7 @@ export interface BoardWriterRuntime {
   cancelAfterHandoff(token: any, checkpoint?: any): Promise<any>;
   settle(token: any): Promise<any>;
   beginFrameCommit(token: any): any;
-  applyCommittedFrame(token: any, receipt?: any): Promise<boolean>;
+  applyCommittedFrame(token: any, receipt: BoardVisualCommitReceipt): Promise<boolean>;
   enterRecovery(token: any, error?: unknown): any;
   settleAutoWriter(): Promise<boolean>;
   getInvalidationDiagnostics(): any;
@@ -169,6 +171,9 @@ export function createBoardWriterRuntime(dependencies: BoardWriterRuntimeDepende
       if (!controller) throw new Error('Board visual controller is unavailable');
       if (AutoBoardWriterTokenForBoardRenderer) {
           const previousToken = AutoBoardWriterTokenForBoardRenderer;
+          if (typeof controller.reclaimWriter !== 'function') {
+              throw new Error('Board visual controller cannot reclaim synthetic writer ownership');
+          }
           const adopted = controller.reclaimWriter(previousToken, frameToken, mode);
           BoardVisualInvalidationAccumulatorForBoardRenderer.rebind(previousToken, adopted);
           AutoBoardWriterTokenForBoardRenderer = null;
@@ -274,15 +279,13 @@ export function createBoardWriterRuntime(dependencies: BoardWriterRuntimeDepende
       return controller.beginAwaitingFrameCommit(token);
   }
 
-  async function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
+  async function applyCommittedBoardVisualFrame(token: any, receipt: BoardVisualCommitReceipt) {
       const controller = dependencies.getController();
       if (!controller) throw new Error('Board visual controller is unavailable');
       if (
-          receipt
-          && (
-              receipt.kind !== 'network-visual-commit'
-              || receipt.visualSeq !== Number(String(token && token.frameToken || '').split(':').pop())
-          )
+          !receipt
+          || receipt.kind !== 'network-visual-commit'
+          || receipt.visualSeq !== Number(String(token && token.frameToken || '').split(':').pop())
       ) {
           throw new Error('Committed board visual receipt does not match the writer token');
       }
@@ -358,6 +361,9 @@ export function createBoardWriterRuntime(dependencies: BoardWriterRuntimeDepende
     controller: any,
     playbackDeferred: boolean
   ): BoardWriterSubmissionDecision {
+    if (playbackDeferred && typeof controller.getMode !== 'function') {
+      throw new Error('Board visual controller cannot report writer mode for playback ownership');
+    }
     if (playbackDeferred && controller.getMode() === 'idle') {
       const idleSettlementPending = typeof controller.isIdleSettlementPending === 'function'
         && controller.isIdleSettlementPending() === true;
@@ -380,7 +386,10 @@ export function createBoardWriterRuntime(dependencies: BoardWriterRuntimeDepende
     const activeWriterToken = typeof controller.getActiveWriterToken === 'function'
       ? controller.getActiveWriterToken()
       : AutoBoardWriterTokenForBoardRenderer;
-    if (activeWriterToken && controller.getMode() !== 'idle') {
+    if (
+      activeWriterToken
+      && (typeof controller.getMode !== 'function' || controller.getMode() !== 'idle')
+    ) {
       BoardVisualInvalidationAccumulatorForBoardRenderer.mark(activeWriterToken, 'render-request');
       return Object.freeze({ invalidated: true });
     }
