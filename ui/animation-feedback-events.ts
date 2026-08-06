@@ -13,6 +13,7 @@ type AnimationFeedbackEventDeps = {
     isAborted?: () => boolean;
     observerBubbleMs?: any;
     observerBubbleFadeMs?: any;
+    requireAnchor?: boolean;
     getCellClientRect?: (row: any, col: any) => {
         left: number;
         top: number;
@@ -586,13 +587,25 @@ function handleObserverBubbleEvent(ev: any, deps: AnimationFeedbackEventDeps = {
     const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
     if (!targets.length) return Promise.resolve();
 
-    for (const target of targets) {
+    const resolvedTargets: Array<{
+        target: any;
+        row: number | null;
+        col: number | null;
+        rect: any;
+    }> = targets.map((target: any) => {
         const row = Number.isInteger(target && target.r) ? target.r : null;
         const col = Number.isInteger(target && target.col) ? target.col : null;
-        if (row === null || col === null) continue;
+        const rect = row !== null && col !== null && deps.getCellClientRect
+            ? deps.getCellClientRect(row, col)
+            : null;
+        return { target, row, col, rect };
+    });
+    if (deps.requireAnchor && resolvedTargets.some(({ row, col, rect }) => row === null || col === null || !rect)) {
+        throw new Error('observer_bubble_anchor_unavailable');
+    }
 
-        const rect = deps.getCellClientRect ? deps.getCellClientRect(row, col) : null;
-        if (!rect) continue;
+    for (const { target, row, col, rect } of resolvedTargets) {
+        if (row === null || col === null || !rect) continue;
 
         const bubbleKind = String((target && target.bubbleKind) || '').trim().toLowerCase() === 'charge'
             ? 'charge'

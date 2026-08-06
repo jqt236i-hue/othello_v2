@@ -1528,7 +1528,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             });
         }
 
-        async handleObserverBubble(ev: any) {
+        async handleObserverBubble(ev: any, options?: any) {
             if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleObserverBubbleEvent === 'function')) {
                 throw new Error('AnimationEngine observer event module unavailable');
             }
@@ -1543,6 +1543,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 isNoAnim: _isNoAnim,
                 observerBubbleMs: Constants.OBSERVER_BUBBLE_MS,
                 observerBubbleFadeMs: Constants.OBSERVER_BUBBLE_FADE_MS,
+                requireAnchor: !!(options && options.requireAnchor === true),
                 getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col)
             });
         }

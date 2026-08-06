@@ -446,6 +446,75 @@ function getPlaybackDispatchDeps(): any {
   return deps;
 }
 
+function isSpecialStoneBubblePlaybackEvent(event: any): boolean {
+  if (!event || typeof event !== 'object') return false;
+  if (String(event.type || '').trim().toLowerCase() !== 'observer_bubble') return false;
+  const rawType = String(
+    event.rawType
+    || (event.meta && typeof event.meta === 'object' && event.meta.rawType)
+    || ''
+  ).trim().toUpperCase();
+  return rawType === 'SPECIAL_STONE_BUBBLE';
+}
+
+function resolveBubbleTargetCoordinate(target: any): { row: number; col: number } | null {
+  if (!target || typeof target !== 'object') return null;
+  const row = Number(Object.prototype.hasOwnProperty.call(target, 'r') ? target.r : target.row);
+  const col = Number(Object.prototype.hasOwnProperty.call(target, 'col') ? target.col : target.c);
+  if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+  return { row, col };
+}
+
+function splitStrictNetworkSpecialStoneBubbleEvents(payload: any[], renderer: any): {
+  immediateEvents: any[];
+  postCommitEvents: any[];
+} {
+  const immediateEvents: any[] = [];
+  const postCommitEvents: any[] = [];
+  const canResolveCurrentAnchor = !!(
+    renderer
+    && typeof renderer.getBoardCellClientRect === 'function'
+  );
+  for (const event of payload) {
+    if (!isSpecialStoneBubblePlaybackEvent(event) || !canResolveCurrentAnchor || !Array.isArray(event.targets)) {
+      immediateEvents.push(event);
+      continue;
+    }
+    const immediateTargets: any[] = [];
+    const postCommitTargets: any[] = [];
+    for (const target of event.targets) {
+      const coordinate = resolveBubbleTargetCoordinate(target);
+      if (!coordinate) {
+        // Preserve malformed data for the normal strict dispatcher instead of
+        // treating it as a recoverable geometry delay.
+        immediateTargets.push(target);
+      } else if (renderer.getBoardCellClientRect(coordinate.row, coordinate.col)) {
+        immediateTargets.push(target);
+      } else {
+        postCommitTargets.push(target);
+      }
+    }
+    if (immediateTargets.length) {
+      immediateEvents.push(Object.assign({}, event, { targets: immediateTargets }));
+    }
+    if (postCommitTargets.length) {
+      postCommitEvents.push(Object.assign({}, event, { targets: postCommitTargets }));
+    }
+  }
+  return { immediateEvents, postCommitEvents };
+}
+
+async function playSpecialStoneBubblesAfterCommittedFrame(events: any[]): Promise<void> {
+  if (!events.length) return;
+  const animationEngine = getPlaybackDispatchDeps().AnimationEngine;
+  if (!animationEngine || typeof animationEngine.handleObserverBubble !== 'function') {
+    throw new Error('strict_network_special_stone_bubble_handler_unavailable');
+  }
+  for (const event of events) {
+    await animationEngine.handleObserverBubble(event, { requireAnchor: true });
+  }
+}
+
 function resolvePlaybackStateManagerForPresentation(): any {
   const globalManager = resolveFromGlobal('PlaybackStateManager');
   if (globalManager && typeof globalManager === 'object') return globalManager;
@@ -668,6 +737,7 @@ function createStrictNetworkSettlementHandle(options: {
   boardWriterToken: any;
   renderer: any;
   requiresPlaybackSettlement: boolean;
+  playAfterCommittedFrame?: () => Promise<void> | void;
 }) {
   const manager = resolvePlaybackStateManagerForPresentation();
   let handedOff = false;
@@ -772,6 +842,9 @@ function createStrictNetworkSettlementHandle(options: {
         applyPromise = (async () => {
           const applied = await options.renderer.applyCommittedBoardVisualFrame(options.boardWriterToken, receipt);
           if (applied !== true) throw new Error('Strict network committed board frame was not applied');
+          if (typeof options.playAfterCommittedFrame === 'function') {
+            await options.playAfterCommittedFrame();
+          }
           committedFrameApplied = true;
           return true;
         })();
@@ -921,6 +994,7 @@ function createStrictNetworkSettlementHandle(options: {
 
 async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   let payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
+  const payloadForClaim = payload.slice();
   const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
   const outerVisualSeq = Number(ev && ev.meta && ev.meta.visualSeq);
   if (strictNetworkPlayback && Number.isInteger(outerVisualSeq) && outerVisualSeq >= 0) {
@@ -943,7 +1017,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   }
   if (!payload.length && !strictNetworkPlayback) return;
   const suppressPlayback = !!(ev && ev.meta && ev.meta.suppressPlayback === true);
-  const payloadTypes = payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value);
+  const payloadTypes = payloadForClaim.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value);
 
   const opts = options && typeof options === 'object' ? options : {};
   emitPresentationDebugConsole('playback_batch_received', {
@@ -951,7 +1025,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
     suppressPlayback,
     payloadCount: payload.length,
     payloadTypes,
-    targetSummary: getPlaybackTargetSummary(payload)
+    targetSummary: getPlaybackTargetSummary(payloadForClaim)
   });
   if (!suppressPlayback) {
     if (opts.emitEnemyCardReaction !== false) {
@@ -970,7 +1044,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   if (!strictNetworkPlayback && activeLocalPresentationDrainClaim) {
     finalizePlaybackSettlements(activeLocalPresentationDrainClaim);
   }
-  const playbackClaim = claimPlaybackBatchForPresentation(ev, payload);
+  const playbackClaim = claimPlaybackBatchForPresentation(ev, payloadForClaim);
   let strictSettlement: any = null;
   let strictOwnershipTransferred = false;
   let activeBoardWriterToken: any = null;
@@ -1001,12 +1075,23 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
       }
       boardWriterToken = renderer.claimBoardVisualWriter(`network:${visualSeq}`, 'network');
       activeBoardWriterToken = boardWriterToken;
+      const hasSpecialStoneBubble = payload.some(isSpecialStoneBubblePlaybackEvent);
+      if (hasSpecialStoneBubble && typeof renderer.getBoardVisualControllerReady === 'function') {
+        await renderer.getBoardVisualControllerReady();
+      }
+      const specialStoneBubbles = hasSpecialStoneBubble
+        ? splitStrictNetworkSpecialStoneBubbleEvents(payload, renderer)
+        : { immediateEvents: payload, postCommitEvents: [] };
+      payload = specialStoneBubbles.immediateEvents;
       strictSettlement = createStrictNetworkSettlementHandle({
         visualSeq,
         managerClaim: playbackClaim,
         boardWriterToken,
         renderer,
-        requiresPlaybackSettlement: payload.length > 0
+        requiresPlaybackSettlement: payload.length > 0,
+        playAfterCommittedFrame: specialStoneBubbles.postCommitEvents.length > 0
+          ? () => playSpecialStoneBubblesAfterCommittedFrame(specialStoneBubbles.postCommitEvents)
+          : undefined
       });
     } catch (error) {
       if (boardWriterToken && renderer) {
