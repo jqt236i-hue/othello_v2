@@ -423,8 +423,11 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     const purposes = stoneTexturePurposes(owner, specialType);
     const basePurposes = [`${owner}-stone`, `stone:${owner}`];
     const specialTexture = stone ? resolvePixiStaticTexture(context.textures, purposes) : null;
-    const freezeOverlayTexture = normalizedSpecialType === 'FREEZE'
-      ? resolvePixiStaticTexture(context.textures, purposes.slice(0, 4))
+    const freezeMarker = stoneMarkers.find((marker) => marker.kind === 'frozen');
+    const freezeOverlayOwner = freezeMarker?.owner || owner;
+    const freezeOverlayPurposes = stoneTexturePurposes(freezeOverlayOwner, 'FREEZE').slice(0, 4);
+    const freezeOverlayTexture = freezeMarker
+      ? resolvePixiStaticTexture(context.textures, freezeOverlayPurposes)
       : null;
     const texture = stone
       ? (normalizedSpecialType === 'FREEZE'

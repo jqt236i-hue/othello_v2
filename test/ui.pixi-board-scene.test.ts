@@ -477,6 +477,50 @@ describe('Pixi static retained views', () => {
     expect(overlap).toEqual([]);
   });
 
+  test('layers the caster-owned freeze image over an opponent special stone without replacing its own image', () => {
+    const fixture = createFakeRuntime();
+    const stoneView = StoneView.createPixiStoneView(fixture.runtime);
+    const workTexture = { id: 'work-texture' };
+    const freezeTexture = { id: 'freeze-texture' };
+    const cell = materializedCell(makeCell('2,2', {
+      stone: {
+        owner: 'white',
+        value: -1,
+        specialType: 'WORK',
+        status: { remainingOwnerTurns: 4 }
+      },
+      markers: [
+        { kind: 'special', owner: 'white', value: null, data: { type: 'WORK', remainingOwnerTurns: 4 } },
+        { kind: 'frozen', owner: 'black', value: null, data: { type: 'FREEZE', remainingOwnerTurns: 5 } }
+      ]
+    }));
+    const textures = new Map([
+      ['special-stone:WORK:white', { texture: workTexture }],
+      ['special-stone:FREEZE:black', { texture: freezeTexture }]
+    ]);
+
+    expect(stoneView.update(cell, viewContext({ textures }))).toBe(true);
+
+    const stoneSprite = stoneView.root.children.find((child: any) => child.label === 'pixi-stone-texture');
+    const freezeOverlay = stoneView.root.children.find((child: any) => child.label === 'pixi-stone-marker-overlay');
+    expect(stoneView.getDiagnostics()).toMatchObject({
+      visible: true,
+      specialType: 'WORK',
+      textureBacked: true,
+      texturePurpose: 'special-stone:WORK:white',
+      renderedMarkerKinds: ['special', 'frozen'],
+      statusLabels: expect.arrayContaining([{ kind: 'freeze', value: '5' }])
+    });
+    expect(stoneSprite).toMatchObject({ visible: true, texture: workTexture });
+    expect(freezeOverlay).toMatchObject({
+      visible: true,
+      texture: freezeTexture,
+      alpha: 0.62,
+      width: 32,
+      height: 32
+    });
+  });
+
   test('moves a retained stone without rebuilding its static visual', () => {
     const fixture = createFakeRuntime();
     const stoneView = StoneView.createPixiStoneView(fixture.runtime);
