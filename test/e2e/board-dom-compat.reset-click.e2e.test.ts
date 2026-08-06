@@ -112,4 +112,64 @@ describe('UI Reset & Click E2E', () => {
 
     await page.close();
   }, 30000);
+
+  test('DEBUG reset keeps the all-cards hand stable across repeated resets', async () => {
+    if (!browser || serverPort === null) throw new Error('E2E runtime is not initialized');
+    const page = await browser.newPage();
+    try {
+      await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&boardRenderer=dom&noanim=1`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await closeMaintenanceNoticeIfPresent(page);
+      await page.waitForFunction(() => {
+        const root = window as unknown as { gameState?: unknown; cardState?: unknown; resetGame?: unknown };
+        return !!root.gameState && !!root.cardState && typeof root.resetGame === 'function';
+      }, { timeout: 10000 });
+      await closeSidePanelIfPresent(page);
+
+      await page.locator('#debugModeBtn').click();
+      await page.waitForFunction(() => {
+        const root = window as unknown as {
+          DEBUG_UNLIMITED_USAGE?: boolean;
+          cardState?: { hands?: { black?: unknown[]; white?: unknown[] }; debugHandFilled?: boolean; debugNoDraw?: boolean };
+        };
+        return root.DEBUG_UNLIMITED_USAGE === true
+          && root.cardState?.debugHandFilled === true
+          && root.cardState?.debugNoDraw === true
+          && Array.isArray(root.cardState?.hands?.black)
+          && root.cardState.hands.black.length > 0;
+      }, { timeout: 10000 });
+      await closeSidePanelIfPresent(page);
+
+      const initialHandSizes = await page.evaluate(() => {
+        const root = window as unknown as { cardState?: { hands?: { black?: unknown[]; white?: unknown[] } } };
+        return {
+          black: root.cardState?.hands?.black?.length || 0,
+          white: root.cardState?.hands?.white?.length || 0
+        };
+      });
+      expect(initialHandSizes.black).toBeGreaterThan(0);
+
+      for (let resetAttempt = 0; resetAttempt < 2; resetAttempt += 1) {
+        await page.locator('#resetBtn').click();
+        await page.waitForFunction((expectedHandSizes) => {
+          const root = window as unknown as {
+            DEBUG_UNLIMITED_USAGE?: boolean;
+            isProcessing?: boolean;
+            isCardAnimating?: boolean;
+            cardState?: { hands?: { black?: unknown[]; white?: unknown[] }; debugHandFilled?: boolean; debugNoDraw?: boolean };
+          };
+          return root.DEBUG_UNLIMITED_USAGE === true
+            && root.isProcessing !== true
+            && root.isCardAnimating !== true
+            && root.cardState?.debugHandFilled === true
+            && root.cardState?.debugNoDraw === true
+            && root.cardState.hands?.black?.length === expectedHandSizes.black
+            && root.cardState.hands?.white?.length === expectedHandSizes.white;
+        }, initialHandSizes, { timeout: 10000 });
+      }
+
+      expect(await page.locator('#debugModeBtn').textContent()).toBe('DEBUG: ON');
+    } finally {
+      await page.close();
+    }
+  }, 30000);
 });

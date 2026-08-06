@@ -2272,9 +2272,17 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     },
                     applyDebugTestScenarioAfterReset: (payload: any) => {
                         try {
-                            if (!isDebugSessionEnabled()) return { applied: false, reason: 'debug_disabled' };
                             const root = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
-                            if (root && typeof root.getCurrentMatchMode === 'function' && root.getCurrentMatchMode() === 'network') {
+                            const registeredGlobals = getRegisteredUIGlobals();
+                            const debugUnlimitedUsage = !!(
+                                (registeredGlobals && registeredGlobals.DEBUG_UNLIMITED_USAGE === true)
+                                || (root && root.DEBUG_UNLIMITED_USAGE === true)
+                            );
+                            if (!isDebugSessionEnabled() && !debugUnlimitedUsage) return { applied: false, reason: 'debug_disabled' };
+                            const matchMode = root && typeof root.getCurrentMatchMode === 'function'
+                                ? String(root.getCurrentMatchMode() || '').toLowerCase()
+                                : String(root && root.MATCH_MODE || '').toLowerCase();
+                            if (matchMode === 'network') {
                                 return { applied: false, reason: 'network_mode' };
                             }
                             const scenarios = require('./debug-test-scenarios');
@@ -2282,11 +2290,33 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 return { applied: false, reason: 'scenario_module_unavailable' };
                             }
                             const scenarioId = scenarios.readDebugTestScenarioFromLocation(root);
-                            if (!scenarioId) return { applied: false, reason: 'no_scenario' };
-                            return scenarios.applyDebugTestScenarioAfterReset({
-                                ...(payload && typeof payload === 'object' ? payload : {}),
-                                scenarioId
-                            });
+                            if (scenarioId) {
+                                return scenarios.applyDebugTestScenarioAfterReset({
+                                    ...(payload && typeof payload === 'object' ? payload : {}),
+                                    scenarioId
+                                });
+                            }
+
+                            // A local reset rebuilds cardState. Re-apply the ordinary DEBUG
+                            // hand after that rebuild so the DEBUG toggle and playable hand
+                            // remain in sync. URL-selected scenarios own their own reset state.
+                            if (!debugUnlimitedUsage) return { applied: false, reason: 'no_scenario' };
+                            const cardState = payload && payload.cardState;
+                            if (!cardState || typeof cardState !== 'object') {
+                                return { applied: false, reason: 'missing_card_state' };
+                            }
+                            const debugActions = require('../game/debug/debug-actions');
+                            if (!debugActions || typeof debugActions.fillDebugHand !== 'function') {
+                                return { applied: false, reason: 'debug_actions_unavailable' };
+                            }
+                            const fillWhite = !!(
+                                (registeredGlobals && registeredGlobals.DEBUG_HUMAN_VS_HUMAN === true)
+                                || (root && root.DEBUG_HUMAN_VS_HUMAN === true)
+                            );
+                            return {
+                                applied: debugActions.fillDebugHand(cardState, { fillWhite }),
+                                reason: 'debug_hand_refilled'
+                            };
                         } catch (e: any) {
                             return { applied: false, reason: 'scenario_error', error: e && e.message ? e.message : String(e) };
                         }

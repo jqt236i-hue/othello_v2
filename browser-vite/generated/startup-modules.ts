@@ -485,6 +485,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/cell-render-signatures": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/cell-render-signatures.js"),
   "ui/board-visual/controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/controller.js"),
   "ui/board-visual/diagnostics": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/diagnostics.js"),
+  "ui/board-visual/dom-layout-geometry": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/dom-layout-geometry.js"),
   "ui/board-visual/effect-bounds": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/effect-bounds.js"),
   "ui/board-visual/effect-branch-inventory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/effect-branch-inventory.js"),
   "ui/board-visual/equality": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/equality.js"),
@@ -495,6 +496,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/model-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model-builder.js"),
   "ui/board-visual/playback-interruption": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-interruption.js"),
   "ui/board-visual/playback-types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-types.js"),
+  "ui/board-visual/revision-fingerprint": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/revision-fingerprint.js"),
   "ui/board-visual/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/source-trajectory.js"),
   "ui/board-visual/state-adapter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/state-adapter.js"),
   "ui/board-visual/theme": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/theme.js"),
@@ -584,6 +586,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/network/game-contract-adapter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/game-contract-adapter.js"),
   "ui/network/intake-coordinator": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/intake-coordinator.js"),
   "ui/network/intake-envelope": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/intake-envelope.js"),
+  "ui/network/placement-feedback": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/placement-feedback.js"),
   "ui/network/playback-dispatcher": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/playback-dispatcher.js"),
   "ui/network/playback-recovery": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/playback-recovery.js"),
   "ui/network/player-key": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/player-key.js"),
@@ -1202,6 +1205,7 @@ installBootModuleMetadata({
     "ui/board-visual/cell-render-signatures",
     "ui/board-visual/controller",
     "ui/board-visual/diagnostics",
+    "ui/board-visual/dom-layout-geometry",
     "ui/board-visual/effect-bounds",
     "ui/board-visual/effect-branch-inventory",
     "ui/board-visual/equality",
@@ -1213,6 +1217,7 @@ installBootModuleMetadata({
     "ui/board-visual/performance-harness",
     "ui/board-visual/playback-interruption",
     "ui/board-visual/playback-types",
+    "ui/board-visual/revision-fingerprint",
     "ui/board-visual/source-trajectory",
     "ui/board-visual/state-adapter",
     "ui/board-visual/theme",
@@ -1302,6 +1307,7 @@ installBootModuleMetadata({
     "ui/network/game-contract-adapter",
     "ui/network/intake-coordinator",
     "ui/network/intake-envelope",
+    "ui/network/placement-feedback",
     "ui/network/playback-dispatcher",
     "ui/network/playback-recovery",
     "ui/network/player-key",
@@ -1508,4 +1514,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 703;
+export const startupModuleCount = 706;

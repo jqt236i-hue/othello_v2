@@ -803,6 +803,9 @@ async function scrollPixiViewport(
     viewport.scrollTop = target === 'end' ? Math.max(0, viewport.scrollHeight - viewport.clientHeight) : 0;
     viewport.dispatchEvent(new Event('scroll'));
   }, position);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
   await page.evaluate(async () => (window as any).__boardVisualDebug.waitForIdle());
   return readRuntimeSnapshot(page, probeKeys);
 }

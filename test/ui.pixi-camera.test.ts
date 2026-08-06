@@ -101,6 +101,9 @@ function createHarness(options: Record<string, unknown> = {}) {
     setSize(nextWidth: number, nextHeight: number) { width = nextWidth; height = nextHeight; },
     setPosition(nextLeft: number, nextTop: number) { left = nextLeft; top = nextTop; },
     fireResize() { resizeCallback?.(); },
+    fireScroll() {
+      camera.getViewportElement().dispatchEvent(new dom.window.Event('scroll'));
+    },
     flushAnimationFrame() {
       const callbacks = Array.from(animationFrames.values());
       animationFrames.clear();
@@ -334,6 +337,28 @@ describe('Pixi board camera', () => {
     expect(second.camera).toMatchObject({ viewportWidth: 200, viewportHeight: 180 });
     expect(secondRect.left).toBe(firstRect.left - 11);
     expect(secondRect.top).toBe(firstRect.top - 13);
+  });
+
+  test('uses live viewport offsets during scroll refresh without weakening topology sync preservation', () => {
+    const harness = createHarness();
+    const nextTopology = topology();
+    harness.camera.sync(nextTopology, seedLayout(nextTopology), 'match:stable-board');
+    harness.changes.length = 0;
+
+    harness.camera.getViewportElement().scrollLeft = 120;
+    harness.camera.getViewportElement().scrollTop = 80;
+    harness.fireScroll();
+    harness.flushAnimationFrame();
+
+    expect(harness.camera.getLayout().camera).toMatchObject({ scrollLeft: 120, scrollTop: 80 });
+    expect(harness.changes.at(-1)).toMatchObject({ kind: 'render-space' });
+
+    harness.camera.getViewportElement().scrollLeft = 0;
+    harness.camera.getViewportElement().scrollTop = 0;
+    const expanded = topology({ minRow: -1, maxRow: 16, minCol: -1, maxCol: 16 });
+    const synced = harness.camera.sync(expanded, seedLayout(expanded), 'match:stable-board');
+
+    expect(synced.camera).toMatchObject({ scrollLeft: 160, scrollTop: 120 });
   });
 
   test('refreshes client origin when responsive layout moves without resizing the viewport', () => {

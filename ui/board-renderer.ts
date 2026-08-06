@@ -1003,6 +1003,10 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
         }
     }
     syncBoardExpansionLayerGeometry(boardElement, shape);
+    // The writes above change the live board/frame geometry. Do not let the
+    // pre-write measurement seed the Pixi viewport; the first post-sync read
+    // establishes the reusable settled-layout measurement instead.
+    _boardPixelSizingMeasurementByElement.delete(boardElement);
     // PR2 (N3 dirty gate): commit new signature and clear the dirty flag so
     // the next call (with the same signature) can early-return.
     _boardPixelSizingSignature = _currentSig;
@@ -2671,10 +2675,6 @@ function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: 
 }
 
 function _readBoardCellSizeForLayout(host: any, topology?: any) {
-    try {
-        const value = parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-size-px') || ''));
-        if (Number.isFinite(value) && value > 0) return value;
-    } catch (e: any) { /* use live measurement fallback */ }
     if (host && topology) {
         const shape = _normalizeBoardShapeForPixelSizing({
             rows: topology.renderRows,
@@ -2687,6 +2687,10 @@ function _readBoardCellSizeForLayout(host: any, topology?: any) {
         const measurement = _measureBoardPixelSizing(host, shape);
         if (measurement && measurement.cellSize > 0) return measurement.cellSize;
     }
+    try {
+        const value = parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-size-px') || ''));
+        if (Number.isFinite(value) && value > 0) return value;
+    } catch (e: any) { /* use unit fallback */ }
     return 1;
 }
 
