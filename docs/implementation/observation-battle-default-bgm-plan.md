@@ -1,6 +1,6 @@
 # Observation Battle default BGM implementation plan
 
-- Status: completed / deployed on 2026-08-06
+- Status: completed / cache-safe revised mix deployed on 2026-08-06
 - Date: 2026-08-06
 - Design: `docs/implementation/observation-battle-default-bgm-design.md`
 - Execution mode: source-first, focused verification, generated mirror, public deploy
@@ -63,6 +63,21 @@ Cloudflare deployment succeeds and the public Worker serves the new asset succes
 
 Result: deployed as Worker version `25201337-70eb-4022-8543-81b29094db2e` at `https://card.reversi-0.workers.dev`. The public MP3 was verified at `200 audio/mpeg` with 1,994,013 bytes and a matching SHA-256.
 
+## Phase 5 — Adopt the revised mix
+
+### Work
+
+1. Compare `Observation Battle3.mp3` with the currently adopted canonical asset by SHA-256 and inspect its BPM/duration metadata.
+2. Move the revised bytes to the unique canonical path `assets/audio/bgm/Observation Battle3.mp3` and update only the default track's technical asset reference; retain the player-facing name, playlist position, 135 BPM metadata, and 112-beat loop formula.
+3. Regenerate `worker-public/` through the existing preparation command, verify the root and mirror asset hashes, and deploy the revised bytes.
+4. Verify the public MP3 response hash against the revised local asset, then commit only the revised asset and task-owned implementation records.
+
+### Verification / done condition
+
+The revised source and `assets/audio/bgm/Observation Battle3.mp3` share SHA-256 `f37b727225319e651335be1b2a57d17d67e5b0cd6cbe0cd9c40193ebcf773f33`; `TBPM=135` and the approximately 49.777771-second phrase duration remain unchanged. The focused sound test, mirror check, deployment, and public response verification pass, including a normal cacheable request to the unique path.
+
+Result: deployed as Worker version `24c5a18b-a05b-4793-ab25-40beefc41544` at `https://card.reversi-0.workers.dev`. The public unique-path MP3 returned `200 audio/mpeg`, 1,994,013 bytes, and the matching revised SHA-256. The public `index.html` points to `index.vite-DfaTPj2E.js`, and the public module registry contains the new default path.
+
 ## Completion checklist
 
 - [x] Asset moved to the canonical BGM directory and source path cleared.
@@ -71,6 +86,7 @@ Result: deployed as Worker version `25201337-70eb-4022-8543-81b29094db2e` at `ht
 - [x] Browser build and asset-delivery verification pass.
 - [x] Worker mirror is generated and verified.
 - [x] Public deployment succeeds and serves the new asset.
+- [x] Revised mixing-only render is selected through the cache-safe unique path and served publicly with the matching hash.
 - [x] Final diff/status review is complete.
 - [x] Task-owned source/spec/test/assets/design/plan files are committed; overlapping pre-existing Pixi/generated work remains uncommitted and is preserved.
 

@@ -551,10 +551,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.currentTrackIndex).toBe(7);
     expect(soundEngine.playlist[soundEngine.currentTrackIndex]).toEqual({
       name: 'Observation Battle',
-      file: 'assets/audio/bgm/Observation Battle.mp3',
+      file: 'assets/audio/bgm/Observation Battle3.mp3',
       loopEnd: 112 * 60 / 135
     });
-    const defaultBgmPath = path.resolve(__dirname, '..', 'assets/audio/bgm/Observation Battle.mp3');
+    const defaultBgmPath = path.resolve(__dirname, '..', 'assets/audio/bgm/Observation Battle3.mp3');
     expect(fs.statSync(defaultBgmPath).size).toBeGreaterThan(0);
     expect(soundEngine.playlist[0]).toEqual({
       name: 'c-reversi',
@@ -584,7 +584,7 @@ describe('SoundEngine default BGM', () => {
     });
     expect(soundEngine.playlist[7]).toEqual({
       name: 'Observation Battle',
-      file: 'assets/audio/bgm/Observation Battle.mp3',
+      file: 'assets/audio/bgm/Observation Battle3.mp3',
       loopEnd: 112 * 60 / 135
     });
   });
@@ -893,7 +893,7 @@ describe('SoundEngine default BGM', () => {
     await flushAsyncWork();
 
     expect(soundEngine.bgm.__bufferedLoop).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/Observation Battle.mp3');
+    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/Observation Battle3.mp3');
     expect(sources).toHaveLength(1);
     expect(sources[0].loop).toBe(true);
     expect(sources[0].loopStart).toBeCloseTo(0, 6);

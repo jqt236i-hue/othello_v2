@@ -1,13 +1,13 @@
 # Observation Battle default BGM design
 
-- Status: completed / deployed on 2026-08-06
+- Status: completed / cache-safe revised mix deployed on 2026-08-06
 - Date: 2026-08-06
 - Request: make the supplied `Observation Battle.mp3` the game's startup BGM, place it under the repository assets, preserve a clean loop at 135 BPM, and deploy the result.
 - Sources: `AGENTS.md`, `01-rulebook.md` §12.15, `正本/効果音対応表.md`, `sound-engine.ts`, the existing BGM tests, and the configured Worker deployment path.
 
 ## Desired outcome
 
-The supplied MP3 is shipped from `assets/audio/bgm/Observation Battle.mp3`, appears in the BGM picker, and is selected by default on first startup. Its loop is defined as the complete 112-beat phrase at 135 BPM: `loopStart = 0` and `loopEnd = 112 * 60 / 135` seconds (approximately `49.777777778`). Existing BGM choices, indices, volume defaults, and special/result BGM behavior remain unchanged.
+The supplied MP3 is shipped from `assets/audio/bgm/Observation Battle3.mp3`, appears in the BGM picker under the name Observation Battle, and is selected by default on first startup. Its loop is defined as the complete 112-beat phrase at 135 BPM: `loopStart = 0` and `loopEnd = 112 * 60 / 135` seconds (approximately `49.777777778`). Existing BGM choices, indices, volume defaults, and special/result BGM behavior remain unchanged.
 
 ## Scope and non-goals
 
@@ -35,6 +35,10 @@ The source file reports `TBPM=135` and a duration of approximately `49.777771` s
 
 The rulebook and the sound correspondence table will name the new default and its loop formula. The ordinary BGM is not part of the integrity manifest's selected special-asset list, so no hand-written manifest entry is needed; `worker:prepare` mirrors the complete `assets` directory and remains the source for the deploy copy.
 
+## Follow-up mix revision
+
+The adopted render is being replaced with the user's mixing-only revision `Observation Battle3.mp3`. The revision reports `TBPM=135`, a duration of approximately `49.777771` seconds, and 1,994,013 bytes. Its SHA-256 is `f37b727225319e651335be1b2a57d17d67e5b0cd6cbe0cd9c40193ebcf773f33`, whereas the previously deployed render was `35859183a93671d8198febb008b4d0d5a9b6eb034db8824c0e2da5c5ef073d60`, confirming that the mix bytes changed. The default track now uses the unique `Observation Battle3.mp3` delivery path so Cloudflare's cached response for the previous same-name URL cannot mask the revised mix; the player-facing track name, playlist position, BPM, and loop contract remain unchanged. The external Studio One source is left intact.
+
 ## Compatibility, failure, and rollback
 
 - If Web Audio decoding is unavailable, the existing HTML Audio fallback still receives the same explicit loop metadata.
@@ -52,6 +56,8 @@ The rulebook and the sound correspondence table will name the new default and it
 
 Deployment evidence: Worker version `25201337-70eb-4022-8543-81b29094db2e` at `https://card.reversi-0.workers.dev`. The public MP3 returned `200 audio/mpeg`, 1,994,013 bytes, and SHA-256 `35859183a93671d8198febb008b4d0d5a9b6eb034db8824c0e2da5c5ef073d60`, matching the local asset.
 
+Follow-up deployment evidence: Worker version `24c5a18b-a05b-4793-ab25-40beefc41544` at the same URL. The cacheable public request to `/assets/audio/bgm/Observation%20Battle3.mp3` returned `200 audio/mpeg`, 1,994,013 bytes, and SHA-256 `f37b727225319e651335be1b2a57d17d67e5b0cd6cbe0cd9c40193ebcf773f33`, matching the revised local asset. The legacy same-name path remains as a compatibility alias with the same revised bytes; the default code path uses the unique `Observation Battle3.mp3` URL.
+
 ## Self-review
 
-The design was checked against the current source and generated-surface rules. Appending rather than inserting preserves existing track indices; using the existing explicit loop machinery avoids a second playback path; and the formula is grounded in the source file's BPM tag and duration. The only material residual risk is the pre-existing dirty Pixi/generated worktree, which will not be staged or reverted and may remain visible in the final status.
+The design was checked against the current source and generated-surface rules. Appending rather than inserting preserves existing track indices; using the existing explicit loop machinery avoids a second playback path; and the formula is grounded in the source file's BPM tag and duration. The cache-safe unique path was required because the first same-name deployment was served by an edge cache with the previous hash. The only material residual risk is the pre-existing dirty Pixi/generated worktree, which will not be staged or reverted and may remain visible in the final status.

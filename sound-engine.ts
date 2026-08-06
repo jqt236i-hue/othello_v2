@@ -118,7 +118,7 @@ const SoundEngine = {
         { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' },
         { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3', loopEnd: 58.434783 },
         { name: 'Observation’s Sacrifice', file: 'assets/audio/bgm/sacrifice.mp3', loopEnd: 40 },
-        { name: 'Observation Battle', file: 'assets/audio/bgm/Observation Battle.mp3', loopEnd: 112 * 60 / 135 }
+        { name: 'Observation Battle', file: 'assets/audio/bgm/Observation Battle3.mp3', loopEnd: 112 * 60 / 135 }
     ] as BgmTrack[],
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {

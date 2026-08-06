@@ -2287,16 +2287,16 @@ emainingOwnerTurns など持続情報は、複製元の値をそのまま引き�
 
 ### 12.15 サウンド既定値
 
-- 起動時の既定BGMは `assets/audio/bgm/Observation Battle.mp3`（Observation Battle）を使用する
+- 起動時の既定BGMは `assets/audio/bgm/Observation Battle3.mp3`（Observation Battle）を使用する
 - 起動時の BGM 音量スライダー既定値は `0.548625` とする
 - BGM全般の出力補正は `0.24752` とし、通常BGM、顕現石専用BGM、勝利/敗北リザルトBGMの実効音量は BGM 音量スライダー値にこの補正を掛けた値とする
 - BGM 音量スライダー上限は `1.2` とし、起動直後もつまみが見える余白を残す
-- BGM 選択一覧は `assets/audio/bgm/c-reversi.mp3`、`assets/audio/bgm/c-reversi-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3`、`assets/audio/bgm/The Observer’s Tears.mp3`、`assets/audio/bgm/sacrifice.mp3`、`assets/audio/bgm/Observation Battle.mp3` の 8 曲を含める
+- BGM 選択一覧は `assets/audio/bgm/c-reversi.mp3`、`assets/audio/bgm/c-reversi-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3`、`assets/audio/bgm/The Observer’s Tears.mp3`、`assets/audio/bgm/sacrifice.mp3`、`assets/audio/bgm/Observation Battle3.mp3` の 8 曲を含める
 - BGM は曲ごとに `loopStart` / `loopEnd` 秒を持ってよく、明示された範囲をループしてよい。`loopStart > 0` の曲は初回だけ 0 秒から再生し、ループ時は `loopStart` 秒へ戻す
 - `assets/audio/bgm/盤喰いの小鬼戦.mp3` は `loopStart = 1.655` とし、イントロはループしない
 - `assets/audio/bgm/The Observer’s Tears.mp3` は `115 BPM` の `112` 拍ぶん全体をループし、`loopEnd = 58.434783` とする（ループ時も曲頭へ戻る）
 - `assets/audio/bgm/sacrifice.mp3`（Observation’s Sacrifice）は `120 BPM`、4拍子、20小節ぶん全体をループし、`loopEnd = 40` とする（ループ時も曲頭へ戻る）
-- `assets/audio/bgm/Observation Battle.mp3`（Observation Battle）は `135 BPM`、4拍子、`112` 拍（28小節）ぶん全体をループし、`loopStart = 0`、`loopEnd = 112 * 60 / 135 = 49.777777778` とする（初回もループ時も曲頭へ戻る）
+- `assets/audio/bgm/Observation Battle3.mp3`（Observation Battle）は `135 BPM`、4拍子、`112` 拍（28小節）ぶん全体をループし、`loopStart = 0`、`loopEnd = 112 * 60 / 135 = 49.777777778` とする（初回もループ時も曲頭へ戻る）
 - 効果音ファイルは `assets/audio/sound-effect/` を基本とし、配置音など skin 系は `assets/audio/sound-effect-skin/` を使ってよい
 - 効果音はファイル間で極端な音量差が出ないよう、同程度の音量で管理する
 - 下部クイック操作の全体音量バーは `0%` から `200%` の範囲とし、中央と起動時の既定値を `100%` とする
