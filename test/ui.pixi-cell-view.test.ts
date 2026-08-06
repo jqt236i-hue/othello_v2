@@ -339,7 +339,7 @@ describe('Pixi cell BOARD_FRAME rendering', () => {
     expect(view.markerRoot.children).toHaveLength(0);
   });
 
-  test('clears frame layers and restores the existing grid and marker for a normal meteor hole', () => {
+  test('clears frame layers and leaves a normal meteor hole free of blockade-marker dots', () => {
     const view = CellView.createPixiCellView(createRuntime());
     view.update(createCell('frame-hole', {
       kind: 'blockade',
@@ -358,7 +358,7 @@ describe('Pixi cell BOARD_FRAME rendering', () => {
     expect(view.getDiagnostics()).toMatchObject({
       boardFrameHole: false,
       boardFrameInnerBoundaryEdges: [],
-      renderedMarkerKinds: ['blockade']
+      renderedMarkerKinds: []
     });
 
     const frameSurface = childWithLabel(view.surfaceRoot, 'pixi-cell-board-frame-hole-surface');
@@ -368,7 +368,6 @@ describe('Pixi cell BOARD_FRAME rendering', () => {
     expect(innerEdges).toMatchObject({ visible: false, commands: [] });
     expect(grid.visible).toBe(true);
     expect(grid.commands.length).toBeGreaterThan(0);
-    const marker = childWithLabel(view.markerRoot, 'pixi-marker-dot:blockade');
-    expect(marker.commands.some((command) => command.op === 'circle')).toBe(true);
+    expect(view.markerRoot.children).toHaveLength(0);
   });
 });

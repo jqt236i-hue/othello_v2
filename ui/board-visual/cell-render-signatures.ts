@@ -25,11 +25,16 @@ function normalizedMarkerKind(kind: unknown): string {
   return String(kind || '').trim().toLowerCase().replace(/_/g, '-');
 }
 
-export function isBoardFrameHoleMarker(marker: BoardMarkerVisualState): boolean {
+function isMeteorHoleMarker(marker: BoardMarkerVisualState): boolean {
   if (normalizedMarkerKind(marker?.kind) !== 'blockade') return false;
   const data = marker?.data && typeof marker.data === 'object' ? marker.data : {};
-  return String(data.type || '').trim().toUpperCase() === 'METEOR_HOLE'
-    && String(data.visualVariant || '').trim().toUpperCase() === 'BOARD_FRAME';
+  return String(data.type || '').trim().toUpperCase() === 'METEOR_HOLE';
+}
+
+export function isBoardFrameHoleMarker(marker: BoardMarkerVisualState): boolean {
+  if (!isMeteorHoleMarker(marker)) return false;
+  const data = marker?.data && typeof marker.data === 'object' ? marker.data : {};
+  return String(data.visualVariant || '').trim().toUpperCase() === 'BOARD_FRAME';
 }
 
 function boardFrameInnerBoundaryEdges(marker: BoardMarkerVisualState): readonly string[] {
@@ -52,7 +57,10 @@ export function isBoardCellMarkerVisual(
   marker: BoardMarkerVisualState
 ): boolean {
   if (!cell || cell.kind === 'void' || !CELL_MARKER_KINDS.has(marker.kind)) return false;
-  if (cell.kind === 'hole' && isBoardFrameHoleMarker(marker)) return false;
+  // A METEOR_HOLE is represented by the cell's opaque hole surface. Rendering
+  // its generic blockade marker on top creates the stray colored dot seen on
+  // an otherwise black hole.
+  if (cell.kind === 'hole' && isMeteorHoleMarker(marker)) return false;
   if (marker.kind === 'seed' && !!cell.stone) return false;
   return true;
 }
