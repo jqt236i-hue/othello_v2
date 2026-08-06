@@ -96,18 +96,13 @@ function normalizeOwnerValue(owner: any): number {
 
 let DiscRenderHelpersModule: any = null;
 if (typeof _require === 'function') {
-  try { DiscRenderHelpersModule = _require('./board-renderer'); } catch (e) { /* ignore */ }
+  try { DiscRenderHelpersModule = _require('./presentation/disc-dom-renderer'); } catch (e) { /* ignore */ }
 }
 
 function getDiscRenderHelper(name: string): any {
   if (DiscRenderHelpersModule && typeof DiscRenderHelpersModule[name] === 'function') {
     return DiscRenderHelpersModule[name];
   }
-  try {
-    if (typeof window !== 'undefined' && typeof (window as any)[name] === 'function') {
-      return (window as any)[name];
-    }
-  } catch (e) { /* ignore */ }
   return null;
 }
 

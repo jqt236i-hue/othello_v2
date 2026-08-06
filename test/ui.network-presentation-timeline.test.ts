@@ -811,4 +811,24 @@ describe('NetworkPresentationTimeline', () => {
       blocksInput: false
     });
   });
+
+  test('exposes a frozen lightweight operational snapshot', () => {
+    const timeline = createTestTimeline({ initialVisualSeq: 2, initialVisualVersion: 5 });
+    timeline.enqueueFrames([frame(3, 5, 6)], { source: 'stream' });
+
+    const operational = timeline.getOperationalState();
+
+    expect(operational).toEqual({
+      visualSeq: 2,
+      visualVersion: 5,
+      pendingFrameCount: 1,
+      playing: false,
+      paused: false,
+      blocksInput: false,
+      disposed: false,
+      disposing: false
+    });
+    expect(Object.isFrozen(operational)).toBe(true);
+    expect(timeline.getDiagnostics()).toMatchObject(operational);
+  });
 });

@@ -24,11 +24,6 @@ describe('DiffRenderer destroy-fade cleanup', () => {
       isNoAnim: () => false
     }));
     sharedInputController = null;
-    const boardRendererHelpers = {
-      getBoardInputController: () => getSharedInputController()
-    };
-    require('../ui/board-renderer/stone-helpers.ts').setBoardRendererStoneHelpers(boardRendererHelpers);
-    require('../dist/ui/board-renderer/stone-helpers.js').setBoardRendererStoneHelpers(boardRendererHelpers);
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -60,6 +55,9 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     if (typeof window !== 'undefined') {
       window.DISABLE_ANIMATIONS = false;
     }
+    require('../ui/board-dom-compat/renderer').configureBoardRendererCapabilities({
+      getBoardInputController: () => getSharedInputController()
+    });
   });
 
   afterEach(() => {
@@ -80,7 +78,6 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     delete global.CardLogic;
     delete global.cardState;
     delete global.gameState;
-    delete (global as any).BoardRendererStoneHelpers;
     jest.dontMock('../ui/animation-helpers');
   });
 

@@ -253,18 +253,31 @@ function createNetworkVisualStateStore(options?: any): any {
   }
 
   function getDiagnostics(): any {
-    const lagging = canonicalVersion !== null
-      && visualVersion !== null
-      && visualVersion < canonicalVersion;
+    const operationalState = getOperationalState();
     return {
+      ...operationalState,
+      lastCommitSource
+    };
+  }
+
+  function getOperationalState(): Readonly<{
+    canonicalVersion: number | null;
+    visualSeq: number;
+    visualVersion: number | null;
+    lagging: boolean;
+    hasCanonicalSnapshot: boolean;
+    hasVisualSnapshot: boolean;
+  }> {
+    return Object.freeze({
       canonicalVersion,
       visualSeq,
       visualVersion,
-      lagging,
+      lagging: canonicalVersion !== null
+        && visualVersion !== null
+        && visualVersion < canonicalVersion,
       hasCanonicalSnapshot: !!canonicalSnapshot,
-      hasVisualSnapshot: !!visualSnapshot,
-      lastCommitSource
-    };
+      hasVisualSnapshot: !!visualSnapshot
+    });
   }
 
   return {
@@ -279,6 +292,7 @@ function createNetworkVisualStateStore(options?: any): any {
     getVisualSnapshot,
     getRenderSnapshot,
     peekRenderSnapshot,
+    getOperationalState,
     getDiagnostics
   };
 }

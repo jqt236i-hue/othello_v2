@@ -4,6 +4,8 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined'
   ? __non_webpack_require__
   : require;
+const RuntimeStateAccessModule = _require('../runtime-state-access');
+const BoardVisualRenderStateSourceModule = _require('../board-visual/render-state-source');
 
 declare const gameState: any;
 
@@ -17,7 +19,29 @@ declare const WHITE: number;
 
 declare const EMPTY: number;
 
-let activePreparedVisualStateForDiff: { gameState: any; cardState: any } | null = null;
+let BoardVisualRenderStateSourceForDiff: any = BoardVisualRenderStateSourceModule
+  .createBoardVisualRenderStateSource({
+    getVisualStore: () => null,
+    getPresentationTimeline: () => null,
+    getLocalPair: () => ({
+      gameState: RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
+        try { return (typeof gameState !== 'undefined') ? gameState : null; }
+        catch (e: any) { return null; }
+      }),
+      cardState: RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
+        try { return (typeof cardState !== 'undefined') ? cardState : null; }
+        catch (e: any) { return null; }
+      }) || {}
+    })
+  });
+
+function configureBoardVisualRenderStateSource(source: any) {
+    if (!source || typeof source.resolvePair !== 'function') {
+        throw new Error('Stone info controller requires a board render-state source');
+    }
+    BoardVisualRenderStateSourceForDiff = source;
+    return source;
+}
 
 var SpecialStoneRegistryModule: any = null;
 
@@ -109,63 +133,12 @@ if (typeof require === 'function') {
     try { TextTermHighlighterModule = require('../text-term-highlighter'); } catch (e: any) { /* ignore */ }
 }
 
-function _resolveNetworkVisualStateStoreForDiff() {
-    try {
-        if (typeof window !== 'undefined' && (window as any).NetworkVisualStateStore) {
-            return (window as any).NetworkVisualStateStore;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkVisualStateStore) {
-            return (globalThis as any).NetworkVisualStateStore;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
-function _resolveNetworkVisualRenderSnapshotForDiff() {
-    const store = _resolveNetworkVisualStateStoreForDiff();
-    try {
-        const snapshot = store && typeof store.peekRenderSnapshot === 'function'
-            ? store.peekRenderSnapshot()
-            : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
-        if (snapshot && snapshot.gameState && snapshot.cardState) return snapshot;
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
 function _resolveGameStateForDiffRender() {
-    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.gameState;
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot && visualSnapshot.gameState) return visualSnapshot.gameState;
-    try {
-        if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window.gameState && typeof window.gameState === 'object') return window.gameState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') return (globalThis as any).gameState;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return BoardVisualRenderStateSourceForDiff.resolvePair().gameState;
 }
 
 function _resolveCardStateForDiffRender() {
-    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.cardState;
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
-    try {
-        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') {
-            return (globalThis as any).cardState;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return BoardVisualRenderStateSourceForDiff.resolvePair().cardState;
 }
 
 const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
@@ -968,6 +941,7 @@ function getStoneInfoPresentationCapabilities() {
 }
 
 export = {
+    configureBoardVisualRenderStateSource,
     getStoneInfoPresentationCapabilities,
     renderCurrentStoneInfoPanel,
     showSpecialStoneInfoAt

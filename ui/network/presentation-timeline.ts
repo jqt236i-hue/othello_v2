@@ -429,18 +429,11 @@ function createNetworkPresentationTimeline(config?: any): any {
       };
     });
     return {
-      visualSeq,
-      visualVersion,
-      pendingFrameCount: pendingVisualSeqs.length,
+      ...getOperationalState(),
       pendingVisualSeqs,
       pendingFrameSummaries,
       nextExpectedVisualSeq: visualSeq + 1,
-      playing,
-      disposed,
-      disposing: disposeRequested && !disposed,
-      blocksInput: !!(playing || activeSettlement || pausedError || disposeRequested),
       activeSettlementStage: activeSettlement ? activeSettlement.stage : null,
-      paused: !!pausedError,
       pausedError: pausedError ? cloneData(pausedError) : null,
       lastPlayedFrame: lastPlayedFrame ? {
         visualSeq: lastPlayedFrame.visualSeq,
@@ -452,6 +445,28 @@ function createNetworkPresentationTimeline(config?: any): any {
     };
   }
 
+  function getOperationalState(): Readonly<{
+    visualSeq: number;
+    visualVersion: number | null;
+    pendingFrameCount: number;
+    playing: boolean;
+    paused: boolean;
+    blocksInput: boolean;
+    disposed: boolean;
+    disposing: boolean;
+  }> {
+    return Object.freeze({
+      visualSeq,
+      visualVersion,
+      pendingFrameCount: pendingFrames.size,
+      playing,
+      paused: !!pausedError,
+      blocksInput: !!(playing || activeSettlement || pausedError || disposeRequested),
+      disposed,
+      disposing: disposeRequested && !disposed
+    });
+  }
+
   return {
     enqueueFrames,
     drainPlayableFrames,
@@ -459,6 +474,7 @@ function createNetworkPresentationTimeline(config?: any): any {
     setBaseCursor,
     reset,
     dispose,
+    getOperationalState,
     getDiagnostics
   };
 }

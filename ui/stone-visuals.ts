@@ -7,8 +7,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 let AnimationShared: any = (typeof _require === 'function') ? _require('./animation-helpers') : (typeof window !== 'undefined' ? (window as any).AnimationHelpers : null);
-let BoardRendererStoneHelpersRegistry: any = (typeof _require === 'function')
-  ? _require('./board-renderer/stone-helpers')
+let DiscDomRendererModule: any = (typeof _require === 'function')
+  ? _require('./presentation/disc-dom-renderer')
   : null;
 function requireStoneVisualsModuleOrNull(id: string): any {
   try {
@@ -41,14 +41,9 @@ try {
 } catch (e) { /* Intentionally empty: DOM guard for module init */ }
 
 function _getDiscRenderHelperForStoneVisuals(name: string): any {
-  if (
-    BoardRendererStoneHelpersRegistry
-    && typeof BoardRendererStoneHelpersRegistry.getBoardRendererStoneHelper === 'function'
-  ) {
-    const helper = BoardRendererStoneHelpersRegistry.getBoardRendererStoneHelper(name);
-    if (typeof helper === 'function') return helper;
+  if (DiscDomRendererModule && typeof DiscDomRendererModule[name] === 'function') {
+    return DiscDomRendererModule[name];
   }
-  if (typeof window !== 'undefined' && typeof (window as any)[name] === 'function') return (window as any)[name];
   return null;
 }
 

@@ -6,6 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const RuntimeStateAccessModule = _require('../runtime-state-access');
+const BoardVisualRenderStateSourceModule = _require('../board-visual/render-state-source');
 
 declare const gameState: any;
 declare const cardState: any;
@@ -87,11 +88,38 @@ let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
-let activePreparedVisualStateForDiff: {
-  gameState: any;
-  cardState: any;
-  stateVersion?: number;
-} | null = null;
+let BoardRendererCapabilitiesForDiff: any = Object.freeze({});
+let BoardVisualRenderStateSourceForDiff: any = BoardVisualRenderStateSourceModule
+  .createBoardVisualRenderStateSource({
+    getVisualStore: () => null,
+    getPresentationTimeline: () => null,
+    getLocalPair: () => ({
+      gameState: RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
+        try { return (typeof gameState !== 'undefined') ? gameState : null; }
+        catch (e: any) { return null; }
+      }),
+      cardState: RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
+        try { return (typeof cardState !== 'undefined') ? cardState : null; }
+        catch (e: any) { return null; }
+      }) || {}
+    })
+  });
+
+function configureBoardRendererCapabilities(capabilities: any) {
+    if (!capabilities || typeof capabilities !== 'object') {
+        throw new Error('DOM compatibility renderer requires board capabilities');
+    }
+    BoardRendererCapabilitiesForDiff = Object.freeze({ ...capabilities });
+    const renderStateSource = BoardRendererCapabilitiesForDiff.renderStateSource;
+    if (renderStateSource) {
+        if (typeof renderStateSource.resolvePair !== 'function') {
+            throw new Error('DOM compatibility render-state source is invalid');
+        }
+        BoardVisualRenderStateSourceForDiff = renderStateSource;
+        StoneInfoControllerModule.configureBoardVisualRenderStateSource?.(renderStateSource);
+    }
+    return BoardRendererCapabilitiesForDiff;
+}
 let DiffRendererManifestStoneRegistryModule: any = null;
 let BoardHintProjectionModule: any = null;
 const FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF = Object.freeze([
@@ -308,10 +336,7 @@ function _applyExpansionLayerPositionForDiff(cell: any, row: any, col: any, boar
     cell.style.bottom = '';
 }
 
-var BoardRendererStoneHelpersRegistryModule: any = null;
-if (typeof require === 'function') {
-    try { BoardRendererStoneHelpersRegistryModule = require('../board-renderer/stone-helpers'); } catch (e: any) { /* ignore */ }
-}
+const DiscDomRendererModule = _require('../presentation/disc-dom-renderer');
 var StoneStatusSnapshotModule: any = null;
 if (typeof require === 'function') {
     try { StoneStatusSnapshotModule = require('../../shared/stone-status-snapshot'); } catch (e: any) { /* ignore */ }
@@ -377,17 +402,15 @@ function _createBoardViewForDiff(gameState: any, cardStateOverride?: any) {
 }
 
 function _getBoardRendererHelperForDiff(name: any) {
-    if (
-        BoardRendererStoneHelpersRegistryModule &&
-        typeof BoardRendererStoneHelpersRegistryModule.getBoardRendererStoneHelper === 'function'
-    ) {
-        const helper = BoardRendererStoneHelpersRegistryModule.getBoardRendererStoneHelper(name);
-        if (typeof helper === 'function') return helper;
-    }
-    if (typeof globalThis !== 'undefined' && typeof (globalThis as any)[name] === 'function') {
-        return (globalThis as any)[name];
-    }
+    const capability = BoardRendererCapabilitiesForDiff
+        && BoardRendererCapabilitiesForDiff[String(name || '')];
+    if (typeof capability === 'function') return capability;
     return null;
+}
+
+function _getDiscDomRendererHelperForDiff(name: any) {
+    const helper = DiscDomRendererModule && DiscDomRendererModule[String(name || '')];
+    return typeof helper === 'function' ? helper : null;
 }
 
 function _isTimeStopActiveForDiff() {
@@ -1166,145 +1189,28 @@ function _preservePendingPlaybackDiffContextForFinalSync() {
     } catch (e: any) { /* ignore */ }
 }
 
-function _resolveNetworkVisualStateStoreForDiff() {
-    try {
-        if (typeof window !== 'undefined' && (window as any).NetworkVisualStateStore) {
-            return (window as any).NetworkVisualStateStore;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkVisualStateStore) {
-            return (globalThis as any).NetworkVisualStateStore;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
-function _resolveNetworkPresentationTimelineForDiff() {
-    try {
-        if (typeof window !== 'undefined' && (window as any).NetworkPresentationTimeline) {
-            return (window as any).NetworkPresentationTimeline;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPresentationTimeline) {
-            return (globalThis as any).NetworkPresentationTimeline;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
 function _isStrictNetworkVisualRenderActiveForDiff() {
-    const store = _resolveNetworkVisualStateStoreForDiff();
-    try {
-        const diagnostics = store && typeof store.getDiagnostics === 'function'
-            ? store.getDiagnostics()
-            : null;
-        if (diagnostics && diagnostics.lagging === true) return true;
-    } catch (e: any) { /* ignore */ }
-    const timeline = _resolveNetworkPresentationTimelineForDiff();
-    try {
-        const diagnostics = timeline && typeof timeline.getDiagnostics === 'function'
-            ? timeline.getDiagnostics()
-            : null;
-        return !!(
-            diagnostics &&
-            (
-                diagnostics.playing === true ||
-                diagnostics.paused === true ||
-                Number(diagnostics.pendingFrameCount) > 0
-            )
-        );
-    } catch (e: any) { /* ignore */ }
-    return false;
+    return BoardVisualRenderStateSourceForDiff.isStrictNetworkVisualRenderActive();
 }
 
 function _resolveNetworkVisualRenderSnapshotForDiff() {
-    const store = _resolveNetworkVisualStateStoreForDiff();
-    try {
-        const snapshot = store && typeof store.peekRenderSnapshot === 'function'
-            ? store.peekRenderSnapshot()
-            : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
-        if (snapshot && snapshot.gameState && snapshot.cardState) return snapshot;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return BoardVisualRenderStateSourceForDiff.resolveNetworkSnapshot();
 }
 
 function _resolveNetworkVisualInputEpochForDiff(snapshot: any, viewerContext: any) {
-    if (!viewerContext || viewerContext.isNetworkMode !== true) {
-        return Object.freeze({ stateVersion: null, visualSeq: null });
-    }
-    const store = _resolveNetworkVisualStateStoreForDiff();
-    let diagnostics: any = null;
-    try {
-        diagnostics = store && typeof store.getDiagnostics === 'function'
-            ? store.getDiagnostics()
-            : null;
-    } catch (e: any) { diagnostics = null; }
-    const snapshotVersion = snapshot && typeof snapshot.stateVersion === 'number'
-        && Number.isInteger(snapshot.stateVersion)
-        ? snapshot.stateVersion
-        : null;
-    const visualVersion = diagnostics && typeof diagnostics.visualVersion === 'number'
-        && Number.isInteger(diagnostics.visualVersion)
-        ? diagnostics.visualVersion
-        : null;
-    const visualSeq = diagnostics && typeof diagnostics.visualSeq === 'number'
-        && Number.isInteger(diagnostics.visualSeq)
-        ? diagnostics.visualSeq
-        : null;
-    return Object.freeze({
-        stateVersion: snapshotVersion ?? visualVersion,
-        visualSeq
-    });
-}
-
-function _resolveLocalVisualRenderPairForDiff() {
-    const currentGameState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
-        try { return (typeof gameState !== 'undefined') ? gameState : null; }
-        catch (e: any) { return null; }
-    });
-    const currentCardState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
-        try { return (typeof cardState !== 'undefined') ? cardState : null; }
-        catch (e: any) { return null; }
-    });
-    return {
-        gameState: currentGameState,
-        cardState: currentCardState || {}
-    };
+    return BoardVisualRenderStateSourceForDiff.resolveNetworkInputEpoch(snapshot, viewerContext);
 }
 
 function _resolveVisualRenderPairForDiff() {
-    if (activePreparedVisualStateForDiff) {
-        return {
-            gameState: activePreparedVisualStateForDiff.gameState,
-            cardState: activePreparedVisualStateForDiff.cardState,
-            stateVersion: activePreparedVisualStateForDiff.stateVersion
-        };
-    }
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot) {
-        return {
-            gameState: visualSnapshot.gameState,
-            cardState: visualSnapshot.cardState,
-            stateVersion: visualSnapshot.stateVersion
-        };
-    }
-    return _resolveLocalVisualRenderPairForDiff();
+    return BoardVisualRenderStateSourceForDiff.resolvePair();
 }
 
 function _resolveGameStateForDiffRender() {
-    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.gameState;
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot && visualSnapshot.gameState) return visualSnapshot.gameState;
-    return _resolveLocalVisualRenderPairForDiff().gameState;
+    return BoardVisualRenderStateSourceForDiff.resolvePair().gameState;
 }
 
 function _resolveCardStateForDiffRender() {
-    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.cardState;
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
-    return _resolveLocalVisualRenderPairForDiff().cardState;
+    return BoardVisualRenderStateSourceForDiff.resolvePair().cardState;
 }
 
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
@@ -2384,7 +2290,7 @@ function _createCellDomPatcherContextForDiff() {
         },
         stones: {
             constants: { BLACK: constants.BLACK, WHITE: constants.WHITE },
-            getDiscStoneHelper: _getBoardRendererHelperForDiff,
+            getDiscStoneHelper: _getDiscDomRendererHelperForDiff,
             createSpecialStoneStatusSnapshot: _createSpecialStoneStatusSnapshotForDiff,
             shouldShowFlipProtectionBadge: _shouldShowFlipProtectionBadgeForDiff,
             createFlipProtectionBadge: _createFlipProtectionBadgeForDiff,
@@ -2580,14 +2486,15 @@ function renderBoardDiff(
         updateCellDOMDurationMs += _t1 - _t0;
     };
     const renderProjection = preparedRenderProjection || createBoardRenderProjection();
-    const previousPreparedVisualState = activePreparedVisualStateForDiff;
-    activePreparedVisualStateForDiff = renderProjection && renderProjection.valid === true
+    const previousPreparedVisualState = BoardVisualRenderStateSourceForDiff.setPreparedState(
+      renderProjection && renderProjection.valid === true
         ? {
             gameState: renderProjection.gameState,
             cardState: renderProjection.cardState,
             stateVersion: renderProjection.inputEpochSource?.stateVersion
         }
-        : null;
+        : null
+    );
     try {
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
         previousBoardState = null;
@@ -2752,7 +2659,7 @@ function renderBoardDiff(
         pendingFlipTargetKeysThisRender = null;
     }
     } finally {
-        activePreparedVisualStateForDiff = previousPreparedVisualState;
+        BoardVisualRenderStateSourceForDiff.setPreparedState(previousPreparedVisualState);
         // PR1.5: gating. Outer finally builds the summary detail object only
         // when the perf bench is enabled. OFF path: only perfEnd is called and
         // the helper itself early-returns without any allocation or work.
@@ -2824,6 +2731,7 @@ function _isReversiModeForDiffRenderer() {
 
 // Export helpers for Node/Jest test harness
 const DiffRenderer = {
+    configureBoardRendererCapabilities,
     initializeBoardDOM,
     createBoardRenderInputs,
     createBoardPresentationOverlayState,

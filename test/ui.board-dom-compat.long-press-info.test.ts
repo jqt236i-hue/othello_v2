@@ -31,11 +31,6 @@ describe('board cell information separation', () => {
   beforeEach(() => {
     jest.resetModules();
     sharedInputController = null;
-    const boardRendererHelpers = {
-      getBoardInputController: () => getSharedInputController()
-    };
-    require('../ui/board-renderer/stone-helpers.ts').setBoardRendererStoneHelpers(boardRendererHelpers);
-    require('../dist/ui/board-renderer/stone-helpers.js').setBoardRendererStoneHelpers(boardRendererHelpers);
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -51,6 +46,9 @@ describe('board cell information separation', () => {
     const board = document.createElement('div');
     board.id = 'board';
     document.body.appendChild(board);
+    require('../ui/board-dom-compat/renderer').configureBoardRendererCapabilities({
+      getBoardInputController: () => getSharedInputController()
+    });
   });
 
   afterEach(() => {
@@ -58,7 +56,6 @@ describe('board cell information separation', () => {
     try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
-    try { delete (global as any).BoardRendererStoneHelpers; } catch (e) { /* test cleanup */ }
   });
 
   test('short press keeps normal click behavior', () => {

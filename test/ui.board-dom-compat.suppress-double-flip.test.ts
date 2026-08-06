@@ -36,7 +36,6 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     delete global.document;
     delete global.boardEl;
     delete global.countDiscs;
-    delete (global as any).BoardRendererStoneHelpers;
   });
 
   test('does not apply fallback .flip when __suppressNextDiffFlip is set', async () => {

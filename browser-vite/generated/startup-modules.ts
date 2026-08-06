@@ -496,7 +496,9 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/model-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model-builder.js"),
   "ui/board-visual/playback-interruption": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-interruption.js"),
   "ui/board-visual/playback-types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-types.js"),
+  "ui/board-visual/render-state-source": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/render-state-source.js"),
   "ui/board-visual/revision-fingerprint": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/revision-fingerprint.js"),
+  "ui/board-visual/runtime-ports": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/runtime-ports.js"),
   "ui/board-visual/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/source-trajectory.js"),
   "ui/board-visual/state-adapter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/state-adapter.js"),
   "ui/board-visual/theme": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/theme.js"),
@@ -656,6 +658,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/player-slot-elements": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/player-slot-elements.js"),
   "ui/presentation-handler": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation-handler.js"),
   "ui/presentation/committed-world-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation/committed-world-state.js"),
+  "ui/presentation/disc-dom-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation/disc-dom-renderer.js"),
   "ui/presentation/dispatcher": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation/dispatcher.js"),
   "ui/presentation/global-board-effect-presenter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation/global-board-effect-presenter.js"),
   "ui/presentation/manifest-world-effects": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation/manifest-world-effects.js"),
@@ -1217,7 +1220,9 @@ installBootModuleMetadata({
     "ui/board-visual/performance-harness",
     "ui/board-visual/playback-interruption",
     "ui/board-visual/playback-types",
+    "ui/board-visual/render-state-source",
     "ui/board-visual/revision-fingerprint",
+    "ui/board-visual/runtime-ports",
     "ui/board-visual/source-trajectory",
     "ui/board-visual/state-adapter",
     "ui/board-visual/theme",
@@ -1377,6 +1382,7 @@ installBootModuleMetadata({
     "ui/player-slot-elements",
     "ui/presentation-handler",
     "ui/presentation/committed-world-state",
+    "ui/presentation/disc-dom-renderer",
     "ui/presentation/dispatcher",
     "ui/presentation/global-board-effect-presenter",
     "ui/presentation/manifest-world-effects",
@@ -1514,4 +1520,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 706;
+export const startupModuleCount = 709;

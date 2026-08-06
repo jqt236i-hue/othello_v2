@@ -10,6 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const RuntimeStateAccessModule = _require('../runtime-state-access');
+const BoardVisualRenderStateSourceModule = _require('./render-state-source');
 
 declare const gameState: any;
 
@@ -33,11 +34,29 @@ const DiffRendererProjector = _require('./model-builder');
 
 let superAttractionHoverPreview: any = null;
 
-let activePreparedVisualStateForDiff: {
-  gameState: any;
-  cardState: any;
-  stateVersion?: number;
-} | null = null;
+let BoardVisualRenderStateSourceForDiff: any = BoardVisualRenderStateSourceModule
+  .createBoardVisualRenderStateSource({
+    getVisualStore: () => null,
+    getPresentationTimeline: () => null,
+    getLocalPair: () => ({
+      gameState: RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
+        try { return (typeof gameState !== 'undefined') ? gameState : null; }
+        catch (e: any) { return null; }
+      }),
+      cardState: RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
+        try { return (typeof cardState !== 'undefined') ? cardState : null; }
+        catch (e: any) { return null; }
+      }) || {}
+    })
+  });
+
+function configureBoardVisualRenderStateSource(source: any) {
+  if (!source || typeof source.resolvePair !== 'function' || typeof source.setPreparedState !== 'function') {
+    throw new Error('Board visual state adapter requires a render-state source');
+  }
+  BoardVisualRenderStateSourceForDiff = source;
+  return source;
+}
 
 let DiffRendererManifestStoneRegistryModule: any = null;
 
@@ -341,106 +360,24 @@ if (!PlaybackStateModule) {
     } catch (e: any) { /* ignore */ }
 }
 
-function _resolveNetworkVisualStateStoreForDiff() {
-    try {
-        if (typeof window !== 'undefined' && (window as any).NetworkVisualStateStore) {
-            return (window as any).NetworkVisualStateStore;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkVisualStateStore) {
-            return (globalThis as any).NetworkVisualStateStore;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
 function _resolveNetworkVisualRenderSnapshotForDiff() {
-    const store = _resolveNetworkVisualStateStoreForDiff();
-    try {
-        const snapshot = store && typeof store.peekRenderSnapshot === 'function'
-            ? store.peekRenderSnapshot()
-            : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
-        if (snapshot && snapshot.gameState && snapshot.cardState) return snapshot;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return BoardVisualRenderStateSourceForDiff.resolveNetworkSnapshot();
 }
 
 function _resolveNetworkVisualInputEpochForDiff(snapshot: any, viewerContext: any) {
-    if (!viewerContext || viewerContext.isNetworkMode !== true) {
-        return Object.freeze({ stateVersion: null, visualSeq: null });
-    }
-    const store = _resolveNetworkVisualStateStoreForDiff();
-    let diagnostics: any = null;
-    try {
-        diagnostics = store && typeof store.getDiagnostics === 'function'
-            ? store.getDiagnostics()
-            : null;
-    } catch (e: any) { diagnostics = null; }
-    const snapshotVersion = snapshot && typeof snapshot.stateVersion === 'number'
-        && Number.isInteger(snapshot.stateVersion)
-        ? snapshot.stateVersion
-        : null;
-    const visualVersion = diagnostics && typeof diagnostics.visualVersion === 'number'
-        && Number.isInteger(diagnostics.visualVersion)
-        ? diagnostics.visualVersion
-        : null;
-    const visualSeq = diagnostics && typeof diagnostics.visualSeq === 'number'
-        && Number.isInteger(diagnostics.visualSeq)
-        ? diagnostics.visualSeq
-        : null;
-    return Object.freeze({
-        stateVersion: snapshotVersion ?? visualVersion,
-        visualSeq
-    });
-}
-
-function _resolveLocalVisualRenderPairForDiff() {
-    const currentGameState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
-        try { return (typeof gameState !== 'undefined') ? gameState : null; }
-        catch (e: any) { return null; }
-    });
-    const currentCardState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
-        try { return (typeof cardState !== 'undefined') ? cardState : null; }
-        catch (e: any) { return null; }
-    });
-    return {
-        gameState: currentGameState,
-        cardState: currentCardState || {}
-    };
+    return BoardVisualRenderStateSourceForDiff.resolveNetworkInputEpoch(snapshot, viewerContext);
 }
 
 function _resolveVisualRenderPairForDiff() {
-    if (activePreparedVisualStateForDiff) {
-        return {
-            gameState: activePreparedVisualStateForDiff.gameState,
-            cardState: activePreparedVisualStateForDiff.cardState,
-            stateVersion: activePreparedVisualStateForDiff.stateVersion
-        };
-    }
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot) {
-        return {
-            gameState: visualSnapshot.gameState,
-            cardState: visualSnapshot.cardState,
-            stateVersion: visualSnapshot.stateVersion
-        };
-    }
-    return _resolveLocalVisualRenderPairForDiff();
+    return BoardVisualRenderStateSourceForDiff.resolvePair();
 }
 
 function _resolveGameStateForDiffRender() {
-    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.gameState;
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot && visualSnapshot.gameState) return visualSnapshot.gameState;
-    return _resolveLocalVisualRenderPairForDiff().gameState;
+    return BoardVisualRenderStateSourceForDiff.resolvePair().gameState;
 }
 
 function _resolveCardStateForDiffRender() {
-    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.cardState;
-    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
-    if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
-    return _resolveLocalVisualRenderPairForDiff().cardState;
+    return BoardVisualRenderStateSourceForDiff.resolvePair().cardState;
 }
 
 function _normalizeSuperAttractionPreviewPoint(point: any) {
@@ -877,9 +814,7 @@ function setBoardVisualPreparedState(value: {
   cardState: any;
   stateVersion?: number;
 } | null {
-  const previous = activePreparedVisualStateForDiff;
-  activePreparedVisualStateForDiff = value;
-  return previous;
+  return BoardVisualRenderStateSourceForDiff.setPreparedState(value);
 }
 
 function setBoardVisualHoverPreview(value: any): void {
@@ -945,6 +880,7 @@ function setBoardVisualHoverCell(row: any, col: any): boolean {
 }
 
 const BoardVisualStateAdapter = {
+  configureBoardVisualRenderStateSource,
   createBoardRenderInputs,
   createBoardPresentationOverlayState,
   createBoardRenderProjection,

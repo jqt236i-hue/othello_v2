@@ -7,6 +7,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const RuntimeStateAccessModule = _require('./runtime-state-access');
 const BoardDomLayoutGeometryModule = _require('./board-visual/dom-layout-geometry');
+const BoardVisualRenderStateSourceModule = _require('./board-visual/render-state-source');
+const DiscDomRendererModule = _require('./presentation/disc-dom-renderer');
+const ensureDiscSkeleton = DiscDomRendererModule.ensureDiscSkeleton;
+const getDiscHudRoot = DiscDomRendererModule.getDiscHudRoot;
+const applyDiscRenderState = DiscDomRendererModule.applyDiscRenderState;
+const setDiscStoneImage = DiscDomRendererModule.setDiscStoneImage;
 
 // PR1: debug-only perf benchmark helper (window.__DEV_PERF__ === true or ?perf=1).
 // OFF path is zero-cost: every helper early-returns after the internal flag check.
@@ -92,11 +98,6 @@ if (!BoardRendererBoardUtilsModule) {
     } catch (e: any) { /* ignore */ }
 }
 
-var BoardRendererStoneHelpersRegistryModule: any = null;
-if (typeof require === 'function') {
-    try { BoardRendererStoneHelpersRegistryModule = require('./board-renderer/stone-helpers'); } catch (e: any) { /* ignore */ }
-}
-
 var WorldStatePresenterModule: any = null;
 var BoardWorldStatePresenter: any = null;
 if (typeof require === 'function') {
@@ -161,28 +162,8 @@ function _resolveNetworkPresentationTimelineForBoardRenderer() {
 }
 
 function _isStrictNetworkVisualRenderActiveForBoardRenderer() {
-    const store = _resolveNetworkVisualStateStoreForBoardRenderer();
-    try {
-        const diagnostics = store && typeof store.getDiagnostics === 'function'
-            ? store.getDiagnostics()
-            : null;
-        if (diagnostics && diagnostics.lagging === true) return true;
-    } catch (e: any) { /* ignore */ }
-    const timeline = _resolveNetworkPresentationTimelineForBoardRenderer();
-    try {
-        const diagnostics = timeline && typeof timeline.getDiagnostics === 'function'
-            ? timeline.getDiagnostics()
-            : null;
-        return !!(
-            diagnostics &&
-            (
-                diagnostics.playing === true ||
-                diagnostics.paused === true ||
-                Number(diagnostics.pendingFrameCount) > 0
-            )
-        );
-    } catch (e: any) { /* ignore */ }
-    return false;
+    return _getBoardVisualRenderStateSourceForBoardRenderer()
+        .isStrictNetworkVisualRenderActive();
 }
 
 function _resolveGlobalGameStateForBoardRenderer() {
@@ -205,25 +186,25 @@ function _resolveGlobalCardStateForBoardRenderer() {
     });
 }
 
+let BoardVisualRenderStateSourceForBoardRenderer: any = null;
+
+function _getBoardVisualRenderStateSourceForBoardRenderer() {
+    if (!BoardVisualRenderStateSourceForBoardRenderer) {
+        BoardVisualRenderStateSourceForBoardRenderer = BoardVisualRenderStateSourceModule
+            .createBoardVisualRenderStateSource({
+                getVisualStore: _resolveNetworkVisualStateStoreForBoardRenderer,
+                getPresentationTimeline: _resolveNetworkPresentationTimelineForBoardRenderer,
+                getLocalPair: () => ({
+                    gameState: _resolveGlobalGameStateForBoardRenderer(),
+                    cardState: _resolveGlobalCardStateForBoardRenderer() || {}
+                })
+            });
+    }
+    return BoardVisualRenderStateSourceForBoardRenderer;
+}
+
 function _resolveBoardRenderStateForBoardRenderer() {
-    const store = _resolveNetworkVisualStateStoreForBoardRenderer();
-    try {
-        const snapshot = store && typeof store.peekRenderSnapshot === 'function'
-            ? store.peekRenderSnapshot()
-            : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
-        if (snapshot && snapshot.gameState && snapshot.cardState) {
-            return {
-                gameState: snapshot.gameState,
-                cardState: snapshot.cardState,
-                source: 'network_visual_state'
-            };
-        }
-    } catch (e: any) { /* ignore */ }
-    return {
-        gameState: _resolveGlobalGameStateForBoardRenderer(),
-        cardState: _resolveGlobalCardStateForBoardRenderer(),
-        source: 'global'
-    };
+    return _getBoardVisualRenderStateSourceForBoardRenderer().resolvePair();
 }
 
 function _getBoardShapeForBoardRenderer() {
@@ -1415,6 +1396,21 @@ async function _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
 
 function _createDomBoardVisualBackendForBoardRenderer() {
     const compatibilityRenderer = _require('./board-dom-compat/renderer');
+    if (
+        !compatibilityRenderer
+        || typeof compatibilityRenderer.configureBoardRendererCapabilities !== 'function'
+    ) {
+        throw new Error('DOM compatibility board capability injection is unavailable');
+    }
+    compatibilityRenderer.configureBoardRendererCapabilities(Object.freeze({
+        renderStateSource: _getBoardVisualRenderStateSourceForBoardRenderer(),
+        syncBoardPixelSizing,
+        renderBoard,
+        renderBoardFull,
+        getBoardInputController,
+        applyTimeStopLegalEmphasis,
+        resolveBoardExpansionLayerElement
+    }));
     const options = {
         compatibilityRenderer,
         prepareStylesheet(documentRef: Document) {
@@ -1769,6 +1765,9 @@ function _syncSettledBoardInputForBoardRenderer(frame: any) {
     if (!frame || !frame.model) return;
     try {
         const StoneInfoModule = _require('./presentation/stone-info-controller');
+        StoneInfoModule?.configureBoardVisualRenderStateSource?.(
+            _getBoardVisualRenderStateSourceForBoardRenderer()
+        );
         StoneInfoModule?.renderCurrentStoneInfoPanel?.(frame);
     } catch (error) {
         _recordBoardInputErrorForBoardRenderer('stone-info:frame-sync-error', error);
@@ -2265,24 +2264,8 @@ async function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
     ) {
         throw new Error('Committed board visual receipt does not match the writer token');
     }
-    const store = _resolveNetworkVisualStateStoreForBoardRenderer();
-    if (
-        !receipt
-        || !store
-        || typeof store.isCurrentCommitReceipt !== 'function'
-        || store.isCurrentCommitReceipt(receipt) !== true
-        || typeof store.getSnapshotForReceipt !== 'function'
-    ) {
-        throw new Error('Committed board visual receipt is not current for the visual store');
-    }
-    const committedSnapshot = store.getSnapshotForReceipt(receipt);
-    if (
-        !committedSnapshot
-        || !committedSnapshot.gameState
-        || !committedSnapshot.cardState
-    ) {
-        throw new Error('Committed board visual receipt has no bound snapshot');
-    }
+    const committedSnapshot = _getBoardVisualRenderStateSourceForBoardRenderer()
+        .resolveReceiptBoundPair(receipt);
     BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameBuild(token);
     const frame = _buildBoardVisualFrameForBoardRenderer(controller, committedSnapshot);
     BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
@@ -2704,6 +2687,9 @@ function _readBoardFrameGeometryForLayout(host: any, appearance: any) {
 
 function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualStateOverride?: any) {
     const StateAdapterModule = _require('./board-visual/state-adapter');
+    StateAdapterModule.configureBoardVisualRenderStateSource?.(
+        _getBoardVisualRenderStateSourceForBoardRenderer()
+    );
     const LayoutModule = _require('./board-visual/layout');
     const ThemeModule = _require('./board-visual/theme');
     const FramePresenterModule = _require('./board-visual/frame-presenter');
@@ -2860,169 +2846,6 @@ function updateOccupancyUI() {
     if (whiteEl) whiteEl.innerHTML = `<div class="occ-dot"></div>白 ${whitePct}%`;
 }
 
-function _findDirectDiscChildByClass(disc: any, className: any) {
-    if (!disc || !disc.children) return null;
-    for (const child of disc.children) {
-        if (child && child.classList && child.classList.contains(className)) return child;
-    }
-    return null;
-}
-
-function _resolveDiscOwnerDescriptor(owner: any) {
-    const blackValue = (typeof BLACK !== 'undefined') ? BLACK : 1;
-    const whiteValue = (typeof WHITE !== 'undefined') ? WHITE : -1;
-    const normalized = (owner === whiteValue || owner === -1 || owner === 'white' || owner === '-1')
-        ? 'white'
-        : 'black';
-    return normalized === 'white'
-        ? {
-            key: 'white',
-            value: whiteValue,
-            className: 'white',
-            baseImage: 'var(--normal-stone-white-image)',
-            fallbackColor: '#ffffff'
-        }
-        : {
-            key: 'black',
-            value: blackValue,
-            className: 'black',
-            baseImage: 'var(--normal-stone-black-image)',
-            fallbackColor: '#050505'
-        };
-}
-
-function _areStoneBaseImagesReady() {
-    try {
-        return !!(
-            typeof document !== 'undefined' &&
-            document &&
-            document.documentElement &&
-            document.documentElement.classList &&
-            document.documentElement.classList.contains('stone-base-images-ready')
-        );
-    } catch (e: any) {
-        return false;
-    }
-}
-
-function _resolveDiscImageState(renderState: any, baseImage: any) {
-    if (renderState && typeof renderState.imageState === 'string' && renderState.imageState) {
-        return renderState.imageState;
-    }
-    const hasBaseImage = typeof baseImage === 'string' && baseImage.trim() && baseImage !== 'none';
-    return (hasBaseImage && _areStoneBaseImagesReady()) ? 'loaded' : 'fallback';
-}
-
-function ensureDiscSkeleton(disc: any) {
-    if (!disc || typeof document === 'undefined' || typeof disc.appendChild !== 'function') {
-        return { face: null, base: null, overlay: null, hud: null };
-    }
-
-    let face = _findDirectDiscChildByClass(disc, 'disc__face');
-    let hud = _findDirectDiscChildByClass(disc, 'disc__hud');
-
-    if (!face) {
-        face = document.createElement('div');
-        face.className = 'disc__face';
-        if (disc.firstChild) disc.insertBefore(face, disc.firstChild);
-        else disc.appendChild(face);
-    }
-    if (!hud) {
-        hud = document.createElement('div');
-        hud.className = 'disc__hud';
-        disc.appendChild(hud);
-    }
-
-    let base = _findDirectDiscChildByClass(face, 'disc__base-image');
-    if (!base) {
-        base = document.createElement('div');
-        base.className = 'disc__base-image';
-        face.appendChild(base);
-    }
-
-    let overlay = _findDirectDiscChildByClass(face, 'disc__overlay-image');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.className = 'disc__overlay-image';
-        face.appendChild(overlay);
-    }
-
-    const childrenToMove = [];
-    for (const child of Array.from(disc.childNodes)) {
-        if (child === face || child === hud) continue;
-        childrenToMove.push(child);
-    }
-    for (const child of childrenToMove) {
-        hud.appendChild(child);
-    }
-
-    return { face, base, overlay, hud };
-}
-
-function getDiscHudRoot(disc: any) {
-    const skeleton = ensureDiscSkeleton(disc);
-    return (skeleton && skeleton.hud) ? skeleton.hud : disc;
-}
-
-function applyDiscRenderState(disc: any, renderState: any = {}) {
-    if (!disc || !disc.style || typeof disc.style.setProperty !== 'function') return;
-
-    const blackValue = (typeof BLACK !== 'undefined') ? BLACK : 1;
-    const whiteValue = (typeof WHITE !== 'undefined') ? WHITE : -1;
-    const owner = (renderState.owner !== undefined && renderState.owner !== null)
-        ? renderState.owner
-        : (disc.classList && disc.classList.contains('white') ? whiteValue : blackValue);
-    const ownerDescriptor = _resolveDiscOwnerDescriptor(owner);
-    const requestedRenderMode = renderState.renderMode || 'base-only';
-    const baseImage = renderState.baseImage || ownerDescriptor.baseImage;
-    const overlayImage = renderState.overlayImage || null;
-    const overlayScale = Number(renderState.scale);
-    const imageState = _resolveDiscImageState(renderState, baseImage);
-    const renderMode = ((requestedRenderMode === 'replace' || requestedRenderMode === 'overlay') && !overlayImage)
-        ? 'base-only'
-        : requestedRenderMode;
-    const fallbackColor = imageState === 'fallback'
-        ? (
-            Object.prototype.hasOwnProperty.call(renderState, 'baseFallbackColor')
-                ? renderState.baseFallbackColor
-                : ownerDescriptor.fallbackColor
-        )
-        : 'transparent';
-
-    ensureDiscSkeleton(disc);
-
-    try { disc.dataset.renderMode = renderMode; } catch (e: any) { /* ignore */ }
-    try { disc.dataset.effect = renderState.effectKey || 'normal'; } catch (e: any) { /* ignore */ }
-    try { disc.dataset.imageState = imageState; } catch (e: any) { /* ignore */ }
-    try { disc.style.setProperty('--disc-base-image', baseImage); } catch (e: any) { /* ignore */ }
-    try { disc.style.setProperty('--stone-image', baseImage); } catch (e: any) { /* ignore */ }
-    try { disc.style.setProperty('--disc-base-fallback-color', fallbackColor || 'transparent'); } catch (e: any) { /* ignore */ }
-    try { disc.style.removeProperty('--disc-base-color'); } catch (e: any) { /* ignore */ }
-
-    if (overlayImage) {
-        try { disc.style.setProperty('--disc-overlay-image', overlayImage); } catch (e: any) { /* ignore */ }
-        try { disc.style.setProperty('--special-stone-image', overlayImage); } catch (e: any) { /* ignore */ }
-    } else {
-        try { disc.style.removeProperty('--disc-overlay-image'); } catch (e: any) { /* ignore */ }
-        try { disc.style.removeProperty('--special-stone-image'); } catch (e: any) { /* ignore */ }
-    }
-
-    if (Number.isFinite(overlayScale) && overlayScale > 0 && overlayScale !== 1) {
-        try { disc.style.setProperty('--disc-overlay-scale', String(overlayScale)); } catch (e: any) { /* ignore */ }
-    } else {
-        try { disc.style.removeProperty('--disc-overlay-scale'); } catch (e: any) { /* ignore */ }
-    }
-}
-
-// Expose in CommonJS for tests and in browser globals for legacy callers
-function setDiscStoneImage(disc: any, val: any) {
-    applyDiscRenderState(disc, {
-        owner: val,
-        renderMode: 'base-only',
-        effectKey: 'normal'
-    });
-}
-
 // Expose in CommonJS for tests and in browser globals for legacy callers
 const BoardRenderer = {
             renderBoard,
@@ -3064,12 +2887,6 @@ const BoardRenderer = {
             syncBoardExpansionLayerGeometry,
             resolveBoardExpansionLayerElement
         };
-if (
-    BoardRendererStoneHelpersRegistryModule &&
-    typeof BoardRendererStoneHelpersRegistryModule.setBoardRendererStoneHelpers === 'function'
-) {
-    BoardRendererStoneHelpersRegistryModule.setBoardRendererStoneHelpers(BoardRenderer);
-}
 export = BoardRenderer;
 if (typeof window !== 'undefined') {
     // Prefer board-renderer as the canonical renderBoard implementation.

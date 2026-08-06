@@ -55,16 +55,34 @@ describe('NetworkVisualStateStore clone inventory and readonly rendering', () =>
   });
 
   test('strict network board rendering prefers readonly peek and keeps clone getter as fallback', () => {
-    const source = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'board-renderer.ts'), 'utf8');
-    const resolver = source.slice(
-      source.indexOf('function _resolveBoardRenderStateForBoardRenderer()'),
-      source.indexOf('function _getBoardShapeForBoardRenderer()')
+    const resolver = fs.readFileSync(
+      path.resolve(__dirname, '..', 'ui', 'board-visual', 'render-state-source.ts'),
+      'utf8'
     );
 
     expect(resolver).toContain("typeof store.peekRenderSnapshot === 'function'");
     expect(resolver).toContain('store.peekRenderSnapshot()');
     expect(resolver).toContain("typeof store.getRenderSnapshot === 'function'");
     expect(resolver.indexOf('store.peekRenderSnapshot()')).toBeLessThan(resolver.indexOf('store.getRenderSnapshot()'));
+  });
+
+  test('exposes a frozen lightweight operational snapshot without diagnostic allocation', () => {
+    const store = Store.createNetworkVisualStateStore();
+    store.setCanonicalSnapshot(snapshot(2, 'canonical'));
+    store.setBaseVisualSnapshot(snapshot(1, 'visual'), { visualSeq: 4, visualVersion: 1 });
+
+    const operational = store.getOperationalState();
+
+    expect(operational).toEqual({
+      canonicalVersion: 2,
+      visualSeq: 4,
+      visualVersion: 1,
+      lagging: true,
+      hasCanonicalSnapshot: true,
+      hasVisualSnapshot: true
+    });
+    expect(Object.isFrozen(operational)).toBe(true);
+    expect(store.getDiagnostics()).toMatchObject(operational);
   });
 
   test('characterizes ownership clones for set/get/frame/render operations', () => {

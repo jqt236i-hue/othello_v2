@@ -21,6 +21,20 @@ describe('board renderer network visual state', () => {
     return boardRenderer;
   }
 
+  function loadStateAdapter() {
+    const diff = require('../ui/board-visual/state-adapter');
+    const { createBoardVisualRenderStateSource } = require('../ui/board-visual/render-state-source');
+    diff.configureBoardVisualRenderStateSource(createBoardVisualRenderStateSource({
+      getVisualStore: () => (global as any).NetworkVisualStateStore || null,
+      getPresentationTimeline: () => (global as any).NetworkPresentationTimeline || null,
+      getLocalPair: () => ({
+        gameState: (global as any).gameState,
+        cardState: (global as any).cardState || {}
+      })
+    }));
+    return diff;
+  }
+
   beforeEach(() => {
     jest.resetModules();
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -56,6 +70,14 @@ describe('board renderer network visual state', () => {
       pendingEffectByPlayer: { black: null, white: null }
     };
     (global as any).NetworkVisualStateStore = {
+      getOperationalState: jest.fn(() => ({
+        canonicalVersion: 2,
+        visualVersion: 1,
+        visualSeq: 0,
+        lagging: true,
+        hasCanonicalSnapshot: true,
+        hasVisualSnapshot: true
+      })),
       getDiagnostics: jest.fn(() => ({
         canonicalVersion: 2,
         visualVersion: 1,
@@ -109,6 +131,14 @@ describe('board renderer network visual state', () => {
       canonicalVersion: 2,
       visualVersion: 2,
       lagging: false,
+      hasVisualSnapshot: true
+    });
+    (global as any).NetworkVisualStateStore.getOperationalState.mockReturnValue({
+      canonicalVersion: 2,
+      visualVersion: 2,
+      visualSeq: 0,
+      lagging: false,
+      hasCanonicalSnapshot: true,
       hasVisualSnapshot: true
     });
     const boardRenderer = loadDomBoardRenderer();
@@ -176,7 +206,7 @@ describe('board renderer network visual state', () => {
     (global as any).NetworkVisualStateStore.getRenderSnapshot
       .mockImplementationOnce(() => firstSnapshot)
       .mockImplementation(() => secondSnapshot);
-    const diff = require('../ui/board-visual/state-adapter');
+    const diff = loadStateAdapter();
 
     const inputs = diff.createBoardRenderInputs();
 
@@ -195,7 +225,7 @@ describe('board renderer network visual state', () => {
         getSeatKey: () => 'black'
       }
     });
-    const diff = require('../ui/board-visual/state-adapter');
+    const diff = loadStateAdapter();
     const makeSnapshot = (stateVersion: number, pendingEffectId: string) => ({
       stateVersion,
       gameState: createTestGameState(1, 1),
@@ -215,11 +245,12 @@ describe('board renderer network visual state', () => {
     const buildModel = (stateVersion: number, visualSeq: number, pendingEffectId: string) => {
       (global as any).NetworkVisualStateStore.getRenderSnapshot
         .mockReturnValue(makeSnapshot(stateVersion, pendingEffectId));
-      (global as any).NetworkVisualStateStore.getDiagnostics.mockReturnValue({
+      (global as any).NetworkVisualStateStore.getOperationalState.mockReturnValue({
         canonicalVersion: stateVersion,
         visualVersion: stateVersion,
         visualSeq,
         lagging: false,
+        hasCanonicalSnapshot: true,
         hasVisualSnapshot: true
       });
       const inputs = diff.createBoardRenderInputs();
@@ -252,7 +283,7 @@ describe('board renderer network visual state', () => {
   });
 
   test('createBoardRenderInputs reads the local game/card pair once each', () => {
-    const diff = require('../ui/board-visual/state-adapter');
+    const diff = loadStateAdapter();
     delete (global as any).NetworkVisualStateStore;
     delete (global as any).gameState;
     delete (global as any).cardState;
@@ -302,7 +333,7 @@ describe('board renderer network visual state', () => {
         getSeatKey: () => 'white'
       }
     });
-    const diff = require('../ui/board-visual/state-adapter');
+    const diff = loadStateAdapter();
 
     const inputs = diff.createBoardRenderInputs();
     // Canonical globals are already ahead; the prepared visual pair remains
@@ -330,7 +361,7 @@ describe('board renderer network visual state', () => {
         getSeatKey: () => null
       }
     });
-    const diff = require('../ui/board-visual/state-adapter');
+    const diff = loadStateAdapter();
     const inputs = diff.createBoardRenderInputs();
     const projection = diff.createBoardRenderProjection(undefined, inputs);
     const cellState = diff.buildCurrentCellState(projection, inputs);
