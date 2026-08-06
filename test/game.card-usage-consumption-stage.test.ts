@@ -38,6 +38,7 @@ describe('card usage consumption stage', () => {
         expect(cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
         expect(cardState.cardUseCountByPlayer.black).toBe(1);
         expect(cardState.lastUsedCardByPlayer.black).toBe('work_01');
+        expect(cardState.lastUsedCard).toEqual({ cardId: 'work_01', ownerKey: 'black' });
         expect(cardState.selectedCardId).toBeNull();
     });
 
@@ -54,6 +55,7 @@ describe('card usage consumption stage', () => {
         expect(clearUsedSelectedCard).toHaveBeenCalledWith(cardState, 'work_01', 'black');
         expect(cardState.hasUsedCardThisTurnByPlayer.black).toBe(false);
         expect(cardState.lastUsedCardByPlayer.black).toBe('work_01');
+        expect(cardState.lastUsedCard).toEqual({ cardId: 'work_01', ownerKey: 'black' });
     });
 
     test('keeps the effect resolver free of hand-consumption mutation bodies', () => {

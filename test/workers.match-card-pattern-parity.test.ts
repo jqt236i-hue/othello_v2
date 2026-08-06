@@ -270,6 +270,7 @@ test('worker authority gates and allowlists card-use debug options', () => {
   expect(allowlistedEnabled.payload.snapshot.cardState.charge.black).toBe(99);
   expect(allowlistedEnabled.payload.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
   expect(allowlistedEnabled.payload.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+  expect(allowlistedEnabled.payload.snapshot.cardState.lastUsedCard).toEqual({ cardId: 'hard_01', ownerKey: 'black' });
 });
 
 function runWorkerPendingSelectionPlaceParityScenario(config) {

@@ -29,6 +29,12 @@ function consumeCardUsage(options: CardUsageConsumptionOptions): any {
         options.cardState.cardUseCountByPlayer[options.chargeOwnerKey] = (options.cardState.cardUseCountByPlayer[options.chargeOwnerKey] || 0) + 1;
     }
     options.cardState.lastUsedCardByPlayer[options.chargeOwnerKey] = options.cardId;
+    // `discard` also receives cards removed by hand-destruction and rebuild effects.
+    // Keep a separate canonical record for presentation of the most recently used card.
+    options.cardState.lastUsedCard = {
+        cardId: options.cardId,
+        ownerKey: options.chargeOwnerKey
+    };
     if (typeof options.clearUsedSelectedCard === 'function') {
         options.clearUsedSelectedCard(options.cardState, options.cardId, options.handKey);
     }

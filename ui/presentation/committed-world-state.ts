@@ -493,16 +493,6 @@ function _findLastUsedCardByPlayerEntryInfoForDiff(cardStateValue: any, cardId: 
     return entries.length === 1 ? entries[0] : null;
 }
 
-function _findLastDiscardCardEntryForDiff(cardStateValue: any) {
-    const discard = Array.isArray(cardStateValue && cardStateValue.discard) ? cardStateValue.discard : [];
-    for (let i = discard.length - 1; i >= 0; i -= 1) {
-        const entry = discard[i];
-        const cardId = _normalizeLastUsedCardIdForDiff(entry);
-        if (cardId) return entry;
-    }
-    return null;
-}
-
 function _cloneCommittedManifestValueForDiff(value: any, seen?: WeakMap<object, any>): any {
     if (!value || typeof value !== 'object') return value;
     const visited = seen || new WeakMap<object, any>();
@@ -538,7 +528,6 @@ function _cloneCommittedManifestOwnerRecordForDiff(value: any) {
  */
 function createCommittedManifestPresentationState(cardStateValue: any) {
     const source = cardStateValue && typeof cardStateValue === 'object' ? cardStateValue : {};
-    const lastDiscardEntry = _findLastDiscardCardEntryForDiff(source);
     return Object.freeze({
         markers: _cloneCommittedManifestValueForDiff(
             Array.isArray(source.markers) ? source.markers : []
@@ -560,12 +549,10 @@ function createCommittedManifestPresentationState(cardStateValue: any) {
         nextTheoryIncarnationStoneByPlayer: _cloneCommittedManifestOwnerRecordForDiff(
             source.nextTheoryIncarnationStoneByPlayer
         ),
+        lastUsedCard: _cloneCommittedManifestValueForDiff(source.lastUsedCard),
         lastUsedCardByPlayer: _cloneCommittedManifestOwnerRecordForDiff(
             source.lastUsedCardByPlayer
-        ),
-        discard: Object.freeze(lastDiscardEntry
-            ? [_cloneCommittedManifestValueForDiff(lastDiscardEntry)]
-            : [])
+        )
     });
 }
 
@@ -607,18 +594,38 @@ function _resolveLastUsedCardTagsForDiff(cardId: string) {
     return _normalizeManifestCardEffectTagsForDiff(effectsModule.resolveCardEffectTags(cardDef));
 }
 
+function _resolveLastUsedCardPanelEntryForDiff(cardStateValue: any) {
+    const canonicalEntry = cardStateValue && cardStateValue.lastUsedCard;
+    const canonicalCardId = _normalizeLastUsedCardIdForDiff(canonicalEntry);
+    const matchingPlayerEntry = canonicalCardId
+        ? _findLastUsedCardByPlayerEntryInfoForDiff(cardStateValue, canonicalCardId)
+        : null;
+    if (canonicalCardId) {
+        return {
+            cardId: canonicalCardId,
+            ownerKey: _normalizeLastUsedOwnerKeyForDiff(canonicalEntry)
+                || _normalizeLastUsedOwnerKeyForDiff(matchingPlayerEntry && matchingPlayerEntry.ownerKey),
+            entry: (matchingPlayerEntry && matchingPlayerEntry.entry) || canonicalEntry
+        };
+    }
+
+    // Older snapshots have per-player records but no global record.  A single
+    // record is unambiguous; do not infer one from the discard pile.
+    const legacyEntry = _findLastUsedCardByPlayerEntryInfoForDiff(cardStateValue, '');
+    if (!legacyEntry) return null;
+    return {
+        cardId: _normalizeLastUsedCardIdForDiff(legacyEntry.entry),
+        ownerKey: legacyEntry.ownerKey,
+        entry: legacyEntry.entry
+    };
+}
+
 function _buildLastUsedCardPanelContentForDiff(cardStateValue: any) {
-    const lastDiscardEntry = _findLastDiscardCardEntryForDiff(cardStateValue);
-    let cardId = _normalizeLastUsedCardIdForDiff(lastDiscardEntry);
-    let ownerKey = _normalizeLastUsedOwnerKeyForDiff(lastDiscardEntry);
-    let lastUsedInfo = _findLastUsedCardByPlayerEntryInfoForDiff(cardStateValue, cardId);
-    let lastUsedEntry = lastUsedInfo && lastUsedInfo.entry;
-    if (!ownerKey && lastUsedInfo && lastUsedInfo.ownerKey) {
-        ownerKey = lastUsedInfo.ownerKey;
-    }
-    if (!cardId && lastUsedEntry) {
-        cardId = _normalizeLastUsedCardIdForDiff(lastUsedEntry);
-    }
+    const lastUsed = _resolveLastUsedCardPanelEntryForDiff(cardStateValue);
+    if (!lastUsed) return null;
+    const cardId = lastUsed.cardId;
+    const ownerKey = lastUsed.ownerKey;
+    const lastUsedEntry = lastUsed.entry;
     if (!cardId) return null;
     const copy = _resolveLastUsedPanelCopyForDiff(cardId);
     if (!copy) return null;

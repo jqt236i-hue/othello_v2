@@ -471,6 +471,7 @@ describe('local match server publish contract', () => {
       expect(allowed.data.snapshot.cardState.charge.black).toBe(99);
       expect(allowed.data.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
       expect(allowed.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+      expect(allowed.data.snapshot.cardState.lastUsedCard).toEqual({ cardId: 'hard_01', ownerKey: 'black' });
     } finally {
       await closeServer(server);
     }

@@ -97,6 +97,41 @@ describe('manifest effect panel', () => {
     expect(document.querySelector('#manifest-effect-lines .manifest-effect-line--empty')).not.toBeNull();
   });
 
+  test('does not render a discarded card when no card has been used', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      markers: [],
+      discard: ['chest_01'],
+      lastUsedCardByPlayer: { black: null, white: null }
+    };
+
+    const panel = renderOnce();
+
+    expect(panel?.getAttribute('data-manifest-effect-type')).toBeNull();
+    expect(panel?.textContent).toContain('最後に使ったカードがここに表示されます');
+    expect(panel?.textContent).not.toContain('カード: 宝箱');
+  });
+
+  test('uses the canonical last-used record instead of a later non-use discard', () => {
+    (global as any).cardState = {
+      hands: { black: [], white: [] },
+      markers: [],
+      discard: ['chest_01', 'guard_01'],
+      lastUsedCard: { cardId: 'chest_01', ownerKey: 'black' },
+      lastUsedCardByPlayer: {
+        black: 'chest_01',
+        white: 'guard_01'
+      }
+    };
+
+    const panel = renderOnce();
+
+    expect(panel?.textContent).toContain('カード: 宝箱');
+    expect(panel?.textContent).not.toContain('カード: 守る意志');
+    const ownerStone = document.getElementById('manifest-effect-title')?.querySelector('.manifest-effect-owner-stone') as HTMLElement | null;
+    expect(ownerStone?.classList.contains('is-black')).toBe(true);
+  });
+
   test('renders last used card when no manifestation stone is active', () => {
     (global as any).cardState = {
       hands: { black: [], white: [] },

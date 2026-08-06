@@ -620,6 +620,9 @@ function copyCardState(cs: any, context: Context): any {
             }
             : { black: null, white: null }
     };
+    if (cardState.lastUsedCard && typeof cardState.lastUsedCard === 'object') {
+        nextState.lastUsedCard = { ...cardState.lastUsedCard };
+    }
     ensureCardCopyState(nextState);
     return nextState;
 }
