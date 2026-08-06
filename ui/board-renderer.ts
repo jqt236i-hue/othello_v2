@@ -4,10 +4,17 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+import type { BoardRendererFacade } from './board-visual/runtime-ports';
 
 const RuntimeStateAccessModule = _require('./runtime-state-access');
 const BoardDomLayoutGeometryModule = _require('./board-visual/dom-layout-geometry');
 const BoardVisualRenderStateSourceModule = _require('./board-visual/render-state-source');
+const BoardLayoutRuntimeModule = _require('./board-visual/layout-runtime');
+const BoardInputRuntimeModule = _require('./board-visual/input-runtime');
+const BoardBackendRuntimeModule = _require('./board-visual/backend-runtime');
+const BoardFrameRuntimeModule = _require('./board-visual/frame-runtime');
+const BoardWriterRuntimeModule = _require('./board-visual/writer-runtime');
+const BoardRenderSubmissionRuntimeModule = _require('./board-visual/render-submission-runtime');
 const DiscDomRendererModule = _require('./presentation/disc-dom-renderer');
 const ensureDiscSkeleton = DiscDomRendererModule.ensureDiscSkeleton;
 const getDiscHudRoot = DiscDomRendererModule.getDiscHudRoot;
@@ -217,37 +224,31 @@ function _getBoardShapeForBoardRenderer() {
     return { rows: config.rows, cols: config.cols };
 }
 
-// PR2 N3 syncBoardPixelSizing dirty gate.
-// Revision 2 (PR2 v2):
-//   signature expanded from (rows, cols, frameExists) to a 12-key composite that
-//   also catches element identity swaps, skin switches, layout scale changes,
-//   frame padding changes, and devicePixelRatio shifts. getComputedStyle() is
-//   intentionally NOT used in signature computation (would reflow inside the
-//   gate we just opened to remove reflow). The dirty flag is forced true on:
-//     - module load (initial sync)
-//     - _handleBoardPixelSizingViewportChange (window/frame resize)
-//     - _ensureBoardPixelSizingObserver when the observed frame is swapped
-//     - ResizeObserver-less / frame-absent fallback paths
-//     - visibilitychange (when document becomes visible)
-//     - pageshow (bfcache restoration)
-let _boardPixelSizingSignature: string | null = null;
-let _boardPixelSizingDirty = true;
-let _boardPixelSizingRevision = 0;
-let boardPixelSizingObserver: any = null;
-let boardPixelSizingObservedFrame: any = null;
-let boardPixelSizingObservedElement: any = null;
-let boardPixelSizingWindowHandlerInstalled = false;
-let _boardPixelSizingPageStateHandlersInstalled = false;
-const _boardElementIdentityToken = new WeakMap<any, number>();
-const _frameElementIdentityToken = new WeakMap<any, number>();
-let _nextBoardElementIdentity = 1;
-let _nextFrameElementIdentity = 1;
-const _boardPixelSizingShapeByElement = new WeakMap<any, any>();
-const _boardPixelSizingMeasurementByElement = new WeakMap<any, { signature: string; measurement: any }>();
-const _pixiViewportSizingSignatureByElement = new WeakMap<any, string>();
-const STANDARD_BOARD_BASELINE_ROWS = 8;
-const STANDARD_BOARD_BASELINE_COLS = 8;
-const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
+let BoardLayoutRuntimeForBoardRenderer: any = null;
+
+function _requestBoardPixelSizingRenderForBoardRenderer() {
+    try {
+        const root: any = typeof window !== 'undefined' ? window : globalThis;
+        const scheduler = root && root.RenderScheduler;
+        if (scheduler && typeof scheduler.requestBoardRender === 'function') {
+            scheduler.requestBoardRender({ source: 'board-pixel-sizing', reason: 'viewport-change' });
+            return;
+        }
+    } catch (e: any) { /* fall through to controller render */ }
+    renderBoard();
+}
+
+function _getBoardLayoutRuntimeForBoardRenderer() {
+    if (!BoardLayoutRuntimeForBoardRenderer) {
+        BoardLayoutRuntimeForBoardRenderer = BoardLayoutRuntimeModule.createBoardLayoutRuntime({
+            resolveBoardShape: _getBoardShapeForBoardRenderer,
+            requestRender: _requestBoardPixelSizingRenderForBoardRenderer,
+            getPerfBenchmarks: () => PerfBenchmarks,
+            domLayoutGeometry: BoardDomLayoutGeometryModule
+        });
+    }
+    return BoardLayoutRuntimeForBoardRenderer;
+}
 
 function _getManifestStoneRegistryForBoardRenderer() {
     if (BoardRendererManifestStoneRegistryModule) return BoardRendererManifestStoneRegistryModule;
@@ -369,648 +370,24 @@ function _isBgmPlayingForBoardRenderer(engine: any) {
     return !!(engine._manifestBgm && engine._manifestBgm.paused !== true);
 }
 
-function _isBoardShapeOversizeForPixelSizing(shape: any) {
-    const rows = shape && Number.isFinite(shape.rows) ? shape.rows : STANDARD_BOARD_BASELINE_ROWS;
-    const cols = shape && Number.isFinite(shape.cols) ? shape.cols : STANDARD_BOARD_BASELINE_COLS;
-    return rows > STANDARD_BOARD_BASELINE_ROWS || cols > STANDARD_BOARD_BASELINE_COLS;
-}
-
-function _normalizeBoardShapeForPixelSizing(shapeOrState: any) {
-    const rows = Number(shapeOrState && shapeOrState.rows);
-    const cols = Number(shapeOrState && shapeOrState.cols);
-    if (Number.isFinite(rows) && Number.isFinite(cols)) {
-        const normalizedRows = Math.max(1, Math.trunc(rows));
-        const normalizedCols = Math.max(1, Math.trunc(cols));
-        const baseRowsValue = Number(shapeOrState && shapeOrState.baseRows);
-        const baseColsValue = Number(shapeOrState && shapeOrState.baseCols);
-        const minRowValue = Number(shapeOrState && shapeOrState.minRow);
-        const minColValue = Number(shapeOrState && shapeOrState.minCol);
-        const baseRows = Number.isFinite(baseRowsValue) ? Math.max(1, Math.trunc(baseRowsValue)) : normalizedRows;
-        const baseCols = Number.isFinite(baseColsValue) ? Math.max(1, Math.trunc(baseColsValue)) : normalizedCols;
-        const minRow = Number.isFinite(minRowValue) ? Math.trunc(minRowValue) : 0;
-        const minCol = Number.isFinite(minColValue) ? Math.trunc(minColValue) : 0;
-        return {
-            rows: normalizedRows,
-            cols: normalizedCols,
-            baseRows,
-            baseCols,
-            minRow,
-            minCol,
-            maxRow: minRow + normalizedRows - 1,
-            maxCol: minCol + normalizedCols - 1
-        };
-    }
-    const fallbackShape = _getBoardShapeForBoardRenderer();
-    return {
-        rows: fallbackShape.rows,
-        cols: fallbackShape.cols,
-        baseRows: fallbackShape.rows,
-        baseCols: fallbackShape.cols,
-        minRow: 0,
-        minCol: 0,
-        maxRow: fallbackShape.rows - 1,
-        maxCol: fallbackShape.cols - 1
-    };
-}
-
-function _clearBoardPixelSizingVars(boardElement: any) {
-    if (boardElement && boardElement.style) {
-        boardElement.style.removeProperty('width');
-        boardElement.style.removeProperty('height');
-        boardElement.style.removeProperty('left');
-        boardElement.style.removeProperty('top');
-        boardElement.style.removeProperty('transform');
-        boardElement.style.removeProperty('--board-cell-size-px');
-        boardElement.style.removeProperty('--board-cell-scale');
-        boardElement.style.removeProperty('--board-disc-inset-px');
-        boardElement.style.removeProperty('--board-disc-size-px');
-    }
-    _clearBoardExpansionLayerGeometry(boardElement);
-    const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
-    _clearBoardFramePixelSizingVars(frameElement);
-    _setBoardOversizeLayoutState(frameElement, false);
-}
-
-function _getBoardFrameElementForPixelSizing(boardElement: any) {
-    if (!boardElement) return null;
-    if (typeof boardElement.closest === 'function') {
-        const closestFrame = boardElement.closest('#board-frame');
-        if (closestFrame) return closestFrame;
-    }
-    if (typeof document !== 'undefined' && document && typeof document.getElementById === 'function') {
-        return document.getElementById('board-frame');
-    }
-    return null;
-}
-
 function resolveBoardExpansionLayerElement(boardElement: any, createIfMissing?: any) {
-    if (typeof document === 'undefined' || !document) return null;
-    const boardFrame = _getBoardFrameElementForPixelSizing(boardElement);
-    const boardStack = boardFrame && boardFrame.parentElement
-        ? boardFrame.parentElement
-        : (boardElement && boardElement.parentElement ? boardElement.parentElement : null);
-    if (!boardStack) return null;
-
-    let layer = null;
-    if (typeof boardStack.querySelector === 'function') {
-        layer = boardStack.querySelector('#board-expansion-layer');
-    }
-    const rendererKind = boardElement && typeof boardElement.getAttribute === 'function'
-        ? boardElement.getAttribute('data-board-renderer')
-        : null;
-    const mayCreateCompatibilityLayer = !!createIfMissing && rendererKind === 'dom';
-    if (layer || !mayCreateCompatibilityLayer || typeof document.createElement !== 'function') {
-        return layer;
-    }
-
-    layer = document.createElement('div');
-    layer.id = 'board-expansion-layer';
-    layer.setAttribute('aria-hidden', 'true');
-    const chargeHudLayer = typeof boardStack.querySelector === 'function'
-        ? boardStack.querySelector('#charge-hud-layer')
-        : null;
-    if (chargeHudLayer && chargeHudLayer.parentNode === boardStack) {
-        boardStack.insertBefore(layer, chargeHudLayer);
-    } else if (boardFrame && boardFrame.parentNode === boardStack) {
-        boardStack.insertBefore(layer, boardFrame.nextSibling);
-    } else {
-        boardStack.appendChild(layer);
-    }
-    return layer;
-}
-
-function _clearBoardExpansionLayerGeometry(boardElement: any) {
-    const expansionLayer = resolveBoardExpansionLayerElement(boardElement, false);
-    if (!expansionLayer || !expansionLayer.style) return;
-    expansionLayer.style.removeProperty('left');
-    expansionLayer.style.removeProperty('top');
-    expansionLayer.style.removeProperty('width');
-    expansionLayer.style.removeProperty('height');
-    expansionLayer.style.removeProperty('--board-rows');
-    expansionLayer.style.removeProperty('--board-cols');
-}
-
-function _isDomCompatibilityBoardForPixelSizing(boardElement: any) {
-    return !!(
-        boardElement
-        && typeof boardElement.getAttribute === 'function'
-        && boardElement.getAttribute('data-board-renderer') === 'dom'
-    );
-}
-
-function _getBaseViewportShapeForPixelSizing(shape: any) {
-    const baseRows = Number.isFinite(shape && shape.baseRows) ? Math.max(1, Math.trunc(shape.baseRows)) : shape.rows;
-    const baseCols = Number.isFinite(shape && shape.baseCols) ? Math.max(1, Math.trunc(shape.baseCols)) : shape.cols;
-    return {
-        rows: baseRows,
-        cols: baseCols,
-        baseRows,
-        baseCols,
-        minRow: 0,
-        minCol: 0,
-        maxRow: baseRows - 1,
-        maxCol: baseCols - 1
-    };
+    return _getBoardLayoutRuntimeForBoardRenderer()
+        .resolveBoardExpansionLayerElement(boardElement, createIfMissing);
 }
 
 function syncBoardExpansionLayerGeometry(boardElement: any, shapeInput?: any) {
-    const expansionLayer = resolveBoardExpansionLayerElement(boardElement, true);
-    const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
-    if (!expansionLayer || !expansionLayer.style) return shape;
-    const baseViewportShape = _getBaseViewportShapeForPixelSizing(shape);
-
-    // The compatibility expansion layer is positioned over the fixed initial
-    // board viewport. Its percentages must therefore use the initial shape,
-    // not the sparse render bounds that include attached expansion cells.
-    expansionLayer.style.setProperty('--board-rows', String(baseViewportShape.rows));
-    expansionLayer.style.setProperty('--board-cols', String(baseViewportShape.cols));
-
-    if (!boardElement) return shape;
-
-    let width = 0;
-    let height = 0;
-    let left = 0;
-    let top = 0;
-
-    if (typeof boardElement.getBoundingClientRect === 'function') {
-        const boardRect = boardElement.getBoundingClientRect();
-        width = Number.isFinite(boardRect.width) ? boardRect.width : 0;
-        height = Number.isFinite(boardRect.height) ? boardRect.height : 0;
-        const offsetParent = expansionLayer.offsetParent || expansionLayer.parentElement;
-        if (offsetParent && typeof offsetParent.getBoundingClientRect === 'function') {
-            const offsetRect = offsetParent.getBoundingClientRect();
-            left = Number.isFinite(boardRect.left) && Number.isFinite(offsetRect.left) ? boardRect.left - offsetRect.left : 0;
-            top = Number.isFinite(boardRect.top) && Number.isFinite(offsetRect.top) ? boardRect.top - offsetRect.top : 0;
-        }
-    }
-
-    if (!(width > 0)) {
-        const styleWidth = Number.parseFloat(boardElement.style && boardElement.style.width ? boardElement.style.width : '0');
-        width = Number.isFinite(styleWidth) ? styleWidth : 0;
-    }
-    if (!(height > 0)) {
-        const styleHeight = Number.parseFloat(boardElement.style && boardElement.style.height ? boardElement.style.height : '0');
-        height = Number.isFinite(styleHeight) ? styleHeight : 0;
-    }
-    if (!Number.isFinite(left) || !Number.isFinite(top)) {
-        left = 0;
-        top = 0;
-    }
-
-    expansionLayer.style.left = `${left}px`;
-    expansionLayer.style.top = `${top}px`;
-    if (width > 0) expansionLayer.style.width = `${width}px`;
-    else expansionLayer.style.removeProperty('width');
-    if (height > 0) expansionLayer.style.height = `${height}px`;
-    else expansionLayer.style.removeProperty('height');
-
-    return shape;
-}
-
-function _clearBoardFramePixelSizingVars(frameElement: any) {
-    if (!frameElement || !frameElement.style) return;
-    frameElement.style.removeProperty('--board-frame-outer-width');
-    frameElement.style.removeProperty('--board-frame-outer-height');
-}
-
-function _getBoardLayoutContainerForPixelSizing(frameElement: any) {
-    if (frameElement && typeof frameElement.closest === 'function') {
-        const closestContainer = frameElement.closest('#game-container');
-        if (closestContainer) return closestContainer;
-    }
-    if (typeof document !== 'undefined' && document && typeof document.getElementById === 'function') {
-        return document.getElementById('game-container');
-    }
-    return null;
-}
-
-function _setBoardOversizeLayoutState(frameElement: any, active: any) {
-    const oversizeActive = !!active;
-    if (typeof document !== 'undefined' && document && document.body && document.body.classList) {
-        document.body.classList.toggle('board-oversize-active', oversizeActive);
-    }
-    const layoutContainer = _getBoardLayoutContainerForPixelSizing(frameElement);
-    if (layoutContainer && layoutContainer.classList) {
-        layoutContainer.classList.toggle('board-oversize-active', oversizeActive);
-    }
-}
-
-function _measureBoardFrameBaseOuterSize(frameElement: any) {
-    if (!frameElement || typeof document === 'undefined' || !document || typeof document.createElement !== 'function') {
-        return null;
-    }
-    const probe = document.createElement('div');
-    probe.setAttribute('aria-hidden', 'true');
-    probe.style.position = 'absolute';
-    probe.style.left = '0';
-    probe.style.top = '0';
-    probe.style.width = 'calc(var(--board-frame-inner-size) + var(--board-frame-padding-left) + var(--board-frame-padding-right))';
-    probe.style.height = 'calc(var(--board-frame-inner-size) + var(--board-frame-padding-top) + var(--board-frame-padding-bottom))';
-    probe.style.visibility = 'hidden';
-    probe.style.pointerEvents = 'none';
-    probe.style.boxSizing = 'border-box';
-    probe.style.padding = '0';
-    probe.style.margin = '0';
-    probe.style.border = '0';
-    frameElement.appendChild(probe);
-    let rect: any = null;
-    if (typeof probe.getBoundingClientRect === 'function') {
-        rect = probe.getBoundingClientRect();
-    }
-    frameElement.removeChild(probe);
-    if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
-    return { width: rect.width, height: rect.height };
-}
-
-function _getContentRectSizeForPixelSizing(element: any) {
-    if (!element || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function' || typeof element.getBoundingClientRect !== 'function') {
-        return null;
-    }
-    const rect = element.getBoundingClientRect();
-    const style = window.getComputedStyle(element);
-    const borderX = Number.parseFloat(style.borderLeftWidth || '0') + Number.parseFloat(style.borderRightWidth || '0');
-    const borderY = Number.parseFloat(style.borderTopWidth || '0') + Number.parseFloat(style.borderBottomWidth || '0');
-    const width = rect.width - (Number.isFinite(borderX) ? borderX : 0);
-    const height = rect.height - (Number.isFinite(borderY) ? borderY : 0);
-    if (!(width > 0) || !(height > 0)) return null;
-    return { width, height };
-}
-
-function _getBoardBoxMetricsForPixelSizing(boardElement: any) {
-    if (!boardElement || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
-        return { borderX: 0, borderY: 0, boxSizing: '' };
-    }
-    const style = window.getComputedStyle(boardElement);
-    const borderX = Number.parseFloat(style.borderLeftWidth || '0') + Number.parseFloat(style.borderRightWidth || '0');
-    const borderY = Number.parseFloat(style.borderTopWidth || '0') + Number.parseFloat(style.borderBottomWidth || '0');
-    return {
-        borderX: Number.isFinite(borderX) ? borderX : 0,
-        borderY: Number.isFinite(borderY) ? borderY : 0,
-        boxSizing: String(style.boxSizing || '').trim().toLowerCase()
-    };
-}
-
-function _getBoardFrameMetricsForPixelSizing(boardElement: any) {
-    const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
-    if (frameElement && typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && typeof frameElement.getBoundingClientRect === 'function') {
-        const frameStyle = window.getComputedStyle(frameElement);
-        const paddingX = Number.parseFloat(frameStyle.paddingLeft || '0') + Number.parseFloat(frameStyle.paddingRight || '0');
-        const paddingY = Number.parseFloat(frameStyle.paddingTop || '0') + Number.parseFloat(frameStyle.paddingBottom || '0');
-        const measuredBaseOuterSize = _measureBoardFrameBaseOuterSize(frameElement);
-        const fallbackRect = frameElement.getBoundingClientRect();
-        const baseOuterWidth = measuredBaseOuterSize && measuredBaseOuterSize.width > 0
-            ? measuredBaseOuterSize.width
-            : fallbackRect.width;
-        const baseOuterHeight = measuredBaseOuterSize && measuredBaseOuterSize.height > 0
-            ? measuredBaseOuterSize.height
-            : fallbackRect.height;
-        const normalizedPaddingX = Number.isFinite(paddingX) ? paddingX : 0;
-        const normalizedPaddingY = Number.isFinite(paddingY) ? paddingY : 0;
-        const innerWidth = baseOuterWidth - normalizedPaddingX;
-        const innerHeight = baseOuterHeight - normalizedPaddingY;
-        if (innerWidth > 0 && innerHeight > 0) {
-            return {
-                frameElement,
-                baseOuterWidth,
-                baseOuterHeight,
-                paddingX: normalizedPaddingX,
-                paddingY: normalizedPaddingY,
-                innerWidth,
-                innerHeight
-            };
-        }
-    }
-    return null;
-}
-
-function _getBoardBaseSizeForPixelSizing(boardElement: any) {
-    const frameMetrics = _getBoardFrameMetricsForPixelSizing(boardElement);
-    if (frameMetrics) {
-        return {
-            frameMetrics,
-            width: frameMetrics.innerWidth,
-            height: frameMetrics.innerHeight,
-            baselineCellSize: Math.max(1, Math.floor(Math.min(
-                frameMetrics.innerWidth / STANDARD_BOARD_BASELINE_COLS,
-                frameMetrics.innerHeight / STANDARD_BOARD_BASELINE_ROWS
-            )))
-        };
-    }
-    const contentRect = _getContentRectSizeForPixelSizing(boardElement);
-    if (!contentRect) return null;
-    return {
-        frameMetrics: null,
-        width: contentRect.width,
-        height: contentRect.height,
-        baselineCellSize: 0
-    };
-}
-
-function _applyBoardFramePixelSizing(frameMetrics: any, outerWidth: any, outerHeight: any, shape: any) {
-    if (!frameMetrics || !frameMetrics.frameElement || !frameMetrics.frameElement.style) return;
-    const frameWidth = Math.max(frameMetrics.baseOuterWidth, outerWidth + frameMetrics.paddingX);
-    const frameHeight = Math.max(frameMetrics.baseOuterHeight, outerHeight + frameMetrics.paddingY);
-    const allowFrameExpansion = _isBoardShapeOversizeForPixelSizing(shape);
-    const oversizeActive = allowFrameExpansion && (
-        frameWidth > (frameMetrics.baseOuterWidth + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)
-        || frameHeight > (frameMetrics.baseOuterHeight + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)
-    );
-    if (allowFrameExpansion && frameWidth > (frameMetrics.baseOuterWidth + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)) {
-        frameMetrics.frameElement.style.setProperty('--board-frame-outer-width', `${frameWidth}px`);
-    } else {
-        frameMetrics.frameElement.style.removeProperty('--board-frame-outer-width');
-    }
-    if (allowFrameExpansion && frameHeight > (frameMetrics.baseOuterHeight + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)) {
-        frameMetrics.frameElement.style.setProperty('--board-frame-outer-height', `${frameHeight}px`);
-    } else {
-        frameMetrics.frameElement.style.removeProperty('--board-frame-outer-height');
-    }
-    _setBoardOversizeLayoutState(frameMetrics.frameElement, oversizeActive);
-}
-
-// PR2 v2: page-state listeners (visibilitychange / pageshow). Visible-tab
-// transitions and bfcache restoration can re-introduce viewport / DPR
-// changes without firing resize, so we always re-sync on those events.
-function _installBoardPixelSizingPageStateHandlers() {
-    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
-    if (_boardPixelSizingPageStateHandlersInstalled) return;
-    window.addEventListener('visibilitychange', () => {
-        if (typeof document !== 'undefined' && document && (document as any).visibilityState === 'visible') {
-            _boardPixelSizingDirty = true;
-        }
-    });
-    window.addEventListener('pageshow', () => {
-        _boardPixelSizingDirty = true;
-    });
-    _boardPixelSizingPageStateHandlersInstalled = true;
-}
-
-// PR2 v2: stable identity tokens for boardEl / frameEl. Same ref always returns
-// the same token; a ref swap gets a fresh token which immediately invalidates
-// the cached signature.
-function _getBoardElementIdentityToken(el: any): number {
-    if (!el) return 0;
-    let t = _boardElementIdentityToken.get(el);
-    if (t === undefined) {
-        t = _nextBoardElementIdentity++;
-        _boardElementIdentityToken.set(el, t);
-    }
-    return t;
-}
-
-function _getFrameElementIdentityToken(el: any): number {
-    if (!el) return 0;
-    let t = _frameElementIdentityToken.get(el);
-    if (t === undefined) {
-        t = _nextFrameElementIdentity++;
-        _frameElementIdentityToken.set(el, t);
-    }
-    return t;
-}
-
-// PR2 v2: sizing signature. All entries are stable across normal renders and
-// change only at the boundaries where _boardPixelSizingDirty is forced true:
-//   1-2: shape rows/cols
-//   3-6: base shape and world-coordinate origin
-//   7-8: boardEl / frameEl WeakMap identity tokens
-//   9-10: root data-board-skin-id / data-board-frame-skin-id (skin switch)
-//   11: --layout-stage-scale (inline root style, layout profile scale)
-//   12-15: --board-frame-padding-{top,right,bottom,left} (frame skin switch)
-//   16: window.devicePixelRatio (DPR shift)
-//   17: active renderer kind (DOM compatibility uses the fixed base viewport)
-// getComputedStyle() is intentionally avoided here (would force layout
-// inside the very gate that exists to avoid layout).
-function _computeBoardPixelSizingSignature(boardElement: any, shape: any): string {
-    const frameEl = _getBoardFrameElementForPixelSizing(boardElement);
-    const docEl = (typeof document !== 'undefined' && document && document.documentElement) || null;
-    const rootStyle = (docEl && (docEl as any).style) || null;
-    const rootDataset = (docEl && (docEl as any).dataset) || null;
-    const dpr = (typeof window !== 'undefined' && Number.isFinite((window as any).devicePixelRatio))
-        ? String((window as any).devicePixelRatio) : '0';
-    const boardSkinId = rootDataset ? String((rootDataset as any).boardSkinId || '') : '';
-    const frameSkinId = rootDataset ? String((rootDataset as any).boardFrameSkinId || '') : '';
-    const rendererKind = boardElement && typeof boardElement.getAttribute === 'function'
-        ? String(boardElement.getAttribute('data-board-renderer') || '')
-        : '';
-    const layoutScale = rootStyle ? rootStyle.getPropertyValue('--layout-stage-scale') : '';
-    const padTop = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-top') : '';
-    const padRight = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-right') : '';
-    const padBottom = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-bottom') : '';
-    const padLeft = rootStyle ? rootStyle.getPropertyValue('--board-frame-padding-left') : '';
-    return [
-        shape.rows,
-        shape.cols,
-        shape.baseRows,
-        shape.baseCols,
-        shape.minRow,
-        shape.minCol,
-        _getBoardElementIdentityToken(boardElement),
-        _getFrameElementIdentityToken(frameEl),
-        boardSkinId,
-        frameSkinId,
-        layoutScale,
-        padTop, padRight, padBottom, padLeft,
-        dpr,
-        rendererKind
-    ].join('|');
-}
-
-function _getBoardAnchorOffsetForPixelSizing(shape: any, cellSize: number) {
-    const baseRows = Number.isFinite(shape && shape.baseRows) ? shape.baseRows : shape.rows;
-    const baseCols = Number.isFinite(shape && shape.baseCols) ? shape.baseCols : shape.cols;
-    const minRow = Number.isFinite(shape && shape.minRow) ? shape.minRow : 0;
-    const minCol = Number.isFinite(shape && shape.minCol) ? shape.minCol : 0;
-    const maxRow = Number.isFinite(shape && shape.maxRow) ? shape.maxRow : (minRow + shape.rows - 1);
-    const maxCol = Number.isFinite(shape && shape.maxCol) ? shape.maxCol : (minCol + shape.cols - 1);
-    const topGrowth = Math.max(0, -minRow);
-    const leftGrowth = Math.max(0, -minCol);
-    const bottomGrowth = Math.max(0, maxRow - (baseRows - 1));
-    const rightGrowth = Math.max(0, maxCol - (baseCols - 1));
-    return {
-        x: ((rightGrowth - leftGrowth) * cellSize) / 2,
-        y: ((bottomGrowth - topGrowth) * cellSize) / 2
-    };
-}
-
-function _measureBoardPixelSizing(boardElement: any, shape: any) {
-    const signature = _computeBoardPixelSizingSignature(boardElement, shape);
-    const cached = boardElement && _boardPixelSizingMeasurementByElement.get(boardElement);
-    if (!_boardPixelSizingDirty && cached && cached.signature === signature) {
-        return cached.measurement;
-    }
-    const baseSize = _getBoardBaseSizeForPixelSizing(boardElement);
-    if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) {
-        if (boardElement) _boardPixelSizingMeasurementByElement.delete(boardElement);
-        return null;
-    }
-    const measuredCellSize = Math.max(1, Math.floor(Math.min(baseSize.width / shape.cols, baseSize.height / shape.rows)));
-    const baselineCellSize = Math.max(0, Number(baseSize.baselineCellSize) || 0);
-    const baseRows = Number.isFinite(shape.baseRows) ? shape.baseRows : shape.rows;
-    const baseCols = Number.isFinite(shape.baseCols) ? shape.baseCols : shape.cols;
-    const baseMaxGrid = Math.max(baseRows, baseCols);
-    const initialBoardScale = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
-        ? STANDARD_BOARD_BASELINE_ROWS / baseMaxGrid
-        : 1;
-    const scaledBaselineCellSize = baselineCellSize > 0
-        ? Math.max(1, Math.floor(baselineCellSize * initialBoardScale))
-        : measuredCellSize;
-    const cellSize = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
-        ? scaledBaselineCellSize
-        : Math.max(1, Math.max(measuredCellSize, baselineCellSize));
-    const measurement = cellSize > 0 ? { baseSize, baselineCellSize, cellSize } : null;
-    if (boardElement && measurement) {
-        _boardPixelSizingMeasurementByElement.set(boardElement, { signature, measurement });
-    }
-    return measurement;
-}
-
-function _handleBoardPixelSizingViewportChange() {
-    if (!boardPixelSizingObservedElement) return;
-    // PR2 (N3 dirty gate): window/frame resize must always re-sync even when
-    // the (shape, frame) signature is unchanged.
-    _boardPixelSizingDirty = true;
-    try {
-        const root: any = typeof window !== 'undefined' ? window : globalThis;
-        const scheduler = root && root.RenderScheduler;
-        if (scheduler && typeof scheduler.requestBoardRender === 'function') {
-            scheduler.requestBoardRender({ source: 'board-pixel-sizing', reason: 'viewport-change' });
-            return;
-        }
-    } catch (e: any) { /* fall through to controller render */ }
-    renderBoard();
-}
-
-function _ensureBoardPixelSizingObserver(boardElement: any) {
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !boardPixelSizingWindowHandlerInstalled) {
-        window.addEventListener('resize', _handleBoardPixelSizingViewportChange, { passive: true });
-        boardPixelSizingWindowHandlerInstalled = true;
-        // PR2 v2: page-state listeners installed alongside the resize listener
-        // so they share the same one-time setup contract.
-        _installBoardPixelSizingPageStateHandlers();
-    }
-
-    boardPixelSizingObservedElement = boardElement || boardPixelSizingObservedElement;
-    const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
-    // PR2 v2: in fallback / frame-detached paths, the cached signature can no
-    // longer be trusted to represent current state, so force the next
-    // syncBoardPixelSizing() call into the full path.
-    if (typeof ResizeObserver !== 'function' || !frameElement) {
-        _boardPixelSizingDirty = true;
-        return;
-    }
-    if (boardPixelSizingObserver && boardPixelSizingObservedFrame === frameElement) return;
-
-    if (boardPixelSizingObserver && typeof boardPixelSizingObserver.disconnect === 'function') {
-        try {
-            boardPixelSizingObserver.disconnect();
-        } catch (e: any) { /* ignore */ }
-    }
-
-    boardPixelSizingObservedFrame = frameElement;
-    try {
-        boardPixelSizingObserver = new ResizeObserver(_handleBoardPixelSizingViewportChange);
-        boardPixelSizingObserver.observe(frameElement);
-    } catch (e: any) {
-        boardPixelSizingObserver = null;
-    }
-    // PR2 (N3 dirty gate): when the observed frame element is swapped (or this
-    // is the first live element), the cached signature no longer applies.
-    // Force re-sync on the next syncBoardPixelSizing call.
-    _boardPixelSizingDirty = true;
+    return _getBoardLayoutRuntimeForBoardRenderer()
+        .syncBoardExpansionLayerGeometry(boardElement, shapeInput);
 }
 
 function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
-    if (PerfBenchmarks) PerfBenchmarks.perfStart('syncBoardPixelSizing');
-    try {
-        const rememberedShape = boardElement && _boardPixelSizingShapeByElement.get(boardElement);
-        const shape = _normalizeBoardShapeForPixelSizing(shapeInput || rememberedShape);
-    if (!boardElement || !boardElement.style) return shape;
-    if (shapeInput) _boardPixelSizingShapeByElement.set(boardElement, shape);
-
-    _ensureBoardPixelSizingObserver(boardElement);
-
-    // PR2 (N3 dirty gate): skip the body when signature is unchanged and no
-    // force-dirty flag was set. The skipped steps include getComputedStyle,
-    // getBoundingClientRect (incl. the snap-to-whole-pixel call), every
-    // style.* write, and the follow-on syncBoardExpansionLayerGeometry.
-    // PR2 v2: signature expanded to 12 keys (shape, element identity tokens,
-    // root skin ids, layout-stage-scale, frame padding vars, DPR) so that
-    // skin switches and layout-scale changes invalidate the cached gate.
-    const _currentSig = _computeBoardPixelSizingSignature(boardElement, shape);
-    if (!_boardPixelSizingDirty && _currentSig === _boardPixelSizingSignature) {
-        return shape;
-    }
-
-    const isDomCompatibilityBoard = _isDomCompatibilityBoardForPixelSizing(boardElement);
-    const viewportShape = isDomCompatibilityBoard
-        ? _getBaseViewportShapeForPixelSizing(shape)
-        : shape;
-    const boxMetrics = _getBoardBoxMetricsForPixelSizing(boardElement);
-    const measurement = _measureBoardPixelSizing(boardElement, viewportShape);
-    if (!measurement) {
-        _clearBoardPixelSizingVars(boardElement);
-        return shape;
-    }
-    const { baseSize, baselineCellSize, cellSize } = measurement;
-
-    const discInset = Math.max(1, Math.round(cellSize * 0.0505));
-    const discSize = Math.max(1, cellSize - (discInset * 2));
-    const contentWidth = cellSize * viewportShape.cols;
-    const contentHeight = cellSize * viewportShape.rows;
-    const outerWidth = contentWidth + (boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderX : 0);
-    const outerHeight = contentHeight + (boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderY : 0);
-    boardElement.style.width = `${outerWidth}px`;
-    boardElement.style.height = `${outerHeight}px`;
-    boardElement.style.setProperty('--board-cell-size-px', `${cellSize}px`);
-    boardElement.style.setProperty('--board-cell-scale', baselineCellSize > 0 ? String(cellSize / baselineCellSize) : '1');
-    boardElement.style.setProperty('--board-disc-inset-px', `${discInset}px`);
-    boardElement.style.setProperty('--board-disc-size-px', `${discSize}px`);
-    boardElement.style.setProperty('--board-rows', String(viewportShape.rows));
-    boardElement.style.setProperty('--board-cols', String(viewportShape.cols));
-    _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, viewportShape);
-
-    const anchorOffset = _getBoardAnchorOffsetForPixelSizing(viewportShape, cellSize);
-    boardElement.style.left = anchorOffset.x ? `${anchorOffset.x}px` : '';
-    boardElement.style.top = anchorOffset.y ? `${anchorOffset.y}px` : '';
-    boardElement.style.removeProperty('transform');
-    if (!isDomCompatibilityBoard && typeof boardElement.getBoundingClientRect === 'function') {
-        const snappedRect = boardElement.getBoundingClientRect();
-        const snapX = Number.isFinite(snappedRect.left) ? (Math.round(snappedRect.left) - snappedRect.left) : 0;
-        const snapY = Number.isFinite(snappedRect.top) ? (Math.round(snappedRect.top) - snappedRect.top) : 0;
-        if (Math.abs(snapX) > 0.001 || Math.abs(snapY) > 0.001) {
-            // Keep the board aligned to whole pixels without compositing the full board via transform.
-            boardElement.style.left = `${anchorOffset.x + snapX}px`;
-            boardElement.style.top = `${anchorOffset.y + snapY}px`;
-        }
-    }
-    syncBoardExpansionLayerGeometry(boardElement, shape);
-    // The writes above change the live board/frame geometry. Do not let the
-    // pre-write measurement seed the Pixi viewport; the first post-sync read
-    // establishes the reusable settled-layout measurement instead.
-    _boardPixelSizingMeasurementByElement.delete(boardElement);
-    // PR2 (N3 dirty gate): commit new signature and clear the dirty flag so
-    // the next call (with the same signature) can early-return.
-    _boardPixelSizingSignature = _currentSig;
-    _boardPixelSizingDirty = false;
-    _boardPixelSizingRevision = _boardPixelSizingRevision >= Number.MAX_SAFE_INTEGER
-        ? 1
-        : _boardPixelSizingRevision + 1;
-    return shape;
-    } finally {
-        if (PerfBenchmarks) PerfBenchmarks.perfEnd('syncBoardPixelSizing');
-    }
+    return _getBoardLayoutRuntimeForBoardRenderer()
+        .syncBoardPixelSizing(boardElement, shapeInput);
 }
 
 function _applyBoardCssVarsForBoardRenderer(boardElement: any) {
-    const shape = _getBoardShapeForBoardRenderer();
-    if (boardElement && boardElement.style) {
-        boardElement.style.setProperty('--board-rows', String(shape.rows));
-        boardElement.style.setProperty('--board-cols', String(shape.cols));
-    }
-    syncBoardPixelSizing(boardElement, shape);
-    return shape;
+    return _getBoardLayoutRuntimeForBoardRenderer().applyBoardCssVars(boardElement);
 }
-
 var PlaybackStateModule: any = null;
 if (typeof require === 'function') {
     try { PlaybackStateModule = require('./playback-state-manager'); } catch (e: any) { /* ignore */ }
@@ -1136,464 +513,107 @@ const collectRandomSpawnPreviewHighlightKeys = (cardStateValue: any, gameStateVa
     return new Set();
 };
 
-function prepareBoardVisualUpdate() {
-    const controller = getBoardVisualController();
-    if (!controller) return null;
-    const playbackDeferred = _shouldSkipBoardRenderForPlayback();
-    if (playbackDeferred && controller.getMode() === 'idle') {
-        const idleSettlementPending = typeof controller.isIdleSettlementPending === 'function'
-            && controller.isIdleSettlementPending() === true;
-        if (idleSettlementPending) {
-            void _requestAutoBoardVisualWriterForBoardRenderer(controller, true);
-            const deferred = Object.freeze({
-                controller,
-                playbackDeferred,
-                deferredUntilAutoWriter: true
-            });
-            PreparedBoardVisualUpdatesForBoardRenderer.add(deferred);
-            return deferred;
-        }
-        if (!AutoBoardWriterTokenForBoardRenderer) {
-            AutoBoardWriterTokenForBoardRenderer = controller.claimWriter(
-                `legacy-playback:${BoardVisualFrameSerialForBoardRenderer + 1}`,
-                'local'
-            );
-        }
-        // A newer synchronous render can acquire the writer after the pending
-        // settlement completed but before its waiter resumed. This render is
-        // already the required fresh active-token render.
-        AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
-    }
-    _syncTimeStopClassForBoardRenderer();
-    const activeWriterToken = typeof controller.getActiveWriterToken === 'function'
-        ? controller.getActiveWriterToken()
-        : AutoBoardWriterTokenForBoardRenderer;
-    if (activeWriterToken && controller.getMode() !== 'idle') {
-        BoardVisualInvalidationAccumulatorForBoardRenderer.mark(activeWriterToken, 'render-request');
-        const invalidated = Object.freeze({
-            controller,
-            playbackDeferred,
-            invalidated: true
+let BoardWriterRuntimeForBoardRenderer: any = null;
+let BoardRenderSubmissionRuntimeForBoardRenderer: any = null;
+
+function _getBoardWriterRuntimeForBoardRenderer() {
+    if (!BoardWriterRuntimeForBoardRenderer) {
+        BoardWriterRuntimeForBoardRenderer = BoardWriterRuntimeModule.createBoardWriterRuntime({
+            getController: getBoardVisualController,
+            getNextFrameSerial: () => _getBoardFrameRuntimeForBoardRenderer().getNextFrameSerial(),
+            shouldDeferRenderForPlayback: _shouldSkipBoardRenderForPlayback,
+            renderBoard,
+            buildFrame: _buildBoardVisualFrameForBoardRenderer,
+            getRenderStateSource: _getBoardVisualRenderStateSourceForBoardRenderer,
+            updateOccupancy: updateOccupancyUI
         });
-        PreparedBoardVisualUpdatesForBoardRenderer.add(invalidated);
-        return invalidated;
     }
-    const prepared = Object.freeze({
-        controller,
-        playbackDeferred,
-        frame: _buildBoardVisualFrameForBoardRenderer(controller)
-    });
-    PreparedBoardVisualUpdatesForBoardRenderer.add(prepared);
-    return prepared;
+    return BoardWriterRuntimeForBoardRenderer;
+}
+
+function _getBoardRenderSubmissionRuntimeForBoardRenderer() {
+    if (!BoardRenderSubmissionRuntimeForBoardRenderer) {
+        BoardRenderSubmissionRuntimeForBoardRenderer =
+            BoardRenderSubmissionRuntimeModule.createBoardRenderSubmissionRuntime({
+                getController: getBoardVisualController,
+                shouldDeferRenderForPlayback: _shouldSkipBoardRenderForPlayback,
+                writerRuntime: _getBoardWriterRuntimeForBoardRenderer(),
+                syncTimeStopClass: _syncTimeStopClassForBoardRenderer,
+                buildFrame: _buildBoardVisualFrameForBoardRenderer,
+                updateOccupancy: updateOccupancyUI,
+                getPerfBenchmarks: () => PerfBenchmarks
+            });
+    }
+    return BoardRenderSubmissionRuntimeForBoardRenderer;
+}
+
+function prepareBoardVisualUpdate() {
+    return _getBoardRenderSubmissionRuntimeForBoardRenderer().prepareUpdate();
 }
 
 function renderBoard(preparedVisualUpdate?: any) {
-    if (PerfBenchmarks) PerfBenchmarks.perfStart('renderBoard');
-    try {
-        const prepared = preparedVisualUpdate
-            && PreparedBoardVisualUpdatesForBoardRenderer.has(preparedVisualUpdate)
-            ? preparedVisualUpdate
-            : prepareBoardVisualUpdate();
-        if (prepared) PreparedBoardVisualUpdatesForBoardRenderer.delete(prepared);
-        const controller = prepared && prepared.controller;
-        if (!controller) {
-            console.error('[Board Renderer] board visual controller unavailable; rendering skipped');
-            return;
-        }
-        if (prepared.deferredUntilAutoWriter === true) return;
-        if (prepared.invalidated === true) return;
-        const playbackDeferred = prepared.playbackDeferred === true;
-        const applied = controller.submitFrame(prepared.frame);
-        if (applied === true || (!playbackDeferred && controller.getMode() === 'idle')) updateOccupancyUI();
-    } finally {
-        if (PerfBenchmarks) PerfBenchmarks.perfEnd('renderBoard');
+    return _getBoardRenderSubmissionRuntimeForBoardRenderer().render(preparedVisualUpdate);
+}
+
+let BoardBackendRuntimeForBoardRenderer: any = null;
+let BoardInputRuntimeForBoardRenderer: any = null;
+let BoardFrameRuntimeForBoardRenderer: any = null;
+
+function _getBoardFrameRuntimeForBoardRenderer() {
+    if (!BoardFrameRuntimeForBoardRenderer) {
+        BoardFrameRuntimeForBoardRenderer = BoardFrameRuntimeModule.createBoardFrameRuntime({
+            getVisualRuntime: _getBoardVisualRuntimeForBoardRenderer,
+            renderBoard,
+            resolveSoundEngine: _resolveSoundEngineForBoardRenderer,
+            getRenderStateSource: _getBoardVisualRenderStateSourceForBoardRenderer,
+            getInputFrameInputs: () => _getBoardInputRuntimeForBoardRenderer().getFrameInputs(),
+            resolveHost: _resolveBoardElementForVisualRuntime,
+            getBoardUpdateSyncRuntime: _getBoardUpdateSyncRuntimeForBoardRenderer,
+            peekBoardUpdateSyncContext: _peekBoardUpdateSyncContextForBoardRenderer,
+            playbackState: PlaybackStateModule,
+            layoutRuntime: _getBoardLayoutRuntimeForBoardRenderer()
+        });
     }
+    return BoardFrameRuntimeForBoardRenderer;
 }
 
-let BoardVisualRuntimeForBoardRenderer: any = null;
-let AutoBoardWriterTokenForBoardRenderer: any = null;
-let AutoBoardWriterClaimForBoardRenderer: Promise<any> | null = null;
-let AutoBoardWriterSettlementForBoardRenderer: Promise<boolean> | null = null;
-let AutoBoardWriterClaimGenerationForBoardRenderer = 0;
-let AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
-let BoardVisualFrameSerialForBoardRenderer = 0;
-let BoardVisualRenderSessionEpochForBoardRenderer = 0;
-let BoardVisualFrameRevisionComposerForBoardRenderer: any = null;
-let BoardVisualThemeFontObserverDisposeForBoardRenderer: (() => void) | null = null;
-let BoardVisualBackendTestConfigForBoardRenderer: any = null;
-let BoardInputControllerForBoardRenderer: any = null;
-let BoardInputLockResolverForBoardRenderer: (() => boolean) | null = null;
-let BoardInputKeyboardCursorKeyForBoardRenderer: string | null = null;
-let BoardPresentationPreviewHintsForBoardRenderer: readonly any[] = Object.freeze([]);
-let BoardInputOverlayRenderSuppressedForBoardRenderer = false;
-let BoardInputDeferredOverlayRenderGenerationForBoardRenderer = 0;
-let BoardInputDeferredOverlayRenderForBoardRenderer: Promise<void> | null = null;
-let BoardAccessibilityLayerForBoardRenderer: any = null;
-const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
-const BoardVisualWorldStateByFrameForBoardRenderer = new WeakMap<object, any>();
-const BoardVisualInvalidationAccumulatorForBoardRenderer = (() => {
-    const module = _require('./board-visual/invalidation-accumulator');
-    return module.createBoardVisualInvalidationAccumulator();
-})();
-let LastPixiBoardExpansionRevealSoundKeyForBoardRenderer: string | null = null;
-
-const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
-    'pixi_runtime_unavailable',
-    'pixi_webgl_unavailable',
-    'pixi_application_init_failed',
-    'pixi_webgl_init_failed',
-    'pixi_renderer_init_failed',
-    'pixi_software_webgl_renderer'
-]);
-
-function _createBoardVisualCapabilityErrorForBoardRenderer(
-    code: string,
-    message: string,
-    stage?: string,
-    cause?: unknown
-) {
-    const error: any = new Error(message);
-    error.name = 'BoardVisualCapabilityError';
-    error.code = code;
-    if (stage) error.stage = stage;
-    if (typeof cause !== 'undefined') error.cause = cause;
-    return error;
+function _playPixiBoardExpansionRevealSoundForBoardRenderer(keys: readonly string[], frame: any) {
+    return _getBoardFrameRuntimeForBoardRenderer().playTopologyRevealSound(keys, frame);
 }
 
-function _isBoardVisualTestInjectionAllowedForBoardRenderer() {
-    try {
-        if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') return true;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && (window as any).__BOARD_VISUAL_TEST__ === true) return true;
-    } catch (e: any) { /* ignore */ }
-    return false;
+function _getBoardBackendRuntimeForBoardRenderer() {
+    if (!BoardBackendRuntimeForBoardRenderer) {
+        BoardBackendRuntimeForBoardRenderer = BoardBackendRuntimeModule.createBoardBackendRuntime({
+            getRenderStateSource: _getBoardVisualRenderStateSourceForBoardRenderer,
+            syncBoardPixelSizing,
+            renderBoard,
+            renderBoardFull,
+            getInputController: getBoardInputController,
+            applyTimeStopLegalEmphasis,
+            resolveBoardExpansionLayerElement,
+            playTopologyRevealSound: _playPixiBoardExpansionRevealSoundForBoardRenderer,
+            beginApplyFrame: _beginBoardVisualApplyTransactionForBoardRenderer,
+            resolveHost: _resolveBoardElementForVisualRuntime,
+            subscribeSettledFrame: _subscribeSettledBoardInputForBoardRenderer,
+            beforeControllerReplace() {
+                _getBoardInputRuntimeForBoardRenderer().replaceController();
+                _disposeBoardVisualThemeFontObserverForBoardRenderer();
+            },
+            installHostResources: _installBoardVisualThemeFontObserverForBoardRenderer,
+            afterControllerReplace() {
+                _getBoardWriterRuntimeForBoardRenderer().replaceController();
+            }
+        });
+    }
+    return BoardBackendRuntimeForBoardRenderer;
+}
+
+function _getBoardVisualRuntimeForBoardRenderer() {
+    return _getBoardBackendRuntimeForBoardRenderer().getRuntime();
 }
 
 function configureBoardVisualBackendForTest(options?: any) {
-    if (!_isBoardVisualTestInjectionAllowedForBoardRenderer()) {
-        throw new Error('Board visual backend injection is available only to an explicit test harness');
-    }
-    if (BoardVisualRuntimeForBoardRenderer) {
-        throw new Error('Board visual backend selection is already fixed for this page');
-    }
-    if (options == null) {
-        BoardVisualBackendTestConfigForBoardRenderer = null;
-        return;
-    }
-    const selection = options.selection == null ? null : String(options.selection);
-    if (selection !== null && selection !== 'dom' && selection !== 'pixi') {
-        throw new Error('Board visual backend test selection must be dom or pixi');
-    }
-    if (options.createDomBackend != null && typeof options.createDomBackend !== 'function') {
-        throw new Error('createDomBackend must be a function');
-    }
-    if (options.createPixiBackend != null && typeof options.createPixiBackend !== 'function') {
-        throw new Error('createPixiBackend must be a function');
-    }
-    BoardVisualBackendTestConfigForBoardRenderer = Object.freeze({
-        selection,
-        noAnimation: typeof options.noAnimation === 'boolean' ? options.noAnimation : undefined,
-        createDomBackend: options.createDomBackend || null,
-        createPixiBackend: options.createPixiBackend || null
-    });
-}
-
-function _readBoardVisualRendererQueryForBoardRenderer() {
-    try {
-        const activeLocation = typeof window !== 'undefined' && window.location
-            ? window.location
-            : (typeof location !== 'undefined' ? location : null);
-        return new URLSearchParams(activeLocation ? String(activeLocation.search || '') : '');
-    } catch (e: any) {
-        return new URLSearchParams('');
-    }
-}
-
-function _selectBoardVisualBackendForBoardRenderer() {
-    const testConfig = BoardVisualBackendTestConfigForBoardRenderer;
-    const params = _readBoardVisualRendererQueryForBoardRenderer();
-    const queryRequestsDom = params.get('debug') === '1' && params.get('boardRenderer') === 'dom';
-    const queryForcesPixi = params.get('debug') === '1' && params.get('boardRenderer') === 'pixi';
-    const kind = testConfig && testConfig.selection
-        ? testConfig.selection
-        : (queryRequestsDom ? 'dom' : 'pixi');
-    const noAnimation = kind === 'pixi'
-        ? (testConfig && typeof testConfig.noAnimation === 'boolean'
-            ? testConfig.noAnimation
-            : params.get('noanim') === '1')
-        : false;
-    return Object.freeze({ kind, noAnimation, allowSoftwareRenderer: kind === 'pixi' && queryForcesPixi });
-}
-
-function _assertBoardVisualBackendShapeForBoardRenderer(backend: any, kind: 'dom' | 'pixi') {
-    if (
-        !backend
-        || backend.kind !== kind
-        || typeof backend.mount !== 'function'
-        || typeof backend.applyFrame !== 'function'
-        || typeof backend.playPhase !== 'function'
-        || typeof backend.getCellClientRect !== 'function'
-        || typeof backend.resize !== 'function'
-        || typeof backend.restore !== 'function'
-        || typeof backend.destroy !== 'function'
-    ) {
-        throw new Error(`${kind} board visual backend does not implement the backend port`);
-    }
-    return backend;
-}
-
-function _createFailedBoardVisualBackendForBoardRenderer(kind: 'dom' | 'pixi', error: Error) {
-    return {
-        kind,
-        mount() { return Promise.reject(error); },
-        applyFrame() { throw error; },
-        playPhase() { return Promise.reject(error); },
-        getCellClientRect() { return null; },
-        resize() { throw error; },
-        restore() { return Promise.reject(error); },
-        destroy() { /* no resources were acquired */ }
-    };
-}
-
-async function _ensureDomBoardVisualBackendModulesForBoardRenderer(): Promise<void> {
-    let modulesReady = false;
-    try {
-        const renderer = _require('./board-dom-compat/renderer');
-        const backend = _require('./board-dom-compat/backend');
-        modulesReady = !!(renderer && backend);
-    } catch (_error) { /* Vite compatibility payload may not be registered yet */ }
-    if (!modulesReady) {
-        const root: any = typeof window !== 'undefined' ? window : globalThis;
-        const loadPayload = root && root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__;
-        if (typeof loadPayload !== 'function') {
-            throw new Error('DOM compatibility board payload loader is unavailable');
-        }
-        await loadPayload.call(root, 'compatibility');
-    }
-    await _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
-        typeof document !== 'undefined' ? document : null
-    );
-}
-
-async function _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
-    documentRef: Document | null
-): Promise<void> {
-    const loader = _require('./assets/feature-stylesheet-loader');
-    if (!loader || typeof loader.ensureFeatureStylesheet !== 'function') {
-        throw new Error('DOM compatibility board stylesheet loader is unavailable');
-    }
-    const result = await loader.ensureFeatureStylesheet('board-dom-compat', documentRef);
-    if (!result || result.ok !== true) {
-        const error: any = new Error(
-            String(result?.warning || 'DOM compatibility board stylesheet failed to load')
-        );
-        error.code = 'dom_compatibility_stylesheet_unavailable';
-        error.stage = 'compatibility-stylesheet';
-        throw error;
-    }
-}
-
-function _createDomBoardVisualBackendForBoardRenderer() {
-    const compatibilityRenderer = _require('./board-dom-compat/renderer');
-    if (
-        !compatibilityRenderer
-        || typeof compatibilityRenderer.configureBoardRendererCapabilities !== 'function'
-    ) {
-        throw new Error('DOM compatibility board capability injection is unavailable');
-    }
-    compatibilityRenderer.configureBoardRendererCapabilities(Object.freeze({
-        renderStateSource: _getBoardVisualRenderStateSourceForBoardRenderer(),
-        syncBoardPixelSizing,
-        renderBoard,
-        renderBoardFull,
-        getBoardInputController,
-        applyTimeStopLegalEmphasis,
-        resolveBoardExpansionLayerElement
-    }));
-    const options = {
-        compatibilityRenderer,
-        prepareStylesheet(documentRef: Document) {
-            return _ensureDomBoardCompatibilityStylesheetForBoardRenderer(documentRef);
-        },
-        prepareStoneVisuals(documentRef: Document) {
-            const preparation = _require('./board-dom-compat/stone-visual-preparation');
-            if (
-                !preparation
-                || typeof preparation.prepareDomCompatibilityStoneVisuals !== 'function'
-            ) {
-                throw new Error('DOM compatibility stone visual preparation is unavailable');
-            }
-            return preparation.prepareDomCompatibilityStoneVisuals(documentRef);
-        },
-        beforeApplyFrame(activeHost: any, frame: any) {
-            const topology = frame && frame.model && frame.model.topology || {};
-            syncBoardPixelSizing(activeHost, {
-                rows: topology.renderRows,
-                cols: topology.renderCols,
-                baseRows: topology.baseRows,
-                baseCols: topology.baseCols,
-                minRow: topology.minRow,
-                minCol: topology.minCol
-            });
-        }
-    };
-    const testFactory = BoardVisualBackendTestConfigForBoardRenderer
-        && BoardVisualBackendTestConfigForBoardRenderer.createDomBackend;
-    const factory = testFactory || (() => {
-        const DomBackendModule = _require('./board-dom-compat/backend');
-        if (!DomBackendModule || typeof DomBackendModule.createDomBoardVisualBackend !== 'function') {
-            throw new Error('DOM board visual backend factory is unavailable');
-        }
-        return DomBackendModule.createDomBoardVisualBackend(options);
-    });
-    return _assertBoardVisualBackendShapeForBoardRenderer(
-        testFactory ? factory(options) : factory(),
-        'dom'
-    );
-}
-
-function _playPixiBoardExpansionRevealSoundForBoardRenderer(
-    keys: readonly string[],
-    frame: any
-) {
-    if (!Array.isArray(keys) || keys.length === 0) return;
-    const captured = frame && typeof frame === 'object'
-        ? BoardVisualWorldStateByFrameForBoardRenderer.get(frame)
-        : null;
-    if (captured && captured.boardUpdateContext
-        && captured.boardUpdateContext.suppressBoardExpansionRevealSound === true) {
-        return;
-    }
-    const soundKey = `${String(frame && frame.frameToken || '')}:${keys.slice().sort().join('|')}`;
-    if (soundKey === LastPixiBoardExpansionRevealSoundKeyForBoardRenderer) return;
-    LastPixiBoardExpansionRevealSoundKeyForBoardRenderer = soundKey;
-    const play = () => {
-        try {
-            const soundEngine = _resolveSoundEngineForBoardRenderer();
-            if (!soundEngine || typeof soundEngine.playEffectByKey !== 'function') return;
-            if (typeof soundEngine.init === 'function') soundEngine.init();
-            soundEngine.playEffectByKey('board_expansion_reveal');
-        } catch (e: any) { /* presentation sound must not fail board settlement */ }
-    };
-    try {
-        const root = typeof window !== 'undefined' ? window : null;
-        if (root && typeof root.requestAnimationFrame === 'function') {
-            root.requestAnimationFrame(play);
-            return;
-        }
-    } catch (e: any) { /* synchronous fallback */ }
-    play();
-}
-
-function _createPixiBoardVisualBackendForBoardRenderer(
-    noAnimation: boolean,
-    contextRecovery?: any,
-    allowSoftwareRenderer = false
-) {
-    const options = Object.freeze({
-        noAnimation,
-        allowSoftwareRenderer,
-        // Backend mount precedes UI event activation. Resolve lazily so the
-        // adapter can exist while BoardInputController remains disabled until
-        // bootstrap finishes the visual-ready gate.
-        getInputController: () => getBoardInputController(),
-        onTopologyRevealStart: _playPixiBoardExpansionRevealSoundForBoardRenderer,
-        ...(contextRecovery ? { contextRecovery } : {})
-    });
-    const testFactory = BoardVisualBackendTestConfigForBoardRenderer
-        && BoardVisualBackendTestConfigForBoardRenderer.createPixiBackend;
-    if (testFactory) {
-        try {
-            return _assertBoardVisualBackendShapeForBoardRenderer(testFactory(options), 'pixi');
-        } catch (cause: any) {
-            const error = cause instanceof Error
-                ? cause
-                : _createBoardVisualCapabilityErrorForBoardRenderer(
-                    'pixi_backend_factory_failed',
-                    'Pixi board visual backend factory failed',
-                    'factory',
-                    cause
-                );
-            return _createFailedBoardVisualBackendForBoardRenderer('pixi', error);
-        }
-    }
-    let PixiBackendModule: any;
-    try {
-        PixiBackendModule = _require('./pixi/board-backend');
-    } catch (cause: any) {
-        return _createFailedBoardVisualBackendForBoardRenderer(
-            'pixi',
-            _createBoardVisualCapabilityErrorForBoardRenderer(
-                'pixi_runtime_unavailable',
-                'Pixi board visual backend module is unavailable',
-                'runtime',
-                cause
-            )
-        );
-    }
-    if (!PixiBackendModule || typeof PixiBackendModule.createPixiBoardVisualBackend !== 'function') {
-        return _createFailedBoardVisualBackendForBoardRenderer(
-            'pixi',
-            _createBoardVisualCapabilityErrorForBoardRenderer(
-                'pixi_runtime_unavailable',
-                'Pixi board visual backend factory is unavailable',
-                'runtime'
-            )
-        );
-    }
-    try {
-        return _assertBoardVisualBackendShapeForBoardRenderer(
-            PixiBackendModule.createPixiBoardVisualBackend(options),
-            'pixi'
-        );
-    } catch (cause: any) {
-        const error = cause instanceof Error
-            ? cause
-            : _createBoardVisualCapabilityErrorForBoardRenderer(
-                'pixi_backend_factory_failed',
-                'Pixi board visual backend factory failed',
-                'factory',
-                cause
-            );
-        return _createFailedBoardVisualBackendForBoardRenderer('pixi', error);
-    }
-}
-
-function _showBoardVisualReloadRequiredForBoardRenderer(error: unknown, diagnostics?: any) {
-    const message = '盤面表示を復旧できませんでした。ページを再読み込みしてください。';
-    diagnostics?.record?.('context-recovery:reload-required', {
-        message: String((error as any)?.message || error || '')
-    });
-    try {
-        const SurfaceModule = _require('./presentation/reload-required-surface');
-        if (SurfaceModule && typeof SurfaceModule.showReloadRequiredSurface === 'function') {
-            SurfaceModule.showReloadRequiredSurface({
-                root: typeof window !== 'undefined' ? window : null,
-                message
-            });
-        }
-    } catch (_error) { /* the controller remains locked even without a DOM alert surface */ }
-}
-
-function _isPixiInitialFallbackErrorForBoardRenderer(error: unknown) {
-    const visited = new Set<unknown>();
-    let current: any = error;
-    for (let depth = 0; current && depth < 6 && !visited.has(current); depth += 1) {
-        visited.add(current);
-        const code = String(current.code || '').trim().toLowerCase();
-        if (PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER.has(code)) return true;
-        current = current.cause || current.originalError || null;
-    }
-    return false;
-}
-
-function _isBoardVisualDiagnosticsEnabledForBoardRenderer() {
-    try {
-        if (typeof window !== 'undefined' && ((window as any).__BOARD_VISUAL_TEST__ === true || (window as any).__DEV__ === true)) return true;
-        if (typeof location !== 'undefined') return /(?:^|[?&])debug=1(?:&|$)/.test(String(location.search || ''));
-    } catch (e: any) { /* ignore */ }
-    return false;
+    return _getBoardBackendRuntimeForBoardRenderer().configureForTest(options);
 }
 
 function _resolveBoardElementForVisualRuntime() {
@@ -1601,1215 +621,146 @@ function _resolveBoardElementForVisualRuntime() {
     try { return typeof document !== 'undefined' ? document.getElementById('board') : null; } catch (e: any) { return null; }
 }
 
-function _recordBoardInputErrorForBoardRenderer(event: string, error: unknown) {
-    const diagnostics = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.diagnostics;
-    if (!diagnostics || typeof diagnostics.record !== 'function') return;
-    diagnostics.record(event, { message: String((error as any)?.message || error || '') });
-}
-
-function _requestBoardInputOverlayRenderForBoardRenderer() {
-    if (BoardInputOverlayRenderSuppressedForBoardRenderer) return;
-    const runtime = BoardVisualRuntimeForBoardRenderer;
-    const controller = runtime && runtime.controller;
-    if (!controller || (typeof controller.getMode === 'function' && controller.getMode() === 'destroyed')) return;
-    const mode = typeof controller.getMode === 'function' ? controller.getMode() : 'idle';
-    if (mode !== 'idle') {
-        if (BoardInputDeferredOverlayRenderForBoardRenderer || typeof controller.waitForIdle !== 'function') return;
-        const generation = ++BoardInputDeferredOverlayRenderGenerationForBoardRenderer;
-        const pending = Promise.resolve(controller.waitForIdle()).then(() => new Promise<void>((resolve) => {
-            setTimeout(() => {
-                try {
-                    if (
-                        generation === BoardInputDeferredOverlayRenderGenerationForBoardRenderer
-                        && BoardVisualRuntimeForBoardRenderer === runtime
-                        && controller.getMode?.() === 'idle'
-                    ) renderBoard();
-                } catch (error) {
-                    _recordBoardInputErrorForBoardRenderer('input:deferred-overlay-render-error', error);
-                } finally {
-                    resolve();
-                }
-            }, 0);
-        })).catch((error) => {
-            _recordBoardInputErrorForBoardRenderer('input:deferred-overlay-wait-error', error);
-        }).finally(() => {
-            if (BoardInputDeferredOverlayRenderForBoardRenderer === pending) {
-                BoardInputDeferredOverlayRenderForBoardRenderer = null;
+function _getBoardInputRuntimeForBoardRenderer() {
+    if (!BoardInputRuntimeForBoardRenderer) {
+        BoardInputRuntimeForBoardRenderer = BoardInputRuntimeModule.createBoardInputRuntime({
+            getVisualRuntime: _getBoardVisualRuntimeForBoardRenderer,
+            renderBoard,
+            getRenderStateSource: _getBoardVisualRenderStateSourceForBoardRenderer,
+            resolveBoardElement: _resolveBoardElementForVisualRuntime,
+            handleCellClick: (row: number, col: number, directionKey?: string) => {
+                if (typeof handleCellClick !== 'function') throw new Error('handleCellClick is unavailable');
+                return handleCellClick(row, col, directionKey);
             }
         });
-        BoardInputDeferredOverlayRenderForBoardRenderer = pending;
-        return;
     }
-    try {
-        renderBoard();
-    } catch (error) {
-        _recordBoardInputErrorForBoardRenderer('input:overlay-render-error', error);
-    }
-}
-
-function _setBoardInputKeyboardCursorKeyForBoardRenderer(rawKey: unknown): boolean {
-    const next = rawKey == null ? null : String(rawKey);
-    if (BoardInputKeyboardCursorKeyForBoardRenderer === next) return false;
-    BoardInputKeyboardCursorKeyForBoardRenderer = next;
-    _requestBoardInputOverlayRenderForBoardRenderer();
-    return true;
-}
-
-function _areBoardPresentationPreviewHintsEqualForBoardRenderer(left: readonly any[], right: readonly any[]): boolean {
-    if (left === right) return true;
-    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-    return left.every((hint, index) => (
-        hint && right[index]
-        && hint.cellKey === right[index].cellKey
-        && hint.kind === right[index].kind
-    ));
+    return BoardInputRuntimeForBoardRenderer;
 }
 
 function setBoardPresentationPreviewHints(previewHints: unknown, options?: any): boolean {
-    const BoardVisualModel = _require('./board-visual/model');
-    if (!BoardVisualModel || typeof BoardVisualModel.validateBoardPresentationOverlayState !== 'function') {
-        throw new Error('Board visual overlay validation is unavailable');
-    }
-    const next = BoardVisualModel.validateBoardPresentationOverlayState({
-        previewHints: Array.isArray(previewHints) ? previewHints : []
-    }).previewHints;
-    if (_areBoardPresentationPreviewHintsEqualForBoardRenderer(BoardPresentationPreviewHintsForBoardRenderer, next)) {
-        return false;
-    }
-    BoardPresentationPreviewHintsForBoardRenderer = next;
-    if (!(options && options.deferRender === true)) {
-        _requestBoardInputOverlayRenderForBoardRenderer();
-    }
-    return true;
-}
-
-function _isBoardInputLockedForBoardRenderer(): boolean {
-    const controller = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
-    if (controller && typeof controller.getMode === 'function' && controller.getMode() !== 'idle') return true;
-    if (
-        controller
-        && typeof controller.isIdleSettlementPending === 'function'
-        && controller.isIdleSettlementPending() === true
-    ) return true;
-    try {
-        return BoardInputLockResolverForBoardRenderer?.() === true;
-    } catch (_error) {
-        return true;
-    }
-}
-
-function _emitBoardInputBlockedForBoardRenderer(reason: string) {
-    if (reason !== 'spectator') return;
-    try {
-        const root = typeof window !== 'undefined' ? window as any : null;
-        if (root && typeof root.writeNetworkStatus === 'function') {
-            root.writeNetworkStatus('観測中は操作できません', true);
-        }
-    } catch (_error) { /* status is presentation-only */ }
+    return _getBoardInputRuntimeForBoardRenderer().setPreviewHints(previewHints, options);
 }
 
 function getBoardInputController() {
-    if (BoardInputControllerForBoardRenderer) return BoardInputControllerForBoardRenderer;
-    const InputModule = _require('./board-input-controller');
-    if (!InputModule || typeof InputModule.createBoardInputController !== 'function') {
-        throw new Error('Board input controller capability is unavailable');
-    }
-    const StateAdapterModule = _require('./board-visual/state-adapter');
-    const input = InputModule.createBoardInputController({
-        setHoveredCell: (row: number, col: number) => StateAdapterModule.setBoardVisualHoverCell(row, col),
-        clearHoveredCell: () => StateAdapterModule.clearBoardVisualHoverPreview(),
-        handleCellClick: (row: number, col: number, directionKey?: string) => {
-            if (typeof handleCellClick !== 'function') throw new Error('handleCellClick is unavailable');
-            return handleCellClick(row, col, directionKey);
-        },
-        getCellClientRect: (row: number, col: number) => {
-            const visualController = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
-            return visualController && typeof visualController.getCellClientRect === 'function'
-                ? visualController.getCellClientRect(row, col)
-                : null;
-        },
-        setKeyboardCursorKey: _setBoardInputKeyboardCursorKeyForBoardRenderer,
-        isInputLocked: _isBoardInputLockedForBoardRenderer,
-        onBlocked: _emitBoardInputBlockedForBoardRenderer
-    });
-    BoardInputControllerForBoardRenderer = input;
-    const visualController = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
-    const settledFrame = visualController && typeof visualController.getSettledFrame === 'function'
-        ? visualController.getSettledFrame()
-        : null;
-    if (settledFrame && settledFrame.model && typeof input.syncModel === 'function') input.syncModel(settledFrame.model);
-    return input;
+    return _getBoardInputRuntimeForBoardRenderer().getController();
 }
 
 function activateBoardInputController(options?: { isInputLocked?: () => boolean }) {
-    if (options && Object.prototype.hasOwnProperty.call(options, 'isInputLocked')) {
-        if (options.isInputLocked != null && typeof options.isInputLocked !== 'function') {
-            throw new Error('Board input lock resolver must be a function');
-        }
-        BoardInputLockResolverForBoardRenderer = options.isInputLocked || null;
-    }
-    const input = getBoardInputController();
-    input.activate?.();
-    input.syncInputState?.();
-    const visualController = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
-    const settledFrame = visualController?.getSettledFrame?.();
-    if (settledFrame) _syncSettledBoardInputForBoardRenderer(settledFrame);
-    return input;
+    return _getBoardInputRuntimeForBoardRenderer().activate(options);
 }
 
 function deactivateBoardInputController() {
-    return BoardInputControllerForBoardRenderer?.deactivate?.() === true;
-}
-
-function _syncSettledBoardInputForBoardRenderer(frame: any) {
-    if (!frame || !frame.model) return;
-    try {
-        const StoneInfoModule = _require('./presentation/stone-info-controller');
-        StoneInfoModule?.configureBoardVisualRenderStateSource?.(
-            _getBoardVisualRenderStateSourceForBoardRenderer()
-        );
-        StoneInfoModule?.renderCurrentStoneInfoPanel?.(frame);
-    } catch (error) {
-        _recordBoardInputErrorForBoardRenderer('stone-info:frame-sync-error', error);
-    }
-    if (BoardInputControllerForBoardRenderer) {
-        try {
-            BoardInputControllerForBoardRenderer.syncModel?.(frame.model);
-        } catch (error) {
-            _recordBoardInputErrorForBoardRenderer('input:model-sync-error', error);
-        }
-    }
-    const runtime = BoardVisualRuntimeForBoardRenderer;
-    const controller = runtime && runtime.controller;
-    const backendKind = controller && typeof controller.getBackendKind === 'function'
-        ? controller.getBackendKind()
-        : null;
-    if (backendKind !== 'pixi') {
-        BoardAccessibilityLayerForBoardRenderer?.destroy?.();
-        BoardAccessibilityLayerForBoardRenderer = null;
-        return;
-    }
-    try {
-        const host = runtime.host || _resolveBoardElementForVisualRuntime();
-        if (!host) return;
-        if (!BoardAccessibilityLayerForBoardRenderer) {
-            const AccessibilityModule = _require('./board-accessibility-layer');
-            BoardAccessibilityLayerForBoardRenderer = AccessibilityModule.createBoardAccessibilityLayer({
-                document: host.ownerDocument,
-                onActivate: (row: number, col: number, directionKey: string, hint: any) => {
-                    getBoardInputController().activateDirection?.(
-                        row,
-                        col,
-                        directionKey,
-                        hint && hint.id,
-                        {
-                            modelCommitId: hint && hint.modelCommitId,
-                            boardDigest: hint && hint.boardDigest
-                        }
-                    );
-                },
-                onFocus: (cellKey: string) => {
-                    getBoardInputController().focusDirectionHint?.(cellKey);
-                },
-                onBlur: (cellKey: string) => {
-                    getBoardInputController().blurDirectionHint?.(cellKey);
-                }
-            });
-        }
-        BoardAccessibilityLayerForBoardRenderer.mount(host, host.querySelector('canvas'));
-        BoardAccessibilityLayerForBoardRenderer.sync({
-            model: frame.model,
-            getCellClientRect: (row: number, col: number) => controller.getCellClientRect(row, col)
-        });
-    } catch (error) {
-        _recordBoardInputErrorForBoardRenderer('input:accessibility-sync-error', error);
-    }
+    return _getBoardInputRuntimeForBoardRenderer().deactivate();
 }
 
 function _subscribeSettledBoardInputForBoardRenderer(controller: any) {
-    if (!controller || typeof controller.subscribeSettledFrame !== 'function') return null;
-    return controller.subscribeSettledFrame(_syncSettledBoardInputForBoardRenderer, true);
+    return _getBoardInputRuntimeForBoardRenderer().subscribeSettledFrame(controller);
 }
 
 function _disposeBoardVisualThemeFontObserverForBoardRenderer() {
-    const dispose = BoardVisualThemeFontObserverDisposeForBoardRenderer;
-    BoardVisualThemeFontObserverDisposeForBoardRenderer = null;
-    if (typeof dispose === 'function') dispose();
-}
-
-function _requestBoardVisualThemeRefreshForBoardRenderer() {
-    const runtime = BoardVisualRuntimeForBoardRenderer;
-    const controller = runtime && runtime.controller;
-    if (!controller) return;
-    const mode = typeof controller.getMode === 'function' ? controller.getMode() : 'idle';
-    if (mode === 'destroyed') return;
-    if (
-        mode === 'recovering'
-        && (
-            typeof controller.getActiveWriterToken !== 'function'
-            || !controller.getActiveWriterToken()
-        )
-    ) {
-        return;
-    }
-    try {
-        // This is a normal visual-frame request. During playback it is
-        // coalesced by the controller and can only apply at final/committed
-        // settlement; while idle it changes the theme revision alone.
-        renderBoard();
-    } catch (error: any) {
-        if (runtime.diagnostics && typeof runtime.diagnostics.record === 'function') {
-            runtime.diagnostics.record('theme:font-ready-refresh-error', {
-                message: String(error && error.message || error || '')
-            });
-        }
-    }
+    return _getBoardFrameRuntimeForBoardRenderer().disposeHostResources();
 }
 
 function _installBoardVisualThemeFontObserverForBoardRenderer(host: HTMLElement | null) {
-    _disposeBoardVisualThemeFontObserverForBoardRenderer();
-    const ThemeModule = _require('./board-visual/theme');
-    if (!ThemeModule || typeof ThemeModule.observeBoardVisualThemeFonts !== 'function') return;
-    BoardVisualThemeFontObserverDisposeForBoardRenderer = ThemeModule.observeBoardVisualThemeFonts(
-        host,
-        _requestBoardVisualThemeRefreshForBoardRenderer
-    );
-}
-
-function _createBoardVisualRuntimeForBoardRenderer() {
-    const host = _resolveBoardElementForVisualRuntime();
-    if (!host) return null;
-    const ControllerModule = _require('./board-visual/controller');
-    const DiagnosticsModule = _require('./board-visual/diagnostics');
-    const diagnostics = DiagnosticsModule.createBoardVisualDiagnostics({
-        enabled: _isBoardVisualDiagnosticsEnabledForBoardRenderer()
-    });
-    const selection = _selectBoardVisualBackendForBoardRenderer();
-    let controller: any = null;
-    let contextFallback: Promise<boolean> | null = null;
-    const contextRecovery = selection.kind === 'pixi'
-        ? Object.freeze({
-            timeoutMs: 5000,
-            onContextLost(error: Error) {
-                if (!controller || typeof controller.beginContextRecovery !== 'function') {
-                    throw new Error('Board context recovery controller is unavailable');
-                }
-                // The controller owns and observes this promise. The backend
-                // must continue synchronously so it can interrupt Pixi work.
-                controller.beginContextRecovery(error);
-            },
-            onContextRestored() {
-                if (!controller || typeof controller.restoreContextRecovery !== 'function') return false;
-                return controller.restoreContextRecovery();
-            },
-            onFallbackRequired(error: Error) {
-                if (contextFallback) return contextFallback;
-                contextFallback = (async () => {
-                    diagnostics.record('backend:context-compatibility-fallback-start', {
-                        from: 'pixi', message: String(error && error.message || '')
-                    });
-                    try {
-                        await _ensureDomBoardVisualBackendModulesForBoardRenderer();
-                        const compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
-                        await controller.replaceBackend(compatibilityBackend, {
-                            preserveContextRecovery: true
-                        });
-                        await controller.restoreContextRecovery({ backendAlreadyRestored: true });
-                        diagnostics.record('backend:context-compatibility-fallback-ready', {
-                            from: 'pixi', to: 'dom'
-                        });
-                        return true;
-                    } catch (cause: any) {
-                        try { controller?.failContextRecovery?.(cause); } catch (_error) { /* preserve primary failure */ }
-                        _showBoardVisualReloadRequiredForBoardRenderer(cause, diagnostics);
-                        throw cause;
-                    }
-                })();
-                contextFallback.catch(() => { /* surfaced through reload-required state */ });
-                return contextFallback;
-            },
-            onRecoveryFailed(error: Error) {
-                try { controller?.failContextRecovery?.(error); } catch (_error) { /* preserve recovery error */ }
-                _showBoardVisualReloadRequiredForBoardRenderer(error, diagnostics);
-            }
-        })
-        : null;
-    const backend = selection.kind === 'pixi'
-        ? _createPixiBoardVisualBackendForBoardRenderer(
-            selection.noAnimation,
-            contextRecovery,
-            selection.allowSoftwareRenderer
-        )
-        : _createDomBoardVisualBackendForBoardRenderer();
-    controller = ControllerModule.createBoardVisualController({
-        backend,
-        diagnostics,
-        beginApplyFrame: _beginBoardVisualApplyTransactionForBoardRenderer
-    });
-    const settledFrameSubscription = _subscribeSettledBoardInputForBoardRenderer(controller);
-    const mountPromise = Promise.resolve(controller.mount(host));
-    const initialReadyPromise = mountPromise.catch(async (error: any) => {
-        diagnostics.record('controller:mount-error', { message: String(error && error.message || error || '') });
-        if (selection.kind !== 'pixi' || !_isPixiInitialFallbackErrorForBoardRenderer(error)) throw error;
-        diagnostics.record('backend:compatibility-fallback-start', {
-            from: 'pixi',
-            code: String(error && error.code || ''),
-            stage: String(error && error.stage || '')
-        });
-        let compatibilityBackend: any;
-        try {
-            await _ensureDomBoardVisualBackendModulesForBoardRenderer();
-            compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
-        } catch (cause: any) {
-            compatibilityBackend = _createFailedBoardVisualBackendForBoardRenderer(
-                'dom',
-                _createBoardVisualCapabilityErrorForBoardRenderer(
-                    'dom_compatibility_backend_unavailable',
-                    'DOM compatibility board backend is unavailable',
-                    'compatibility',
-                    cause
-                )
-            );
-        }
-        await controller.replaceBackend(compatibilityBackend);
-        diagnostics.record('backend:compatibility-fallback-ready', { from: 'pixi', to: 'dom' });
-    });
-    initialReadyPromise.catch(() => { /* readiness is observed by bootstrap or the caller */ });
-    if (controller.ready && typeof controller.ready.catch === 'function') {
-        controller.ready.catch(() => { /* readiness is observed through the runtime promise */ });
-    }
-    const controllerWaitUntilReady = typeof controller.waitUntilReady === 'function'
-        ? controller.waitUntilReady.bind(controller)
-        : null;
-    if (controllerWaitUntilReady) {
-        // The initial Pixi readiness cycle rejects before replaceBackend starts
-        // its compatibility cycle. Bootstrap must observe the complete exclusive
-        // mount transaction, then any later controller recovery cycle.
-        controller.waitUntilReady = () => initialReadyPromise.then(() => controllerWaitUntilReady());
-    }
-    const runtime = { controller, diagnostics, host, ready: initialReadyPromise, settledFrameSubscription };
-    if (diagnostics.enabled === true) {
-        const root = typeof window !== 'undefined' ? window : globalThis;
-        DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
-    }
-    _installBoardVisualThemeFontObserverForBoardRenderer(host);
-    return runtime;
+    return _getBoardFrameRuntimeForBoardRenderer().installHostResources(host);
 }
 
 function getBoardVisualController() {
-    if (!BoardVisualRuntimeForBoardRenderer) {
-        BoardVisualRuntimeForBoardRenderer = _createBoardVisualRuntimeForBoardRenderer();
-    }
-    return BoardVisualRuntimeForBoardRenderer ? BoardVisualRuntimeForBoardRenderer.controller : null;
+    return _getBoardBackendRuntimeForBoardRenderer().getController();
 }
 
 function configureBoardVisualController(controller: any, options?: any) {
-    if (!controller || typeof controller.submitFrame !== 'function') {
-        throw new Error('configureBoardVisualController requires a controller');
-    }
-    const previousRuntime = BoardVisualRuntimeForBoardRenderer;
-    BoardInputDeferredOverlayRenderGenerationForBoardRenderer += 1;
-    BoardInputDeferredOverlayRenderForBoardRenderer = null;
-    _disposeBoardVisualThemeFontObserverForBoardRenderer();
-    try { previousRuntime?.settledFrameSubscription?.(); } catch (_error) { /* controller teardown continues */ }
-    BoardAccessibilityLayerForBoardRenderer?.destroy?.();
-    BoardAccessibilityLayerForBoardRenderer = null;
-    if (
-        previousRuntime
-        && previousRuntime.controller
-        && previousRuntime.controller !== controller
-        && typeof previousRuntime.controller.destroy === 'function'
-    ) {
-        previousRuntime.controller.destroy();
-    }
-    const diagnostics = options && options.diagnostics || null;
-    const host = options && options.host || _resolveBoardElementForVisualRuntime();
-    BoardVisualRuntimeForBoardRenderer = {
-        controller,
-        diagnostics,
-        host,
-        ready: controller.ready || Promise.resolve(),
-        settledFrameSubscription: _subscribeSettledBoardInputForBoardRenderer(controller)
-    };
-    if (diagnostics && diagnostics.enabled === true) {
-        const DiagnosticsModule = _require('./board-visual/diagnostics');
-        const root = typeof window !== 'undefined' ? window : globalThis;
-        DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
-    }
-    _installBoardVisualThemeFontObserverForBoardRenderer(host);
-    AutoBoardWriterClaimGenerationForBoardRenderer += 1;
-    AutoBoardWriterTokenForBoardRenderer = null;
-    AutoBoardWriterClaimForBoardRenderer = null;
-    AutoBoardWriterSettlementForBoardRenderer = null;
-    AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
-    BoardVisualInvalidationAccumulatorForBoardRenderer.reset();
-    return controller;
+    return _getBoardBackendRuntimeForBoardRenderer().configureController(controller, options);
 }
 
-function _requestAutoBoardVisualWriterForBoardRenderer(
-    controller: any,
-    requestFreshRender = false
-): Promise<any> {
-    if (requestFreshRender) AutoBoardWriterDeferredRenderRequestedForBoardRenderer = true;
-    if (AutoBoardWriterTokenForBoardRenderer) {
-        return Promise.resolve(AutoBoardWriterTokenForBoardRenderer);
-    }
-    if (AutoBoardWriterClaimForBoardRenderer) return AutoBoardWriterClaimForBoardRenderer;
-    const generation = AutoBoardWriterClaimGenerationForBoardRenderer;
-    const claim = (async () => {
-        if (typeof controller.waitForIdle === 'function') await controller.waitForIdle();
-        if (generation !== AutoBoardWriterClaimGenerationForBoardRenderer) return null;
-        if (getBoardVisualController() !== controller) return null;
-        let token = AutoBoardWriterTokenForBoardRenderer;
-        if (
-            !token
-            && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')
-            && _shouldSkipBoardRenderForPlayback()
-        ) {
-            token = controller.claimWriter(
-                `legacy-playback:${BoardVisualFrameSerialForBoardRenderer + 1}`,
-                'local'
-            );
-            AutoBoardWriterTokenForBoardRenderer = token;
-        }
-        if (AutoBoardWriterDeferredRenderRequestedForBoardRenderer) {
-            AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
-            // Re-read canonical presentation state only after ownership is
-            // safe. Never retain or replay the pre-settlement prepared frame.
-            renderBoard();
-        }
-        return token;
-    })();
-    AutoBoardWriterClaimForBoardRenderer = claim;
-    const clear = () => {
-        if (AutoBoardWriterClaimForBoardRenderer === claim) {
-            AutoBoardWriterClaimForBoardRenderer = null;
-        }
-    };
-    const fail = () => {
-        if (generation === AutoBoardWriterClaimGenerationForBoardRenderer) {
-            AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
-        }
-        clear();
-    };
-    void claim.then(clear, fail);
-    return claim;
+function getBoardVisualControllerReady() {
+    return _getBoardWriterRuntimeForBoardRenderer().getControllerReady();
 }
 
-async function getBoardVisualControllerReady() {
-    const controller = getBoardVisualController();
-    if (!controller) return Promise.reject(new Error('Board visual controller is unavailable'));
-    if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
-    else await (controller.ready || Promise.resolve());
-    // A forced canonical snapshot can leave a synthetic local writer settling
-    // while its presentation frame is already queued for strict network
-    // playback. Do not let the strict writer reclaim that token until the
-    // asynchronous local settlement has released it; otherwise the stale
-    // settlement can release the newly reclaimed network writer.
-    if (
-        AutoBoardWriterSettlementForBoardRenderer
-        || AutoBoardWriterTokenForBoardRenderer
-        || AutoBoardWriterClaimForBoardRenderer
-    ) {
-        await settleAutoBoardVisualWriter();
-    }
-    if (
-        typeof controller.waitForIdle === 'function'
-        && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')
-    ) {
-        await controller.waitForIdle();
-    }
-}
-
-async function getBoardVisualControllerReadyForPresentationDrain() {
-    const controller = getBoardVisualController();
-    if (!controller) return Promise.reject(new Error('Board visual controller is unavailable'));
-    if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
-    else await (controller.ready || Promise.resolve());
-    // A render triggered by PLAYBACK_EVENTS may already own a synthetic local
-    // writer. The presentation drain must reclaim that writer without first
-    // applying the final canonical frame that it was created to defer.
-    if (!AutoBoardWriterTokenForBoardRenderer && AutoBoardWriterClaimForBoardRenderer) {
-        await AutoBoardWriterClaimForBoardRenderer;
-    }
-    if (
-        !AutoBoardWriterTokenForBoardRenderer
-        && !AutoBoardWriterClaimForBoardRenderer
-        && typeof controller.waitForIdle === 'function'
-        && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')
-    ) {
-        await controller.waitForIdle();
-    }
+function getBoardVisualControllerReadyForPresentationDrain() {
+    return _getBoardWriterRuntimeForBoardRenderer().getControllerReadyForPresentationDrain();
 }
 
 function claimBoardVisualWriter(frameToken: string, mode: 'local' | 'network' = 'local') {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    if (AutoBoardWriterTokenForBoardRenderer) {
-        const previousToken = AutoBoardWriterTokenForBoardRenderer;
-        const adopted = controller.reclaimWriter(previousToken, frameToken, mode);
-        BoardVisualInvalidationAccumulatorForBoardRenderer.rebind(previousToken, adopted);
-        AutoBoardWriterTokenForBoardRenderer = null;
-        return adopted;
-    }
-    return controller.claimWriter(frameToken, mode);
+    return _getBoardWriterRuntimeForBoardRenderer().claim(frameToken, mode);
 }
 
 function releaseBoardVisualWriter(token: any, finalFrame?: any) {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    const released = controller.releaseWriter(token, finalFrame);
-    if (released === true) BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
-    return released;
+    return _getBoardWriterRuntimeForBoardRenderer().release(token, finalFrame);
 }
 
-async function playBoardVisualPhase(token: any, events: readonly unknown[], phaseScope?: any) {
-    const controller = getBoardVisualController();
-    if (!controller || typeof controller.playPhase !== 'function') {
-        throw new Error('Board visual controller cannot play a presentation phase');
-    }
-    return controller.playPhase(token, events, phaseScope);
+function playBoardVisualPhase(token: any, events: readonly unknown[], phaseScope?: any) {
+    return _getBoardWriterRuntimeForBoardRenderer().playPhase(token, events, phaseScope);
 }
 
-async function validateBoardVisualPhase(
+function validateBoardVisualPhase(
     events: readonly unknown[],
     phaseScope?: any,
     strictNetworkPlayback = false
 ) {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
-    else await (controller.ready || Promise.resolve());
-    if (typeof controller.validatePhase !== 'function') return;
-    await controller.validatePhase(events, strictNetworkPlayback === true, phaseScope);
+    return _getBoardWriterRuntimeForBoardRenderer()
+        .validatePhase(events, phaseScope, strictNetworkPlayback);
 }
 
 function getBoardCellClientRect(row: number, col: number) {
-    const controller = getBoardVisualController();
-    if (!controller || typeof controller.getCellClientRect !== 'function') return null;
-    return controller.getCellClientRect(row, col);
+    return _getBoardWriterRuntimeForBoardRenderer().getCellClientRect(row, col);
 }
 
-async function abortBoardVisualWriterBeforeHandoff(token: any, checkpoint?: any) {
-    const controller = getBoardVisualController();
-    if (!controller || typeof controller.abortWriterBeforeHandoff !== 'function') {
-        throw new Error('Board visual controller cannot abort a writer before handoff');
-    }
-    const aborted = await controller.abortWriterBeforeHandoff(token, checkpoint);
-    if (aborted === true) BoardVisualInvalidationAccumulatorForBoardRenderer.discard(token);
-    return aborted;
+function abortBoardVisualWriterBeforeHandoff(token: any, checkpoint?: any) {
+    return _getBoardWriterRuntimeForBoardRenderer().abortBeforeHandoff(token, checkpoint);
 }
 
-async function cancelBoardVisualWriterAfterHandoff(token: any, checkpoint?: any) {
-    const controller = getBoardVisualController();
-    if (!controller || typeof controller.cancelWriterAfterHandoff !== 'function') {
-        throw new Error('Board visual controller cannot cancel a writer after handoff');
-    }
-    if (typeof controller.getActiveWriterToken !== 'function' || controller.getActiveWriterToken() !== token) {
-        throw new Error('Board visual cancel token does not own the active frame');
-    }
-    const cancelled = await controller.cancelWriterAfterHandoff(token, checkpoint);
-    if (cancelled === true) BoardVisualInvalidationAccumulatorForBoardRenderer.discard(token);
-    return cancelled;
+function cancelBoardVisualWriterAfterHandoff(token: any, checkpoint?: any) {
+    return _getBoardWriterRuntimeForBoardRenderer().cancelAfterHandoff(token, checkpoint);
 }
 
-async function settleBoardVisualWriter(token: any) {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    if (typeof controller.settleLocalWriter === 'function') {
-        const finalFrame = _buildFinalBoardVisualFrameForWriter(controller, token);
-        BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
-        const settled = await controller.settleLocalWriter(token, finalFrame);
-        if (settled === true) {
-            BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
-            updateOccupancyUI();
-        }
-        return settled;
-    }
-    // Compatibility for an injected/older controller. Runtime controllers
-    // use the async path above so writer and PlaybackState ownership remain
-    // claimed through resource preparation and visual settlement.
-    if (controller.getMode && controller.getMode() === 'recovering') {
-        await controller.restore();
-    } else {
-        const finalFrame = _buildFinalBoardVisualFrameForWriter(controller, token);
-        BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
-        const released = controller.releaseWriter(token, finalFrame);
-        if (released === true) {
-            BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
-            updateOccupancyUI();
-        }
-        return released;
-    }
-    const released = controller.releaseWriter(token);
-    if (released === true) BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
-    return released;
+function settleBoardVisualWriter(token: any) {
+    return _getBoardWriterRuntimeForBoardRenderer().settle(token);
 }
 
 function beginBoardVisualFrameCommit(token: any) {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    return controller.beginAwaitingFrameCommit(token);
+    return _getBoardWriterRuntimeForBoardRenderer().beginFrameCommit(token);
 }
 
-async function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    if (
-        receipt
-        && (
-            receipt.kind !== 'network-visual-commit'
-            || receipt.visualSeq !== Number(String(token && token.frameToken || '').split(':').pop())
-        )
-    ) {
-        throw new Error('Committed board visual receipt does not match the writer token');
-    }
-    const committedSnapshot = _getBoardVisualRenderStateSourceForBoardRenderer()
-        .resolveReceiptBoundPair(receipt);
-    BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameBuild(token);
-    const frame = _buildBoardVisualFrameForBoardRenderer(controller, committedSnapshot);
-    BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
-    let applied: boolean;
-    if (controller.getMode && controller.getMode() === 'recovering') {
-        if (typeof controller.restoreCommittedFrame !== 'function') {
-            throw new Error('Board visual controller cannot restore a committed frame');
-        }
-        applied = await controller.restoreCommittedFrame(token, frame);
-    } else {
-        applied = await controller.applyCommittedFrame(token, frame);
-    }
-    if (applied === true) BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
-    return applied;
+function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
+    return _getBoardWriterRuntimeForBoardRenderer().applyCommittedFrame(token, receipt);
 }
 
 function enterBoardVisualRecovery(token: any, error?: unknown) {
-    const controller = getBoardVisualController();
-    if (!controller) throw new Error('Board visual controller is unavailable');
-    if (typeof controller.getActiveWriterToken !== 'function' || controller.getActiveWriterToken() !== token) {
-        throw new Error('Board visual recovery token does not own the active frame');
-    }
-    if (
-        typeof controller.getActiveFrameToken !== 'function'
-        || controller.getActiveFrameToken() !== String(token && token.frameToken || '')
-    ) {
-        throw new Error('Board visual recovery frame token does not match the active frame');
-    }
-    return controller.enterRecovery(token, error);
+    return _getBoardWriterRuntimeForBoardRenderer().enterRecovery(token, error);
 }
 
-async function settleAutoBoardVisualWriter(): Promise<boolean> {
-    if (AutoBoardWriterSettlementForBoardRenderer) return AutoBoardWriterSettlementForBoardRenderer;
-    const controller = getBoardVisualController();
-    if (!controller) return false;
-    const settlement = (async () => {
-        if (!AutoBoardWriterTokenForBoardRenderer && AutoBoardWriterClaimForBoardRenderer) {
-            await AutoBoardWriterClaimForBoardRenderer;
-        }
-        if (!AutoBoardWriterTokenForBoardRenderer) return false;
-        const token = AutoBoardWriterTokenForBoardRenderer;
-        const finalFrame = _buildFinalBoardVisualFrameForWriter(controller, token);
-        if (AutoBoardWriterTokenForBoardRenderer !== token) return true;
-        BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
-        if (typeof controller.settleLocalWriter === 'function') {
-            await controller.settleLocalWriter(token, finalFrame);
-        } else {
-            controller.releaseWriter(token, finalFrame);
-        }
-        if (AutoBoardWriterTokenForBoardRenderer === token) {
-            AutoBoardWriterTokenForBoardRenderer = null;
-        }
-        BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
-        updateOccupancyUI();
-        return true;
-    })();
-    AutoBoardWriterSettlementForBoardRenderer = settlement;
-    try {
-        return await settlement;
-    } finally {
-        if (AutoBoardWriterSettlementForBoardRenderer === settlement) {
-            AutoBoardWriterSettlementForBoardRenderer = null;
-        }
-    }
-}
-
-const BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION = Object.freeze([
-    '--board-frame-padding-top',
-    '--board-frame-padding-right',
-    '--board-frame-padding-bottom',
-    '--board-frame-padding-left',
-    '--board-frame-art-overhang-top',
-    '--board-frame-art-overhang-bottom',
-    '--board-frame-art-offset-y'
-]);
-
-function _captureBoardVisualApplyDomSnapshotForBoardRenderer(host: any) {
-    const doc = host && host.ownerDocument
-        ? host.ownerDocument
-        : (typeof document !== 'undefined' ? document : null);
-    const rootElement = doc && doc.documentElement;
-    const boardFrame = host && typeof host.closest === 'function' ? host.closest('#board-frame') : null;
-    const gameContainer = boardFrame && typeof boardFrame.closest === 'function'
-        ? boardFrame.closest('#game-container')
-        : (doc && doc.getElementById ? doc.getElementById('game-container') : null);
-    const previousExpansionLayer = resolveBoardExpansionLayerElement(host, false);
-    const restorers: Array<() => void> = [];
-    const captureAttribute = (element: any, name: string) => {
-        if (!element || typeof element.getAttribute !== 'function') return;
-        const value = element.getAttribute(name);
-        restorers.push(() => {
-            if (value == null) element.removeAttribute(name);
-            else element.setAttribute(name, value);
-        });
-    };
-    const captureClass = (element: any, name: string) => {
-        if (!element || !element.classList) return;
-        const enabled = element.classList.contains(name);
-        restorers.push(() => element.classList.toggle(name, enabled));
-    };
-    const captureStyle = (element: any, properties: readonly string[]) => {
-        if (!element || !element.style) return;
-        for (const property of properties) {
-            const value = element.style.getPropertyValue(property);
-            const priority = element.style.getPropertyPriority(property);
-            restorers.push(() => {
-                if (value) element.style.setProperty(property, value, priority);
-                else element.style.removeProperty(property);
-            });
-        }
-    };
-
-    captureAttribute(host, 'data-board-skin-id');
-    captureClass(host, 'board-has-void-cells');
-    captureStyle(host, [
-        '--board-surface-texture-image',
-        '--board-rows',
-        '--board-cols',
-        '--board-cell-size-px',
-        '--board-cell-scale',
-        '--board-disc-inset-px',
-        '--board-disc-size-px',
-        'width',
-        'height',
-        'left',
-        'top',
-        'transform'
-    ]);
-    captureAttribute(boardFrame, 'data-board-frame-skin-id');
-    captureClass(boardFrame, 'board-has-void-cells');
-    captureClass(boardFrame, 'board-has-base-void-cells');
-    captureStyle(boardFrame, [
-        ...BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION,
-        '--board-frame-outer-width',
-        '--board-frame-outer-height'
-    ]);
-    captureAttribute(rootElement, 'data-board-skin-id');
-    captureAttribute(rootElement, 'data-board-frame-skin-id');
-    captureAttribute(rootElement, 'data-stone-skin-id');
-    captureStyle(rootElement, [
-        '--board-surface-texture-image',
-        '--normal-stone-black-image',
-        '--normal-stone-white-image',
-        ...BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION
-    ]);
-    captureClass(doc && doc.body, 'board-oversize-active');
-    captureClass(gameContainer, 'board-oversize-active');
-    captureStyle(previousExpansionLayer, [
-        '--board-rows',
-        '--board-cols',
-        'left',
-        'top',
-        'width',
-        'height'
-    ]);
-
-    let restored = false;
-    return {
-        rollback() {
-            if (restored) return;
-            restored = true;
-            for (let index = restorers.length - 1; index >= 0; index -= 1) restorers[index]();
-            if (!previousExpansionLayer) {
-                const createdExpansionLayer = resolveBoardExpansionLayerElement(host, false);
-                if (createdExpansionLayer && createdExpansionLayer.parentNode) {
-                    createdExpansionLayer.parentNode.removeChild(createdExpansionLayer);
-                }
-            }
-            _boardPixelSizingSignature = null;
-            _boardPixelSizingDirty = true;
-            _boardPixelSizingMeasurementByElement.delete(host);
-            _pixiViewportSizingSignatureByElement.delete(host);
-        }
-    };
-}
-
-function _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host: any, frame: any) {
-    const LayoutModule = _require('./board-visual/layout');
-    const topology = frame.model.topology;
-    const cellSize = _readBoardCellSizeForLayout(host, topology);
-    const viewportElement = host && typeof host.querySelector === 'function'
-        ? host.querySelector('#board-scroll-viewport')
-        : null;
-    const cameraElement = viewportElement || host;
-    const cameraRect = cameraElement && typeof cameraElement.getBoundingClientRect === 'function'
-        ? cameraElement.getBoundingClientRect()
-        : null;
-    const logicalWidth = topology.renderCols * cellSize;
-    const logicalHeight = topology.renderRows * cellSize;
-    const viewportWidth = Number(cameraElement && cameraElement.clientWidth)
-        || Number(cameraRect && cameraRect.width)
-        || logicalWidth;
-    const viewportHeight = Number(cameraElement && cameraElement.clientHeight)
-        || Number(cameraRect && cameraRect.height)
-        || logicalHeight;
-    const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
-    const presentationScales = _readBoardPresentationScalesForBoardRenderer(host);
-    const layout = LayoutModule.createBoardViewportLayout(topology, {
-        revision: frame.layout.revision,
-        cellSize,
-        dpr: typeof window !== 'undefined' ? window.devicePixelRatio : frame.layout.dpr,
-        stageScale: presentationScales.stageScale,
-        cellScale: presentationScales.cellScale,
-        orientation: frame.layout.orientation,
-        // The Pixi camera is mounted directly inside the board viewport. Its
-        // physical client rect is therefore the coordinate bridge origin;
-        // applying the surrounding DOM frame inset here would count it twice.
-        clientOrigin: {
-            x: Number(cameraRect && cameraRect.left) || 0,
-            y: Number(cameraRect && cameraRect.top) || 0
-        },
-        frameInset: { top: 0, right: 0, bottom: 0, left: 0 },
-        visualViewport: {
-            scale: viewport && Number(viewport.scale) || frame.layout.visualViewport.scale || 1,
-            offsetLeft: viewport && Number(viewport.offsetLeft) || 0,
-            offsetTop: viewport && Number(viewport.offsetTop) || 0
-        },
-        camera: {
-            // Scroll belongs to the inner Pixi viewport. clientOrigin remains
-            // the frame anchor, so the same offset is never applied twice.
-            scrollLeft: Number(cameraElement && cameraElement.scrollLeft) || 0,
-            scrollTop: Number(cameraElement && cameraElement.scrollTop) || 0,
-            viewportWidth,
-            viewportHeight
-        }
-    });
-    return Object.freeze({ ...frame, layout });
-}
-
-function _readBoardPresentationScalesForBoardRenderer(host: any) {
-    let stageScale = 1;
-    let cellScale = 1;
-    try {
-        const rootStyle = document && document.documentElement && document.documentElement.style;
-        const parsed = Number.parseFloat(String(rootStyle && rootStyle.getPropertyValue('--layout-stage-scale') || ''));
-        if (Number.isFinite(parsed) && parsed > 0) stageScale = parsed;
-    } catch (e: any) { /* use unit stage scale */ }
-    try {
-        const parsed = Number.parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-scale') || ''));
-        if (Number.isFinite(parsed) && parsed > 0) cellScale = parsed;
-    } catch (e: any) { /* use unit cell scale */ }
-    return Object.freeze({ stageScale, cellScale });
-}
-
-function _capPixiBoardViewportForBoardRenderer(host: any, topology: any) {
-    const cellSize = _readBoardCellSizeForLayout(host, topology);
-    const viewportSizingSignature = [
-        _boardPixelSizingRevision,
-        Number(topology && topology.renderRows) || 0,
-        Number(topology && topology.renderCols) || 0,
-        Number(topology && topology.baseRows) || 0,
-        Number(topology && topology.baseCols) || 0,
-        Number(topology && topology.minRow) || 0,
-        Number(topology && topology.minCol) || 0,
-        cellSize
-    ].join('|');
-    if (host && _pixiViewportSizingSignatureByElement.get(host) === viewportSizingSignature) {
-        return;
-    }
-    const shape = _normalizeBoardShapeForPixelSizing({
-        rows: topology.renderRows,
-        cols: topology.renderCols,
-        baseRows: topology.baseRows,
-        baseCols: topology.baseCols,
-        minRow: topology.minRow,
-        minCol: topology.minCol
-    });
-    const measurement = _measureBoardPixelSizing(host, shape);
-    const boxMetrics = _getBoardBoxMetricsForPixelSizing(host);
-    const availableWidth = Number(measurement && measurement.baseSize && measurement.baseSize.width);
-    const availableHeight = Number(measurement && measurement.baseSize && measurement.baseSize.height);
-    const baseContentWidth = Math.min(
-        shape.baseCols * cellSize,
-        availableWidth > 0 ? availableWidth : Number.POSITIVE_INFINITY
-    );
-    const baseContentHeight = Math.min(
-        shape.baseRows * cellSize,
-        availableHeight > 0 ? availableHeight : Number.POSITIVE_INFINITY
-    );
-    const borderWidth = boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderX : 0;
-    const borderHeight = boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderY : 0;
-
-    // #board is the physical viewport in the Pixi lane. The logical render
-    // bounds live only on #board-scroll-surface, so expansion never grows the
-    // DOM frame/backbuffer and the camera can preserve upper/left anchors by
-    // adjusting scroll in the same apply.
-    host.style.width = `${baseContentWidth + borderWidth}px`;
-    host.style.height = `${baseContentHeight + borderHeight}px`;
-    host.style.removeProperty('left');
-    host.style.removeProperty('top');
-    host.style.removeProperty('transform');
-
-    const frameElement = _getBoardFrameElementForPixelSizing(host);
-    _clearBoardFramePixelSizingVars(frameElement);
-    _setBoardOversizeLayoutState(frameElement, false);
-
-    if (typeof host.getBoundingClientRect === 'function') {
-        const viewportRect = host.getBoundingClientRect();
-        const snapX = Number.isFinite(viewportRect.left) ? Math.round(viewportRect.left) - viewportRect.left : 0;
-        const snapY = Number.isFinite(viewportRect.top) ? Math.round(viewportRect.top) - viewportRect.top : 0;
-        if (Math.abs(snapX) > 0.001) host.style.left = `${snapX}px`;
-        if (Math.abs(snapY) > 0.001) host.style.top = `${snapY}px`;
-    }
-    if (host) _pixiViewportSizingSignatureByElement.set(host, viewportSizingSignature);
-}
-
-function _createCommittedWorldStateCallbackForBoardRenderer(frame: any, backendKind: unknown) {
-    let committed = false;
-    const captured = frame && typeof frame === 'object'
-        ? BoardVisualWorldStateByFrameForBoardRenderer.get(frame)
-        : null;
-    const CommittedWorldStateModule = _require('./presentation/committed-world-state');
-    const manifestPresentationState = captured
-        && Object.prototype.hasOwnProperty.call(captured, 'manifestPresentationState')
-        ? captured.manifestPresentationState
-        : (
-            CommittedWorldStateModule
-            && typeof CommittedWorldStateModule.createCommittedManifestPresentationState === 'function'
-                ? CommittedWorldStateModule.createCommittedManifestPresentationState(
-                    _resolveBoardRenderStateForBoardRenderer().cardState
-                )
-                : null
-        );
-    return () => {
-        if (committed) return;
-        committed = true;
-        if (!CommittedWorldStateModule || typeof CommittedWorldStateModule.presentCommittedWorldState !== 'function') return;
-        CommittedWorldStateModule.presentCommittedWorldState(manifestPresentationState);
-        if (backendKind === 'pixi') {
-            if (captured && captured.boardUpdateSyncContext) {
-                const syncRuntime = _getBoardUpdateSyncRuntimeForBoardRenderer();
-                if (syncRuntime && typeof syncRuntime.consumeBoardUpdateSyncContext === 'function') {
-                    syncRuntime.consumeBoardUpdateSyncContext();
-                }
-            }
-            if (captured && captured.boardUpdateContext
-                && PlaybackStateModule
-                && typeof PlaybackStateModule.consumeBoardUpdateContext === 'function') {
-                PlaybackStateModule.consumeBoardUpdateContext();
-            }
-        }
-    };
+function settleAutoBoardVisualWriter(): Promise<boolean> {
+    return _getBoardWriterRuntimeForBoardRenderer().settleAutoWriter();
 }
 
 function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: any) {
-    const commitWorldState = _createCommittedWorldStateCallbackForBoardRenderer(
-        frame,
-        context && context.backendKind
-    );
-    if (!context) {
-        return Object.freeze({ frame, commit: commitWorldState });
-    }
-    const host = context.host || _resolveBoardElementForVisualRuntime();
-    if (!host) throw new Error('Board frame presentation host is unavailable');
-    const FramePresenterModule = _require('./board-visual/frame-presenter');
-    if (!FramePresenterModule || typeof FramePresenterModule.presentBoardFrame !== 'function') {
-        throw new Error('Board frame presenter is unavailable');
-    }
-    const snapshot = _captureBoardVisualApplyDomSnapshotForBoardRenderer(host);
-    try {
-        // These writes occur only after the controller authorizes this frame.
-        FramePresenterModule.presentBoardFrame(host, frame);
-        if (context.backendKind !== 'pixi') {
-            return Object.freeze({
-                frame,
-                commit: commitWorldState,
-                rollback: snapshot.rollback
-            });
-        }
-        const topology = frame.model.topology;
-        syncBoardPixelSizing(host, {
-            rows: topology.renderRows,
-            cols: topology.renderCols,
-            baseRows: topology.baseRows,
-            baseCols: topology.baseCols,
-            minRow: topology.minRow,
-            minCol: topology.minCol
-        });
-        _capPixiBoardViewportForBoardRenderer(host, topology);
-        const presentedFrame = _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host, frame);
-        return Object.freeze({
-            frame: presentedFrame,
-            commit: commitWorldState,
-            rollback: snapshot.rollback
-        });
-    } catch (error) {
-        snapshot.rollback();
-        throw error;
-    }
-}
-
-function _readBoardCellSizeForLayout(host: any, topology?: any) {
-    if (host && topology) {
-        const shape = _normalizeBoardShapeForPixelSizing({
-            rows: topology.renderRows,
-            cols: topology.renderCols,
-            baseRows: topology.baseRows,
-            baseCols: topology.baseCols,
-            minRow: topology.minRow,
-            minCol: topology.minCol
-        });
-        const measurement = _measureBoardPixelSizing(host, shape);
-        if (measurement && measurement.cellSize > 0) return measurement.cellSize;
-    }
-    try {
-        const value = parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-size-px') || ''));
-        if (Number.isFinite(value) && value > 0) return value;
-    } catch (e: any) { /* use unit fallback */ }
-    return 1;
-}
-
-function _readBoardFrameGeometryForLayout(host: any, appearance: any) {
-    return BoardDomLayoutGeometryModule.readBoardFrameGeometryForLayout(
-        host,
-        appearance,
-        _boardPixelSizingRevision
-    );
+    return _getBoardFrameRuntimeForBoardRenderer().beginApplyFrame(frame, context);
 }
 
 function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualStateOverride?: any) {
-    const StateAdapterModule = _require('./board-visual/state-adapter');
-    StateAdapterModule.configureBoardVisualRenderStateSource?.(
-        _getBoardVisualRenderStateSourceForBoardRenderer()
-    );
-    const LayoutModule = _require('./board-visual/layout');
-    const ThemeModule = _require('./board-visual/theme');
-    const FramePresenterModule = _require('./board-visual/frame-presenter');
-    const baseInputs = StateAdapterModule.createBoardRenderInputs({
-        keyboardCursorKey: BoardInputKeyboardCursorKeyForBoardRenderer,
-        previewHints: BoardPresentationPreviewHintsForBoardRenderer
-    }, baseVisualStateOverride);
-    const projection = StateAdapterModule.createBoardRenderProjection(undefined, baseInputs);
-    const cellState = StateAdapterModule.buildCurrentCellState(projection, baseInputs);
-    const presentationOverlayState = StateAdapterModule.createBoardPresentationOverlayState(
-        projection,
-        cellState,
-        baseInputs.presentationOverlayState
-    );
-    const inputs = Object.freeze({
-        baseVisualState: baseInputs.baseVisualState,
-        presentationOverlayState
-    });
-    const frameSerial = ++BoardVisualFrameSerialForBoardRenderer;
-    const model = StateAdapterModule.buildBoardRenderModel(projection, cellState, {
-        visualRevision: 0,
-        overlay: inputs.presentationOverlayState,
-        inputs
-    });
-    const host = _resolveBoardElementForVisualRuntime();
-    const appearance = FramePresenterModule.resolveBoardAppearanceDescriptor(host, 0);
-    const frameGeometry = _readBoardFrameGeometryForLayout(host, appearance);
-    const layoutCellSize = _readBoardCellSizeForLayout(host, model.topology);
-    const presentationScales = _readBoardPresentationScalesForBoardRenderer(host);
-    const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
-    const layout = LayoutModule.createBoardViewportLayout(model.topology, {
-        revision: 0,
-        cellSize: layoutCellSize,
-        dpr: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
-        stageScale: presentationScales.stageScale,
-        cellScale: presentationScales.cellScale,
-        clientOrigin: frameGeometry.clientOrigin,
-        frameInset: frameGeometry.frameInset,
-        visualViewport: {
-            scale: viewport && Number(viewport.scale) || 1,
-            offsetLeft: viewport && Number(viewport.offsetLeft) || 0,
-            offsetTop: viewport && Number(viewport.offsetTop) || 0
-        },
-        camera: {
-            scrollLeft: host && Number(host.scrollLeft) || 0,
-            scrollTop: host && Number(host.scrollTop) || 0,
-            // The DOM compatibility host is the logical board surface. Its
-            // live rect still describes the previous topology until the
-            // controller-owned frame presenter applies this frame, so using
-            // that rect here would incorrectly clip a shape change. The Pixi
-            // viewport supplies its scroll viewport dimensions separately.
-            viewportWidth: model.topology.renderCols * layoutCellSize,
-            viewportHeight: model.topology.renderRows * layoutCellSize
-        }
-    });
-    const frameToken = controller && controller.getActiveFrameToken()
-        ? controller.getActiveFrameToken()
-        : `idle:${frameSerial}`;
-    if (!BoardVisualFrameRevisionComposerForBoardRenderer) {
-        BoardVisualFrameRevisionComposerForBoardRenderer = FramePresenterModule.createBoardVisualFrameRevisionComposer();
-    }
-    const frame = BoardVisualFrameRevisionComposerForBoardRenderer.compose(Object.freeze({
-        model,
-        layout,
-        appearance,
-        theme: ThemeModule.resolveBoardVisualThemeDescriptor(host, 0),
-        frameToken,
-        renderSessionId: `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`
-    }));
-    let boardUpdateContext: any = null;
-    try {
-        if (PlaybackStateModule && typeof PlaybackStateModule.getBoardUpdateContext === 'function') {
-            const value = PlaybackStateModule.getBoardUpdateContext();
-            if (value && typeof value === 'object') boardUpdateContext = Object.freeze({ ...value });
-        }
-    } catch (e: any) { /* absent context */ }
-    const boardUpdateSyncContextValue = _peekBoardUpdateSyncContextForBoardRenderer();
-    const CommittedWorldStateModule = _require('./presentation/committed-world-state');
-    if (typeof CommittedWorldStateModule.createCommittedManifestPresentationState !== 'function') {
-        throw new Error('Committed manifest presentation snapshot capability is unavailable');
-    }
-    BoardVisualWorldStateByFrameForBoardRenderer.set(frame, Object.freeze({
-        manifestPresentationState: CommittedWorldStateModule.createCommittedManifestPresentationState(
-            inputs.baseVisualState && (inputs.baseVisualState as any).cardState
-        ),
-        boardUpdateContext,
-        boardUpdateSyncContext: boardUpdateSyncContextValue && typeof boardUpdateSyncContextValue === 'object'
-            ? Object.freeze({ ...boardUpdateSyncContextValue })
-            : null
-    }));
-    return frame;
-}
-
-function _buildFinalBoardVisualFrameForWriter(controller: any, token: any) {
-    BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameBuild(token);
-    return _buildBoardVisualFrameForBoardRenderer(controller);
+    return _getBoardFrameRuntimeForBoardRenderer().buildFrame(controller, baseVisualStateOverride);
 }
 
 function resetBoardVisualRenderSession() {
-    BoardInputDeferredOverlayRenderGenerationForBoardRenderer += 1;
-    BoardInputDeferredOverlayRenderForBoardRenderer = null;
-    BoardInputOverlayRenderSuppressedForBoardRenderer = true;
-    try {
-        BoardInputKeyboardCursorKeyForBoardRenderer = null;
-        BoardPresentationPreviewHintsForBoardRenderer = Object.freeze([]);
-        BoardInputControllerForBoardRenderer?.reset?.();
-        BoardAccessibilityLayerForBoardRenderer?.clear?.();
-    } finally {
-        BoardInputOverlayRenderSuppressedForBoardRenderer = false;
-    }
-    BoardVisualRenderSessionEpochForBoardRenderer = BoardVisualRenderSessionEpochForBoardRenderer >= Number.MAX_SAFE_INTEGER
-        ? 1
-        : BoardVisualRenderSessionEpochForBoardRenderer + 1;
-    LastPixiBoardExpansionRevealSoundKeyForBoardRenderer = null;
-    BoardVisualInvalidationAccumulatorForBoardRenderer.reset();
-    return `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`;
+    _getBoardLayoutRuntimeForBoardRenderer().resetSession();
+    _getBoardInputRuntimeForBoardRenderer().resetSession();
+    _getBoardBackendRuntimeForBoardRenderer().resetSession();
+    const renderSessionId = _getBoardFrameRuntimeForBoardRenderer().resetSession();
+    _getBoardWriterRuntimeForBoardRenderer().resetSession();
+    return renderSessionId;
+}
+
+function destroyBoardVisualPageRuntime() {
+    _getBoardWriterRuntimeForBoardRenderer().destroyPageRuntime();
+    _getBoardBackendRuntimeForBoardRenderer().destroyPageRuntime();
+    _getBoardInputRuntimeForBoardRenderer().destroyPageRuntime();
+    _getBoardLayoutRuntimeForBoardRenderer().destroyPageRuntime();
+    _getBoardFrameRuntimeForBoardRenderer().destroyPageRuntime();
 }
 
 function getBoardVisualInvalidationDiagnostics() {
-    return BoardVisualInvalidationAccumulatorForBoardRenderer.getDiagnostics();
+    return _getBoardWriterRuntimeForBoardRenderer().getInvalidationDiagnostics();
 }
 
 function renderBoardFull() {
@@ -2847,7 +798,7 @@ function updateOccupancyUI() {
 }
 
 // Expose in CommonJS for tests and in browser globals for legacy callers
-const BoardRenderer = {
+const BoardRenderer: BoardRendererFacade = {
             renderBoard,
             prepareBoardVisualUpdate,
             renderBoardFull,
@@ -2872,6 +823,7 @@ const BoardRenderer = {
             enterBoardVisualRecovery,
             settleAutoBoardVisualWriter,
             resetBoardVisualRenderSession,
+            destroyBoardVisualPageRuntime,
             getBoardVisualInvalidationDiagnostics,
             setBoardPresentationPreviewHints,
             buildBoardVisualFrame: _buildBoardVisualFrameForBoardRenderer,

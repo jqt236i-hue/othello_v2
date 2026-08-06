@@ -74,6 +74,18 @@ describe('board visual render-state source', () => {
     expect(first.resolvePair()).toMatchObject({ source: 'local' });
   });
 
+  test('preserves the pre-game local pair for guarded bootstrap consumers', () => {
+    const source = createHarness({
+      localPair: { gameState: null, cardState: {} }
+    });
+
+    expect(source.resolvePair()).toEqual({
+      gameState: null,
+      cardState: {},
+      source: 'local'
+    });
+  });
+
   test('uses lightweight operational state for strict activity and input epoch', () => {
     const store = {
       getOperationalState: jest.fn(() => ({

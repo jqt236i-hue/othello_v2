@@ -1,6 +1,16 @@
 
 'use strict';
 
+import type {
+  BoardVisualControllerPortApi,
+  BoardVisualGeometryPort,
+  BoardVisualWriterPort
+} from './board-visual/runtime-ports';
+
+type BoardPresentationRendererPort = BoardVisualWriterPort
+  & Pick<BoardVisualControllerPortApi, 'getBoardVisualControllerReady'>
+  & Pick<BoardVisualGeometryPort, 'getBoardCellClientRect'>;
+
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -465,7 +475,10 @@ function resolveBubbleTargetCoordinate(target: any): { row: number; col: number 
   return { row, col };
 }
 
-function splitStrictNetworkSpecialStoneBubbleEvents(payload: any[], renderer: any): {
+function splitStrictNetworkSpecialStoneBubbleEvents(
+  payload: any[],
+  renderer: BoardPresentationRendererPort
+): {
   immediateEvents: any[];
   postCommitEvents: any[];
 } {
@@ -735,7 +748,7 @@ function createStrictNetworkSettlementHandle(options: {
   visualSeq: number;
   managerClaim: any;
   boardWriterToken: any;
-  renderer: any;
+  renderer: BoardPresentationRendererPort;
   requiresPlaybackSettlement: boolean;
   playAfterCommittedFrame?: () => Promise<void> | void;
 }) {
@@ -1061,11 +1074,11 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
     return playbackSettlementResult;
   };
   if (strictNetworkPlayback) {
-    let renderer: any = null;
+    let renderer: BoardPresentationRendererPort | null = null;
     let boardWriterToken: any = null;
     try {
       if (!playbackClaim) throw new Error('strict_network_playback_manager_unavailable');
-      renderer = _require('./board-renderer');
+      renderer = _require('./board-renderer') as BoardPresentationRendererPort;
       if (!renderer || typeof renderer.claimBoardVisualWriter !== 'function') {
         throw new Error('strict_network_board_visual_controller_unavailable');
       }

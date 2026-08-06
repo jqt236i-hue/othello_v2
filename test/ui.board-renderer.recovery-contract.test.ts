@@ -13,12 +13,24 @@ function deferred<T = void>() {
 }
 
 describe('board renderer recovery boundary', () => {
-  const source = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'board-renderer.ts'), 'utf8');
+  const facadeSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'board-renderer.ts'), 'utf8');
+  const writerSource = fs.readFileSync(
+    path.resolve(__dirname, '..', 'ui', 'board-visual', 'writer-runtime.ts'),
+    'utf8'
+  );
+  const frameSource = fs.readFileSync(
+    path.resolve(__dirname, '..', 'ui', 'board-visual', 'frame-runtime.ts'),
+    'utf8'
+  );
+  const submissionSource = fs.readFileSync(
+    path.resolve(__dirname, '..', 'ui', 'board-visual', 'render-submission-runtime.ts'),
+    'utf8'
+  );
 
   test('observes the controller readiness generation used after backend fallback', () => {
-    const start = source.indexOf('function getBoardVisualControllerReady()');
-    const end = source.indexOf('function claimBoardVisualWriter(', start);
-    const readySource = source.slice(start, end);
+    const start = writerSource.indexOf('async function getBoardVisualControllerReady()');
+    const end = writerSource.indexOf('function claimBoardVisualWriter(', start);
+    const readySource = writerSource.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(readySource).toContain("typeof controller.waitUntilReady === 'function'");
@@ -28,12 +40,12 @@ describe('board renderer recovery boundary', () => {
   });
 
   test('claims synchronously when idle is settled and defers frame construction otherwise', () => {
-    const prepareStart = source.indexOf('function prepareBoardVisualUpdate()');
-    const prepareEnd = source.indexOf('function renderBoard(', prepareStart);
-    const prepareSource = source.slice(prepareStart, prepareEnd);
-    const requestStart = source.indexOf('function _requestAutoBoardVisualWriterForBoardRenderer(');
-    const requestEnd = source.indexOf('async function getBoardVisualControllerReady()', requestStart);
-    const requestSource = source.slice(requestStart, requestEnd);
+    const prepareStart = writerSource.indexOf('function preparePlaybackOwnership(');
+    const prepareEnd = writerSource.indexOf('function checkInvalidation(', prepareStart);
+    const prepareSource = writerSource.slice(prepareStart, prepareEnd);
+    const requestStart = writerSource.indexOf('function _requestAutoBoardVisualWriterForBoardRenderer(');
+    const requestEnd = writerSource.indexOf('async function getBoardVisualControllerReady()', requestStart);
+    const requestSource = writerSource.slice(requestStart, requestEnd);
     const waitAt = requestSource.indexOf('await controller.waitForIdle();');
     const claimAt = requestSource.indexOf('controller.claimWriter(');
 
@@ -48,6 +60,10 @@ describe('board renderer recovery boundary', () => {
     expect(requestStart).toBeGreaterThanOrEqual(0);
     expect(waitAt).toBeGreaterThanOrEqual(0);
     expect(claimAt).toBeGreaterThan(waitAt);
+    expect(submissionSource).toContain('dependencies.writerRuntime.preparePlaybackOwnership(');
+    expect(submissionSource.indexOf('deferredUntilAutoWriter: true')).toBeLessThan(
+      submissionSource.indexOf('frame: dependencies.buildFrame(controller)')
+    );
   });
 
   test('does not build or submit a playback frame until pending idle settlement finishes', async () => {
@@ -225,9 +241,9 @@ describe('board renderer recovery boundary', () => {
   });
 
   test('requires exact writer ownership before post-handoff cancellation', () => {
-    const start = source.indexOf('async function cancelBoardVisualWriterAfterHandoff(');
-    const end = source.indexOf('async function settleBoardVisualWriter(', start);
-    const cancelSource = source.slice(start, end);
+    const start = writerSource.indexOf('async function cancelBoardVisualWriterAfterHandoff(');
+    const end = writerSource.indexOf('async function settleBoardVisualWriter(', start);
+    const cancelSource = writerSource.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(cancelSource).toContain('controller.getActiveWriterToken() !== token');
@@ -236,9 +252,9 @@ describe('board renderer recovery boundary', () => {
   });
 
   test('routes real local final sync through the async controller settlement API', () => {
-    const start = source.indexOf('async function settleBoardVisualWriter(');
-    const end = source.indexOf('function beginBoardVisualFrameCommit(', start);
-    const settlementSource = source.slice(start, end);
+    const start = writerSource.indexOf('async function settleBoardVisualWriter(');
+    const end = writerSource.indexOf('function beginBoardVisualFrameCommit(', start);
+    const settlementSource = writerSource.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(settlementSource).toContain("typeof controller.settleLocalWriter === 'function'");
@@ -248,9 +264,9 @@ describe('board renderer recovery boundary', () => {
   });
 
   test('requires exact writer and frame identity before entering recovery', () => {
-    const start = source.indexOf('function enterBoardVisualRecovery(');
-    const end = source.indexOf('function settleAutoBoardVisualWriter(', start);
-    const recoverySource = source.slice(start, end);
+    const start = writerSource.indexOf('function enterBoardVisualRecovery(');
+    const end = writerSource.indexOf('async function settleAutoBoardVisualWriter(', start);
+    const recoverySource = writerSource.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(recoverySource).toContain('controller.getActiveWriterToken() !== token');
@@ -259,40 +275,37 @@ describe('board renderer recovery boundary', () => {
   });
 
   test('keeps the synthetic legacy writer through async local settlement', () => {
-    const start = source.indexOf('async function settleAutoBoardVisualWriter(');
-    const end = source.indexOf('const BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION', start);
-    const settlementSource = source.slice(start, end);
-    const renderStart = source.indexOf('function renderBoard(');
-    const renderEnd = source.indexOf('let BoardVisualRuntimeForBoardRenderer', renderStart);
-    const renderSource = source.slice(renderStart, renderEnd);
+    const start = writerSource.indexOf('async function settleAutoBoardVisualWriter(');
+    const end = writerSource.indexOf('function preparePlaybackOwnership(', start);
+    const settlementSource = writerSource.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(settlementSource).toContain('await controller.settleLocalWriter(token, finalFrame);');
     expect(settlementSource).toContain('AutoBoardWriterTokenForBoardRenderer = null;');
-    expect(renderSource).not.toContain('controller.releaseWriter(token);');
+    expect(submissionSource).not.toContain('controller.releaseWriter(token);');
   });
 
   test('binds every built frame to the module-local render session epoch', () => {
-    const buildStart = source.indexOf('function _buildBoardVisualFrameForBoardRenderer(');
-    const buildEnd = source.indexOf('function renderBoardFull()', buildStart);
-    const buildSource = source.slice(buildStart, buildEnd);
-    const resetStart = source.indexOf('function resetBoardVisualRenderSession()');
-    const resetEnd = source.indexOf('function renderBoardFull()', resetStart);
-    const resetSource = source.slice(resetStart, resetEnd);
+    const buildStart = frameSource.indexOf('function _buildBoardVisualFrameForBoardRenderer(');
+    const buildEnd = frameSource.indexOf('function getNextFrameSerial()', buildStart);
+    const buildSource = frameSource.slice(buildStart, buildEnd);
+    const resetStart = frameSource.indexOf('function resetSession()');
+    const resetEnd = frameSource.indexOf('function destroyPageRuntime()', resetStart);
+    const resetSource = frameSource.slice(resetStart, resetEnd);
 
     expect(buildStart).toBeGreaterThanOrEqual(0);
     expect(buildSource).toContain('renderSessionId: `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`');
     expect(resetStart).toBeGreaterThanOrEqual(0);
     expect(resetSource).toContain('BoardVisualRenderSessionEpochForBoardRenderer + 1');
-    expect(source).toContain('resetBoardVisualRenderSession,');
+    expect(facadeSource).toContain('resetBoardVisualRenderSession,');
   });
 
   test('presents and measures live Pixi geometry only inside the authorized apply transaction', () => {
-    const start = source.indexOf('function _beginBoardVisualApplyTransactionForBoardRenderer(');
-    const end = source.indexOf('function _readBoardCellSizeForLayout(', start);
-    const transactionSource = source.slice(start, end);
+    const start = frameSource.indexOf('function _beginBoardVisualApplyTransactionForBoardRenderer(');
+    const end = frameSource.indexOf('function _readBoardCellSizeForLayout(', start);
+    const transactionSource = frameSource.slice(start, end);
     const presentAt = transactionSource.indexOf('FramePresenterModule.presentBoardFrame(host, frame);');
-    const sizingAt = transactionSource.indexOf('syncBoardPixelSizing(host, {');
+    const sizingAt = transactionSource.indexOf('dependencies.layoutRuntime.syncBoardPixelSizing(host, {');
     const viewportAt = transactionSource.indexOf('_capPixiBoardViewportForBoardRenderer(host, topology);');
     const layoutAt = transactionSource.indexOf('_createBoardVisualFrameWithLiveLayoutForBoardRenderer(host, frame)');
 

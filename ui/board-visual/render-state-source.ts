@@ -69,8 +69,12 @@ function toIntegerOrNull(value: unknown): number | null {
     : null;
 }
 
-function requirePair(value: any, source: BoardVisualRenderPair['source']): BoardVisualRenderPair {
-  if (!value || !value.gameState || !value.cardState) {
+function requirePair(
+  value: any,
+  source: BoardVisualRenderPair['source'],
+  options?: Readonly<{ allowMissingGameState?: boolean }>
+): BoardVisualRenderPair {
+  if (!value || (!value.gameState && options?.allowMissingGameState !== true) || !value.cardState) {
     throw new Error(`Board visual ${source} state pair is unavailable`);
   }
   const stateVersion = toIntegerOrNull(value.stateVersion);
@@ -121,7 +125,10 @@ export function createBoardVisualRenderStateSource(
     if (preparedState) return requirePair(preparedState, 'prepared');
     const visualSnapshot = resolveNetworkSnapshot();
     if (visualSnapshot) return requirePair(visualSnapshot, 'network_visual_state');
-    return requirePair(dependencies.getLocalPair(), 'local');
+    // Browser bootstrap and injected-controller tests can legitimately render
+    // an already-built frame before the first local game state exists. Keep
+    // that pre-game local pair observable so guarded consumers can no-op.
+    return requirePair(dependencies.getLocalPair(), 'local', { allowMissingGameState: true });
   };
 
   const resolveReceiptBoundPair = (receipt: unknown): BoardVisualRenderPair => {

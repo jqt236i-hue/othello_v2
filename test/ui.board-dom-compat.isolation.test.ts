@@ -9,18 +9,24 @@ describe('DOM board compatibility isolation', () => {
     const entry = read('entry-browser.js');
     const animationEngine = read('ui/animation-engine.ts');
     const renderer = read('ui/board-renderer.ts');
-    const fallbackStart = renderer.indexOf('async function _ensureDomBoardVisualBackendModulesForBoardRenderer()');
-    const fallbackEnd = renderer.indexOf('function _playPixiBoardExpansionRevealSoundForBoardRenderer', fallbackStart);
-    const fallbackFactory = renderer.slice(fallbackStart, fallbackEnd);
-    const defaultGraph = renderer.slice(0, fallbackStart) + renderer.slice(fallbackEnd);
+    const backendRuntime = read('ui/board-visual/backend-runtime.ts');
+    const fallbackStart = backendRuntime.indexOf('async function _ensureDomBoardVisualBackendModulesForBoardRenderer()');
+    const fallbackEnd = backendRuntime.indexOf(
+      'function _playPixiBoardExpansionRevealSoundForBoardRenderer',
+      fallbackStart
+    );
+    const fallbackFactory = backendRuntime.slice(fallbackStart, fallbackEnd);
+    const defaultGraph = renderer
+      + backendRuntime.slice(0, fallbackStart)
+      + backendRuntime.slice(fallbackEnd);
 
     expect(entry).not.toContain('board-dom-compat');
     expect(defaultGraph).not.toContain('board-dom-compat');
     expect(animationEngine).not.toContain('global-board-effect-presenter');
     expect(animationEngine).not.toContain('destroy_source_animation');
     expect(animationEngine).not.toContain('zombie_bite_source_animation');
-    expect(fallbackFactory).toContain("_require('./board-dom-compat/renderer')");
-    expect(fallbackFactory).toContain("_require('./board-dom-compat/backend')");
+    expect(fallbackFactory).toContain("_require('../board-dom-compat/renderer')");
+    expect(fallbackFactory).toContain("_require('../board-dom-compat/backend')");
     expect(fallbackFactory).toContain('__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__');
     expect(fallbackFactory).toContain("loadPayload.call(root, 'compatibility')");
   });

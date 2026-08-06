@@ -112,6 +112,7 @@ export interface BoardVisualGeometryPort {
 
 export interface BoardVisualDiagnosticsPort {
   resetBoardVisualRenderSession(): string;
+  destroyBoardVisualPageRuntime(): void;
   getBoardVisualInvalidationDiagnostics(): unknown;
   updateOccupancyUI(): void;
 }
