@@ -534,10 +534,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);
   });
 
-  test('startup default track points to Observation’s Sacrifice', () => {
+  test('startup default track points to Observation Battle', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.playlist).toHaveLength(7);
+    expect(soundEngine.playlist).toHaveLength(8);
     expect(soundEngine.playlist.map((track) => track.name)).toEqual([
       'c-reversi',
       'c-reversi-2',
@@ -545,14 +545,17 @@ describe('SoundEngine default BGM', () => {
       '幻想即興曲',
       'ノクターン',
       'The Observer’s Tears',
-      'Observation’s Sacrifice'
+      'Observation’s Sacrifice',
+      'Observation Battle'
     ]);
-    expect(soundEngine.currentTrackIndex).toBe(6);
+    expect(soundEngine.currentTrackIndex).toBe(7);
     expect(soundEngine.playlist[soundEngine.currentTrackIndex]).toEqual({
-      name: 'Observation’s Sacrifice',
-      file: 'assets/audio/bgm/sacrifice.mp3',
-      loopEnd: 40
+      name: 'Observation Battle',
+      file: 'assets/audio/bgm/Observation Battle.mp3',
+      loopEnd: 112 * 60 / 135
     });
+    const defaultBgmPath = path.resolve(__dirname, '..', 'assets/audio/bgm/Observation Battle.mp3');
+    expect(fs.statSync(defaultBgmPath).size).toBeGreaterThan(0);
     expect(soundEngine.playlist[0]).toEqual({
       name: 'c-reversi',
       file: 'assets/audio/bgm/c-reversi.mp3'
@@ -578,6 +581,11 @@ describe('SoundEngine default BGM', () => {
       name: 'Observation’s Sacrifice',
       file: 'assets/audio/bgm/sacrifice.mp3',
       loopEnd: 40
+    });
+    expect(soundEngine.playlist[7]).toEqual({
+      name: 'Observation Battle',
+      file: 'assets/audio/bgm/Observation Battle.mp3',
+      loopEnd: 112 * 60 / 135
     });
   });
 
@@ -866,6 +874,30 @@ describe('SoundEngine default BGM', () => {
     expect(sources[0].loop).toBe(true);
     expect(sources[0].loopStart).toBeCloseTo(0, 6);
     expect(sources[0].loopEnd).toBeCloseTo(58.434783, 6);
+    expect(sources[0].start).toHaveBeenCalledWith(0, 0);
+  });
+
+  test('Observation Battle uses the full 112-beat 135 BPM phrase as its buffered loop', async () => {
+    const { context, sources } = createMockAudioContext();
+    context.decodeAudioData = jest.fn(async () => ({ duration: 49.77778 }));
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16)
+    }));
+    const soundEngine = loadSoundEngine({ fetch: fetchMock });
+    const loopTrackIndex = soundEngine.playlist.findIndex((track) => track && track.name === 'Observation Battle');
+    soundEngine.ctx = context;
+    soundEngine.allowBgmPlay = true;
+
+    soundEngine.loadBgm(loopTrackIndex);
+    await flushAsyncWork();
+
+    expect(soundEngine.bgm.__bufferedLoop).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/Observation Battle.mp3');
+    expect(sources).toHaveLength(1);
+    expect(sources[0].loop).toBe(true);
+    expect(sources[0].loopStart).toBeCloseTo(0, 6);
+    expect(sources[0].loopEnd).toBeCloseTo(112 * 60 / 135, 6);
     expect(sources[0].start).toHaveBeenCalledWith(0, 0);
   });
 

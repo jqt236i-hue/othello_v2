@@ -70,7 +70,7 @@ const SoundEngine = {
     bgm: null as any,
     bgmVolume: 0.548625,
     bgmOutputVolumeScale: 0.24752,
-    currentTrackIndex: 6,
+    currentTrackIndex: 7,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {
         win: { name: '勝利リザルト', file: 'assets/audio/other/勝利リザルト-bpm165.mp3', loop: false },
@@ -117,7 +117,8 @@ const SoundEngine = {
         { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
         { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' },
         { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3', loopEnd: 58.434783 },
-        { name: 'Observation’s Sacrifice', file: 'assets/audio/bgm/sacrifice.mp3', loopEnd: 40 }
+        { name: 'Observation’s Sacrifice', file: 'assets/audio/bgm/sacrifice.mp3', loopEnd: 40 },
+        { name: 'Observation Battle', file: 'assets/audio/bgm/Observation Battle.mp3', loopEnd: 112 * 60 / 135 }
     ] as BgmTrack[],
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {
