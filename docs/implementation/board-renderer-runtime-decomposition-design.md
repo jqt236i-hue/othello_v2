@@ -1,6 +1,6 @@
 # Board renderer runtime decomposition design
 
-- Status: reviewed, implementation in progress
+- Status: completed
 - Date: 2026-08-06
 - Target: browser board render orchestration, state projection, backend selection, input, layout, writer settlement, and DOM compatibility dependency wiring
 - Source of truth: root `AGENTS.md`, `ui/AGENTS.md`, `docs/architecture-contracts.md` section 7.3, and the current root `ui/` implementation
@@ -210,3 +210,7 @@ The first draft also proposed moving synthetic writer adoption into the controll
 Finally, direct removal of all browser globals was narrowed. The hidden mutable helper bag is removed, but documented classic compatibility globals remain thin aliases so this refactor does not become a browser-runtime migration.
 
 Independent review found five material gaps and the design was revised accordingly: receipt-bound strict state is now a fallback-free API; browser discovery is injected from the composition boundary; backend fixation remains lazy; one-shot render submissions have an explicit runtime owner; and Vite plus Worker mirror generation/parity are mandatory completion gates.
+
+## 11. Completion record
+
+Implementation landed in commit `46b0e71b1` (`Decompose board renderer runtime`). The focused board/UI regression set passed 61 suites and 674 tests; network parity passed 35 suites and 564 tests. Type, architecture, generated-delivery, Worker mirror, Pixi playback/fallback, and Chromium/Firefox/WebKit desktop/mobile smoke gates also passed. No player-visible rule or behavior specification changed.

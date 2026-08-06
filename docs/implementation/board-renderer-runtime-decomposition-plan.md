@@ -1,6 +1,6 @@
 # Board renderer runtime decomposition implementation plan
 
-- Status: reviewed, implementation in progress
+- Status: completed
 - Date: 2026-08-06
 - Design: `docs/implementation/board-renderer-runtime-decomposition-design.md`
 - Execution mode: behavior-preserving sequential extraction with focused verification after every ownership transfer
@@ -284,18 +284,20 @@ Every design completion condition passes; generated and mirrored artifacts conta
 
 ## Completion checklist
 
-- [ ] Shared injected render-state source, operational APIs, and receipt-bound resolver implemented
-- [ ] All render-state consumers migrated
-- [ ] Typed facade capability ports implemented and strict caller narrowed
-- [ ] Disc DOM helper extracted and hidden helper bag removed
-- [ ] Layout, input, backend, frame, writer, and render-submission runtimes extracted
-- [ ] Backend selection remains lazy and DOM compatibility remains default-graph isolated
-- [ ] Single Visual Writer, event order, strict receipt identity, recovery, and prepared one-shot behavior preserved
-- [ ] `ui/board-renderer.ts` contains composition/facade code only
-- [ ] Architecture/design/plan match final implementation
-- [ ] Focused and Level 3 verification passes
-- [ ] Browser, Vite, and Worker generated/mirror outputs are synchronized
-- [ ] Final diff/status inspected and task-owned changes committed
+- [x] Shared injected render-state source, operational APIs, and receipt-bound resolver implemented
+- [x] All render-state consumers migrated
+- [x] Typed facade capability ports implemented and strict caller narrowed
+- [x] Disc DOM helper extracted and hidden helper bag removed
+- [x] Layout, input, backend, frame, writer, and render-submission runtimes extracted
+- [x] Backend selection remains lazy and DOM compatibility remains default-graph isolated
+- [x] Single Visual Writer, event order, strict receipt identity, recovery, and prepared one-shot behavior preserved
+- [x] `ui/board-renderer.ts` contains composition/facade code only
+- [x] Architecture/design/plan match final implementation
+- [x] Focused and Level 3 verification passes
+- [x] Browser, Vite, and Worker generated/mirror outputs are synchronized
+- [x] Final diff/status inspected and task-owned changes committed
+
+Implementation landed in commit `46b0e71b1` (`Decompose board renderer runtime`). Completion verification included 61 focused board/UI suites (674 tests), 35 network-parity suites (564 tests), the repository static gate, generated browser/Vite/Worker parity, 232 Pixi playback scenarios, fallback checks, and 12 cross-platform browser probes.
 
 ## Self-review
 
