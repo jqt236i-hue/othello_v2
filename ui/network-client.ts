@@ -447,6 +447,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkSessionLifecycleModule: any = null;
     let networkCommandPayloadModule: any = null;
     let networkActionBridgeModule: any = null;
+    let networkPlacementFeedbackModule: any = null;
     let networkApplyCoordinatorModule: any = null;
     let networkReconnectControllerModule: any = null;
     let networkPublishTrackerModule: any = null;
@@ -473,6 +474,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkSessionSeatController: any = null;
     let networkSessionLifecycleController: any = null;
     let networkActionBridgeController: any = null;
+    let networkPlacementFeedbackController: any = null;
     let networkReconnectController: any = null;
     let networkPublishTrackerController: any = null;
     let networkPublishRejectionController: any = null;
@@ -507,6 +509,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkSessionLifecycleModule = resolveNetworkClientModule('./network/session-lifecycle', null);
     networkCommandPayloadModule = resolveNetworkClientModule('./network/command-payload', null);
     networkActionBridgeModule = resolveNetworkClientModule('./network/action-bridge', null);
+    networkPlacementFeedbackModule = resolveNetworkClientModule('./network/placement-feedback', null);
     networkApplyCoordinatorModule = resolveNetworkClientModule('./network/apply-coordinator', null);
     networkReconnectControllerModule = resolveNetworkClientModule('./network/reconnect-controller', null);
     networkPublishTrackerModule = resolveNetworkClientModule('./network/publish-tracker', null);
@@ -594,6 +597,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
         networkActionBridgeModule = resolveNetworkClientGlobal('NetworkActionBridgeModule');
         return networkActionBridgeModule;
+    }
+
+    function resolveNetworkPlacementFeedbackModule() {
+        if (networkPlacementFeedbackModule) return networkPlacementFeedbackModule;
+
+        networkPlacementFeedbackModule = resolveNetworkClientGlobal('NetworkPlacementFeedbackModule');
+        return networkPlacementFeedbackModule;
     }
 
     function resolveNetworkApplyCoordinatorModule() {
@@ -986,6 +996,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function submitNetworkSnapshotEnvelope(envelope: any) {
+        if (
+            networkPlacementFeedbackController
+            && typeof networkPlacementFeedbackController.clearForEnvelope === 'function'
+        ) {
+            networkPlacementFeedbackController.clearForEnvelope(envelope);
+        }
         const coordinator = getNetworkIntakeCoordinator();
         if (!coordinator || typeof coordinator.submit !== 'function') {
             return {
@@ -997,6 +1013,46 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             };
         }
         return coordinator.submit(envelope);
+    }
+
+    function setNetworkPlacementFeedbackPreviewHints(previewHints: any[], options?: any): boolean {
+        const renderer = resolveNetworkClientGlobal('BoardRenderer')
+            || resolveNetworkClientCandidate(() => _require('./board-renderer'));
+        if (!renderer || typeof renderer.setBoardPresentationPreviewHints !== 'function') return false;
+        try {
+            renderer.setBoardPresentationPreviewHints(previewHints, options);
+            return true;
+        } catch (error: any) {
+            recordNetworkTrace('network_placement_feedback_render_failed', {
+                message: error && error.message ? String(error.message) : String(error || '')
+            });
+            return false;
+        }
+    }
+
+    function getNetworkPlacementFeedbackController() {
+        if (networkPlacementFeedbackController) return networkPlacementFeedbackController;
+        const mod = resolveNetworkPlacementFeedbackModule();
+        if (!mod || typeof mod.createNetworkPlacementFeedbackController !== 'function') return null;
+        networkPlacementFeedbackController = mod.createNetworkPlacementFeedbackController({
+            getSessionIdentity: () => ({
+                active: isActive(),
+                roomId: normalizeRoomId(state.roomId),
+                sessionEpoch: getNetworkSessionEpoch()
+            }),
+            setPreviewHints: setNetworkPlacementFeedbackPreviewHints
+        });
+        return networkPlacementFeedbackController;
+    }
+
+    function clearNetworkPlacementFeedback(options?: any): boolean {
+        if (
+            !networkPlacementFeedbackController
+            || typeof networkPlacementFeedbackController.clear !== 'function'
+        ) {
+            return false;
+        }
+        return networkPlacementFeedbackController.clear(options);
     }
 
     function awaitNetworkBoardVisualReady() {
@@ -1145,6 +1201,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function advanceNetworkSessionEpoch(reason?: any) {
+        clearNetworkPlacementFeedback({ deferRender: true });
         networkSessionEpoch += 1;
         // In-flight gap recovery cannot be cancelled at the transport layer,
         // so detach it here; its epoch/timeline guard will discard the reply.
@@ -1329,6 +1386,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playerNameMax: PLAYER_NAME_MAX,
             prepareSessionActivation: (payload: any) => {
                 assertNetworkPresentationTimelineDisposedForSessionBoundary();
+                clearNetworkPlacementFeedback({ deferRender: true });
                 clearPendingRematchRequest();
                 state.lastStreamEventId = '';
                 state.authoritativeMatchState.authoritativeTurnIndex = null;
@@ -1362,6 +1420,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             },
             onResetSessionState: () => {
                 assertNetworkPresentationTimelineDisposedForSessionBoundary();
+                clearNetworkPlacementFeedback({ deferRender: true });
                 clearPendingRematchRequest();
                 state.appliedStateVersion = null;
                 state.lastVisualSeq = 0;
@@ -1440,6 +1499,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             clearPlaybackStateForLeave,
             clearPendingForceSyncPlaybackRecovery,
             markSessionReloadRequired: () => {
+                clearNetworkPlacementFeedback();
                 state.active = false;
                 state.networkDebugEnabled = false;
                 state.networkAutoEnabled = false;
@@ -1473,6 +1533,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     ? NetworkGameContract.getPendingEffectType(cardStateValue, playerKey, normalizePlayerKey)
                     : null
             ),
+            beginPlacementFeedback: (action: any) => {
+                const controller = getNetworkPlacementFeedbackController();
+                return controller && typeof controller.beginPlacement === 'function'
+                    ? controller.beginPlacement(action)
+                    : null;
+            },
+            settlePlacementFeedback: (token: any, result: any) => {
+                const controller = networkPlacementFeedbackController;
+                return controller && typeof controller.settlePlacement === 'function'
+                    ? controller.settlePlacement(token, result)
+                    : false;
+            },
             queueCommandPublish: (playerKey: any, action: any, options: any) => queueCommandPublish(playerKey, action, options),
             shouldDeferNetworkPublishForPendingType
         });
@@ -1673,6 +1745,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             createOperationId,
             resolveNetworkPublishRequestModule,
             getCurrentPublishTurnIndex,
+            onPublishStarted: (metadata: any) => {
+                const controller = networkPlacementFeedbackController;
+                return controller && typeof controller.bindOperation === 'function'
+                    ? controller.bindOperation(metadata && metadata.placementFeedbackToken, metadata)
+                    : false;
+            },
             buildPublishCommandPayload,
             sanitizePlaybackEventsForPublish,
             getSnapshotMeta,
@@ -3792,6 +3870,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
             localPlaybackEmitted: opts.localPlaybackEmitted === true,
             usedSnapshotFallback: opts.usedSnapshotFallback === true,
+            placementFeedbackToken: opts.placementFeedbackToken != null ? opts.placementFeedbackToken : null,
             action
         });
     }
@@ -3816,6 +3895,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function teardownActionBridge() {
+        clearNetworkPlacementFeedback();
         const controller = getNetworkActionBridgeController();
         if (!controller || typeof controller.teardown !== 'function') return;
         controller.teardown();

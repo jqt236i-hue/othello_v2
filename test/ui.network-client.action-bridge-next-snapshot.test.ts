@@ -206,6 +206,51 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(payload.playbackEvents).toBeUndefined();
   });
 
+  test('通常配置は送信直後にローカルの保留リングを出し、同じ操作の確定応答で消す', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const setBoardPresentationPreviewHints = jest.fn();
+    window.BoardRenderer = { setBoardPresentationPreviewHints };
+    let resolvePublish;
+    global.fetch = jest.fn((url, init = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path !== '/api/match/publish') return Promise.resolve(jsonResponse(404, { ok: false }));
+      const body = JSON.parse(init.body || '{}');
+      return new Promise((resolve) => {
+        resolvePublish = () => resolve(jsonResponse(200, {
+          ok: true,
+          roomId: 'ROOM1234',
+          operationId: body.operationId,
+          stateVersion: 21,
+          snapshot: createSnapshot(21),
+          playbackEvents: []
+        }));
+      });
+    });
+
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
+      global.cardState,
+      global.gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      {}
+    );
+
+    expect(result).toMatchObject({ ok: true, skippedLocalExecution: true });
+    expect(setBoardPresentationPreviewHints).toHaveBeenCalledWith([
+      { cellKey: '2,3', kind: 'network-pending-placement' }
+    ], undefined);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(resolvePublish).toEqual(expect.any(Function));
+
+    resolvePublish();
+    await expect(result.publishPromise).resolves.toEqual({ ok: true });
+    expect(setBoardPresentationPreviewHints).toHaveBeenLastCalledWith([], { deferRender: true });
+  });
+
   test('destroy_hand_card送信でcommand payloadを使いclient snapshotを送らない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

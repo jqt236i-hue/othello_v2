@@ -1239,6 +1239,7 @@ let BoardVisualBackendTestConfigForBoardRenderer: any = null;
 let BoardInputControllerForBoardRenderer: any = null;
 let BoardInputLockResolverForBoardRenderer: (() => boolean) | null = null;
 let BoardInputKeyboardCursorKeyForBoardRenderer: string | null = null;
+let BoardPresentationPreviewHintsForBoardRenderer: readonly any[] = Object.freeze([]);
 let BoardInputOverlayRenderSuppressedForBoardRenderer = false;
 let BoardInputDeferredOverlayRenderGenerationForBoardRenderer = 0;
 let BoardInputDeferredOverlayRenderForBoardRenderer: Promise<void> | null = null;
@@ -1651,6 +1652,34 @@ function _setBoardInputKeyboardCursorKeyForBoardRenderer(rawKey: unknown): boole
     if (BoardInputKeyboardCursorKeyForBoardRenderer === next) return false;
     BoardInputKeyboardCursorKeyForBoardRenderer = next;
     _requestBoardInputOverlayRenderForBoardRenderer();
+    return true;
+}
+
+function _areBoardPresentationPreviewHintsEqualForBoardRenderer(left: readonly any[], right: readonly any[]): boolean {
+    if (left === right) return true;
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((hint, index) => (
+        hint && right[index]
+        && hint.cellKey === right[index].cellKey
+        && hint.kind === right[index].kind
+    ));
+}
+
+function setBoardPresentationPreviewHints(previewHints: unknown, options?: any): boolean {
+    const BoardVisualModel = _require('./board-visual/model');
+    if (!BoardVisualModel || typeof BoardVisualModel.validateBoardPresentationOverlayState !== 'function') {
+        throw new Error('Board visual overlay validation is unavailable');
+    }
+    const next = BoardVisualModel.validateBoardPresentationOverlayState({
+        previewHints: Array.isArray(previewHints) ? previewHints : []
+    }).previewHints;
+    if (_areBoardPresentationPreviewHintsEqualForBoardRenderer(BoardPresentationPreviewHintsForBoardRenderer, next)) {
+        return false;
+    }
+    BoardPresentationPreviewHintsForBoardRenderer = next;
+    if (!(options && options.deferRender === true)) {
+        _requestBoardInputOverlayRenderForBoardRenderer();
+    }
     return true;
 }
 
@@ -2675,7 +2704,8 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
     const ThemeModule = _require('./board-visual/theme');
     const FramePresenterModule = _require('./board-visual/frame-presenter');
     const baseInputs = StateAdapterModule.createBoardRenderInputs({
-        keyboardCursorKey: BoardInputKeyboardCursorKeyForBoardRenderer
+        keyboardCursorKey: BoardInputKeyboardCursorKeyForBoardRenderer,
+        previewHints: BoardPresentationPreviewHintsForBoardRenderer
     }, baseVisualStateOverride);
     const projection = StateAdapterModule.createBoardRenderProjection(undefined, baseInputs);
     const cellState = StateAdapterModule.buildCurrentCellState(projection, baseInputs);
@@ -2774,6 +2804,7 @@ function resetBoardVisualRenderSession() {
     BoardInputOverlayRenderSuppressedForBoardRenderer = true;
     try {
         BoardInputKeyboardCursorKeyForBoardRenderer = null;
+        BoardPresentationPreviewHintsForBoardRenderer = Object.freeze([]);
         BoardInputControllerForBoardRenderer?.reset?.();
         BoardAccessibilityLayerForBoardRenderer?.clear?.();
     } finally {
@@ -3015,6 +3046,7 @@ const BoardRenderer = {
             settleAutoBoardVisualWriter,
             resetBoardVisualRenderSession,
             getBoardVisualInvalidationDiagnostics,
+            setBoardPresentationPreviewHints,
             buildBoardVisualFrame: _buildBoardVisualFrameForBoardRenderer,
             updateOccupancyUI,
             applyTimeStopLegalEmphasis,

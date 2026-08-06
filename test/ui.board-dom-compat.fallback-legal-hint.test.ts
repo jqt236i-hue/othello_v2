@@ -265,6 +265,19 @@ describe('board-renderer fallback legal hints', () => {
     expect(secondPreviewCell.classList.contains('selectable-friendly')).toBe(false);
   });
 
+  test('shows and clears a network pending-placement preview through the single board renderer', () => {
+    const boardRenderer = require('../ui/board-renderer.js');
+
+    expect(boardRenderer.setBoardPresentationPreviewHints([
+      { cellKey: '2,3', kind: 'network-pending-placement' }
+    ])).toBe(true);
+    const cell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
+    expect(cell.classList.contains('network-pending-placement-preview')).toBe(true);
+
+    expect(boardRenderer.setBoardPresentationPreviewHints([])).toBe(true);
+    expect(cell.classList.contains('network-pending-placement-preview')).toBe(false);
+  });
+
   test('renderBoardFull highlights the first selected stone during POSITION_SWAP_WILL targeting', () => {
     global.getLegalMoves.mockReturnValue([]);
     global.gameState.board[0][0] = global.BLACK;

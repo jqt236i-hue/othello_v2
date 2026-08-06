@@ -174,6 +174,37 @@ function createNetworkActionBridge(config?: any): any {
     return false;
   }
 
+  function beginPlacementFeedback(playerKey: any, action: any): any {
+    if (typeof cfg.beginPlacementFeedback !== 'function') return null;
+    return cfg.beginPlacementFeedback(action, playerKey);
+  }
+
+  function settlePlacementFeedback(token: any, result: any): void {
+    if (token == null || typeof cfg.settlePlacementFeedback !== 'function') return;
+    cfg.settlePlacementFeedback(token, result);
+  }
+
+  function queueBoardPlacementPublish(playerKey: any, action: any, showPlacementFeedback: boolean): any {
+    const feedbackToken = showPlacementFeedback ? beginPlacementFeedback(playerKey, action) : null;
+    let publishPromise: any;
+    try {
+      publishPromise = queueCommandPublish(playerKey, action, {
+        actionType: 'place',
+        placementFeedbackToken: feedbackToken
+      });
+    } catch (error) {
+      settlePlacementFeedback(feedbackToken, { ok: false, reason: 'PUBLISH_START_FAILED' });
+      throw error;
+    }
+    if (feedbackToken != null) {
+      void Promise.resolve(publishPromise).then(
+        (result) => settlePlacementFeedback(feedbackToken, result),
+        () => settlePlacementFeedback(feedbackToken, { ok: false, reason: 'PUBLISH_ERROR' })
+      );
+    }
+    return buildSkippedLocalExecutionResult(publishPromise);
+  }
+
   function install(): boolean {
     if (installed) return true;
     if (!rootRef.TurnPipelineUIAdapter || typeof rootRef.TurnPipelineUIAdapter.runTurnWithAdapter !== 'function') {
@@ -186,11 +217,19 @@ function createNetworkActionBridge(config?: any): any {
         const actionType = action && (action.type || action.actionType) ? String(action.type || action.actionType) : '';
         const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);
         const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
+        const pendingTypeForBoardPlacement = isBoardPlacement
+          ? getPendingEffectType(cardStateArg, playerKey, {
+            getPendingEffectType: cfg.getPendingEffectType,
+            normalizePlayerKey: cfg.normalizePlayerKey
+          })
+          : null;
         const isPass = actionType === 'pass';
-        if (!shouldDeferNetworkPublish && (isBoardPlacement || isPass)) {
-          return buildSkippedLocalExecutionResult(queueCommandPublish(playerKey, action, {
-            actionType: isBoardPlacement ? 'place' : 'pass'
-          }));
+        if (!shouldDeferNetworkPublish && isBoardPlacement) {
+          return queueBoardPlacementPublish(playerKey, action, !pendingTypeForBoardPlacement);
+        }
+
+        if (!shouldDeferNetworkPublish && isPass) {
+          return buildSkippedLocalExecutionResult(queueCommandPublish(playerKey, action, { actionType: 'pass' }));
         }
 
         if (!shouldDeferNetworkPublish && (actionType === 'cancel_card' || actionType === 'destroy_hand_card')) {

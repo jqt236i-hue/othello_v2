@@ -516,6 +516,16 @@
         0 0 calc(6px * var(--layout-stage-scale)) rgba(124, 182, 255, 0.12);
 }
 
+[data-board-renderer="dom"] .cell.network-pending-placement-preview {
+    background-color: rgba(73, 215, 239, 0.09);
+    outline: calc(2px * var(--layout-stage-scale)) solid rgba(181, 248, 255, 0.90);
+    outline-offset: calc(-4px * var(--layout-stage-scale));
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(66, 174, 205, 0.58),
+        inset 0 0 calc(14px * var(--layout-stage-scale)) rgba(73, 215, 239, 0.17),
+        0 0 calc(8px * var(--layout-stage-scale)) rgba(73, 215, 239, 0.18);
+}
+
 body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-emphasis {
     animation: timeStopLegalGlow 1100ms ease-in-out infinite;
 }

@@ -317,6 +317,16 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
         drawPixiLine(foreground, high, start, high, end, stroke);
       }
     }
+    if (previewKinds.has('network-pending-placement')) {
+      drawSurface('#49d7ef', 0.09);
+      drawInsetOutline(0.10, '#b5f8ff', 0.92, 0.04, 0.13);
+      drawInsetOutline(0.18, '#42aecd', 0.58, 0.022, 0.10);
+      drawPixiCircle(foreground, center, center, cellSize * 0.27, null, {
+        color: '#d9fbff',
+        alpha: 0.88,
+        width: Math.max(1, cellSize * 0.025)
+      });
+    }
     if (previewKinds.has('super-attraction-path')) {
       drawSurface('#d270ff', 0.035);
       drawInsetOutline(0.025, '#d270ff', 0.42, 0.032);
@@ -328,6 +338,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     }
     const hasKnownPreview = previewKinds.has('selected-target')
       || previewKinds.has('random-spawn')
+      || previewKinds.has('network-pending-placement')
       || previewKinds.has('super-attraction-path')
       || previewKinds.has('super-attraction-destination');
     if (interaction.previewKinds.length && !hasKnownPreview) {

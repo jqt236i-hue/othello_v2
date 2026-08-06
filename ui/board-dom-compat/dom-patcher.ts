@@ -225,6 +225,9 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
     if (state.isRandomSpawnPreview && !state.blockade && !state.frozen) {
         cell.classList.add('random-spawn-preview');
     }
+    if (state.isNetworkPendingPlacementPreview) {
+        cell.classList.add('network-pending-placement-preview');
+    }
     if (canShowSelectableFriendlyForState(state)) {
         cell.classList.add('selectable-friendly');
     }

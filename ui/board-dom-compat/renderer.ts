@@ -1769,6 +1769,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 isLegalFree: false,
                 isTabooLegal: false,
                 isRandomSpawnPreview: false,
+                isNetworkPendingPlacementPreview: false,
                 isSelectedTargetHighlighted: false,
                 isSuperAttractionPathPreview: false,
                 isSuperAttractionPreviewDestination: false,
@@ -2200,6 +2201,7 @@ function createBoardPresentationOverlayState(renderProjection: any, cellState: a
             previewHints.push({ cellKey, kind });
         };
         addPreview('random-spawn', cell.isRandomSpawnPreview === true);
+        addPreview('network-pending-placement', cell.isNetworkPendingPlacementPreview === true);
         addPreview('selected-target', cell.isSelectedTargetHighlighted === true);
         addPreview('super-attraction-path', cell.isSuperAttractionPathPreview === true);
         addPreview('super-attraction-destination', cell.isSuperAttractionPreviewDestination === true);
@@ -2494,6 +2496,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
                 const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
                 const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
                 const shouldShowRandomSpawnPreview = !!(canShowHint && state && state.isRandomSpawnPreview);
+                const shouldShowNetworkPendingPlacementPreview = !!(state && state.isNetworkPendingPlacementPreview);
                 const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
                 const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
                 const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
@@ -2514,6 +2517,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
                 cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal || transientHighlightClass === 'effect-target-highlight-positive');
                 cell.classList.toggle('effect-target-highlight-placement', transientHighlightClass === 'effect-target-highlight-placement');
                 cell.classList.toggle('random-spawn-preview', shouldShowRandomSpawnPreview);
+                cell.classList.toggle('network-pending-placement-preview', shouldShowNetworkPendingPlacementPreview);
                 cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
                 cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
                 cell.classList.toggle('selectable-friendly', shouldShowSelectable);

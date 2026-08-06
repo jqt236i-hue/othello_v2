@@ -17,6 +17,72 @@ describe('NetworkPublishFlowController contract', () => {
     expect(emitStatus).toHaveBeenCalledWith(expect.stringContaining('ネット対戦: 通信失敗'), true);
   });
 
+  test('exposes the local feedback token to the UI observer without serializing it into the command payload', async () => {
+    const publishFlowModule = require('../ui/network/publish-flow');
+    const state = {
+      roomId: 'ABC',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      stateVersion: 1,
+      publishChain: Promise.resolve()
+    };
+    const onPublishStarted = jest.fn();
+    const publishRequestWithRetry = jest.fn(async () => ({
+      ok: true,
+      data: {
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'op-feedback',
+        stateVersion: 2,
+        snapshot: { stateVersion: 2 },
+        playbackEvents: []
+      }
+    }));
+    const controller = publishFlowModule.createNetworkPublishFlowController({
+      getState: () => state,
+      getSessionEpoch: () => 9,
+      isActive: () => true,
+      normalizePlayerKey: () => 'black',
+      createOperationId: () => 'op-feedback',
+      resolveNetworkPublishRequestModule: () => ({
+        buildPublishRequest: () => ({
+          commandPayload: { actor: 'black', params: { row: 2, col: 3 } },
+          requestPayload: { actionType: 'place' },
+          queuedActionType: 'place'
+        })
+      }),
+      getCurrentPublishTurnIndex: () => 5,
+      onPublishStarted,
+      createTrackedPublish: () => ({ sequence: 1 }),
+      publishRequestWithRetry,
+      applySnapshotThroughCoordinator: jest.fn(() => true),
+      buildShadowAwarePlaybackApplyOptions: jest.fn(() => ({ playbackEvents: [], shadowPlaybackEvents: [] })),
+      getAppliedStateVersion: () => 1,
+      getSnapshotStateVersion: (snapshot: any) => snapshot && snapshot.stateVersion,
+      recordNetworkTelemetry: jest.fn(),
+      emitPayloadEffectLogs: jest.fn(),
+      showAutoPassNoticeFromPayload: jest.fn(),
+      pruneTrackedPublishes: jest.fn()
+    });
+
+    await expect(controller.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      placementFeedbackToken: 'network-placement:1'
+    })).resolves.toEqual({ ok: true });
+
+    expect(onPublishStarted).toHaveBeenCalledWith(expect.objectContaining({
+      placementFeedbackToken: 'network-placement:1',
+      operationId: 'op-feedback',
+      roomId: 'ABC',
+      sessionEpoch: 9,
+      actionType: 'place'
+    }));
+    expect(publishRequestWithRetry).toHaveBeenCalledWith(expect.not.objectContaining({
+      placementFeedbackToken: expect.anything()
+    }));
+  });
+
   test('accepted auto pass publish response shows auto pass notice after snapshot apply', async () => {
     const publishFlowModule = require('../ui/network/publish-flow');
     const state = {

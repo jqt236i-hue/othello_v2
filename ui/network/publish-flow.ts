@@ -162,6 +162,27 @@ function createNetworkPublishFlowController(config?: any): any {
       })
       : null;
 
+    if (typeof cfg.onPublishStarted === 'function') {
+      try {
+        cfg.onPublishStarted(Object.freeze({
+          placementFeedbackToken: info && info.placementFeedbackToken != null
+            ? info.placementFeedbackToken
+            : null,
+          operationId,
+          roomId: requestRoomId,
+          sessionEpoch: requestSessionEpoch,
+          actionType: queuedActionType
+        }));
+      } catch (error: any) {
+        if (typeof cfg.recordNetworkTelemetry === 'function') {
+          cfg.recordNetworkTelemetry('publish_feedback_start_failed', {
+            operationId,
+            message: error && error.message ? String(error.message) : String(error || '')
+          });
+        }
+      }
+    }
+
     state.publishChain = state.publishChain
       .then(async () => {
         if (!isCurrentRequestSession()) {
