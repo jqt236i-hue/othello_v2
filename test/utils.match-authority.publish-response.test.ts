@@ -44,7 +44,7 @@ describe('match authority publish response payload', () => {
 
   test('normalizes publishMeta and preserves room context', () => {
     const playbackEvents = [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'ok' }] }];
-    const effectLogs = ['黒: 反転保護を付与', '黒: 反転保護を付与', ''];
+    const effectLogs = ['黒: 反転無効を付与', '黒: 反転無効を付与', ''];
     const payload = MatchAuthority.buildPublishResponsePayload({
       ok: false,
       roomId: 'abc',
@@ -85,7 +85,7 @@ describe('match authority publish response payload', () => {
         cols: 9
       },
       playbackEvents,
-      effectLogs: ['黒: 反転保護を付与'],
+      effectLogs: ['黒: 反転無効を付与'],
       serverTime: 12345,
       publishMeta: {
         kind: 'rejected',
@@ -574,14 +574,14 @@ describe('match authority publish response payload', () => {
 
   test('appends effect logs through shared normalization rules', () => {
     expect(MatchAuthority.appendEffectLogMessages(
-      ['黒: 反転保護を付与', '黒: 反転保護を付与', ''],
+      ['黒: 反転無効を付与', '黒: 反転無効を付与', ''],
       null,
       ['白: 破壊を無効化', '白: 破壊を無効化'],
-      ['黒: 反転保護を付与']
+      ['黒: 反転無効を付与']
     )).toEqual([
-      '黒: 反転保護を付与',
+      '黒: 反転無効を付与',
       '白: 破壊を無効化',
-      '黒: 反転保護を付与'
+      '黒: 反転無効を付与'
     ]);
   });
 

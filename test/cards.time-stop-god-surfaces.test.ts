@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '手札に残り、使用時に自分石3つを破壊して次石を時間停石化。5ターン後に2連続行動。';
-const EXPECTED_DETAIL_TEXT = '使用時に自分石3つを破壊し、次に置く石を時間停石化する。\n5回目の所有者ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。\n発動後は通常石に戻り、先に空マスになるか相手色になると不発。\n反転保護は持たない。';
+const EXPECTED_DETAIL_TEXT = '使用時に自分石3つを破壊し、次に置く石を時間停石化する。\n5回目の所有者ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。\n発動後は通常石に戻り、先に空マスになるか相手色になると不発。\n反転無効は持たない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

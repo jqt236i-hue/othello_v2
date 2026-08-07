@@ -33,7 +33,7 @@
 
 ## リポジトリ上の根拠
 
-- `01-rulebook.md`: 持続ターン、カウントダウン、反転回避、破壊回避、再生、反転保護の形・色・配置を定義している。
+- `01-rulebook.md`: 持続ターン、カウントダウン、反転回避、破壊回避、再生、反転無効の形・色・配置を定義している。
 - `正本/演出正本.md`: 毒マーカーを左上の紫三角と定義する一方、再生位置の一文だけが一次情報より古い。
 - `ui/board-visual/model-builder.ts`: canonicalな特殊石情報を `remainingOwnerTurns`、`regenRemaining`、`flipEvadeRemaining`、`destroyEvadeRemaining` としてmaterializeする。
 - `shared/stone-status-snapshot.ts` / `shared/special-stone-registry.ts`: `ZOMBIE`、`TIME_STOP`、`TIME_STOP_DEITY` を `countdown-timer` と分類する既存の共有境界。
@@ -67,7 +67,7 @@ timerの意味は共有snapshotから取得し、形状と配置は既存Pixi Gr
 - `REGEN`: 持続ターンを追加せず、再生回数だけをピンクのハートで中央左へ描く。
 - `ZOMBIE`: 感染カウントダウンと、紫の再生ハートを別々に描く。
 
-snapshotを一度生成し、同じ結果をtimer分類と反転保護表示に用いる。これにより特殊石typeの判定がPixi内で二重化しない。
+snapshotを一度生成し、同じ結果をtimer分類と反転無効表示に用いる。これにより特殊石typeの判定がPixi内で二重化しない。
 
 ### Pixi形状と配置
 
@@ -82,9 +82,9 @@ snapshotを一度生成し、同じ結果をtimer分類と反転保護表示に�
 | ガード | 青い五角形。二桁時は横長に拡張 | 上 |
 | 再生 | `REGEN` はピンク、`ZOMBIE` は紫のハート | 中央左 |
 | 毒 | 紫の上向き三角 | 左上 |
-| 反転保護 | 灰色の五角形と `反` | 中央右 |
+| 反転無効 | 灰色の五角形と `反` | 中央右 |
 
-文字は各背景shapeの後に描画し、二桁時はfont sizeとshape widthを調整する。既存の反転保護描画、stone texture、aura、animation orderは変更しない。
+文字は各背景shapeの後に描画し、二桁時はfont sizeとshape widthを調整する。既存の反転無効描画、stone texture、aura、animation orderは変更しない。
 
 ### ルールヘルプ見本
 

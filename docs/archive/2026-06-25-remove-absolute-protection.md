@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** `絶対保護` / `絶対保護石` / `ABSOLUTE_PROTECTED` を active game source から削除し、`強い意志` は進化しない永続反転保護カードとして残す。
+**Goal:** `絶対保護` / `絶対保護石` / `ABSOLUTE_PROTECTED` を active game source から削除し、`強い意志` は進化しない永続反転無効カードとして残す。
 
 **Architecture:** 仕様正本を先に更新し、`PERMA_PROTECT_NEXT_STONE` から昇格メタデータと昇格処理を外す。`ABSOLUTE_PROTECTED` の特殊石分類・保護判定・画像・音・吹き出し・テストを削除し、顕現石の既存保護は `絶対保護` ではなく `不可侵` として内部名も `inviolable` 系へ改名する。互換エイリアスは残さず、最後に限定 `rg` で active source に旧語が戻っていないことを確認する。
 
@@ -189,7 +189,7 @@ Apply these exact rule changes:
 - `意志の喪失（LOSS_WILL）` says `弱い石（PROTECTED）` and `強い石（PERMA_PROTECTED）` are reverted, and does not mention `ABSOLUTE_PROTECTED`.
 - `禁忌反転` no longer has an absolute-protection exception; 顕現石 remains outside normal target/effect handling through 不可侵.
 - `穴マス` says 顕現石があるマス以外には確定で穴マスにできる.
-- `抹消` says 完全保護や反転保護では防げない. Do not add an absolute-protection exception.
+- `抹消` says 完全保護や反転無効では防げない. Do not add an absolute-protection exception.
 - `破壊／爆発` says 完全保護・不可侵には効かない. Do not mention 絶対保護.
 ```
 
@@ -355,9 +355,9 @@ Use these replacement descriptions:
 
 ```ts
 Object.freeze({ id: 'taboo-flip', label: '禁忌反転', category: 'flip', description: '挟めなくても反転可能。実際に反転する枚数が最大の列1方向のみ選ぶ。' }),
-Object.freeze({ id: 'destroy', label: '破壊', category: 'destroy', description: '石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。' }),
-Object.freeze({ id: 'erase', label: '抹消', category: 'destroy', description: 'そのマスの石を取り除きます。\n完全保護や反転保護では防げません。' }),
-Object.freeze({ id: 'blast', label: '破壊／爆発', category: 'destroy', description: '石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。', aliases: Object.freeze(['爆破', '爆発']) }),
+Object.freeze({ id: 'destroy', label: '破壊', category: 'destroy', description: '石を破壊して盤面から消す効果。反転無効では防げないが、完全保護・不可侵には効かない。' }),
+Object.freeze({ id: 'erase', label: '抹消', category: 'destroy', description: 'そのマスの石を取り除きます。\n完全保護や反転無効では防げません。' }),
+Object.freeze({ id: 'blast', label: '破壊／爆発', category: 'destroy', description: '石を破壊して盤面から消す効果。反転無効では防げないが、完全保護・不可侵には効かない。', aliases: Object.freeze(['爆破', '爆発']) }),
 Object.freeze({ id: 'hole-cell', label: '穴マス', category: 'cell', description: 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。', aliases: Object.freeze(['穴マス化', '穴化']) }),
 ```
 
@@ -366,7 +366,7 @@ Object.freeze({ id: 'hole-cell', label: '穴マス', category: 'cell', descripti
 Replace old glossary entries with:
 
 ```ts
-'抹消': 'そのマスの石を取り除きます。\n完全保護や反転保護では防げません。',
+'抹消': 'そのマスの石を取り除きます。\n完全保護や反転無効では防げません。',
 '穴マス': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。',
 ```
 

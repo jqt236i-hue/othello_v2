@@ -328,8 +328,8 @@ export function isCardEffectOnlyLogLine(text?: string) {
         '交換',
         '二連投石',
         '十字爆弾',
-        '反転保護',
-        '永続反転保護',
+        '反転無効',
+        '永続反転無効',
         '吸収',
         '出稼ぎ'
     ];
@@ -426,8 +426,8 @@ if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEve
         const kind = isObjectPayload ? msg.kind : 'normal';
         const normalizeEffectLogText = (rawText: string) => {
             const normalized = String(rawText || '').trim();
-            if (normalized === '反転保護を付与') return '弱い石: 反転保護';
-            if (normalized === '永続反転保護を付与') return '強い石: 永続反転保護';
+            if (normalized === '反転無効を付与') return '弱い石: 反転無効';
+            if (normalized === '永続反転無効を付与') return '強い石: 永続反転無効';
             return normalized;
         };
         if (kind === 'effect') {

@@ -675,7 +675,7 @@ describe('rules help panel', () => {
     const template = readRulesHelpTemplateSource();
     expect(template).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
     expect(template).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
-    expect(template).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。<\/dd>/);
+    expect(template).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転無効では防げないが、完全保護・不可侵には効かない。<\/dd>/);
   });
 
   test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
@@ -711,7 +711,7 @@ describe('rules help panel', () => {
     btn.click();
 
     const effectTerms = Array.from(document.querySelectorAll('#rules-help-effects-list dt')).map((el) => el.textContent);
-    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス', '絶対執行', '不可侵', '反転保護', '完全保護', '反転回避', '破壊回避']));
+    expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス', '絶対執行', '不可侵', '反転無効', '完全保護', '反転回避', '破壊回避']));
 
     const inviolableButton = Array.from(document.querySelectorAll('#rules-help-effects-list .rules-help-effect-term-button'))
       .find((el) => el.textContent === '不可侵') as HTMLButtonElement;
@@ -745,7 +745,7 @@ describe('rules help panel', () => {
         type: 'SAMPLE',
         cost: 1,
         display_type_ja: '守護',
-        desc: '反転保護を持つ特殊石。マス破壊は受ける。'
+        desc: '反転無効を持つ特殊石。マス破壊は受ける。'
       }]
     };
     const mod = require('../ui/handlers/rules-help.js');
@@ -760,7 +760,7 @@ describe('rules help panel', () => {
 
     const cardDescEl = document.getElementById('rules-help-card-desc') as HTMLElement;
     const terms = Array.from(cardDescEl.querySelectorAll('.game-term-highlight')) as HTMLElement[];
-    expect(terms.map((el) => el.textContent)).toEqual(['反転保護', '特殊石', 'マス破壊']);
+    expect(terms.map((el) => el.textContent)).toEqual(['反転無効', '特殊石', 'マス破壊']);
     expect(terms.map((el) => el.dataset.termCategory)).toEqual(['protection', 'stone', 'destroy']);
     expect(cardDescEl.querySelectorAll('[data-term-label="反転"]')).toHaveLength(0);
   });
@@ -1330,7 +1330,7 @@ describe('rules help panel', () => {
     expect(template).toMatch(/下中央の赤い三角形数字/);
     expect(template).toMatch(/カウントダウン専用の残り回数/);
     expect(template).toMatch(/中央右の灰色バッジ/);
-    expect(template).toMatch(/反転保護の目印/);
+    expect(template).toMatch(/反転無効の目印/);
     expect(template).toMatch(/stone-flip-protection-badge/);
     expect(template).toMatch(/stone-regen-badge/);
     expect(template).toMatch(/右上の数字/);

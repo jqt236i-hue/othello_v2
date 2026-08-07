@@ -72,7 +72,7 @@ describe('GLUTTONOUS_WILL（悪食の意志）', () => {
     expect(marker.data.remainingOwnerTurns).toBeUndefined();
   });
 
-  test('悪食石は反転保護リストに含まれる', () => {
+  test('悪食石は反転無効リストに含まれる', () => {
     const { cardState, gameState } = createState(0.2);
 
     gameState.board[4][4] = Shared.BLACK;

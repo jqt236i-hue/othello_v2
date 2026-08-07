@@ -210,10 +210,10 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
         let normalized = String(text || '');
         if (!normalized) return '';
         const patterns = [
-            /反転保護を持つ特殊石として扱われ、/g,
-            /反転保護を持つ特殊石として扱う。?/g,
-            /反転保護を持つ特殊石。?/g,
-            /反転保護を持つ。?/g,
+            /反転無効を持つ特殊石として扱われ、/g,
+            /反転無効を持つ特殊石として扱う。?/g,
+            /反転無効を持つ特殊石。?/g,
+            /反転無効を持つ。?/g,
             /特殊石として扱われ、/g,
             /特殊石として扱う。?/g
         ];

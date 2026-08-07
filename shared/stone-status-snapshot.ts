@@ -342,7 +342,7 @@
         ) {
             tags.push('完全保護');
         } else if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) {
-            tags.push('反転保護');
+            tags.push('反転無効');
         }
 
         return Array.from(new Set(tags));

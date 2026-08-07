@@ -195,7 +195,7 @@ describe('METEOR_GOD（因果抹消神）', () => {
     expect(cardState.markers.find((m) => m && m.id === 9204)).toBeUndefined();
   });
 
-  test('因果抹消神石は反転保護リストに含まれる', () => {
+  test('因果抹消神石は反転無効リストに含まれる', () => {
     const { cardState, gameState } = createStates(0.3);
 
     gameState.board[1][1] = Shared.BLACK;

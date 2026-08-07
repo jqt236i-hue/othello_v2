@@ -8,7 +8,7 @@
 - CardType: `GRASS_WILL`
 - コスト: 20
 - 次に置く石: 草石
-- 草石: 反転保護、所有者ターン開始を10回迎えるまで持続
+- 草石: 反転無効、所有者ターン開始を10回迎えるまで持続
 - 播種: 草石の配置時と、草石が存在する所有者ターン開始時に、合法な空きマスからランダムに1マスを選んで種を置く
 - 発芽: 種の所有者ターン開始を5回迎えた時点で空きマスなら、同色の通常石として芽生え、通常の挟み反転を行う
 
@@ -44,7 +44,7 @@ data:
   remainingOwnerTurns: 10
 ```
 
-`GRASS`は共有特殊石registryで、真の特殊石・反転保護・通常破壊可・寿命操作可・所有権変更時通常石化として登録する。
+`GRASS`は共有特殊石registryで、真の特殊石・反転無効・通常破壊可・寿命操作可・所有権変更時通常石化として登録する。
 
 ### 種
 
@@ -86,7 +86,7 @@ data:
 - 黒草石: `assets/images/special-stones/grass-will-black.png`
 - 白草石: `assets/images/special-stones/grass-will-white.png`
 - 種マスと発芽: 既存の`SEED` status marker、spawn、flip presentationを再利用する。
-- 草石の残り回数と反転保護表示: 共有特殊石render modelを再利用する。
+- 草石の残り回数と反転無効表示: 共有特殊石render modelを再利用する。
 - 新しいcanvas、DOM盤面writer、専用animation clockは追加しない。Pixi通常経路とDOM互換経路は既存のSingle Visual Writer境界内で同じvisual effect mappingを読む。
 - 専用効果音や専用軌道演出は今回追加しない。既存のカード使用・status適用・発芽presentationを維持する。
 
@@ -127,7 +127,7 @@ data:
 
 - catalog、CardType、表示文、数値タグ、カード背景path
 - 特殊石registry、visual mapping、marker factory
-- focused headless: 配置、配置時播種、turn-start播種、10回目の順序、反転保護、通常破壊、候補0、PRNG消費、複数anchor順序
+- focused headless: 配置、配置時播種、turn-start播種、10回目の順序、反転無効、通常破壊、候補0、PRNG消費、複数anchor順序
 - shared seed lifecycle: 5回目発芽、配置による消滅、通常反転、草石消失後も種が残る
 - 延命・腐食・意志の喪失・捕獲・生きる意志との共有契約
 - CPU all-card profile/taxonomy、AUTO placement
@@ -140,7 +140,7 @@ data:
 - 次の石が草石になり、配置時と各所有者ターン開始時にauthority抽選で種を1つ置く。
 - 草石は10回目の所有者ターン開始でも播種した後、同色通常石へ戻る。
 - 種は5回目の所有者ターン開始で同色通常石として芽生え、既存の通常反転を行う。
-- 反転保護、通常破壊、寿命操作、捕獲、意志の喪失が共有特殊石規則どおりに動く。
+- 反転無効、通常破壊、寿命操作、捕獲、意志の喪失が共有特殊石規則どおりに動く。
 - Pixi、DOM互換、headless、CPU、local authority、Worker authority、再接続snapshotが同じcanonical結果を扱う。
 - 仕様、root source、生成物、Worker mirrorが同期し、タスク所有差分だけをコミットできる。
 

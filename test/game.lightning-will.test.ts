@@ -245,7 +245,7 @@ describe('LIGHTNING_WILL（雷の意志）', () => {
     expect(gameState.board[4][4]).toBe(Shared.BLACK);
   });
 
-  test('落雷石は反転保護リストに含まれる', () => {
+  test('落雷石は反転無効リストに含まれる', () => {
     const { cardState, gameState } = createStates(0.3);
 
     gameState.board[1][1] = Shared.BLACK;

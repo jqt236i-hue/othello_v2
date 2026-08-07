@@ -24,7 +24,7 @@
 
 ## 現在の構造
 
-- `shared/special-stone-registry.ts` が特殊石分類、対象可否、反転保護などの正本を持つ。
+- `shared/special-stone-registry.ts` が特殊石分類、対象可否、反転無効などの正本を持つ。
 - `game/logic/board_ops.ts` が canonical な色変更と `CHANGE` presentation event を所有する。
 - `game/logic/cards.ts` の `clearHyperactiveAtPositions` が固定種類だけを削除する。
 - `game/turn/turn_pipeline_phases.ts` の `applyPostFlipRevives` が通常経路の復活・生きる意志を解決する。
@@ -88,7 +88,7 @@
 `changeAt` の typed meta に `ownershipChangeMode: 'transfer'` を追加する。この mode では `revert` マーカーも自動削除せず、呼出元が既存の `transferCellMarkerOwnership` で所有者・付帯状態を移す。
 
 - 意志の反転: 対象効果と残り状態を移譲する。出稼ぎ石は個別仕様どおりアンカー喪失で終了する。ルール上の反転枚数には含めないため、独立した `countAsFlip: false` も指定する。
-- 禁忌の反転: 反転保護を貫通し、付随状態も新色側へ移譲する。復活系リアクションは発火させない。
+- 禁忌の反転: 反転無効を貫通し、付随状態も新色側へ移譲する。復活系リアクションは発火させない。
 
 この内部 meta は presentation payload から除去する。
 
@@ -152,7 +152,7 @@ TurnPipeline 側の既存 helper はこの API を優先し、互換 mock のみ
 ## 自己レビュー
 
 - 固定カードリスト追加ではなく、未知の新規特殊石にも適用される分類既定値を選んだ。
-- 反転保護、所有権移譲、反転後リアクションを別概念として分離した。
+- 反転無効、所有権移譲、反転後リアクションを別概念として分離した。
 - 罠と毒という「消してはいけない」反例を明示し、一般化し過ぎない設計にした。
 - presentation の順序、Worker共有、既存 boolean APIを互換条件へ含めた。
 - 回帰試験を状態削除だけでなく、その状態が後から誤発動しないところまで定義した。

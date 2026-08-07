@@ -233,7 +233,7 @@ describe('FIRE_WILL（火の意志）', () => {
     expect(gameState.board[3][3]).toBe(Shared.BLACK);
   });
 
-  test('火石は反転保護され、灼熱致死は既存の破壊回避を通る', () => {
+  test('火石は反転無効され、灼熱致死は既存の破壊回避を通る', () => {
     const { cardState, gameState } = createStates(1);
     gameState.board[1][1] = Shared.BLACK;
     CardLogic.addMarker(cardState, 'specialStone', 1, 1, 'black', {

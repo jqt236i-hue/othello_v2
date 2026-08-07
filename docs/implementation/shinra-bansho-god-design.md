@@ -99,7 +99,7 @@
 - `game/turn/turn-start/marker-phase.ts` はターン開始対象を開始時点で固定し、`createdSeq`順に1個ずつ処理する。
 - `game/turn/turn-start/special-stone-phase.ts` は火・水・草・雷の各アンカーを個体単位で既存効果へ委譲する。
 - 火・水・草・雷の現行モジュールは、1回分の属性効果とアンカー寿命減算を同じ関数で行うため、永続神から安全に再利用するには「1回分の効果」と「元アンカーの寿命」を分離する必要がある。
-- `shared/special-stone-registry.ts` は反転保護、破壊保護、対象可否、所有権変更時の扱いを集約する。
+- `shared/special-stone-registry.ts` は反転無効、破壊保護、対象可否、所有権変更時の扱いを集約する。
 - `game/logic/board_ops.ts` は石生成、破壊、反転、移動、穴化とordered presentation eventを所有する。
 - `ui/board-visual/controller.ts` とactive `BoardVisualBackend` がSingle Visual Writerであり、PixiとDOM互換は同時に盤面を書かない。
 - 現在の `BoardRenderModel` とPixi stone viewは1セル1石を前提にするため、2×2の合成石を明示的なrender-model要素として追加する必要がある。
@@ -284,14 +284,14 @@ compositeはanchorセル単独ではなくfootprintとmaterialization領域の�
 - 既存の単一Pixi application、stone layer、timeline、resource lifecycle内にcomposite stone viewを追加する。
 - anchor以外の3セルの通常stone viewを非表示にし、2×2の外接矩形へ黒白別の大型画像を1枚描画する。
 - 画像は `assets/images/special-stones/SHINRA_BANSHO_GOD-black.png` と `SHINRA_BANSHO_GOD-white.png` を正本とする。
-- 完全保護・反転保護の石上バッジは表示せず、composite全体の背面へ火・水・草・雷を表す多色オーラを付ける。オーラは既存stone viewのgraphicsで描き、第2tickerや第2writerを作らない。
+- 完全保護・反転無効の石上バッジは表示せず、composite全体の背面へ火・水・草・雷を表す多色オーラを付ける。オーラは既存stone viewのgraphicsで描き、第2tickerや第2writerを作らない。
 - viewport外や部分表示でも、既存materializationとeffect gutterの範囲内だけ描画し、2つ目のcanvasや別tickerを作らない。
 
 ### 10.3 DOM互換
 
 - DOM backendが排他的に選択された時だけ、2×2セルをまたぐ専用overlayを1個生成する。
 - 4セルのsemantic要素とowner情報は維持し、見た目の4個のdiscだけを抑止する。
-- 完全保護・反転保護の石上バッジは表示せず、大型discへ多色オーラを付ける。オーラの明滅は `prefers-reduced-motion` で停止し、静止状態でも保護表現を残す。
+- 完全保護・反転無効の石上バッジは表示せず、大型discへ多色オーラを付ける。オーラの明滅は `prefers-reduced-motion` で停止し、静止状態でも保護表現を残す。
 - Pixi通常経路からDOM互換moduleをimport・評価しない。
 
 ### 10.4 Playback

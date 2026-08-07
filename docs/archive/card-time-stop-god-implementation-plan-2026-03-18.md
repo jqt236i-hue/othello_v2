@@ -38,7 +38,7 @@
 
 - 時間停止は `DOUBLE_PLACE` 系の追加配置ではなく、**通常手番を 1 回追加予約する専用 state** として扱う。
 - カウント減少は所有者ターン開始基準で行う。
-- `時間停石` は反転保護を持たず、発動前に空マス化または所有者変更が起きた場合は不発にする。
+- `時間停石` は反転無効を持たず、発動前に空マス化または所有者変更が起きた場合は不発にする。
 - 定数の正本は `shared-constants.js` に置き、`TIME_STOP_GOD_TURNS`、`TIME_STOP_GOD_CONSECUTIVE_TURNS`、`TIME_STOP_GOD_SELF_DESTROY_COUNT` を共有する。
 - root の見た目は外部 PNG ではなく `game/visual-effects-map.js` の inline SVG builder で組み立てる。したがって、`zi-*` の正式リネームは完遂条件ではなく、不要 asset の整理タスクとして切り分ける。
 

@@ -57,7 +57,7 @@ describe('card detail effect tags', () => {
         name: '究極反転龍',
         type: 'ULTIMATE_REVERSE_DRAGON',
         cost: 30,
-        desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。8ターン持続。反転保護を持つ特殊石。'
+        desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。8ターン持続。反転無効を持つ特殊石。'
       }),
       getSalvationWillTargetCount: () => 0,
       getEqualityWillChargeState: () => ({ own: 0, opponent: 0 })
@@ -80,7 +80,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['特殊石', '8ターン持続', '反転保護']);
+    expect(getTagLabels()).toEqual(['特殊石', '8ターン持続', '反転無効']);
     expect(tagsEl.style.display).toBe('flex');
     expect(document.getElementById('card-detail-panel').classList.contains('has-effect-tags')).toBe(true);
 
@@ -133,7 +133,7 @@ describe('card detail effect tags', () => {
       name: '破壊龍',
       type: 'DESTROY_DRAGON_WILL',
       cost: 7,
-      desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。'
+      desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転無効を持つ特殊石。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -142,7 +142,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['特殊石', '3ターン持続', '反転保護']);
+    expect(getTagLabels()).toEqual(['特殊石', '3ターン持続', '反転無効']);
   });
 
   test('GUARD_WILL shows full protection together with duration tags', () => {
@@ -286,7 +286,7 @@ describe('card detail effect tags', () => {
     const detailText = document.getElementById('card-detail-more').textContent;
     expect(detailText).toContain('自分石3つを破壊');
     expect(detailText).toContain('5回目の所有者ターン開始時');
-    expect(detailText).toContain('反転保護は持たない');
+    expect(detailText).toContain('反転無効は持たない');
 
     expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
   });
@@ -316,7 +316,7 @@ describe('card detail effect tags', () => {
     expect(eraseTermButton).toBeTruthy();
     eraseTermButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('そのマスの石を取り除きます');
-    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('完全保護や反転保護では防げません');
+    expect(document.getElementById('card-detail-tag-popover-body').textContent).toContain('完全保護や反転無効では防げません');
 
     const boardExecutorDef = {
       id: 'board_executor_01',
@@ -632,7 +632,7 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     const tagButtons = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'));
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '8ターン持続', '反転保護']);
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '8ターン持続', '反転無効']);
 
     const specialStoneButton = tagButtons.find((el) => el.textContent === '特殊石');
     specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -652,11 +652,11 @@ describe('card detail effect tags', () => {
     expect(popupEl.classList.contains('is-open')).toBe(false);
     expect(popupEl.getAttribute('aria-hidden')).toBe('true');
 
-    const flipProtectionButton = tagButtons.find((el) => el.textContent === '反転保護');
+    const flipProtectionButton = tagButtons.find((el) => el.textContent === '反転無効');
     flipProtectionButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
 
     expect(popupEl.classList.contains('is-open')).toBe(true);
-    expect(titleEl.textContent).toBe('反転保護');
+    expect(titleEl.textContent).toBe('反転無効');
     expect(bodyEl.textContent).toContain('反転されない');
 
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

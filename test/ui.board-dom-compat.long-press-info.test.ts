@@ -234,7 +234,7 @@ describe('board cell information separation', () => {
     expect(Array.from(desc.querySelectorAll('.game-term-highlight')).some((el) => el.textContent === '時間停止')).toBe(true);
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転無効');
   });
 
   test('detail resolution accepts network-style string coordinates for marker lookup', () => {
@@ -267,7 +267,7 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に大きく移動し、移動後に反転する。');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り12T');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転無効');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り5回');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り2回');
@@ -291,7 +291,7 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り8T');
     expect(document.getElementById('stone-info-meta').textContent).toContain('幽体');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転無効');
   });
 
   test('detail renders effect tags as buttons and toggles tag detail panel', () => {
@@ -489,7 +489,7 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に移動し、隣接する敵石を捕食する。');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('反転無効');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('交換保護');
   });
 

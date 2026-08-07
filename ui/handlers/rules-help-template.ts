@@ -63,14 +63,14 @@ export const RULES_HELP_INNER_HTML = `
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>抹消</dt>
-                        <dd>そのマスの石を取り除きます。完全保護や反転保護でも防げません。</dd>
+                        <dd>そのマスの石を取り除きます。完全保護や反転無効でも防げません。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>絶対執行</dt>
                         <dd>盤界の執行者専用の抹消。不可侵以外の保護を貫通して特殊石を穴マスにする。</dd>
                     </div>
                     <div class="rules-help-effect-item">
-                        <dt>反転保護</dt>
+                        <dt>反転無効</dt>
                         <dd>反転されない。挟める列ごと無効できる。</dd>
                     </div>
                     <div class="rules-help-effect-item">
@@ -87,7 +87,7 @@ export const RULES_HELP_INNER_HTML = `
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>破壊／爆発</dt>
-                        <dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。</dd>
+                        <dd>石を破壊して盤面から消す効果。反転無効では防げないが、完全保護・不可侵には効かない。</dd>
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>連鎖反転</dt>
@@ -159,7 +159,7 @@ export const RULES_HELP_INNER_HTML = `
                             </div>
                             <div class="rules-help-counter-summary-text">
                                 石の上に出る数字やバッジは、位置と形で意味が変わります。下中央の数字は石本体やカウントダウン系、
-                                右上と左下の小さい数字は回避回数系、中央左のピンクハートバッジは復活回数、中央右の灰色バッジは反転保護と覚えると見分けやすいです。
+                                右上と左下の小さい数字は回避回数系、中央左のピンクハートバッジは復活回数、中央右の灰色バッジは反転無効と覚えると見分けやすいです。
                             </div>
                             <div class="rules-help-counter-summary-note">
                                 色や輪郭が少し違っても、同じ位置に出るマーカーはほぼ同じ意味です。数字の詳しい意味も、石情報で確認できます。
@@ -343,7 +343,7 @@ export const RULES_HELP_INNER_HTML = `
                             </div>
                             <div class="rules-help-counter-cell">
                                 <div class="rules-help-counter-label">中央右の灰色バッジ</div>
-                                <div class="rules-help-counter-meaning">反転保護の目印</div>
+                                <div class="rules-help-counter-meaning">反転無効の目印</div>
                             </div>
                             <div class="rules-help-counter-cell rules-help-counter-cell--note">
                                 反転されない石を表します。灰色の五角形に「反」と表示されます。

@@ -106,7 +106,7 @@ describe('card interaction detail tab module', () => {
       key: 'flip_protection',
       cardId: 'free_01',
       title: 'タグ説明',
-      body: '反転保護'
+      body: '反転無効'
     });
     detailTab.bindCardDetailTagAutoDismiss();
 
@@ -130,15 +130,15 @@ describe('card interaction detail tab module', () => {
       key: 'sample_01',
       cardId: 'sample_01',
       title: '確認カード の詳細効果',
-      body: '破壊と反転保護\n特殊石'
+      body: '破壊と反転無効\n特殊石'
     });
 
     const bodyEl = dom.window.document.getElementById('card-detail-tab-body') as HTMLElement;
-    expect(bodyEl.textContent).toBe('破壊と反転保護特殊石');
+    expect(bodyEl.textContent).toBe('破壊と反転無効特殊石');
     expect(bodyEl.innerHTML).toContain('<br>');
     expect(Array.from(bodyEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual([
       '破壊',
-      '反転保護',
+      '反転無効',
       '特殊石'
     ]);
   });

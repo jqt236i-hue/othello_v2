@@ -239,7 +239,7 @@ describe('WATER_WILL（水の意志）', () => {
     expect(marker(cardState, 'HEALING_CELL', 3, 3)).toBeFalsy();
   });
 
-  test('水石は反転保護されるが通常の破壊対象になる', () => {
+  test('水石は反転無効されるが通常の破壊対象になる', () => {
     const { cardState, gameState } = createStates(0);
     gameState.board[1][1] = Shared.BLACK;
     CardLogic.addMarker(cardState, 'specialStone', 1, 1, 'black', {

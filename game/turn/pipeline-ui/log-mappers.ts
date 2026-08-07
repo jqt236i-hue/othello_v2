@@ -56,8 +56,8 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'WORK') return '労働石';
     if (s === 'CROSS_BOMB') return '十字爆弾';
     if (s === 'X_BOMB') return 'クロス爆弾';
-    if (s === 'PROTECTED') return '反転保護';
-    if (s === 'PERMA_PROTECTED') return '永続反転保護';
+    if (s === 'PROTECTED') return '反転無効';
+    if (s === 'PERMA_PROTECTED') return '永続反転無効';
     if (s === 'GUARD') return '守る石';
     if (s === 'TRAP' || s === 'TRAP_REVEAL') return '罠石';
     if (s === 'BLOCKADE') return '封鎖マス';
@@ -437,8 +437,8 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.goldStoneUsed) push('金石: 獲得布石4倍');
                     if (e.rainbowStoneUsed) push('虹石: 獲得布石6倍');
                     if (e.crystalStoneUsed) push(_formatCrystalStonePlacementLog(e));
-                    if (e.protected) push('反転保護を付与');
-                    if (e.permaProtected) push('永続反転保護を付与');
+                    if (e.protected) push('反転無効を付与');
+                    if (e.permaProtected) push('永続反転無効を付与');
                     if (e.bombPlaced) push('時限爆弾を設置');
                     if (e.timeStopPlaced) push('時間停石を設置');
                     if (e.timeStopDeityPlaced) push('時間停神を設置');

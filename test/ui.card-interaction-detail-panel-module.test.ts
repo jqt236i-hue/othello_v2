@@ -82,12 +82,12 @@ describe('card interaction detail panel module', () => {
       id: 'ribo_01',
       name: 'リボの意志',
       type: 'RIBO_WILL',
-      quickText: '反転保護を持つ特殊石として扱われ、次に置く石を龍化',
+      quickText: '反転無効を持つ特殊石として扱われ、次に置く石を龍化',
       detailText: '詳細本文',
       distinctDetailText: '詳細本文',
       effectTags: [
-        { kind: 'status', label: '反転保護' },
-        { kind: 'status', label: '反転保護' },
+        { kind: 'status', label: '反転無効' },
+        { kind: 'status', label: '反転無効' },
         { kind: 'special-stone', label: '特殊石' },
         { kind: 'special-stone', label: '特殊石' },
         { kind: 'numeric', label: '8ターン持続' }
@@ -109,15 +109,15 @@ describe('card interaction detail panel module', () => {
     expect(liveStateEl?.textContent).toBe('18手後使用可能');
     expect(liveStateEl?.style.display).toBe('block');
     expect(Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag') || []).map((el) => el.textContent)).toEqual([
-      '反転保護',
+      '反転無効',
       '特殊石',
       '8ターン持続'
     ]);
     const tagButtons = Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag-button') || []);
     expect(tagButtons).toHaveLength(3);
     expect(tagButtons[0].tagName).toBe('BUTTON');
-    expect(tagButtons[0].getAttribute('data-card-tag-label')).toBe('反転保護');
-    expect(tagButtons[0].getAttribute('aria-label')).toBe('反転保護の説明を表示');
+    expect(tagButtons[0].getAttribute('data-card-tag-label')).toBe('反転無効');
+    expect(tagButtons[0].getAttribute('aria-label')).toBe('反転無効の説明を表示');
   });
 
   test('overlay description respects hidden hand tokens and detail text fallback', () => {
@@ -137,7 +137,7 @@ describe('card interaction detail panel module', () => {
       id: 'sample_01',
       name: '確認カード',
       type: 'SAMPLE',
-      quickText: '次に置く特殊石を反転保護状態で置く',
+      quickText: '次に置く特殊石を反転無効状態で置く',
       detailText: '破壊<script>alert(1)</script>とマス破壊を受ける。',
       distinctDetailText: '破壊<script>alert(1)</script>とマス破壊を受ける。',
       effectTags: []
@@ -152,8 +152,8 @@ describe('card interaction detail panel module', () => {
 
     ctx.controller.applyCardDetailDisplayModel(nameEl, descEl, liveStateEl, detailMoreEl, tagsEl, model);
 
-    expect(descEl.textContent).toBe('次に置く特殊石を反転保護状態で置く。');
-    expect(Array.from(descEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['特殊石', '反転保護']);
+    expect(descEl.textContent).toBe('次に置く特殊石を反転無効状態で置く。');
+    expect(Array.from(descEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['特殊石', '反転無効']);
     expect(detailMoreEl.querySelector('script')).toBeNull();
     expect(detailMoreEl.textContent).toBe('破壊<script>alert(1)</script>とマス破壊を受ける。');
     expect(Array.from(detailMoreEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['破壊', 'マス破壊']);
@@ -168,7 +168,7 @@ describe('card interaction detail panel module', () => {
       quickText: '次に置く特殊石を守る',
       detailText: '同じ詳細',
       distinctDetailText: '同じ詳細',
-      effectTags: [{ kind: 'status', label: '反転保護' }]
+      effectTags: [{ kind: 'status', label: '反転無効' }]
     }, 'black');
     const doc = ctx.dom.window.document;
     const elements = {

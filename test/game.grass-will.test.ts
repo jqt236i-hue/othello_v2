@@ -286,7 +286,7 @@ describe('GRASS_WILL（草の意志）', () => {
     ))).toBe(true);
   });
 
-  test('草石は反転保護されるが通常の破壊対象になる', () => {
+  test('草石は反転無効されるが通常の破壊対象になる', () => {
     const { cardState, gameState } = createStates(0);
     gameState.board[1][1] = Shared.BLACK;
     CardLogic.addMarker(cardState, 'specialStone', 1, 1, 'black', {

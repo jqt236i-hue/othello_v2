@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '空きマス自由配置可。置いた石が龍化し、配置時に周囲1マスを反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マスを反転（8ターン）。';
-const EXPECTED_DETAIL_TEXT = '反転が0でも空きマスに配置できる。\n配置時に周囲1マス（8方向）を反転する。\n自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転する。\n移動先が無いときはその場で反転する。\n持続は8ターン。\n反転保護を持つ特殊石として扱う。';
+const EXPECTED_DETAIL_TEXT = '反転が0でも空きマスに配置できる。\n配置時に周囲1マス（8方向）を反転する。\n自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転する。\n移動先が無いときはその場で反転する。\n持続は8ターン。\n反転無効を持つ特殊石として扱う。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

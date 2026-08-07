@@ -92,7 +92,7 @@
 ### 5.4 特殊石 lifecycle
 
 - 次石特殊化は `applyPlacementEffects` に pending type branch を追加するのが既存パターンである。
-- 反転保護は `shared/special-stone-registry.ts` に `flipProtected: true` を定義し、既存の flip protection 判定に乗せる。
+- 反転無効は `shared/special-stone-registry.ts` に `flipProtected: true` を定義し、既存の flip protection 判定に乗せる。
 - 10ターン持続後に通常石へ戻す処理は、`GHOST` や `ULTIMATE_HYPERACTIVE` のように marker 削除だけでなく `CHANGE` / `STATUS_REMOVED` / duration-end presentation を意識する。
 - `救済神` は破壊保護を持たないため、`destroyProtected` や `destroyEvadeRemaining` は付けない。
 - card state の copy / snapshot / network projection で marker data が落ちると aura が消えるため、`state-factory.ts` と public snapshot tests を実装時に確認する。
@@ -390,7 +390,7 @@
 - `test/ui.visual-effects-map.shared.test.ts`
   - black / white owner 画像解決
 - `test/ui.card-detail-effect-tags.test.ts` または `test/ui.long-press-info.test.ts`
-  - `救済神` 説明と timer / 反転保護 tag
+  - `救済神` 説明と timer / 反転無効 tag
 
 ### 8.2 参照する既存テスト
 

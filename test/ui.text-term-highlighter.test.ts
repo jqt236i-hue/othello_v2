@@ -15,7 +15,7 @@ describe('text term highlighter', () => {
       '絶対執行',
       '特殊石',
       '通常石',
-      '反転保護',
+      '反転無効',
       '完全保護',
       '不可侵',
       '自由配置',
@@ -27,7 +27,7 @@ describe('text term highlighter', () => {
     const holeCell = getGameTermGlossary().find((entry) => entry.label === '穴マス');
     expect(holeCell?.description).toBe('マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。');
     const erase = getGameTermGlossary().find((entry) => entry.label === '抹消');
-    expect(erase?.description).toContain('完全保護や反転保護では防げません');
+    expect(erase?.description).toContain('完全保護や反転無効では防げません');
   });
 
   test('catalogs free placement as a placement action term', () => {
@@ -60,8 +60,8 @@ describe('text term highlighter', () => {
   });
 
   test('uses longest-match terms before shorter terms', () => {
-    const matches = findGameTermMatches('反転保護を持つ特殊石はマス破壊を受ける。');
-    expect(matches.map((match) => match.text)).toEqual(['反転保護', '特殊石', 'マス破壊']);
+    const matches = findGameTermMatches('反転無効を持つ特殊石はマス破壊を受ける。');
+    expect(matches.map((match) => match.text)).toEqual(['反転無効', '特殊石', 'マス破壊']);
     expect(matches.map((match) => match.category)).toEqual(['protection', 'stone', 'destroy']);
   });
 
@@ -95,15 +95,15 @@ describe('text term highlighter', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="target"></div></body></html>');
     const target = dom.window.document.getElementById('target') as HTMLElement;
 
-    renderTextWithGameTermHighlights(target, '破壊<script>alert(1)</script>と反転保護', {
+    renderTextWithGameTermHighlights(target, '破壊<script>alert(1)</script>と反転無効', {
       documentRef: dom.window.document,
       classPrefix: 'game-term'
     });
 
-    expect(target.textContent).toBe('破壊<script>alert(1)</script>と反転保護');
+    expect(target.textContent).toBe('破壊<script>alert(1)</script>と反転無効');
     expect(target.querySelector('script')).toBeNull();
     const terms = Array.from(target.querySelectorAll('.game-term-highlight')) as HTMLElement[];
-    expect(terms.map((term) => term.textContent)).toEqual(['破壊', '反転保護']);
+    expect(terms.map((term) => term.textContent)).toEqual(['破壊', '反転無効']);
     expect(terms.map((term) => term.dataset.termCategory)).toEqual(['destroy', 'protection']);
   });
 

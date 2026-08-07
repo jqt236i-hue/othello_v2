@@ -66,13 +66,13 @@ Use a small set of categories to avoid a noisy rainbow effect:
 - `flip`: `反転`, `通常反転`, `連鎖反転`, `禁忌反転`, `反転枚数`
 - `destroy`: `破壊`, `爆破`, `爆発`, `マス破壊`, `斬撃破壊`
 - `stone`: `通常石`, `特殊石`, `顕現石`, `幽体石`, `残像石`, `復活石`, `罠石`, `時限爆弾`
-- `protection`: `反転保護`, `完全保護`, `絶対保護`, `反転回避`, `破壊回避`, `不可侵`
+- `protection`: `反転無効`, `完全保護`, `絶対保護`, `反転回避`, `破壊回避`, `不可侵`
 - `cell`: `穴マス化`, `穴化`, `穴マス`, `封鎖`, `凍結`
 - `resource`: `布石`, `コスト`, `持続ターン`, `ターン開始`, `時間停止`
 
 Longer terms must win over shorter terms. For example:
 
-- `反転保護` is one `protection` match, not `反転` plus unmatched `保護`.
+- `反転無効` is one `protection` match, not `反転` plus unmatched `保護`.
 - `マス破壊` is one `destroy` match, not `破壊`.
 - `穴マス化` is one `cell` match, not `穴マス`.
 
@@ -105,15 +105,15 @@ describe('text term highlighter', () => {
       '穴マス化',
       '特殊石',
       '通常石',
-      '反転保護',
+      '反転無効',
       '完全保護',
       '絶対保護'
     ]));
   });
 
   test('uses longest-match terms before shorter terms', () => {
-    const matches = findGameTermMatches('反転保護を持つ特殊石はマス破壊を受ける。');
-    expect(matches.map((match) => match.text)).toEqual(['反転保護', '特殊石', 'マス破壊']);
+    const matches = findGameTermMatches('反転無効を持つ特殊石はマス破壊を受ける。');
+    expect(matches.map((match) => match.text)).toEqual(['反転無効', '特殊石', 'マス破壊']);
     expect(matches.map((match) => match.category)).toEqual(['protection', 'stone', 'destroy']);
   });
 
@@ -128,15 +128,15 @@ describe('text term highlighter', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="target"></div></body></html>');
     const target = dom.window.document.getElementById('target') as HTMLElement;
 
-    renderTextWithGameTermHighlights(target, '破壊<script>alert(1)</script>と反転保護', {
+    renderTextWithGameTermHighlights(target, '破壊<script>alert(1)</script>と反転無効', {
       documentRef: dom.window.document,
       classPrefix: 'game-term'
     });
 
-    expect(target.textContent).toBe('破壊<script>alert(1)</script>と反転保護');
+    expect(target.textContent).toBe('破壊<script>alert(1)</script>と反転無効');
     expect(target.querySelector('script')).toBeNull();
     const terms = Array.from(target.querySelectorAll('.game-term-highlight')) as HTMLElement[];
-    expect(terms.map((term) => term.textContent)).toEqual(['破壊', '反転保護']);
+    expect(terms.map((term) => term.textContent)).toEqual(['破壊', '反転無効']);
     expect(terms.map((term) => term.dataset.termCategory)).toEqual(['destroy', 'protection']);
   });
 
@@ -214,7 +214,7 @@ export const GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.freez
   Object.freeze({ id: 'regen-stone', label: '復活石', category: 'stone', description: '反転または破壊されると復活回数を消費して戻る特殊石。' }),
   Object.freeze({ id: 'trap-stone', label: '罠石', category: 'stone', description: '相手の反転などに反応して発動する特殊石。' }),
   Object.freeze({ id: 'time-bomb', label: '時限爆弾', category: 'stone', description: '爆発予約を持つ特殊石分類の効果。' }),
-  Object.freeze({ id: 'flip-protection', label: '反転保護', category: 'protection', description: '反転されない状態。' }),
+  Object.freeze({ id: 'flip-protection', label: '反転無効', category: 'protection', description: '反転されない状態。' }),
   Object.freeze({ id: 'full-protection', label: '完全保護', category: 'protection', description: '石に対する敵対的・強制的な効果を無効化する状態。' }),
   Object.freeze({ id: 'absolute-protection', label: '絶対保護', category: 'protection', description: '多くの直接効果を無効化し、解除されない最上位の保護状態。' }),
   Object.freeze({ id: 'flip-evasion', label: '反転回避', category: 'protection', description: '反転対象になった時に移動して回避する能力。' }),
@@ -390,7 +390,7 @@ In `test/ui.rules-help-panel.test.ts`, update the existing card description high
 ```ts
 const highlightedTerms = Array.from(cardDescEl.querySelectorAll('.game-term-highlight')) as HTMLElement[];
 expect(highlightedTerms.length).toBeGreaterThan(0);
-expect(highlightedTerms.some((el) => el.dataset.termLabel === '反転保護')).toBe(true);
+expect(highlightedTerms.some((el) => el.dataset.termLabel === '反転無効')).toBe(true);
 expect(highlightedTerms.every((el) => el.className.includes('game-term-highlight--'))).toBe(true);
 ```
 
@@ -419,7 +419,7 @@ test('rules help card descriptions use shared longest-match term highlighting', 
       type: 'SAMPLE',
       cost: 1,
       display_type_ja: '守護',
-      desc: '反転保護を持つ特殊石。マス破壊は受ける。'
+      desc: '反転無効を持つ特殊石。マス破壊は受ける。'
     }]
   };
   const mod = require('../ui/handlers/rules-help.js');
@@ -434,7 +434,7 @@ test('rules help card descriptions use shared longest-match term highlighting', 
 
   const cardDescEl = document.getElementById('rules-help-card-desc') as HTMLElement;
   const terms = Array.from(cardDescEl.querySelectorAll('.game-term-highlight')) as HTMLElement[];
-  expect(terms.map((el) => el.textContent)).toEqual(['反転保護', '特殊石', 'マス破壊']);
+  expect(terms.map((el) => el.textContent)).toEqual(['反転無効', '特殊石', 'マス破壊']);
   expect(terms.map((el) => el.dataset.termCategory)).toEqual(['protection', 'stone', 'destroy']);
   expect(cardDescEl.querySelectorAll('[data-term-label="反転"]')).toHaveLength(0);
 });
@@ -533,7 +533,7 @@ test('applies shared term highlighting to summary and expanded detail text', () 
     id: 'sample_01',
     name: '確認カード',
     type: 'SAMPLE',
-    quickText: '反転保護を持つ特殊石を置く',
+    quickText: '反転無効を持つ特殊石を置く',
     detailText: '破壊<script>alert(1)</script>とマス破壊を受ける。',
     distinctDetailText: '破壊<script>alert(1)</script>とマス破壊を受ける。',
     effectTags: []
@@ -548,8 +548,8 @@ test('applies shared term highlighting to summary and expanded detail text', () 
 
   ctx.controller.applyCardDetailDisplayModel(nameEl, descEl, liveStateEl, detailMoreEl, tagsEl, model);
 
-  expect(descEl.textContent).toBe('反転保護を持つ特殊石を置く。');
-  expect(Array.from(descEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['反転保護', '特殊石']);
+  expect(descEl.textContent).toBe('反転無効を持つ特殊石を置く。');
+  expect(Array.from(descEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['反転無効', '特殊石']);
   expect(detailMoreEl.querySelector('script')).toBeNull();
   expect(detailMoreEl.textContent).toBe('破壊<script>alert(1)</script>とマス破壊を受ける。');
   expect(Array.from(detailMoreEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['破壊', 'マス破壊']);
@@ -1061,7 +1061,7 @@ npm run serve
 Open the local URL, select a card with long text such as `救済神` or `因果抹消神`, and verify:
 
 - Long card text contains colored terms.
-- `反転保護` appears as one highlighted phrase.
+- `反転無効` appears as one highlighted phrase.
 - Card names and action buttons are not split into highlighted fragments.
 - Help `効果一覧` uses the same categories.
 - Text remains readable on the screenshot sizes supplied by the user.
