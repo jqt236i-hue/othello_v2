@@ -3174,6 +3174,29 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(7);
   });
 
+  test('ZOMBIE のターン開始移動にも hyperactive_move を追加する', () => {
+    const base = [{
+      type: 'move',
+      phase: 7,
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 2, col: 2 },
+        cause: 'ZOMBIE',
+        reason: 'zombie_move'
+      }]
+    }];
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'hyperactive_move'
+    );
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(7);
+  });
+
   test('WILL_HUNTER_KING の移動には ultimate_anchor_move を追加し hyperactive_move は追加しない', () => {
     const base = [{
       type: 'move',

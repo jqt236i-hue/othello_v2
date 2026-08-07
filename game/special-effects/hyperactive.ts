@@ -186,7 +186,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
         };
 
         for (const ev of events) {
-            if (ev.type === 'hyperactive_moved_start' || ev.type === 'hyperactive_moved_immediate') {
+            if (ev.type === 'hyperactive_moved_start' || ev.type === 'hyperactive_moved_immediate' || ev.type === 'zombie_moved_start') {
                 if (Array.isArray(ev.details)) result.moved.push(...ev.details);
             }
             if (ev.type === 'hyperactive_destroyed_start' || ev.type === 'hyperactive_destroyed_immediate') {
@@ -224,7 +224,8 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     const extremeMovedCount = (result.moved || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'EXTREME_HYPERACTIVE').length;
     const escapeMovedCount = (result.moved || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'ESCAPE_HYPERACTIVE').length;
     const gluttonousMovedCount = (result.moved || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'GLUTTONOUS').length;
-    const normalHyperactiveMovedCount = Math.max(0, (result.moved || []).length - escapeMovedCount - extremeMovedCount - gluttonousMovedCount);
+    const zombieMovedCount = (result.moved || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'ZOMBIE').length;
+    const normalHyperactiveMovedCount = Math.max(0, (result.moved || []).length - escapeMovedCount - extremeMovedCount - gluttonousMovedCount - zombieMovedCount);
     const extremeDestroyedCount = (result.destroyed || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'EXTREME_HYPERACTIVE').length;
     const escapeDestroyedCount = (result.destroyed || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'ESCAPE_HYPERACTIVE').length;
     const gluttonousDestroyedCount = (result.destroyed || []).filter((d: any) => String(d && d.specialType ? d.specialType : '').toUpperCase() === 'GLUTTONOUS').length;
@@ -241,6 +242,9 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     }
     if (gluttonousMovedCount > 0 && typeof LOG_MESSAGES.gluttonousMoved === 'function') {
         emitHyperactiveLog(LOG_MESSAGES.gluttonousMoved(gluttonousMovedCount));
+    }
+    if (zombieMovedCount > 0 && typeof LOG_MESSAGES.zombieMoved === 'function') {
+        emitHyperactiveLog(LOG_MESSAGES.zombieMoved(zombieMovedCount));
     }
     if (normalHyperactiveDestroyedCount > 0) {
         emitHyperactiveLog(LOG_MESSAGES.hyperactiveDestroyed(normalHyperactiveDestroyedCount));

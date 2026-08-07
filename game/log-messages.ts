@@ -73,6 +73,7 @@ const LOG_MESSAGES = {
     escapeHyperactiveDestroyed: (count: any) => `逃げる意志が${count}個消滅`,
     gluttonousMoved: (count: any) => `悪食石が${count}回移動`,
     gluttonousDestroyed: (count: any) => `悪食石が${count}個消滅`,
+    zombieMoved: (count: any) => `ゾンビの意志が${count}回移動`,
     ultimateHyperactiveMoved: (count: any) => `究極多動神が${count}回移動`,
     ultimateHyperactiveDestroyed: (count: any) => `究極多動神が${count}個消滅`,
     ultimateHyperactiveFlipped: (count: any) => `究極多動神が${count}枚反転`,

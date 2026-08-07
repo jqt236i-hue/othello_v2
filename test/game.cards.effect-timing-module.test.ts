@@ -484,7 +484,7 @@ describe('CardEffectTiming module', () => {
     ]);
   });
 
-  test('applyPlacementEffects places ZOMBIE marker with a five-turn infection countdown', () => {
+  test('applyPlacementEffects places ZOMBIE marker with a three-turn infection countdown', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const CardZombieWillModule = require('../game/logic/cards/zombie_will');
     const addMarker = jest.fn((cardState, kind, row, col, owner, data) => {
@@ -528,7 +528,7 @@ describe('CardEffectTiming module', () => {
         data: {
           type: 'ZOMBIE',
           ownerColor: SharedConstants.BLACK,
-          turnsUntilInfection: 5,
+          turnsUntilInfection: 3,
           regenRemaining: 1
         }
       })

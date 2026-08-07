@@ -35,6 +35,8 @@ describe('ZOMBIE special stone registry', () => {
   test('ZOMBIE_WILL maps to a true special stone body', () => {
     expect(SpecialStoneRegistry.getMarkerTypeForSpecialStoneCard('ZOMBIE_WILL')).toBe('ZOMBIE');
     expect(SpecialStoneRegistry.getSpecialStoneDisplayName('ZOMBIE')).toBe('屍石');
+    expect(SpecialStoneRegistry.getSpecialStoneDescription('ZOMBIE')).toContain('3回ごと');
+    expect(SpecialStoneRegistry.getSpecialStoneDescription('ZOMBIE')).toContain('移動後位置');
     expect(SpecialStoneRegistry.countsAsSpecialStone('ZOMBIE')).toBe(true);
     expect(SpecialStoneRegistry.canLossWillRevert('ZOMBIE')).toBe(true);
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('ZOMBIE')).toBe('true_special_stone');
@@ -46,7 +48,7 @@ describe('ZOMBIE special stone registry', () => {
 });
 
 describe('ZOMBIE placement', () => {
-  test('uses the canonical five-turn countdown through the card timing context', () => {
+  test('uses the canonical three-turn countdown through the card timing context', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
@@ -81,11 +83,11 @@ describe('ZOMBIE status display and revival', () => {
   test('shows turns until infection as the countdown timer', () => {
     const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
       type: 'ZOMBIE',
-      turnsUntilInfection: 5,
+      turnsUntilInfection: 3,
       regenRemaining: 1
     }, { mode: 'raw' });
 
-    expect(snapshot.displayTimer).toBe(5);
+    expect(snapshot.displayTimer).toBe(3);
     expect(snapshot.timerClass).toBe('countdown-timer');
   });
 
@@ -231,7 +233,7 @@ describe('ZOMBIE status display and revival', () => {
 });
 
 describe('ZOMBIE infection logic', () => {
-  test('fifth owner turn start infects one adjacent enemy normal stone', () => {
+  test('third owner turn start infects one adjacent enemy normal stone', () => {
     const { cardState, gameState, prng } = createState(0, null, {
       markers: [{
         id: 'zombie-1',
@@ -240,13 +242,13 @@ describe('ZOMBIE infection logic', () => {
         col: 1,
         owner: 'black',
         createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 5, regenRemaining: 1 }
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 3, regenRemaining: 1 }
       }],
       _nextMarkerId: 2,
       _nextCreatedSeq: 2
     });
 
-    for (let turn = 1; turn < 5; turn += 1) {
+    for (let turn = 1; turn < 3; turn += 1) {
       const waiting = ZombieWill.processZombieEffectsAtTurnStartAnchor(
         cardState,
         gameState,
@@ -257,7 +259,7 @@ describe('ZOMBIE infection logic', () => {
         { BoardOps }
       );
       expect(waiting.infected).toEqual([]);
-      expect(cardState.markers[0].data.turnsUntilInfection).toBe(5 - turn);
+      expect(cardState.markers[0].data.turnsUntilInfection).toBe(3 - turn);
     }
     const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
       cardState,
@@ -274,9 +276,9 @@ describe('ZOMBIE infection logic', () => {
     const infectedMarker = cardState.markers.find((m) => m.row === 1 && m.col === 2 && m.owner === 'black');
     expect(infectedMarker).toBeTruthy();
     expect(infectedMarker.data.type).toBe('ZOMBIE');
-    expect(infectedMarker.data.turnsUntilInfection).toBe(5);
+    expect(infectedMarker.data.turnsUntilInfection).toBe(3);
     expect(infectedMarker.data.regenRemaining).toBe(1);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(5);
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
   });
 
   test('passes the zombie source position to the infection change event', () => {
@@ -316,7 +318,10 @@ describe('ZOMBIE infection logic', () => {
   });
 
   test('emits the infection change event through the production CardLogic wrapper', () => {
-    const { cardState, gameState, prng } = createState(0, null, {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(Shared.EMPTY));
+    board[1][1] = Shared.BLACK;
+    board[0][1] = Shared.WHITE;
+    const { cardState, gameState, prng } = createState(0, board, {
       markers: [{
         id: 'zombie-production-source',
         kind: 'specialStone',
@@ -328,16 +333,90 @@ describe('ZOMBIE infection logic', () => {
       }]
     });
 
-    CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
 
+    expect(result.moved).toEqual([{
+      from: { row: 1, col: 1 },
+      to: { row: 0, col: 0 },
+      specialType: 'ZOMBIE'
+    }]);
+    expect(result.source).toEqual({ row: 0, col: 0 });
+    expect(cardState.presentationEvents[0]).toEqual(expect.objectContaining({
+      type: 'MOVE',
+      prevRow: 1,
+      prevCol: 1,
+      row: 0,
+      col: 0,
+      cause: 'ZOMBIE',
+      reason: 'zombie_move',
+      meta: expect.objectContaining({ moveIntent: 'hyperactive_move' })
+    }));
     expect(cardState.presentationEvents).toContainEqual(expect.objectContaining({
       type: 'CHANGE',
-      row: 1,
-      col: 2,
+      row: 0,
+      col: 1,
       cause: 'ZOMBIE',
       reason: 'zombie_infection',
-      meta: expect.objectContaining({ sourceRow: 1, sourceCol: 1 })
+      meta: expect.objectContaining({ sourceRow: 0, sourceCol: 0 })
     }));
+  });
+
+  test('moves on every owner turn start before the infection countdown is resolved', () => {
+    const { cardState, gameState, prng } = createState(0, null, {
+      markers: [{
+        id: 'zombie-moves-each-turn',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 3, regenRemaining: 1 }
+      }]
+    });
+
+    const first = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+    expect(first.moved).toHaveLength(1);
+    expect(first.infected).toEqual([]);
+    expect(cardState.markers[0]).toMatchObject({ row: 0, col: 0 });
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(2);
+
+    const second = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, prng);
+    expect(second.moved).toHaveLength(1);
+    expect(second.infected).toEqual([]);
+    expect(cardState.markers[0]).toMatchObject({ row: 0, col: 1 });
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(1);
+  });
+
+  test('does not move or consume a random value when no adjacent destination exists', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK));
+    board[3][3] = Shared.BLACK;
+    let randomCalls = 0;
+    const prng = {
+      random: () => {
+        randomCalls += 1;
+        return 0;
+      }
+    };
+    const { cardState, gameState } = createState(0, board, {
+      markers: [{
+        id: 'zombie-no-move-destination',
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+      }]
+    });
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(result.moved || []).toEqual([]);
+    expect(result.infected).toEqual([]);
+    expect(cardState.markers[0]).toMatchObject({ row: 3, col: 3 });
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(1);
+    expect(randomCalls).toBe(0);
+    expect(cardState.presentationEvents.some((event) => event.type === 'MOVE')).toBe(false);
   });
 
   test('non-triggering owner turn only decrements infection counter', () => {
@@ -349,7 +428,7 @@ describe('ZOMBIE infection logic', () => {
         col: 1,
         owner: 'black',
         createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 5, regenRemaining: 1 }
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 3, regenRemaining: 1 }
       }],
       _nextMarkerId: 2,
       _nextCreatedSeq: 2
@@ -359,10 +438,10 @@ describe('ZOMBIE infection logic', () => {
 
     expect(result.infected).toEqual([]);
     expect(gameState.board[1][2]).toBe(Shared.WHITE);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(4);
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(2);
   });
 
-  test('restarts a full five-turn countdown when no infection target exists at zero', () => {
+  test('restarts a full three-turn countdown when no infection target exists at zero', () => {
     const board = Array.from({ length: 4 }, () => Array(4).fill(0));
     board[1][1] = Shared.BLACK;
     const { cardState, gameState, prng } = createState(0, board, {
@@ -388,12 +467,12 @@ describe('ZOMBIE infection logic', () => {
 
     expect(missed).toEqual({
       infected: [],
-      anchors: [{ row: 1, col: 1, turnsUntilInfection: 5 }]
+      anchors: [{ row: 1, col: 1, turnsUntilInfection: 3 }]
     });
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(5);
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
 
     ZombieWill.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(4);
+    expect(cardState.markers[0].data.turnsUntilInfection).toBe(2);
   });
 
   test('infection ignores stones protected by GUARD status markers', () => {
@@ -593,7 +672,7 @@ describe('ZOMBIE infection logic', () => {
 
   test('createZombieMarkerData produces marker data with one revival', () => {
     const data = ZombieWill.createZombieMarkerData('white');
-    expect(ZombieWill.ZOMBIE_INFECTION_INTERVAL).toBe(5);
+    expect(ZombieWill.ZOMBIE_INFECTION_INTERVAL).toBe(3);
     expect(data.type).toBe('ZOMBIE');
     expect(data.ownerColor).toBe(Shared.WHITE);
     expect(data.turnsUntilInfection).toBe(ZombieWill.ZOMBIE_INFECTION_INTERVAL);

@@ -2,7 +2,7 @@
  * @file zombie_will.ts
  * @description ZOMBIE_WILL effect helpers (Shared between Browser and Headless)
  *  - Next-stone marker placement (ZOMBIE: permanent, one revival)
- *  - Owner turn-start infection: every 5th owner turn start, convert one adjacent
+ *  - Owner turn-start movement followed by infection: every 3rd owner turn start, convert one adjacent
  *    enemy normal stone to a fresh ZOMBIE marker owned by the infected owner.
  */
 
@@ -47,7 +47,7 @@ const CardZombieWill = (function (root: any, factory: any) {
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
-    const ZOMBIE_INFECTION_INTERVAL = 5;
+    const ZOMBIE_INFECTION_INTERVAL = 3;
 
     function getRuntimeGlobalValue(key: string): any {
         if (typeof self !== 'undefined' && (self as any)[key]) {
@@ -253,6 +253,21 @@ const CardZombieWill = (function (root: any, factory: any) {
         return 0;
     }
 
+    function buildTurnStartResult(
+        moved: any[],
+        sourceRow: number,
+        sourceCol: number,
+        infected: any[],
+        anchors: any[]
+    ): any {
+        const result: any = { infected, anchors };
+        if (Array.isArray(moved) && moved.length > 0) {
+            result.moved = moved;
+            result.source = { row: sourceRow, col: sourceCol };
+        }
+        return result;
+    }
+
     function processZombieEffectsAtTurnStartAnchor(
         cardState: any,
         gameState: any,
@@ -262,10 +277,28 @@ const CardZombieWill = (function (root: any, factory: any) {
         prng: any,
         deps: any = {}
     ) {
-        const zombie = findZombieMarkerAt(cardState, row, col, playerKey);
-        if (!zombie) return { infected: [], anchors: [] };
-        if (getCell(cardState, gameState, row, col) !== ownerValue(playerKey)) {
-            return { infected: [], anchors: [] };
+        let currentRow = row;
+        let currentCol = col;
+        let moved: any[] = [];
+        if (deps && typeof deps.moveAtTurnStart === 'function') {
+            const movement = deps.moveAtTurnStart(cardState, gameState, playerKey, row, col, prng);
+            moved = Array.isArray(movement && movement.moved) ? movement.moved : [];
+            const lastMove = moved.length > 0 ? moved[moved.length - 1] : null;
+            if (
+                lastMove &&
+                lastMove.to &&
+                Number.isInteger(lastMove.to.row) &&
+                Number.isInteger(lastMove.to.col)
+            ) {
+                currentRow = lastMove.to.row;
+                currentCol = lastMove.to.col;
+            }
+        }
+
+        const zombie = findZombieMarkerAt(cardState, currentRow, currentCol, playerKey);
+        if (!zombie) return buildTurnStartResult(moved, currentRow, currentCol, [], []);
+        if (getCell(cardState, gameState, currentRow, currentCol) !== ownerValue(playerKey)) {
+            return buildTurnStartResult(moved, currentRow, currentCol, [], []);
         }
 
         const data = zombie.data || {};
@@ -275,13 +308,25 @@ const CardZombieWill = (function (root: any, factory: any) {
         const after = before - 1;
         if (after > 0) {
             data.turnsUntilInfection = after;
-            return { infected: [], anchors: [{ row, col, turnsUntilInfection: after }] };
+            return buildTurnStartResult(
+                moved,
+                currentRow,
+                currentCol,
+                [],
+                [{ row: currentRow, col: currentCol, turnsUntilInfection: after }]
+            );
         }
 
-        const candidates = findAdjacentInfectionCandidates(cardState, gameState, row, col, playerKey);
+        const candidates = findAdjacentInfectionCandidates(cardState, gameState, currentRow, currentCol, playerKey);
         if (candidates.length === 0) {
             data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
-            return { infected: [], anchors: [{ row, col, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }] };
+            return buildTurnStartResult(
+                moved,
+                currentRow,
+                currentCol,
+                [],
+                [{ row: currentRow, col: currentCol, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }]
+            );
         }
 
         const boardOps = requireBoardOps(deps);
@@ -297,11 +342,17 @@ const CardZombieWill = (function (root: any, factory: any) {
             playerKey,
             'ZOMBIE',
             'zombie_infection',
-            { sourceRow: row, sourceCol: col }
+            { sourceRow: currentRow, sourceCol: currentCol }
         );
         data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
         if (!changeResult || changeResult.changed !== true) {
-            return { infected: [], anchors: [{ row, col, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }] };
+            return buildTurnStartResult(
+                moved,
+                currentRow,
+                currentCol,
+                [],
+                [{ row: currentRow, col: currentCol, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }]
+            );
         }
         removeStoneStatusMarkersAt(cardState, target.row, target.col);
         try {
@@ -312,7 +363,13 @@ const CardZombieWill = (function (root: any, factory: any) {
             }
             throw error;
         }
-        return { infected: [target], anchors: [{ row, col, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }] };
+        return buildTurnStartResult(
+            moved,
+            currentRow,
+            currentCol,
+            [target],
+            [{ row: currentRow, col: currentCol, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }]
+        );
     }
 
     return {

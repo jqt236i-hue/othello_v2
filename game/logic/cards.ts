@@ -3896,17 +3896,50 @@ const {
     }
 
     /**
-     * Process a ZOMBIE owner-turn-start anchor and optionally infect an adjacent enemy normal stone.
+     * Move a ZOMBIE owner-turn-start anchor, then optionally infect an adjacent enemy normal stone.
      */
     function processZombieEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps: any = {}) {
-        return CardZombieWillModule.processZombieEffectsAtTurnStartAnchor(
-            cardState,
-            gameState,
-            playerKey,
-            row,
-            col,
-            prng,
-            Object.assign({ BoardOps: BoardOpsModule, CardMarkers: CardMarkersModule }, deps)
+        const zombieDeps = Object.assign({ BoardOps: BoardOpsModule, CardMarkers: CardMarkersModule }, deps);
+        if (typeof zombieDeps.moveAtTurnStart !== 'function') {
+            const movementDeps = Object.assign({
+                defaultPrng,
+                isBlockedCell,
+                getCardContext,
+                BoardOps: BoardOpsModule,
+                expectedSpecialType: 'ZOMBIE',
+                moveCause: 'ZOMBIE',
+                moveReason: 'zombie_move'
+            }, deps);
+            zombieDeps.moveAtTurnStart = (
+                nextCardState: any,
+                nextGameState: any,
+                nextPlayerKey: any,
+                nextRow: any,
+                nextCol: any,
+                nextPrng: any
+            ) => CardHyperactiveModule.moveRandomAdjacentStoneAtAnchor(
+                nextCardState,
+                nextGameState,
+                nextPlayerKey,
+                nextRow,
+                nextCol,
+                nextPrng,
+                movementDeps
+            );
+        }
+        const randomSource = prng && typeof prng.random === 'function' ? prng : defaultPrng;
+        const blockMeta = randomSource && typeof randomSource.random === 'function' ? { randomSource } : {};
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardZombieWillModule.processZombieEffectsAtTurnStartAnchor(
+                cardState,
+                gameState,
+                playerKey,
+                row,
+                col,
+                prng,
+                zombieDeps
+            ),
+            blockMeta
         );
     }
 

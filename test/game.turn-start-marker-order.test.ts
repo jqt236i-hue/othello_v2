@@ -86,7 +86,7 @@ describe('turn-start marker ordering', () => {
     expect(destroyEvents[1].details[0]).toMatchObject({ sourceRow: 4, sourceCol: 4, row: 4, col: 5 });
   });
 
-  test('includes the zombie source in the infection turn-start event', () => {
+  test('moves the zombie before infection and reports the moved infection source', () => {
     const prng = createPrng();
     const cardState = CardLogic.createCardState(prng);
     cardState.markers.push({
@@ -100,7 +100,7 @@ describe('turn-start marker ordering', () => {
     });
     const gameState = createEmptyGameState();
     gameState.board[1][1] = Shared.BLACK;
-    gameState.board[1][2] = Shared.WHITE;
+    gameState.board[0][1] = Shared.WHITE;
     const events: any[] = [];
 
     TurnPipelinePhases.applyTurnStartPhase(
@@ -114,9 +114,18 @@ describe('turn-start marker ordering', () => {
     );
 
     expect(events).toContainEqual(expect.objectContaining({
-      type: 'zombie_infected_start',
+      type: 'zombie_moved_start',
       source: { row: 1, col: 1 },
-      details: [{ row: 1, col: 2 }]
+      details: [{
+        from: { row: 1, col: 1 },
+        to: { row: 0, col: 0 },
+        specialType: 'ZOMBIE'
+      }]
+    }));
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'zombie_infected_start',
+      source: { row: 0, col: 0 },
+      details: [{ row: 0, col: 1 }]
     }));
   });
 

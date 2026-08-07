@@ -1211,6 +1211,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             cause === 'ULTIMATE_HYPERACTIVE' ||
             cause === 'ULTIMATE_HYPERACTIVE_GOD' ||
             cause === 'ROBOT_VACUUM' ||
+            cause === 'ZOMBIE' ||
             isFlipEvadeMove ||
             isDestroyEvadeMove ||
             reason.indexOf('hyperactive') >= 0 ||

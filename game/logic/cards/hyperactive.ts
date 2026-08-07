@@ -259,6 +259,8 @@ interface HyperactiveDeps {
     emitPresentationEvent?: (cardState: CardState, event: any) => void;
     MARKER_KINDS?: any;
     expectedSpecialType?: string;
+    moveCause?: string;
+    moveReason?: string;
 }
 
 function resolveDeterministicPrng(prng: any, deps: HyperactiveDeps | undefined, label: string): any {
@@ -390,6 +392,103 @@ function getNeighborEmptyCandidates(
         }
     }
     return includeOccupied ? emptyOut.concat(occupiedOut) : emptyOut;
+}
+
+/**
+ * Move one anchored special stone to a random adjacent empty cell without
+ * applying the hyperactive-specific flip or no-candidate destruction rules.
+ * Card-specific turn-start effects can use this to share the canonical
+ * topology, PRNG, marker-transfer, and presentation path.
+ */
+function moveRandomAdjacentStoneAtAnchor(
+    cardState: CardState,
+    gameState: GameState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    prng: any,
+    deps: HyperactiveDeps = {}
+): HyperactiveMoveResult {
+    const expectedSpecialType = String(deps && deps.expectedSpecialType ? deps.expectedSpecialType : '').toUpperCase();
+    const entry: MarkerEntry | undefined = ((cardState as any).markers || []).find((marker: any) => (
+        marker &&
+        marker.kind === 'specialStone' &&
+        marker.data &&
+        (!expectedSpecialType || String(marker.data.type || '').toUpperCase() === expectedSpecialType) &&
+        marker.owner === playerKey &&
+        marker.row === row &&
+        marker.col === col
+    ));
+    const ownerKey = playerKey === 'white' ? 'white' : 'black';
+    if (!entry) return { moved: [], destroyed: [], flipped: [], ownerKey };
+
+    const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+    if (getBoardCell(cardState, gameState, row, col) !== ownerVal) {
+        return { moved: [], destroyed: [], flipped: [], ownerKey };
+    }
+
+    const isBlockedCell = typeof deps.isBlockedCell === 'function'
+        ? deps.isBlockedCell
+        : (() => false);
+    const candidates = getNeighborEmptyCandidates(
+        cardState,
+        gameState,
+        row,
+        col,
+        { isBlockedCell }
+    );
+    if (candidates.length === 0) {
+        return { moved: [], destroyed: [], flipped: [], ownerKey };
+    }
+
+    const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveRandomAdjacentStoneAtAnchor');
+    const index = Math.floor(p.random() * candidates.length);
+    const target = candidates[index] || candidates[0] || null;
+    if (!target) return { moved: [], destroyed: [], flipped: [], ownerKey };
+
+    const moveCause = String(deps.moveCause || 'HYPERACTIVE');
+    const moveReason = String(deps.moveReason || 'hyperactive_move');
+    let movedRes = false;
+    let usedBoardOpsMove = false;
+    if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
+        const result = deps.BoardOps.moveAt(
+            cardState,
+            gameState,
+            row,
+            col,
+            target.row,
+            target.col,
+            moveCause,
+            moveReason,
+            Object.assign({}, buildMovingStonePresentationMeta(cardState, row, col), {
+                moveIntent: 'hyperactive_move'
+            })
+        );
+        movedRes = !!(result && result.moved);
+        usedBoardOpsMove = !!(result && result.markerHandled === true);
+    } else {
+        setBoardCell(cardState, gameState, row, col, EMPTY);
+        setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
+        movedRes = true;
+    }
+    if (!movedRes) return { moved: [], destroyed: [], flipped: [], ownerKey };
+
+    if (!usedBoardOpsMove) {
+        moveCoexistingSpecialMarkers(cardState, entry, row, col, target.row, target.col);
+    }
+    entry.row = target.row;
+    entry.col = target.col;
+
+    return {
+        moved: [{
+            from: { row, col },
+            to: { row: target.row, col: target.col },
+            specialType: String(entry.data && entry.data.type || expectedSpecialType || '').toUpperCase() || undefined
+        }],
+        destroyed: [],
+        flipped: [],
+        ownerKey
+    };
 }
 
 function getBoardShapeEmptyCandidates(
@@ -2392,6 +2491,7 @@ function processRobotVacuumMoveAtAnchor(
 const _exports: any = {
     setHyperactiveRuntime,
     moveHyperactiveOnce,
+    moveRandomAdjacentStoneAtAnchor,
     resolveHyperactiveFlipEvasion,
     resolveEvasionMoveFlips,
     processHyperactiveMoves,

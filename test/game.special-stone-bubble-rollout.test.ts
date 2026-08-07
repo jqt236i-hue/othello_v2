@@ -171,12 +171,12 @@ describe('special stone speech rollout', () => {
     ]));
   });
 
-  test('zombie infection speaks once from the source cell', () => {
+  test('zombie infection speaks once from the moved source cell', () => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
     gameState.board[1][1] = Core.BLACK;
-    gameState.board[1][2] = Core.WHITE;
+    gameState.board[0][1] = Core.WHITE;
     cardState.markers.push({
       id: 9201, kind: 'specialStone', row: 1, col: 1, owner: 'black', createdSeq: 1,
       data: { type: 'ZOMBIE', ownerColor: Core.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
@@ -186,9 +186,9 @@ describe('special stone speech rollout', () => {
 
     const bubbles = getSpecialStoneBubbles(CardLogic.flushPresentationEvents(cardState));
     expect(bubbles.filter((event) => event.scenario === 'zombie_infection')).toEqual([
-      expect.objectContaining({ special: 'ZOMBIE', row: 1, col: 1 })
+      expect.objectContaining({ special: 'ZOMBIE', row: 0, col: 0 })
     ]);
-    expect(bubbles.some((event) => event.scenario === 'place' && event.row === 1 && event.col === 2)).toBe(false);
+    expect(bubbles.some((event) => event.scenario === 'place' && event.row === 0 && event.col === 1)).toBe(false);
   });
 
   test('regen revival emits regen_triggered without an extra destroy bubble', () => {

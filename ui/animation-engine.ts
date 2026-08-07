@@ -737,6 +737,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     cause === 'ULTIMATE_REVERSE_DRAGON' ||
                     cause === 'ULTIMATE_DESTROY_GOD' ||
                     cause === 'ROBOT_VACUUM' ||
+                    cause === 'ZOMBIE' ||
                     cause === 'GLUTTONOUS_WILL' ||
                     cause === 'ULTIMATE_HYPERACTIVE' ||
                     cause === 'ULTIMATE_HYPERACTIVE_GOD' ||

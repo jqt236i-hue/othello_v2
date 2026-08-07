@@ -1906,9 +1906,11 @@ function _inferMoveIntent(cause: string | null, reason: string | null): string |
         causeUpper === 'ROBOT_VACUUM' ||
         causeUpper === 'ROBOT_VACUUM_WILL' ||
         causeUpper === 'GLUTTONOUS_WILL' ||
+        causeUpper === 'ZOMBIE' ||
         causeUpper === 'ULTIMATE_HYPERACTIVE' ||
         causeUpper === 'ULTIMATE_HYPERACTIVE_GOD' ||
         reasonLower.indexOf('hyperactive') >= 0 ||
+        reasonLower.indexOf('zombie_move') === 0 ||
         reasonLower.indexOf('gluttonous') >= 0 ||
         reasonLower.indexOf('robot_vacuum_move') === 0
     ) return 'hyperactive_move';

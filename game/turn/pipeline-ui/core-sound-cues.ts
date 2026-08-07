@@ -273,7 +273,8 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
                 ev.type !== 'ultimate_hyperactive_moved_start' &&
                 ev.type !== 'ultimate_hyperactive_moved_immediate' &&
                 ev.type !== 'robot_vacuum_moved_start' &&
-                ev.type !== 'robot_vacuum_moved_immediate'
+                ev.type !== 'robot_vacuum_moved_immediate' &&
+                ev.type !== 'zombie_moved_start'
             ) {
                 return sum;
             }
