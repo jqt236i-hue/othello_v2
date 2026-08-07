@@ -38,6 +38,10 @@
       "category": "node-cli-adapter",
       "reason": "Node CLI adapter to dist script main entry."
     },
+    "scripts/dev-vite-fast.js": {
+      "category": "node-cli-adapter",
+      "reason": "Node CLI adapter to the TypeScript fast-dev orchestrator; prepares dist on a clean checkout before forwarding to its main entry."
+    },
     "scripts/local-match-server.js": {
       "category": "node-cli-adapter",
       "reason": "Node CLI adapter to dist script main entry with a build-first error message."

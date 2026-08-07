@@ -14,7 +14,7 @@
     "generate:vite-modules": "npm run build:ts && node dist/scripts/build-vite-module-bridge.js",
     "check:vite-modules": "npm run build:ts && node dist/scripts/build-vite-module-bridge.js --check",
     "build:vite": "npm run build:browser && node dist/scripts/build-vite-module-bridge.js && node dist/scripts/build-vite-entry.js && vite build",
-    "dev": "npm run dev:vite --",
+    "dev": "node scripts/dev-vite-fast.js",
     "dev:vite": "npm run build:vite && node scripts/serve-with-fallback.js --host 0.0.0.0 --port 5174",
     "serve": "node scripts/serve-with-fallback.js",
     "match:server": "npm run build:ts && node scripts/local-match-server.js",

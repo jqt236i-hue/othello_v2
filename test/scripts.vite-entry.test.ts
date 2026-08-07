@@ -15,9 +15,9 @@ const classicTail = `
 `;
 
 describe('Vite comparison entry generator', () => {
-  test('forwards npm run dev arguments through the Vite alias separator', () => {
+  test('uses the fast development orchestrator and preserves the foreground Vite path', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-    expect(packageJson.scripts.dev).toBe('npm run dev:vite --');
+    expect(packageJson.scripts.dev).toBe('node scripts/dev-vite-fast.js');
     expect(packageJson.scripts['dev:vite']).toBe(
       'npm run build:vite && node scripts/serve-with-fallback.js --host 0.0.0.0 --port 5174'
     );
