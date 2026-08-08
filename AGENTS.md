@@ -24,7 +24,6 @@ othello_v2/
 ├── browser-vite/               # Vite bootstrap, optional runtime loading, and generated startup registry
 ├── 正本/                       # detailed desired behavior notes for cards, turn flow, presentation, sound, and audit status
 ├── cards/                      # display catalog and card UI surfaces
-├── assets/                     # source media, generated asset manifest, and asset-specific handling rules
 ├── game/                       # headless rules, turn flow, CPU runtime helpers
 ├── ui/                         # browser UI, playback, input, DI, network client
 ├── shared/                     # browser/worker/headless portable helpers and codecs
@@ -49,7 +48,6 @@ othello_v2/
 | Board visual / PixiJS | `ui/board-visual/*`, `ui/pixi/*`, `ui/board-dom-compat/*` | `ui/board-visual/controller.ts` owns the writer. Pixi is normal; DOM is lazy, mutually exclusive compatibility fallback. |
 | Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
 | Card logic | `cards/catalog.json`, `game/logic/cards/*`, `game/logic/card-resolution/*`, `game/card-effects/*` | Catalog display, pure logic, card-resolution modules, and pending/UI bridge are separate layers. |
-| Images / audio / fonts | `assets/AGENTS.md`, `assets/*`, `scripts/assets/*`, `scripts/generate-asset-manifest.ts` | Preserve provenance and source quality; generate manifests and optimized outputs through their owning scripts. |
 | CPU runtime | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `cpu/` is compatibility/read-only; runtime policy lives under `game/`. |
 | Network client | `ui/network-client.ts`, `ui/network/*` | Server snapshot is authoritative; UI reconciles/presents. |
 | Network backend | `workers/match-worker.ts`, `scripts/local-match-server.ts`, `utils/match-authority.ts` | Keep Worker and local server contracts aligned. |
