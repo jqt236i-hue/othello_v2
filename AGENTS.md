@@ -6,6 +6,14 @@
 
 人間 (非技術ユーザー) 向けの判断軸・運用ルールは `docs/HUMAN-DEV-GUIDE.md` に分離してあります。AI エージェントはこのファイルを直接編集せず、ユーザー (= 人間) の運用判断材料としてのみ参照してください。
 
+## MISSION / DEFINITION OF DONE
+
+- Work as a long-term maintainer of this game. Prefer changes that keep future behavior changes localized, and do not add speculative features or abstractions for possible future use.
+- A change is complete only when the requested behavior is implemented and verified through the relevant real execution path in proportion to its risk; editing code alone is not completion.
+- Do not leave task-created temporary paths, unresolved TODOs, duplicate authorities, or undocumented compatibility behavior. Keep player-facing specs, stable architecture contracts, runtime data, tests, generated outputs, and mirrors synchronized where the change affects them.
+- Distinguish checks that were run from checks that were not run. Report any unverified area, known limitation, or residual risk without describing it as confirmed safe.
+- Before completion, inspect the final task-owned diff and `git status --short`, and confirm that no unrelated or accidental file is included.
+
 ## STRUCTURE
 
 ```text
@@ -16,6 +24,7 @@ othello_v2/
 ├── browser-vite/               # Vite bootstrap, optional runtime loading, and generated startup registry
 ├── 正本/                       # detailed desired behavior notes for cards, turn flow, presentation, sound, and audit status
 ├── cards/                      # display catalog and card UI surfaces
+├── assets/                     # source media, generated asset manifest, and asset-specific handling rules
 ├── game/                       # headless rules, turn flow, CPU runtime helpers
 ├── ui/                         # browser UI, playback, input, DI, network client
 ├── shared/                     # browser/worker/headless portable helpers and codecs
@@ -40,6 +49,7 @@ othello_v2/
 | Board visual / PixiJS | `ui/board-visual/*`, `ui/pixi/*`, `ui/board-dom-compat/*` | `ui/board-visual/controller.ts` owns the writer. Pixi is normal; DOM is lazy, mutually exclusive compatibility fallback. |
 | Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
 | Card logic | `cards/catalog.json`, `game/logic/cards/*`, `game/logic/card-resolution/*`, `game/card-effects/*` | Catalog display, pure logic, card-resolution modules, and pending/UI bridge are separate layers. |
+| Images / audio / fonts | `assets/AGENTS.md`, `assets/*`, `scripts/assets/*`, `scripts/generate-asset-manifest.ts` | Preserve provenance and source quality; generate manifests and optimized outputs through their owning scripts. |
 | CPU runtime | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `cpu/` is compatibility/read-only; runtime policy lives under `game/`. |
 | Network client | `ui/network-client.ts`, `ui/network/*` | Server snapshot is authoritative; UI reconciles/presents. |
 | Network backend | `workers/match-worker.ts`, `scripts/local-match-server.ts`, `utils/match-authority.ts` | Keep Worker and local server contracts aligned. |
@@ -71,7 +81,7 @@ othello_v2/
 
 ## CONVENTIONS
 
-- Authority is scoped by topic: player-visible behavior follows `01-rulebook.md`; internal architecture follows `docs/architecture-contracts.md`; repository-wide work rules follow this file; the closest nested `AGENTS.md` adds directory-specific guidance. If two sources conflict within the same topic and the intended behavior is not clear, stop and ask the user.
+- Authority is scoped by topic: player-visible behavior follows `01-rulebook.md`; internal architecture follows `docs/architecture-contracts.md`; repository-wide work rules follow this file; the closest nested `AGENTS.md` or `AGENTS.override.md` adds directory-specific guidance. Read every applicable instruction file before acting. Keep shared rules at root and local rules in the closest nested file instead of duplicating them across layers. If two sources conflict within the same topic and the intended behavior is not clear, stop and ask the user.
 - Root files are source of truth; `dist/` and `worker-public/` are generated or mirrored surfaces.
 - Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
 - UI preview, busy flags, playback locks, and animation state are settlement/presentation state, not canonical gameplay state.
@@ -80,6 +90,13 @@ othello_v2/
 - Debug behavior is gated by explicit flags such as `?debug=1`; normal play must not get debug side effects.
 - `owner` / `player` / color forms are normalized at boundaries; do not mix internal representations.
 - Generated catalogs and manifests come from scripts, not hand edits.
+
+## WORK AUTHORIZATION
+
+- Explanation, investigation, diagnosis, review, and planning requests authorize relevant read-only inspection and reporting, not unrequested product edits.
+- Implementation, fixes, and refactors authorize in-scope local edits, focused or broad checks, typechecks, builds, local server use, browser operation, and cleanup of temporary verification artifacts created by the current task.
+- Obtain explicit user direction before irreversible data or asset deletion, operations involving secrets or billing, intentional compatibility breaks to public APIs, saved data, network contracts, asset keys, or model formats, or a material expansion beyond the requested scope.
+- Commits follow this repository's `COMMIT POLICY`; do not replace it with a separate per-task approval rule.
 
 ## AUTHORITY / PRESENTATION CONTRACT
 
@@ -124,8 +141,15 @@ othello_v2/
 - Do not delete, skip, or weaken a failing test merely to obtain a passing result. Change test expectations only when the intended behavior has changed and the source-of-truth spec or contract is updated as needed. If a retry passes after an initial failure, report both results and the suspected reason for the instability.
 - 実機ゲーム検証（ブラウザでのプレイ・操作確認、Playwright などの自動操作を含む）は、変更のリスクに応じて事前承認なしで実行できる。ユーザーが実行しないよう指定した場合はそれに従う。
 - `test/e2e/*`, `npm run test:visual`, and Playwright/browser-driven game UI checks are Level 3 or visual verification tools. Run the smallest relevant scenario and report what was exercised.
+- When browser-driven verification is run, record the URL, entry lane (classic or Vite), active board backend (Pixi or DOM compatibility), network mode when relevant, exercised actions/scenario, console or page errors, and the screenshot or public diagnostics used as evidence. Test only the combinations relevant to the change, but do not treat HTTP 200 or the presence of shell DOM alone as proof that gameplay is ready.
 - For Pixi board changes, run the smallest focused board/Pixi Jest coverage first. Add `npm run match:pixijs-board-playback-check`, `npm run match:pixi-runtime-fallback-check`, `npm run match:cross-platform-smoke:vite`, and selector/visual checks in proportion to playback, recovery, delivery, and browser risk.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
+
+## LARGE CHANGES AND PLANS
+
+- Create or update a durable design and implementation plan in the location selected under `docs/AGENTS.md` (normally `docs/implementation/` for cross-system product work) when a change crosses multiple major subsystems or runtimes; changes a public API, network contract, saved-data or model-artifact format; requires migration or staged cutover; has enough technical uncertainty to need a prototype or milestones; or substantially reorganizes authority or dependency direction.
+- Record the source of truth, non-goals, affected ownership boundaries, phases, completion criteria, verification bundle, progress, discoveries, decisions, and actual verification results. A plan must let the next executor continue without reconstructing the investigation.
+- Do not force a formal plan on a small, well-understood localized change. When implementation is requested, planning does not replace implementation and verification unless the user explicitly asks for planning only.
 
 ## IMPLEMENTATION QUALITY
 
@@ -135,6 +159,10 @@ othello_v2/
 - Before adding a new public API, cross-runtime helper, bridge, or dependency direction, confirm that an existing shared helper, DI hook, event, snapshot contract, or authority helper cannot cover the need.
 - Before adding or upgrading an npm or Python dependency, confirm that the platform or an existing dependency cannot reasonably cover the need. Keep manifest and lock/requirements files aligned, avoid unrelated bulk upgrades, and report the reason and impact of the dependency change.
 - Choose implementations that keep behavior localized, deterministic, and testable. If multiple approaches are plausible, prefer the one with the smallest future blast radius and note the reason in the final report when it matters.
+- Gameplay-relevant randomness follows `docs/architecture-contracts.md` section 8.6. Do not add an implicit `Math.random()` fallback to a canonical path; use the existing injected or authority-owned random source, and keep presentation-only randomness explicitly noncanonical.
+- Timers, listeners, observers, subscriptions, Workers, object URLs, and asynchronous callbacks must have an owner and a teardown or cancellation path. Reset, reconnect, backend replacement, and destruction must prevent stale callbacks from an old generation from mutating the current runtime.
+- Busy, input, animation, and playback locks must have explicit terminal or recovery transitions for success, failure, cancellation, reset, reconnect, and backend replacement as applicable. A timeout or failure must not bypass authoritative visual settlement; release a lock only through its owning recovery contract.
+- Do not perform broad performance work without comparable before/after evidence. In hot paths, avoid unnecessary per-frame allocation, whole-state scans, synchronous I/O, repeated scene/DOM reconstruction, and unbounded queues without trading away correctness, determinism, or maintainability.
 - Avoid temporary workarounds, broad `catch`, silent no-op paths, and success-shaped fallbacks. If a compromise is unavoidable, document the reason, risk, and follow-up in the final report.
 
 ## GIT HYGIENE
