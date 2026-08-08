@@ -1326,6 +1326,69 @@ describe('animation-utils hand fallback', () => {
     expect(document.getElementById('handWrapper').style.opacity).toBe('0');
   });
 
+  test('playHandAnimation resolves and hides after playback scope timers are cleared', async () => {
+    jest.useFakeTimers();
+    const timerApi = createScopedTimerMock();
+
+    jest.doMock(path.resolve(__dirname, '..', 'ui', 'animation-shared.js'), () => ({
+      isNoAnim: () => false,
+      getTimer: () => timerApi
+    }));
+
+    const wrapper = document.getElementById('handWrapper');
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    board.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 480,
+      height: 480,
+      right: 480,
+      bottom: 480
+    });
+    cell.getBoundingClientRect = () => ({
+      left: 180,
+      top: 180,
+      width: 60,
+      height: 60,
+      right: 240,
+      bottom: 240
+    });
+
+    let activeAnimation = null;
+    const cancelAnimation = jest.fn();
+    wrapper.animate = jest.fn(() => {
+      activeAnimation = {
+        addEventListener: () => {},
+        finished: new Promise(() => {}),
+        cancel: cancelAnimation
+      };
+      return activeAnimation;
+    });
+    wrapper.getAnimations = jest.fn(() => activeAnimation ? [activeAnimation] : []);
+
+    window._currentPlaybackScope = 'place-scope';
+    const mod = require('../ui/animation-utils.js');
+    const onComplete = jest.fn();
+    const promise = mod.playHandAnimation(global.WHITE, 0, 0, onComplete);
+    let settled = false;
+    void promise.then(() => { settled = true; });
+
+    await Promise.resolve();
+    expect(wrapper.style.opacity).toBe('1');
+    timerApi.clearScope('place-scope');
+    await jest.advanceTimersByTimeAsync(2000);
+
+    expect(settled).toBe(true);
+    await expect(promise).resolves.toBeUndefined();
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(wrapper.style.opacity).toBe('0');
+    expect(document.getElementById('heldStone').style.display).toBe('none');
+    expect(cancelAnimation).toHaveBeenCalledTimes(1);
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+  });
+
   test('playCardUseHandAnimation resolves after playback scope timers are cleared', async () => {
     jest.useFakeTimers();
     const timerApi = createScopedTimerMock();

@@ -289,6 +289,7 @@ const HAND_PLACE_BOB_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(bo
 const HAND_PLACE_RETREAT_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(300), PLACE_HAND_SPEED_BOOST)));
 const HAND_PLACE_FADE_OUT_PROGRESS = 0.45;
 const HAND_PLACE_FADE_OUT_MS = Math.max(1, Math.round(HAND_PLACE_RETREAT_MS * HAND_PLACE_FADE_OUT_PROGRESS));
+const HAND_PLACE_CLEANUP_FALLBACK_MS = HAND_PLACE_APPROACH_MS + HAND_PLACE_BOB_MS + HAND_PLACE_RETREAT_MS + 600;
 const HAND_DRAW_PICKUP_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(140, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_MOVE_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(360, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_RETREAT_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(220, DRAW_HAND_SPEED_BOOST)));
@@ -1834,12 +1835,18 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         wrapperEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
         _setHandWrapperPresentationActive(wrapperEl, true);
         let completed = false;
+        let cleanupStarted = false;
+        let clearCleanupFallback = function () {};
         const completeMove = () => {
             if (completed) return;
             completed = true;
             try { if (typeof onComplete === 'function') onComplete(); } catch (e: any) { /* ignore */ }
         };
         const cleanup = () => {
+            if (cleanupStarted) return;
+            cleanupStarted = true;
+            clearCleanupFallback();
+            completeMove();
             _setHandWrapperPresentationActive(wrapperEl, false);
             heldStoneEl.style.display = 'none';
             _cancelElementAnimations(wrapperEl);
@@ -1853,6 +1860,11 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             refreshCardUi();
             releaseQueue();
         };
+
+        // The placement event settles at stone contact so board playback can continue
+        // without waiting for the retreat. Its playback scope may therefore be cleared
+        // while the hand is still leaving; keep this visual cleanup watchdog unscoped.
+        clearCleanupFallback = _installAnimationResolveFallback(cleanup, HAND_PLACE_CLEANUP_FALLBACK_MS);
 
         (async () => {
             // 1. Approach
