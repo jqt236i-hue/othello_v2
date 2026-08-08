@@ -338,7 +338,7 @@
         }),
         ZOMBIE: Object.freeze({
             name: '屍石',
-            desc: '所有者ターン開始時に隣接1マスへ移動し、3回ごとに移動後位置から隣接敵通常石を屍石へ感染させ、失われた時に1回だけ復活する。',
+            desc: '所有者ターン開始時に隣接1マスへ移動し、4回ごとに移動後位置から隣接敵通常石を屍石へ感染させ、失われた時に1回だけ復活する。',
             timerClass: 'countdown-timer'
         }),
         LIVING_WILL: Object.freeze({

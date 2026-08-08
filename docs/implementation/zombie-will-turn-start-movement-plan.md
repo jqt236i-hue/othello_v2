@@ -12,7 +12,7 @@
    - `cards/catalog.json`
    - `cards/card-interaction-effects.ts`
 2. canonical headless logicを変更する。
-   - `game/logic/cards/zombie_will.ts`: 感染間隔を3へ変更し、移動結果を受けた感染座標を処理できるようにする
+   - `game/logic/cards/zombie_will.ts`: 感染間隔を4へ変更し、移動結果を受けた感染座標を処理できるようにする
    - `game/logic/cards/hyperactive.ts`: 多動と同じ隣接空きマス候補・BoardOps移動を使う小さな移動helperを追加する
    - `game/logic/cards.ts`: ゾンビのターン開始入口へ移動helperを注入し、移動後に感染を実行する
    - `game/logic/board_ops.ts` と移動判定adapter: `ZOMBIE/zombie_move` を多動相当の移動表示として分類する
@@ -45,7 +45,7 @@
 
 | 観点 | 期待結果 | 主な検証 |
 | --- | --- | --- |
-| 感染間隔 | 所有者ターン開始3回目で感染、初期値・リセット値も3 | `test/game.zombie-will.test.ts` |
+| 感染間隔 | 所有者ターン開始4回目で感染、初期値・リセット値も4 | `test/game.zombie-will.test.ts` |
 | 移動 | 所有者ターン開始ごとに隣接空きへ最大1マス、候補なしは非移動 | `test/game.zombie-will.test.ts` |
 | 順序 | 移動後座標を感染sourceにし、MOVEがCHANGEより先 | zombie unit / turn-start order tests |
 | 表示 | 多動相当の滑らかな移動、感染時だけ既存bite演出 | presentation event inspection / sound cue test |

@@ -11,13 +11,13 @@
 
 ## 問題と期待結果
 
-変更前のゾンビの意志は、所有者ターン開始時に感染カウントを進め、5回目ごとに隣接する敵通常石を感染させるだけで、屍石本体は移動しなかった。感染間隔を3回ごとへ変更し、所有者ターン開始時に多動の意志と同じ候補規則で隣接1マスのランダム移動を先に解決する。
+ゾンビの意志は、所有者ターン開始時に多動の意志と同じ候補規則で隣接1マスのランダム移動を先に解決する。感染間隔は3回ごとから4回ごとへ変更する。
 
 移動先は canonical board topology 上の、8方向にある有効な空きマスに限定する。候補がない場合は乱数を消費せず、屍石を現在位置に残したまま感染カウント処理へ進む。感染成立時の source は移動後の位置とし、移動イベントと感染イベントの順序を canonical presentation event の順序にも反映する。
 
 ## スコープ
 
-- `ZOMBIE_INFECTION_INTERVAL` を5から3へ変更
+- `ZOMBIE_INFECTION_INTERVAL` を3から4へ変更
 - `ZOMBIE` の所有者ターン開始移動を canonical headless logic に追加
 - 多動の意志がすでに使っている board shape、blocked-cell、BoardOps.moveAt、決定的PRNGの経路を再利用
 - 移動後位置からの感染、移動先がない場合の非移動、同一ターンに生成されたゾンビを処理しない既存契約の維持
@@ -69,7 +69,7 @@ canonical presentation event と raw event の二重実装になり、Pixi/DOM/n
 1. ターン開始 anchor lane が所有者の `ZOMBIE` marker を処理する。
 2. `CardLogic.processZombieEffectsAtTurnStartAnchor` が、移動 helperへ同じ cardState/gameState/player/anchor/PRNGを渡す。
 3. helperが移動に成功したら、移動先へ marker と石を移し、`MOVE(cause=ZOMBIE, reason=zombie_move)` を発行する。
-4. ゾンビ感染コアを移動先座標で実行する。カウントが1以上残る場合は移動だけで終了し、3回目なら移動後位置に隣接する敵通常石を選んで `CHANGE/STATUS_APPLIED` を発行する。
+4. ゾンビ感染コアを移動先座標で実行する。カウントが1以上残る場合は移動だけで終了し、4回目なら移動後位置に隣接する敵通常石を選んで `CHANGE/STATUS_APPLIED` を発行する。
 5. ターン開始 phase は `zombie_moved_start`、必要なら `zombie_infected_start` をこの順で raw event に追加する。同じターン開始中に感染で生まれた marker は固定 anchor 集合へ追加しない既存契約を維持する。
 6. UI adapter は標準 `MOVE`/`CHANGE` の順序を playbackへ変換する。通常経路は既存多動相当の移動音・滑らかな1マス移動を使用し、感染時だけ既存ゾンビ噛みつき音・軌道を続けて再生する。
 
@@ -77,14 +77,14 @@ canonical presentation event と raw event の二重実装になり、Pixi/DOM/n
 
 - 移動候補なし: PRNGを消費せず、`moved`を返さず、カウント処理は現在位置で継続する。
 - `BoardOps.moveAt` が拒否: 盤面とmarkerを移動させず、感染処理は元座標で継続する。
-- 感染候補なし: 既存どおりカウントを3へ戻し、噛みつきeventは出さない。
-- 旧snapshotで `turnsUntilInfection` が欠損または不正: 既存同様に3として正規化する。
+- 感染候補なし: 既存どおりカウントを4へ戻し、噛みつきeventは出さない。
+- 旧snapshotで `turnsUntilInfection` が欠損または不正: 既存同様に4として正規化する。
 - 旧raw eventや旧presentation event: 新しい `zombie_moved_start` がなくても既存再生を壊さない。新規移動は標準 `MOVE` が正本であり、Worker/local/headlessで同じ結果を生成する。
 
 ## 検証方針
 
-- カタログ・quick/detail help・rulebookの3回/移動文言同期
-- 3回目の所有者ターン開始で感染し、1回目・2回目は感染しない
+- カタログ・quick/detail help・rulebookの4回/移動文言同期
+- 4回目の所有者ターン開始で感染し、1回目・2回目・3回目は感染しない
 - 所有者ターン開始ごとに1マス移動する
 - 移動後座標から噛みつき、`MOVE` が `CHANGE` より先に並ぶ
 - 移動先がない場合に石・カウント・乱数消費が壊れない
