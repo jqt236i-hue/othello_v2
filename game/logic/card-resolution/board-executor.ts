@@ -38,6 +38,16 @@ function markerOwnerOf(marker: any): PlayerKey {
     return ownerKeyOf(marker && marker.owner);
 }
 
+function hasExactMarkerCell(marker: any): boolean {
+    return !!(
+        marker
+        && typeof marker === 'object'
+        && !Array.isArray(marker)
+        && Number.isInteger(marker.row)
+        && Number.isInteger(marker.col)
+    );
+}
+
 function getManifestRegistry(deps?: any): any {
     return (deps && deps.ManifestStoneRegistry) || ManifestStoneRegistryFallback;
 }
@@ -69,6 +79,7 @@ function isManifestStoneType(rawType: any, deps?: any): boolean {
 }
 
 function isActiveBoardExecutorMarker(marker: any, deps?: any): boolean {
+    if (!hasExactMarkerCell(marker)) return false;
     const registry = getManifestRegistry(deps);
     if (registry && typeof registry.isActiveManifestStoneMarker === 'function') {
         return registry.isActiveManifestStoneMarker(marker) === true && markerTypeOf(marker) === BOARD_EXECUTOR_MARKER_TYPE;
@@ -93,7 +104,7 @@ function countsAsBoardExecutorSpecialStone(marker: any): boolean {
 
 function isBoardExecutorAffectedSpecialMarker(marker: any): boolean {
     if (!isActiveMarker(marker)) return false;
-    if (!Number.isInteger(Number(marker.row)) || !Number.isInteger(Number(marker.col))) return false;
+    if (!hasExactMarkerCell(marker)) return false;
     const type = markerTypeOf(marker);
     if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isTargetableSpecialStone === 'function') {
         return SpecialStoneRegistry.isTargetableSpecialStone(type, marker.data) === true;
@@ -111,8 +122,7 @@ function isBoardExecutorAffectedSpecialMarker(marker: any): boolean {
 function collectBoardExecutorSpecialStoneInstances(cardState: CardState, deps?: any): any[] {
     return getMarkers(cardState, deps).filter((marker) => (
         isActiveMarker(marker)
-        && Number.isInteger(Number(marker && marker.row))
-        && Number.isInteger(Number(marker && marker.col))
+        && hasExactMarkerCell(marker)
         && countsAsBoardExecutorSpecialStone(marker)
     ));
 }
@@ -123,10 +133,10 @@ function collectBoardExecutorSpecialStoneCells(cardState: CardState, deps?: any)
     for (const marker of getMarkers(cardState, deps).filter(isBoardExecutorAffectedSpecialMarker)) {
         const footprint = SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneFootprint === 'function'
             ? SpecialStoneRegistry.getSpecialStoneFootprint(marker)
-            : [{ row: Number(marker.row), col: Number(marker.col) }];
+            : [{ row: marker.row, col: marker.col }];
         for (const cell of footprint) {
-            const row = Number(cell && cell.row);
-            const col = Number(cell && cell.col);
+            const row = cell && cell.row;
+            const col = cell && cell.col;
             if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
             const key = `${row},${col}`;
             if (seen.has(key)) continue;
@@ -245,9 +255,9 @@ function processBoardExecutorHandTaxAtTurnStart(cardState: CardState, playerKey:
 
 function findBoardExecutorMarker(cardState: CardState, row: number, col: number, ownerKey: PlayerKey, deps: any): any {
     return getMarkers(cardState, deps).find((marker) => (
-        marker &&
-        Number(marker.row) === Number(row) &&
-        Number(marker.col) === Number(col) &&
+        hasExactMarkerCell(marker) &&
+        marker.row === row &&
+        marker.col === col &&
         markerOwnerOf(marker) === ownerKey &&
         markerTypeOf(marker) === BOARD_EXECUTOR_MARKER_TYPE
     )) || null;

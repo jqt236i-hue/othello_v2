@@ -10,6 +10,7 @@ import type { BoardVisualCommitReceipt } from './board-visual/types';
 
 type BoardPresentationRendererPort = BoardVisualWriterPort
   & Pick<BoardVisualControllerPortApi, 'getBoardVisualControllerReady'>
+  & Partial<Pick<BoardVisualControllerPortApi, 'getBoardVisualControllerReadyForPresentationDrain'>>
   & Pick<BoardVisualGeometryPort, 'getBoardCellClientRect'>;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -687,7 +688,7 @@ async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: strin
         }
         claim.boardWriterToken = null;
       } else if (renderer && typeof renderer.settleAutoBoardVisualWriter === 'function') {
-        await renderer.settleAutoBoardVisualWriter();
+        await renderer.settleAutoBoardVisualWriter({ abandonPresentationDrain: true });
       }
     } catch (error) {
       throw error;
@@ -1625,7 +1626,7 @@ async function flushBoardPresentationEvents(): Promise<void> {
         pendingLocalBoardVisualSettlementClaim = null;
       }
     }
-    const renderer = _require('./board-renderer');
+    const renderer = _require('./board-renderer') as BoardPresentationRendererPort;
     if (renderer) {
       // Keep the queue intact and unclaimed until the exclusive backend mount
       // is ready. Preserve a synthetic pending-playback writer so the drain
@@ -1663,33 +1664,35 @@ async function flushBoardPresentationEvents(): Promise<void> {
   } catch (e) {
     console.error('[PresentationHandler] onBoardUpdated error', e);
   } finally {
-    if (drainClaim && Array.isArray(drainClaim.boardPresentationSettlements)) {
-      await Promise.all(drainClaim.boardPresentationSettlements);
-      drainClaim.boardPresentationSettlements.length = 0;
-    }
-    if (activeLocalPresentationDrainClaim === drainClaim) {
-      activeLocalPresentationDrainClaim = null;
-    }
-    if (drainClaim) {
-      const isRecoverableLocalClaim = !!(
-        drainClaim.meta
-        && drainClaim.meta.scope === 'presentation_drain'
-        && drainClaim.meta.strictNetworkPlayback !== true
-        && drainClaim.boardWriterToken
-      );
-      if (isRecoverableLocalClaim) pendingLocalBoardVisualSettlementClaim = drainClaim;
-      if (await releasePlaybackClaimAndRequestBoardSync(drainClaim, 'presentation_drain_claim_released')) {
-        if (pendingLocalBoardVisualSettlementClaim === drainClaim) {
-          pendingLocalBoardVisualSettlementClaim = null;
+    try {
+      if (drainClaim && Array.isArray(drainClaim.boardPresentationSettlements)) {
+        await Promise.all(drainClaim.boardPresentationSettlements);
+        drainClaim.boardPresentationSettlements.length = 0;
+      }
+      if (activeLocalPresentationDrainClaim === drainClaim) {
+        activeLocalPresentationDrainClaim = null;
+      }
+      if (drainClaim) {
+        const isRecoverableLocalClaim = !!(
+          drainClaim.meta
+          && drainClaim.meta.scope === 'presentation_drain'
+          && drainClaim.meta.strictNetworkPlayback !== true
+          && drainClaim.boardWriterToken
+        );
+        if (isRecoverableLocalClaim) pendingLocalBoardVisualSettlementClaim = drainClaim;
+        if (await releasePlaybackClaimAndRequestBoardSync(drainClaim, 'presentation_drain_claim_released')) {
+          if (pendingLocalBoardVisualSettlementClaim === drainClaim) {
+            pendingLocalBoardVisualSettlementClaim = null;
+          }
         }
       }
-    } else {
-      const renderer = _require('./board-renderer');
+    } finally {
+      const renderer = _require('./board-renderer') as BoardPresentationRendererPort;
       if (
         renderer
         && typeof renderer.settleAutoBoardVisualWriter === 'function'
       ) {
-        await renderer.settleAutoBoardVisualWriter();
+        await renderer.settleAutoBoardVisualWriter({ abandonPresentationDrain: true });
       }
     }
   }

@@ -105,7 +105,7 @@ export interface BoardVisualWriterPort {
     receipt: BoardVisualCommitReceipt
   ): Promise<boolean>;
   enterBoardVisualRecovery(token: BoardWriterToken, error?: unknown): unknown;
-  settleAutoBoardVisualWriter(): Promise<boolean>;
+  settleAutoBoardVisualWriter(options?: { readonly abandonPresentationDrain?: boolean }): Promise<boolean>;
 }
 
 export interface BoardVisualGeometryPort {

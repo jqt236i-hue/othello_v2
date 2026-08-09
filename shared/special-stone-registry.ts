@@ -771,9 +771,10 @@
         if (MultiCellStone && typeof MultiCellStone.getSpecialStoneFootprint === 'function') {
             return MultiCellStone.getSpecialStoneFootprint(marker);
         }
-        const type = normalizeSpecialStoneType(marker && marker.data && marker.data.type);
-        const row = marker && marker.row;
-        const col = marker && marker.col;
+        if (!marker || typeof marker !== 'object' || Array.isArray(marker)) return Object.freeze([]);
+        const type = normalizeSpecialStoneType(marker.data && marker.data.type);
+        const row = marker.row;
+        const col = marker.col;
         if (!Number.isInteger(row) || !Number.isInteger(col)) return Object.freeze([]);
         const footprint = String(marker && marker.data && marker.data.footprint || '');
         if (type !== 'SHINRA_BANSHO_GOD' || (footprint && footprint !== 'square_2x2.v1')) {

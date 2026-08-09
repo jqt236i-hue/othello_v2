@@ -31,8 +31,9 @@ export function isMultiCellSpecialStoneMarker(marker: any): boolean {
 export function getSpecialStoneFootprint(
     marker: any
 ): ReadonlyArray<Readonly<MultiCellStoneFootprintCell>> {
-    const row = marker && marker.row;
-    const col = marker && marker.col;
+    if (!marker || typeof marker !== 'object' || Array.isArray(marker)) return Object.freeze([]);
+    const row = marker.row;
+    const col = marker.col;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return Object.freeze([]);
     const footprint = String(marker && marker.data && marker.data.footprint || '');
     if (

@@ -189,6 +189,8 @@ describe('BoardVisualController async visual settlement', () => {
     expect(order).toEqual(['prepare', 'apply', 'wait']);
     expect(released).toBe(false);
     expect(controller.getMode()).toBe('playback');
+    expect(() => controller.reclaimWriter(token, 'network:during-settlement', 'network'))
+      .toThrow('Cannot reclaim a board writer during async local settlement');
     expect(controller.getSnapshot()).toMatchObject({
       activeFrameToken: 'local:delayed-settlement',
       pendingFrameToken: 'local:delayed-settlement'

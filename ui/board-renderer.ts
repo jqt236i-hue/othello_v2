@@ -731,8 +731,10 @@ function enterBoardVisualRecovery(token: any, error?: unknown) {
     return _getBoardWriterRuntimeForBoardRenderer().enterRecovery(token, error);
 }
 
-function settleAutoBoardVisualWriter(): Promise<boolean> {
-    return _getBoardWriterRuntimeForBoardRenderer().settleAutoWriter();
+function settleAutoBoardVisualWriter(
+    options?: { readonly abandonPresentationDrain?: boolean }
+): Promise<boolean> {
+    return _getBoardWriterRuntimeForBoardRenderer().settleAutoWriter(options);
 }
 
 function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: any) {

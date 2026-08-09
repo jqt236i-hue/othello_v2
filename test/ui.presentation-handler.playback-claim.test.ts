@@ -354,7 +354,57 @@ describe('PresentationHandler playback claim', () => {
 
     expect(runtime.flushPendingPresentationEvents).toHaveBeenCalledTimes(1);
     expect(settleAutoBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(settleAutoBoardVisualWriter).toHaveBeenCalledWith({
+      abandonPresentationDrain: true
+    });
     expect(boardUpdateResolved).toBe(true);
+  });
+
+  test('abandons presentation-drain writer reservation when strict playback fails before writer claim', async () => {
+    const outerClaim = { id: 71 };
+    const batchClaim = { id: 72 };
+    const claims = [outerClaim, batchClaim];
+    const runtime = {
+      createBoardUpdateDrainController: jest.fn(() => ({
+        requestDrain: async (runDrain: any) => runDrain()
+      })),
+      flushPendingPresentationEvents: jest.fn(() => [{
+        type: 'PLAYBACK_EVENTS',
+        events: [{ type: 'move', phase: 1 }],
+        meta: { source: 'network_timeline', strictNetworkPlayback: true }
+      }])
+    };
+    const claimBoardVisualWriter = jest.fn();
+    const settleAutoBoardVisualWriter = jest.fn(async () => true);
+    jest.doMock('../game/cpu-turn-handler', () => ({ PresentationRuntime: runtime }));
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReadyForPresentationDrain: jest.fn(async () => undefined),
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      claimBoardVisualWriter,
+      settleAutoBoardVisualWriter
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => claims.shift()),
+      releaseVisualPlaybackClaim: jest.fn(() => true),
+      hasClaimedVisualPlayback: jest.fn(() => false)
+    };
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      const PresentationHandler = require('../ui/presentation-handler.js');
+      await expect(PresentationHandler.onBoardUpdated()).resolves.toBeUndefined();
+    } finally {
+      errorSpy.mockRestore();
+    }
+
+    expect(claimBoardVisualWriter).not.toHaveBeenCalled();
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim.mock.calls)
+      .toEqual([[batchClaim], [outerClaim]]);
+    expect(settleAutoBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(settleAutoBoardVisualWriter).toHaveBeenCalledWith({
+      abandonPresentationDrain: true
+    });
   });
 
   test('returns an opaque strict handle after source trajectories and holds ownership until committed-frame sync succeeds', async () => {
@@ -792,12 +842,17 @@ describe('PresentationHandler playback claim', () => {
       order.push('board-claim');
       return boardWriterToken;
     });
+    const getBoardVisualControllerReady = jest.fn(async () => {
+      order.push('generic-ready');
+    });
+    const getBoardVisualControllerReadyForPresentationDrain = jest.fn(async () => {
+      order.push('ready-wait');
+      await ready;
+      order.push('ready');
+    });
     jest.doMock('../ui/board-renderer', () => ({
-      getBoardVisualControllerReady: jest.fn(async () => {
-        order.push('ready-wait');
-        await ready;
-        order.push('ready');
-      }),
+      getBoardVisualControllerReady,
+      getBoardVisualControllerReadyForPresentationDrain,
       claimBoardVisualWriter,
       settleBoardVisualWriter: jest.fn(async () => {
         order.push('board-settle');
@@ -827,6 +882,8 @@ describe('PresentationHandler playback claim', () => {
     await flushMicrotasks(2);
 
     expect(finished).toBe(false);
+    expect(getBoardVisualControllerReadyForPresentationDrain).toHaveBeenCalledTimes(1);
+    expect(getBoardVisualControllerReady).not.toHaveBeenCalled();
     expect(runtime.flushPendingPresentationEvents).not.toHaveBeenCalled();
     expect((global as any).PlaybackStateManager.claimVisualPlayback).not.toHaveBeenCalled();
     expect(claimBoardVisualWriter).not.toHaveBeenCalled();

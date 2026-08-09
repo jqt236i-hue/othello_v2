@@ -999,10 +999,16 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
       `${pendingType} handler settled before visual playback drain began`
     );
     expect(drainSpy).toHaveBeenCalledTimes(1);
-    expect(drainSpy).toHaveBeenCalledWith(expect.objectContaining({
+    const drainOptions = drainSpy.mock.calls[0][0];
+    expect(drainOptions).toEqual(expect.objectContaining({
       root: window,
       getCardState: expect.any(Function),
       disableTimeout: true
+    }));
+    const currentCardState = (window as any).cardState || global.cardState;
+    expect(drainOptions.getCardState()).toBe(currentCardState);
+    expect(currentCardState).toEqual(expect.objectContaining({
+      pendingEffectByPlayer: expect.objectContaining({ black: null })
     }));
     expect(selectionFlowModule.isSelectionSettlementLocked()).toBe(true);
     expect(handlerSettled).toBe(false);
@@ -1012,6 +1018,14 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     const handlerResult = await handlerPromise;
     expect(handlerResult).toEqual(expect.objectContaining({ ok: true }));
     expect(selectionFlowModule.isSelectionSettlementLocked()).toBe(false);
+    expect(publishBodies).toHaveLength(1);
+    if (expectPublishOnlySelection) {
+      expect(runTurnMock).not.toHaveBeenCalled();
+    }
+    expect(bridgeSettlementSpy).toHaveBeenCalledTimes(1);
+    expect(trackerSpy).toHaveBeenCalledTimes(1);
+    expect(drainSpy).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
     assertAppliedState({
       gameState: global.gameState,

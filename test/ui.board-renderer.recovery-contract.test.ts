@@ -218,11 +218,21 @@ describe('board renderer recovery boundary', () => {
       await Promise.resolve();
       await Promise.resolve();
 
+      expect(controller.settleLocalWriter).not.toHaveBeenCalled();
+      expect(readyResolved).toBe(true);
+      expect(buildModel).not.toHaveBeenCalled();
+      await readyPromise;
+
+      const abandonedSettlement = renderer.settleAutoBoardVisualWriter({
+        abandonPresentationDrain: true
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
       expect(controller.settleLocalWriter).toHaveBeenCalledTimes(1);
-      expect(readyResolved).toBe(false);
       expect(buildModel).toHaveBeenCalledTimes(1);
       autoWriterSettlement.resolve();
-      await readyPromise;
+      await abandonedSettlement;
       expect(renderer.getBoardVisualInvalidationDiagnostics()).toMatchObject({
         requestCount: 3,
         mergeCount: 2,

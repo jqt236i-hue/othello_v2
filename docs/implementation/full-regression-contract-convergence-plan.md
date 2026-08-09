@@ -1,6 +1,6 @@
 # Full regression contract convergence implementation plan
 
-- Status: implemented and verified
+- Status: post-implementation AI code-review correction in progress
 - Date: 2026-08-09
 - Design authority: `docs/implementation/full-regression-contract-convergence-design.md`
 - Document role: ordered implementation and verification plan for closing the four known failing Jest suites and restoring a zero-failure full regression baseline
@@ -10,7 +10,7 @@
 
 ## 1. Objective and delivery rule
 
-Restore the normal full Jest baseline from four known failing suites and nineteen failures to zero failures without changing valid player-visible behavior. Three failures are repaired by moving tests to current capability owners; one is repaired by rejecting non-integer stored marker anchors consistently at the existing shared footprint owner.
+Restore the normal full Jest baseline from four known failing suites and nineteen failures to zero failures without changing valid player-visible behavior, then close every reproducible marker/network/writer defect exposed by the requested post-implementation AI code review. The correction is complete only when the strengthened tests and all proportional repository gates are green again.
 
 The implementation is complete only when:
 
@@ -28,6 +28,14 @@ Do not mark the task complete with a comparison against a known-red baseline. Do
 
 - `shared/multi-cell-stone.ts`;
 - `shared/special-stone-registry.ts`;
+- `game/logic/card-resolution/board-executor.ts`;
+- `ui/network-client.ts`;
+- `ui/board-visual/writer-runtime.ts`;
+- `ui/board-visual/backend-runtime.ts`;
+- `ui/board-visual/controller.ts`;
+- `ui/board-visual/runtime-ports.ts`;
+- `ui/board-renderer.ts`;
+- `ui/presentation-handler.ts`;
 - `package.json` only to add the existing deferred-selection suite to `test:network:parity`.
 
 ### Test changes
@@ -37,16 +45,18 @@ Do not mark the task complete with a comparison against a known-red baseline. Do
 - `test/entry-browser.boot-table-sequence.test.ts`;
 - `test/ui.board-playback-runtime-state-contract.test.ts`;
 - `test/ui.board-visual.runtime-lifecycle.test.ts`;
+- `test/ui.board-visual-controller-settlement.test.ts`;
+- `test/ui.board-renderer.recovery-contract.test.ts`;
+- `test/ui.presentation-handler.playback-claim.test.ts`;
+- `test/game.board-executor.test.ts`;
 - `test/shared.special-stone-registry.test.ts`.
 
-Existing adjacent suites are verification consumers and should be edited only if a test gap described by the design cannot be expressed in the files above. In particular, no product change is expected in:
+The first implementation expected the following product files to remain unchanged. Reproduced post-implementation review findings supersede that expectation only for the files now listed above:
 
-- `ui/network-client.ts`;
 - `ui/network/selection-signal-bridge.ts`;
 - `game/card-effects/selection-flow.ts` or its execution core;
 - `entry-browser.js`;
-- `ui/board-renderer.ts`;
-- `ui/board-visual/writer-runtime.ts`.
+- board backends and Pixi/DOM scene implementations.
 
 If current-owner behavior cannot be proven without changing one of those product files, stop that step, collect the failing evidence, revise and re-review the design/plan, then resume. Do not quietly broaden the implementation.
 
@@ -112,6 +122,7 @@ The sixteen-case client suite observes the actual network-client exact waiter—
 ### Files
 
 - `test/ui.network-client.guard-tempt-deferred-publish.test.ts`;
+- `ui/network-client.ts`;
 - `package.json`.
 
 ### Required implementation
@@ -141,7 +152,7 @@ The sixteen-case client suite observes the actual network-client exact waiter—
    - `selectionFlowModule.isSelectionSettlementLocked()` is true.
    - Do not assert Node-global `isProcessing` / `isCardAnimating`: the installed bridge does not expose busy-state writers, and the direct lock plus incomplete handler are the authoritative ownership observations for this path.
 7. Resolve the tracker with `{ ok: true, visualSeq: 1 }`. Race `drainEntered.promise` against premature handler settlement, then assert that playback drain has started with the network-client root/current-card-state access while the handler completion flag is false and `isSelectionSettlementLocked()` remains true.
-8. Resolve the drain, await the handler, prove `isSelectionSettlementLocked()` is false, and perform every retained request/state assertion.
+8. Capture the drain options, prove `root` is the network-client root and `getCardState()` returns the already-applied authoritative card state. Resolve the drain, await the handler, prove `isSelectionSettlementLocked()` is false, and reassert at terminal completion: publish once, bridge/tracker/drain once, legacy wait zero, publish-only local preview zero, and local presentation zero. This catches late duplicate work after the deferred gates have become permanently resolved.
 9. For the temptation case, attach a call-through spy to the installed bridge's `armBoardUpdateDuringPlayback` method, assert the `selection-flow` / `selection_state_sync` request, and require the matching spy result to return `true`. Remove the later transient-context peek: snapshot work may consume or replace that context, while the capability's boolean return is the owner-level acknowledgement. The explicit `.js` compatibility import and the TypeScript owner's Jest resolution may also differ, but module identity alone is not the contract rationale.
 10. Restore spies and deferred state in `afterEach` so the 16-case table leaves no open handle or cross-case module state.
 11. Add `test\ui.network-client.guard-tempt-deferred-publish.test.ts` to `test:network:parity` next to the existing deferred-publish client suites. Do not change any other script or lockfile.
@@ -162,6 +173,7 @@ npx jest --runInBand --runTestsByPath test\ui.network-client.guard-tempt-deferre
 
 - all sixteen parameterized cases exercise the real network-client waiter and pass;
 - exact tracker/drain ordering and lock ownership are observed;
+- the drain accessor returns current authoritative state and terminal exactly-once assertions pass;
 - the legacy global trap remains at zero calls;
 - the explicit network parity script contains the suite.
 
@@ -175,19 +187,22 @@ Direct special-stone lookup and the numeric cell index agree for malformed store
 
 - `shared/multi-cell-stone.ts`;
 - `shared/special-stone-registry.ts`;
+- `game/logic/card-resolution/board-executor.ts`;
 - `test/game.marker-cell-index.test.ts`;
+- `test/game.board-executor.test.ts`;
 - `test/shared.special-stone-registry.test.ts`;
 - `test/ui.board-dom-compat.long-press-info.test.ts`.
 
 ### Required implementation
 
 1. In `shared/multi-cell-stone.ts::getSpecialStoneFootprint`:
-   - read `marker && marker.row` and `marker && marker.col` without `Number()`;
+   - reject null, arrays, and non-object marker values before property access;
+   - read `marker.row` and `marker.col` without `Number()`;
    - require `Number.isInteger(row)` and `Number.isInteger(col)`;
    - return the same frozen empty array for invalid anchors;
    - leave ordinary anchor and ordered `square_2x2.v1` projection bodies unchanged.
 2. In the fallback implementation inside `shared/special-stone-registry.ts`, apply the same exact stored-anchor check. Preserve normal delegation to `MultiCellStone` and every registry API.
-3. Do not change target-argument coercion in `markerOccupiesCell`, marker classification order, snapshot repair/normalization, or other coordinate parsers.
+3. Do not change target-argument coercion in `markerOccupiesCell`, marker classification order, snapshot repair/normalization, or independent event/action coordinate parsers.
 4. Extend `test/game.marker-cell-index.test.ts` to prove, for numeric lookup arguments:
    - valid integer markers preserve direct/index identity and object order;
    - numeric-string anchors have no indexed entry and no direct match;
@@ -196,14 +211,16 @@ Direct special-stone lookup and the numeric cell index agree for malformed store
 5. Extend `test/shared.special-stone-registry.test.ts` with primary-helper coverage for:
    - valid ordinary one-cell footprint;
    - valid ordered 2x2 footprint and all four occupancy queries;
-   - string/fractional/non-finite/missing anchors returning no footprint.
+   - string/fractional/non-finite/missing anchors and primitive/non-object marker values returning no footprint.
 6. Add an explicit fallback test using an isolated module registry and a mock/null `../shared/multi-cell-stone` before requiring the special-stone registry. Exercise both ordinary and 2x2 markers with the same valid/invalid matrix. Clean up the mock/module registry after the test.
 7. In the dependent DOM-compat stone-info integration test, separate stored-state validity from lookup-input compatibility: keep the marker anchor as integer numbers, call `showSpecialStoneInfoAt` with numeric-string row/column arguments, and retain the same resolved stone detail assertion. Do not change `ui/presentation/stone-info-controller.ts` or restore string-valued stored-anchor acceptance.
+8. In `game/logic/card-resolution/board-executor.ts`, reuse one private exact-marker predicate for activation, affected targets, instance counting, and turn-start marker lookup. Remove stored-coordinate `Number()` coercion from fallback footprint/cell projection. Do not change validated placement-action coordinate producers.
+9. Add Board Executor regressions proving malformed numeric-string markers cannot satisfy the three-stone threshold, remain unchanged beside three valid targets, and cannot apply hand tax or duration decrement as an active `BOARD_EXECUTOR` manifestation.
 
 ### Focused verification
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\game.marker-cell-index.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\ui.board-dom-compat.long-press-info.test.ts
+npx jest --runInBand --runTestsByPath test\game.marker-cell-index.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\ui.board-dom-compat.long-press-info.test.ts test\game.board-executor.test.ts
 ```
 
 ### Failure handling
@@ -217,8 +234,9 @@ npx jest --runInBand --runTestsByPath test\game.marker-cell-index.test.ts test\s
 - direct/index numeric lookups agree for the full invalid-anchor matrix;
 - valid one-cell and 2x2 footprints and protection behavior pass unchanged;
 - primary and compatibility fallback paths enforce the same stored-anchor contract;
+- primitive/non-object marker values occupy no cell and Board Executor stored-marker consumers fail closed on malformed coordinates;
 - DOM-compat stone detail accepts numeric-string lookup arguments only against canonical integer-anchored stored markers;
-- only the two canonical shared source files change product behavior, limited to malformed stored anchors.
+- product behavior changes only for malformed stored anchors; valid Board Executor and shared-footprint behavior is unchanged.
 
 ## 7. Step 3 — Replace the fixed boot prefix with an explicit dependency subsequence
 
@@ -287,7 +305,7 @@ npx jest --runInBand --runTestsByPath test\entry-browser.boot-table-sequence.tes
 - the test no longer contains an arbitrary prefix slice;
 - the classic boot source is unchanged.
 
-## 8. Step 4 — Move writer proof to public runtime behavior
+## 8. Step 4 — Move writer proof to its owner and correct reproduced lifecycle races
 
 ### Outcome and rationale
 
@@ -296,7 +314,15 @@ Presentation-drain coverage follows `writer-runtime` ownership and public operat
 ### Files
 
 - `test/ui.board-playback-runtime-state-contract.test.ts`;
-- `test/ui.board-visual.runtime-lifecycle.test.ts`.
+- `test/ui.board-visual.runtime-lifecycle.test.ts`;
+- `test/ui.board-visual-controller-settlement.test.ts`;
+- `test/ui.board-renderer.recovery-contract.test.ts`;
+- `test/ui.presentation-handler.playback-claim.test.ts`;
+- `ui/board-visual/writer-runtime.ts`;
+- `ui/board-visual/controller.ts`;
+- `ui/board-visual/runtime-ports.ts`;
+- `ui/board-renderer.ts`;
+- `ui/presentation-handler.ts`.
 
 ### Required implementation
 
@@ -322,20 +348,26 @@ Presentation-drain coverage follows `writer-runtime` ownership and public operat
 4. Add a separate no-token/no-claim case proving readiness waits for ordinary idle.
 5. Keep `test/ui.board-renderer.recovery-contract.test.ts` as the real facade integration proof; do not duplicate its full JSDOM setup unless a missing behavior is found.
 6. Do not add a new facade source-text assertion; the recovery-contract behavior test is the facade integration proof.
-7. Do not edit writer runtime or controller implementation.
+7. Replace the single-microtask pending check with a macrotask sentinel that observes both fulfillment and rejection.
+8. Make generic and drain readiness retry the current controller after every awaited boundary when controller/session generation changes. Treat destroy as terminal before another controller lookup and cancel pending auto-claim/deferred-render callbacks on reset. `backend-runtime` must also refuse controller acquisition/configuration after destroy so render submission exits before lazy recreation; writer playback preparation/invalidation reject after destroy. If reset overlaps an active settlement, discard the old-token invalidation at completion and generation-safely request a fresh current-state render; readiness waits and direct claim fails closed until that recovery request completes.
+9. Register presentation-drain intent synchronously and retain its reservation until claim/reclaim succeeds or presentation explicitly abandons it. Generic readiness and default auto-settlement must not consume the reserved synthetic token. Active settlement must complete before drain readiness or a new claim.
+10. Add `abandonPresentationDrain` to the existing optional settlement options and call it from the outer presentation-drain `finally` for every outcome, including strict failure before writer claim. The call is idempotent after successful claim. Preserve the public readiness `Promise<void>` shape.
+11. Reject controller reclaim while `localWriterSettlement` is active. Suppress accumulator settlement and occupancy updates from a replaced controller's stale settlement.
+12. Type the drain-specific presentation capability as optional at the compatibility port and behaviorally prove the caller selects and awaits it while leaving the queue and writer unclaimed before readiness.
 
 ### Focused verification
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\ui.board-playback-runtime-state-contract.test.ts test\ui.board-visual.runtime-lifecycle.test.ts test\ui.board-renderer.recovery-contract.test.ts
+npx jest --runInBand --runTestsByPath test\ui.board-playback-runtime-state-contract.test.ts test\ui.board-visual.runtime-lifecycle.test.ts test\ui.board-renderer.recovery-contract.test.ts test\ui.board-visual-controller-settlement.test.ts test\ui.presentation-handler.playback-claim.test.ts
 ```
 
 ### Done when
 
 - the stale facade-private assertion is gone;
 - pending claim, no premature settlement/final frame, reclaim, and ordinary-idle behavior pass through public runtime calls;
-- facade and presentation-handler capability wiring remains covered;
-- product writer code is unchanged.
+- drain-first/generic-first, active settlement, replacement, reset, and destroy scenarios pass through public runtime calls;
+- stale settlement cannot mutate replacement occupancy and controller reclaim fails closed during local settlement;
+- facade and presentation-handler capability wiring is covered behaviorally.
 
 ## 9. Step 5 — Run the complete focused convergence bundle
 
@@ -346,7 +378,7 @@ Prove all four repairs together before any generated surface is rewritten.
 ### Command
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\ui.network-client.guard-tempt-deferred-publish.test.ts test\game.marker-cell-index.test.ts test\entry-browser.boot-table-sequence.test.ts test\ui.board-playback-runtime-state-contract.test.ts test\ui.network-selection-signal-bridge.test.ts test\game.pending-selection-flow.test.ts test\ui.board-visual.runtime-lifecycle.test.ts test\ui.board-renderer.recovery-contract.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\ui.board-dom-compat.long-press-info.test.ts test\entry-browser.bootstrap-contract.test.ts test\scripts.build-module-registry.boot-contract.test.ts
+npx jest --runInBand --runTestsByPath test\ui.network-client.guard-tempt-deferred-publish.test.ts test\game.marker-cell-index.test.ts test\entry-browser.boot-table-sequence.test.ts test\ui.board-playback-runtime-state-contract.test.ts test\ui.network-selection-signal-bridge.test.ts test\game.pending-selection-flow.test.ts test\ui.board-visual.runtime-lifecycle.test.ts test\ui.board-renderer.recovery-contract.test.ts test\ui.board-visual-controller-settlement.test.ts test\ui.presentation-handler.playback-claim.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\game.board-executor.test.ts test\ui.board-dom-compat.long-press-info.test.ts test\entry-browser.bootstrap-contract.test.ts test\scripts.build-module-registry.boot-contract.test.ts
 ```
 
 Then run:
@@ -358,7 +390,7 @@ npm run typecheck
 ### Inspection
 
 - inspect `git diff --` for the canonical/test/config files;
-- confirm `01-rulebook.md`, `正本/`, architecture contracts, network client, boot source, and writer product source are untouched;
+- confirm `01-rulebook.md`, `正本/`, architecture contracts, network payload/authority owners, boot source, and board backends are untouched; inspect the bounded network accessor and writer lifecycle diff against the corrected design;
 - run `git diff --check` before generation so whitespace errors are isolated early.
 
 ### Done when
@@ -467,7 +499,36 @@ git status --short
 - final status is clean or contains only clearly reported unrelated pre-existing work;
 - the final report distinguishes every check run from anything not run.
 
-## 13. Progress checklist
+## 13. Step 9 — Post-implementation AI code-review correction
+
+### Reproduced findings
+
+1. Primitive `0` was projected as a marker at `(0, 0)` because the anchor expression returned the primitive itself.
+2. Board Executor independently coerced stored marker coordinates, allowing malformed markers to satisfy activation or lifecycle conditions while strict shared occupancy produced no target.
+3. The network test did not repeat exactly-once assertions after handler completion and did not execute the drain's card-state accessor; late duplicate work or a stale/null accessor could pass.
+4. Writer pending tests used one microtask and presentation wiring used a source substring, allowing false positives.
+5. Writer readiness and auto-settlement did not revalidate controller/session generation after awaits. Presentation drain could reclaim during active settlement, reset left stale auto-claims alive, active old settlement could apply its frame without requesting a current-state render, strict pre-claim failure could leak the drain reservation, and destroy could permit a retry through lazy controller access.
+6. Final independent review showed the writer-only destroy flag did not cover `renderBoard()` because backend controller acquisition could lazily recreate the page runtime before writer preparation. The backend owner must remain terminal and the render path must prove it neither recreates nor claims after destroy.
+
+### Ordered correction
+
+1. Update this design/plan before expanding product scope, keeping player rules, protocol, boot order, and board backends unchanged.
+2. Apply the marker object guard and Board Executor exact stored-coordinate predicate; run the marker/Board Executor focused bundle.
+3. Strengthen terminal network/accessor assertions. The first focused run may expose a JSDOM root/global split; if so, use the existing network-client global resolver rather than creating a new authority path, then rerun all sixteen cases.
+4. Implement writer controller/session generations, drain reservation through claim/abandon, active-settlement exclusion, stale-settlement suppression, reset cancellation, terminal destroy, and controller reclaim guard. Add behavior tests for both readiness orders and every lifecycle boundary.
+5. Run the expanded combined focused bundle, typecheck, `check:window`, board playback check, network parity, `worker:prepare`, `checkall`, and full Jest. Record any initial failure and the correction; zero failures remains mandatory.
+6. Request independent read-only re-review of the final task-owned diff. Resolve every major/medium actionable finding and rerun affected gates.
+7. Inspect, stage exact task-owned paths, and create a coherent follow-up commit. Do not amend or rewrite the already-landed baseline commit.
+
+### Done when
+
+- every reproduced finding has a regression test and bounded owner fix;
+- both canonical documents describe the corrected owner boundaries without retaining superseded “no writer product change” or Board Executor exclusion claims;
+- focused, structural, generated, parity, board-playback, and full Jest gates pass;
+- independent re-review has no unresolved major/medium finding;
+- the follow-up correction is committed and final status is clean or only contains reported unrelated work.
+
+## 14. Progress checklist
 
 - [x] Step 0: working tree classified and four-suite/19-failure ledger reproduced.
 - [x] Step 1: real network-client exact settlement proven in all sixteen cases and added to network parity.
@@ -477,9 +538,10 @@ git status --short
 - [x] Step 5: complete focused bundle, typecheck, pre-generation diff check pass.
 - [x] Step 6: Worker preparation, `checkall`, and updated network parity pass.
 - [x] Step 7: full Jest passes with zero failed suites/tests.
-- [x] Step 8: actual results recorded and final diff/status inspected; the coherent task-owned unit is ready to commit, with the resulting hash recorded in the final user report.
+- [x] Step 8: the original verified baseline-restoration unit was committed as `33e57e3ad` (`Restore full regression baseline`).
+- [ ] Step 9: post-implementation AI review corrections verified, independently re-reviewed, and committed.
 
-## 14. Decision and discovery log
+## 15. Decision and discovery log
 
 - 2026-08-09: selected regression-contract convergence before another structural extraction because the current known-red baseline prevents simple green-to-green proof.
 - 2026-08-09: classified the marker failure as a real shared-helper inconsistency, not a stale test; selected exact stored anchors rather than index coercion.
@@ -492,10 +554,13 @@ git status --short
 - 2026-08-09: the first full Jest run passed 1016/1017 suites and 7601/7602 tests, exposing one deterministic marker-dependent assertion in `ui.board-dom-compat.long-press-info`. The fixture conflated malformed string-valued stored anchors with supported string query arguments. Revised the design/plan and integration test to keep stored anchors canonical integers while querying with `'2'`/`'4'`; no UI runtime change and no weakening of strict stored-anchor rejection.
 - 2026-08-09: an additional, non-plan `npm run worker:bundle:smoke` failed before the changed footprint path because `workers/match-worker-runtime-preload.ts` registers `CardMeteorGod` and three other strict consumers before `CardMarkers`. `git diff`, blame/history, and independent diagnosis tie this to prior commit `849f555e43`; it is not caused by this task. The reviewed completion gates remain satisfied, but Worker deploy-smoke readiness is not claimed. Repairing that preload order and adding its missing order contract is a separate small delivery task.
 - 2026-08-09: final full Jest passed 1017/1017 suites and 7602/7602 tests. The nineteen-failure accepted baseline is retired without a replacement exception list.
+- 2026-08-09: requested AI code review reproduced primitive-marker projection and Board Executor stored-coordinate coercion. Revised the design/plan before broadening the fix: shared owners now require a marker object, and only Board Executor's stored-marker consumers join the exact-coordinate boundary; universal ingress normalization remains excluded.
+- 2026-08-09: terminal network assertions were strengthened after review showed that permanently resolved tracker/drain gates could hide late duplicate work. Executing the accessor exposed three JSDOM cases where authoritative `cardState` lived on the compatible global surface rather than `window`; selected the existing `resolveNetworkClientGlobal` boundary, not a new authority or state repair path.
+- 2026-08-09: replacing the writer test's one-microtask sentinel and source substring with behavioral checks reproduced controller replacement, active-settlement reclaim, reset callback, and destroy retry races. Revised §5.4 to add controller/session generations, synchronous drain reservation through claim/abandon, stale-settlement suppression, and controller reclaim defense while retaining one writer and the public readiness shape.
 
 Implementation discoveries that change scope, owners, interfaces, or verification must be appended here and reflected in both documents before proceeding.
 
-## 15. Verification record
+## 16. Verification record
 
 ### Design-time evidence
 
@@ -528,22 +593,31 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - Extra diagnostic `npm run worker:bundle:smoke`: failed during bundled preload with `CardMarkers.isInviolableCell is required by CardMeteorGod`. This command is not a gate in this plan. Source history and an independent read-only diagnosis prove the unchanged pre-existing preload order is causal and that the failure occurs before this task's strict-anchor path. Worker deploy-smoke readiness is therefore not claimed; no unrelated preload fix was folded into this commit.
 - Independent implementation re-review: the exact-settlement lock assertions and board-sync return proof were accepted after correction; the full-suite marker discovery was classified as a stale integration fixture, and the integer stored-anchor / numeric-string query split was accepted with no major or medium finding.
 - Browser operation: not run. Valid normal rendering/input/boot behavior did not change; browser/Vite builds, generated freshness, focused DOM-compat integration, E2E-inclusive full Jest, and network parity provide the selected proportional evidence.
-- Residual risks: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The unrelated Worker preload-order smoke failure also remains a separate deployment-readiness defect. Record the resulting commit hash in the final user report after commit creation.
 
-## 16. Final completion checklist
+### Post-implementation AI code-review correction evidence (in progress)
 
-- [x] User goal: the current safest/highest-leverage refactor has been implemented before riskier structural candidates.
-- [x] Design §5.2: accepted publish passes through real network-client exact settlement, operation identity, tracker, drain, and lock ordering.
-- [x] Design §5.3: shared primary and fallback footprint owners reject malformed stored anchors without changing valid footprints.
-- [x] Design §5.4: writer presentation drain is proven at its runtime owner and through the facade.
+- Initial marker/network focused command: registry and Board Executor passed; the strengthened network accessor assertion failed 3/16 cases because the JSDOM root did not expose the authoritative state held by the compatible global surface. After changing the accessor to the existing global resolver, the network suite passed 16/16.
+- Initial writer correction command: 3/4 suites and 56/57 tests passed. The one recovery-contract failure encoded the superseded behavior that generic readiness should settle a writer already reserved by a completed presentation drain. The test was corrected to require no premature settlement and to use explicit abandon; the first corrected rerun passed 4/4 suites and 65/65 tests.
+- Independent correction re-review then reproduced two more terminal gaps: reset during active settlement lost the new-session render, and strict failure before writer claim left the drain reservation dependent on later incidental cleanup. The runtime now requests a generation-aware fresh render and discards old-token invalidation after settlement; the outer presentation finally abandons idempotently on every outcome. The expanded writer/presentation rerun passed 4/4 suites and 67/67 tests.
+- Final diff review found that writer teardown alone did not stop backend lazy controller creation on a late render. `backend-runtime` now makes controller acquisition/configuration terminal after page destroy, and writer prepare/invalidation also reject. The render-submission regression plus the writer/presentation bundle passed 4/4 suites and 68/68 tests; `npm run typecheck` passed again.
+- `npx tsc --noEmit --pretty false`: passed after the corrected writer/runtime port implementation.
+- Remaining Step 9 gates and independent final re-review are not yet recorded as passed.
+- Residual risks: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy and the bounded Board Executor consumers without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The unrelated Worker preload-order smoke failure also remains a separate deployment-readiness defect. Record the follow-up commit hash in the final user report after commit creation.
+
+## 17. Final completion checklist
+
+- [ ] User goal: the reviewed correction is complete in addition to the original baseline restoration.
+- [ ] Design §5.2: accepted publish passes through real network-client exact settlement, current state access, operation identity, tracker, drain, terminal exactly-once assertions, and lock ordering.
+- [ ] Design §5.3: shared primary/fallback and Board Executor consumers reject malformed stored anchors without changing valid behavior.
+- [ ] Design §5.4: writer presentation drain is generation-safe and proven at runtime owner, controller, facade, and caller.
 - [x] Design §5.5: boot dependencies are checked semantically with the exact foundational subsequence and counts.
-- [x] Design §5.6: browser/Vite/Worker delivery is generated from root sources and verified through the plan's preparation, mirror, structural, parity, and full-suite gates.
-- [x] Design §11: all completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
-- [x] Full Jest exits successfully with zero failures; no known-red exception remains.
-- [x] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
-- [x] Plan/design execution records are current and the verified unit is ready to commit; commit completion and hash are reported after this document is recorded.
+- [ ] Design §5.6: browser/Vite/Worker delivery is regenerated from corrected root sources and verified through preparation, mirror, structural, parity, board-playback, and full-suite gates.
+- [ ] Design §11: corrected completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
+- [ ] Full Jest exits successfully with zero failures after the correction; no known-red exception remains.
+- [ ] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
+- [x] Plan/design records truthfully show correction work in progress; final verified/committed status remains pending.
 
-## 17. Self-review
+## 18. Self-review
 
 The first plan draft would have allowed the network bridge method itself to be replaced with a deferred fake. That contradicted the design goal because it skipped the network-client's `visualSeq`, `operationId`, session, and drain behavior. The plan now fixes the controllable boundary one layer lower and gives an exact pre-resolution/post-resolution assertion sequence.
 
@@ -551,8 +625,8 @@ Final review replaced arbitrary microtask flushing with explicit tracker/drain e
 
 The marker step was expanded to cover ordinary one-cell markers as well as the 2x2 stone and to force the registry's compatibility fallback through isolated module loading. It explicitly excludes other coordinate parsers and target-argument compatibility, preventing a small hardening change from becoming an unbounded normalization effort.
 
-The boot step now contains the complete 30-entry foundational ordered subsequence, uniqueness rules, critical edges, global exposure, intentional duplicate, and final entry, so the executor cannot satisfy it with a weak unordered presence check. The writer step likewise fixes the exact public-operation sequence and requires no product writer edit.
+The boot step contains the complete 30-entry foundational ordered subsequence, uniqueness rules, critical edges, global exposure, intentional duplicate, and final entry, so the executor cannot satisfy it with a weak unordered presence check. The original writer step expected no product edit; the requested AI review disproved that assumption with executable races, and Step 9 now limits the correction to lifecycle ownership rather than preserving a false non-goal.
 
-The writer fixture now states the `idle` mode and pending-idle preconditions that force the intended asynchronous claim branch, asserts the branch decision, and uses existing recovery behavior as the facade proof without adding another move-hostile source assertion. The verification record no longer asks for a commit hash before the single coherent commit exists; that hash belongs in the final report.
+The writer fixture states the `idle` mode and pending-idle preconditions that force the intended asynchronous claim branch, asserts the branch decision, and uses behavior rather than move-hostile source assertions. Step 9 replaces the insufficient one-microtask pending proof with a macrotask sentinel and adds replacement/reset/destroy/settlement coverage. The verification record does not claim the follow-up commit before it exists; that hash belongs in the final report.
 
 Finally, generation is ordered after all focused tests, Worker mirror preparation is run once, the extra build inside `checkall` is acknowledged, network parity precedes the long full suite, and the full suite has a zero-failure gate and explicit unexpected-failure protocol. The final documentation/status/commit step satisfies repository delivery rules without authorizing unrelated cleanup. No material architecture or test-design choice remains for the implementation model.

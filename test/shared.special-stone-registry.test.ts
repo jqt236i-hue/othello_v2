@@ -45,6 +45,11 @@ function expectExactStoredAnchorContract(registry: any) {
   ]);
   expect(registry.markerOccupiesCell(shinra, '3', '4')).toBe(true);
 
+  for (const nonMarker of [0, -0, null, undefined, false, '', []]) {
+    expect(registry.getSpecialStoneFootprint(nonMarker)).toEqual([]);
+    expect(registry.markerOccupiesCell(nonMarker, 0, 0)).toBe(false);
+  }
+
   for (const anchor of INVALID_STORED_ANCHORS) {
     const ordinaryInvalid = createOrdinaryMarker(anchor);
     const shinraInvalid = createShinraMarker(anchor);

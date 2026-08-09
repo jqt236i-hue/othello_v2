@@ -111,6 +111,60 @@ describe('盤界の執行者', () => {
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
   });
 
+  test('整数座標を持たない壊れたマーカーを使用条件や執行対象に数えない', () => {
+    const prng = createPrng();
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    cardState.hands.black = ['board_executor_01'];
+    cardState.charge.black = 0;
+    addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
+    addStone(cardState, gameState, 0, 1, 'white', 'TRAP', 'specialStone', { hidden: true });
+    cardState.markers.push({
+      id: 'malformed_2',
+      kind: 'bomb',
+      row: '0',
+      col: '2',
+      owner: 'black',
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 }
+    });
+
+    expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(false);
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(false);
+    expect(cardState.hands.black).toEqual(['board_executor_01']);
+    expect(cardState.nextBoardExecutorStoneByPlayer.black).toBeNull();
+    expect(cardState.markers).toHaveLength(3);
+  });
+
+  test('有効な3体だけを執行し、追加の文字列座標マーカーは変更しない', () => {
+    const prng = createPrng();
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    cardState.hands.black = ['board_executor_01'];
+    cardState.charge.black = 0;
+    addBoardExecutorRequirementStones(cardState, gameState);
+    gameState.board[1][1] = Shared.BLACK;
+    const malformed = {
+      id: 'malformed_extra',
+      kind: 'specialStone',
+      row: '1',
+      col: '1',
+      owner: 'black',
+      data: { type: 'PROTECTED' }
+    };
+    cardState.markers.push(malformed);
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
+    expect(cardState.markers).toContain(malformed);
+    expect(hasMarker(cardState, 'TRAP')).toBe(false);
+    expect(hasMarker(cardState, 'TIME_BOMB')).toBe(false);
+    expect(cardState.markers.filter((marker: any) => marker?.data?.type === 'PROTECTED')).toEqual([malformed]);
+    for (const [row, col] of [[0, 0], [0, 1], [0, 2]]) {
+      expect(gameState.board[row][col]).toBe(Shared.EMPTY);
+    }
+    expect(gameState.board[1][1]).toBe(Shared.BLACK);
+    expect(cardState.nextBoardExecutorStoneByPlayer.black).toEqual({ sourceType: 'BOARD_EXECUTOR' });
+  });
+
   test('使用時に罠・爆弾・強い石を含む全特殊石を穴にする', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
@@ -285,6 +339,35 @@ describe('盤界の執行者', () => {
       }));
       expect(cardState.charge.black).toBe(30 - expectedLost);
     }
+  });
+
+  test('文字列座標の盤界の執行者を稼働中として扱わず、手札税と持続減算を行わない', () => {
+    const prng = createPrng();
+    const cardState: any = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    cardState.charge.black = 30;
+    cardState.hands.black = ['c1', 'c2', 'c3'];
+    const malformed = {
+      id: 'malformed_executor',
+      kind: 'manifestStone',
+      row: '2',
+      col: '3',
+      owner: 'black',
+      data: { type: 'BOARD_EXECUTOR', remainingOwnerTurns: 4, inviolable: true }
+    };
+    cardState.markers.push(malformed);
+
+    expect(CardLogic.processBoardExecutorHandTaxAtTurnStart(cardState, gameState, 'black', prng)).toEqual({
+      applied: false,
+      lost: 0,
+      handCount: 0
+    });
+    expect(cardState.charge.black).toBe(30);
+    expect(CardLogic.processBoardExecutorMarkerAtTurnStart(cardState, gameState, 'black', '2', '3', prng)).toEqual({
+      applied: false,
+      expired: null
+    });
+    expect(malformed.data.remainingOwnerTurns).toBe(4);
   });
 
   test('所有者の反転布石を倍化せず、数字マス布石も通常どおり獲得する', () => {

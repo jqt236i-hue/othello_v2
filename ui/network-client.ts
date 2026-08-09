@@ -871,11 +871,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             await PlaybackStateModule.waitForVisualPlaybackDrain({
                 root,
                 getCardState: () => {
-                    try {
-                        return root && root.cardState ? root.cardState : null;
-                    } catch (e: any) {
-                        return null;
-                    }
+                    return resolveNetworkClientGlobal('cardState');
                 },
                 disableTimeout: true
             });

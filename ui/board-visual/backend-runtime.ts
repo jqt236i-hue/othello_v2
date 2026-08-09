@@ -47,6 +47,7 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
 
   let BoardVisualRuntimeForBoardRenderer: any = null;
   let BoardVisualBackendTestConfigForBoardRenderer: any = null;
+  let BoardVisualPageRuntimeDestroyedForBoardRenderer = false;
 
   const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
     'pixi_runtime_unavailable',
@@ -82,6 +83,9 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   }
 
   function configureBoardVisualBackendForTest(options?: any) {
+      if (BoardVisualPageRuntimeDestroyedForBoardRenderer) {
+          throw new Error('Board visual backend runtime is destroyed');
+      }
       if (!_isBoardVisualTestInjectionAllowedForBoardRenderer()) {
           throw new Error('Board visual backend injection is available only to an explicit test harness');
       }
@@ -502,6 +506,7 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   }
 
   function getBoardVisualController() {
+      if (BoardVisualPageRuntimeDestroyedForBoardRenderer) return null;
       if (!BoardVisualRuntimeForBoardRenderer) {
           BoardVisualRuntimeForBoardRenderer = _createBoardVisualRuntimeForBoardRenderer();
       }
@@ -509,6 +514,9 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   }
 
   function configureBoardVisualController(controller: any, options?: any) {
+      if (BoardVisualPageRuntimeDestroyedForBoardRenderer) {
+          throw new Error('Board visual backend runtime is destroyed');
+      }
       if (!controller || typeof controller.submitFrame !== 'function') {
           throw new Error('configureBoardVisualController requires a controller');
       }
@@ -551,6 +559,7 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   }
 
   function destroyPageRuntime(): void {
+    BoardVisualPageRuntimeDestroyedForBoardRenderer = true;
     const runtime = BoardVisualRuntimeForBoardRenderer;
     if (!runtime) {
       BoardVisualBackendTestConfigForBoardRenderer = null;

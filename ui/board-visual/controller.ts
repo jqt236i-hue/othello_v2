@@ -1161,6 +1161,9 @@ function createBoardVisualController(options: {
     },
     reclaimWriter(token: BoardWriterToken, frameToken: string, writerMode: 'local' | 'network'): BoardWriterToken {
       assertToken(token);
+      if (localWriterSettlement) {
+        throw new Error('Cannot reclaim a board writer during async local settlement');
+      }
       if (!ready) throw new Error('Cannot reclaim board visual writer before backend readiness');
       if (mode !== 'playback') throw new Error('Board writer reclaim requires playback mode');
       activeToken = Object.freeze({ id: ++tokenSequence, frameToken: String(frameToken), mode: writerMode });
