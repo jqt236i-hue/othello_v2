@@ -1,6 +1,6 @@
 # Worker/local room-deck contract convergence implementation plan
 
-- Status: implementation in progress; Steps 0–5 complete, final verification pending
+- Status: complete; Steps 0–7 implemented, verified, independently reviewed, and committed
 - Date: 2026-08-09
 - Design authority: `docs/implementation/worker-local-room-deck-contract-convergence-design.md`
 - Scope: characterization-first convergence of normalized room-deck / initial-deck transformations; no player rule, wire schema, saved format, preload repair, or deployment change
@@ -399,13 +399,13 @@ git diff -- docs/implementation/worker-local-room-deck-contract-convergence-desi
 - [x] Design §5.4: selection calculation is pure and room patch application is atomic.
 - [x] Design §5.5: public projection cannot receive or leak private deck specs.
 - [x] Create, join, default, all-cards, one-/two-seat custom, update, reset/rematch, timeout rebuild, state, spectator, publish, and stream scenarios pass in the focused bundle.
-- [ ] `stateVersion`, `operationId`, idempotency, save/broadcast order, and privacy are unchanged.
+- [x] `stateVersion`, `operationId`, idempotency, save/broadcast order, and privacy are unchanged.
 - [x] Runtime-specific sync/async deck decode remains outside the core.
 - [x] Single-owner structural guard passes.
 - [x] Architecture contract is updated; rulebook and `正本` remain unchanged.
-- [ ] Focused tests, both parity bundles, typecheck/build, prepare/mirror, executable bundle smoke, `checkall`, and full Jest pass.
-- [ ] Generated output comes only from repository scripts.
-- [ ] Final task-owned diff/status is inspected and coherent commits exist.
+- [x] Focused tests, both parity bundles, typecheck/build, prepare/mirror, executable bundle smoke, `checkall`, and full Jest pass.
+- [x] Generated output comes only from repository scripts.
+- [x] Final task-owned diff/status is inspected and coherent commits exist.
 
 ## 12. Execution record
 
@@ -423,6 +423,13 @@ Design-time evidence only; implementation results must be appended rather than r
 - Step 3 Worker migration: Worker raw normalization/decode remained in the adapter while normalized construction, options, patching, size rules, and public projection delegated to the core. After `npm run build:ts`, the helper/Worker/local/parity bundle passed 4 suites / 19 tests with local still on its original implementation.
 - Step 4 local migration: local synchronous decode and raw normalization remained adapter-owned. `projectLegacyUnknownModeRoomDeck()` alone preserves non-empty unsupported raw modes, including padded supported spellings; supported and empty modes delegate. The same 4-suite / 19-test bundle passed after build.
 - Step 5 ownership and stable contract: the AST guard plus unit/runtime parity passed 3 suites / 25 tests. `docs/architecture-contracts.md` §8.4.2 now names the owner and narrows §13 debt. The expanded controller, create/join/update/reset/timeout, spectator, publish, and stream bundle passed 15 suites / 89 tests after typecheck and build.
+- Step 6 cross-runtime verification: final `npm run typecheck` and `npm run build:ts` passed. `npm run test:match:parity` passed 11 suites / 158 tests and `npm run test:network:parity` passed 36 suites / 581 tests. The latter retained the repository's existing post-run open-handle warning without a failed suite.
+- Step 6 delivery verification: `npm run worker:prepare` completed with 1084 registered modules and a 960-file mirror; `npm run check:worker-mirror`, `npm run worker:bundle:smoke`, and `npm run checkall` passed. Bundle smoke exercised poison `AUTO`, `DOUBLE_PLACE`, and create/join/state/leave. `checkall` retained the existing Vite chunk-size warning without a failed gate.
+- Step 6 full regression: `npm run test:jest -- --silent` passed 1020 suites / 7642 tests in 981.089 seconds with exit code 0. The first full-Jest cell also completed, but its final aggregate output was unavailable after the execution cell closed; the suite was therefore rerun rather than treating an unrecorded result as proof.
+- Generated delivery was produced only by repository scripts and committed in `856f6ba9d`. Inspection showed only the new `utils/match-room-deck` startup/registry entry, matching root/Worker cachebusters, and the corresponding Vite chunk/manifest rename; `git diff --check` passed.
+- Step 7 independent review of `2aa86b19d^..856f6ba9d` reported no major or medium finding. It confirmed supported-path ordering, empty/absent/0-card preservation, helper idempotency, the isolated local unknown/padded-mode fallback, public-projection privacy, atomic cloned patches, unchanged raw boundary types, and generated-delivery consistency. The review was deliberately read-only and did not rerun tests or generation.
+- The coherent implementation sequence is `2aa86b19d`, `fc33daf5a`, `55d4c869f`, `ce91b18a8`, `ba4891ffe`, and `856f6ba9d`, after the separately committed start-gate work `87978034e`, `51924c95a`, and `4f81fbacd`. The documentation close is the final task-owned commit and its hash is reported in the completion response to avoid a circular self-reference.
+- Browser operation was not added as a separate gate because this refactor changes no player-visible behavior, client payload, board writer, or interaction path. Browser/Vite generation, Worker mirror verification, executable Worker smoke, focused network tests, and the full Jest run (including E2E suites) provide the proportional runtime evidence.
 
 ## 13. Self-review
 
