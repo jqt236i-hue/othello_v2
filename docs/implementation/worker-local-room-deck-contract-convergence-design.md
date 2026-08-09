@@ -163,17 +163,29 @@ interface MatchRoomDeckMetadata {
   deckSizeByPlayer: MatchRoomDeckSeatMap<number | null>;
 }
 
-interface MatchRoomDeckSelection {
+type MatchRoomDeckSpec = object;
+
+interface MatchRoomDeckCustomSelection {
   ok: true;
-  hasCustomDeck: boolean;
-  deckSpec: unknown | null;
+  hasCustomDeck: true;
+  deckSpec: MatchRoomDeckSpec;
   deckCode: string;
   deckSize: number | null;
 }
 
+interface MatchRoomDeckDefaultSelection {
+  ok: true;
+  hasCustomDeck: false;
+  deckSpec: null;
+  deckCode: '';
+  deckSize: null;
+}
+
+type MatchRoomDeckSelection = MatchRoomDeckCustomSelection | MatchRoomDeckDefaultSelection;
+
 interface MatchRoomDeckSelectionPatch {
   initialDeckSpec: null;
-  initialDeckSpecByPlayer: MatchRoomDeckSeatMap<unknown | null> | null;
+  initialDeckSpecByPlayer: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null> | null;
   roomDeck: MatchRoomDeckMetadata | null;
 }
 ```
@@ -188,7 +200,7 @@ The module owns these operations:
 6. project public `roomDeck` from normalized metadata plus snapshot deck-size facts;
 7. normalize the exact scalar deck-size rule already shared by both runtimes.
 
-Every core operation accepts only its declared normalized types. A `null` result represents a valid domain state only where the signature explicitly permits absence, such as no public room-deck metadata. If a JavaScript caller bypasses the TypeScript boundary with a structurally invalid normalized DTO, the operation throws `TypeError`; it does not coerce the value, return a success-shaped fallback, or reinterpret an unknown mode. Adapters validate raw input before the call.
+Every core operation accepts only its declared normalized types. Deck specs are non-null objects or arrays; primitive values are invalid. Card-ID arrays are dense and contain only non-empty, already-trimmed strings. A custom selection requires an object/array spec and non-empty canonical deck code, while a default selection requires `deckSpec: null`, `deckCode: ''`, and `deckSize: null`. A `null` result represents a valid domain state only where the signature explicitly permits absence, such as no public room-deck metadata. If a JavaScript caller bypasses the TypeScript boundary with a structurally invalid normalized DTO, the operation throws `TypeError`; it does not coerce the value, return a success-shaped fallback, or reinterpret an unknown mode. Adapters validate raw input before the call.
 
 ### 5.2 Raw adapter boundary
 

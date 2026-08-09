@@ -77,6 +77,14 @@ function runBundledAuthorityScenarios(bundleModuleUrl: string): any {
         "const bundleUrl = process.argv[1];",
         "const root = process.argv[2];",
         "const bundled = await import(bundleUrl);",
+        "const bundledCardUtils = globalThis.CardUtils;",
+        "if (!bundledCardUtils || typeof bundledCardUtils.addChargeWithDelta !== 'function') {",
+        "  throw new Error('bundled CardUtils.addChargeWithDelta is unavailable');",
+        "}",
+        "const bundledChargeState = { charge: { black: 0, white: 0 } };",
+        "const bundledChargeResult = bundledCardUtils.addChargeWithDelta(",
+        "  bundledChargeState, 'black', 5, 'worker_bundle_smoke'",
+        ");",
         "const rootRequire = createRequire(import.meta.url);",
         "const MatchRoomDurableObject = bundled.MatchRoomDurableObjectV3 || bundled.MatchRoomDurableObject;",
         "if (typeof MatchRoomDurableObject !== 'function') throw new Error('bundled Durable Object export is unavailable');",
@@ -183,6 +191,7 @@ function runBundledAuthorityScenarios(bundleModuleUrl: string): any {
         "});",
         "const continuationPublished = await continuationPublishResponse.json();",
         "process.stdout.write(JSON.stringify({",
+        "  cardUtilsCharge: { result: bundledChargeResult, state: bundledChargeState },",
         "  poison: { status: publishResponse.status, payload: published },",
         "  doublePlace: { status: continuationPublishResponse.status, payload: continuationPublished }",
         "}));"
@@ -216,6 +225,26 @@ function verifyBundledAuthorityScenarios(): void {
         const moduleFile = path.join(bundleDirectory, 'match-worker.bundle-smoke.mjs');
         fs.copyFileSync(bundleFile, moduleFile);
         const result = runBundledAuthorityScenarios(pathToFileURL(moduleFile).href);
+        const cardUtilsCharge = result && result.cardUtilsCharge;
+        const chargeResult = cardUtilsCharge && cardUtilsCharge.result;
+        const chargeState = cardUtilsCharge && cardUtilsCharge.state;
+        assertTrue(
+            chargeResult
+            && chargeResult.changed === true
+            && chargeResult.before === 0
+            && chargeResult.after === 5
+            && chargeResult.delta === 5
+            && chargeState
+            && chargeState.charge
+            && chargeState.charge.black === 5
+            && Array.isArray(chargeState.chargeDeltaEvents)
+            && chargeState.chargeDeltaEvents.length === 1
+            && chargeState.chargeDeltaEvents[0].player === 'black'
+            && chargeState.chargeDeltaEvents[0].delta === 5,
+            `bundled CardUtils charge update failed: ${JSON.stringify(cardUtilsCharge)}`
+        );
+        console.log('[worker-bundle-smoke] bundled CardUtils charge update passed');
+
         const poison = result && result.poison;
         const pending = poison
             && poison.payload

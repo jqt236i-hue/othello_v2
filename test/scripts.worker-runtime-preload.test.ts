@@ -26,7 +26,7 @@ describe('worker runtime preload checks', () => {
     expect(`${result.stdout}${result.stderr}`).toContain('pixiExcludedGraphFiles=');
   });
 
-  test('requires CardMarkers and its adapter dependencies before strict consumers', () => {
+  test('requires preload-time dependencies before CardUtils and strict marker consumers', () => {
     const source = fs.readFileSync(
       path.join(ROOT, 'workers', 'match-worker-runtime-preload.ts'),
       'utf8'
@@ -34,6 +34,17 @@ describe('worker runtime preload checks', () => {
     const registrations = collectRuntimePreloadRegistrations(source);
 
     expect(() => assertRuntimeRegistrationOrder(registrations)).not.toThrow();
+    const ownerHelpersIndex = registrations.findIndex((entry: any) => entry.globalKey === 'OwnerHelpers');
+    const cardUtilsIndex = registrations.findIndex((entry: any) => entry.globalKey === 'CardUtils');
+    expect(ownerHelpersIndex).toBeGreaterThanOrEqual(0);
+    expect(cardUtilsIndex).toBeGreaterThan(ownerHelpersIndex);
+
+    const brokenCardUtilsOrder = registrations.slice();
+    const [ownerHelpers] = brokenCardUtilsOrder.splice(ownerHelpersIndex, 1);
+    brokenCardUtilsOrder.splice(cardUtilsIndex, 0, ownerHelpers);
+    expect(() => assertRuntimeRegistrationOrder(brokenCardUtilsOrder))
+      .toThrow(/runtime dependency must preload first: OwnerHelpers -> CardUtils/);
+
     const cardMarkersIndex = registrations.findIndex((entry: any) => entry.globalKey === 'CardMarkers');
     const broken = registrations.slice();
     const [cardMarkers] = broken.splice(cardMarkersIndex, 1);

@@ -23,6 +23,12 @@ const REQUIRED_BOARD_CONTRACT_STATIC_CHAIN = Object.freeze([
     'shared/board/state-kernel.ts'
 ]);
 const REQUIRED_RUNTIME_REGISTRATION_ORDER = Object.freeze([
+    ['PlayerSeatContract', 'OwnerHelpers'],
+    ['SharedConstants', 'CardUtils'],
+    ['SpecialStoneRegistry', 'CardUtils'],
+    ['ManifestStoneRegistry', 'CardUtils'],
+    ['SharedBoardUtils', 'CardUtils'],
+    ['OwnerHelpers', 'CardUtils'],
     ['MarkersAdapter', 'CardMarkers'],
     ['CardUtils', 'CardMarkers'],
     ['CardMarkers', 'CardMeteorGod'],

@@ -2,6 +2,7 @@ import deepClone from './deepClone.js';
 
 export type MatchRoomDeckSeatKey = 'black' | 'white';
 export type MatchRoomDeckMode = 'shared' | 'perPlayer';
+export type MatchRoomDeckSpec = object;
 
 export interface MatchRoomDeckSeatMap<T> {
     black: T;
@@ -17,36 +18,48 @@ export interface MatchRoomDeckMetadata {
     deckSizeByPlayer: MatchRoomDeckSeatMap<number | null>;
 }
 
-export interface MatchRoomDeckSelectionSuccess {
+export interface MatchRoomDeckCustomSelectionSuccess {
     ok: true;
-    hasCustomDeck: boolean;
-    deckSpec: unknown | null;
+    hasCustomDeck: true;
+    deckSpec: MatchRoomDeckSpec;
     deckCode: string;
     deckSize: number | null;
 }
 
+export interface MatchRoomDeckDefaultSelectionSuccess {
+    ok: true;
+    hasCustomDeck: false;
+    deckSpec: null;
+    deckCode: '';
+    deckSize: null;
+}
+
+export type MatchRoomDeckSelectionSuccess =
+    | MatchRoomDeckCustomSelectionSuccess
+    | MatchRoomDeckDefaultSelectionSuccess;
+
 export interface MatchRoomDeckSelectionState {
-    initialDeckSpec: unknown | null;
-    initialDeckSpecByPlayer: MatchRoomDeckSeatMap<unknown | null> | null;
+    initialDeckSpec: MatchRoomDeckSpec | null;
+    initialDeckSpecByPlayer: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null> | null;
     roomDeck: MatchRoomDeckMetadata | null;
 }
 
 export interface MatchRoomDeckSelectionPatch {
     initialDeckSpec: null;
-    initialDeckSpecByPlayer: MatchRoomDeckSeatMap<unknown | null> | null;
+    initialDeckSpecByPlayer: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null> | null;
     roomDeck: MatchRoomDeckMetadata | null;
 }
 
 export interface MatchRoomDeckInitialSource {
     initialDeckCardIdsByPlayer: MatchRoomDeckSeatMap<readonly string[] | null>;
-    initialDeckSpecByPlayer: MatchRoomDeckSeatMap<unknown | null>;
-    initialDeckSpec: unknown | null;
+    initialDeckSpecByPlayer: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null>;
+    initialDeckSpec: MatchRoomDeckSpec | null;
 }
 
 export interface MatchRoomDeckInitialOptions {
     initialDeckCardIdsByPlayer?: MatchRoomDeckSeatMap<string[] | null>;
-    initialDeckSpecByPlayer?: MatchRoomDeckSeatMap<unknown | null>;
-    initialDeckSpec?: unknown;
+    initialDeckSpecByPlayer?: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null>;
+    initialDeckSpec?: MatchRoomDeckSpec;
     boardConfig?: unknown;
 }
 
@@ -106,18 +119,23 @@ function assertNormalizedDeckCode(value: unknown, name: string): asserts value i
 function assertNormalizedCardIds(value: unknown, name: string): asserts value is readonly string[] | null {
     if (value === null) return;
     if (!Array.isArray(value)) fail(`${name} must be an array or null`);
-    value.forEach((cardId, index) => {
+    for (let index = 0; index < value.length; index += 1) {
+        if (!Object.prototype.hasOwnProperty.call(value, index)) {
+            fail(`${name}[${index}] must be present`);
+        }
+        const cardId = value[index];
         if (typeof cardId !== 'string' || !cardId || cardId !== cardId.trim()) {
             fail(`${name}[${index}] must be a non-empty normalized string`);
         }
-    });
+    }
 }
 
-function assertNormalizedDeckSpec(value: unknown, name: string): void {
-    if (typeof value === 'undefined') fail(`${name} must use null for absence`);
+function assertNormalizedDeckSpec(value: unknown, name: string): asserts value is MatchRoomDeckSpec | null {
+    if (value === null) return;
+    if (typeof value !== 'object') fail(`${name} must be an object, array, or null`);
 }
 
-function assertNormalizedDeckSpecValue(value: unknown, name: string): asserts value is unknown | null {
+function assertNormalizedDeckSpecValue(value: unknown, name: string): asserts value is MatchRoomDeckSpec | null {
     assertNormalizedDeckSpec(value, name);
 }
 
@@ -179,8 +197,8 @@ export function cloneRoomDeckCardIdsByPlayer(
 }
 
 export function cloneRoomDeckSpecByPlayer(
-    value: MatchRoomDeckSeatMap<unknown | null>
-): MatchRoomDeckSeatMap<unknown | null> {
+    value: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null>
+): MatchRoomDeckSeatMap<MatchRoomDeckSpec | null> {
     assertSeatMap(value, 'initialDeckSpecByPlayer', assertNormalizedDeckSpecValue);
     return {
         black: value.black === null ? null : deepClone(value.black),
@@ -265,11 +283,16 @@ export function buildRoomDeckSelectionPatch(
     assertNormalizedDeckCode(selection.deckCode, 'selection.deckCode');
     assertNormalizedDeckSize(selection.deckSize, 'selection.deckSize');
     assertNormalizedDeckSpec(selection.deckSpec, 'selection.deckSpec');
-    if (selection.hasCustomDeck && selection.deckSpec === null) {
-        fail('custom selection requires deckSpec');
+    if (selection.hasCustomDeck) {
+        if (selection.deckSpec === null) fail('custom selection requires deckSpec');
+        if (!selection.deckCode || selection.deckCode !== selection.deckCode.trim()) {
+            fail('custom selection requires a normalized non-empty deckCode');
+        }
+    } else if (selection.deckSpec !== null || selection.deckCode !== '' || selection.deckSize !== null) {
+        fail('default selection must not contain custom deck fields');
     }
 
-    let initialDeckSpecByPlayer: MatchRoomDeckSeatMap<unknown | null>;
+    let initialDeckSpecByPlayer: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null>;
     if (current.initialDeckSpecByPlayer !== null) {
         initialDeckSpecByPlayer = cloneRoomDeckSpecByPlayer(current.initialDeckSpecByPlayer);
     } else if (current.initialDeckSpec !== null) {

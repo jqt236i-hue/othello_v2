@@ -160,6 +160,8 @@ Navigation opens a separate top-level tab with `noopener` and `noreferrer`. It d
 
 `workers/match-worker.ts` consumes and validates the exported registry. It must not maintain a second module-loader map or parallel card / turn / playback dependency lists. Adding or removing a Worker runtime-global dependency is therefore a one-file registration change.
 
+A runtime module that captures another runtime global during module evaluation must be registered after that dependency. The preload checker records those dependency edges, and the executable bundle smoke must exercise the captured behavior with ambient `require` unavailable; registration presence alone is not proof that the bundled module received its dependencies.
+
 `npm run worker:prepare` must reject duplicate or structurally divergent preload ownership, and `npm run worker:deploy` must run the generated Worker bundle through create / join / authenticated state / leave smoke checks before publishing.
 
 ### 5.3 Lv6 CPU training/runtime profile contract
@@ -583,7 +585,7 @@ Command execution creates the current command's `chargeDeltaEvents` during share
 
 ### 8.4.2 Worker / local room-deck transformation
 
-`utils/match-room-deck.ts` is the single synchronous, deterministic owner of normalized room-deck metadata construction, per-seat selection patch calculation, initial-deck option projection, scalar deck-size normalization, and every supported public `roomDeck` projection. It accepts only explicit normalized DTOs and size facts; it owns no deck-code decode, HTTP, storage, version, operation identity, viewer authentication, timer, random source, or presentation behavior.
+`utils/match-room-deck.ts` is the single synchronous, deterministic owner of normalized room-deck metadata construction, per-seat selection patch calculation, initial-deck option projection, scalar deck-size normalization, and every supported public `roomDeck` projection. It accepts only explicit normalized DTOs and size facts; deck specs are non-null objects or arrays, card-ID arrays are dense normalized strings, custom selections carry a non-empty canonical deck code, and default selections carry no custom fields. It owns no deck-code decode, HTTP, storage, version, operation identity, viewer authentication, timer, random source, or presentation behavior.
 
 `workers/match-worker.ts` and `scripts/local-match-server.ts` remain raw/runtime adapters. Worker retains asynchronous deck module loading and decode; local retains synchronous `DeckCodecModule` / `DeckSpecHelpers` decode. Each adapter validates or normalizes raw persisted/request values, resolves `roomBoardConfig` through `MatchAuthority`, delegates the canonical transformation, then applies the returned selection patch synchronously as one complete room update before the existing save/broadcast sequence. Existing controller capability names may remain adapter wrappers but must not contain a second canonical transform body.
 

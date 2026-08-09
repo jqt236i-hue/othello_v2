@@ -48,6 +48,7 @@ describe('match-room-deck pure contract', () => {
     expect(() => cloneRoomDeckCardIdsByPlayer({ black: [' card-a '], white: [] })).toThrow(TypeError);
     expect(cloneRoomDeckSpecByPlayer({ black: [], white: null })).toEqual({ black: [], white: null });
     expect(() => cloneRoomDeckSpecByPlayer({ black: undefined, white: null } as any)).toThrow(TypeError);
+    expect(() => cloneRoomDeckSpecByPlayer({ black: 'not-a-spec', white: null } as any)).toThrow(TypeError);
   });
 
   test('builds all-cards metadata from explicit per-seat arrays including zero cards', () => {
@@ -63,6 +64,9 @@ describe('match-room-deck pure contract', () => {
     expect(isAllCardsDeckRoom(true, null)).toBe(true);
     expect(isAllCardsDeckRoom(false, 'room')).toBe(false);
     expect(() => isAllCardsDeckRoom(false, 1 as any)).toThrow(TypeError);
+
+    const sparseCardIds = new Array<string>(1);
+    expect(() => createAllCardsRoomDeckMetadata({ black: sparseCardIds, white: [] })).toThrow(TypeError);
   });
 
   test('builds fresh initial options without collapsing empty arrays or empty specs', () => {
@@ -227,7 +231,29 @@ describe('match-room-deck pure contract', () => {
       deckSpec: null,
       deckCode: '',
       deckSize: 0
+    } as any)).toThrow(TypeError);
+    expect(() => buildRoomDeckSelectionPatch({
+      initialDeckSpec: null,
+      initialDeckSpecByPlayer: null,
+      roomDeck: null
+    }, 'black', {
+      ok: true,
+      hasCustomDeck: true,
+      deckSpec: {},
+      deckCode: '',
+      deckSize: null
     })).toThrow(TypeError);
+    expect(() => buildRoomDeckSelectionPatch({
+      initialDeckSpec: null,
+      initialDeckSpecByPlayer: null,
+      roomDeck: null
+    }, 'black', {
+      ok: true,
+      hasCustomDeck: false,
+      deckSpec: {},
+      deckCode: 'CUSTOM',
+      deckSize: 0
+    } as any)).toThrow(TypeError);
     expect(() => projectPublicRoomDeck({
       ...perPlayerMetadata(),
       mode: 'legacy' as any

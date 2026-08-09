@@ -92,7 +92,8 @@ import {
     createAllCardsRoomDeckMetadata as createCanonicalAllCardsRoomDeckMetadata,
     isAllCardsDeckRoom as classifyAllCardsDeckRoom,
     normalizeRoomDeckSize,
-    projectPublicRoomDeck
+    projectPublicRoomDeck,
+    type MatchRoomDeckSelectionSuccess
 } from '../utils/match-room-deck';
 import {
     isMatchAutoTurnPublishBody,
@@ -1158,7 +1159,7 @@ function toPublicSeatHandSkins(room: MatchWorkerRoomState | null | undefined) {
     return buildPublicSeatState(room).seatHandSkins;
 }
 
-function cloneInitialDeckSpecByPlayer(value: unknown): MatchWorkerSeatValueMap<unknown | null> {
+function cloneInitialDeckSpecByPlayer(value: unknown): MatchWorkerSeatValueMap<object | null> {
     const source = asRecord(value);
     return cloneRoomDeckSpecByPlayer({
         black: (source.black && typeof source.black === 'object') ? source.black : null,
@@ -1270,6 +1271,28 @@ function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, 
     const normalizedSeatKey = normalizePlayerKey(seatKey);
     if (!normalizedSeatKey) return false;
     const currentInitialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room.initialDeckSpecByPlayer);
+    let normalizedSelection: MatchRoomDeckSelectionSuccess;
+    if (deckSelection.hasCustomDeck === true) {
+        const deckSpec = deckSelection.deckSpec;
+        if (!deckSpec || typeof deckSpec !== 'object') {
+            throw new TypeError('match-worker: successful custom deck selection requires deckSpec');
+        }
+        normalizedSelection = {
+            ok: true,
+            hasCustomDeck: true,
+            deckSpec,
+            deckCode: String(deckSelection.deckCode || '').trim(),
+            deckSize: normalizeRoomDeckSize(deckSelection.deckSize)
+        };
+    } else {
+        normalizedSelection = {
+            ok: true,
+            hasCustomDeck: false,
+            deckSpec: null,
+            deckCode: '',
+            deckSize: null
+        };
+    }
     const patch = buildRoomDeckSelectionPatch({
         initialDeckSpec: (room.initialDeckSpec && typeof room.initialDeckSpec === 'object')
             ? room.initialDeckSpec
@@ -1278,15 +1301,7 @@ function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, 
             currentInitialDeckSpecByPlayer.black !== null || currentInitialDeckSpecByPlayer.white !== null
         ) ? currentInitialDeckSpecByPlayer : null,
         roomDeck: normalizeRoomDeckMetadata(room.roomDeck)
-    }, normalizedSeatKey, {
-        ok: true,
-        hasCustomDeck: deckSelection.hasCustomDeck === true,
-        deckSpec: deckSelection.hasCustomDeck === true && deckSelection.deckSpec && typeof deckSelection.deckSpec === 'object'
-            ? deckSelection.deckSpec
-            : null,
-        deckCode: deckSelection.hasCustomDeck === true ? String(deckSelection.deckCode || '').trim() : '',
-        deckSize: deckSelection.hasCustomDeck === true ? normalizeRoomDeckSize(deckSelection.deckSize) : null
-    });
+    }, normalizedSeatKey, normalizedSelection);
     room.initialDeckSpec = patch.initialDeckSpec;
     room.initialDeckSpecByPlayer = patch.initialDeckSpecByPlayer;
     room.roomDeck = patch.roomDeck;
