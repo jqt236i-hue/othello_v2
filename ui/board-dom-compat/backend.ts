@@ -34,6 +34,8 @@ function createDomBoardVisualBackend(options?: {
   let host: HTMLElement | null = null;
   let diagnostics: BoardVisualBackendDeps['diagnostics'] = undefined;
   let lastFrame: BoardVisualFrame | null = null;
+  let lifecycleGeneration = 0;
+  let destroyed = false;
   const runtimeHandlers = !options?.playPhase
     ? DomRuntime.createDomBoardPlaybackHandlers({
       getBoardElement: () => host,
@@ -134,6 +136,12 @@ function createDomBoardVisualBackend(options?: {
     0
   );
 
+  const assertMountLifecycleCurrent = (generation: number): void => {
+    if (destroyed || generation !== lifecycleGeneration) {
+      throw new Error('DOM board backend is destroyed');
+    }
+  };
+
   const isComputedStyleReady = (): boolean => {
     if (!host) return false;
     const firstCell = host.querySelector<HTMLElement>('.cell[data-row][data-col]');
@@ -171,12 +179,16 @@ function createDomBoardVisualBackend(options?: {
   return {
     kind: 'dom' as const,
     async mount(nextHost: HTMLElement, deps: BoardVisualBackendDeps) {
+      if (destroyed) throw new Error('DOM board backend is destroyed');
+      const generation = lifecycleGeneration;
       if (host && host !== nextHost) throw new Error('DOM board backend cannot mount twice');
       if (options && typeof options.prepareStylesheet === 'function') {
         await options.prepareStylesheet(nextHost.ownerDocument);
+        assertMountLifecycleCurrent(generation);
       }
       if (options && typeof options.prepareStoneVisuals === 'function') {
         const result = await options.prepareStoneVisuals(nextHost.ownerDocument);
+        assertMountLifecycleCurrent(generation);
         if (!result || result.success !== true) {
           const failedCount = Array.isArray(result?.failed) ? result.failed.length : 0;
           const error: any = new Error(
@@ -195,6 +207,7 @@ function createDomBoardVisualBackend(options?: {
           throw error;
         }
       }
+      assertMountLifecycleCurrent(generation);
       host = nextHost;
       const now = nextHost.ownerDocument.defaultView?.performance?.now;
       if (typeof now === 'function') {
@@ -262,6 +275,9 @@ function createDomBoardVisualBackend(options?: {
       requireCompatibilityRenderer().resetRenderStats();
     },
     destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      lifecycleGeneration += 1;
       if (runtimeHandlers && typeof runtimeHandlers.destroy === 'function') runtimeHandlers.destroy();
       diagnostics?.record('dom:destroyed');
       host = null;

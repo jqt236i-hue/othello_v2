@@ -1,12 +1,13 @@
 # Full regression contract convergence design
 
-- Status: implemented, verified, and committed
+- Status: post-delivery teardown correction verified; implementation commit pending
 - Date: 2026-08-09
+- Last updated: 2026-08-10
 - Document role: the implementation design for restoring a zero-known-failure regression baseline before any further structural refactor
-- Target: the four initially reproducible failing Jest suites, their nineteen failures, the dependent compatibility assertion exposed by strict-anchor convergence, and the concrete marker/network/writer defects exposed by the post-implementation AI code review
+- Target: the four initially reproducible failing Jest suites, their nineteen failures, the dependent compatibility assertion exposed by strict-anchor convergence, and the concrete marker/network/writer/board-backend lifecycle defects exposed by post-implementation AI code review
 - Sources of truth: root `AGENTS.md`, the nearest directory `AGENTS.md` files, `docs/architecture-contracts.md` §§6.2.1, 6.4, 7.2, 7.3, 8.1, 9.1, 11, and 12, the current root implementation, and the tests named in this document
 - Player-visible specification: unchanged; `01-rulebook.md` and `正本/*.md` are not edited
-- Non-goals: valid gameplay or card-rule changes, network payload/protocol changes, boot-order changes, removal of compatibility globals repo-wide, broad malformed-state normalization, giant-file splitting, Worker/local room-deck unification, Pixi scene decomposition, generated-file source edits, and Git-history rewriting. The reviewed correction may change only the bounded marker consumers, network state accessor, and board-writer lifecycle owners required by reproduced defects.
+- Non-goals: valid gameplay or card-rule changes, network payload/protocol changes, boot-order changes, removal of compatibility globals repo-wide, broad malformed-state normalization, giant-file splitting, Worker/local room-deck unification, Pixi scene decomposition, generated-file source edits, and Git-history rewriting. The reviewed corrections may change only the bounded marker consumers, network state accessor, board-writer lifecycle owners, and backend teardown owners required by reproduced defects.
 
 ## 1. Problem and desired outcome
 
@@ -216,6 +217,10 @@ Post-implementation correction adds these owner rules:
 
 The terminal destroy rule is enforced at both layers that can initiate work. `writer-runtime` rejects readiness, claim, playback preparation, and invalidation after destruction. `backend-runtime.getController()` returns `null` after page teardown and configuration APIs reject, so `render-submission-runtime` exits before writer preparation instead of lazily constructing a new backend/controller.
 
+Post-delivery review extended that same terminal rule across already-started fallback work. A boolean checked only after an await is insufficient: a compatibility payload, stylesheet, replacement mount, or recovery wait may never settle, leaving public readiness pending after page destruction. `backend-runtime` therefore owns one page-lifecycle cancellation promise and races every fallback-relevant loader/controller await against it. Page destroy rejects already-returned initial readiness and context-fallback promises immediately, and destroy-caused failure never opens the reload-required surface.
+
+Cancellation of the public wait does not cancel the underlying JavaScript promise. If a replacement backend finishes mounting later, `BoardVisualController.replaceBackend()` must detect its stale lifecycle epoch before any checkpoint, host-attribute, recovery, or diagnostic mutation and destroy the replacement again to collect resources acquired after the first destroy. The real DOM compatibility backend also owns a terminal mount generation: it checks that generation after stylesheet preparation, after stone-visual preparation, and immediately before taking the host or diagnostics. These two defenses cover arbitrary backend ports and the concrete DOM backend without adding another writer or fallback path.
+
 `test/ui.board-renderer.recovery-contract.test.ts` remains the end-to-end facade proof. `test/ui.presentation-handler.playback-claim.test.ts` must behaviorally prove that the drain-specific readiness method is selected and awaited while the generic method is not called. The renderer port includes the drain-specific method as an optional compatibility capability because the caller intentionally retains its generic fallback. Do not add a replacement private source-text assertion.
 
 ### 5.5 Replace the arbitrary boot prefix with dependency semantics
@@ -341,6 +346,8 @@ Run the four known failing suites together first, then the direct owner/characte
 - `test/ui.board-visual.runtime-lifecycle.test.ts`;
 - `test/ui.board-renderer.recovery-contract.test.ts`;
 - `test/ui.board-visual-controller-settlement.test.ts`;
+- `test/ui.board-renderer.backend-selection.test.ts`;
+- `test/ui.board-dom-compat.backend.test.ts`;
 - `test/ui.presentation-handler.playback-claim.test.ts`;
 - `test/shared.special-stone-registry.test.ts`;
 - `test/game.board-executor.test.ts`;
@@ -383,6 +390,7 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 | Semantic boot checks become too weak | Assert required presence, exact `MultiCellStone` global exposure, critical relative dependencies, intentional duplicate count, final entry, and all existing namespace contracts. |
 | Writer coverage still follows private source placement | Make the direct runtime behavior test authoritative and retain only facade/caller capability wiring at integration level. |
 | Old writer settlement releases or mutates a replacement writer | Hold drain reservation through claim/abandon, validate controller/session generation after each await, suppress stale accumulator updates, and reject controller reclaim during local settlement. |
+| Page destroy leaves fallback readiness pending or allows a late DOM mount to reacquire resources | Race loader/controller waits with the page cancellation signal, re-destroy a stale replacement, and guard the concrete DOM mount after each preparation await. |
 | Network parity remains falsely green | Add the existing sixteen-case file to the explicit script rather than relying only on the long full suite. |
 | Full Jest reveals more debt than the focused baseline | Reproduce and classify; do not create a new allowlist or silently expand product behavior. Revise this design if a broader deterministic fix is required. |
 | Generated output is edited or committed stale | Prepare the Worker mirror once from root sources with `worker:prepare`, allow `checkall` to perform its scripted verification rebuild, and inspect all generated diffs before the coherent implementation commit. |
@@ -397,6 +405,7 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 - Valid one-cell and 2x2 marker footprints, ordering, inviolability, and board behavior remain unchanged.
 - The classic boot test checks dependency semantics and passes without changing the current runtime table.
 - Board presentation drain behavior is covered at `writer-runtime`, controller, facade, and presentation caller; replacement/reset/destroy and active-settlement races fail closed without requiring private state to live in `board-renderer.ts`.
+- Initial and context compatibility fallback reject immediately on page destroy even while a loader remains unresolved; a replacement that mounts later is destroyed again, and the concrete DOM backend cannot reacquire its host, dataset, or diagnostics after teardown.
 - The updated network parity command passes and contains the repaired deferred-selection suite.
 - Typecheck, generation/mirror preparation, `checkall`, and the full Jest suite all exit successfully.
 - `01-rulebook.md`, `正本/*.md`, network contracts, saved-data formats, dependencies, and valid player-visible behavior are unchanged.
@@ -411,6 +420,7 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 - An extra, non-plan `npm run worker:bundle:smoke` exposed a pre-existing Worker preload dependency defect before the changed marker-footprint code was reached. That defect remained outside the reviewed correction commit, then was repaired separately in `87978034e` with generated delivery refreshed in `51924c95a`; the bundled Worker smoke now passes.
 - No browser playtest was run because no valid-state rendering, input, runtime boot table, or player-visible behavior changed. Browser/Vite builds, mirror validation, valid-marker coverage, network parity, and the full E2E-inclusive Jest suite are the selected proportional evidence.
 - Post-implementation AI review reproduced additional marker-consumer, terminal network assertion, presentation wiring, and writer lifecycle defects. Their bounded correction was committed in `7323b612a`; the revised focused, generated, parity, board-playback, and full-suite gates pass, and independent final review found no unresolved major or medium issue.
+- A later requested AI review found that backend teardown was terminal only for new work, not already-started fallback waits or mounts. The bounded correction now races fallback work with page cancellation, re-destroys stale replacements, and generation-guards DOM mount preparation. Final focused coverage passes 6 suites / 103 tests, Pixi playback passes 12 reports / 232 scenarios, Worker preparation verifies 960 mirrored files, network parity passes 36 suites / 581 tests, `checkall` passes, and full Jest passes 1020/1020 suites and 7651/7651 tests (994.13 s). Two independent read-only re-reviews found no unresolved major or medium issue; the implementation commit is pending.
 
 ## 13. Self-review
 

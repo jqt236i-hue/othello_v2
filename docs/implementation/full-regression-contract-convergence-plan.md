@@ -1,7 +1,8 @@
 # Full regression contract convergence implementation plan
 
-- Status: implemented, verified, and committed
+- Status: post-delivery teardown correction verified; implementation commit pending
 - Date: 2026-08-09
+- Last updated: 2026-08-10
 - Design authority: `docs/implementation/full-regression-contract-convergence-design.md`
 - Document role: ordered implementation and verification plan for closing the four known failing Jest suites and restoring a zero-failure full regression baseline
 - Scope authority: if this plan conflicts with the reviewed design, the design wins and both documents must be corrected before implementation continues
@@ -528,6 +529,32 @@ git status --short
 - independent re-review has no unresolved major/medium finding;
 - the follow-up correction is committed and final status is clean or only contains reported unrelated work.
 
+## 13.1 Step 10 — Post-delivery backend teardown correction
+
+### Reproduced findings
+
+1. The backend runtime's destroy flag prevented new controller lookup but did not cancel fallback work already awaiting a compatibility payload, stylesheet, controller replacement, or recovery. If the awaited producer never settled, initial readiness and context fallback remained pending indefinitely after page teardown. The first added tests incorrectly resolved their deferred loader before checking rejection and therefore did not prove immediate cancellation.
+2. Destroy could occur after the DOM fallback factory ran but while its asynchronous mount prepared styles or stone assets. The controller destroyed that replacement once, but a generic backend could acquire resources after its mount promise later resolved. The stale `replaceBackend()` catch could then retain a checkpoint after destruction, while the concrete DOM backend could retake its host, dataset, and diagnostics.
+
+### Ordered correction
+
+1. Revise both canonical documents before broadening the already-completed correction. Keep valid rendering, gameplay, network protocol, and fallback selection unchanged.
+2. Add one backend page-lifecycle cancellation promise and race all fallback-relevant loader/controller waits against it. Destroy must reject already-returned initial readiness and context fallback without waiting for the external loader and without showing reload-required UI.
+3. In `BoardVisualController.replaceBackend()`, detect a stale lifecycle epoch before checkpoint, host-attribute, recovery, or diagnostic updates; destroy the replacement again so a generic late mount cannot retain resources.
+4. In the concrete DOM compatibility backend, use a terminal mount generation and check it after stylesheet preparation, after stone-visual preparation, and before taking the host or diagnostics.
+5. Cover unresolved-loader cancellation and late-mount cleanup in both initial and context fallback paths, controller checkpoint suppression, and both real DOM preparation awaits.
+6. Run focused owner/integration coverage, typecheck, Pixi board playback, Worker preparation, `checkall`, network parity, and full Jest. Request two independent read-only reviews of the teardown correction and resolve every major/medium finding.
+7. Inspect and stage exact task-owned source/test/generated/doc paths. Commit the verified implementation/delivery unit without rewriting the earlier `7323b612a` correction, then record that commit in the canonical documents.
+
+### Done when
+
+- destroy rejects public fallback waits while the external deferred remains unresolved;
+- loader-stage destroy creates no DOM fallback or reload-required surface; mount-stage destroy leaves no late host/dataset/diagnostic ownership or post-destroy checkpoint;
+- normal initial/context fallback and valid gameplay behavior remain green;
+- focused, type, generated, boundary, parity, browser-playback, and full-suite gates pass;
+- two independent re-reviews report no unresolved major/medium finding;
+- the implementation/delivery commit is recorded and final status is clean.
+
 ## 14. Progress checklist
 
 - [x] Step 0: working tree classified and four-suite/19-failure ledger reproduced.
@@ -540,6 +567,7 @@ git status --short
 - [x] Step 7: full Jest passes with zero failed suites/tests.
 - [x] Step 8: the original verified baseline-restoration unit was committed as `33e57e3ad` (`Restore full regression baseline`).
 - [x] Step 9: post-implementation AI review corrections verified, independently re-reviewed, and committed as `7323b612a`.
+- [ ] Step 10: post-delivery backend teardown correction is implemented, verified, and independently re-reviewed; implementation commit pending.
 
 ## 15. Decision and discovery log
 
@@ -559,6 +587,8 @@ git status --short
 - 2026-08-09: requested AI code review reproduced primitive-marker projection and Board Executor stored-coordinate coercion. Revised the design/plan before broadening the fix: shared owners now require a marker object, and only Board Executor's stored-marker consumers join the exact-coordinate boundary; universal ingress normalization remains excluded.
 - 2026-08-09: terminal network assertions were strengthened after review showed that permanently resolved tracker/drain gates could hide late duplicate work. Executing the accessor exposed three JSDOM cases where authoritative `cardState` lived on the compatible global surface rather than `window`; selected the existing `resolveNetworkClientGlobal` boundary, not a new authority or state repair path.
 - 2026-08-09: replacing the writer test's one-microtask sentinel and source substring with behavioral checks reproduced controller replacement, active-settlement reclaim, reset callback, and destroy retry races. Revised §5.4 to add controller/session generations, synchronous drain reservation through claim/abandon, stale-settlement suppression, and controller reclaim defense while retaining one writer and the public readiness shape.
+- 2026-08-10: requested AI review showed that terminal controller lookup did not cancel already-started fallback awaits. The initial loader tests also resolved their gate before observing rejection, so they could not detect an indefinite pending promise. Selected a page-owned cancellation promise rather than a timeout or broad catch.
+- 2026-08-10: a second independent reproduction showed a generic replacement backend could reacquire resources after its first destroy if async mount completed late, and the concrete DOM backend could take host/diagnostic ownership after preparation. Selected controller stale-epoch re-destroy plus a concrete DOM mount generation guard; no new backend, writer, or compatibility success path was introduced.
 
 Implementation discoveries that change scope, owners, interfaces, or verification must be appended here and reflected in both documents before proceeding.
 
@@ -613,6 +643,18 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - Correction implementation was committed as `7323b612a`. Independent source/diff review of that commit found no unresolved major or medium issue, and `git diff --check 33e57e3ad..7323b612a` passed.
 - Residual risk: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy and the bounded Board Executor consumers without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The formerly separate Worker preload readiness defect is resolved.
 
+### Post-delivery backend teardown correction evidence (verified; implementation commit pending)
+
+- The first backend-selection correction passed 24/24 tests, then independent review found two remaining medium gaps: destroy did not immediately cancel unresolved loader work, and a replacement mount could reacquire resources after its first destroy. The first full-Jest attempt was deliberately terminated because it no longer represented the final implementation.
+- Final focused owner coverage passed 3 suites / 55 tests for backend selection, controller replacement, and the real DOM backend. Expanded writer/backend/presentation coverage passed 6 suites / 103 tests. `npm run typecheck` passed.
+- New behavior coverage leaves loader deferreds unresolved while observing immediate initial/context rejection, resolves generic initial/context replacement mounts only after destroy and proves the second cleanup, proves no destroyed checkpoint is retained, and exercises both stylesheet and stone-visual await boundaries in the real DOM backend.
+- Two independent read-only re-reviews found no unresolved major or medium issue. They explicitly checked cancellation-promise rejection handling, late resource cleanup, double-destroy tolerance, checkpoint suppression, real DOM generation guards, and unchanged successful fallback behavior.
+- `npm run match:pixijs-board-playback-check`: passed 12 reports / 232 scenarios across classic/Vite, Pixi/DOM compatibility, and all motion modes with an empty error list.
+- `npm run worker:prepare`: passed with a 1084-module browser registry and a verified 960-file Worker mirror. `npm run checkall` passed; the existing Vite chunk-size warning remained informational.
+- `npm run test:network:parity`: passed 36 suites / 581 tests. Jest printed the repository's existing post-run open-handle warning after the green result.
+- Final `npm run test:jest`: passed 1020/1020 suites and 7651/7651 tests (994.13 s, process exit 0). Two earlier invocations were intentionally terminated when subsequent review found a deterministic teardown defect; neither was treated as completion evidence.
+- Browser operation was not run. The 12-lane real browser playback checker, focused backend lifecycle tests, generated delivery checks, and E2E-inclusive full Jest are the proportional evidence for this teardown-only correction.
+
 ## 17. Final completion checklist
 
 - [x] User goal: the reviewed correction is complete in addition to the original baseline restoration.
@@ -624,7 +666,8 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - [x] Design §11: corrected completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
 - [x] Full Jest exits successfully with zero failures after the correction; no known-red exception remains.
 - [x] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
-- [x] Plan/design records truthfully show the verified and committed final state.
+- [x] The prior Step 9 plan/design record truthfully shows its verified and committed state.
+- [ ] Step 10 implementation/delivery is committed and its hash is recorded; until then the top-level status remains commit-pending.
 
 ## 18. Self-review
 

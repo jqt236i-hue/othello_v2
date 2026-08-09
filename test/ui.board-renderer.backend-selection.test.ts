@@ -10,6 +10,16 @@ type BackendHooks = {
   destroy?: () => void;
 };
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 function createBackend(kind: 'dom' | 'pixi', hooks: BackendHooks = {}) {
   return {
     kind,
@@ -510,6 +520,90 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
   });
 
+  test('does not create the initial DOM fallback after page destroy while compatibility loading is pending', async () => {
+    const stylesheetStarted = createDeferred<void>();
+    const stylesheetReady = createDeferred<any>();
+    const stylesheetLoader = require('../ui/assets/feature-stylesheet-loader');
+    const ensureStylesheet = jest.spyOn(stylesheetLoader, 'ensureFeatureStylesheet')
+      .mockImplementation(() => {
+        stylesheetStarted.resolve();
+        return stylesheetReady.promise;
+      });
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const initError: any = new Error('application init rejected');
+    initError.code = 'pixi_application_init_failed';
+    initError.stage = 'init';
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: () => createBackend('pixi', {
+        mount() { return Promise.reject(initError); }
+      }),
+      createDomBackend
+    });
+
+    controller = renderer.getBoardVisualController();
+    const readiness = controller.waitUntilReady();
+    await stylesheetStarted.promise;
+    renderer.destroyBoardVisualPageRuntime();
+
+    try {
+      await expect(readiness).rejects.toThrow('Board visual backend runtime is destroyed');
+      expect(createDomBackend).not.toHaveBeenCalled();
+      expect(renderer.getBoardVisualController()).toBeNull();
+    } finally {
+      stylesheetReady.resolve({ ok: true, group: 'board-dom-compat', href: 'test.css' });
+      await Promise.resolve();
+      ensureStylesheet.mockRestore();
+    }
+  });
+
+  test('releases an initial DOM fallback whose async mount settles after page destroy', async () => {
+    const mountStarted = createDeferred<void>();
+    const mountReady = createDeferred<void>();
+    const destroyedAgain = createDeferred<void>();
+    let domAlive = false;
+    let destroyCount = 0;
+    const domBackend = createBackend('dom', {
+      async mount() {
+        mountStarted.resolve();
+        await mountReady.promise;
+        domAlive = true;
+      },
+      destroy() {
+        domAlive = false;
+        destroyCount += 1;
+        if (destroyCount === 2) destroyedAgain.resolve();
+      }
+    });
+    const createDomBackend = jest.fn(() => domBackend);
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const initError: any = new Error('application init rejected');
+    initError.code = 'pixi_application_init_failed';
+    initError.stage = 'init';
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: () => createBackend('pixi', {
+        mount() { return Promise.reject(initError); }
+      }),
+      createDomBackend
+    });
+
+    controller = renderer.getBoardVisualController();
+    const readiness = controller.waitUntilReady();
+    await mountStarted.promise;
+    renderer.destroyBoardVisualPageRuntime();
+
+    await expect(readiness).rejects.toThrow('Board visual backend runtime is destroyed');
+    expect(domBackend.destroy).toHaveBeenCalledTimes(1);
+    mountReady.resolve();
+    await destroyedAgain.promise;
+
+    expect(createDomBackend).toHaveBeenCalledTimes(1);
+    expect(domBackend.destroy).toHaveBeenCalledTimes(2);
+    expect(domAlive).toBe(false);
+    expect(document.getElementById('board')?.hasAttribute('data-board-renderer')).toBe(false);
+    expect(renderer.getBoardVisualController()).toBeNull();
+  });
+
   test('does not turn scene or texture failures into a success-shaped DOM fallback', async () => {
     const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
     const resourceError: any = new Error('stone texture decode failed');
@@ -603,6 +697,98 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(controller.getBackendKind()).toBe('dom');
     expect(controller.getMode()).toBe('idle');
     expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
+  });
+
+  test('does not create or surface a context fallback after page destroy while compatibility loading is pending', async () => {
+    const stylesheetStarted = createDeferred<void>();
+    const stylesheetReady = createDeferred<any>();
+    const stylesheetLoader = require('../ui/assets/feature-stylesheet-loader');
+    const ensureStylesheet = jest.spyOn(stylesheetLoader, 'ensureFeatureStylesheet')
+      .mockImplementation(() => {
+        stylesheetStarted.resolve();
+        return stylesheetReady.promise;
+      });
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    let hooks: any = null;
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: (options: any) => {
+        hooks = options.contextRecovery;
+        return createBackend('pixi');
+      },
+      createDomBackend
+    });
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    controller.submitFrame(createInitialFrame());
+    await controller.waitForIdle();
+
+    hooks.onContextLost(new Error('context loss'), new Event('webglcontextlost'));
+    const fallback = hooks.onFallbackRequired(new Error('restore timed out'));
+    await stylesheetStarted.promise;
+    renderer.destroyBoardVisualPageRuntime();
+
+    try {
+      await expect(fallback).rejects.toThrow('Board visual backend runtime is destroyed');
+      expect(createDomBackend).not.toHaveBeenCalled();
+      expect(document.getElementById('network-presentation-reload-required')).toBeNull();
+      expect(renderer.getBoardVisualController()).toBeNull();
+    } finally {
+      stylesheetReady.resolve({ ok: true, group: 'board-dom-compat', href: 'test.css' });
+      await Promise.resolve();
+      ensureStylesheet.mockRestore();
+    }
+  });
+
+  test('releases a context DOM fallback whose async mount settles after page destroy', async () => {
+    const mountStarted = createDeferred<void>();
+    const mountReady = createDeferred<void>();
+    const destroyedAgain = createDeferred<void>();
+    let hooks: any = null;
+    let domAlive = false;
+    let destroyCount = 0;
+    const domBackend = createBackend('dom', {
+      async mount() {
+        mountStarted.resolve();
+        await mountReady.promise;
+        domAlive = true;
+      },
+      destroy() {
+        domAlive = false;
+        destroyCount += 1;
+        if (destroyCount === 2) destroyedAgain.resolve();
+      }
+    });
+    const createDomBackend = jest.fn(() => domBackend);
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: (options: any) => {
+        hooks = options.contextRecovery;
+        return createBackend('pixi');
+      },
+      createDomBackend
+    });
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    controller.submitFrame(createInitialFrame());
+    await controller.waitForIdle();
+
+    hooks.onContextLost(new Error('context loss'), new Event('webglcontextlost'));
+    const fallback = hooks.onFallbackRequired(new Error('restore timed out'));
+    await mountStarted.promise;
+    renderer.destroyBoardVisualPageRuntime();
+
+    await expect(fallback).rejects.toThrow('Board visual backend runtime is destroyed');
+    expect(domBackend.destroy).toHaveBeenCalledTimes(1);
+    mountReady.resolve();
+    await destroyedAgain.promise;
+
+    expect(createDomBackend).toHaveBeenCalledTimes(1);
+    expect(domBackend.destroy).toHaveBeenCalledTimes(2);
+    expect(domAlive).toBe(false);
+    expect(document.getElementById('network-presentation-reload-required')).toBeNull();
+    expect(document.getElementById('board')?.hasAttribute('data-board-renderer')).toBe(false);
+    expect(renderer.getBoardVisualController()).toBeNull();
   });
 
   test('shows reload-required only when checkpointed DOM fallback also fails', async () => {

@@ -492,6 +492,45 @@ describe('BoardVisualController async visual settlement', () => {
     expect(controller.getMode()).toBe('idle');
   });
 
+  test('re-destroys a replacement backend that finishes mounting after controller destruction', async () => {
+    const visualBackend = backend();
+    const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });
+    const host = {
+      hasAttribute: jest.fn(() => false),
+      setAttribute: jest.fn(),
+      removeAttribute: jest.fn()
+    } as unknown as HTMLElement;
+    await controller.mount(host);
+    const checkpoint = frame('idle:replacement-destroy-checkpoint', 42);
+    expect(controller.submitFrame(checkpoint)).toBe(true);
+    await controller.waitForIdle();
+
+    const replacementMount = deferred<void>();
+    let replacementAlive = false;
+    const replacementBackend = backend({
+      kind: 'dom',
+      mount: jest.fn(async () => {
+        await replacementMount.promise;
+        replacementAlive = true;
+      }),
+      destroy: jest.fn(() => {
+        replacementAlive = false;
+      })
+    });
+    const replacing = controller.replaceBackend(replacementBackend);
+    controller.destroy();
+
+    expect(replacementBackend.destroy).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().pendingFrameToken).toBeNull();
+    replacementMount.resolve();
+    await expect(replacing).rejects.toThrow('BoardVisualController is destroyed');
+
+    expect(replacementBackend.destroy).toHaveBeenCalledTimes(2);
+    expect(replacementAlive).toBe(false);
+    expect(controller.getSnapshot().pendingFrameToken).toBeNull();
+    expect(host.removeAttribute).toHaveBeenCalledWith('data-board-renderer');
+  });
+
   test('keeps applying recovery frames until pending reference and version stay stable', async () => {
     const restoreGate = deferred();
     const secondSettlement = deferred();

@@ -48,6 +48,31 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   let BoardVisualRuntimeForBoardRenderer: any = null;
   let BoardVisualBackendTestConfigForBoardRenderer: any = null;
   let BoardVisualPageRuntimeDestroyedForBoardRenderer = false;
+  let rejectBoardVisualPageRuntimeForBoardRenderer!: (reason?: unknown) => void;
+  const BoardVisualPageRuntimeDestroyedPromiseForBoardRenderer = new Promise<never>((_resolve, reject) => {
+      rejectBoardVisualPageRuntimeForBoardRenderer = reject;
+  });
+  void BoardVisualPageRuntimeDestroyedPromiseForBoardRenderer.catch(() => undefined);
+
+  function _createBoardVisualPageRuntimeDestroyedErrorForBoardRenderer() {
+      return new Error('Board visual backend runtime is destroyed');
+  }
+
+  function _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer(): void {
+      if (BoardVisualPageRuntimeDestroyedForBoardRenderer) {
+          throw _createBoardVisualPageRuntimeDestroyedErrorForBoardRenderer();
+      }
+  }
+
+  function _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer<T>(
+      value: T | PromiseLike<T>
+  ): Promise<T> {
+      _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
+      return Promise.race([
+          Promise.resolve(value),
+          BoardVisualPageRuntimeDestroyedPromiseForBoardRenderer
+      ]);
+  }
 
   const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
     'pixi_runtime_unavailable',
@@ -184,11 +209,15 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
           if (typeof loadPayload !== 'function') {
               throw new Error('DOM compatibility board payload loader is unavailable');
           }
-          await loadPayload.call(root, 'compatibility');
+          await _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer(
+              loadPayload.call(root, 'compatibility')
+          );
+          _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
       }
       await _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
           typeof document !== 'undefined' ? document : null
       );
+      _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
   }
 
   async function _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
@@ -198,7 +227,9 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
       if (!loader || typeof loader.ensureFeatureStylesheet !== 'function') {
           throw new Error('DOM compatibility board stylesheet loader is unavailable');
       }
-      const result = await loader.ensureFeatureStylesheet('board-dom-compat', documentRef);
+      const result = await _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer(
+          loader.ensureFeatureStylesheet('board-dom-compat', documentRef)
+      );
       if (!result || result.ok !== true) {
           const error: any = new Error(
               String(result?.warning || 'DOM compatibility board stylesheet failed to load')
@@ -350,6 +381,7 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   }
 
   function _showBoardVisualReloadRequiredForBoardRenderer(error: unknown, diagnostics?: any) {
+      if (BoardVisualPageRuntimeDestroyedForBoardRenderer) return;
       const message = '盤面表示を復旧できませんでした。ページを再読み込みしてください。';
       diagnostics?.record?.('context-recovery:reload-required', {
           message: String((error as any)?.message || error || '')
@@ -412,6 +444,9 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
                   return controller.restoreContextRecovery();
               },
               onFallbackRequired(error: Error) {
+                  if (BoardVisualPageRuntimeDestroyedForBoardRenderer) {
+                      return Promise.reject(_createBoardVisualPageRuntimeDestroyedErrorForBoardRenderer());
+                  }
                   if (contextFallback) return contextFallback;
                   contextFallback = (async () => {
                       diagnostics.record('backend:context-compatibility-fallback-start', {
@@ -419,16 +454,24 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
                       });
                       try {
                           await _ensureDomBoardVisualBackendModulesForBoardRenderer();
+                          _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
                           const compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
-                          await controller.replaceBackend(compatibilityBackend, {
-                              preserveContextRecovery: true
-                          });
-                          await controller.restoreContextRecovery({ backendAlreadyRestored: true });
+                          await _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer(
+                              controller.replaceBackend(compatibilityBackend, {
+                                  preserveContextRecovery: true
+                              })
+                          );
+                          _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
+                          await _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer(
+                              controller.restoreContextRecovery({ backendAlreadyRestored: true })
+                          );
+                          _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
                           diagnostics.record('backend:context-compatibility-fallback-ready', {
                               from: 'pixi', to: 'dom'
                           });
                           return true;
                       } catch (cause: any) {
+                          if (BoardVisualPageRuntimeDestroyedForBoardRenderer) throw cause;
                           try { controller?.failContextRecovery?.(cause); } catch (_error) { /* preserve primary failure */ }
                           _showBoardVisualReloadRequiredForBoardRenderer(cause, diagnostics);
                           throw cause;
@@ -438,6 +481,7 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
                   return contextFallback;
               },
               onRecoveryFailed(error: Error) {
+                  if (BoardVisualPageRuntimeDestroyedForBoardRenderer) return;
                   try { controller?.failContextRecovery?.(error); } catch (_error) { /* preserve recovery error */ }
                   _showBoardVisualReloadRequiredForBoardRenderer(error, diagnostics);
               }
@@ -456,8 +500,11 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
           beginApplyFrame: dependencies.beginApplyFrame
       });
       const settledFrameSubscription = dependencies.subscribeSettledFrame(controller);
-      const mountPromise = Promise.resolve(controller.mount(host));
+      const mountPromise = _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer(
+          controller.mount(host)
+      );
       const initialReadyPromise = mountPromise.catch(async (error: any) => {
+          _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
           diagnostics.record('controller:mount-error', { message: String(error && error.message || error || '') });
           if (selection.kind !== 'pixi' || !_isPixiInitialFallbackErrorForBoardRenderer(error)) throw error;
           diagnostics.record('backend:compatibility-fallback-start', {
@@ -468,8 +515,10 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
           let compatibilityBackend: any;
           try {
               await _ensureDomBoardVisualBackendModulesForBoardRenderer();
+              _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
               compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
           } catch (cause: any) {
+              if (BoardVisualPageRuntimeDestroyedForBoardRenderer) throw cause;
               compatibilityBackend = _createFailedBoardVisualBackendForBoardRenderer(
                   'dom',
                   _createBoardVisualCapabilityErrorForBoardRenderer(
@@ -480,7 +529,10 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
                   )
               );
           }
-          await controller.replaceBackend(compatibilityBackend);
+          await _awaitWhileBoardVisualPageRuntimeActiveForBoardRenderer(
+              controller.replaceBackend(compatibilityBackend)
+          );
+          _throwIfBoardVisualPageRuntimeDestroyedForBoardRenderer();
           diagnostics.record('backend:compatibility-fallback-ready', { from: 'pixi', to: 'dom' });
       });
       initialReadyPromise.catch(() => { /* readiness is observed by bootstrap or the caller */ });
@@ -559,7 +611,12 @@ export function createBoardBackendRuntime(dependencies: BoardBackendRuntimeDepen
   }
 
   function destroyPageRuntime(): void {
-    BoardVisualPageRuntimeDestroyedForBoardRenderer = true;
+    if (!BoardVisualPageRuntimeDestroyedForBoardRenderer) {
+      BoardVisualPageRuntimeDestroyedForBoardRenderer = true;
+      rejectBoardVisualPageRuntimeForBoardRenderer(
+        _createBoardVisualPageRuntimeDestroyedErrorForBoardRenderer()
+      );
+    }
     const runtime = BoardVisualRuntimeForBoardRenderer;
     if (!runtime) {
       BoardVisualBackendTestConfigForBoardRenderer = null;

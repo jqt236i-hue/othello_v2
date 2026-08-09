@@ -196,6 +196,63 @@ describe('DomBoardVisualBackend diagnostics', () => {
     dom.window.close();
   });
 
+  test('does not claim the DOM host when destroyed during compatibility stylesheet preparation', async () => {
+    const dom = new JSDOM('<!doctype html><div id="board"></div>');
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+    let resolveStylesheet!: () => void;
+    const prepareStylesheet = jest.fn(() => new Promise<void>((resolve) => {
+      resolveStylesheet = resolve;
+    }));
+    const prepareStoneVisuals = jest.fn(async () => ({ success: true, loaded: [], failed: [] }));
+    const record = jest.fn();
+    const { createDomBoardVisualBackend } = require('../ui/board-dom-compat/backend');
+    const backend = createDomBoardVisualBackend({
+      compatibilityRenderer: {
+        renderBoardDiff: jest.fn(),
+        resetRenderStats: jest.fn()
+      },
+      prepareStylesheet,
+      prepareStoneVisuals
+    });
+
+    const mount = backend.mount(host, { diagnostics: { record } });
+    backend.destroy();
+    resolveStylesheet();
+
+    await expect(mount).rejects.toThrow('DOM board backend is destroyed');
+    expect(prepareStoneVisuals).not.toHaveBeenCalled();
+    expect(host.dataset.cardReversiDomBackendMountedAt).toBeUndefined();
+    expect(record).not.toHaveBeenCalledWith('dom:mounted', expect.anything());
+    dom.window.close();
+  });
+
+  test('does not claim the DOM host when destroyed during stone visual preparation', async () => {
+    const dom = new JSDOM('<!doctype html><div id="board"></div>');
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+    let resolveStoneVisuals!: (value: any) => void;
+    const prepareStoneVisuals = jest.fn(() => new Promise((resolve) => {
+      resolveStoneVisuals = resolve;
+    }));
+    const record = jest.fn();
+    const { createDomBoardVisualBackend } = require('../ui/board-dom-compat/backend');
+    const backend = createDomBoardVisualBackend({
+      compatibilityRenderer: {
+        renderBoardDiff: jest.fn(),
+        resetRenderStats: jest.fn()
+      },
+      prepareStoneVisuals
+    });
+
+    const mount = backend.mount(host, { diagnostics: { record } });
+    backend.destroy();
+    resolveStoneVisuals({ success: true, loaded: [], failed: [] });
+
+    await expect(mount).rejects.toThrow('DOM board backend is destroyed');
+    expect(host.dataset.cardReversiDomBackendMountedAt).toBeUndefined();
+    expect(record).not.toHaveBeenCalledWith('dom:mounted', expect.anything());
+    dom.window.close();
+  });
+
   test('does not claim the DOM host when compatibility stylesheet loading fails', async () => {
     const dom = new JSDOM('<!doctype html><div id="board"></div>');
     const host = dom.window.document.getElementById('board') as HTMLElement;

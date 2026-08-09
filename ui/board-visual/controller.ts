@@ -1660,6 +1660,10 @@ function createBoardVisualController(options: {
         diagnostics.record('backend:replaced', { kind: backend.kind });
         flushIdleWaiters();
       } catch (error) {
+        if (mode === 'destroyed' || epoch !== lifecycleEpoch) {
+          try { nextBackend.destroy(); } catch (_cleanupError) { /* preserve the lifecycle failure */ }
+          throw toError(error, 'BoardVisualController is destroyed');
+        }
         if (
           checkpoint
           && !pendingLatest
