@@ -1,6 +1,6 @@
 # Full regression contract convergence design
 
-- Status: post-delivery teardown correction verified; implementation commit pending
+- Status: implemented, verified, and committed
 - Date: 2026-08-09
 - Last updated: 2026-08-10
 - Document role: the implementation design for restoring a zero-known-failure regression baseline before any further structural refactor
@@ -420,7 +420,7 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 - An extra, non-plan `npm run worker:bundle:smoke` exposed a pre-existing Worker preload dependency defect before the changed marker-footprint code was reached. That defect remained outside the reviewed correction commit, then was repaired separately in `87978034e` with generated delivery refreshed in `51924c95a`; the bundled Worker smoke now passes.
 - No browser playtest was run because no valid-state rendering, input, runtime boot table, or player-visible behavior changed. Browser/Vite builds, mirror validation, valid-marker coverage, network parity, and the full E2E-inclusive Jest suite are the selected proportional evidence.
 - Post-implementation AI review reproduced additional marker-consumer, terminal network assertion, presentation wiring, and writer lifecycle defects. Their bounded correction was committed in `7323b612a`; the revised focused, generated, parity, board-playback, and full-suite gates pass, and independent final review found no unresolved major or medium issue.
-- A later requested AI review found that backend teardown was terminal only for new work, not already-started fallback waits or mounts. The bounded correction now races fallback work with page cancellation, re-destroys stale replacements, and generation-guards DOM mount preparation. Final focused coverage passes 6 suites / 103 tests, Pixi playback passes 12 reports / 232 scenarios, Worker preparation verifies 960 mirrored files, network parity passes 36 suites / 581 tests, `checkall` passes, and full Jest passes 1020/1020 suites and 7651/7651 tests (994.13 s). Two independent read-only re-reviews found no unresolved major or medium issue; the implementation commit is pending.
+- A later requested AI review found that backend teardown was terminal only for new work, not already-started fallback waits or mounts. The bounded correction now races fallback work with page cancellation, re-destroys stale replacements, and generation-guards DOM mount preparation. Final focused coverage passes 6 suites / 103 tests, Pixi playback passes 12 reports / 232 scenarios, Worker preparation verifies 960 mirrored files, network parity passes 36 suites / 581 tests, `checkall` passes, and full Jest passes 1020/1020 suites and 7651/7651 tests (994.13 s). Two independent read-only re-reviews found no unresolved major or medium issue; the implementation/delivery unit was committed as `1d8674ed1`.
 
 ## 13. Self-review
 

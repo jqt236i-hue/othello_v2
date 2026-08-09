@@ -1,6 +1,6 @@
 # Full regression contract convergence implementation plan
 
-- Status: post-delivery teardown correction verified; implementation commit pending
+- Status: implemented, verified, and committed
 - Date: 2026-08-09
 - Last updated: 2026-08-10
 - Design authority: `docs/implementation/full-regression-contract-convergence-design.md`
@@ -567,7 +567,7 @@ git status --short
 - [x] Step 7: full Jest passes with zero failed suites/tests.
 - [x] Step 8: the original verified baseline-restoration unit was committed as `33e57e3ad` (`Restore full regression baseline`).
 - [x] Step 9: post-implementation AI review corrections verified, independently re-reviewed, and committed as `7323b612a`.
-- [ ] Step 10: post-delivery backend teardown correction is implemented, verified, and independently re-reviewed; implementation commit pending.
+- [x] Step 10: post-delivery backend teardown correction was implemented, verified, independently re-reviewed, and committed as `1d8674ed1`.
 
 ## 15. Decision and discovery log
 
@@ -643,7 +643,7 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - Correction implementation was committed as `7323b612a`. Independent source/diff review of that commit found no unresolved major or medium issue, and `git diff --check 33e57e3ad..7323b612a` passed.
 - Residual risk: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy and the bounded Board Executor consumers without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The formerly separate Worker preload readiness defect is resolved.
 
-### Post-delivery backend teardown correction evidence (verified; implementation commit pending)
+### Post-delivery backend teardown correction evidence (complete)
 
 - The first backend-selection correction passed 24/24 tests, then independent review found two remaining medium gaps: destroy did not immediately cancel unresolved loader work, and a replacement mount could reacquire resources after its first destroy. The first full-Jest attempt was deliberately terminated because it no longer represented the final implementation.
 - Final focused owner coverage passed 3 suites / 55 tests for backend selection, controller replacement, and the real DOM backend. Expanded writer/backend/presentation coverage passed 6 suites / 103 tests. `npm run typecheck` passed.
@@ -654,6 +654,7 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - `npm run test:network:parity`: passed 36 suites / 581 tests. Jest printed the repository's existing post-run open-handle warning after the green result.
 - Final `npm run test:jest`: passed 1020/1020 suites and 7651/7651 tests (994.13 s, process exit 0). Two earlier invocations were intentionally terminated when subsequent review found a deterministic teardown defect; neither was treated as completion evidence.
 - Browser operation was not run. The 12-lane real browser playback checker, focused backend lifecycle tests, generated delivery checks, and E2E-inclusive full Jest are the proportional evidence for this teardown-only correction.
+- The verified implementation, regression tests, generated browser/Worker delivery, and commit-pending canonical record were committed as `1d8674ed1` (`Harden board backend teardown`).
 
 ## 17. Final completion checklist
 
@@ -667,7 +668,7 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - [x] Full Jest exits successfully with zero failures after the correction; no known-red exception remains.
 - [x] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
 - [x] The prior Step 9 plan/design record truthfully shows its verified and committed state.
-- [ ] Step 10 implementation/delivery is committed and its hash is recorded; until then the top-level status remains commit-pending.
+- [x] Step 10 implementation/delivery is committed as `1d8674ed1`, its hash is recorded, and the top-level status is complete.
 
 ## 18. Self-review
 
