@@ -101,4 +101,3 @@ export const MATCH_ROOM_DECK_PRIVATE_FIELDS = [
   'initialDeckSpecByPlayer',
   'initialDeckCardIdsByPlayer'
 ] as const;
-
