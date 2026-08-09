@@ -114,8 +114,7 @@ function assertNormalizedCardIds(value: unknown, name: string): asserts value is
 }
 
 function assertNormalizedDeckSpec(value: unknown, name: string): void {
-    if (value === null) return;
-    if (!isObjectRecord(value)) fail(`${name} must be an object or null`);
+    if (typeof value === 'undefined') fail(`${name} must use null for absence`);
 }
 
 function assertNormalizedDeckSpecValue(value: unknown, name: string): asserts value is unknown | null {

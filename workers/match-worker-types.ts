@@ -10,6 +10,7 @@ import type {
     MatchAuthoritySeatKey,
     MatchAuthorityViewer
 } from '../utils/match-authority-types';
+import type { MatchRoomDeckMetadata } from '../utils/match-room-deck';
 import type { PlayerRating, RatingMatchRecord, RatedPool, RatingPublicProfile } from '../shared/rating-contract';
 
 export interface MatchWorkerEnv {
@@ -210,14 +211,7 @@ export interface MatchWorkerSeatValueMap<T> {
     white: T;
 }
 
-export interface MatchWorkerRoomDeckMetadata {
-    mode: 'shared' | 'perPlayer';
-    source: string;
-    deckCode: string;
-    deckSize: number | null;
-    deckCodeByPlayer: MatchWorkerSeatValueMap<string>;
-    deckSizeByPlayer: MatchWorkerSeatValueMap<number | null>;
-}
+export type MatchWorkerRoomDeckMetadata = MatchRoomDeckMetadata;
 
 export interface MatchWorkerDeckSelection {
     ok: boolean;

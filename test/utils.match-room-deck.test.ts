@@ -46,7 +46,8 @@ describe('match-room-deck pure contract', () => {
     expect(clonedSpecs.black).not.toBe(specs.black);
     expect(clonedSpecs.white).not.toBe(specs.white);
     expect(() => cloneRoomDeckCardIdsByPlayer({ black: [' card-a '], white: [] })).toThrow(TypeError);
-    expect(() => cloneRoomDeckSpecByPlayer({ black: [], white: null })).toThrow(TypeError);
+    expect(cloneRoomDeckSpecByPlayer({ black: [], white: null })).toEqual({ black: [], white: null });
+    expect(() => cloneRoomDeckSpecByPlayer({ black: undefined, white: null } as any)).toThrow(TypeError);
   });
 
   test('builds all-cards metadata from explicit per-seat arrays including zero cards', () => {

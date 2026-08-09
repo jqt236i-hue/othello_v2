@@ -85,6 +85,16 @@ import type {
     MatchCommandExecutionCapabilities
 } from '../utils/match-runtime-ports';
 import {
+    buildInitialDeckSnapshotOptions as buildCanonicalInitialDeckSnapshotOptions,
+    buildRoomDeckSelectionPatch,
+    cloneRoomDeckCardIdsByPlayer,
+    cloneRoomDeckSpecByPlayer,
+    createAllCardsRoomDeckMetadata as createCanonicalAllCardsRoomDeckMetadata,
+    isAllCardsDeckRoom as classifyAllCardsDeckRoom,
+    normalizeRoomDeckSize,
+    projectPublicRoomDeck
+} from '../utils/match-room-deck';
+import {
     isMatchAutoTurnPublishBody,
     resolveMatchAutoTurnPublishBody
 } from '../utils/match-auto-command';
@@ -1148,19 +1158,12 @@ function toPublicSeatHandSkins(room: MatchWorkerRoomState | null | undefined) {
     return buildPublicSeatState(room).seatHandSkins;
 }
 
-function normalizeDeckSizeValue(value: unknown): number | null {
-    if (value === null || typeof value === 'undefined' || value === '') return null;
-    return Number.isFinite(Number(value))
-        ? Math.max(0, Math.trunc(Number(value)))
-        : null;
-}
-
 function cloneInitialDeckSpecByPlayer(value: unknown): MatchWorkerSeatValueMap<unknown | null> {
     const source = asRecord(value);
-    return {
-        black: (source.black && typeof source.black === 'object') ? deepClone(source.black) : null,
-        white: (source.white && typeof source.white === 'object') ? deepClone(source.white) : null
-    };
+    return cloneRoomDeckSpecByPlayer({
+        black: (source.black && typeof source.black === 'object') ? source.black : null,
+        white: (source.white && typeof source.white === 'object') ? source.white : null
+    });
 }
 
 function cloneInitialDeckCardIdsByPlayer(value: unknown): MatchWorkerSeatValueMap<string[] | null> {
@@ -1172,31 +1175,23 @@ function cloneInitialDeckCardIdsByPlayer(value: unknown): MatchWorkerSeatValueMa
             .filter(Boolean);
         return cardIds.length > 0 ? cardIds : null;
     };
-    return {
+    return cloneRoomDeckCardIdsByPlayer({
         black: cloneCards(source.black),
         white: cloneCards(source.white)
-    };
+    });
 }
 
 function createAllCardsRoomDeckMetadata(cardIdsByPlayer: MatchWorkerSeatValueMap<string[] | null>): MatchWorkerRoomDeckMetadata {
-    const blackSize = Array.isArray(cardIdsByPlayer.black) ? cardIdsByPlayer.black.length : 0;
-    const whiteSize = Array.isArray(cardIdsByPlayer.white) ? cardIdsByPlayer.white.length : blackSize;
-    return {
-        mode: 'shared',
-        source: 'allCards',
-        deckCode: '',
-        deckSize: blackSize,
-        deckCodeByPlayer: { black: '', white: '' },
-        deckSizeByPlayer: { black: blackSize, white: whiteSize }
-    };
+    const black = Array.isArray(cardIdsByPlayer.black) ? cardIdsByPlayer.black : [];
+    const white = Array.isArray(cardIdsByPlayer.white) ? cardIdsByPlayer.white : black;
+    return createCanonicalAllCardsRoomDeckMetadata({ black, white });
 }
 
 function isAllCardsDeckRoom(room: MatchWorkerRoomState | null | undefined): boolean {
-    return !!(
-        room
-        && (room.allCardsDeckEnabled === true
-            || (room.roomDeck && String(asRecord(room.roomDeck).source || '').trim() === 'allCards'))
-    );
+    const roomDeckSource = room && room.roomDeck
+        ? String(asRecord(room.roomDeck).source || '')
+        : null;
+    return classifyAllCardsDeckRoom(!!(room && room.allCardsDeckEnabled === true), roomDeckSource);
 }
 
 function normalizeRoomDeckMetadata(value: unknown): MatchWorkerRoomDeckMetadata | null {
@@ -1205,7 +1200,7 @@ function normalizeRoomDeckMetadata(value: unknown): MatchWorkerRoomDeckMetadata 
 
     const mode = String(source.mode || '').trim();
     const sharedDeckCode = String(source.deckCode || '').trim();
-    const sharedDeckSize = normalizeDeckSizeValue(source.deckSize);
+    const sharedDeckSize = normalizeRoomDeckSize(source.deckSize);
     const deckCodeByPlayerSource = (source.deckCodeByPlayer && typeof source.deckCodeByPlayer === 'object')
         ? asRecord(source.deckCodeByPlayer)
         : null;
@@ -1223,10 +1218,10 @@ function normalizeRoomDeckMetadata(value: unknown): MatchWorkerRoomDeckMetadata 
     };
     const deckSizeByPlayer = {
         black: deckSizeByPlayerSource
-            ? normalizeDeckSizeValue(deckSizeByPlayerSource.black)
+            ? normalizeRoomDeckSize(deckSizeByPlayerSource.black)
             : (mode === 'shared' ? sharedDeckSize : null),
         white: deckSizeByPlayerSource
-            ? normalizeDeckSizeValue(deckSizeByPlayerSource.white)
+            ? normalizeRoomDeckSize(deckSizeByPlayerSource.white)
             : (mode === 'shared' ? sharedDeckSize : null)
     };
     const hasPerPlayerData = !!(
@@ -1254,62 +1249,19 @@ function normalizeRoomDeckMetadata(value: unknown): MatchWorkerRoomDeckMetadata 
     };
 }
 
-function hasRoomDeckMetadataEntries(value: unknown): boolean {
-    const metadata = normalizeRoomDeckMetadata(value);
-    if (!metadata) return false;
-
-    return !!(
-        metadata.deckCode ||
-        metadata.deckSize !== null ||
-        metadata.deckCodeByPlayer.black ||
-        metadata.deckCodeByPlayer.white ||
-        metadata.deckSizeByPlayer.black !== null ||
-        metadata.deckSizeByPlayer.white !== null
-    );
-}
-
 function buildInitialDeckSnapshotOptions(value: unknown): Record<string, unknown> {
     const source = asRecord(value);
-    const options: Record<string, unknown> = {};
     const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(source.initialDeckCardIdsByPlayer);
-    if (initialDeckCardIdsByPlayer.black || initialDeckCardIdsByPlayer.white) {
-        options.initialDeckCardIdsByPlayer = initialDeckCardIdsByPlayer;
-    }
     const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(source.initialDeckSpecByPlayer);
-    if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
-        options.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
-    } else {
-        const initialDeckSpec = (source.initialDeckSpec && typeof source.initialDeckSpec === 'object')
-            ? deepClone(source.initialDeckSpec)
-            : null;
-        if (initialDeckSpec) {
-            options.initialDeckSpec = initialDeckSpec;
-        }
-    }
     const boardConfig = MatchAuthority.resolveRoomBoardConfig(source);
-    if (boardConfig) {
-        options.boardConfig = boardConfig;
-    }
-    return options;
-}
-
-function getRoomInitialDeckSpecByPlayer(room: MatchWorkerRoomState | null | undefined): MatchWorkerSeatValueMap<unknown | null> {
-    const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room && room.initialDeckSpecByPlayer);
-    if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
-        return initialDeckSpecByPlayer;
-    }
-
-    const sharedDeckSpec = (room && room.initialDeckSpec && typeof room.initialDeckSpec === 'object')
-        ? room.initialDeckSpec
-        : null;
-    if (!sharedDeckSpec) {
-        return { black: null, white: null };
-    }
-
-    return {
-        black: deepClone(sharedDeckSpec),
-        white: deepClone(sharedDeckSpec)
-    };
+    const options = buildCanonicalInitialDeckSnapshotOptions({
+        initialDeckCardIdsByPlayer,
+        initialDeckSpecByPlayer,
+        initialDeckSpec: (source.initialDeckSpec && typeof source.initialDeckSpec === 'object')
+            ? source.initialDeckSpec
+            : null
+    }, boardConfig && typeof boardConfig === 'object' ? boardConfig : null);
+    return { ...options };
 }
 
 function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, seatKey: unknown, deckSelection: MatchWorkerDeckSelection | null | undefined): boolean {
@@ -1317,38 +1269,27 @@ function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, 
 
     const normalizedSeatKey = normalizePlayerKey(seatKey);
     if (!normalizedSeatKey) return false;
-    const initialDeckSpecByPlayer = getRoomInitialDeckSpecByPlayer(room);
-    initialDeckSpecByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true
-        ? deepClone(deckSelection.deckSpec)
-        : null;
-    room.initialDeckSpecByPlayer = (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white)
-        ? initialDeckSpecByPlayer
-        : null;
-    room.initialDeckSpec = null;
-
-    const roomDeck: MatchWorkerRoomDeckMetadata = normalizeRoomDeckMetadata(room.roomDeck) || {
-        mode: 'perPlayer',
-        source: 'room',
-        deckCode: '',
-        deckSize: null,
-        deckCodeByPlayer: { black: '', white: '' },
-        deckSizeByPlayer: { black: null, white: null }
-    };
-
-    roomDeck.mode = 'perPlayer';
-    roomDeck.source = 'room';
-    roomDeck.deckCode = '';
-    roomDeck.deckSize = null;
-    roomDeck.deckCodeByPlayer = Object.assign({ black: '', white: '' }, roomDeck.deckCodeByPlayer || {});
-    roomDeck.deckSizeByPlayer = Object.assign({ black: null, white: null }, roomDeck.deckSizeByPlayer || {});
-    roomDeck.deckCodeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true
-        ? String(deckSelection.deckCode || '').trim()
-        : '';
-    roomDeck.deckSizeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true
-        ? normalizeDeckSizeValue(deckSelection.deckSize)
-        : null;
-
-    room.roomDeck = hasRoomDeckMetadataEntries(roomDeck) ? roomDeck : null;
+    const currentInitialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room.initialDeckSpecByPlayer);
+    const patch = buildRoomDeckSelectionPatch({
+        initialDeckSpec: (room.initialDeckSpec && typeof room.initialDeckSpec === 'object')
+            ? room.initialDeckSpec
+            : null,
+        initialDeckSpecByPlayer: (
+            currentInitialDeckSpecByPlayer.black !== null || currentInitialDeckSpecByPlayer.white !== null
+        ) ? currentInitialDeckSpecByPlayer : null,
+        roomDeck: normalizeRoomDeckMetadata(room.roomDeck)
+    }, normalizedSeatKey, {
+        ok: true,
+        hasCustomDeck: deckSelection.hasCustomDeck === true,
+        deckSpec: deckSelection.hasCustomDeck === true && deckSelection.deckSpec && typeof deckSelection.deckSpec === 'object'
+            ? deckSelection.deckSpec
+            : null,
+        deckCode: deckSelection.hasCustomDeck === true ? String(deckSelection.deckCode || '').trim() : '',
+        deckSize: deckSelection.hasCustomDeck === true ? normalizeRoomDeckSize(deckSelection.deckSize) : null
+    });
+    room.initialDeckSpec = patch.initialDeckSpec;
+    room.initialDeckSpecByPlayer = patch.initialDeckSpecByPlayer;
+    room.roomDeck = patch.roomDeck;
     return true;
 }
 
@@ -1358,51 +1299,17 @@ function toPublicRoomDeck(room: MatchWorkerRoomState | null | undefined): Record
     const cardState = asRecord(snapshot.cardState);
     const initialDeckSizeByPlayer = asRecord(cardState.initialDeckSizeByPlayer);
     const snapshotDeckSizes = {
-        black: normalizeDeckSizeValue(
+        black: normalizeRoomDeckSize(
             initialDeckSizeByPlayer.black
         ),
-        white: normalizeDeckSizeValue(
+        white: normalizeRoomDeckSize(
             initialDeckSizeByPlayer.white
         )
     };
-    const snapshotDeckSize = snapshotDeckSizes.black !== null
-        ? snapshotDeckSizes.black
-        : normalizeDeckSizeValue(cardState.initialDeckSize);
-
-    if (metadata && metadata.mode === 'perPlayer') {
-        const deckCodeByPlayer = {
-            black: String(metadata.deckCodeByPlayer.black || '').trim(),
-            white: String(metadata.deckCodeByPlayer.white || '').trim()
-        };
-        const deckSizeByPlayer = {
-            black: metadata.deckSizeByPlayer.black !== null ? metadata.deckSizeByPlayer.black : snapshotDeckSizes.black,
-            white: metadata.deckSizeByPlayer.white !== null ? metadata.deckSizeByPlayer.white : snapshotDeckSizes.white
-        };
-        const sharedDeckCode = deckCodeByPlayer.black && deckCodeByPlayer.black === deckCodeByPlayer.white
-            ? deckCodeByPlayer.black
-            : '';
-        const sharedDeckSize = sharedDeckCode && deckSizeByPlayer.black === deckSizeByPlayer.white
-            ? deckSizeByPlayer.black
-            : null;
-
-        return {
-            mode: 'perPlayer',
-            deckCode: sharedDeckCode,
-            deckSize: sharedDeckSize,
-            deckCodeByPlayer,
-            deckSizeByPlayer,
-            source: metadata.source || 'room'
-        };
-    }
-
-    if (!metadata && snapshotDeckSize === null) return null;
-
-    return {
-        mode: metadata && metadata.mode ? String(metadata.mode) : 'shared',
-        deckCode: metadata && metadata.deckCode ? String(metadata.deckCode).trim() : '',
-        deckSize: metadata && metadata.deckSize !== null ? metadata.deckSize : snapshotDeckSize,
-        source: metadata && metadata.source ? String(metadata.source) : 'room'
-    };
+    return projectPublicRoomDeck(metadata, {
+        initialDeckSizeByPlayer: snapshotDeckSizes,
+        initialDeckSize: normalizeRoomDeckSize(cardState.initialDeckSize)
+    }) as Record<string, unknown> | null;
 }
 
 function toPublicRoomBoardConfig(room: MatchWorkerRoomState | null | undefined): unknown {
