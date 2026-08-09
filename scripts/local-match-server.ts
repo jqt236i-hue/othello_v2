@@ -16,6 +16,16 @@ const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const MatchCommandRuntime = require('../utils/match-command-runtime');
 const MatchAutoCommand = require('../utils/match-auto-command');
+const {
+    buildInitialDeckSnapshotOptions: buildCanonicalInitialDeckSnapshotOptions,
+    buildRoomDeckSelectionPatch,
+    cloneRoomDeckCardIdsByPlayer,
+    cloneRoomDeckSpecByPlayer,
+    createAllCardsRoomDeckMetadata: createCanonicalAllCardsRoomDeckMetadata,
+    isAllCardsDeckRoom: classifyAllCardsDeckRoom,
+    normalizeRoomDeckSize,
+    projectPublicRoomDeck
+} = require('../utils/match-room-deck');
 const CpuNetworkCommandPlanner = require('../game/cpu-network-command-planner');
 const PendingCoordinator = require('../game/turn/pending-coordinator');
 const PendingSelectionRegistry = require('../game/logic/cards-internal/pending-selection-registry');
@@ -339,10 +349,10 @@ function cloneInitialDeckCardIdsByPlayer(source: any) {
     const cloneCards = (value: any) => Array.isArray(value)
         ? value.map((cardId) => String(cardId || '').trim()).filter(Boolean)
         : null;
-    return {
+    return cloneRoomDeckCardIdsByPlayer({
         black: cloneCards(byPlayer.black),
         white: cloneCards(byPlayer.white)
-    };
+    });
 }
 
 function getAllCardsDeckCardIds() {
@@ -364,74 +374,71 @@ function createAllCardsDeckCardIdsByPlayer() {
 }
 
 function createAllCardsRoomDeckMetadata(cardIdsByPlayer: any) {
-    const blackSize = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.black)
-        ? cardIdsByPlayer.black.length
-        : 0;
-    const whiteSize = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.white)
-        ? cardIdsByPlayer.white.length
-        : blackSize;
-    return {
-        mode: 'shared',
-        deckCode: '',
-        deckSize: blackSize,
-        deckCodeByPlayer: { black: '', white: '' },
-        deckSizeByPlayer: { black: blackSize, white: whiteSize },
-        source: 'allCards'
-    };
+    const black = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.black)
+        ? cardIdsByPlayer.black
+        : [];
+    const white = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.white)
+        ? cardIdsByPlayer.white
+        : black;
+    return createCanonicalAllCardsRoomDeckMetadata({ black, white });
 }
 
 function isAllCardsDeckRoom(room: any) {
-    return !!(
-        room
-        && (room.allCardsDeckEnabled === true
-            || (room.roomDeck && String(room.roomDeck.source || '').trim() === 'allCards'))
-    );
+    const roomDeckSource = room && room.roomDeck
+        ? String(room.roomDeck.source || '')
+        : null;
+    return classifyAllCardsDeckRoom(!!(room && room.allCardsDeckEnabled === true), roomDeckSource);
 }
 
 function buildInitialDeckSnapshotOptions(room: any) {
     const source: any = (room && typeof room === 'object') ? room : {};
-    const options: any = {};
     const cardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(source.initialDeckCardIdsByPlayer);
-    if (cardIdsByPlayer.black || cardIdsByPlayer.white) {
-        options.initialDeckCardIdsByPlayer = cardIdsByPlayer;
-    }
-    const byPlayer = source.initialDeckSpecByPlayer;
-    if (byPlayer && (byPlayer.black || byPlayer.white)) {
-        options.initialDeckSpecByPlayer = deepClone(byPlayer);
-    } else if (source.initialDeckSpec && typeof source.initialDeckSpec === 'object') {
-        options.initialDeckSpec = deepClone(source.initialDeckSpec);
-    }
+    const byPlayer = (source.initialDeckSpecByPlayer && typeof source.initialDeckSpecByPlayer === 'object')
+        ? source.initialDeckSpecByPlayer
+        : {};
+    const initialDeckSpecByPlayer = cloneRoomDeckSpecByPlayer({
+        black: byPlayer.black || null,
+        white: byPlayer.white || null
+    });
     const boardConfig = MatchAuthority.resolveRoomBoardConfig(source);
-    if (boardConfig) {
-        options.boardConfig = boardConfig;
-    }
-    return options;
+    return buildCanonicalInitialDeckSnapshotOptions({
+        initialDeckCardIdsByPlayer: cardIdsByPlayer,
+        initialDeckSpecByPlayer,
+        initialDeckSpec: source.initialDeckSpec && typeof source.initialDeckSpec === 'object'
+            ? source.initialDeckSpec
+            : null
+    }, boardConfig && typeof boardConfig === 'object' ? boardConfig : null);
 }
 
 function cloneInitialDeckSpecByPlayer(source: any) {
     const byPlayer = (source && typeof source === 'object') ? source : {};
-    return {
-        black: byPlayer.black && typeof byPlayer.black === 'object' ? deepClone(byPlayer.black) : null,
-        white: byPlayer.white && typeof byPlayer.white === 'object' ? deepClone(byPlayer.white) : null
-    };
+    return cloneRoomDeckSpecByPlayer({
+        black: byPlayer.black && typeof byPlayer.black === 'object' ? byPlayer.black : null,
+        white: byPlayer.white && typeof byPlayer.white === 'object' ? byPlayer.white : null
+    });
 }
 
-function getRoomInitialDeckSpecByPlayer(room: any) {
-    const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room && room.initialDeckSpecByPlayer);
-    if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
-        return initialDeckSpecByPlayer;
-    }
-
-    const sharedDeckSpec = room && room.initialDeckSpec && typeof room.initialDeckSpec === 'object'
-        ? room.initialDeckSpec
-        : null;
-    if (!sharedDeckSpec) {
-        return { black: null, white: null };
-    }
-
+function normalizeLocalRoomDeckMetadata(value: any) {
+    if (!value || typeof value !== 'object') return null;
+    const deckCodeByPlayerSource = value.deckCodeByPlayer && typeof value.deckCodeByPlayer === 'object'
+        ? value.deckCodeByPlayer
+        : {};
+    const deckSizeByPlayerSource = value.deckSizeByPlayer && typeof value.deckSizeByPlayer === 'object'
+        ? value.deckSizeByPlayer
+        : {};
     return {
-        black: deepClone(sharedDeckSpec),
-        white: deepClone(sharedDeckSpec)
+        mode: value.mode === 'perPlayer' ? 'perPlayer' : 'shared',
+        source: value.source ? String(value.source) : 'room',
+        deckCode: String(value.deckCode || '').trim(),
+        deckSize: normalizeRoomDeckSize(value.deckSize),
+        deckCodeByPlayer: {
+            black: String(deckCodeByPlayerSource.black || '').trim(),
+            white: String(deckCodeByPlayerSource.white || '').trim()
+        },
+        deckSizeByPlayer: {
+            black: normalizeRoomDeckSize(deckSizeByPlayerSource.black),
+            white: normalizeRoomDeckSize(deckSizeByPlayerSource.white)
+        }
     };
 }
 
@@ -439,41 +446,27 @@ function assignRoomDeckSelection(room: any, seatKey: any, deckSelection: any) {
     if (!room || !deckSelection || deckSelection.ok !== true) return false;
     const normalizedSeatKey = normalizePlayerKey(seatKey);
     if (!normalizedSeatKey) return false;
-    const initialDeckSpecByPlayer = getRoomInitialDeckSpecByPlayer(room);
-    (initialDeckSpecByPlayer as any)[normalizedSeatKey] = deckSelection.hasCustomDeck === true && deckSelection.deckSpec
-        ? deepClone(deckSelection.deckSpec)
-        : null;
-    room.initialDeckSpecByPlayer = (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white)
-        ? initialDeckSpecByPlayer
-        : null;
-    room.initialDeckSpec = null;
-    if (!room.roomDeck) {
-        room.roomDeck = {
-            mode: 'perPlayer',
-            deckCode: '',
-            deckSize: null,
-            deckCodeByPlayer: { black: '', white: '' },
-            deckSizeByPlayer: { black: null, white: null },
-            source: 'room'
-        };
-    }
-    room.roomDeck.mode = 'perPlayer';
-    room.roomDeck.source = 'room';
-    room.roomDeck.deckCode = '';
-    room.roomDeck.deckSize = null;
-    room.roomDeck.deckCodeByPlayer = Object.assign({ black: '', white: '' }, room.roomDeck.deckCodeByPlayer || {});
-    room.roomDeck.deckSizeByPlayer = Object.assign({ black: null, white: null }, room.roomDeck.deckSizeByPlayer || {});
-    room.roomDeck.deckCodeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true ? (deckSelection.deckCode || '') : '';
-    room.roomDeck.deckSizeByPlayer[normalizedSeatKey] = deckSelection.hasCustomDeck === true ? deckSelection.deckSize : null;
-    const hasRoomDeckEntry = !!(
-        room.roomDeck.deckCode
-        || room.roomDeck.deckSize !== null
-        || room.roomDeck.deckCodeByPlayer.black
-        || room.roomDeck.deckCodeByPlayer.white
-        || room.roomDeck.deckSizeByPlayer.black !== null
-        || room.roomDeck.deckSizeByPlayer.white !== null
-    );
-    if (!hasRoomDeckEntry) room.roomDeck = null;
+    const currentInitialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room.initialDeckSpecByPlayer);
+    const patch = buildRoomDeckSelectionPatch({
+        initialDeckSpec: room.initialDeckSpec && typeof room.initialDeckSpec === 'object'
+            ? room.initialDeckSpec
+            : null,
+        initialDeckSpecByPlayer: (
+            currentInitialDeckSpecByPlayer.black !== null || currentInitialDeckSpecByPlayer.white !== null
+        ) ? currentInitialDeckSpecByPlayer : null,
+        roomDeck: normalizeLocalRoomDeckMetadata(room.roomDeck)
+    }, normalizedSeatKey, {
+        ok: true,
+        hasCustomDeck: deckSelection.hasCustomDeck === true,
+        deckSpec: deckSelection.hasCustomDeck === true && deckSelection.deckSpec
+            ? deckSelection.deckSpec
+            : null,
+        deckCode: deckSelection.hasCustomDeck === true ? String(deckSelection.deckCode || '') : '',
+        deckSize: deckSelection.hasCustomDeck === true ? normalizeRoomDeckSize(deckSelection.deckSize) : null
+    });
+    room.initialDeckSpec = patch.initialDeckSpec;
+    room.initialDeckSpecByPlayer = patch.initialDeckSpecByPlayer;
+    room.roomDeck = patch.roomDeck;
     return true;
 }
 
@@ -875,83 +868,53 @@ function toPublicSeatHandSkins(room: any) {
     return buildPublicSeatState(room).seatHandSkins;
 }
 
-function normalizeDeckSizeValue(value: any) {
-    if (value === null || typeof value === 'undefined' || value === '') return null;
-    return Number.isFinite(Number(value))
-        ? Math.max(0, Math.trunc(Number(value)))
-        : null;
+function projectLegacyUnknownModeRoomDeck(metadata: any, snapshotSizes: any) {
+    const rawMode = metadata && metadata.mode ? String(metadata.mode) : '';
+    if (!rawMode || rawMode === 'shared' || rawMode === 'perPlayer') {
+        throw new TypeError('projectLegacyUnknownModeRoomDeck requires a non-empty unsupported mode');
+    }
+    const snapshotDeckSize = snapshotSizes.initialDeckSizeByPlayer.black !== null
+        ? snapshotSizes.initialDeckSizeByPlayer.black
+        : snapshotSizes.initialDeckSize;
+    const metadataDeckSize = normalizeRoomDeckSize(metadata.deckSize);
+    return {
+        mode: rawMode,
+        deckCode: metadata.deckCode ? String(metadata.deckCode).trim() : '',
+        deckSize: metadataDeckSize !== null ? metadataDeckSize : snapshotDeckSize,
+        source: metadata.source ? String(metadata.source) : 'room'
+    };
 }
 
 function toPublicRoomDeck(room: any) {
-    const metadata = (room && room.roomDeck && typeof room.roomDeck === 'object')
-        ? deepClone(room.roomDeck)
+    const rawMetadata = (room && room.roomDeck && typeof room.roomDeck === 'object')
+        ? room.roomDeck
         : null;
-    const snapshotDeckSizes = {
-        black: normalizeDeckSizeValue(
-            room
-            && room.snapshot
-            && room.snapshot.cardState
-            && room.snapshot.cardState.initialDeckSizeByPlayer
-            && room.snapshot.cardState.initialDeckSizeByPlayer.black
-        ),
-        white: normalizeDeckSizeValue(
-            room
-            && room.snapshot
-            && room.snapshot.cardState
-            && room.snapshot.cardState.initialDeckSizeByPlayer
-            && room.snapshot.cardState.initialDeckSizeByPlayer.white
+    const snapshotSizes = {
+        initialDeckSizeByPlayer: {
+            black: normalizeRoomDeckSize(
+                room
+                && room.snapshot
+                && room.snapshot.cardState
+                && room.snapshot.cardState.initialDeckSizeByPlayer
+                && room.snapshot.cardState.initialDeckSizeByPlayer.black
+            ),
+            white: normalizeRoomDeckSize(
+                room
+                && room.snapshot
+                && room.snapshot.cardState
+                && room.snapshot.cardState.initialDeckSizeByPlayer
+                && room.snapshot.cardState.initialDeckSizeByPlayer.white
+            )
+        },
+        initialDeckSize: normalizeRoomDeckSize(
+            room && room.snapshot && room.snapshot.cardState && room.snapshot.cardState.initialDeckSize
         )
     };
-    const snapshotDeckSize = snapshotDeckSizes.black !== null
-        ? snapshotDeckSizes.black
-        : normalizeDeckSizeValue(room && room.snapshot && room.snapshot.cardState && room.snapshot.cardState.initialDeckSize);
-
-    if (metadata && metadata.mode === 'perPlayer') {
-        const deckCodeByPlayerSource = (metadata.deckCodeByPlayer && typeof metadata.deckCodeByPlayer === 'object')
-            ? metadata.deckCodeByPlayer
-            : {};
-        const deckSizeByPlayerSource = (metadata.deckSizeByPlayer && typeof metadata.deckSizeByPlayer === 'object')
-            ? metadata.deckSizeByPlayer
-            : {};
-        const deckCodeByPlayer = {
-            black: String(deckCodeByPlayerSource.black || '').trim(),
-            white: String(deckCodeByPlayerSource.white || '').trim()
-        };
-        const deckSizeByPlayer = {
-            black: normalizeDeckSizeValue(deckSizeByPlayerSource.black) !== null
-                ? normalizeDeckSizeValue(deckSizeByPlayerSource.black)
-                : snapshotDeckSizes.black,
-            white: normalizeDeckSizeValue(deckSizeByPlayerSource.white) !== null
-                ? normalizeDeckSizeValue(deckSizeByPlayerSource.white)
-                : snapshotDeckSizes.white
-        };
-        const sharedDeckCode = deckCodeByPlayer.black && deckCodeByPlayer.black === deckCodeByPlayer.white
-            ? deckCodeByPlayer.black
-            : '';
-        const sharedDeckSize = sharedDeckCode && deckSizeByPlayer.black === deckSizeByPlayer.white
-            ? deckSizeByPlayer.black
-            : null;
-
-        return {
-            mode: 'perPlayer',
-            deckCode: sharedDeckCode,
-            deckSize: sharedDeckSize,
-            deckCodeByPlayer,
-            deckSizeByPlayer,
-            source: metadata.source ? String(metadata.source) : 'room'
-        };
+    const rawMode = rawMetadata && rawMetadata.mode ? String(rawMetadata.mode) : '';
+    if (rawMode && rawMode !== 'shared' && rawMode !== 'perPlayer') {
+        return projectLegacyUnknownModeRoomDeck(rawMetadata, snapshotSizes);
     }
-
-    if (!metadata && snapshotDeckSize === null) return null;
-
-    return {
-        mode: metadata && metadata.mode ? String(metadata.mode) : 'shared',
-        deckCode: metadata && metadata.deckCode ? String(metadata.deckCode).trim() : '',
-        deckSize: metadata && normalizeDeckSizeValue(metadata.deckSize) !== null
-            ? normalizeDeckSizeValue(metadata.deckSize)
-            : snapshotDeckSize,
-        source: metadata && metadata.source ? String(metadata.source) : 'room'
-    };
+    return projectPublicRoomDeck(normalizeLocalRoomDeckMetadata(rawMetadata), snapshotSizes);
 }
 
 function toPublicRoomBoardConfig(room: any) {
