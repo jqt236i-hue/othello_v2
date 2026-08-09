@@ -139,6 +139,7 @@ interface SniperRoot {
     SharedBoardUtils?: any;
     BoardOps?: SniperBoardOpsModule | null;
     CardRandomSource?: SniperRandomSourceModule | null;
+    CardMarkers?: { isInviolableCell?: (cardState: SniperCardState, row: number, col: number) => boolean } | null;
     CardSniper?: SniperModuleApi;
 }
 
@@ -147,28 +148,20 @@ const CardSniper = /**
  * @description Sniper Will effect helpers
  */
 
-(function (root: SniperRoot, factory: (constants: SniperSharedConstants, boardOps: SniperBoardOpsModule | null, randomSource: SniperRandomSourceModule | null, boardUtils: any) => SniperModuleApi) {
+(function (root: SniperRoot, factory: (constants: SniperSharedConstants, boardOps: SniperBoardOpsModule | null, randomSource: SniperRandomSourceModule | null, boardUtils: any, cardMarkers: SniperRoot['CardMarkers']) => SniperModuleApi) {
     if (root && root.SharedConstants) {
-        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null);
+        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null, root.CardMarkers || null);
     }
     if (typeof module === 'object' && module.exports) {
-        return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'), require('../../../shared/shared-board-utils'));
+        return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'), require('../../../shared/shared-board-utils'), require('./markers'));
     } else {
         if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
-        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null);
+        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null, root.CardMarkers || null);
     }
-}(typeof self !== 'undefined' ? self as unknown as SniperRoot : globalThis as unknown as SniperRoot, function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null, BoardUtils: any) {
+}(typeof self !== 'undefined' ? self as unknown as SniperRoot : globalThis as unknown as SniperRoot, function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null, BoardUtils: any, CardMarkersModule: SniperRoot['CardMarkers']) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
-    const CardMarkersModule = (() => {
-        try {
-            if (typeof require === 'function') {
-                return require('./markers');
-            }
-        } catch (_error) { /* ignore */ }
-        return null;
-    })();
 
     if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
         throw new Error('SharedConstants missing required values');
@@ -185,6 +178,10 @@ const CardSniper = /**
     if (!CardMarkersModule || typeof CardMarkersModule.isInviolableCell !== 'function') {
         throw new Error('CardMarkers.isInviolableCell is required by CardSniper');
     }
+    const RequiredCardMarkersModule = CardMarkersModule as Required<Pick<
+        NonNullable<SniperRoot['CardMarkers']>,
+        'isInviolableCell'
+    >>;
 
     function createBoardContext(gameState: SniperGameState, cardState: SniperCardState): any {
         return BoardUtils.createBoardContext(gameState, cardState);
@@ -228,7 +225,7 @@ const CardSniper = /**
         const candidates: SniperEffectTarget[] = [];
         for (const cell of BoardUtils.collectBoardCellValues(createBoardContext(gameState, cardState))) {
             if (cell.owner !== enemyValue) continue;
-            if (CardMarkersModule.isInviolableCell(cardState, cell.row, cell.col) === true) continue;
+            if (RequiredCardMarkersModule.isInviolableCell(cardState, cell.row, cell.col) === true) continue;
             const dr = cell.row - sourceRow;
             const dc = cell.col - sourceCol;
             const distSq = (dr * dr) + (dc * dc);

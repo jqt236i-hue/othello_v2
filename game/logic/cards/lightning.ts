@@ -143,6 +143,7 @@ interface LightningRoot {
   SharedBoardUtils?: any;
   BoardOps?: LightningBoardOpsModule | null;
   CardRandomSource?: LightningRandomSourceModule | null;
+  CardMarkers?: LightningCardMarkersModule | null;
 }
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -162,7 +163,7 @@ const SharedConstants = safeRequire<LightningSharedConstants>('../../../shared-c
 const BoardUtils = safeRequire<any>('../../../shared/shared-board-utils') || root?.SharedBoardUtils || null;
 const BoardOpsModule = safeRequire<LightningBoardOpsModule>('../board_ops') || root?.BoardOps || null;
 const RandomSourceModule = safeRequire<LightningRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
-const CardMarkersModule = safeRequire<LightningCardMarkersModule>('./markers') || null;
+const CardMarkersModule = safeRequire<LightningCardMarkersModule>('./markers') || root?.CardMarkers || null;
 
 const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
 

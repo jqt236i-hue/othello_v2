@@ -173,7 +173,8 @@ const BoardUtils = safeRequire('../../../shared/shared-board-utils')
 const BoardOpsModule: MeteorGodBoardOpsModule | null = safeRequire('../board_ops')
   || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
 const RandomSourceModule = safeRequire('./random-source');
-const CardMarkersModule: MeteorGodCardMarkersModule | null = safeRequire('./markers');
+const CardMarkersModule: MeteorGodCardMarkersModule | null = safeRequire('./markers')
+  || (typeof self !== 'undefined' ? (self as any).CardMarkers : null);
 const CardCellRemoval = ((typeof module === 'object' && module.exports)
   ? safeRequire('./cell-removal')
   : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null);

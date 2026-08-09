@@ -22,6 +22,14 @@ const REQUIRED_BOARD_CONTRACT_STATIC_CHAIN = Object.freeze([
     'shared/shared-board-utils.ts',
     'shared/board/state-kernel.ts'
 ]);
+const REQUIRED_RUNTIME_REGISTRATION_ORDER = Object.freeze([
+    ['MarkersAdapter', 'CardMarkers'],
+    ['CardUtils', 'CardMarkers'],
+    ['CardMarkers', 'CardMeteorGod'],
+    ['CardMarkers', 'CardSniper'],
+    ['CardMarkers', 'CardLightning'],
+    ['CardMarkers', 'CardDestroyDragon']
+] as const);
 
 function collectModuleSpecifiers(source: string, includeDynamicImports: boolean): string[] {
     const specifiers: string[] = [];
@@ -187,12 +195,38 @@ function collectRuntimePreloadRegistrations(source: string): RuntimeModuleRegist
     }));
 }
 
+function assertRuntimeRegistrationOrder(
+    registrations: readonly RuntimeModuleRegistration[],
+    requiredOrder: readonly (readonly [string, string])[] = REQUIRED_RUNTIME_REGISTRATION_ORDER
+): void {
+    const indexByGlobalKey = new Map<string, number>();
+    registrations.forEach((registration, index) => {
+        indexByGlobalKey.set(registration.globalKey, index);
+    });
+    const failures: string[] = [];
+    for (const [dependency, consumer] of requiredOrder) {
+        const dependencyIndex = indexByGlobalKey.get(dependency);
+        const consumerIndex = indexByGlobalKey.get(consumer);
+        if (typeof dependencyIndex !== 'number' || typeof consumerIndex !== 'number') {
+            failures.push(`required runtime order entry missing: ${dependency} -> ${consumer}`);
+            continue;
+        }
+        if (dependencyIndex >= consumerIndex) {
+            failures.push(`runtime dependency must preload first: ${dependency} -> ${consumer}`);
+        }
+    }
+    if (failures.length > 0) {
+        throw new Error(`[worker-runtime-preload] ${failures.join('\n[worker-runtime-preload] ')}`);
+    }
+}
+
 export function checkWorkerRuntimePreload(): void {
     const runtimePreload = collectRuntimePreloadRegistrations(readRepoFile(RUNTIME_PRELOAD_PATH));
     const workerSource = readRepoFile(WORKER_PATH);
     const failures: string[] = [];
     const workerGraph = assertWorkerGraphHasNoPixi(ROOT);
     assertStaticDependencyChain(ROOT, REQUIRED_BOARD_CONTRACT_STATIC_CHAIN);
+    assertRuntimeRegistrationOrder(runtimePreload);
     const globalKeys = new Set<string>();
     const importPaths = new Set<string>();
 
@@ -241,10 +275,12 @@ export function checkWorkerRuntimePreload(): void {
 }
 
 export {
+    assertRuntimeRegistrationOrder,
     assertStaticDependencyChain,
     assertWorkerGraphHasNoPixi,
     collectEagerModuleSpecifiers,
     collectGraphModuleSpecifiers,
+    collectRuntimePreloadRegistrations,
     collectStaticModuleSpecifiers,
     resolveSourceImport
 };

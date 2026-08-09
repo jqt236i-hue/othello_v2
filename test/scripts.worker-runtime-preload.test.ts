@@ -4,10 +4,12 @@ import * as os from 'os';
 import * as path from 'path';
 
 const {
+  assertRuntimeRegistrationOrder,
   assertStaticDependencyChain,
   assertWorkerGraphHasNoPixi,
   collectEagerModuleSpecifiers,
-  collectGraphModuleSpecifiers
+  collectGraphModuleSpecifiers,
+  collectRuntimePreloadRegistrations
 } = require('../scripts/check-worker-runtime-preload');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -22,6 +24,23 @@ describe('worker runtime preload checks', () => {
     expect(result.status).toBe(0);
     expect(`${result.stdout}${result.stderr}`).toContain('[worker-runtime-preload] single source verified registrations=');
     expect(`${result.stdout}${result.stderr}`).toContain('pixiExcludedGraphFiles=');
+  });
+
+  test('requires CardMarkers and its adapter dependencies before strict consumers', () => {
+    const source = fs.readFileSync(
+      path.join(ROOT, 'workers', 'match-worker-runtime-preload.ts'),
+      'utf8'
+    );
+    const registrations = collectRuntimePreloadRegistrations(source);
+
+    expect(() => assertRuntimeRegistrationOrder(registrations)).not.toThrow();
+    const cardMarkersIndex = registrations.findIndex((entry: any) => entry.globalKey === 'CardMarkers');
+    const broken = registrations.slice();
+    const [cardMarkers] = broken.splice(cardMarkersIndex, 1);
+    broken.push(cardMarkers);
+
+    expect(() => assertRuntimeRegistrationOrder(broken))
+      .toThrow(/runtime dependency must preload first: CardMarkers -> CardMeteorGod/);
   });
 
   test('follows explicit .js source imports to .ts and rejects PixiJS in the Worker graph', () => {
