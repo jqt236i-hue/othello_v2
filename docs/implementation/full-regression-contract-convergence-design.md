@@ -1,9 +1,9 @@
 # Full regression contract convergence design
 
-- Status: reviewed design, ready for implementation
+- Status: implemented and verified
 - Date: 2026-08-09
 - Document role: the implementation design for restoring a zero-known-failure regression baseline before any further structural refactor
-- Target: the four currently reproducible failing Jest suites, their nineteen failures, and the verification gap that allowed them to remain outside the normal green baseline
+- Target: the four initially reproducible failing Jest suites, their nineteen failures, the dependent compatibility assertion exposed by strict-anchor convergence, and the verification gap that allowed them to remain outside the normal green baseline
 - Sources of truth: root `AGENTS.md`, the nearest directory `AGENTS.md` files, `docs/architecture-contracts.md` §§6.2.1, 6.4, 7.2, 7.3, 8.1, 9.1, 11, and 12, the current root implementation, and the tests named in this document
 - Player-visible specification: unchanged; `01-rulebook.md` and `正本/*.md` are not edited
 - Non-goals: gameplay or card-rule changes, network payload/protocol changes, boot-order changes, board-writer implementation changes, removal of compatibility globals repo-wide, broad malformed-state normalization, giant-file splitting, Worker/local room-deck unification, Pixi scene decomposition, generated-file source edits, and Git-history rewriting
@@ -63,6 +63,8 @@ The indexed marker path in `game/logic/cards/markers.ts` uses type-aware keys an
 
 The failing test requiring no string-coordinate coercion predates the July 29 multi-cell helper, while the state-kernel inspection logic already rejects non-integer multi-cell anchors with an exact-coordinate error. The smallest coherent correction is to make the canonical shared footprint helper inspect the stored anchor as-is. It is not to make the index coerce malformed state.
 
+The first implementation-time full Jest run exposed one dependent compatibility assertion in `test/ui.board-dom-compat.long-press-info.test.ts`. Its fixture stored marker anchors as numeric strings while describing them as “network-style”, which conflicts with the exact stored-anchor contract above: JSON transport preserves numeric marker fields as numbers, public snapshot fixtures use numeric anchors, and the shared owner now deliberately rejects malformed stored strings. The supported compatibility behavior is instead the existing target-query coercion in `markerOccupiesCell()`. The integration test therefore keeps a canonical integer marker and passes string row/column query arguments to `showSpecialStoneInfoAt()`, proving query compatibility without reintroducing malformed stored-state acceptance. No UI product implementation changes.
+
 ### 2.4 Browser boot order
 
 The classic bootstrap is intentionally order-sensitive. `shared/special-stone-registry.ts` receives `root.MultiCellStone` in its browser-global branch, so `entry-browser.js` correctly loads and exposes `./dist/shared/multi-cell-stone` before the special-stone registry. The stale test slices the first 27 entries and compares them with a list written before this dependency existed; the runtime table itself has the required dependency in the correct position.
@@ -96,6 +98,7 @@ The selected work has a smaller source diff than the other candidates, but its l
 - Replace the four stale or ambiguous test contracts with current-owner and behavior-based assertions.
 - Make stored marker anchors strict integers in the canonical multi-cell footprint helper and its compatibility fallback.
 - Add focused malformed-anchor and valid-footprint coverage at the shared registry/index boundary.
+- Align the dependent DOM-compat stone-info integration assertion with the same split: integer stored anchors, string-compatible lookup arguments.
 - Add `test/ui.network-client.guard-tempt-deferred-publish.test.ts` to `test:network:parity`.
 - Regenerate browser/Vite/Worker delivery surfaces from root sources because the shared helper is used across those runtimes.
 - Require a zero-failure full Jest run before completion.
@@ -103,7 +106,7 @@ The selected work has a smaller source diff than the other candidates, but its l
 ### 4.2 Assumptions
 
 - Canonical marker objects store `row` and `col` as integer numbers. This is already enforced for canonical multi-cell snapshots and is consistent with the typed lookup APIs.
-- Lookup arguments passed by supported game/UI code remain numeric. The existing target-argument compatibility coercion is not changed by this design.
+- Lookup arguments may arrive as integer numbers or numeric strings at compatibility-facing UI calls. The existing target-argument coercion accepts both and is not changed by this design; only stored marker anchors become strict.
 - The current network selection path is correct: accepted server state is canonical immediately, while input remains locked until the accepted `visualSeq` is visually settled.
 - The current classic boot table and writer runtime behavior are correct; only their tests refer to stale shapes or locations.
 
@@ -137,9 +140,10 @@ In `test/ui.network-client.guard-tempt-deferred-publish.test.ts`:
 5. start the selection handler without awaiting it to completion;
 6. await the tracker “entered” notification rather than flushing an arbitrary number of microtasks, racing it against premature handler settlement so early completion fails immediately;
 7. after the publish response is accepted, assert that the bridge received the accepted response, the real network-client waiter called `waitForNetworkVisualSeq(visualSeq, { operationId })`, and the legacy `global.waitForPlaybackIdle` trap was not called;
-8. while the tracker promise is unresolved, assert that the authoritative returned state is already installed, the handler remains incomplete, and `selectionFlow.isSelectionSettlementLocked()` is true; processing/animation flags are supplemental observations, not substitutes for the lock owner;
+8. while the tracker promise is unresolved, assert that the authoritative returned state is already installed, the handler remains incomplete, and `selectionFlow.isSelectionSettlementLocked()` is true; do not require Node-global `isProcessing` / `isCardAnimating` values because the installed network bridge does not expose busy-state writers and this path owns busy state locally plus through the settlement lock;
 9. resolve the tracker with a matching successful `visualSeq`, await the drain “entered” notification with the same premature-completion race, and prove the handler and selection lock remain pending;
-10. resolve the drain, allow the handler to complete, and prove `isSelectionSettlementLocked()` is false; retain every existing assertion for one publish, request shape, no local preview, no local presentation, pending-effect identity, and applied state.
+10. resolve the drain, allow the handler to complete, and prove `isSelectionSettlementLocked()` is false; retain every existing assertion for one publish, request shape, no local preview, no local presentation, pending-effect identity, and applied state;
+11. for the temptation case's post-publish board-sync request, observe the installed bridge's call-through `armBoardUpdateDuringPlayback({ source: 'selection-flow', reason: 'selection_state_sync' })` capability and require that matching call to return `true`. Do not infer acceptance by peeking a transient downstream board-update context after later snapshot work may have consumed or replaced it; the bridge return is the owner-level acknowledgement. The test's explicit `.js` import may also resolve through a compatibility surface while the TypeScript network client resolves the `.ts` owner under Jest, but module identity alone is not the reason to reject the later context peek.
 
 This verifies the real client → signal bridge → network-client exact waiter → visual-sequence tracker → playback-drain → selection-flow control path. Only the tracker/drain leaf capabilities are controlled; `ui/network-client.ts` still performs `visualSeq` extraction, `operationId` forwarding, room/session capture and recheck, error mapping, and drain ordering. The test does not mock away `publishSnapshot`, replace server authority with client state, or merely delete the old call-count assertion.
 
@@ -169,6 +173,8 @@ Focused coverage must establish this matrix:
 | `NaN`, infinity, missing, or non-number values | no match | empty |
 
 The existing type-aware classification behavior for invalid markers is not generalized or cleaned up in this task. Only numeric cell occupancy and footprint projection become consistent.
+
+At the DOM-compat stone-info integration boundary, preserve this ownership split explicitly: the fixture's stored marker uses integer coordinates, while `showSpecialStoneInfoAt('2', '4')` proves that string query arguments still resolve the canonical marker through `markerOccupiesCell()`. A string-valued stored marker must not be restored merely to retain that query compatibility.
 
 The CommonJS branch of `shared/special-stone-registry.ts` normally requires `MultiCellStone`, so an ordinary registry import does not exercise the fallback. A focused isolated-module test must explicitly make `./multi-cell-stone` unavailable/null while loading the registry, then verify the fallback for both ordinary one-cell and 2x2 markers across valid integer, numeric-string, fractional, non-finite, and missing anchors. This is required coverage, not an optional implementation detail.
 
@@ -270,7 +276,7 @@ No dependency is added from `game/` or `shared/` to `ui/`, DOM, sound, timers, o
 ### Compatibility and migration
 
 - There is no saved-data or network-format migration. Valid serialized marker coordinates are already integer numbers.
-- Numeric lookup arguments keep their behavior. Compatibility behavior for string lookup arguments is not redesigned here.
+- Numeric lookup arguments keep their behavior, and existing numeric-string query compatibility remains covered at the DOM-compat stone-info boundary.
 - Existing CommonJS exports, browser globals, bridge APIs, and facade methods remain unchanged.
 - `package-lock.json` is unchanged because there is no dependency change.
 
@@ -284,7 +290,7 @@ The anchor check removes two coercions per footprint call and does not add alloc
 
 ### Concurrency
 
-The controlled network test must prove the selection promise and busy/animation ownership remain pending until exact settlement resolves. The writer test must prove a presentation drain waits for an in-flight synthetic claim without settling it. These are the two concurrency-sensitive contracts; neither runtime state machine is rewritten.
+The controlled network test must prove the selection promise and direct settlement-lock ownership remain pending until exact settlement resolves. The writer test must prove a presentation drain waits for an in-flight synthetic claim without settling it. These are the two concurrency-sensitive contracts; neither runtime state machine is rewritten. An implementation-time focused run confirmed that this bridge configuration leaves the pre-existing Node-global `isProcessing` / `isCardAnimating` fixtures unchanged, so those compatibility globals are neither an owner nor a valid assertion for this path.
 
 ## 8. Specification, documentation, generated, and cross-runtime implications
 
@@ -312,7 +318,8 @@ Run the four known failing suites together first, then the direct owner/characte
 - `test/ui.board-renderer.recovery-contract.test.ts`;
 - `test/shared.special-stone-registry.test.ts`;
 - `test/shared.board-state-kernel.test.ts`;
-- `test/game.shinra-bansho-god.test.ts`.
+- `test/game.shinra-bansho-god.test.ts`;
+- `test/ui.board-dom-compat.long-press-info.test.ts`.
 
 The focused done condition is zero failures, plus direct assertions for deferred exact settlement, no global fallback, strict malformed anchors, valid 2x2 footprint parity, semantic boot order, and synthetic-writer claim ownership.
 
@@ -356,6 +363,7 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 - The four formerly failing suites pass, and each failure is closed by the contract owner described here.
 - Deferred network selection proves exact accepted-`visualSeq` settlement, single publish, no local preview, no local presentation, and no legacy global playback fallback across all sixteen cases.
 - Direct and indexed numeric lookup both reject markers with string, fractional, non-finite, missing, or otherwise non-integer stored anchors.
+- DOM-compat stone detail still accepts numeric-string query arguments for canonical integer-anchored markers; it does not normalize malformed stored anchors.
 - Valid one-cell and 2x2 marker footprints, ordering, inviolability, and board behavior remain unchanged.
 - The classic boot test checks dependency semantics and passes without changing the current runtime table.
 - Board presentation drain behavior is covered at `writer-runtime` and through the facade, without requiring private state to live in `board-renderer.ts`.
@@ -364,7 +372,16 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 - `01-rulebook.md`, `正本/*.md`, network contracts, saved-data formats, dependencies, and valid player-visible behavior are unchanged.
 - Generated changes come only from repository scripts, the final task-owned diff is inspected, and the implementation is committed without unrelated files.
 
-## 12. Self-review
+## 12. Implementation result
+
+- The initial four-suite baseline was reproduced at 4 failed suites / 19 failed tests. After owner-level repairs, the expanded focused bundle passes 15 suites / 188 tests.
+- The first full Jest run passed 1016/1017 suites and 7601/7602 tests, exposing the dependent DOM-compat assertion described in §2.3. Its exact-path rerun reproduced 1 deterministic failure; the revised stored-anchor/query-input contract then passed 24/24 tests and received an independent re-review with no major or medium finding.
+- `npm run worker:prepare`, `npm run checkall`, and the updated `npm run test:network:parity` all pass. Generated browser/Vite/Worker surfaces were produced from root sources; no generated or mirror file was source-edited.
+- The final `npm run test:jest` exits successfully with 1017/1017 suites and 7602/7602 tests. The former known-red exception is retired.
+- An extra, non-plan `npm run worker:bundle:smoke` exposed a pre-existing Worker preload-order defect: strict card consumers load before `CardMarkers`. Source history and independent diagnosis place that defect in prior commit `849f555e43`, before this task, and the failure occurs before the changed marker-footprint code is reached. This implementation therefore does not claim Worker deploy-smoke readiness or silently mix that separate preload repair into the reviewed scope.
+- No browser playtest was run because no valid-state rendering, input, runtime boot table, or player-visible behavior changed. Browser/Vite builds, mirror validation, valid-marker coverage, network parity, and the full E2E-inclusive Jest suite are the selected proportional evidence.
+
+## 13. Self-review
 
 The first investigation misclassified repeated state-adapter/DOM compatibility wrapper bodies as an unimplemented board visual state-projection unification. Independent review confirmed that `render-state-source.ts` is already the shared owner and that per-consumer prepared state is intentional. That candidate was removed rather than reopening completed work; Worker/local room-deck metadata is now the next recommended characterization target after this baseline is green.
 

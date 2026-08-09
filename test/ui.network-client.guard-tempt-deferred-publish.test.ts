@@ -5,6 +5,30 @@ import * as PendingSelectionRegistry from '../game/logic/cards-internal/pending-
 
 const PRESENTATION_PATH = path.resolve(__dirname, '..', 'game', 'logic', 'presentation.js');
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+async function waitForMilestoneBeforeHandler<T>(
+  milestone: Promise<T>,
+  handler: Promise<unknown>,
+  prematureMessage: string
+): Promise<T> {
+  return Promise.race([
+    milestone,
+    handler.then(
+      () => Promise.reject(new Error(prematureMessage)),
+      (error) => Promise.reject(error)
+    )
+  ]);
+}
+
 const CASES = [
   {
     label: 'TEMPT_WILL',
@@ -13,7 +37,7 @@ const CASES = [
     pendingType: 'TEMPT_WILL',
     rawEventType: 'tempt_selected',
     cardId: 'tempt_01',
-    expectPreviewBoardSyncContext: true,
+    expectSelectionBoardSyncRequest: true,
     buildNextCardState: (cardState) => ({
       ...cloneJson(cardState),
       pendingEffectByPlayer: { black: null, white: null },
@@ -665,13 +689,14 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     assertAppliedState,
     cardId,
     expectPublishOnlySelection,
-    expectPreviewBoardSyncContext
+    expectSelectionBoardSyncRequest
   } = caseConfig;
   let dom;
   let publishBodies;
   let runTurnMock;
-  let BoardUpdateSyncRuntime;
-  let boardUpdateContexts;
+  let trackerGate;
+  let drainGate;
+  let activeHandlerPromise;
 
   beforeEach(() => {
     jest.resetModules();
@@ -686,9 +711,6 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     global.document = dom.window.document;
     global.location = dom.window.location;
     global.localStorage = dom.window.localStorage;
-    BoardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
-    BoardUpdateSyncRuntime.clearBoardUpdateSyncContext();
-    boardUpdateContexts = [];
 
     global.BLACK = 1;
     global.WHITE = -1;
@@ -711,10 +733,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     global.emitLogAdded = jest.fn();
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
-    global.emitBoardUpdate = jest.fn(() => {
-      boardUpdateContexts.push(BoardUpdateSyncRuntime.peekBoardUpdateSyncContext());
-      return true;
-    });
+    global.emitBoardUpdate = jest.fn(() => true);
     global.renderCardUI = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.waitForPlaybackIdle = jest.fn(async () => {});
@@ -810,6 +829,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
           ok: true,
           roomId: 'GTD',
           stateVersion: 21,
+          operationId: body.operationId,
           presentationCursor: { visualSeq: 1, stateVersion: 21 },
           snapshot: body.snapshot
             ? {
@@ -824,7 +844,16 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    if (trackerGate) trackerGate.resolve({ ok: true, visualSeq: 1 });
+    if (drainGate) drainGate.resolve();
+    if (activeHandlerPromise) {
+      await Promise.allSettled([activeHandlerPromise]);
+    }
+    trackerGate = null;
+    drainGate = null;
+    activeHandlerPromise = null;
+    jest.restoreAllMocks();
     try {
       if (dom && dom.window && typeof dom.window.close === 'function') {
         dom.window.close();
@@ -832,14 +861,6 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     } catch (e) {
       // ignore
     }
-    try {
-      if (BoardUpdateSyncRuntime && typeof BoardUpdateSyncRuntime.clearBoardUpdateSyncContext === 'function') {
-        BoardUpdateSyncRuntime.clearBoardUpdateSyncContext();
-      }
-    } catch (e) {
-      // ignore
-    }
-
     delete global.window;
     delete global.document;
     delete global.location;
@@ -875,26 +896,52 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
   });
 
   test('selection publishes only the deferred command once', async () => {
+    const playbackStateModule = require('../ui/playback-state-manager.js');
+    trackerGate = createDeferred<any>();
+    drainGate = createDeferred<void>();
+    const trackerEntered = createDeferred<void>();
+    const drainEntered = createDeferred<void>();
+    const trackerSpy = jest.spyOn(playbackStateModule, 'waitForNetworkVisualSeq')
+      .mockImplementation(() => {
+        trackerEntered.resolve();
+        return trackerGate.promise;
+      });
+    const drainSpy = jest.spyOn(playbackStateModule, 'waitForVisualPlaybackDrain')
+      .mockImplementation(() => {
+        drainEntered.resolve();
+        return drainGate.promise;
+      });
     const selectionFlowModule = require('../game/card-effects/selection-flow.ts');
     const setSignalBridgeSpy = jest.spyOn(selectionFlowModule, 'setSignalBridge');
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
     expect(setSignalBridgeSpy).toHaveBeenCalled();
-    expect(setSignalBridgeSpy.mock.calls.at(-1)[0]).toEqual(expect.objectContaining({
+    const signalBridge = setSignalBridgeSpy.mock.calls.at(-1)[0];
+    expect(signalBridge).toEqual(expect.objectContaining({
       waitForPlaybackIdle: expect.any(Function),
       waitForAuthoritativeVisualSettlement: expect.any(Function)
     }));
+    const bridgeSettlementSpy = jest.spyOn(signalBridge, 'waitForAuthoritativeVisualSettlement');
+    const armBoardUpdateDuringPlaybackSpy = jest.spyOn(signalBridge, 'armBoardUpdateDuringPlayback');
     global.NetworkMatchClient = client;
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
 
     const handlers = require(modulePath);
-    await handlers[handlerName](2, 2, 'black');
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const handlerPromise = Promise.resolve(handlers[handlerName](2, 2, 'black'));
+    activeHandlerPromise = handlerPromise;
+    let handlerSettled = false;
+    void handlerPromise.then(
+      () => { handlerSettled = true; },
+      () => { handlerSettled = true; }
+    );
+    await waitForMilestoneBeforeHandler(
+      trackerEntered.promise,
+      handlerPromise,
+      `${pendingType} handler settled before exact visual tracking began`
+    );
 
     const presentation = require(PRESENTATION_PATH);
     const registryActionConfig = PendingSelectionRegistry.getPendingSelectionActionConfig(pendingType);
@@ -927,22 +974,61 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     }));
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();
+    const operationId = publishBodies[0].operationId;
+    expect(operationId).toEqual(expect.any(String));
+    expect(operationId).not.toBe('');
+    expect(bridgeSettlementSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeSettlementSpy.mock.calls[0][0]).toEqual(expect.objectContaining({
+      ok: true,
+      operationId,
+      presentationCursor: { visualSeq: 1, stateVersion: 21 }
+    }));
+    expect(trackerSpy).toHaveBeenCalledTimes(1);
+    expect(trackerSpy).toHaveBeenCalledWith(1, { operationId });
+    expect(drainSpy).not.toHaveBeenCalled();
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
     expect(global.gameState.turnNumber).toBe(12);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(handlerSettled).toBe(false);
+    expect(selectionFlowModule.isSelectionSettlementLocked()).toBe(true);
+
+    trackerGate.resolve({ ok: true, visualSeq: 1 });
+    await waitForMilestoneBeforeHandler(
+      drainEntered.promise,
+      handlerPromise,
+      `${pendingType} handler settled before visual playback drain began`
+    );
+    expect(drainSpy).toHaveBeenCalledTimes(1);
+    expect(drainSpy).toHaveBeenCalledWith(expect.objectContaining({
+      root: window,
+      getCardState: expect.any(Function),
+      disableTimeout: true
+    }));
+    expect(selectionFlowModule.isSelectionSettlementLocked()).toBe(true);
+    expect(handlerSettled).toBe(false);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+
+    drainGate.resolve();
+    const handlerResult = await handlerPromise;
+    expect(handlerResult).toEqual(expect.objectContaining({ ok: true }));
+    expect(selectionFlowModule.isSelectionSettlementLocked()).toBe(false);
     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
     assertAppliedState({
       gameState: global.gameState,
       cardState: global.cardState,
       emitLogAdded: global.emitLogAdded
     });
-    if (expectPreviewBoardSyncContext) {
-      expect(boardUpdateContexts).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          source: 'selection-flow',
-          reason: 'selection_state_sync'
-        })
-      ]));
+    if (expectSelectionBoardSyncRequest) {
+      const matchingCallIndex = armBoardUpdateDuringPlaybackSpy.mock.calls.findIndex(([context]) => (
+        context
+        && context.source === 'selection-flow'
+        && context.reason === 'selection_state_sync'
+      ));
+      expect(matchingCallIndex).toBeGreaterThanOrEqual(0);
+      expect(armBoardUpdateDuringPlaybackSpy.mock.results[matchingCallIndex]).toEqual({
+        type: 'return',
+        value: true
+      });
     }
   });
 });

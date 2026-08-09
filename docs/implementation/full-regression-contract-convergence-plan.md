@@ -1,6 +1,6 @@
 # Full regression contract convergence implementation plan
 
-- Status: reviewed and ready for implementation
+- Status: implemented and verified
 - Date: 2026-08-09
 - Design authority: `docs/implementation/full-regression-contract-convergence-design.md`
 - Document role: ordered implementation and verification plan for closing the four known failing Jest suites and restoring a zero-failure full regression baseline
@@ -138,12 +138,13 @@ The sixteen-case client suite observes the actual network-client exact waiter—
    - `global.waitForPlaybackIdle` has not run;
    - the accepted authoritative state is already installed;
    - the handler completion flag is false;
-   - `selectionFlowModule.isSelectionSettlementLocked()` is true;
-   - `isProcessing` and `isCardAnimating` remain true as supplemental busy-state observations.
+   - `selectionFlowModule.isSelectionSettlementLocked()` is true.
+   - Do not assert Node-global `isProcessing` / `isCardAnimating`: the installed bridge does not expose busy-state writers, and the direct lock plus incomplete handler are the authoritative ownership observations for this path.
 7. Resolve the tracker with `{ ok: true, visualSeq: 1 }`. Race `drainEntered.promise` against premature handler settlement, then assert that playback drain has started with the network-client root/current-card-state access while the handler completion flag is false and `isSelectionSettlementLocked()` remains true.
 8. Resolve the drain, await the handler, prove `isSelectionSettlementLocked()` is false, and perform every retained request/state assertion.
-9. Restore spies and deferred state in `afterEach` so the 16-case table leaves no open handle or cross-case module state.
-10. Add `test\ui.network-client.guard-tempt-deferred-publish.test.ts` to `test:network:parity` next to the existing deferred-publish client suites. Do not change any other script or lockfile.
+9. For the temptation case, attach a call-through spy to the installed bridge's `armBoardUpdateDuringPlayback` method, assert the `selection-flow` / `selection_state_sync` request, and require the matching spy result to return `true`. Remove the later transient-context peek: snapshot work may consume or replace that context, while the capability's boolean return is the owner-level acknowledgement. The explicit `.js` compatibility import and the TypeScript owner's Jest resolution may also differ, but module identity alone is not the contract rationale.
+10. Restore spies and deferred state in `afterEach` so the 16-case table leaves no open handle or cross-case module state.
+11. Add `test\ui.network-client.guard-tempt-deferred-publish.test.ts` to `test:network:parity` next to the existing deferred-publish client suites. Do not change any other script or lockfile.
 
 ### Focused verification
 
@@ -175,7 +176,8 @@ Direct special-stone lookup and the numeric cell index agree for malformed store
 - `shared/multi-cell-stone.ts`;
 - `shared/special-stone-registry.ts`;
 - `test/game.marker-cell-index.test.ts`;
-- `test/shared.special-stone-registry.test.ts`.
+- `test/shared.special-stone-registry.test.ts`;
+- `test/ui.board-dom-compat.long-press-info.test.ts`.
 
 ### Required implementation
 
@@ -196,11 +198,12 @@ Direct special-stone lookup and the numeric cell index agree for malformed store
    - valid ordered 2x2 footprint and all four occupancy queries;
    - string/fractional/non-finite/missing anchors returning no footprint.
 6. Add an explicit fallback test using an isolated module registry and a mock/null `../shared/multi-cell-stone` before requiring the special-stone registry. Exercise both ordinary and 2x2 markers with the same valid/invalid matrix. Clean up the mock/module registry after the test.
+7. In the dependent DOM-compat stone-info integration test, separate stored-state validity from lookup-input compatibility: keep the marker anchor as integer numbers, call `showSpecialStoneInfoAt` with numeric-string row/column arguments, and retain the same resolved stone detail assertion. Do not change `ui/presentation/stone-info-controller.ts` or restore string-valued stored-anchor acceptance.
 
 ### Focused verification
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\game.marker-cell-index.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts
+npx jest --runInBand --runTestsByPath test\game.marker-cell-index.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\ui.board-dom-compat.long-press-info.test.ts
 ```
 
 ### Failure handling
@@ -214,6 +217,7 @@ npx jest --runInBand --runTestsByPath test\game.marker-cell-index.test.ts test\s
 - direct/index numeric lookups agree for the full invalid-anchor matrix;
 - valid one-cell and 2x2 footprints and protection behavior pass unchanged;
 - primary and compatibility fallback paths enforce the same stored-anchor contract;
+- DOM-compat stone detail accepts numeric-string lookup arguments only against canonical integer-anchored stored markers;
 - only the two canonical shared source files change product behavior, limited to malformed stored anchors.
 
 ## 7. Step 3 — Replace the fixed boot prefix with an explicit dependency subsequence
@@ -342,7 +346,7 @@ Prove all four repairs together before any generated surface is rewritten.
 ### Command
 
 ```powershell
-npx jest --runInBand --runTestsByPath test\ui.network-client.guard-tempt-deferred-publish.test.ts test\game.marker-cell-index.test.ts test\entry-browser.boot-table-sequence.test.ts test\ui.board-playback-runtime-state-contract.test.ts test\ui.network-selection-signal-bridge.test.ts test\game.pending-selection-flow.test.ts test\ui.board-visual.runtime-lifecycle.test.ts test\ui.board-renderer.recovery-contract.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\entry-browser.bootstrap-contract.test.ts test\scripts.build-module-registry.boot-contract.test.ts
+npx jest --runInBand --runTestsByPath test\ui.network-client.guard-tempt-deferred-publish.test.ts test\game.marker-cell-index.test.ts test\entry-browser.boot-table-sequence.test.ts test\ui.board-playback-runtime-state-contract.test.ts test\ui.network-selection-signal-bridge.test.ts test\game.pending-selection-flow.test.ts test\ui.board-visual.runtime-lifecycle.test.ts test\ui.board-renderer.recovery-contract.test.ts test\shared.special-stone-registry.test.ts test\shared.board-state-kernel.test.ts test\game.shinra-bansho-god.test.ts test\game.protection-context.test.ts test\ui.board-dom-compat.long-press-info.test.ts test\entry-browser.bootstrap-contract.test.ts test\scripts.build-module-registry.boot-contract.test.ts
 ```
 
 Then run:
@@ -465,15 +469,15 @@ git status --short
 
 ## 13. Progress checklist
 
-- [ ] Step 0: working tree classified and four-suite/19-failure ledger reproduced.
-- [ ] Step 1: real network-client exact settlement proven in all sixteen cases and added to network parity.
-- [ ] Step 2: shared primary/fallback anchor contract made exact with valid/invalid coverage.
-- [ ] Step 3: classic boot dependency subsequence replaces the fixed prefix.
-- [ ] Step 4: writer proof moved to public runtime behavior and facade capability wiring.
-- [ ] Step 5: complete focused bundle, typecheck, pre-generation diff check pass.
-- [ ] Step 6: Worker preparation, `checkall`, and updated network parity pass.
-- [ ] Step 7: full Jest passes with zero failed suites/tests.
-- [ ] Step 8: actual results recorded, final diff/status inspected, task-owned unit committed.
+- [x] Step 0: working tree classified and four-suite/19-failure ledger reproduced.
+- [x] Step 1: real network-client exact settlement proven in all sixteen cases and added to network parity.
+- [x] Step 2: shared primary/fallback anchor contract made exact with valid/invalid coverage, including the dependent DOM-compat query assertion.
+- [x] Step 3: classic boot dependency subsequence replaces the fixed prefix.
+- [x] Step 4: writer proof moved to public runtime behavior and facade capability wiring.
+- [x] Step 5: complete focused bundle, typecheck, pre-generation diff check pass.
+- [x] Step 6: Worker preparation, `checkall`, and updated network parity pass.
+- [x] Step 7: full Jest passes with zero failed suites/tests.
+- [x] Step 8: actual results recorded and final diff/status inspected; the coherent task-owned unit is ready to commit, with the resulting hash recorded in the final user report.
 
 ## 14. Decision and discovery log
 
@@ -483,6 +487,11 @@ git status --short
 - 2026-08-09: confirmed board visual state selection is already unified by `render-state-source.ts`; intentionally isolated per-consumer prepared state is not reopened.
 - 2026-08-09: selected Worker/local room-deck metadata as the next separate characterization candidate after this work; it is not in scope here.
 - 2026-08-09: no browser playtest is required unless implementation evidence shows a normal-path visual or boot change.
+- 2026-08-09: the first implementation-focused network run proved the settlement lock remains held while the tracker is pending, but the pre-existing Node-global `isProcessing` / `isCardAnimating` fixtures remain false because this installed bridge has no busy-state writer methods. Removed those two non-owner assertions from the design and plan instead of adding a new global side effect; handler incompletion plus `isSelectionSettlementLocked()` remain the direct contract proof.
+- 2026-08-09: after exact settlement began passing, the temptation case reached a previously masked board-sync assertion. A later peek of transient board-update context is not owner-level proof because intervening snapshot work may consume or replace it. Replaced that observation with a call-through spy on the installed bridge's public `armBoardUpdateDuringPlayback` capability and require the matching request to return `true`; the explicit `.js` compatibility import versus TypeScript Jest resolution is only a secondary module-identity fact, not the causal contract.
+- 2026-08-09: the first full Jest run passed 1016/1017 suites and 7601/7602 tests, exposing one deterministic marker-dependent assertion in `ui.board-dom-compat.long-press-info`. The fixture conflated malformed string-valued stored anchors with supported string query arguments. Revised the design/plan and integration test to keep stored anchors canonical integers while querying with `'2'`/`'4'`; no UI runtime change and no weakening of strict stored-anchor rejection.
+- 2026-08-09: an additional, non-plan `npm run worker:bundle:smoke` failed before the changed footprint path because `workers/match-worker-runtime-preload.ts` registers `CardMeteorGod` and three other strict consumers before `CardMarkers`. `git diff`, blame/history, and independent diagnosis tie this to prior commit `849f555e43`; it is not caused by this task. The reviewed completion gates remain satisfied, but Worker deploy-smoke readiness is not claimed. Repairing that preload order and adding its missing order contract is a separate small delivery task.
+- 2026-08-09: final full Jest passed 1017/1017 suites and 7602/7602 tests. The nineteen-failure accepted baseline is retired without a replacement exception list.
 
 Implementation discoveries that change scope, owners, interfaces, or verification must be appended here and reflected in both documents before proceeding.
 
@@ -499,20 +508,40 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 
 ### Implementation-time evidence
 
-Pending. Replace this line with exact command results, counts, retries, generated-output notes, and residual risks before setting status to implemented/verified. Record the resulting commit hash in the final user report, where it is available after commit creation.
+- Baseline reproduction: the exact four target paths failed as designed with 4 failed suites, 19 failed / 7 passed tests. The failure ledger matched the design.
+- Network implementation iterations:
+  - the first focused run exposed that Node-global busy fixtures are not written by the installed bridge; the design/plan were corrected to observe the direct settlement lock and incomplete handler instead;
+  - the next run passed 15/16 cases and exposed the stale downstream board-context peek; the design/plan were corrected to observe the installed bridge capability and its `true` return;
+  - the repaired network suite passed 16/16, and the focused network bundle passed 3 suites / 66 tests.
+- Marker implementation:
+  - primary/fallback direct coverage passed 2 suites / 23 tests;
+  - the original marker-focused bundle passed 5 suites / 59 tests;
+  - after the full-suite discovery, the revised marker/DOM-compat bundle passed 6 suites / 83 tests, including 24/24 stone-info tests.
+- Boot focused bundle: 3 suites / 20 tests passed. Writer focused bundle: 3 suites / 19 tests passed.
+- The initial combined focused bundle passed 14 suites / 164 tests. After adding the dependent DOM-compat assertion to the canonical plan, the final combined command passed 15 suites / 188 tests.
+- `npm run typecheck`: passed. Pre-generation and implementation-time `git diff --check`: passed; Git reported only the repository's line-ending conversion warnings.
+- `npm run worker:prepare`: passed after focused verification. It regenerated a 1083-module browser registry and verified a 960-file Worker mirror. Script-owned changes are limited to root/browser cache-buster and registry surfaces plus matching `worker-public/` HTML/registry/Vite manifest output and the hashed Vite chunk replacement.
+- `npm run checkall`: passed, including the window/global guard, all 4 dependency-boundary tests, refactor safety, TypeScript migration, board-kernel boundary, selector checks, browser freshness, asset/artifact checks, and Worker mirror validation. The existing Vite chunk-size warning remained informational.
+- `npm run test:network:parity`: passed 36 suites / 581 tests, and its command output includes `test\ui.network-client.guard-tempt-deferred-publish.test.ts`. Jest printed its existing post-run open-handle warning despite all tests passing; the repaired suite alone exits normally.
+- First `npm run test:jest`: failed 1/1017 suites and 1/7602 tests after passing 1016 suites / 7601 tests (1025.318 s). Exact-path retry reproduced the same single deterministic failure with 23/24 tests passing. After the reviewed fixture correction, the direct path passed 24/24.
+- Final `npm run test:jest`: passed 1017/1017 suites and 7602/7602 tests (Jest 961.897 s, process exit 0). No known-red exception remains.
+- Extra diagnostic `npm run worker:bundle:smoke`: failed during bundled preload with `CardMarkers.isInviolableCell is required by CardMeteorGod`. This command is not a gate in this plan. Source history and an independent read-only diagnosis prove the unchanged pre-existing preload order is causal and that the failure occurs before this task's strict-anchor path. Worker deploy-smoke readiness is therefore not claimed; no unrelated preload fix was folded into this commit.
+- Independent implementation re-review: the exact-settlement lock assertions and board-sync return proof were accepted after correction; the full-suite marker discovery was classified as a stale integration fixture, and the integer stored-anchor / numeric-string query split was accepted with no major or medium finding.
+- Browser operation: not run. Valid normal rendering/input/boot behavior did not change; browser/Vite builds, generated freshness, focused DOM-compat integration, E2E-inclusive full Jest, and network parity provide the selected proportional evidence.
+- Residual risks: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The unrelated Worker preload-order smoke failure also remains a separate deployment-readiness defect. Record the resulting commit hash in the final user report after commit creation.
 
 ## 16. Final completion checklist
 
-- [ ] User goal: the current safest/highest-leverage refactor has been implemented before riskier structural candidates.
-- [ ] Design §5.2: accepted publish passes through real network-client exact settlement, operation identity, tracker, drain, and lock ordering.
-- [ ] Design §5.3: shared primary and fallback footprint owners reject malformed stored anchors without changing valid footprints.
-- [ ] Design §5.4: writer presentation drain is proven at its runtime owner and through the facade.
-- [ ] Design §5.5: boot dependencies are checked semantically with the exact foundational subsequence and counts.
-- [ ] Design §5.6: browser/Vite/Worker delivery is generated from root sources and verified.
-- [ ] Design §11: all completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
-- [ ] Full Jest exits successfully with zero failures; no known-red exception remains.
-- [ ] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
-- [ ] Plan/design execution records are current and the verified unit is committed.
+- [x] User goal: the current safest/highest-leverage refactor has been implemented before riskier structural candidates.
+- [x] Design §5.2: accepted publish passes through real network-client exact settlement, operation identity, tracker, drain, and lock ordering.
+- [x] Design §5.3: shared primary and fallback footprint owners reject malformed stored anchors without changing valid footprints.
+- [x] Design §5.4: writer presentation drain is proven at its runtime owner and through the facade.
+- [x] Design §5.5: boot dependencies are checked semantically with the exact foundational subsequence and counts.
+- [x] Design §5.6: browser/Vite/Worker delivery is generated from root sources and verified through the plan's preparation, mirror, structural, parity, and full-suite gates.
+- [x] Design §11: all completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
+- [x] Full Jest exits successfully with zero failures; no known-red exception remains.
+- [x] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
+- [x] Plan/design execution records are current and the verified unit is ready to commit; commit completion and hash are reported after this document is recorded.
 
 ## 17. Self-review
 

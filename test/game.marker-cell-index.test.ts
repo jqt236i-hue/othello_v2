@@ -30,8 +30,35 @@ describe('marker cell index', () => {
 
     const index = Markers.createMarkerCellIndex(cardState);
     expect(index.get(1, 1)).toEqual([]);
-    expect(index.findSpecial(1, 1, 'GUARD', 'black')).toBe(Markers.findSpecialMarkerAt(cardState, 1, 1, 'GUARD', 'black'));
-    expect(index.isSpecialStoneAt(1, 1)).toBe(Markers.isSpecialStoneAt(cardState, 1, 1));
+    expect(index.findSpecial(1, 1, 'GUARD', 'black')).toBeUndefined();
+    expect(Markers.findSpecialMarkerAt(cardState, 1, 1, 'GUARD', 'black')).toBeUndefined();
+    expect(index.isSpecialStoneAt(1, 1)).toBe(false);
+    expect(Markers.isSpecialStoneAt(cardState, 1, 1)).toBe(false);
+  });
+
+  test('keeps valid integer anchors while rejecting every malformed stored-anchor class', () => {
+    const valid = { id: 'valid', kind: 'specialStone', row: 2, col: 3, owner: 'black', data: { type: 'GUARD' } };
+    const malformed = [
+      { id: 'string', kind: 'specialStone', row: '2', col: '3', owner: 'black', data: { type: 'FREEZE' } },
+      { id: 'fraction', kind: 'specialStone', row: 2.5, col: 3, owner: 'black', data: { type: 'FREEZE' } },
+      { id: 'nan', kind: 'specialStone', row: Number.NaN, col: 3, owner: 'black', data: { type: 'FREEZE' } },
+      { id: 'infinity', kind: 'specialStone', row: 2, col: Number.POSITIVE_INFINITY, owner: 'black', data: { type: 'FREEZE' } },
+      { id: 'missing', kind: 'specialStone', col: 3, owner: 'black', data: { type: 'FREEZE' } },
+      { id: 'non-number', kind: 'specialStone', row: {}, col: 3, owner: 'black', data: { type: 'FREEZE' } }
+    ];
+    const markers = [valid, ...malformed];
+    const cardState = { markers };
+    const context = Markers.createMarkerContextIndex(cardState);
+
+    expect(context.cellIndex.get(2, 3)).toEqual([valid]);
+    expect(context.cellIndex.findSpecial(2, 3, 'GUARD', 'black')).toBe(valid);
+    expect(Markers.findSpecialMarkerAt(cardState, '2', '3', 'GUARD', 'black')).toBe(valid);
+    expect(context.specialMarkers).toEqual(markers);
+    expect(context.blockingMarkers).toEqual(malformed);
+    for (const marker of malformed) {
+      expect(context.cellIndex.get(marker.row, marker.col)).toEqual([]);
+      expect(Markers.findSpecialMarkerAt({ markers: [marker] }, 2, 3, 'FREEZE', 'black')).toBeUndefined();
+    }
   });
 
   test('builds all marker classifications in one ordered scan without cloning markers', () => {

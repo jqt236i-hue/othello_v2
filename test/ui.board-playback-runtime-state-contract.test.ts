@@ -51,17 +51,9 @@ describe('board playback current-runtime-state contract', () => {
     );
   });
 
-  test('presentation draining preserves the synthetic writer until it is reclaimed', () => {
-    const rendererSource = read('ui/board-renderer.ts');
+  test('presentation draining enters through the board-renderer facade capability', () => {
     const handlerSource = read('ui/presentation-handler.ts');
-    const readySource = functionSource(
-      rendererSource,
-      'getBoardVisualControllerReadyForPresentationDrain',
-      'claimBoardVisualWriter'
-    );
 
-    expect(readySource).toContain('await AutoBoardWriterClaimForBoardRenderer;');
-    expect(readySource).not.toContain('settleAutoBoardVisualWriter');
     expect(handlerSource).toContain(
       'renderer.getBoardVisualControllerReadyForPresentationDrain'
     );

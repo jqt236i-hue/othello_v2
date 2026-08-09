@@ -237,17 +237,17 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転無効');
   });
 
-  test('detail resolution accepts network-style string coordinates for marker lookup', () => {
+  test('detail resolution accepts string query coordinates for a canonical marker', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
-      row: '2',
-      col: '4',
+      row: 2,
+      col: 4,
       owner: 'white',
       data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12 }
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    expect(mod.showSpecialStoneInfoAt(2, 4)).toBe(true);
+    expect(mod.showSpecialStoneInfoAt('2', '4')).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
   });

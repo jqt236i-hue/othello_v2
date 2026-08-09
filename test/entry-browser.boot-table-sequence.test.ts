@@ -75,10 +75,24 @@ function getAllGlobalNames(entry: BootLoadEntry | undefined): string[] {
   ];
 }
 
+function expectOrderedSubsequence(entries: BootLoadEntry[], moduleKeys: string[]): Map<string, number> {
+  const indexes = new Map<string, number>();
+  let previousIndex = -1;
+  for (const moduleKey of moduleKeys) {
+    const index = entries.findIndex((entry, candidateIndex) => (
+      candidateIndex > previousIndex && entry.moduleKey === moduleKey
+    ));
+    expect(index).toBeGreaterThan(previousIndex);
+    indexes.set(moduleKey, index);
+    previousIndex = index;
+  }
+  return indexes;
+}
+
 describe('entry-browser boot load table sequence', () => {
   test('preserves classic boot module order and duplicate compatibility loads', () => {
     const entries = extractBootLoadEntries(readEntryBrowserText());
-    expect(entries.slice(0, 27).map((entry) => entry.moduleKey)).toEqual([
+    const foundationalModules = [
       './dist/ui/layout-stage',
       './dist/is-env-capable',
       './dist/constants/difficulty-constants',
@@ -100,14 +114,34 @@ describe('entry-browser boot load table sequence', () => {
       './dist/shared/board/canonical-encoding',
       './dist/shared/board/notation',
       './dist/shared/board/padded-coordinates',
+      './dist/shared/multi-cell-stone',
       './dist/shared/board/state-kernel',
       './dist/shared/shared-board-utils',
       './dist/shared/deck-spec',
       './dist/shared/deck-codec',
       './dist/shared/destroy-outcome-contract',
-      './dist/shared/manifest-stone-registry'
-    ]);
-    expect(entries.filter((entry) => entry.moduleKey === './dist/shared/shared-board-utils')).toHaveLength(2);
+      './dist/shared/manifest-stone-registry',
+      './dist/shared/special-stone-registry',
+      './dist/shared/stone-status-snapshot'
+    ];
+    const indexes = expectOrderedSubsequence(entries, foundationalModules);
+
+    for (const moduleKey of foundationalModules) {
+      const expectedCount = moduleKey === './dist/shared/shared-board-utils' ? 2 : 1;
+      expect(entries.filter((entry) => entry.moduleKey === moduleKey)).toHaveLength(expectedCount);
+    }
+
+    const multiCellEntry = entries[indexes.get('./dist/shared/multi-cell-stone') as number];
+    expect(getAllGlobalNames(multiCellEntry)).toContain('MultiCellStone');
+    expect(indexes.get('./dist/shared/multi-cell-stone')).toBeLessThan(
+      indexes.get('./dist/shared/board/state-kernel') as number
+    );
+    expect(indexes.get('./dist/shared/multi-cell-stone')).toBeLessThan(
+      indexes.get('./dist/shared/special-stone-registry') as number
+    );
+    expect(indexes.get('./dist/shared/manifest-stone-registry')).toBeLessThan(
+      indexes.get('./dist/shared/special-stone-registry') as number
+    );
     expect(entries[entries.length - 1].moduleKey).toBe('./dist/ui/event-handlers');
   });
 

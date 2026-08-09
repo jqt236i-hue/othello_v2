@@ -772,8 +772,8 @@
             return MultiCellStone.getSpecialStoneFootprint(marker);
         }
         const type = normalizeSpecialStoneType(marker && marker.data && marker.data.type);
-        const row = Number(marker && marker.row);
-        const col = Number(marker && marker.col);
+        const row = marker && marker.row;
+        const col = marker && marker.col;
         if (!Number.isInteger(row) || !Number.isInteger(col)) return Object.freeze([]);
         const footprint = String(marker && marker.data && marker.data.footprint || '');
         if (type !== 'SHINRA_BANSHO_GOD' || (footprint && footprint !== 'square_2x2.v1')) {

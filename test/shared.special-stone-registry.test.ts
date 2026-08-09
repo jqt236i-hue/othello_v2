@@ -1,5 +1,60 @@
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 
+const INVALID_STORED_ANCHORS = [
+  { label: 'numeric strings', row: '2', col: '3' },
+  { label: 'fraction', row: 2.5, col: 3 },
+  { label: 'NaN', row: Number.NaN, col: 3 },
+  { label: 'infinity', row: 2, col: Number.POSITIVE_INFINITY },
+  { label: 'missing row', col: 3 },
+  { label: 'non-number', row: {}, col: 3 }
+];
+
+function createOrdinaryMarker(anchor: any) {
+  return Object.assign({
+    kind: 'specialStone',
+    owner: 'black',
+    data: { type: 'GUARD' }
+  }, anchor);
+}
+
+function createShinraMarker(anchor: any) {
+  return Object.assign({
+    kind: 'specialStone',
+    owner: 'black',
+    data: {
+      type: 'SHINRA_BANSHO_GOD',
+      footprint: 'square_2x2.v1',
+      permanent: true
+    }
+  }, anchor);
+}
+
+function expectExactStoredAnchorContract(registry: any) {
+  const ordinary = createOrdinaryMarker({ row: 2, col: 3 });
+  const shinra = createShinraMarker({ row: 2, col: 3 });
+
+  expect(registry.getSpecialStoneFootprint(ordinary)).toEqual([
+    { row: 2, col: 3, role: 'anchor' }
+  ]);
+  expect(registry.markerOccupiesCell(ordinary, '2', '3')).toBe(true);
+  expect(registry.getSpecialStoneFootprint(shinra)).toEqual([
+    { row: 2, col: 3, role: 'anchor' },
+    { row: 2, col: 4, role: 'top-right' },
+    { row: 3, col: 3, role: 'bottom-left' },
+    { row: 3, col: 4, role: 'bottom-right' }
+  ]);
+  expect(registry.markerOccupiesCell(shinra, '3', '4')).toBe(true);
+
+  for (const anchor of INVALID_STORED_ANCHORS) {
+    const ordinaryInvalid = createOrdinaryMarker(anchor);
+    const shinraInvalid = createShinraMarker(anchor);
+    expect(registry.getSpecialStoneFootprint(ordinaryInvalid)).toEqual([]);
+    expect(registry.markerOccupiesCell(ordinaryInvalid, 2, 3)).toBe(false);
+    expect(registry.getSpecialStoneFootprint(shinraInvalid)).toEqual([]);
+    expect(registry.markerOccupiesCell(shinraInvalid, 2, 3)).toBe(false);
+  }
+}
+
 describe('special stone registry rule classification', () => {
   const playerSpecialStoneTypes = [
     'PROTECTED',
@@ -141,6 +196,29 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.isInviolableSpecialStoneMarker(marker)).toBe(true);
     for (const [row, col] of [[2, 3], [2, 4], [3, 3], [3, 4]]) {
       expect(SpecialStoneRegistry.isInviolableCell([marker], row, col)).toBe(true);
+    }
+  });
+
+  test('requires exact integer stored anchors through the primary footprint owner', () => {
+    expectExactStoredAnchorContract(SpecialStoneRegistry);
+  });
+
+  test('keeps exact stored anchors in the compatibility fallback without MultiCellStone', () => {
+    let fallbackRegistry: any = null;
+    try {
+      jest.resetModules();
+      jest.doMock('../shared/multi-cell-stone', () => ({}));
+      jest.isolateModules(() => {
+        const mockedMultiCellStone = require('../shared/multi-cell-stone');
+        expect(mockedMultiCellStone.getSpecialStoneFootprint).toBeUndefined();
+        fallbackRegistry = require('../shared/special-stone-registry');
+      });
+
+      expect(fallbackRegistry).toBeTruthy();
+      expectExactStoredAnchorContract(fallbackRegistry);
+    } finally {
+      jest.dontMock('../shared/multi-cell-stone');
+      jest.resetModules();
     }
   });
 

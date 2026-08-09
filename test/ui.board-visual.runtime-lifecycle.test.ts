@@ -5,6 +5,16 @@ const { createBoardInputRuntime } = require('../ui/board-visual/input-runtime');
 const { createBoardBackendRuntime } = require('../ui/board-visual/backend-runtime');
 const { createBoardWriterRuntime } = require('../ui/board-visual/writer-runtime');
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('board visual runtime lifecycle ownership', () => {
   test('session reset retains layout listeners while page destroy removes them', () => {
     const dom = new JSDOM(`<!doctype html><html><body>
@@ -118,6 +128,112 @@ describe('board visual runtime lifecycle ownership', () => {
     expect(beforeControllerReplace).toHaveBeenCalledTimes(2);
     expect(installHostResources).toHaveBeenCalledTimes(1);
     expect(afterControllerReplace).toHaveBeenCalledTimes(1);
+  });
+
+  test('presentation drain preserves an in-flight synthetic writer for network reclaim', async () => {
+    const idleGate = createDeferred<void>();
+    let mode: string = 'idle';
+    const syntheticToken = Object.freeze({
+      id: 1,
+      frameToken: 'legacy-playback:41',
+      mode: 'local'
+    });
+    const networkToken = Object.freeze({
+      id: 2,
+      frameToken: 'network:next',
+      mode: 'network'
+    });
+    const controller = {
+      ready: Promise.resolve(),
+      waitForIdle: jest.fn(() => idleGate.promise),
+      getMode: jest.fn(() => mode),
+      isIdleSettlementPending: jest.fn(() => true),
+      claimWriter: jest.fn(() => {
+        mode = 'playback';
+        return syntheticToken;
+      }),
+      reclaimWriter: jest.fn(() => {
+        mode = 'playback';
+        return networkToken;
+      }),
+      settleLocalWriter: jest.fn(async () => true)
+    };
+    const renderBoard = jest.fn();
+    const buildFrame = jest.fn(() => ({ kind: 'final-frame' }));
+    const runtime = createBoardWriterRuntime({
+      getController: () => controller,
+      getNextFrameSerial: () => 41,
+      shouldDeferRenderForPlayback: () => true,
+      renderBoard,
+      buildFrame,
+      getRenderStateSource: jest.fn(),
+      updateOccupancy: jest.fn()
+    });
+
+    expect(runtime.preparePlaybackOwnership(controller, true)).toEqual({
+      deferredUntilAutoWriter: true
+    });
+    expect(controller.waitForIdle).toHaveBeenCalledTimes(1);
+
+    const drainReadiness = runtime.getControllerReadyForPresentationDrain();
+    let drainReady = false;
+    void drainReadiness.then(() => { drainReady = true; });
+    await Promise.resolve();
+
+    expect(drainReady).toBe(false);
+    expect(controller.settleLocalWriter).not.toHaveBeenCalled();
+    expect(buildFrame).not.toHaveBeenCalled();
+
+    idleGate.resolve();
+    await drainReadiness;
+
+    expect(controller.claimWriter).toHaveBeenCalledWith('legacy-playback:41', 'local');
+    expect(renderBoard).toHaveBeenCalledTimes(1);
+    expect(controller.settleLocalWriter).not.toHaveBeenCalled();
+    expect(buildFrame).not.toHaveBeenCalled();
+
+    expect(runtime.claim('network:next', 'network')).toBe(networkToken);
+    expect(controller.reclaimWriter).toHaveBeenCalledWith(
+      syntheticToken,
+      'network:next',
+      'network'
+    );
+  });
+
+  test('presentation drain without a synthetic claim waits for ordinary idle', async () => {
+    const idleGate = createDeferred<void>();
+    const controller = {
+      ready: Promise.resolve(),
+      waitForIdle: jest.fn(() => idleGate.promise),
+      getMode: jest.fn(() => 'idle'),
+      claimWriter: jest.fn()
+    };
+    const buildFrame = jest.fn();
+    const runtime = createBoardWriterRuntime({
+      getController: () => controller,
+      getNextFrameSerial: () => 1,
+      shouldDeferRenderForPlayback: () => true,
+      renderBoard: jest.fn(),
+      buildFrame,
+      getRenderStateSource: jest.fn(),
+      updateOccupancy: jest.fn()
+    });
+
+    const drainReadiness = runtime.getControllerReadyForPresentationDrain();
+    let drainReady = false;
+    void drainReadiness.then(() => { drainReady = true; });
+    await Promise.resolve();
+
+    expect(controller.waitForIdle).toHaveBeenCalledTimes(1);
+    expect(drainReady).toBe(false);
+    expect(controller.claimWriter).not.toHaveBeenCalled();
+    expect(buildFrame).not.toHaveBeenCalled();
+
+    idleGate.resolve();
+    await drainReadiness;
+    expect(drainReady).toBe(true);
+    expect(controller.claimWriter).not.toHaveBeenCalled();
+    expect(buildFrame).not.toHaveBeenCalled();
   });
 
   test('legacy writer controllers fail explicitly when synthetic ownership cannot be reclaimed', () => {
