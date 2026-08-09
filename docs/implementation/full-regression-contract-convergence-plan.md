@@ -1,6 +1,6 @@
 # Full regression contract convergence implementation plan
 
-- Status: post-implementation AI code-review correction in progress
+- Status: implemented, verified, and committed
 - Date: 2026-08-09
 - Design authority: `docs/implementation/full-regression-contract-convergence-design.md`
 - Document role: ordered implementation and verification plan for closing the four known failing Jest suites and restoring a zero-failure full regression baseline
@@ -539,7 +539,7 @@ git status --short
 - [x] Step 6: Worker preparation, `checkall`, and updated network parity pass.
 - [x] Step 7: full Jest passes with zero failed suites/tests.
 - [x] Step 8: the original verified baseline-restoration unit was committed as `33e57e3ad` (`Restore full regression baseline`).
-- [ ] Step 9: post-implementation AI review corrections verified, independently re-reviewed, and committed.
+- [x] Step 9: post-implementation AI review corrections verified, independently re-reviewed, and committed as `7323b612a`.
 
 ## 15. Decision and discovery log
 
@@ -553,6 +553,7 @@ git status --short
 - 2026-08-09: after exact settlement began passing, the temptation case reached a previously masked board-sync assertion. A later peek of transient board-update context is not owner-level proof because intervening snapshot work may consume or replace it. Replaced that observation with a call-through spy on the installed bridge's public `armBoardUpdateDuringPlayback` capability and require the matching request to return `true`; the explicit `.js` compatibility import versus TypeScript Jest resolution is only a secondary module-identity fact, not the causal contract.
 - 2026-08-09: the first full Jest run passed 1016/1017 suites and 7601/7602 tests, exposing one deterministic marker-dependent assertion in `ui.board-dom-compat.long-press-info`. The fixture conflated malformed string-valued stored anchors with supported string query arguments. Revised the design/plan and integration test to keep stored anchors canonical integers while querying with `'2'`/`'4'`; no UI runtime change and no weakening of strict stored-anchor rejection.
 - 2026-08-09: an additional, non-plan `npm run worker:bundle:smoke` failed before the changed footprint path because `workers/match-worker-runtime-preload.ts` registers `CardMeteorGod` and three other strict consumers before `CardMarkers`. `git diff`, blame/history, and independent diagnosis tie this to prior commit `849f555e43`; it is not caused by this task. The reviewed completion gates remain satisfied, but Worker deploy-smoke readiness is not claimed. Repairing that preload order and adding its missing order contract is a separate small delivery task.
+- 2026-08-09: the separate Worker preload prerequisite was repaired in `87978034e`, its generated delivery was refreshed in `51924c95a`, and `npm run worker:bundle:smoke` now passes. This does not alter the scope or evidence of correction commit `7323b612a`.
 - 2026-08-09: final full Jest passed 1017/1017 suites and 7602/7602 tests. The nineteen-failure accepted baseline is retired without a replacement exception list.
 - 2026-08-09: requested AI code review reproduced primitive-marker projection and Board Executor stored-coordinate coercion. Revised the design/plan before broadening the fix: shared owners now require a marker object, and only Board Executor's stored-marker consumers join the exact-coordinate boundary; universal ingress normalization remains excluded.
 - 2026-08-09: terminal network assertions were strengthened after review showed that permanently resolved tracker/drain gates could hide late duplicate work. Executing the accessor exposed three JSDOM cases where authoritative `cardState` lived on the compatible global surface rather than `window`; selected the existing `resolveNetworkClientGlobal` boundary, not a new authority or state repair path.
@@ -590,32 +591,39 @@ Implementation discoveries that change scope, owners, interfaces, or verificatio
 - `npm run test:network:parity`: passed 36 suites / 581 tests, and its command output includes `test\ui.network-client.guard-tempt-deferred-publish.test.ts`. Jest printed its existing post-run open-handle warning despite all tests passing; the repaired suite alone exits normally.
 - First `npm run test:jest`: failed 1/1017 suites and 1/7602 tests after passing 1016 suites / 7601 tests (1025.318 s). Exact-path retry reproduced the same single deterministic failure with 23/24 tests passing. After the reviewed fixture correction, the direct path passed 24/24.
 - Final `npm run test:jest`: passed 1017/1017 suites and 7602/7602 tests (Jest 961.897 s, process exit 0). No known-red exception remains.
-- Extra diagnostic `npm run worker:bundle:smoke`: failed during bundled preload with `CardMarkers.isInviolableCell is required by CardMeteorGod`. This command is not a gate in this plan. Source history and an independent read-only diagnosis prove the unchanged pre-existing preload order is causal and that the failure occurs before this task's strict-anchor path. Worker deploy-smoke readiness is therefore not claimed; no unrelated preload fix was folded into this commit.
+- Extra diagnostic `npm run worker:bundle:smoke`: initially failed during bundled preload with `CardMarkers.isInviolableCell is required by CardMeteorGod`. Source history and independent diagnosis proved that the pre-existing preload dependency was causal and that the failure occurred before this task's strict-anchor path. No unrelated preload fix was folded into correction commit `7323b612a`; the separate repair in `87978034e` plus generated delivery `51924c95a` now makes the same smoke pass.
 - Independent implementation re-review: the exact-settlement lock assertions and board-sync return proof were accepted after correction; the full-suite marker discovery was classified as a stale integration fixture, and the integer stored-anchor / numeric-string query split was accepted with no major or medium finding.
 - Browser operation: not run. Valid normal rendering/input/boot behavior did not change; browser/Vite builds, generated freshness, focused DOM-compat integration, E2E-inclusive full Jest, and network parity provide the selected proportional evidence.
 
-### Post-implementation AI code-review correction evidence (in progress)
+### Post-implementation AI code-review correction evidence (complete)
 
 - Initial marker/network focused command: registry and Board Executor passed; the strengthened network accessor assertion failed 3/16 cases because the JSDOM root did not expose the authoritative state held by the compatible global surface. After changing the accessor to the existing global resolver, the network suite passed 16/16.
 - Initial writer correction command: 3/4 suites and 56/57 tests passed. The one recovery-contract failure encoded the superseded behavior that generic readiness should settle a writer already reserved by a completed presentation drain. The test was corrected to require no premature settlement and to use explicit abandon; the first corrected rerun passed 4/4 suites and 65/65 tests.
 - Independent correction re-review then reproduced two more terminal gaps: reset during active settlement lost the new-session render, and strict failure before writer claim left the drain reservation dependent on later incidental cleanup. The runtime now requests a generation-aware fresh render and discards old-token invalidation after settlement; the outer presentation finally abandons idempotently on every outcome. The expanded writer/presentation rerun passed 4/4 suites and 67/67 tests.
 - Final diff review found that writer teardown alone did not stop backend lazy controller creation on a late render. `backend-runtime` now makes controller acquisition/configuration terminal after page destroy, and writer prepare/invalidation also reject. The render-submission regression plus the writer/presentation bundle passed 4/4 suites and 68/68 tests; `npm run typecheck` passed again.
 - `npx tsc --noEmit --pretty false`: passed after the corrected writer/runtime port implementation.
-- Remaining Step 9 gates and independent final re-review are not yet recorded as passed.
-- Residual risks: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy and the bounded Board Executor consumers without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The unrelated Worker preload-order smoke failure also remains a separate deployment-readiness defect. Record the follow-up commit hash in the final user report after commit creation.
+- Final focused correction rerun: 7 suites / 137 tests passed. Independent final re-review ran the broader Step 9 bundle at 18 suites / 276 tests and found no unresolved major or medium implementation issue.
+- `npm run check:window`: passed. `npm run match:pixijs-board-playback-check`: passed 12 reports / 232 scenarios across classic/Vite, Pixi/DOM compatibility, and motion modes.
+- `npm run test:network:parity`: passed 36 suites / 581 tests; Jest printed the repository's existing post-run open-handle warning after the green result.
+- `npm run worker:prepare` and the direct mirror check passed with a 960-file Worker mirror. One concurrent verification-generation race produced a transient mirror mismatch; after the competing cleanup stopped, a clean rerun regenerated and verified the mirror successfully.
+- `npm run checkall`: passed. The existing Vite chunk-size warning remained informational.
+- Final post-correction `npm run test:jest`: passed 1017/1017 suites and 7617/7617 tests (984.813 s, exit 0). An earlier combined verification invocation hit its 184-second harness timeout; each gate was then rerun independently to completion.
+- `npm run worker:bundle:smoke`: initially exposed the separate preload dependency defect and still failed after an order-only attempt. The bounded runtime dependency repair in `87978034e`, generated refresh in `51924c95a`, and final rerun passed poison AUTO, DOUBLE_PLACE, and create/join/state/leave flows.
+- Correction implementation was committed as `7323b612a`. Independent source/diff review of that commit found no unresolved major or medium issue, and `git diff --check 33e57e3ad..7323b612a` passed.
+- Residual risk: ordinary-marker ingress does not yet enforce one universal row/column schema across every marker type; this task fail-closes shared occupancy and the bounded Board Executor consumers without repairing input. A universal ingress rule would need a separate Worker/local/client network-contract design. The formerly separate Worker preload readiness defect is resolved.
 
 ## 17. Final completion checklist
 
-- [ ] User goal: the reviewed correction is complete in addition to the original baseline restoration.
-- [ ] Design §5.2: accepted publish passes through real network-client exact settlement, current state access, operation identity, tracker, drain, terminal exactly-once assertions, and lock ordering.
-- [ ] Design §5.3: shared primary/fallback and Board Executor consumers reject malformed stored anchors without changing valid behavior.
-- [ ] Design §5.4: writer presentation drain is generation-safe and proven at runtime owner, controller, facade, and caller.
+- [x] User goal: the reviewed correction is complete in addition to the original baseline restoration.
+- [x] Design §5.2: accepted publish passes through real network-client exact settlement, current state access, operation identity, tracker, drain, terminal exactly-once assertions, and lock ordering.
+- [x] Design §5.3: shared primary/fallback and Board Executor consumers reject malformed stored anchors without changing valid behavior.
+- [x] Design §5.4: writer presentation drain is generation-safe and proven at runtime owner, controller, facade, and caller.
 - [x] Design §5.5: boot dependencies are checked semantically with the exact foundational subsequence and counts.
-- [ ] Design §5.6: browser/Vite/Worker delivery is regenerated from corrected root sources and verified through preparation, mirror, structural, parity, board-playback, and full-suite gates.
-- [ ] Design §11: corrected completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
-- [ ] Full Jest exits successfully with zero failures after the correction; no known-red exception remains.
-- [ ] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
-- [x] Plan/design records truthfully show correction work in progress; final verified/committed status remains pending.
+- [x] Design §5.6: browser/Vite/Worker delivery is regenerated from corrected root sources and verified through preparation, mirror, structural, parity, board-playback, and full-suite gates.
+- [x] Design §11: corrected completion conditions are satisfied with no rulebook, protocol, saved-format, dependency, or valid player-visible behavior change.
+- [x] Full Jest exits successfully with zero failures after the correction; no known-red exception remains.
+- [x] Final task-owned diff/status and generated outputs are inspected; no unrelated file is staged.
+- [x] Plan/design records truthfully show the verified and committed final state.
 
 ## 18. Self-review
 
@@ -627,6 +635,6 @@ The marker step was expanded to cover ordinary one-cell markers as well as the 2
 
 The boot step contains the complete 30-entry foundational ordered subsequence, uniqueness rules, critical edges, global exposure, intentional duplicate, and final entry, so the executor cannot satisfy it with a weak unordered presence check. The original writer step expected no product edit; the requested AI review disproved that assumption with executable races, and Step 9 now limits the correction to lifecycle ownership rather than preserving a false non-goal.
 
-The writer fixture states the `idle` mode and pending-idle preconditions that force the intended asynchronous claim branch, asserts the branch decision, and uses behavior rather than move-hostile source assertions. Step 9 replaces the insufficient one-microtask pending proof with a macrotask sentinel and adds replacement/reset/destroy/settlement coverage. The verification record does not claim the follow-up commit before it exists; that hash belongs in the final report.
+The writer fixture states the `idle` mode and pending-idle preconditions that force the intended asynchronous claim branch, asserts the branch decision, and uses behavior rather than move-hostile source assertions. Step 9 replaces the insufficient one-microtask pending proof with a macrotask sentinel and adds replacement/reset/destroy/settlement coverage. The bounded correction is recorded as commit `7323b612a`.
 
 Finally, generation is ordered after all focused tests, Worker mirror preparation is run once, the extra build inside `checkall` is acknowledged, network parity precedes the long full suite, and the full suite has a zero-failure gate and explicit unexpected-failure protocol. The final documentation/status/commit step satisfies repository delivery rules without authorizing unrelated cleanup. No material architecture or test-design choice remains for the implementation model.

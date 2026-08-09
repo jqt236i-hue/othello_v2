@@ -1,6 +1,6 @@
 # Full regression contract convergence design
 
-- Status: post-implementation AI code-review correction in progress
+- Status: implemented, verified, and committed
 - Date: 2026-08-09
 - Document role: the implementation design for restoring a zero-known-failure regression baseline before any further structural refactor
 - Target: the four initially reproducible failing Jest suites, their nineteen failures, the dependent compatibility assertion exposed by strict-anchor convergence, and the concrete marker/network/writer defects exposed by the post-implementation AI code review
@@ -408,9 +408,9 @@ HTTP success, a passing subset, or “only the same nineteen failures” is not 
 - The first full Jest run passed 1016/1017 suites and 7601/7602 tests, exposing the dependent DOM-compat assertion described in §2.3. Its exact-path rerun reproduced 1 deterministic failure; the revised stored-anchor/query-input contract then passed 24/24 tests and received an independent re-review with no major or medium finding.
 - `npm run worker:prepare`, `npm run checkall`, and the updated `npm run test:network:parity` all pass. Generated browser/Vite/Worker surfaces were produced from root sources; no generated or mirror file was source-edited.
 - The final `npm run test:jest` exits successfully with 1017/1017 suites and 7602/7602 tests. The former known-red exception is retired.
-- An extra, non-plan `npm run worker:bundle:smoke` exposed a pre-existing Worker preload-order defect: strict card consumers load before `CardMarkers`. Source history and independent diagnosis place that defect in prior commit `849f555e43`, before this task, and the failure occurs before the changed marker-footprint code is reached. This implementation therefore does not claim Worker deploy-smoke readiness or silently mix that separate preload repair into the reviewed scope.
+- An extra, non-plan `npm run worker:bundle:smoke` exposed a pre-existing Worker preload dependency defect before the changed marker-footprint code was reached. That defect remained outside the reviewed correction commit, then was repaired separately in `87978034e` with generated delivery refreshed in `51924c95a`; the bundled Worker smoke now passes.
 - No browser playtest was run because no valid-state rendering, input, runtime boot table, or player-visible behavior changed. Browser/Vite builds, mirror validation, valid-marker coverage, network parity, and the full E2E-inclusive Jest suite are the selected proportional evidence.
-- Post-implementation AI review reproduced additional marker-consumer, terminal network assertion, presentation wiring, and writer lifecycle defects. Their bounded correction is in progress; this section and the document status return to implemented/verified only after the revised focused, generated, parity, board-playback, and full-suite gates pass.
+- Post-implementation AI review reproduced additional marker-consumer, terminal network assertion, presentation wiring, and writer lifecycle defects. Their bounded correction was committed in `7323b612a`; the revised focused, generated, parity, board-playback, and full-suite gates pass, and independent final review found no unresolved major or medium issue.
 
 ## 13. Self-review
 
