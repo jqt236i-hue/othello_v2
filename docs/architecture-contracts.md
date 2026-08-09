@@ -581,6 +581,16 @@ Authority always receives a canonical private snapshot. A seat/spectator project
 
 Command execution creates the current command's `chargeDeltaEvents` during shared action/turn-start/final assembly. The outer publish controller or direct local facade first clones/builds the public response and presentation artifacts, then removes that transient queue from the stored canonical snapshot. It must not reconstruct a new delta from a previous snapshot. Timeout progression uses the same command entry; if its shared resolver is unavailable or rejects, the adapter fails closed before authority mutation instead of applying a runtime-specific pass fallback.
 
+### 8.4.2 Worker / local room-deck transformation
+
+`utils/match-room-deck.ts` is the single synchronous, deterministic owner of normalized room-deck metadata construction, per-seat selection patch calculation, initial-deck option projection, scalar deck-size normalization, and every supported public `roomDeck` projection. It accepts only explicit normalized DTOs and size facts; it owns no deck-code decode, HTTP, storage, version, operation identity, viewer authentication, timer, random source, or presentation behavior.
+
+`workers/match-worker.ts` and `scripts/local-match-server.ts` remain raw/runtime adapters. Worker retains asynchronous deck module loading and decode; local retains synchronous `DeckCodecModule` / `DeckSpecHelpers` decode. Each adapter validates or normalizes raw persisted/request values, resolves `roomBoardConfig` through `MatchAuthority`, delegates the canonical transformation, then applies the returned selection patch synchronously as one complete room update before the existing save/broadcast sequence. Existing controller capability names may remain adapter wrappers but must not contain a second canonical transform body.
+
+Absent values use `null`; an explicit empty card-ID array and a valid empty deck spec remain distinct 0-card inputs once they cross the normalized boundary. Public projection receives only public metadata and snapshot deck-size facts, never private deck specs or card-ID sources. Invalid normalized DTOs are programmer errors and throw `TypeError` rather than becoming success-shaped absence.
+
+Local has one bounded malformed-compatibility exception: `projectLegacyUnknownModeRoomDeck()` preserves the historical projection of a non-empty raw mode that is not exactly `shared` or `perPlayer`, including padded spellings. Empty mode and both exact supported modes must delegate to the shared projection. Worker continues its historical raw-mode trim/inference. This exception is outside the normalized contract and must not be widened to mutation, initial options, or another public projection path.
+
 ### 8.5 Publish / stream / resync precedence
 
 Network delivery paths may race, but they do not have equal authority:
@@ -755,7 +765,7 @@ The following are known structural risks and should be treated as debt, not as d
 - some architecture knowledge is still scattered across audits, plans, and narrow docs
 - legacy global escape hatches still exist for compatibility and debugging
 
-The Worker/local command-execution cluster is no longer part of this debt: canonical prepare/apply/pending validation/presentation/turn-start/finalization is shared by `utils/match-command-runtime.ts`. This does not claim that duplicated network constants, route handling, room lifecycle, payload decoration, or other runtime module-resolution patterns have been unified.
+The Worker/local command-execution cluster is no longer part of this debt: canonical prepare/apply/pending validation/presentation/turn-start/finalization is shared by `utils/match-command-runtime.ts`. Normalized room-deck metadata construction, selection patching, initial-option projection, and supported public projection are likewise shared by `utils/match-room-deck.ts`. Runtime-specific deck decode and raw compatibility adapters remain intentionally separate. This does not claim that duplicated network constants, route handling, room lifecycle, payload decoration, or other runtime module-resolution patterns have been unified.
 
 These debts should be reduced over time, but they are not automatically public extension points.
 

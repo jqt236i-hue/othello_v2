@@ -373,7 +373,7 @@ function createAllCardsDeckCardIdsByPlayer() {
     };
 }
 
-function createAllCardsRoomDeckMetadata(cardIdsByPlayer: any) {
+function createAllCardsRoomDeckMetadataFromRuntimeCardIds(cardIdsByPlayer: any) {
     const black = Array.isArray(cardIdsByPlayer && cardIdsByPlayer.black)
         ? cardIdsByPlayer.black
         : [];
@@ -1986,7 +1986,9 @@ async function handleCreate(req: any, res: any) {
     const publishResponseMode = MatchAuthority.normalizePublishResponseMode(body.publishResponseMode);
     const allCardsDeckEnabled = body.allCardsDeckEnabled === true;
     const allCardsDeckCardIdsByPlayer = allCardsDeckEnabled ? createAllCardsDeckCardIdsByPlayer() : null;
-    const roomDeck = allCardsDeckEnabled ? createAllCardsRoomDeckMetadata(allCardsDeckCardIdsByPlayer) : null;
+    const roomDeck = allCardsDeckEnabled
+        ? createAllCardsRoomDeckMetadataFromRuntimeCardIds(allCardsDeckCardIdsByPlayer)
+        : null;
     const deckSelection = allCardsDeckEnabled
         ? { ok: true, hasCustomDeck: false, deckSpec: null, deckCode: '', deckSize: null }
         : resolveDeckSelection(body.deckCode);

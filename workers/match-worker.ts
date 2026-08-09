@@ -1181,7 +1181,7 @@ function cloneInitialDeckCardIdsByPlayer(value: unknown): MatchWorkerSeatValueMa
     });
 }
 
-function createAllCardsRoomDeckMetadata(cardIdsByPlayer: MatchWorkerSeatValueMap<string[] | null>): MatchWorkerRoomDeckMetadata {
+function createAllCardsRoomDeckMetadataFromRuntimeCardIds(cardIdsByPlayer: MatchWorkerSeatValueMap<string[] | null>): MatchWorkerRoomDeckMetadata {
     const black = Array.isArray(cardIdsByPlayer.black) ? cardIdsByPlayer.black : [];
     const white = Array.isArray(cardIdsByPlayer.white) ? cardIdsByPlayer.white : black;
     return createCanonicalAllCardsRoomDeckMetadata({ black, white });
@@ -1493,7 +1493,7 @@ async function resolveAllCardsDeckSelection(): Promise<{
         return {
             ok: true,
             initialDeckCardIdsByPlayer,
-            roomDeck: createAllCardsRoomDeckMetadata(initialDeckCardIdsByPlayer)
+            roomDeck: createAllCardsRoomDeckMetadataFromRuntimeCardIds(initialDeckCardIdsByPlayer)
         };
     } catch (error) {
         return {

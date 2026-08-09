@@ -89,6 +89,27 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
     }
   },
   {
+    name: 'padded supported spelling remains a local malformed compatibility mode',
+    roomDeck: {
+      mode: ' shared ',
+      source: 'room',
+      deckCode: '  PADDED-CODE  ',
+      deckSize: '6'
+    },
+    expectedWorker: {
+      mode: 'shared',
+      deckCode: 'PADDED-CODE',
+      deckSize: 6,
+      source: 'room'
+    },
+    expectedLocal: {
+      mode: ' shared ',
+      deckCode: 'PADDED-CODE',
+      deckSize: 6,
+      source: 'room'
+    }
+  },
+  {
     name: 'absent metadata and absent snapshot size project null',
     roomDeck: null,
     expectedWorker: null,

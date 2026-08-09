@@ -1,6 +1,6 @@
 # Worker/local room-deck contract convergence design
 
-- Status: implementation in progress; start gate and characterization complete
+- Status: implemented; final cross-runtime and delivery verification in progress
 - Date: 2026-08-09
 - Document role: Worker / local server 間に重複している room deck・初期デッキ変換を、挙動を維持しながら一つの純粋 authority helper へ収束させる設計正本
 - Target: `workers/match-worker.ts` と `scripts/local-match-server.ts` の `roomDeck`、`initialDeck*`、デッキ変更、再戦初期化、公開 projection に関する純粋変換

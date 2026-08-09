@@ -1,6 +1,6 @@
 # Worker/local room-deck contract convergence implementation plan
 
-- Status: implementation in progress; Steps 0–1 complete
+- Status: implementation in progress; Steps 0–5 complete, final verification pending
 - Date: 2026-08-09
 - Design authority: `docs/implementation/worker-local-room-deck-contract-convergence-design.md`
 - Scope: characterization-first convergence of normalized room-deck / initial-deck transformations; no player rule, wire schema, saved format, preload repair, or deployment change
@@ -393,16 +393,16 @@ git diff -- docs/implementation/worker-local-room-deck-contract-convergence-desi
 
 - [x] Start gate: prior regression convergence is complete and baseline bundle smoke passes.
 - [x] Design §2: existing real-path coverage plus common fixtures cover the identified valid and raw-difference cases before extraction.
-- [ ] Design §5.1: `utils/match-room-deck.ts` owns normalized canonical transformations.
-- [ ] Design §5.2: Worker/local retain only explicit raw/runtime adapters and current controller capability names.
-- [ ] Design §5.3: absent, `[]`, and valid 0-card spec remain distinct.
-- [ ] Design §5.4: selection calculation is pure and room patch application is atomic.
-- [ ] Design §5.5: public projection cannot receive or leak private deck specs.
-- [ ] Create, join, default, all-cards, one-/two-seat custom, update, reset/rematch, timeout rebuild, state, spectator, publish, and stream scenarios pass.
+- [x] Design §5.1: `utils/match-room-deck.ts` owns normalized canonical transformations.
+- [x] Design §5.2: Worker/local retain only explicit raw/runtime adapters and current controller capability names.
+- [x] Design §5.3: absent, `[]`, and valid 0-card spec remain distinct.
+- [x] Design §5.4: selection calculation is pure and room patch application is atomic.
+- [x] Design §5.5: public projection cannot receive or leak private deck specs.
+- [x] Create, join, default, all-cards, one-/two-seat custom, update, reset/rematch, timeout rebuild, state, spectator, publish, and stream scenarios pass in the focused bundle.
 - [ ] `stateVersion`, `operationId`, idempotency, save/broadcast order, and privacy are unchanged.
-- [ ] Runtime-specific sync/async deck decode remains outside the core.
-- [ ] Single-owner structural guard passes.
-- [ ] Architecture contract is updated; rulebook and `正本` remain unchanged.
+- [x] Runtime-specific sync/async deck decode remains outside the core.
+- [x] Single-owner structural guard passes.
+- [x] Architecture contract is updated; rulebook and `正本` remain unchanged.
 - [ ] Focused tests, both parity bundles, typecheck/build, prepare/mirror, executable bundle smoke, `checkall`, and full Jest pass.
 - [ ] Generated output comes only from repository scripts.
 - [ ] Final task-owned diff/status is inspected and coherent commits exist.
@@ -419,6 +419,10 @@ Design-time evidence only; implementation results must be appended rather than r
 - Step 0 prerequisite: the Worker runtime dependency defect was repaired in `87978034e`, generated delivery was refreshed in `51924c95a`, and `npm run worker:bundle:smoke` passed. The prior full-regression correction was independently reviewed, all proportional gates including 1017 suites / 7617 tests passed, and its documents were closed in `4f81fbacd`.
 - Step 1 characterization: existing Worker/local room-deck real-path suites plus the shared raw-projection/0-card/empty-array fixtures passed 3 suites / 11 tests against unchanged room-deck production code. Supported shared/per-player metadata and the valid 0-card deck agree; Worker/local differences for empty metadata, non-empty unknown mode, and raw empty card-ID arrays are explicitly recorded.
 - The first characterization invocation did not terminate because the test attempted to construct an empty deck spec with the default 30-card validation before entering its server cleanup block. The fixture was corrected to pass `{ requireFullDeck: false }`, task-created orphan Jest processes were stopped by exact PID, and separate local/Worker plus combined reruns passed.
+- Step 2 pure core: `test/utils.match-room-deck.test.ts` passed 8/8 tests, including cloning, empty/absent preservation, valid 0-card specs, immutable selection patches, pruning, shared/per-player projection, and invalid DTO failure. `npm run typecheck` passed.
+- Step 3 Worker migration: Worker raw normalization/decode remained in the adapter while normalized construction, options, patching, size rules, and public projection delegated to the core. After `npm run build:ts`, the helper/Worker/local/parity bundle passed 4 suites / 19 tests with local still on its original implementation.
+- Step 4 local migration: local synchronous decode and raw normalization remained adapter-owned. `projectLegacyUnknownModeRoomDeck()` alone preserves non-empty unsupported raw modes, including padded supported spellings; supported and empty modes delegate. The same 4-suite / 19-test bundle passed after build.
+- Step 5 ownership and stable contract: the AST guard plus unit/runtime parity passed 3 suites / 25 tests. `docs/architecture-contracts.md` §8.4.2 now names the owner and narrows §13 debt. The expanded controller, create/join/update/reset/timeout, spectator, publish, and stream bundle passed 15 suites / 89 tests after typecheck and build.
 
 ## 13. Self-review
 
