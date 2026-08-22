@@ -1154,7 +1154,7 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
-  test('board expansion authority distinguishes two directions on the same anchor', () => {
+  test('board expansion authority rejects vertical directions without trusting client additions', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'board_expand_01',
       pendingType: 'BOARD_EXPANSION_WILL',
@@ -1163,11 +1163,12 @@ describe('worker pendingEffectId contract', () => {
     });
     const cells = result.internalSnapshot.gameState.boardExpansion.cells || [];
 
-    expect(result.status).toBe(200);
-    expect(cells).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: -1, col: 0, side: 'top', owner: 0 })
-    ]));
-    expect(cells.some((cell) => cell.row === 0 && cell.col === -1)).toBe(false);
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_EXPANSION_WILL'
+    }));
+    expect(cells).toHaveLength(0);
     expect(cells.some((cell) => cell.row === 99 && cell.col === 99)).toBe(false);
   });
 

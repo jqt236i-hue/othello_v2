@@ -558,7 +558,7 @@ describe('Card effects E2E', () => {
 
     await page.waitForFunction(() => {
       const anchor = window.__boardVisualDebug.getRenderedCell(0, 0);
-      return anchor && anchor.hint && anchor.hint.directionKeys.length === 2;
+      return anchor && anchor.hint && anchor.hint.directionKeys.length === 1;
     });
     const beforeExpansion = await page.evaluate(() => ({
       anchor: window.__boardVisualDebug.getRenderedCell(0, 0),
@@ -605,7 +605,7 @@ describe('Card effects E2E', () => {
         };
       })()
     }));
-    expect(beforeExpansion.anchor.hint.directionKeys).toEqual(['up', 'left']);
+    expect(beforeExpansion.anchor.hint.directionKeys).toEqual(['left']);
     expect(beforeExpansion.anchorRect.width).toBeGreaterThan(0);
     expect(beforeExpansion.anchorRect.height).toBeGreaterThan(0);
     expect(beforeExpansion.framePresentation).toEqual(expect.objectContaining({

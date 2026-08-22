@@ -162,7 +162,7 @@ describe('cpu decision pending onnx module', () => {
     '%s stays on the direction-aware heuristic lane',
     async (pendingType) => {
       const targets = [
-        { row: 0, col: 0, directionKey: 'up' },
+        { row: 0, col: 0, directionKey: 'right' },
         { row: 0, col: 0, directionKey: 'left' }
       ];
       const runtime = {

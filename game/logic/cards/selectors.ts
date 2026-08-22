@@ -944,7 +944,9 @@ function getBoardExpansionGodSocketTargets(cardState: CardState, gameState: Game
 }
 
 function getBoardExpansionTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
-    return getBoardExpansionSocketTargets(cardState, gameState);
+    return getBoardExpansionSocketTargets(cardState, gameState).filter((target) => (
+        target.directionKey === 'left' || target.directionKey === 'right'
+    ));
 }
 
 function getExpansionTargetIdentity(target: any): string | null {

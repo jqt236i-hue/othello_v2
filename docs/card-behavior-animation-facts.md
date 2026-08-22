@@ -87,7 +87,7 @@
 | `CORROSION_WILL` | continue_turn | continue_turn | 不可/未指定 | corrosion | getCorrosionTargets(player) |
 | `CLONE_WILL` | continue_turn | continue_turn | 不可/未指定 | clone | getCloneTargets(player) |
 | `BLOCKADE_WILL` | continue_turn | continue_turn | 可 | blockade | getBlockadeTargets(player) |
-| `BOARD_EXPANSION_WILL` | continue_turn | continue_turn | 可 | board_expansion | getBoardExpansionTargets(player) |
+| `BOARD_EXPANSION_WILL` | continue_turn | continue_turn | 可 | board_expansion（左右のみ） | getBoardExpansionTargets(player) |
 | `BOARD_EXPANSION_GOD` | multi_stage | continue_turn | 可 | board_expansion | getBoardExpansionGodTargets(player) |
 | `BOARD_SHRINK_WILL` | multi_stage | continue_turn | 可 | board_shrink | getBoardShrinkTargets(player, min 3) |
 | `BOARD_SHRINK_GOD` | multi_stage | continue_turn | 可 | board_shrink | getBoardShrinkGodTargets(player) |
@@ -230,7 +230,7 @@
 | 雷の意志 | `LIGHTNING_WILL` | 26 | 有効 | 次に置く石を落雷石化。配置ターン即時と自ターン開始時に盤面上のランダムな敵石を1個破壊する。6ターン持続。反転無効を持つ特殊石。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`lightningStone` / 落雷破壊時は対象マスへ落雷演出を表示してから破壊フェード。 |
 | 究極破壊神 | `ULTIMATE_DESTROY_GOD` | 30 | 有効 | 次に置く石を究極破壊神化。空きマスに自由配置でき、配置時と自ターン開始時に周囲1マスの敵石を破壊する。6ターン持続。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`ultimateDestroyGod` / 周囲破壊時は対象マスへ雷演出を表示してから破壊フェード。 |
 | 究極多動神 | `ULTIMATE_HYPERACTIVE_GOD` | 28 | 有効 | 次に置く石を究極多動神化。12ターンの間、両者ターン開始時に直線移動を2回行う。移動後に挟めば反転し、反転5回・破壊2回を回避する。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`ultimateHyperactiveGod` / カード共通の使用/手札/盤面イベント再生のみ確認。 |
-| 盤面拡張 | `BOARD_EXPANSION_WILL` | 19 | 有効 | 現在の盤面外周から拡張可能な方向を1つ選び、その外側に1マスを追加する。穴マスは上書きせず、カードを持つ限り何度でも使用できる。 | 対象選択あり | 方向ごとの外向き矢印を個別選択 / 専用の特殊石画像マップなし / 新規拡張マスは短いフェードインで表示。 |
+| 盤面拡張 | `BOARD_EXPANSION_WILL` | 19 | 有効 | 現在の盤面外周から左右の拡張可能な方向を1つ選び、その外側に1マスを追加する。上下方向は選べない。穴マスは上書きせず、カードを持つ限り何度でも使用できる。 | 対象選択あり | 左右の外向き矢印を個別選択 / 専用の特殊石画像マップなし / 新規拡張マスは短いフェードインで表示。 |
 | 盤面拡張神 | `BOARD_EXPANSION_GOD` | 27 | 有効 | 現在の盤面形状から拡張可能な角と方向を最大2つ選び、その外側3〜6マス（各角3マスずつ、直交2方向+斜め）に拡張セルを追加する。 | 対象選択あり | 方向ごとの外向き矢印を個別選択 / 専用の特殊石画像マップなし / 新規拡張マスは短いフェードインで表示。 |
 | 盤面縮小 | `BOARD_SHRINK_WILL` | 19 | 有効 | 現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に不可侵の顕現石以外を封鎖・凍結・種など既存状態ごと同時に穴化する。 | 対象選択あり | 専用の特殊石画像マップなし / 選択完了時に対象マスを同一フェーズで穴化し、外側フレームが押し込まれた見た目を残す。 |
 | 盤面縮小神 | `BOARD_SHRINK_GOD` | 27 | 有効 | 現在の盤面外周の角を1つ選び、その角から伸びる辺1列を選ぶ。選んだ辺1列の不可侵の顕現石以外を封鎖・凍結・種など既存状態ごと同時に穴化する。 | 対象選択あり | 専用の特殊石画像マップなし / 選択完了時に対象列を同一フェーズで穴化し、外側フレームが押し込まれた見た目を残す。 |

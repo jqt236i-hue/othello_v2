@@ -524,7 +524,8 @@ const Flips = CardFlips || {};
             return Selectors.getBoardExpansionTargets(cardState, gameState, playerKey);
         }
         if (!gameState || !gameState.board) return [];
-        return getExpansionSocketTargets(cardState, gameState, 'edge');
+        return getExpansionSocketTargets(cardState, gameState, 'edge')
+            .filter((target: any) => target && (target.directionKey === 'left' || target.directionKey === 'right'));
     }
 
     function getBoardShrinkTargets(cardState: any, gameState: any, playerKey: any) {
