@@ -183,8 +183,12 @@ function findTriggeringSacrificeMarker(cardState: any, cardUserKey: any, deps?: 
     return occupiedCandidates[0];
 }
 
-function isDestroyedResult(result: any): boolean {
-    return result === true || !!(result && result.destroyed === true);
+function isSacrificeSelfDestructPaid(result: any): boolean {
+    if (result === true) return true;
+    if (!result || typeof result !== 'object') return false;
+    if (result.destroyed === true || result.livingWillRevived === true) return true;
+    const kind = String(result.kind || '').trim().toLowerCase();
+    return kind === 'destroyed' || kind === 'living_will_restored';
 }
 
 function applySacrificeNullification(cardState: any, gameState: any, input: any, deps?: SacrificeWillDeps): any {
@@ -216,11 +220,12 @@ function applySacrificeNullification(cardState: any, gameState: any, input: any,
             sacrificeWill: true,
             ignoreGuard: true,
             ignoreRegen: true,
-            ignoreDestroyEvade: true
+            ignoreDestroyEvade: true,
+            ignoreFrozen: true
         }
     );
 
-    if (!isDestroyedResult(destroyResult)) {
+    if (!isSacrificeSelfDestructPaid(destroyResult)) {
         return { applied: false, reason: 'destroy_failed', sacrifice, destroyResult };
     }
     return { applied: true, sacrifice, destroyResult };

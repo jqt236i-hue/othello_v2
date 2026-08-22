@@ -282,4 +282,61 @@ describe('犠牲の意志 card nullification', () => {
 
     expect(logs).toContain('犠牲の意志がカードを無効化');
   });
+
+  test('living will restore still nullifies the opponent card and restores the sacrifice stone', () => {
+    const cardState = createCardState();
+    const gameState = createEmptyGameState();
+    addSacrificeStone(cardState, gameState, 'black', 2, 2);
+    cardState.pendingEffectByPlayer.black = { type: 'LIVING_WILL', stage: 'selectTarget' };
+    expect(CardLogic.applyLivingWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: true });
+
+    cardState.hands.white = ['destroy_01'];
+    cardState.charge.white = 99;
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'white', 'destroy_01')).toBe(true);
+
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(gameState.board[2][2]).toBe(SharedConstants.BLACK);
+    expect(markerTypes(cardState)).toContain('SACRIFICE');
+    expect(markerTypes(cardState)).not.toContain('LIVING_WILL');
+    expect(cardState.presentationEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'CARD_USED',
+        cardId: 'destroy_01',
+        player: 'white',
+        meta: expect.objectContaining({ nullifiedBySacrificeWill: true })
+      })
+    ]));
+  });
+
+  test('frozen sacrifice still nullifies and self-destructs through freeze', () => {
+    const cardState = createCardState();
+    const gameState = createEmptyGameState();
+    addSacrificeStone(cardState, gameState, 'black', 2, 2);
+    cardState.markers.push({
+      id: 21,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      createdSeq: 11,
+      data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+    });
+
+    cardState.hands.white = ['chest_01'];
+    cardState.charge.white = 99;
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'white', 'chest_01')).toBe(true);
+
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(gameState.board[2][2]).toBe(SharedConstants.EMPTY);
+    expect(markerTypes(cardState)).not.toContain('SACRIFICE');
+    expect(markerTypes(cardState)).toContain('FREEZE');
+    expect(cardState.presentationEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'CARD_USED',
+        cardId: 'chest_01',
+        player: 'white',
+        meta: expect.objectContaining({ nullifiedBySacrificeWill: true })
+      })
+    ]));
+  });
 });

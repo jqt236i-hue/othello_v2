@@ -55,6 +55,31 @@ describe('FREEZE_WILL（凍結の意志）', () => {
     expect(gameState.board[3][3]).toBe(Core.WHITE);
   });
 
+  test('ignoreFrozen 指定時だけ凍結マスの石を破壊できる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[3][3] = Core.WHITE;
+    cardState.markers.push({
+      id: 1,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'white',
+      data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+    });
+
+    expect(BoardOps.destroyAt(cardState, gameState, 3, 3, 'SYSTEM', 'test_freeze')).toEqual({
+      destroyed: false,
+      reason: 'frozen_protected'
+    });
+
+    const forced = BoardOps.destroyAt(cardState, gameState, 3, 3, 'SYSTEM', 'test_freeze_ignore', { ignoreFrozen: true });
+    expect(forced).toMatchObject({ destroyed: true });
+    expect(gameState.board[3][3]).toBe(Core.EMPTY);
+  });
+
   test('凍結した空きマスは合法手と自由配置から除外される', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

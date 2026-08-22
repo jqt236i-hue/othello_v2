@@ -1928,6 +1928,7 @@ type DestroyCoreContext = {
     prev: any;
     ignoreGuard: boolean;
     ignoreRegen: boolean;
+    ignoreFrozen: boolean;
     cardMarkers: any;
 };
 
@@ -1962,6 +1963,7 @@ function _prepareDestroyCoreContext(cardState: any, gameState: any, row: number,
             prev,
             ignoreGuard: !!(meta && meta.ignoreGuard === true),
             ignoreRegen: !!(meta && meta.ignoreRegen === true),
+            ignoreFrozen: !!(meta && meta.ignoreFrozen === true),
             cardMarkers: getCardMarkersModule()
         }
     };
@@ -1982,7 +1984,7 @@ function _resolveDestroyProtection(ctx: DestroyCoreContext): any {
             return { destroyed: false, reason: protection.reason };
         }
     }
-    if (_isFrozenCell(ctx.cardState, ctx.row, ctx.col)) {
+    if (!ctx.ignoreFrozen && _isFrozenCell(ctx.cardState, ctx.row, ctx.col)) {
         return { destroyed: false, reason: 'frozen_protected' };
     }
     return null;
