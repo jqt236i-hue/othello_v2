@@ -14,6 +14,14 @@ function buildComparisonKey(text) {
 }
 
 describe('card detail copy audit', () => {
+  test('盤面拡張の詳細は左右限定を案内する', () => {
+    const detail = String(CardInteractionEffects.detailCardEffectByType.BOARD_EXPANSION_WILL || '');
+
+    expect(detail).toContain('左右の外向き矢印');
+    expect(detail).toContain('上下方向は選べず');
+    expect(detail).not.toContain('上下左右を問わず');
+  });
+
   test('every catalog card exposes explicit supplementary detail text', () => {
     for (const card of catalog.cards) {
       expect(Object.prototype.hasOwnProperty.call(CardInteractionEffects.detailCardEffectByType, card.type)).toBe(true);

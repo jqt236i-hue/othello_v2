@@ -341,7 +341,14 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 if (ev.applied) {
                     if (ev.cardType === 'BOARD_EXPANSION_GOD') {
                         const addedCount = Array.isArray(ev.added) ? ev.added.length : 0;
-                        push(`盤面拡張神: 2角から${addedCount || 6}マス拡張`);
+                        const selectedCornerCount = Array.isArray(ev.sources) && ev.sources.length > 0
+                            ? ev.sources.length
+                            : (Array.isArray(ev.selectedTargets) ? ev.selectedTargets.length : 0);
+                        const cornerCount = selectedCornerCount === 1
+                            || (selectedCornerCount === 0 && addedCount === 3)
+                            ? 1
+                            : 2;
+                        push(`盤面拡張神: ${cornerCount}角から${addedCount || cornerCount * 3}マス拡張`);
                     } else {
                         const sideLabel = ev.side === 'left' ? '左' : (ev.side === 'right' ? '右' : '左右');
                         push(`盤面拡張: ${sideLabel}側へ1マス拡張`);

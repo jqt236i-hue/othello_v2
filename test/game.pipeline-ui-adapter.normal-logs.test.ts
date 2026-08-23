@@ -41,6 +41,40 @@ describe('pipeline_ui_adapter normal logs', () => {
     expect(out).toEqual(['黒: 破壊の意志: E5 は復活した']);
   });
 
+  test('maps one-corner board expansion god completion to a one-corner log', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([{
+      type: 'board_expansion_selected',
+      player: 'black',
+      cardType: 'BOARD_EXPANSION_GOD',
+      applied: true,
+      completed: true,
+      sources: [{ row: 0, col: 0, directionKey: 'up-left' }],
+      added: [{ row: -1, col: 0 }, { row: 0, col: -1 }, { row: -1, col: -1 }]
+    }], [], 'black');
+
+    expect(out).toEqual(['黒: 盤面拡張神: 1角から3マス拡張']);
+  });
+
+  test('keeps two-corner board expansion god completion labeled as two corners', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([{
+      type: 'board_expansion_selected',
+      player: 'black',
+      cardType: 'BOARD_EXPANSION_GOD',
+      applied: true,
+      completed: true,
+      sources: [
+        { row: 0, col: 0, directionKey: 'up-left' },
+        { row: 7, col: 7, directionKey: 'down-right' }
+      ],
+      added: [
+        { row: -1, col: 0 }, { row: 0, col: -1 }, { row: -1, col: -1 },
+        { row: 8, col: 7 }, { row: 7, col: 8 }, { row: 8, col: 8 }
+      ]
+    }], [], 'black');
+
+    expect(out).toEqual(['黒: 盤面拡張神: 2角から6マス拡張']);
+  });
+
   test('uses shared special stone labels for status tick logs', () => {
     const out = Adapter.mapEffectLogsFromPipeline([], [
       { type: 'STATUS_TICK', row: 1, col: 2, meta: { special: 'TIME_STOP', timer: 4 } }
