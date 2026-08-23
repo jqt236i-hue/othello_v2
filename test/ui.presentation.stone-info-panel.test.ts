@@ -123,4 +123,88 @@ describe('current board stone catalog presentation', () => {
     expect(document.getElementById('stone-info-detail-panel').classList.contains('is-open')).toBe(false);
     expect(document.getElementById('stone-info-detail-backdrop').classList.contains('is-open')).toBe(false);
   });
+
+  test('moves the stone catalog sideways with a vertical mouse wheel without trapping edge scroll', () => {
+    const mod = setupDom();
+    const currentFrame = frame([
+      stone(3, 3, 'black'),
+      stone(3, 4, 'white'),
+      stone(2, 2, 'black', 'GOLD')
+    ]);
+
+    mod.renderCurrentStoneInfoPanel(currentFrame);
+    mod.renderCurrentStoneInfoPanel(currentFrame);
+
+    const list = document.getElementById('stone-info-list') as HTMLElement;
+    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 400 });
+    Object.defineProperty(list, 'clientWidth', { configurable: true, value: 120 });
+
+    const forward = new window.WheelEvent('wheel', {
+      deltaY: 40,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(forward);
+    expect(list.scrollLeft).toBe(40);
+    expect(forward.defaultPrevented).toBe(true);
+
+    const horizontalTrackpad = new window.WheelEvent('wheel', {
+      deltaX: 60,
+      deltaY: 20,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(horizontalTrackpad);
+    expect(list.scrollLeft).toBe(40);
+    expect(horizontalTrackpad.defaultPrevented).toBe(false);
+
+    const browserZoom = new window.WheelEvent('wheel', {
+      deltaY: 40,
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(browserZoom);
+    expect(list.scrollLeft).toBe(40);
+    expect(browserZoom.defaultPrevented).toBe(false);
+
+    list.scrollLeft = 280;
+    const atRightEdge = new window.WheelEvent('wheel', {
+      deltaY: 40,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(atRightEdge);
+    expect(list.scrollLeft).toBe(280);
+    expect(atRightEdge.defaultPrevented).toBe(false);
+
+    const backward = new window.WheelEvent('wheel', {
+      deltaY: -40,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(backward);
+    expect(list.scrollLeft).toBe(240);
+    expect(backward.defaultPrevented).toBe(true);
+
+    list.scrollLeft = 0;
+    const atLeftEdge = new window.WheelEvent('wheel', {
+      deltaY: -40,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(atLeftEdge);
+    expect(list.scrollLeft).toBe(0);
+    expect(atLeftEdge.defaultPrevented).toBe(false);
+
+    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 120 });
+    const withoutOverflow = new window.WheelEvent('wheel', {
+      deltaY: 40,
+      bubbles: true,
+      cancelable: true
+    });
+    list.dispatchEvent(withoutOverflow);
+    expect(list.scrollLeft).toBe(0);
+    expect(withoutOverflow.defaultPrevented).toBe(false);
+  });
 });

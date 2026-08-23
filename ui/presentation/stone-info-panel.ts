@@ -11,6 +11,30 @@ function ensureStoneInfoListShell(panel: HTMLElement): void {
   ].join('');
 }
 
+function attachStoneInfoListWheelHandler(list: HTMLElement): void {
+  if (list.dataset.stoneInfoWheelBound === '1') return;
+  list.dataset.stoneInfoWheelBound = '1';
+  list.addEventListener('wheel', (event: WheelEvent) => {
+    if (event.ctrlKey || event.metaKey) return;
+    if (!Number.isFinite(event.deltaY) || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
+    const maxScrollLeft = Math.max(0, list.scrollWidth - list.clientWidth);
+    if (maxScrollLeft <= 0) return;
+    const deltaScale = event.deltaMode === 1
+      ? 16
+      : (event.deltaMode === 2 ? Math.max(1, list.clientWidth) : 1);
+    const currentScrollLeft = Math.min(maxScrollLeft, Math.max(0, list.scrollLeft));
+    const nextScrollLeft = Math.min(
+      maxScrollLeft,
+      Math.max(0, currentScrollLeft + (event.deltaY * deltaScale))
+    );
+    if (nextScrollLeft === currentScrollLeft) return;
+
+    list.scrollLeft = nextScrollLeft;
+    event.preventDefault();
+  }, { passive: false });
+}
+
 export function ensureStoneInfoPanel(doc: Document): HTMLElement | null {
   if (!doc) return null;
   let panel = doc.getElementById('stone-info-panel') as HTMLElement | null;
@@ -32,6 +56,8 @@ export function ensureStoneInfoPanel(doc: Document): HTMLElement | null {
   panel.setAttribute('aria-atomic', 'true');
   panel.setAttribute('aria-hidden', 'false');
   ensureStoneInfoListShell(panel);
+  const list = panel.querySelector('#stone-info-list') as HTMLElement | null;
+  if (list) attachStoneInfoListWheelHandler(list);
   return panel;
 }
 

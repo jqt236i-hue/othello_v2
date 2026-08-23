@@ -102,6 +102,24 @@
   - 全完了条件が確認済み。
   - 既存未コミット変更を含めず、タスク所有差分をコミット済み。
 
+### Step 7: マウスホイールで一覧を横移動できるようにする
+
+- Outcome: PCでスクロールバーをドラッグしなくても、一覧上の通常ホイール操作で隠れた石種へ移動できる。
+- Components:
+  - `01-rulebook.md`
+  - `ui/presentation/stone-info-panel.ts`
+  - `test/ui.presentation.stone-info-panel.test.ts`
+- Dependencies: Step 2、Step 5
+- Verification:
+  - 縦ホイールによる左右移動、横入力・ブラウザ拡大縮小入力の非変換、横溢れなし・左右端での既定縦スクロール維持をfocused Jestで確認
+  - `npm run typecheck`
+  - `npm run build:browser`
+  - デスクトップ実画面で横移動とコンソールエラーの有無を確認
+- Done:
+  - 一覧に横溢れがある時、縦ホイールでスクロール位置が変わる。
+  - 一覧の端ではホイールイベントを捕捉せず、親の縦スクロールを妨げない。
+  - 同じ一覧DOMへイベントが重複登録されない。
+
 ## 3. 完了チェックリスト
 
 - [ ] `01-rulebook.md` が新しい表示/操作と一致する。
@@ -115,6 +133,7 @@
 - [ ] focused test、型検査、ブラウザビルドが成功する。
 - [ ] 生成物と最終差分を確認する。
 - [ ] タスク所有ファイルだけをコミットする。
+- [x] PCで盤上の石一覧をマウスホイール横スクロールでき、端では親の縦スクロールを維持する。
 
 ## 4. Self-review
 
@@ -122,3 +141,24 @@
 - HTMLの正本は `index.classic.html`、Vite entryとproduction `index.html` は既存スクリプト生成という順序を明記した。
 - 既存の `ui/board-dom-compat/renderer.ts` にユーザー由来の未コミット差分があるため、同ファイルを変更せずに成立する入力binder側の整理を採用した。
 - レスポンシブ表示はCSSだけでなくブラウザ実表示も確認するよう補強した。
+- ホイール追加では単純に全入力を捕捉せず、横方向入力が優勢な場合と左右端では既定動作を維持する計画へ修正した。
+
+## 5. Step 7 実施結果
+
+- `npx jest --runInBand --runTestsByPath test/ui.presentation.stone-info-panel.test.ts`: 4 tests passed。横移動、重複登録防止、横優勢入力、`Ctrl` 付き入力、左右端、横溢れなしを確認。
+- `npm run typecheck`: 成功。
+- `npm run build:browser`: 成功。classic registryとcachebusterを更新。
+- `npm run build:vite`: 成功。標準Vite bundle、entry、startup versionを更新。
+- 実ブラウザ:
+  - `http://127.0.0.1:8000/`（Vite、Pixi）でイベント登録属性が1、console warning/errorなし。
+  - `http://127.0.0.1:8000/index.classic.html`（classic、Pixi）でもイベント登録属性が1、console warning/errorなし。
+  - 初期盤面は2項目で横溢れしないため、実際の移動量と左右端はfocused Jestの横溢れ再現で確認した。
+- `git diff --check`: 成功。
+- `http://127.0.0.1:8000/`: HTTP 200。PID 33120の本repository向け`http-server`が継続稼働中。
+
+## 6. Final independent review
+
+- Reviewer: 読み取り専用の独立subagent。
+- 初回設計レビューでは、ブラウザ拡大縮小用の`Ctrl` / `Command`付きホイールを捕捉しない条件が必要との指摘があり、実装・テスト・設計へ反映した。
+- 最終実装レビュー: P0〜P3の指摘なし。縦優勢判定、overflow/端判定、重複登録防止、テスト、仕様同期を確認済み。
+- Vite生成後のbounded recheck: `index.html`、`index.vite.html`、Vite bundle、classic registryの同期に問題なし。追加修正なし。
