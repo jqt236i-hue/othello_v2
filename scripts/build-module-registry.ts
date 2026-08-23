@@ -369,6 +369,10 @@ function walkDir(dir: string, base: string, files: string[]): void {
     }
 }
 
+function normalizeBrowserModuleContent(content: string): string {
+    return String(content || '').replace(/\r\n?/g, '\n');
+}
+
 function appendRegisteredModule(lines: string[], moduleKey: string, content: string): void {
     const moduleDir = path.posix.dirname(moduleKey);
     const cjsDir = moduleDir === '.' ? '' : moduleDir;
@@ -608,7 +612,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         const fullPath = resolveBrowserModuleSourcePath(rootDir, distDir, rel);
         let content: string;
         try {
-            content = fs.readFileSync(fullPath, 'utf8');
+            content = normalizeBrowserModuleContent(fs.readFileSync(fullPath, 'utf8'));
         } catch {
             skipped.push(rel);
             continue;
@@ -647,7 +651,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         const fullPath = path.join(rootDir, extra.source);
         let content: string;
         try {
-            content = fs.readFileSync(fullPath, 'utf8');
+            content = normalizeBrowserModuleContent(fs.readFileSync(fullPath, 'utf8'));
         } catch {
             skipped.push(extra.source + ' (missing extra)');
             continue;
@@ -682,7 +686,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         const fullPath = path.join(rootDir, rel);
         let content: string;
         try {
-            content = fs.readFileSync(fullPath, 'utf8');
+            content = normalizeBrowserModuleContent(fs.readFileSync(fullPath, 'utf8'));
         } catch {
             skipped.push(rel + ' (missing runtime source)');
             continue;
@@ -820,5 +824,6 @@ export = {
     classifyBrowserBootModule,
     classifyBrowserOptionalGroup,
     normalizeBootModuleKey,
+    normalizeBrowserModuleContent,
     OPTIONAL_RUNTIME_GROUPS
 };

@@ -3689,7 +3689,7 @@
 
   _a("shared/observation-gacha-catalog.generated.js", "shared/observation-gacha-catalog.generated");
 
-  _r("game/card-effects-applier", "var __cjsDir=\"game\";var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n/**\r\n * @file card-effects-applier.js\r\n * @description Shim for split card effect handlers\r\n */\r\n\r\nif (typeof CardLogic === 'undefined') {\r\n    console.error('CoreLogic is not loaded. Please include game/logic/cards.js');\r\n}\r\n");
+  _r("game/card-effects-applier", "var __cjsDir=\"game\";var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n/**\n * @file card-effects-applier.js\n * @description Shim for split card effect handlers\n */\n\nif (typeof CardLogic === 'undefined') {\n    console.error('CoreLogic is not loaded. Please include game/logic/cards.js');\n}\n");
 
   _a("game/card-effects-applier.js", "game/card-effects-applier");
 

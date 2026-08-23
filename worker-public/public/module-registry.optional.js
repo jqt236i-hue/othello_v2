@@ -199,7 +199,7 @@
 
   _a("ui/leaderboard-client.js", "ui/leaderboard-client");
 
-  _r("othello-ai/search/teacher", "var __cjsDir=\"othello-ai/search\";var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n\"use strict\";\r\n\r\nconst Engine = require(\"../runtime/engine\");\r\n\r\nfunction chooseTeacherMove(legalMoves, context, models) {\r\n  return Engine.chooseEngineMove(legalMoves, context || {}, models || {});\r\n}\r\n\r\nmodule.exports = {\r\n  chooseTeacherMove\r\n};\r\n");
+  _r("othello-ai/search/teacher", "var __cjsDir=\"othello-ai/search\";var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n\"use strict\";\n\nconst Engine = require(\"../runtime/engine\");\n\nfunction chooseTeacherMove(legalMoves, context, models) {\n  return Engine.chooseEngineMove(legalMoves, context || {}, models || {});\n}\n\nmodule.exports = {\n  chooseTeacherMove\n};\n");
 
   _a("othello-ai/search/teacher.js", "othello-ai/search/teacher");
 

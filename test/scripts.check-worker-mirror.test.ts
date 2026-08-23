@@ -40,4 +40,36 @@ describe('check-worker-mirror', () => {
         writeFile(path.join(outDir, 'manual-only.txt'), 'unexpected');
         expect(() => checkWorkerMirror(options)).toThrow(/unexpected mirror file: manual-only\.txt/);
     });
+
+    test('allows an absent deploy-only optional while still verifying it when present', () => {
+        rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-mirror-deploy-optional-'));
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const deployOptional = 'node_modules/onnxruntime-web/dist/ort.min.js';
+        const trackedOptional = 'data/models/policy-table.json';
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: ['index.html'],
+            verifyRootFiles: ['index.html'],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: [deployOptional, trackedOptional],
+            generatedOptionalAssets: []
+        };
+
+        writeFile(path.join(rootDir, 'index.html'), '<!doctype html><html><body>root</body></html>');
+        writeFile(path.join(rootDir, deployOptional), 'deploy-runtime');
+        writeFile(path.join(rootDir, trackedOptional), '{"tracked":true}');
+        prepareWorkerAssets(options);
+
+        fs.rmSync(path.join(outDir, deployOptional));
+        expect(checkWorkerMirror(options)).toBe(true);
+
+        writeFile(path.join(outDir, deployOptional), 'drift');
+        expect(() => checkWorkerMirror(options)).toThrow(/(?:size|content) mismatch: node_modules[\\/]onnxruntime-web/);
+
+        fs.rmSync(path.join(outDir, deployOptional));
+        fs.rmSync(path.join(outDir, trackedOptional));
+        expect(() => checkWorkerMirror(options)).toThrow(/worker-public missing: data[\\/]models[\\/]policy-table\.json/);
+    });
 });

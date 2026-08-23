@@ -66,6 +66,33 @@ describe('browser build sync', () => {
         expect(changedContentVersion).not.toBe(lfVersion);
     });
 
+    test('module registry output is stable across source text line endings', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-registry-eol-'));
+        cleanupDirs.push(rootDir);
+        const distPath = path.join(rootDir, 'dist', 'ui', 'sample.js');
+
+        writeSourceStub(rootDir, path.join('ui', 'sample.js'));
+        writeFile(distPath, 'module.exports = `line one\nline two`;\n');
+        const lfResult = buildRegistry({
+            rootDir,
+            write: false,
+            log: false,
+            syncScriptVersions: false
+        });
+
+        writeFile(distPath, 'module.exports = `line one\r\nline two`;\r\n');
+        const crlfResult = buildRegistry({
+            rootDir,
+            write: false,
+            log: false,
+            syncScriptVersions: false
+        });
+
+        expect(crlfResult.content).toBe(lfResult.content);
+        expect(crlfResult.startupContent).toBe(lfResult.startupContent);
+        expect(crlfResult.browserModuleRecords).toEqual(lfResult.browserModuleRecords);
+    });
+
     test('buildRegistry syncs index.html script versions to current file content', () => {
         const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-build-sync-'));
         cleanupDirs.push(rootDir);
