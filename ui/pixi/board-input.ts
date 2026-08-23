@@ -46,6 +46,12 @@ export interface PixiBoardInputRendererPort {
 
 export interface PixiBoardInputMountTargets {
   readonly viewport: HTMLElement;
+  /**
+   * Native press/move/release root. Production uses the document so expansion
+   * cells painted in the frame chrome (outside `#board`'s hit box) still reach
+   * hit-testing. Tests may omit it and keep native listeners on `viewport`.
+   */
+  readonly pointerRoot?: HTMLElement | Document;
   readonly renderer: PixiBoardInputRendererPort;
   readonly interactionLayer: PixiBoardFederatedEventLayerPort;
 }
@@ -143,6 +149,38 @@ function nativeEventOf(event: any): Event | undefined {
   return candidate && typeof candidate === 'object' ? candidate as Event : undefined;
 }
 
+function isDocumentPointerRoot(value: unknown): value is Document {
+  return !!value && (value as Node).nodeType === 9;
+}
+
+function isElementPointerRoot(value: unknown): value is HTMLElement {
+  return !!value
+    && !isDocumentPointerRoot(value)
+    && typeof (value as HTMLElement).addEventListener === 'function'
+    && !!(value as HTMLElement).style;
+}
+
+const NATIVE_POINTER_DEFER_SELECTOR = [
+  '.board-accessibility-direction-button',
+  '#board-frame-pass-btn',
+  '.card-item',
+  '#use-card-btn',
+  '#destroy-card-btn',
+  '#toggle-card-detail-btn',
+  '#cancel-card-btn',
+  '[aria-modal="true"]',
+  'a[href]',
+  'input',
+  'textarea',
+  'select'
+].join(',');
+
+function shouldDeferNativePointer(raw: Event): boolean {
+  const target = raw.target;
+  if (!target || typeof (target as Element).closest !== 'function') return false;
+  return !!(target as Element).closest(NATIVE_POINTER_DEFER_SELECTOR);
+}
+
 function pointerSnapshot(event: any): PointerSnapshot {
   const nativeEvent = nativeEventOf(event) as any;
   const source = nativeEvent || event || {};
@@ -166,6 +204,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     throw new Error('Pixi board input requires a controller resolver');
   }
   let viewport: HTMLElement | null = null;
+  let pointerRoot: HTMLElement | Document | null = null;
   let renderer: PixiBoardInputRendererPort | null = null;
   let interactionLayer: PixiBoardFederatedEventLayerPort | null = null;
   let destroyed = false;
@@ -180,6 +219,8 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
   let lastPointerEvent: PointerSnapshot | null = null;
   let previousAutoPreventDefault: boolean | undefined;
   let previousStyle: Readonly<{ pointerEvents: string; touchAction: string; cursor: string }> | null = null;
+  let previousPointerRootStyle: Readonly<{ pointerEvents: string; touchAction: string; cursor: string }> | null = null;
+  let capturedPointerId: number | null = null;
   let previousMetrics: Readonly<{
     hadWidth: boolean;
     hadHeight: boolean;
@@ -317,6 +358,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
       startX: event.clientX,
       startY: event.clientY
     });
+    capturePointer(event.pointerId);
   };
 
   const onPointerDown = (raw: unknown) => {
@@ -400,6 +442,41 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     schedulePendingMoveFrame();
   };
 
+  const tryPointerCapture = (id: number, capture: boolean): void => {
+    if (isDocumentPointerRoot(pointerRoot)) return;
+    const target = pointerRoot as (HTMLElement & {
+      setPointerCapture?: (pointerId: number) => void;
+      releasePointerCapture?: (pointerId: number) => void;
+      hasPointerCapture?: (pointerId: number) => boolean;
+    }) | null;
+    if (!target) return;
+    try {
+      if (capture) {
+        if (typeof target.setPointerCapture !== 'function') return;
+        target.setPointerCapture(id);
+        return;
+      }
+      if (typeof target.releasePointerCapture !== 'function') return;
+      if (typeof target.hasPointerCapture === 'function' && !target.hasPointerCapture(id)) return;
+      target.releasePointerCapture(id);
+    } catch (_error) {
+      // jsdom and inactive pointers cannot capture; input still completes.
+    }
+  };
+
+  const capturePointer = (id: number): void => {
+    if (capturedPointerId != null && capturedPointerId !== id) tryPointerCapture(capturedPointerId, false);
+    capturedPointerId = id;
+    tryPointerCapture(id, true);
+  };
+
+  const releasePointer = (id?: number): void => {
+    const pointerIdToRelease = typeof id === 'number' ? id : capturedPointerId;
+    if (pointerIdToRelease == null) return;
+    tryPointerCapture(pointerIdToRelease, false);
+    if (capturedPointerId === pointerIdToRelease) capturedPointerId = null;
+  };
+
   const finishPointer = (event: PointerSnapshot, cancelled: boolean, outside = false) => {
     flushPendingMoves(event.pointerId);
     clearPendingRetry(event.pointerId);
@@ -407,6 +484,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     const controller = resolveController();
     const pressed = active;
     active = null;
+    releasePointer(event.pointerId);
     if (!controller) return;
     if (cancelled) {
       dispatch(controller, 'pointercancel', pressed.hit, event);
@@ -427,14 +505,24 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
   };
 
   const onNativePointerDown = (raw: Event) => {
+    if (shouldDeferNativePointer(raw)) return;
     lastPointerEvent = pointerSnapshot(raw);
     flushPendingMoves(lastPointerEvent.pointerId);
+    const hadActive = !!active;
     beginPointer(lastPointerEvent, true);
+    if (!hadActive && active && isDocumentPointerRoot(pointerRoot) && typeof raw.stopPropagation === 'function') {
+      raw.stopPropagation();
+    }
   };
 
   const onNativePointerUp = (raw: Event) => {
+    if (shouldDeferNativePointer(raw) && !active) return;
     lastPointerEvent = pointerSnapshot(raw);
+    const wasActive = !!active && active.pointerId === lastPointerEvent.pointerId;
     finishPointer(lastPointerEvent, false, false);
+    if (wasActive && isDocumentPointerRoot(pointerRoot) && typeof raw.stopPropagation === 'function') {
+      raw.stopPropagation();
+    }
   };
 
   const onNativePointerLeave = (raw: Event) => {
@@ -459,6 +547,7 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     if (active && active.pointerId === event.pointerId) {
       const pressed = active;
       active = null;
+      releasePointer(event.pointerId);
       if (!previous || previous.key !== pressed.hit.key) {
         dispatch(controller, 'pointercancel', pressed.hit, event);
       }
@@ -483,8 +572,12 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     const nextViewport = targets?.viewport;
     const nextRenderer = targets?.renderer;
     const nextInteractionLayer = targets?.interactionLayer;
+    const nextPointerRoot = targets?.pointerRoot || nextViewport;
     if (!nextViewport || typeof nextViewport.addEventListener !== 'function') {
       throw new Error('Pixi board input viewport is unavailable');
+    }
+    if (!nextPointerRoot || typeof nextPointerRoot.addEventListener !== 'function') {
+      throw new Error('Pixi board input pointer root is unavailable');
     }
     if (!nextRenderer?.events || typeof nextRenderer.events.setTargetElement !== 'function') {
       throw new Error('Pixi board Federated EventSystem is unavailable');
@@ -497,12 +590,14 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     if (viewport) {
       if (viewport !== nextViewport
         || renderer !== nextRenderer
-        || interactionLayer !== nextInteractionLayer) {
+        || interactionLayer !== nextInteractionLayer
+        || pointerRoot !== nextPointerRoot) {
         throw new Error('Pixi board input cannot mount a second target');
       }
       return;
     }
     viewport = nextViewport;
+    pointerRoot = nextPointerRoot;
     renderer = nextRenderer;
     interactionLayer = nextInteractionLayer;
     previousStyle = Object.freeze({
@@ -510,6 +605,13 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
       touchAction: viewport.style.touchAction,
       cursor: viewport.style.cursor
     });
+    if (isElementPointerRoot(pointerRoot) && pointerRoot !== viewport) {
+      previousPointerRootStyle = Object.freeze({
+        pointerEvents: pointerRoot.style.pointerEvents,
+        touchAction: pointerRoot.style.touchAction,
+        cursor: pointerRoot.style.cursor
+      });
+    }
     previousMetrics = Object.freeze({
       hadWidth: Object.prototype.hasOwnProperty.call(viewport, 'width'),
       hadHeight: Object.prototype.hasOwnProperty.call(viewport, 'height'),
@@ -525,6 +627,10 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     // by the scroll viewport.
     viewport.style.pointerEvents = 'auto';
     viewport.style.touchAction = 'pan-x pan-y pinch-zoom';
+    if (isElementPointerRoot(pointerRoot) && pointerRoot !== viewport) {
+      pointerRoot.style.pointerEvents = 'auto';
+      pointerRoot.style.touchAction = 'pan-x pan-y pinch-zoom';
+    }
     const rect = typeof viewport.getBoundingClientRect === 'function'
       ? viewport.getBoundingClientRect()
       : null;
@@ -545,16 +651,23 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     // client coordinates. The retained active pointer makes the subsequent
     // Federated event a no-op, so this remains one input path rather than a
     // duplicate dispatch.
-    addNativeListener(viewport, 'pointerdown', onNativePointerDown as EventListener, true);
-    addNativeListener(viewport, 'pointerup', onNativePointerUp as EventListener, true);
-    addNativeListener(viewport, 'pointerleave', onNativePointerLeave as EventListener, true);
-    // Pixi 8.18's PointerEvent path does not subscribe to pointercancel. The
-    // native supplement is also required when a touch becomes viewport scrolling.
-    addNativeListener(viewport, 'pointercancel', onNativePointerCancel as EventListener, true);
+    addNativeListener(pointerRoot, 'pointerdown', onNativePointerDown as EventListener, true);
+    addNativeListener(pointerRoot, 'pointerup', onNativePointerUp as EventListener, true);
+    if (isElementPointerRoot(pointerRoot)) {
+      addNativeListener(pointerRoot, 'pointerleave', onNativePointerLeave as EventListener, true);
+    }
+    addNativeListener(pointerRoot, 'pointercancel', onNativePointerCancel as EventListener, true);
+    // Overlay / document roots sit outside the Federated viewport, so gutter
+    // motion never reaches globalpointermove. Do not add this when native is
+    // on the viewport or existing Federated move tests would double-fire.
+    if (pointerRoot !== viewport) {
+      addNativeListener(pointerRoot, 'pointermove', onGlobalPointerMove as EventListener, true);
+    }
   }
 
   function destroy(): void {
     if (destroyed) return;
+    releasePointer();
     clearPendingRetry();
     clearPendingMoves();
     const controller = resolveController();
@@ -587,13 +700,21 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
       viewport.style.touchAction = previousStyle.touchAction;
       viewport.style.cursor = previousStyle.cursor;
     }
+    if (isElementPointerRoot(pointerRoot) && pointerRoot !== viewport && previousPointerRootStyle) {
+      pointerRoot.style.pointerEvents = previousPointerRootStyle.pointerEvents;
+      pointerRoot.style.touchAction = previousPointerRootStyle.touchAction;
+      pointerRoot.style.cursor = previousPointerRootStyle.cursor;
+    }
     destroyed = true;
     active = null;
     hovered = null;
     lastPointerEvent = null;
+    capturedPointerId = null;
     previousStyle = null;
+    previousPointerRootStyle = null;
     previousMetrics = null;
     viewport = null;
+    pointerRoot = null;
     renderer = null;
     interactionLayer = null;
   }

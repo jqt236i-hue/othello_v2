@@ -1519,10 +1519,13 @@ export function createPixiBoardVisualBackend(
       if (typeof options.getInputController === 'function') {
         try {
           const viewport = camera!.getViewportElement();
+          const canvasLayer = camera!.getCanvasLayerElement();
           if (!viewport) throw new Error('Pixi board input viewport is unavailable');
+          if (!canvasLayer) throw new Error('Pixi board input canvas layer is unavailable');
           input = inputFactory({ getController: options.getInputController });
           input.mount({
             viewport,
+            pointerRoot: canvasLayer.ownerDocument || canvasLayer,
             renderer: application!.getRenderer(),
             interactionLayer: scene!.layers.interaction
           });

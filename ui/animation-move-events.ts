@@ -301,6 +301,7 @@ function buildMoveGhostAnimationSpec(
 function resolveMoveFallbackState(target: any) {
     const hasBeforeState = target && target.before && (target.before.color === 1 || target.before.color === -1);
     const hasAfterState = target && target.after && (target.after.color === 1 || target.after.color === -1);
+    const meta = (target && target.meta && typeof target.meta === 'object') ? target.meta : null;
     let fallbackState = null;
     if (hasBeforeState) {
         fallbackState = target.before;
@@ -309,13 +310,50 @@ function resolveMoveFallbackState(target: any) {
     } else {
         fallbackState = {
             color: (target && target.ownerAfter === 'black') ? 1 : ((target && target.ownerAfter === 'white') ? -1 : 0),
-            special: target && target.after ? target.after.special : null,
-            timer: target && target.after ? target.after.timer : null,
-            owner: (target && target.after && target.after.owner) || (target && target.ownerAfter) || null
+            special: null,
+            timer: meta && meta.timer ? meta.timer : null,
+            owner: (target && target.ownerAfter) || null
         };
+    }
+    const metaSpecial = meta && meta.special;
+    if (
+        fallbackState &&
+        (fallbackState.special === undefined || fallbackState.special === null) &&
+        metaSpecial !== undefined &&
+        metaSpecial !== null
+    ) {
+        fallbackState = Object.assign({}, fallbackState, { special: metaSpecial });
     }
     if (fallbackState.color !== 1 && fallbackState.color !== -1) return null;
     return fallbackState;
+}
+
+function normalizeMoveSpecialType(value: any) {
+    if (value && typeof value === 'object') return String(value.type || '').trim().toUpperCase();
+    return String(value || '').trim().toUpperCase();
+}
+
+function discMatchesMovingStone(disc: any, target: any) {
+    if (!disc) return false;
+    const expected = resolveMoveFallbackState(target);
+    if (!expected) return true;
+    const expectedBlack = expected.color === 1;
+    const expectedWhite = expected.color === -1;
+    const isBlack = !!(disc.classList && disc.classList.contains('black'));
+    const isWhite = !!(disc.classList && disc.classList.contains('white'));
+    if (expectedBlack && !isBlack) return false;
+    if (expectedWhite && !isWhite) return false;
+    const expectedSpecial = normalizeMoveSpecialType(expected.special);
+    const effect = String(disc.dataset && disc.dataset.effect ? disc.dataset.effect : '').toLowerCase();
+    const looksExtreme = !!(
+        (disc.classList && disc.classList.contains('extreme-hyperactive-visual')) ||
+        effect.indexOf('extremehyperactive') >= 0 ||
+        effect.indexOf('extreme-hyperactive') >= 0
+    );
+    if (expectedSpecial === 'EXTREME_HYPERACTIVE') return looksExtreme;
+    if (looksExtreme) return false;
+    if (!expectedSpecial && disc.classList && disc.classList.contains('special-stone')) return false;
+    return true;
 }
 
 function resolveMoveDiscContext(fromCell: any, toCell: any, target: any, moveSemantics: any, deps: AnimationMoveEventDeps) {
@@ -323,9 +361,13 @@ function resolveMoveDiscContext(fromCell: any, toCell: any, target: any, moveSem
     let sourceCell = fromCell;
     let useGhostOnly = !!(moveSemantics && moveSemantics.useGhostOnlyByDefault);
 
+    if (disc && !discMatchesMovingStone(disc, target)) {
+        disc = null;
+    }
+
     if (!disc) {
         const toDisc = toCell.querySelector('.disc');
-        if (toDisc) {
+        if (toDisc && discMatchesMovingStone(toDisc, target)) {
             disc = toDisc;
             sourceCell = toCell;
         }

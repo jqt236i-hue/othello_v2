@@ -132,8 +132,13 @@ describe('Pixi board camera', () => {
       height: 280,
       gutterPx: 80,
       sceneOffsetX: 80,
-      sceneOffsetY: 80
+      sceneOffsetY: 80,
+      leftGutterPx: 80,
+      topGutterPx: 80,
+      rightGutterPx: 80,
+      bottomGutterPx: 80
     });
+    expect(harness.camera.getCanvasLayerElement().style.pointerEvents).toBe('auto');
     expect(harness.camera.getDiagnostics()).toMatchObject({
       logicalWidth: 640,
       canvasWidth: 320,
@@ -169,6 +174,61 @@ describe('Pixi board camera', () => {
     harness.camera.sync(bottom, seedLayout(bottom));
     expect(harness.camera.getCellClientRect(2, 2)).toMatchObject({ left: before.left, top: before.top });
     expect(harness.camera.getLayout().camera.scrollTop).toBe(40);
+  });
+
+  test('grows only the expansion AABB gutter past the effect gutter', () => {
+    const harness = createHarness();
+    const baseKeys: string[] = [];
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) baseKeys.push(`${row},${col}`);
+    }
+    const withinGutter = {
+      ...topology({ maxRow: 7, minCol: -2, maxCol: 7 }),
+      baseKeys,
+      existingKeys: [...baseKeys, '2,-1', '2,-2']
+    };
+    harness.camera.sync(withinGutter, seedLayout(withinGutter));
+    expect(harness.camera.getCanvasViewport()).toMatchObject({
+      width: 320,
+      height: 280,
+      gutterPx: 80,
+      sceneOffsetX: 80,
+      leftGutterPx: 80,
+      rightGutterPx: 80
+    });
+
+    const beyondGutter = {
+      ...topology({ maxRow: 7, minCol: -3, maxCol: 7 }),
+      baseKeys,
+      existingKeys: [...baseKeys, '2,-1', '2,-2', '2,-3']
+    };
+    const before = harness.camera.getCellClientRect(2, 2);
+    harness.camera.sync(beyondGutter, seedLayout(beyondGutter));
+    expect(harness.camera.getCanvasViewport()).toEqual({
+      width: 360,
+      height: 280,
+      gutterPx: 120,
+      sceneOffsetX: 120,
+      sceneOffsetY: 80,
+      leftGutterPx: 120,
+      topGutterPx: 80,
+      rightGutterPx: 80,
+      bottomGutterPx: 80
+    });
+    expect(harness.camera.getCanvasLayerElement().style.left).toBe('-120px');
+    expect(harness.camera.getCellClientRect(2, 2)).toMatchObject({
+      left: before.left,
+      top: before.top
+    });
+
+    harness.camera.sync(beyondGutter, seedLayout(beyondGutter, 'rotated-180'));
+    expect(harness.camera.getCanvasViewport()).toMatchObject({
+      width: 360,
+      height: 280,
+      sceneOffsetX: 80,
+      leftGutterPx: 80,
+      rightGutterPx: 120
+    });
   });
 
   test('restores committed offsets when the browser resets DOM scroll during multi-cell growth', () => {

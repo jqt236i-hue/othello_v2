@@ -354,11 +354,13 @@ export function materializeBoardViewport(options: {
   if (!windowValue) return Object.freeze([]);
   const byKey = new Map(model.cells.map((cell) => [cell.key, cell]));
   const materialized: MaterializedBoardCellVisualState[] = [];
+  const seen = new Set<string>();
   for (let row = windowValue.minRow; row <= windowValue.maxRow; row += 1) {
     for (let col = windowValue.minCol; col <= windowValue.maxCol; col += 1) {
       const key = boardKey(row, col);
       const existing = byKey.get(key);
       if (existing) {
+        seen.add(key);
         materialized.push(deepFreeze({ ...existing, ephemeral: false }));
         continue;
       }
@@ -401,6 +403,11 @@ export function materializeBoardViewport(options: {
         ephemeral: true
       }));
     }
+  }
+  for (const cell of model.cells) {
+    if (cell.expansionSide == null || seen.has(cell.key)) continue;
+    seen.add(cell.key);
+    materialized.push(deepFreeze({ ...cell, ephemeral: false }));
   }
   return Object.freeze(materialized);
 }

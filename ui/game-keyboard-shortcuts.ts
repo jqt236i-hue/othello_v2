@@ -22,6 +22,7 @@ interface ShortcutState {
 }
 
 const BLOCKING_UI_SELECTORS = [
+    'html.mobile-command-surface-locked',
     '.debug-card-search-control.is-open',
     '#networkChatPanel.is-open',
     '#quickBgmTrackPicker.is-open',

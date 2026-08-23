@@ -8,7 +8,7 @@ Build, codegen, checks, local servers, worker sync, and selfplay/training orches
 | --- | --- | --- |
 | TypeScript build/check wrappers | `run-all-checks.ts`, `check-window-usage.ts`, `test-shim-forwarding.ts` | `.js` files usually require `dist/scripts/*`; build before relying on shims after a clean clone. |
 | Worker/public mirror | `prepare-worker-assets.ts` | Copies root assets/modules to `worker-public/`, regenerates asset manifest and gacha catalogs, verifies mirror. |
-| Local servers/network smoke | `serve-with-fallback.ts`, `local-match-server.ts`, `match-network-smoke.ts` | Keep local server and Worker authority contracts aligned. |
+| Local servers/network smoke | `serve-with-fallback.ts`, `local-match-server.ts`, `match-network-smoke.ts` | Play server is `npm run serve` on 8000; keep it running per root `AGENTS.md` LOCAL DEV SERVER. Match-server contracts stay aligned with Worker behavior. |
 | Catalog / manifest generation | `generate-catalog.ts`, `generate-observation-gacha-catalog.ts`, `generate-asset-manifest.ts` | Generated outputs are not hand-edit targets. |
 | Selfplay/training orchestration | `../training/scripts/run-selfplay-training-cycle.ts`, `../training/scripts/run-selfplay-training-profile.ts`, `../training/scripts/load-training-profile.ts`, `promote-policy-model.ts`, `deploy-lane-model-to-root.ts` | Root `run-selfplay-*.js` entries dispatch to built training scripts; profile/gate/promotion contracts are in `docs/architecture-contracts.md` §5.2. |
 
@@ -19,6 +19,7 @@ Build, codegen, checks, local servers, worker sync, and selfplay/training orches
 - Python training commands expect repo-root `.venv\Scripts\python.exe`; `training/python/setup.ps1` installs Torch separately from `requirements.txt`.
 - Lane promotion and root deployment are separate: `promote-policy-model` writes lane-local artifacts; `deploy-lane-model-to-root` copies a lane champion to root `data/models/`; run `npm run worker:prepare` after root deploy.
 - `data/` can contain large model/run artifacts. Do not add or commit model outputs unless explicitly requested.
+- `serve-with-fallback.ts` prefers 8000 then walks sequential ports. Agents must reuse an existing 8000 listener and must not start a second copy. Do not stop the play server to run `build:browser`. Do not run `build:vite` while this repository is serving `vite-dist/` on 5174.
 
 ## Verification
 

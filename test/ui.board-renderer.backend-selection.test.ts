@@ -844,6 +844,11 @@ describe('Pixi board CSS and classic delivery wiring', () => {
       '#board[data-board-renderer="pixi"] > .pixi-board-scroll-viewport'
     );
 
+    const pixiCanvasCss = readCssBlock(
+      boardCss,
+      '#board[data-board-renderer="pixi"] > .pixi-board-canvas-layer'
+    );
+
     expect(boardCss).toMatch(/#board\s*\{[\s\S]*?display:\s*grid;/);
     expect(boardCss).toContain('#board[data-board-renderer="pixi"]');
     expect(boardCss).toContain('.pixi-board-scroll-viewport');
@@ -851,6 +856,7 @@ describe('Pixi board CSS and classic delivery wiring', () => {
     expect(pixiViewportCss).not.toMatch(/overflow:\s*auto;/);
     expect(boardCss).toContain('.pixi-board-scroll-surface');
     expect(boardCss).toContain('.pixi-board-canvas-layer');
+    expect(pixiCanvasCss).toMatch(/pointer-events:\s*auto;/);
     expect(boardCss).toMatch(/#board\[data-board-renderer="pixi"\]::before,[\s\S]*?content:\s*none;/);
     expect(layoutCss).toContain('#board-frame::before');
     expect(layoutCss).toContain('background: var(--board-frame-image)');

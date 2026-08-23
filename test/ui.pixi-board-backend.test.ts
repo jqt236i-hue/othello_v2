@@ -544,6 +544,7 @@ describe('Pixi board backend integration', () => {
     expect(inputFactory).toHaveBeenCalledWith({ getController: getInputController });
     expect(input.mount).toHaveBeenCalledWith({
       viewport: harness.host.querySelector('#board-scroll-viewport'),
+      pointerRoot: harness.host.ownerDocument,
       renderer: harness.app.instances[0].renderer,
       interactionLayer: harness.scene.scene.layers.interaction
     });

@@ -225,6 +225,23 @@ describe('game keyboard shortcuts', () => {
     expect(controller.getState().legalCursorKey).toBeNull();
   });
 
+  test('mobile command layers participate in the shared board input lock', () => {
+    const dom = buildDom();
+    dom.window.document.documentElement.classList.add('mobile-command-surface-locked');
+    const mod = require('../ui/game-keyboard-shortcuts');
+    const { controller, placed, clicks } = createController(dom);
+
+    expect(mod.isBlockingUiOpen(dom.window.document)).toBe(true);
+
+    key(dom, { code: 'KeyD', key: 'd' });
+    key(dom, { code: 'Space', key: ' ' });
+    key(dom, { code: 'KeyD', key: 'D', shiftKey: true });
+
+    expect(placed).toEqual([]);
+    expect(clicks).toEqual([]);
+    expect(controller.getState().legalCursorKey).toBeNull();
+  });
+
   test('shortcuts are ignored while profile overlay is open even with button focus', () => {
     const dom = buildDom('<div id="profileOverlay" class="is-open"><button id="profileTabProfile" type="button"></button></div>');
     const { controller, placed, used, destroyed, clicks } = createController(dom);

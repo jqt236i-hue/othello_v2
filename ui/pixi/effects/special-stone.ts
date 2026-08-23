@@ -240,8 +240,8 @@ export async function playPixiLegacyHyperactiveMoveEffect(
   const from = normalizePlaybackCoordinate(event?.from);
   const to = normalizePlaybackCoordinate(event?.to);
   if (!from || !to) return;
-  const source = projection.getProjectedStone(from.row, from.col)
-    || projection.getProjectedStone(to.row, to.col);
+  const source = projection.getProjectedStone(to.row, to.col)
+    || projection.getProjectedStone(from.row, from.col);
   const after = source
     ? { ...source.stone.status, color: source.stone.value, special: source.stone.specialType }
     : null;

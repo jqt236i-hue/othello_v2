@@ -253,7 +253,7 @@ export interface PixiBoardSceneApplyContext {
   readonly stoneTextureRevision?: string | number | null;
   /** Compatibility fallback when callers cannot partition texture resources. */
   readonly textureRevision?: string | number | null;
-  readonly canvasViewport?: Pick<PixiBoardCanvasViewport, 'sceneOffsetX' | 'sceneOffsetY'> | null;
+  readonly canvasViewport?: (Pick<PixiBoardCanvasViewport, 'sceneOffsetX' | 'sceneOffsetY'> & Partial<Pick<PixiBoardCanvasViewport, 'width' | 'height'>>) | null;
   /** Added topology cells are baked into a separate alpha-controlled patch. */
   readonly topologyRevealKeys?: readonly string[];
   /** Resize/scroll reflow must not settle an in-flight playback projection. */
@@ -1360,7 +1360,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   function updateViewportMasks(
     frame: BoardVisualFrame,
     sceneOffsetX: number,
-    sceneOffsetY: number
+    sceneOffsetY: number,
+    canvasWidth?: number,
+    canvasHeight?: number
   ): void {
     const fixedViewportClipRect = Object.freeze({
       x: sceneOffsetX,
@@ -1371,8 +1373,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     viewportClipRect = fixedViewportClipRect;
     const viewportRight = fixedViewportClipRect.x + fixedViewportClipRect.width;
     const viewportBottom = fixedViewportClipRect.y + fixedViewportClipRect.height;
-    const canvasRight = viewportRight + sceneOffsetX;
-    const canvasBottom = viewportBottom + sceneOffsetY;
+    const canvasRight = Number.isFinite(canvasWidth) && (canvasWidth as number) > 0
+      ? canvasWidth as number
+      : viewportRight + sceneOffsetX;
+    const canvasBottom = Number.isFinite(canvasHeight) && (canvasHeight as number) > 0
+      ? canvasHeight as number
+      : viewportBottom + sceneOffsetY;
     const expansionRects = frame.model.cells.flatMap((cell) => {
       if (cell.expansionSide === null) return [];
       const scene = worldToScene(frame.model.topology, frame.layout, cell.row, cell.col);
@@ -3340,7 +3346,13 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const sceneOffsetY = Number.isFinite(Number(context.canvasViewport?.sceneOffsetY))
       ? Number(context.canvasViewport!.sceneOffsetY)
       : defaultOffset;
-    updateViewportMasks(frame, sceneOffsetX, sceneOffsetY);
+    const canvasWidth = Number.isFinite(Number(context.canvasViewport?.width))
+      ? Number(context.canvasViewport!.width)
+      : undefined;
+    const canvasHeight = Number.isFinite(Number(context.canvasViewport?.height))
+      ? Number(context.canvasViewport!.height)
+      : undefined;
+    updateViewportMasks(frame, sceneOffsetX, sceneOffsetY, canvasWidth, canvasHeight);
     topologyPatchKeys = new Set(Array.isArray(context.topologyRevealKeys)
       ? context.topologyRevealKeys
       : Array.from(topologyReveals.values()).flatMap((value) => Array.from(value.keys)));

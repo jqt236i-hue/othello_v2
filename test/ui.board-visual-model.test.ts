@@ -251,6 +251,45 @@ describe('BoardRenderModel sparse projection', () => {
     })).toEqual({ minRow: 97, maxRow: 105, minCol: 97, maxCol: 105 });
   });
 
+  test('materializes expansion cells outside the visible window without densifying voids', () => {
+    const baseKeys: string[] = [];
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) baseKeys.push(`${row},${col}`);
+    }
+    const expansionKey = '2,-3';
+    const expansion = createCell(expansionKey);
+    expansion.expansionSide = 'left';
+    expansion.renderCol = 0;
+    const topology = {
+      ...createTopology([...baseKeys, expansionKey], [], {
+        minRow: 0, maxRow: 7, minCol: -3, maxCol: 7
+      }),
+      baseRows: 8,
+      baseCols: 8,
+      baseKeys
+    };
+    const model = BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.expansion-gutter-fixture',
+      topology,
+      cells: [...baseKeys.map((key) => createCell(key)), expansion]
+    });
+    const view = BoardVisualModel.materializeBoardViewport({
+      model,
+      visibleWindow: { minRow: 0, maxRow: 7, minCol: 0, maxCol: 7 },
+      overscanCells: 0,
+      effectGutterCells: 2
+    });
+    const expansionCells = view.filter((cell: any) => cell.key === expansionKey);
+    expect(expansionCells).toHaveLength(1);
+    expect(expansionCells[0]).toMatchObject({
+      row: 2,
+      col: -3,
+      expansionSide: 'left',
+      ephemeral: false
+    });
+    expect(view.filter((cell: any) => cell.kind === 'void' && cell.col === -3)).toHaveLength(0);
+  });
+
   test('derives DOM compatibility state only from the semantic model', () => {
     const cell: any = createCell('0,0');
     cell.stone = {

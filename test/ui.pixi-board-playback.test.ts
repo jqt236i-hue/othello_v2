@@ -1797,6 +1797,61 @@ describe('Pixi board playback contract', () => {
     });
   });
 
+  test.each([
+    ['extreme_target_vacate', null],
+    ['extreme_repel_push', null]
+  ])('does not hide 極悪多動魔 when a settled %s plays from its cell', async (reason, metaSpecial) => {
+    const harness = createHarness({
+      frame: makeFrame([
+        [2, 2, stone('black', 'EXTREME_HYPERACTIVE')],
+        [1, 1, stone('black')]
+      ]),
+      noAnimation: true
+    });
+    const event = {
+      type: 'move',
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: 1, col: 1 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason,
+        meta: { moveIntent: 'hyperactive_move', special: metaSpecial }
+      }]
+    };
+
+    await harness.playback.playPhase([event], context(false, [event]));
+
+    expect(harness.log).not.toContain('scene:hide:2,2');
+    expect(harness.log).toContain('scene:hide:1,1');
+    expect(harness.log.some((entry) => entry.startsWith('scene:ghost-acquire:2,2:black'))).toBe(true);
+  });
+
+  test('source-empty 極悪多動魔 MOVE still hides the already-settled destination', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[4, 3, stone('black', 'EXTREME_HYPERACTIVE')]]),
+      noAnimation: true
+    });
+    const event = {
+      type: 'move',
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 4, col: 3 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'hyperactive_move',
+        meta: { moveIntent: 'hyperactive_move', special: 'EXTREME_HYPERACTIVE', timer: 5 }
+      }]
+    };
+
+    await harness.playback.playPhase([event], context(false, [event]));
+
+    expect(harness.log).toContain('scene:hide:4,3');
+    expect(harness.log).not.toContain('scene:hide:3,3');
+  });
+
   test('treats an authoritative restore interruption as cancellation rather than renderer failure', async () => {
     const event = placeEvent(2, 2);
     const harness = createHarness({ timings: { placeMs: 200 } });

@@ -444,6 +444,39 @@ describe('board input controller', () => {
     expect(controller.hitTestClientPoint(45, 45)).toBeNull();
   });
 
+  test('hit-tests an expansion cell at a negative world coordinate', () => {
+    const expansion = cell(2, -1, { interaction: {
+      legal: true, legalFree: false, interactionLocked: false, directionHints: []
+    } });
+    const origin = cell(0, 0, { interaction: {
+      legal: true, legalFree: false, interactionLocked: false, directionHints: []
+    } });
+    const rowRef = cell(1, 0, { interaction: {
+      legal: true, legalFree: false, interactionLocked: false, directionHints: []
+    } });
+    const getCellClientRect = jest.fn((row: number, col: number) => ({
+      left: col * 10,
+      top: row * 10,
+      right: (col + 1) * 10,
+      bottom: (row + 1) * 10,
+      width: 10,
+      height: 10,
+      layoutRevision: 4
+    }));
+    const { controller } = createController({ getCellClientRect });
+    const nextModel = model([origin, rowRef, expansion]);
+    nextModel.topology = {
+      ...nextModel.topology,
+      minCol: -1,
+      renderColOffset: 1,
+      renderCols: 9,
+      existingKeys: ['0,0', '1,0', '2,-1'],
+      playableKeys: ['0,0', '1,0', '2,-1']
+    };
+    controller.syncModel(nextModel);
+    expect(controller.hitTestClientPoint(-5, 25)).toEqual({ row: 2, col: -1, key: '2,-1' });
+  });
+
   test('retains playable hit geometry through lock-only model transitions', () => {
     const getCellClientRect = jest.fn((row: number, col: number) => ({
       left: col * 10,

@@ -15,6 +15,10 @@ export interface PixiBoardCanvasViewport {
   readonly gutterPx: number;
   readonly sceneOffsetX: number;
   readonly sceneOffsetY: number;
+  readonly leftGutterPx: number;
+  readonly topGutterPx: number;
+  readonly rightGutterPx: number;
+  readonly bottomGutterPx: number;
 }
 
 export type PixiBoardCameraLayoutChangeKind = 'client-only' | 'render-space';
@@ -124,6 +128,7 @@ function normalizeEffectGutterCells(value: unknown): number {
 }
 
 function topologySignature(topology: BoardRenderTopologyModel): string {
+  const expansion = expansionWorldExtents(topology);
   return [
     topology.minRow,
     topology.maxRow,
@@ -132,8 +137,80 @@ function topologySignature(topology: BoardRenderTopologyModel): string {
     topology.renderRowOffset,
     topology.renderColOffset,
     topology.renderRows,
-    topology.renderCols
+    topology.renderCols,
+    expansion.left,
+    expansion.top,
+    expansion.right,
+    expansion.bottom
   ].join(':');
+}
+
+function parseBoardKey(key: string): { row: number; col: number } | null {
+  const parts = String(key).split(',');
+  if (parts.length !== 2) return null;
+  const row = Number(parts[0]);
+  const col = Number(parts[1]);
+  if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+  return { row, col };
+}
+
+/**
+ * World-space cells attached outside the initial base rectangle. Do not use
+ * `renderCols - baseCols`: custom/large logical surfaces also inflate render
+ * bounds, and that would destroy viewport virtualization.
+ */
+function expansionWorldExtents(topology: BoardRenderTopologyModel): Readonly<{
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}> {
+  const existingKeys = Array.isArray(topology.existingKeys) ? topology.existingKeys : [];
+  const baseKeys = Array.isArray(topology.baseKeys) ? topology.baseKeys : [];
+  const baseKeySet = baseKeys.length > 0 ? new Set(baseKeys) : null;
+  const baseRows = Math.max(1, Math.trunc(finite(topology.baseRows, topology.renderRows)));
+  const baseCols = Math.max(1, Math.trunc(finite(topology.baseCols, topology.renderCols)));
+  let left = 0;
+  let top = 0;
+  let right = 0;
+  let bottom = 0;
+  for (const key of existingKeys) {
+    const parsed = parseBoardKey(key);
+    if (!parsed) continue;
+    const inBase = baseKeySet
+      ? baseKeySet.has(key)
+      : parsed.row >= 0 && parsed.row < baseRows && parsed.col >= 0 && parsed.col < baseCols;
+    if (inBase) continue;
+    if (parsed.col < 0) left = Math.max(left, -parsed.col);
+    if (parsed.col > baseCols - 1) right = Math.max(right, parsed.col - (baseCols - 1));
+    if (parsed.row < 0) top = Math.max(top, -parsed.row);
+    if (parsed.row > baseRows - 1) bottom = Math.max(bottom, parsed.row - (baseRows - 1));
+  }
+  return Object.freeze({ left, top, right, bottom });
+}
+
+function expansionScreenGutterPx(
+  topology: BoardRenderTopologyModel,
+  orientation: BoardViewportLayout['orientation'],
+  cellSize: number,
+  effectGutterCells: number
+): Readonly<{
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}> {
+  const world = expansionWorldExtents(topology);
+  const screen = orientation === 'rotated-180'
+    ? { left: world.right, right: world.left, top: world.bottom, bottom: world.top }
+    : world;
+  const effectPx = effectGutterCells * cellSize;
+  return Object.freeze({
+    left: Math.max(effectPx, screen.left * cellSize),
+    top: Math.max(effectPx, screen.top * cellSize),
+    right: Math.max(effectPx, screen.right * cellSize),
+    bottom: Math.max(effectPx, screen.bottom * cellSize)
+  });
 }
 
 function normalizedRenderSessionId(value: unknown): string | null {
@@ -359,8 +436,8 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
 
   function updateCanvasLayer(next: PixiBoardCanvasViewport): void {
     if (!canvasLayer) return;
-    canvasLayer.style.left = `${-next.gutterPx}px`;
-    canvasLayer.style.top = `${-next.gutterPx}px`;
+    canvasLayer.style.left = `${-next.sceneOffsetX}px`;
+    canvasLayer.style.top = `${-next.sceneOffsetY}px`;
     canvasLayer.style.width = `${next.width}px`;
     canvasLayer.style.height = `${next.height}px`;
   }
@@ -480,20 +557,36 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
         visualViewport: candidateWithoutRevision.visualViewport,
         camera: candidateWithoutRevision.camera
       });
-      const gutterPx = effectGutterCells * cellSize;
-      const nextCanvasWidth = viewportWidth + gutterPx * 2;
-      const nextCanvasHeight = viewportHeight + gutterPx * 2;
+      const gutters = expansionScreenGutterPx(
+        topology,
+        candidateWithoutRevision.orientation,
+        cellSize,
+        effectGutterCells
+      );
+      const nextCanvasWidth = viewportWidth + gutters.left + gutters.right;
+      const nextCanvasHeight = viewportHeight + gutters.top + gutters.bottom;
+      const gutterPx = Math.max(gutters.left, gutters.top, gutters.right, gutters.bottom);
       const canvasViewportChanged = !canvasViewport
         || canvasViewport.width !== nextCanvasWidth
         || canvasViewport.height !== nextCanvasHeight
-        || canvasViewport.gutterPx !== gutterPx;
+        || canvasViewport.gutterPx !== gutterPx
+        || canvasViewport.sceneOffsetX !== gutters.left
+        || canvasViewport.sceneOffsetY !== gutters.top
+        || canvasViewport.leftGutterPx !== gutters.left
+        || canvasViewport.topGutterPx !== gutters.top
+        || canvasViewport.rightGutterPx !== gutters.right
+        || canvasViewport.bottomGutterPx !== gutters.bottom;
       const nextCanvasViewport = canvasViewportChanged
         ? Object.freeze({
           width: nextCanvasWidth,
           height: nextCanvasHeight,
           gutterPx,
-          sceneOffsetX: gutterPx,
-          sceneOffsetY: gutterPx
+          sceneOffsetX: gutters.left,
+          sceneOffsetY: gutters.top,
+          leftGutterPx: gutters.left,
+          topGutterPx: gutters.top,
+          rightGutterPx: gutters.right,
+          bottomGutterPx: gutters.bottom
         })
         : canvasViewport!;
       if (canvasViewportChanged) updateCanvasLayer(nextCanvasViewport);
@@ -588,7 +681,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     canvasLayer.className = 'pixi-board-canvas-layer';
     canvasLayer.setAttribute('aria-hidden', 'true');
     canvasLayer.style.position = 'absolute';
-    canvasLayer.style.pointerEvents = 'none';
+    canvasLayer.style.pointerEvents = 'auto';
     canvasLayer.style.overflow = 'visible';
 
     if (!host.style.position || host.style.position === 'static') host.style.position = 'relative';

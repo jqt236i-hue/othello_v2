@@ -405,6 +405,8 @@ Pixi and DOM compatibility backends must never be mounted or receive input concu
 
 The Pixi `#board-scroll-viewport` is a programmatic camera-coordinate surface, not player-facing scroll UI. Its cell-less logical surface may exceed the physical viewport, and upper/left topology growth may update `scrollLeft` / `scrollTop` to preserve existing cell client coordinates, but the viewport must keep native overflow hidden so scrollbar gutters and user panning cannot change the board center, viewport dimensions, or input geometry.
 
+Existing expansion cells remain board-owned painted cells. Their pointer input reaches `BoardInputController` through native client hit-test, including document-capture for cells painted in the frame chrome outside the physical `#board` box. The canvas may grow to the axis-aligned bounds of those existing expansion cells beyond the effect gutter. It must not grow the backing store to follow offscreen trajectory endpoints or to densify expansion voids.
+
 #### 7.3.1 Board-cell source trajectory ownership
 
 A visual trajectory whose logical source and target are both board-topology coordinates is board-owned phase work. It is part of the active `BoardVisualBackend.playPhase()` call for the original `destroy` or `flip` event; it is not a synthetic global event, a second visual port, or a separate recovery/settlement unit.

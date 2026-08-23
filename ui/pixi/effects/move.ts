@@ -101,13 +101,65 @@ function resolveMoveHighlightCoordinates(
   ]);
 }
 
+function resolveExpectedMovingVisual(
+  event: PresentationPlaybackEvent,
+  target: any
+): PixiPlaybackStoneVisual | null {
+  if (isRenderableRawStoneState(target?.after)) {
+    return createPlaybackStoneVisual(
+      target.after,
+      target?.ownerAfter,
+      target?.owner,
+      event?.owner
+    );
+  }
+  if (isRenderableRawStoneState(target?.before)) {
+    return createPlaybackStoneVisual(
+      target.before,
+      target?.ownerBefore,
+      target?.owner,
+      event?.owner
+    );
+  }
+  const meta = playbackTargetMeta(target);
+  return createPlaybackStoneVisual({
+    owner: target?.ownerAfter || target?.ownerBefore || target?.owner,
+    special: meta.special,
+    timer: meta.timer,
+    remainingOwnerTurns: meta.timer,
+    flipEvadeRemaining: meta.flipEvadeRemaining,
+    destroyEvadeRemaining: meta.destroyEvadeRemaining
+  }, target?.ownerAfter, target?.ownerBefore, target?.owner, event?.owner);
+}
+
+function playbackStoneIdentity(visual: PixiPlaybackStoneVisual | null): string | null {
+  if (!visual || !visual.stone) return null;
+  const owner = String(visual.stone.owner || '').trim().toLowerCase();
+  if (owner !== 'black' && owner !== 'white') return null;
+  return `${owner}:${String(visual.stone.specialType || '').trim().toUpperCase()}`;
+}
+
+function projectedStoneIsMovingStone(
+  projected: PixiPlaybackStoneVisual | null,
+  expected: PixiPlaybackStoneVisual | null
+): boolean {
+  if (!projected) return false;
+  if (!expected) return true;
+  const projectedIdentity = playbackStoneIdentity(projected);
+  const expectedIdentity = playbackStoneIdentity(expected);
+  return !!projectedIdentity && !!expectedIdentity && projectedIdentity === expectedIdentity;
+}
+
 function resolveSourceVisual(
   event: PresentationPlaybackEvent,
   target: any,
   projection: PixiBoardEffectProjection,
-  from: PixiPlaybackCoordinate
+  from: PixiPlaybackCoordinate,
+  expectedMoving: PixiPlaybackStoneVisual | null
 ): PixiPlaybackStoneVisual | null {
-  return projection.getProjectedStone(from.row, from.col)
+  const fromVisual = projection.getProjectedStone(from.row, from.col);
+  if (projectedStoneIsMovingStone(fromVisual, expectedMoving)) return fromVisual;
+  return expectedMoving
     || createPlaybackStoneVisual(
       target?.before,
       target?.ownerBefore,
@@ -482,8 +534,13 @@ async function playMoveTarget(
   const to = normalizePlaybackCoordinate(target?.to);
   if (!from || !to || !isPlayableCoordinate(projection, from) || !isPlayableCoordinate(projection, to)) return;
   const semantics = resolveMoveSemantics(target);
+  const expectedMoving = resolveExpectedMovingVisual(event, target);
   const sourceBefore = projection.getProjectedStone(from.row, from.col);
-  const sourceVisual = resolveSourceVisual(event, target, projection, from);
+  const destBefore = projection.getProjectedStone(to.row, to.col);
+  const sourceIsMovingStone = projectedStoneIsMovingStone(sourceBefore, expectedMoving);
+  const destIsMovingStone = projectedStoneIsMovingStone(destBefore, expectedMoving);
+  const sourceVisual = resolveSourceVisual(event, target, projection, from, expectedMoving)
+    || (destIsMovingStone ? destBefore : null);
   const finalVisual = resolveFinalVisual(event, target, sourceVisual);
   const tone = resolvePlaybackHighlightTone(event.type, target, projection.noAnimation);
   const highlightCoordinates = tone
@@ -507,7 +564,9 @@ async function playMoveTarget(
     if (semantics.isOverlapReturnMove) {
       projection.setProjectedStone(from.row, from.col, sourceVisual || sourceBefore);
     } else {
-      if (!semantics.isCloneMove) projection.setProjectedStone(from.row, from.col, null);
+      if (!semantics.isCloneMove && sourceIsMovingStone) {
+        projection.setProjectedStone(from.row, from.col, null);
+      }
       projection.setProjectedStone(to.row, to.col, finalVisual);
     }
     finalApplied = true;
@@ -520,8 +579,10 @@ async function playMoveTarget(
         effectFamily: 'move-teleport',
         event,
         onStart: () => {
-          projection.setProjectedStone(from.row, from.col, null);
-          projection.setProjectedStone(to.row, to.col, null);
+          if (!semantics.isCloneMove && sourceIsMovingStone) {
+            projection.setProjectedStone(from.row, from.col, null);
+          }
+          if (!destBefore || destIsMovingStone) projection.setProjectedStone(to.row, to.col, null);
           if (finalVisual) {
             ghost = projection.acquireTransientGhost(to.row, to.col, finalVisual);
             projection.updateGhost(ghost, { alpha: 0.25, scaleX: 0.5, scaleY: 0.5 });
@@ -557,8 +618,12 @@ async function playMoveTarget(
       effectFamily: semantics.isOverlapReturnMove ? 'move-overlap-return' : 'move',
       event,
       onStart: () => {
-        if (!semantics.isCloneMove) projection.setProjectedStone(from.row, from.col, null);
-        if (!semantics.isOverlapReturnMove) projection.setProjectedStone(to.row, to.col, null);
+        if (!semantics.isCloneMove && sourceIsMovingStone) {
+          projection.setProjectedStone(from.row, from.col, null);
+        }
+        if (!semantics.isOverlapReturnMove && (!destBefore || destIsMovingStone)) {
+          projection.setProjectedStone(to.row, to.col, null);
+        }
         if (sourceVisual) ghost = projection.acquireTransientGhost(from.row, from.col, sourceVisual);
         if (tone) {
           for (const coordinate of highlightCoordinates) {

@@ -896,6 +896,121 @@ describe('animation-engine extreme forced swap playback', () => {
   });
 });
 
+describe('animation-engine extreme hyperactive vacate playback', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete (global as any).getEffectKeyForSpecialType;
+    delete (global as any).applyStoneVisualEffect;
+    delete (global as any).clearStoneVisualEffectState;
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('keeps 極悪多動魔 visible while a same-color surrounding stone is pushed off its settled cell', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const extremeDisc = document.createElement('div');
+    const occupantDisc = document.createElement('div');
+    let finishHandler = null;
+
+    fromCell.className = 'cell has-disc';
+    fromCell.dataset.row = '2';
+    fromCell.dataset.col = '2';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell has-disc';
+    toCell.dataset.row = '1';
+    toCell.dataset.col = '1';
+    toCell.getBoundingClientRect = () => ({ left: 20, top: -50, width: 50, height: 50 });
+
+    extremeDisc.className = 'disc black';
+    occupantDisc.className = 'disc black';
+    fromCell.appendChild(extremeDisc);
+    toCell.appendChild(occupantDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn(() => ({
+      addEventListener(eventName, handler) {
+        if (eventName === 'finish') finishHandler = handler;
+      },
+      removeEventListener() {},
+      finished: new Promise(() => {})
+    }));
+
+    const engine = require('../ui/animation-engine.js');
+    window.getEffectKeyForSpecialType = jest.fn((specialType) => (
+      String(specialType || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ? 'extremeHyperactiveStone' : null
+    ));
+    window.applyStoneVisualEffect = jest.fn((disc, effectKey) => {
+      if (!disc || effectKey !== 'extremeHyperactiveStone') return;
+      disc.classList.add('special-stone', 'extreme-hyperactive-visual');
+      disc.dataset.effect = 'extremeHyperactiveStone';
+    });
+    window.clearStoneVisualEffectState = jest.fn((disc) => {
+      if (!disc) return;
+      disc.classList.remove('special-stone', 'extreme-hyperactive-visual');
+    });
+    (global as any).getEffectKeyForSpecialType = window.getEffectKeyForSpecialType;
+    (global as any).applyStoneVisualEffect = window.applyStoneVisualEffect;
+    (global as any).clearStoneVisualEffectState = window.clearStoneVisualEffectState;
+    window.applyStoneVisualEffect(extremeDisc, 'extremeHyperactiveStone');
+
+    const playPromise = engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: 1, col: 1 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_repel_push',
+        meta: { moveIntent: 'hyperactive_move', special: null }
+      }]
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fromCell.querySelector('.disc')).toBe(extremeDisc);
+    expect(fromCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(1);
+    expect(extremeDisc.style.visibility).not.toBe('hidden');
+    if (IS_NOANIM) {
+      await playPromise;
+      expect(fromCell.querySelector('.disc')).toBe(extremeDisc);
+      expect(fromCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(1);
+      expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+      expect(toCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(0);
+      return;
+    }
+
+    expect(occupantDisc.style.visibility).toBe('hidden');
+    expect(typeof finishHandler).toBe('function');
+    finishHandler();
+    await playPromise;
+
+    expect(fromCell.querySelector('.disc')).toBe(extremeDisc);
+    expect(fromCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(1);
+    expect(extremeDisc.style.visibility).not.toBe('hidden');
+    expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+    expect(toCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(0);
+  });
+});
+
 describe('animation-engine network move final visual state', () => {
   let dom;
 

@@ -361,4 +361,221 @@ describe('Pixi board input adapter', () => {
       activeCellKey: null
     });
   });
+
+  test('routes native pointer events from a canvas overlay outside the viewport box', () => {
+    const nativeListeners = new Map<string, { listener: (event: any) => void; capture: boolean }>();
+    const pointerRoot = {
+      style: { pointerEvents: 'none', touchAction: '', cursor: '' },
+      addEventListener: (type: string, listener: (event: any) => void, capture: boolean) => {
+        nativeListeners.set(type, { listener, capture });
+      },
+      removeEventListener: (type: string, listener: unknown, capture: boolean) => {
+        const binding = nativeListeners.get(type);
+        if (binding?.listener === listener && binding.capture === capture) nativeListeners.delete(type);
+      },
+      setPointerCapture: jest.fn(),
+      releasePointerCapture: jest.fn(),
+      hasPointerCapture: jest.fn(() => true)
+    } as any;
+    const viewport = {
+      style: { pointerEvents: '', touchAction: '', cursor: '' },
+      clientWidth: 100,
+      clientHeight: 80,
+      getBoundingClientRect: () => ({ width: 100, height: 80, left: 10, top: 20 }),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as any;
+    const interactionLayer = {
+      on: jest.fn(),
+      off: jest.fn()
+    };
+    const eventSystem = {
+      autoPreventDefault: true,
+      setTargetElement: jest.fn()
+    };
+    const events: any[] = [];
+    const controller = {
+      hitTestClientPoint: jest.fn((x: number, y: number) => {
+        if (x >= -30 && x < 10 && y >= 20 && y < 60) return { key: '2,-1', row: 2, col: -1 };
+        return null;
+      }),
+      handlePointer: jest.fn((event: any) => {
+        events.push(event);
+        return true;
+      })
+    };
+    const { createPixiBoardInput } = require('../ui/pixi/board-input.ts');
+    const adapter = createPixiBoardInput({ getController: () => controller });
+    adapter.mount({
+      viewport,
+      pointerRoot,
+      renderer: { resolution: 2, events: eventSystem },
+      interactionLayer
+    });
+
+    const nativeEvent = {
+      pointerId: 11,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: -10,
+      clientY: 30,
+      preventDefault: jest.fn()
+    };
+    nativeListeners.get('pointerdown')?.listener(nativeEvent);
+    nativeListeners.get('pointerup')?.listener(nativeEvent);
+
+    expect(Array.from(nativeListeners.keys())).toEqual([
+      'pointerdown',
+      'pointerup',
+      'pointerleave',
+      'pointercancel',
+      'pointermove'
+    ]);
+    expect(viewport.addEventListener).not.toHaveBeenCalled();
+    expect(eventSystem.setTargetElement).toHaveBeenCalledWith(viewport);
+    expect(pointerRoot.style.pointerEvents).toBe('auto');
+    expect(pointerRoot.setPointerCapture).toHaveBeenCalledWith(11);
+    expect(events.map((event) => `${event.type}:${event.row},${event.col}`)).toEqual([
+      'pointerenter:2,-1',
+      'pointerdown:2,-1',
+      'pointerup:2,-1'
+    ]);
+    expect(adapter.getDiagnostics()).toMatchObject({
+      nativeListenerCount: 5,
+      federatedListenerCount: 5
+    });
+    adapter.destroy();
+    expect(pointerRoot.releasePointerCapture).toHaveBeenCalled();
+  });
+
+  test('routes document-capture pointers for expansion cells outside the board hit box', () => {
+    const nativeListeners = new Map<string, { listener: (event: any) => void; capture: boolean }>();
+    const pointerRoot = {
+      nodeType: 9,
+      addEventListener: (type: string, listener: (event: any) => void, capture: boolean) => {
+        nativeListeners.set(type, { listener, capture });
+      },
+      removeEventListener: (type: string, listener: unknown, capture: boolean) => {
+        const binding = nativeListeners.get(type);
+        if (binding?.listener === listener && binding.capture === capture) nativeListeners.delete(type);
+      }
+    } as any;
+    const viewport = {
+      style: { pointerEvents: '', touchAction: '', cursor: '' },
+      clientWidth: 100,
+      clientHeight: 80,
+      getBoundingClientRect: () => ({ width: 100, height: 80, left: 10, top: 20 }),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as any;
+    const events: any[] = [];
+    const controller = {
+      hitTestClientPoint: jest.fn((x: number, y: number) => {
+        if (x >= 140 && x < 180 && y >= 40 && y < 80) return { key: '3,8', row: 3, col: 8 };
+        return null;
+      }),
+      handlePointer: jest.fn((event: any) => {
+        events.push(event);
+        return true;
+      })
+    };
+    const { createPixiBoardInput } = require('../ui/pixi/board-input.ts');
+    const adapter = createPixiBoardInput({ getController: () => controller });
+    adapter.mount({
+      viewport,
+      pointerRoot,
+      renderer: { resolution: 2, events: { autoPreventDefault: true, setTargetElement: jest.fn() } },
+      interactionLayer: { on: jest.fn(), off: jest.fn() }
+    });
+
+    const nativeEvent = {
+      pointerId: 13,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 155,
+      clientY: 55,
+      target: { closest: () => null },
+      preventDefault: jest.fn(),
+      stopPropagation: jest.fn()
+    };
+    nativeListeners.get('pointerdown')?.listener(nativeEvent);
+    nativeListeners.get('pointerup')?.listener(nativeEvent);
+
+    expect(Array.from(nativeListeners.keys())).toEqual([
+      'pointerdown',
+      'pointerup',
+      'pointercancel',
+      'pointermove'
+    ]);
+    expect(events.map((event) => `${event.type}:${event.row},${event.col}`)).toEqual([
+      'pointerenter:3,8',
+      'pointerdown:3,8',
+      'pointerup:3,8'
+    ]);
+    expect(nativeEvent.stopPropagation).toHaveBeenCalled();
+    expect(adapter.getDiagnostics()).toMatchObject({
+      nativeListenerCount: 4,
+      activePointerId: null
+    });
+    adapter.destroy();
+  });
+
+  test('does not steal document-capture presses that start on card, HUD, or modal controls', () => {
+    const nativeListeners = new Map<string, { listener: (event: any) => void; capture: boolean }>();
+    const pointerRoot = {
+      nodeType: 9,
+      addEventListener: (type: string, listener: (event: any) => void, capture: boolean) => {
+        nativeListeners.set(type, { listener, capture });
+      },
+      removeEventListener: (type: string, listener: unknown, capture: boolean) => {
+        const binding = nativeListeners.get(type);
+        if (binding?.listener === listener && binding.capture === capture) nativeListeners.delete(type);
+      }
+    } as any;
+    const viewport = {
+      style: { pointerEvents: '', touchAction: '', cursor: '' },
+      clientWidth: 100,
+      clientHeight: 80,
+      getBoundingClientRect: () => ({ width: 100, height: 80, left: 10, top: 20 }),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn()
+    } as any;
+    const handlePointer = jest.fn(() => true);
+    const { createPixiBoardInput } = require('../ui/pixi/board-input.ts');
+    const adapter = createPixiBoardInput({
+      getController: () => ({
+        hitTestClientPoint: () => ({ key: '3,8', row: 3, col: 8 }),
+        handlePointer
+      })
+    });
+    adapter.mount({
+      viewport,
+      pointerRoot,
+      renderer: { resolution: 2, events: { autoPreventDefault: true, setTargetElement: jest.fn() } },
+      interactionLayer: { on: jest.fn(), off: jest.fn() }
+    });
+
+    const nativeEvent = {
+      pointerId: 14,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 155,
+      clientY: 55,
+      target: { closest: (selector: string) => (selector.includes('.card-item') ? {} : null) },
+      preventDefault: jest.fn(),
+      stopPropagation: jest.fn()
+    };
+    nativeListeners.get('pointerdown')?.listener(nativeEvent);
+
+    const modalEvent = {
+      ...nativeEvent,
+      pointerId: 15,
+      target: { closest: (selector: string) => (selector.includes('[aria-modal="true"]') ? {} : null) }
+    };
+    nativeListeners.get('pointerdown')?.listener(modalEvent);
+
+    expect(handlePointer).not.toHaveBeenCalled();
+    expect(nativeEvent.stopPropagation).not.toHaveBeenCalled();
+    adapter.destroy();
+  });
 });

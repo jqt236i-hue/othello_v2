@@ -51,6 +51,7 @@ othello_v2/
 | CPU runtime | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `cpu/` is compatibility/read-only; runtime policy lives under `game/`. |
 | Network client | `ui/network-client.ts`, `ui/network/*` | Server snapshot is authoritative; UI reconciles/presents. |
 | Network backend | `workers/match-worker.ts`, `scripts/local-match-server.ts`, `utils/match-authority.ts` | Keep Worker and local server contracts aligned. |
+| Local play server | `scripts/serve-with-fallback.ts` | Canonical browser URL is `http://127.0.0.1:8000/` via `npm run serve`. Keep it running; see LOCAL DEV SERVER. |
 | Shared helpers | `shared/*`, `utils/owner-helpers.ts`, `shared-constants.ts`, `constants/*` | Avoid local copies of normalization/constants. |
 | Browser integration tests | `test/e2e/*`, `tests/visual-regression/*` | `test/e2e/` is Playwright-on-Jest with local static server; `tests/` is harness/visual tooling. |
 | Worker mirror | `scripts/prepare-worker-assets.ts`, `worker-public/*` | Sync via `npm run worker:prepare`; never source-edit mirror. |
@@ -92,9 +93,44 @@ othello_v2/
 ## WORK AUTHORIZATION
 
 - Explanation, investigation, diagnosis, review, and planning requests authorize relevant read-only inspection and reporting, not unrequested product edits.
-- Implementation, fixes, and refactors authorize in-scope local edits, focused or broad checks, typechecks, builds, local server use, browser operation, and cleanup of temporary verification artifacts created by the current task.
+- Implementation, fixes, and refactors authorize in-scope local edits, focused or broad checks, typechecks, builds, local server use under LOCAL DEV SERVER, browser operation, and cleanup of temporary verification artifacts created by the current task. Do not treat the play server as a temporary artifact or stop a healthy `npm run serve` as cleanup.
 - Obtain explicit user direction before irreversible data or asset deletion, operations involving secrets or billing, intentional compatibility breaks to public APIs, saved data, network contracts, asset keys, or model formats, or a material expansion beyond the requested scope.
 - Commits follow this repository's `COMMIT POLICY`; do not replace it with a separate per-task approval rule.
+
+## LOCAL DEV SERVER
+
+Keep the local play server running across file edits and rebuilds. `ERR_CONNECTION_REFUSED` means nothing is listening; it is not a page-content failure.
+
+Canonical local play:
+
+- Command: `npm run serve` (`scripts/serve-with-fallback.ts`)
+- URL: `http://127.0.0.1:8000/`
+- Role: static root server for classic `index.html` and Vite `index.vite.html`
+- Rebuilds write files in place. Do not stop this server for `npm run build:ts`, `npm run build:browser`, tests, or source edits. Reload the browser after a browser-facing rebuild.
+
+Other local listeners are not substitutes for that play URL:
+
+- `npm run dev` / `npm run dev:vite`: Vite delivery on 5174
+- `npm run match:server`: local match authority on 8787
+- `npm run worker:dev`: Wrangler Worker
+
+Invariants:
+
+1. Leave at most one play server for this repository. Reuse a healthy `npm run serve` on 8000 instead of starting another.
+2. Do not start a play server that exits when a tool call or temporary terminal ends. Prefer an already-running persistent terminal, and leave that process running at task end.
+3. If 8000 is occupied, inspect the owning PID and command line. Reuse it when it is this repository's `serve-with-fallback` / `http-server`. If it belongs to another project or is unknown, do not treat a fallback port such as 8001 as the stable play URL; report the conflict. `serve-with-fallback` may still pick the next free port for a human-started process; agents must not start a second copy that lands there.
+4. Use 5174 only when Vite delivery itself must be confirmed. Do not run `npm run build:vite` while this repository is serving `vite-dist/` on 5174. Stop that Vite serve first, rebuild, then restart Vite only if still needed. Restore `npm run serve` on 8000 as the leftover play server.
+5. Do not stop, replace, or bulk-kill Node processes that do not belong to this repository, including other projects on 5173.
+6. Focused Jest, `test/e2e/`, and visual-regression helpers may start ephemeral servers on OS-assigned ports. Those belong to the test lifecycle and must be torn down by the test. They are not the play server; do not keep them as the leftover 8000 process and do not reuse their random ports as the canonical URL.
+7. Before completing a task that used or needed the browser, confirm `http://127.0.0.1:8000/` returns HTTP 200 and that 8000 is this repository's play server. If the server was missing at the start of browser work, start it persistently and leave it running.
+
+When a browser check needs a server, inspect listeners first:
+
+```powershell
+Get-NetTCPConnection -State Listen |
+  Where-Object { $_.LocalPort -in 8000, 5174, 8787 } |
+  Select-Object LocalPort, OwningProcess
+```
 
 ## AUTHORITY / PRESENTATION CONTRACT
 
@@ -123,7 +159,8 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- ブラウザ表示に影響する root ソース変更（カード説明文、UI ラベル、タグ定義、表示テキスト、アイコン名など）では、focused test の後に `npm run build:browser` を実行し、完了報告に記載する。`npm run build:ts` だけでは `public/module-registry.js` と browser 用 bundle / cachebuster が更新されない。
+- ブラウザ表示に影響する root ソース変更（カード説明文、UI ラベル、タグ定義、表示テキスト、アイコン名など）では、focused test の後に `npm run build:browser` を実行し、完了報告に記載する。`npm run build:ts` だけでは `public/module-registry.js` と browser 用 bundle / cachebuster が更新されない。Do not stop `npm run serve` on 8000 to run that rebuild.
+- Local browser confirmation follows LOCAL DEV SERVER. Keep `http://127.0.0.1:8000/` listening; do not start a second play server or a server that dies with a temporary terminal.
 - Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; verification is required, but adding new tests is not the default outcome.
 - Use this verification scale before deciding whether to add tests:
 
@@ -139,7 +176,7 @@ othello_v2/
 - Do not delete, skip, or weaken a failing test merely to obtain a passing result. Change test expectations only when the intended behavior has changed and the source-of-truth spec or contract is updated as needed. If a retry passes after an initial failure, report both results and the suspected reason for the instability.
 - 実機ゲーム検証（ブラウザでのプレイ・操作確認、Playwright などの自動操作を含む）は、変更のリスクに応じて事前承認なしで実行できる。ユーザーが実行しないよう指定した場合はそれに従う。
 - `test/e2e/*`, `npm run test:visual`, and Playwright/browser-driven game UI checks are Level 3 or visual verification tools. Run the smallest relevant scenario and report what was exercised.
-- When browser-driven verification is run, record the URL, entry lane (classic or Vite), active board backend (Pixi or DOM compatibility), network mode when relevant, exercised actions/scenario, console or page errors, and the screenshot or public diagnostics used as evidence. Test only the combinations relevant to the change, but do not treat HTTP 200 or the presence of shell DOM alone as proof that gameplay is ready.
+- When browser-driven verification is run, record the URL, entry lane (classic or Vite), active board backend (Pixi or DOM compatibility), network mode when relevant, exercised actions/scenario, console or page errors, and the screenshot or public diagnostics used as evidence. Test only the combinations relevant to the change, but do not treat HTTP 200 or the presence of shell DOM alone as proof that gameplay is ready. HTTP 200 on `http://127.0.0.1:8000/` is still required to prove the play server is up.
 - For Pixi board changes, run the smallest focused board/Pixi Jest coverage first. Add `npm run match:pixijs-board-playback-check`, `npm run match:pixi-runtime-fallback-check`, `npm run match:cross-platform-smoke:vite`, and selector/visual checks in proportion to playback, recovery, delivery, and browser risk.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
@@ -215,6 +252,7 @@ othello_v2/
 - Adding DOM/window/sound/timer dependencies to `game/`, `shared/`, CPU logic, or card logic.
 - Creating a second board writer, Pixi application/canvas/WebGL context, animation clock, or backend-specific settlement path; mounting Pixi and DOM compatibility together; or reordering `events[]`.
 - Using `ui/board-dom-compat/` as a normal-path implementation or making default Pixi behavior depend on compatibility-only board DOM selectors.
+- Stopping or replacing `npm run serve` on 8000 to rebuild browser assets, starting a second play server on a fallback port, or launching the play server in a disposable tool terminal.
 - Editing `worker-public/`, `dist/`, generated catalog files, or `public/module-registry.js` as source.
 - Duplicating constants, Lv6 decision-mode parsing, owner/player normalization, or card target/cost checks.
 
@@ -224,7 +262,8 @@ othello_v2/
 npm run typecheck
 npm run build:ts
 npm run checkall
-npm run build:browser    # public/module-registry.js と index.html のキャッシュバスターを再生成。Worker 経路の worker:prepare のような自動連結はないので、ブラウザ表示に影響する root ソース変更後はテスト通過後に手動で実行する
+npm run build:browser    # public/module-registry.js と index.html のキャッシュバスターを再生成。Worker 経路の worker:prepare のような自動連結はないので、ブラウザ表示に影響する root ソース変更後はテスト通過後に手動で実行する。Do not stop npm run serve to run this.
+npm run serve            # local static play server on 8000; keep running across edits
 npm run build:vite
 npm run test:jest
 npm run test:network:parity

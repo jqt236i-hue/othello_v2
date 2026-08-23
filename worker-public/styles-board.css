@@ -105,7 +105,10 @@
 
 #board[data-board-renderer="pixi"] > .pixi-board-canvas-layer {
     position: absolute;
-    pointer-events: none;
+    /* Expansion cells paint in this overlay, including the effect gutter
+       outside the physical 8x8 viewport. Native input is document-captured
+       so frame-chrome cells remain clickable without growing `#board`. */
+    pointer-events: auto;
     overflow: visible;
     z-index: var(--board-layer-expanded-cell);
 }
