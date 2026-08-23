@@ -4,3 +4,18 @@
 public/vendor/*.min.js binary
 worker-public/public/vendor/*.min.js binary
 worker-public/vite-dist/assets/* binary
+
+# Browser and runtime code generation must see identical source bytes on every OS.
+*.cjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.jsx text eol=lf
+*.md text eol=lf
+*.mjs text eol=lf
+*.svg text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
