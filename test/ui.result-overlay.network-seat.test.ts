@@ -361,6 +361,22 @@ describe('result overlay seat perspective', () => {
     expect(global.SoundEngine.stopResultBgm).not.toHaveBeenCalled();
   });
 
+  test('Vite互換globalがない場合も白CPU設定をリザルトへ反映する', () => {
+    delete global.cpuSmartness;
+    window.MATCH_MODE = 'reversi';
+    document.body.innerHTML = `
+      <select id="smartBlack"><option value="1" selected>Lv1</option></select>
+      <select id="smartWhite"><option value="5" selected>Lv5</option></select>
+    `;
+    global.countDiscs.mockReturnValue({ black: 16, white: 48 });
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    expect(mod.resolveCpuLevelForViewer('black')).toBe(5);
+    expect(document.querySelector('.character-name')?.textContent).toBe('終局を告げる者');
+  });
+
   test('CPU勝利時は観測石報酬を表示して保存する', () => {
     global.countDiscs.mockReturnValue({ black: 48, white: 16 });
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);

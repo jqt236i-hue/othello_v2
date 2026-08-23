@@ -72,6 +72,7 @@ const ResultOverlayGachaProgressModule = resolveResultOverlayModuleOrNull('./sto
 const ResultOverlayBoardUtilsModule = resolveResultOverlayModuleOrNull('../shared/shared-board-utils', 'SharedBoardUtils');
 const ResultOverlaySoundEngineAccessModule = resolveResultOverlayModuleOrNull('./sound-engine-access', 'SoundEngineAccessModule');
 const ResultOverlayLazyFeatureSurfaceModule = resolveResultOverlayModuleOrNull('./assets/lazy-feature-surface', 'LazyFeatureSurface');
+const ResultOverlayCpuProfileSelectionModule = resolveResultOverlayModuleOrNull('./cpu-profile-selection', 'CpuProfileSelection');
 
 function clearResultStyleFallback(documentRef: Document): void {
     const overlay = documentRef.getElementById('result-overlay');
@@ -558,8 +559,21 @@ function resolveCpuLevelForViewer(viewerKey: any) {
     const source = (typeof cpuSmartness !== 'undefined' && cpuSmartness && typeof cpuSmartness === 'object')
         ? cpuSmartness
         : null;
-    if (!source) return 1;
-    const raw = source[enemyKey] ?? source.white ?? source.black ?? 1;
+    let raw = source ? source[enemyKey] : null;
+    if (raw === null || typeof raw === 'undefined' || raw === '') {
+        try {
+            if (ResultOverlayCpuProfileSelectionModule
+                && typeof ResultOverlayCpuProfileSelectionModule.readCpuProfileValueFromSelect === 'function') {
+                raw = ResultOverlayCpuProfileSelectionModule.readCpuProfileValueFromSelect(
+                    enemyKey,
+                    typeof document !== 'undefined' ? document : null
+                );
+            }
+        } catch (e: any) { /* fall back to legacy source/default */ }
+    }
+    if (raw === null || typeof raw === 'undefined' || raw === '') {
+        raw = source ? (source.white ?? source.black ?? 1) : 1;
+    }
     return clampCpuLevel(raw);
 }
 
