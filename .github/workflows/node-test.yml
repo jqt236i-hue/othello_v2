@@ -30,7 +30,7 @@ jobs:
       - name: Install
         run: npm ci
       - name: Run tests
-        run: npm test --silent || npm run test:jest
+        run: npm run test:jest
 
   ux-optimization-guard:
     runs-on: ubuntu-latest
