@@ -43,7 +43,8 @@ function escapeRegExp(value: string): string {
 }
 
 function computeScriptVersionToken(filePath: string): string {
-    const hash = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+    const normalizedContent = fs.readFileSync(filePath, 'utf8').replace(/\r\n?/g, '\n');
+    const hash = crypto.createHash('sha256').update(normalizedContent, 'utf8').digest('hex');
     return BigInt(`0x${hash.slice(0, 12)}`).toString(10);
 }
 

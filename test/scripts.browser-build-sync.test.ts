@@ -47,6 +47,25 @@ describe('browser build sync', () => {
         }
     });
 
+    test('script version tokens are stable across text line endings', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-version-eol-'));
+        cleanupDirs.push(rootDir);
+        const filePath = path.join(rootDir, 'sample.js');
+
+        fs.writeFileSync(filePath, 'const value = 1;\nexport { value };\n', 'utf8');
+        const lfVersion = computeScriptVersionToken(filePath);
+        fs.writeFileSync(filePath, 'const value = 1;\r\nexport { value };\r\n', 'utf8');
+        const crlfVersion = computeScriptVersionToken(filePath);
+        fs.writeFileSync(filePath, 'const value = 1;\r\nexport { value };\n', 'utf8');
+        const mixedVersion = computeScriptVersionToken(filePath);
+        fs.writeFileSync(filePath, 'const value = 2;\r\nexport { value };\r\n', 'utf8');
+        const changedContentVersion = computeScriptVersionToken(filePath);
+
+        expect(crlfVersion).toBe(lfVersion);
+        expect(mixedVersion).toBe(lfVersion);
+        expect(changedContentVersion).not.toBe(lfVersion);
+    });
+
     test('buildRegistry syncs index.html script versions to current file content', () => {
         const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-build-sync-'));
         cleanupDirs.push(rootDir);
