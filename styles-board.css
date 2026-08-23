@@ -596,6 +596,28 @@
     height: calc(43px * var(--layout-stage-scale));
 }
 
+.stone-info-list-visual--board-marker {
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(210, 233, 215, 0.42);
+    border-radius: calc(7px * var(--layout-stage-scale));
+    background: rgba(4, 12, 8, 0.72);
+    box-shadow:
+        inset 0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.08),
+        0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44);
+}
+
+.stone-info-marker-visual--blockade,
+.stone-info-marker-visual--meteor-hole {
+    background: radial-gradient(circle, rgba(48, 55, 50, 0.92), rgba(2, 4, 3, 0.98));
+}
+
+.stone-info-marker-visual--freeze {
+    background: linear-gradient(145deg, rgba(205, 248, 255, 0.82), rgba(42, 128, 194, 0.86));
+}
+
+.stone-info-marker-visual--seed {
+    background: linear-gradient(145deg, rgba(135, 198, 93, 0.72), rgba(28, 86, 34, 0.9));
+}
+
 .stone-info-list-image {
     display: block;
     width: 100%;
@@ -603,6 +625,75 @@
     object-fit: contain;
     filter: drop-shadow(0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58));
     pointer-events: none;
+}
+
+.stone-info-list-visual--board-marker .stone-info-list-image {
+    width: 88%;
+    height: 88%;
+}
+
+.stone-info-marker-tile {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(231, 244, 235, 0.42);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    color: #fff;
+    font-size: calc(17px * var(--layout-stage-scale));
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.92);
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.stone-info-marker-tile[hidden] {
+    display: none;
+}
+
+.stone-info-marker-tile--meteor-hole {
+    background:
+        radial-gradient(circle at 50% 48%, #000 0 38%, rgba(8, 5, 13, 0.98) 39% 56%, rgba(104, 72, 128, 0.76) 58% 64%, #090b09 66%);
+}
+
+.stone-info-marker-tile--poison-cell {
+    background:
+        radial-gradient(circle at 34% 30%, rgba(221, 120, 255, 0.58), transparent 34%),
+        repeating-radial-gradient(circle at 70% 68%, rgba(105, 15, 139, 0.58) 0 6%, transparent 7% 17%),
+        linear-gradient(145deg, rgba(73, 11, 94, 0.96), rgba(150, 38, 172, 0.9));
+}
+
+.stone-info-marker-tile--scorched-cell {
+    background:
+        radial-gradient(circle at 36% 30%, rgba(255, 213, 111, 0.64), transparent 30%),
+        repeating-radial-gradient(circle at 72% 70%, rgba(148, 21, 8, 0.56) 0 6%, transparent 7% 17%),
+        linear-gradient(145deg, rgba(112, 16, 8, 0.98), rgba(224, 58, 19, 0.92));
+}
+
+.stone-info-marker-tile--healing-cell {
+    background:
+        radial-gradient(circle at 36% 30%, rgba(145, 232, 255, 0.66), transparent 30%),
+        repeating-radial-gradient(circle at 72% 70%, rgba(8, 74, 155, 0.54) 0 6%, transparent 7% 17%),
+        linear-gradient(145deg, rgba(7, 55, 126, 0.98), rgba(25, 154, 225, 0.92));
+}
+
+.stone-info-list-marker-timer {
+    position: absolute;
+    top: calc(-3px * var(--layout-stage-scale));
+    left: calc(-3px * var(--layout-stage-scale));
+    min-width: calc(17px * var(--layout-stage-scale));
+    padding: calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(244, 250, 255, 0.7);
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background: rgba(5, 11, 10, 0.94);
+    color: #fff;
+    font-size: calc(9px * var(--layout-stage-scale));
+    font-weight: 900;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56);
+    z-index: 3;
 }
 
 .stone-info-list-count {
@@ -799,21 +890,44 @@
 
 #stone-info-detail-content {
     display: grid;
-    grid-template-columns: calc(92px * var(--layout-stage-scale)) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: calc(14px * var(--layout-stage-scale));
     align-items: start;
 }
 
-#stone-info-detail-image {
-    display: block;
+#stone-info-detail-content.has-visual {
+    grid-template-columns: calc(92px * var(--layout-stage-scale)) minmax(0, 1fr);
+}
+
+#stone-info-detail-visual {
+    display: grid;
+    place-items: center;
     width: calc(92px * var(--layout-stage-scale));
     height: calc(92px * var(--layout-stage-scale));
+}
+
+#stone-info-detail-visual[hidden] {
+    display: none;
+}
+
+#stone-info-detail-image {
+    display: block;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     filter: drop-shadow(0 calc(5px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.68));
 }
 
 #stone-info-detail-image[hidden] {
     display: none;
+}
+
+.stone-info-marker-tile--detail {
+    border-radius: calc(12px * var(--layout-stage-scale));
+    font-size: calc(34px * var(--layout-stage-scale));
+    box-shadow:
+        inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.12),
+        0 calc(5px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58);
 }
 
 #stone-info-detail-copy {

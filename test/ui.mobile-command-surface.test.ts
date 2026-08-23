@@ -21,8 +21,8 @@ function createFixture() {
               <div id="manifest-effect-lines">最後に使ったカードがここに表示されます</div>
             </div>
             <div id="stone-info-panel" class="stone-info-panel visible" aria-hidden="false">
-              <div id="stone-info-list-title">盤上の石</div>
-              <div id="stone-info-list-instruction">石を選ぶと情報を表示</div>
+              <div id="stone-info-list-title">盤上の石・マス</div>
+              <div id="stone-info-list-instruction">石・マスを選ぶと情報を表示</div>
               <div id="stone-info-list"></div>
             </div>
           </div>
@@ -213,6 +213,8 @@ describe('mobile command surface', () => {
     expect(surface.classList.contains('is-status-open')).toBe(true);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(statusPanel.getAttribute('aria-hidden')).toBe('false');
+    expect(statusPanel.querySelector('.mobile-command-layer-subtitle')?.textContent)
+      .toBe('使用カードと盤上の石・マス');
     expect(Array.from(statusContent.children).map((element) => element.id)).toEqual([
       'manifest-effect-panel',
       'stone-info-panel',

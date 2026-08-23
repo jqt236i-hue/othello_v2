@@ -188,7 +188,7 @@ function createMobileCommandSurfaceView(
   statusTitle.id = 'mobile-command-status-title';
   statusTitle.textContent = '戦況';
   const statusSubtitle = make('p', 'mobile-command-layer-subtitle');
-  statusSubtitle.textContent = '使用カードと盤上の石';
+  statusSubtitle.textContent = '使用カードと盤上の石・マス';
   statusHeading.append(statusTitle, statusSubtitle);
   const statusClose = make('button', 'mobile-command-layer-close');
   statusClose.id = 'mobile-command-status-close';

@@ -41,6 +41,16 @@ describe('current board stone catalog presentation', () => {
     };
   }
 
+  function boardCell(row: number, col: number, markers: any[], stoneValue: any = null) {
+    return {
+      row,
+      col,
+      kind: stoneValue ? 'playable' : 'playable',
+      stone: stoneValue,
+      markers
+    };
+  }
+
   afterEach(() => {
     delete global.window;
     delete global.document;
@@ -59,9 +69,10 @@ describe('current board stone catalog presentation', () => {
 
     const stackChildren = Array.from(document.getElementById('left-info-stack').children).map((el) => el.id);
     expect(stackChildren).toEqual(['effect-live-panel', 'manifest-effect-panel', 'stone-info-panel']);
-    expect(document.getElementById('stone-info-list-title').textContent).toBe('盤上の石');
-    expect(document.getElementById('stone-info-list-instruction').textContent).toBe('石を選ぶと情報を表示');
-    expect(document.querySelector('.stone-info-list-empty').textContent).toBe('盤上に石はありません');
+    expect(document.getElementById('stone-info-list-title').textContent).toBe('盤上の石・マス');
+    expect(document.getElementById('stone-info-list-instruction').textContent).toBe('石・マスを選ぶと情報を表示');
+    expect(document.getElementById('stone-info-list').getAttribute('aria-label')).toBe('盤上の石・マス');
+    expect(document.querySelector('.stone-info-list-empty').textContent).toBe('盤上に石・マスはありません');
   });
 
   test('reuses an existing panel and groups normal stones by owner with counts', () => {
@@ -122,6 +133,146 @@ describe('current board stone catalog presentation', () => {
 
     expect(document.getElementById('stone-info-detail-panel').classList.contains('is-open')).toBe(false);
     expect(document.getElementById('stone-info-detail-backdrop').classList.contains('is-open')).toBe(false);
+  });
+
+  test('lists every canonical board marker from settled frame kinds and excludes stone statuses and decorations', () => {
+    const mod = setupDom();
+    const markerCells = [
+      boardCell(0, 0, [{ kind: 'blockade', owner: 'black', data: { remainingOwnerTurns: 3 } }]),
+      { ...boardCell(0, 1, [{ kind: 'blockade', owner: null, data: { type: 'METEOR_HOLE' } }]), kind: 'hole' },
+      boardCell(0, 2, [{ kind: 'frozen', owner: 'white', data: { remainingOwnerTurns: 4 } }]),
+      boardCell(0, 3, [{ kind: 'seed', owner: 'black', data: { remainingOwnerTurns: 5 } }]),
+      boardCell(0, 4, [{ kind: 'poison-cell', owner: null, data: { remainingTurns: 9, sourcePlayer: 'black' } }]),
+      boardCell(0, 5, [{ kind: 'poison-cell', owner: null, data: { remainingTurns: 9, sourcePlayer: 'black' } }]),
+      boardCell(0, 6, [{ kind: 'scorched-cell', owner: null, data: { remainingTurns: 8, sourcePlayer: 'white' } }]),
+      boardCell(0, 7, [{ kind: 'healing-cell', owner: null, data: { remainingTurns: 7, sourcePlayer: 'black' } }]),
+      boardCell(1, 0, [
+        { kind: 'poisoned', data: { remainingTurns: 4 } },
+        { kind: 'scorched', data: { remainingTurns: 2 } },
+        { kind: 'guard', data: { remainingOwnerTurns: 3 } },
+        { kind: 'living-will-aura', data: {} },
+        { kind: 'board-bonus', data: { amount: 2 } },
+        { kind: 'theory-number-cell', data: { number: 7 } }
+      ])
+    ];
+
+    mod.renderCurrentStoneInfoPanel(frame(markerCells));
+
+    const items = Array.from(document.querySelectorAll('.stone-info-list-item')) as HTMLButtonElement[];
+    expect(items.map((item) => item.dataset.stoneCatalogKey)).toEqual([
+      'board-marker:BLOCKADE:3',
+      'board-marker:METEOR_HOLE:no-timer',
+      'board-marker:FREEZE:4',
+      'board-marker:SEED:5',
+      'board-marker:POISON_CELL:9',
+      'board-marker:SCORCHED_CELL:8',
+      'board-marker:HEALING_CELL:7'
+    ]);
+    expect(items.every((item) => item.dataset.stoneCatalogSubject === 'board-marker')).toBe(true);
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"] .stone-info-list-count')?.textContent)
+      .toBe('×2');
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:BLOCKADE:3"] img')?.getAttribute('src'))
+      .toContain('assets/images/other/X.png');
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:FREEZE:4"] img')?.getAttribute('src'))
+      .toContain('assets/images/other/ICE.png');
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:SEED:5"] img')?.getAttribute('src'))
+      .toContain('assets/images/other/seed.png');
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"] .stone-info-marker-tile--poison-cell'))
+      .not.toBeNull();
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:METEOR_HOLE:no-timer"] .stone-info-list-marker-timer'))
+      .toBeNull();
+  });
+
+  test('keeps stones and board markers on the same cell as separate detail targets', () => {
+    const mod = setupDom();
+    const blackStone = stone(2, 2, 'black');
+    blackStone.markers.push({ kind: 'special', owner: 'black', value: 'TRAP', data: { type: 'TRAP' } });
+    blackStone.markers.push({ kind: 'poisoned', owner: null, data: { remainingTurns: 4 } });
+    blackStone.markers.push({ kind: 'scorched', owner: null, data: { remainingTurns: 2 } });
+    blackStone.markers.push({ kind: 'frozen', owner: 'white', data: { remainingOwnerTurns: 4 } });
+    const goldStone = stone(3, 3, 'black', 'GOLD');
+    goldStone.markers.push({ kind: 'poisoned', owner: null, data: { remainingTurns: 3 } });
+    goldStone.markers.push({ kind: 'scorched', owner: null, data: { remainingTurns: 1 } });
+    goldStone.markers.push({ kind: 'poison-cell', owner: null, data: { remainingTurns: 9, sourcePlayer: 'white' } });
+
+    mod.renderCurrentStoneInfoPanel(frame([blackStone, goldStone]));
+
+    const normalButton = document.querySelector('[data-stone-catalog-key="normal:black"]') as HTMLButtonElement;
+    const goldButton = document.querySelector('[data-stone-catalog-key="special:GOLD:black"]') as HTMLButtonElement;
+    const freezeButton = document.querySelector('[data-stone-catalog-key="board-marker:FREEZE:4"]') as HTMLButtonElement;
+    const poisonButton = document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"]') as HTMLButtonElement;
+    expect(document.querySelector('[data-stone-catalog-key*="TRAP"]')).toBeNull();
+
+    normalButton.click();
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('通常石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('毒状態 残り4T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('灼熱カウント 残り2T');
+    expect(document.getElementById('stone-info-meta').getAttribute('aria-label')).toBe('効果タグ');
+    expect(document.getElementById('stone-info-detail-close-btn').getAttribute('aria-label')).toBe('詳細情報を閉じる');
+    (document.querySelector('[data-badge="毒状態 残り4T"]') as HTMLButtonElement).click();
+    expect(document.getElementById('stone-info-tag-title').textContent).toBe('毒状態 残り4T');
+    expect(document.getElementById('stone-info-tag-body').textContent).toContain('完全保護で解除');
+
+    freezeButton.click();
+    expect(document.getElementById('stone-info-name').textContent).toBe('凍結マス');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊マス');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
+
+    goldButton.click();
+    expect(document.getElementById('stone-info-name').textContent).toBe('金石');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('毒状態 残り3T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('灼熱カウント 残り1T');
+
+    poisonButton.click();
+    expect(document.getElementById('stone-info-name').textContent).toBe('毒マス');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('10ターン持続');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り9T');
+    expect(document.getElementById('stone-info-detail-marker').classList.contains('stone-info-marker-tile--poison-cell'))
+      .toBe(true);
+  });
+
+  test('separates board markers with different timers and refreshes detail when only the settled timer changes', () => {
+    const mod = setupDom();
+    const poisonCell = (row: number, remainingTurns: number) => boardCell(row, 0, [{
+      kind: 'poison-cell',
+      owner: null,
+      data: { remainingTurns, sourcePlayer: 'black' }
+    }]);
+
+    mod.renderCurrentStoneInfoPanel(frame([poisonCell(0, 9), poisonCell(1, 7)]));
+    expect(Array.from(document.querySelectorAll('[data-stone-catalog-key^="board-marker:POISON_CELL"]'))
+      .map((element) => element.getAttribute('data-stone-catalog-key'))).toEqual([
+      'board-marker:POISON_CELL:9',
+      'board-marker:POISON_CELL:7'
+    ]);
+
+    (document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"]') as HTMLButtonElement).click();
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り9T');
+
+    mod.renderCurrentStoneInfoPanel(frame([poisonCell(0, 8), poisonCell(1, 7)]));
+    (document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:8"]') as HTMLButtonElement).click();
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り8T');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り9T');
+  });
+
+  test('refreshes a stone overlay status when only its settled timer changes', () => {
+    const mod = setupDom();
+    const poisonedStone = (remainingTurns: number) => {
+      const current = stone(2, 2, 'black');
+      current.markers.push({ kind: 'poisoned', owner: null, data: { remainingTurns } });
+      return current;
+    };
+
+    mod.renderCurrentStoneInfoPanel(frame([poisonedStone(4)]));
+    (document.querySelector('[data-stone-catalog-key="normal:black"]') as HTMLButtonElement).click();
+    expect(document.getElementById('stone-info-meta').textContent).toContain('毒状態 残り4T');
+
+    mod.renderCurrentStoneInfoPanel(frame([poisonedStone(3)]));
+    (document.querySelector('[data-stone-catalog-key="normal:black"]') as HTMLButtonElement).click();
+    expect(document.getElementById('stone-info-meta').textContent).toContain('毒状態 残り3T');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('毒状態 残り4T');
   });
 
   test('moves the stone catalog sideways with a vertical mouse wheel without trapping edge scroll', () => {

@@ -1,4 +1,4 @@
-# 盤上の石一覧・詳細ポップアップ実装計画
+# 盤上の石・マス一覧／詳細ポップアップ実装計画
 
 ## 1. 基礎設計
 
@@ -120,10 +120,38 @@
   - 一覧の端ではホイールイベントを捕捉せず、親の縦スクロールを妨げない。
   - 同じ一覧DOMへイベントが重複登録されない。
 
+### Step 8: 盤面マーカーを石一覧へ追加する
+
+- Outcome: 一覧を `盤上の石・マス` に拡張し、封鎖・流星穴・凍結・種・毒・灼熱・治癒を石とは別の項目として確認できる。
+- Components:
+  - `01-rulebook.md`
+  - `正本/共通ルール正本.md`
+  - `正本/演出正本.md`
+  - `ui/presentation/stone-info-panel.ts`
+  - `ui/presentation/stone-info-controller.ts`
+  - `ui/mobile-command-surface/view.ts`
+  - `styles-board.css`
+  - `index.classic.html` と生成されるbrowser entry
+  - 関連focused Jest
+- Dependencies: Step 2、Step 3、Step 5、Step 7
+- Verification:
+  - frame kind正規化とregistry分類で盤面マーカー全7種を表示
+  - 石と特殊マスが同じセルにある場合も各項目の詳細を取り違えない
+  - owner-turn/completed-turn/permanent timer、異なるtimerの別集約、timerのみのframe更新
+  - 石状態・board bonus・theory numberを独立したマス項目にしない
+  - 画像/CSSタイル、名称、個数、特殊マス・残りターンタグ
+  - focused Jest、`npm run typecheck`、`npm run build:browser`、`npm run build:vite`
+  - Vite/classic実画面、console error、HTTP 200、最終diff/status
+- Done:
+  - registry上の盤面マーカー全7種がsettled frameから表示される。
+  - 一覧のbutton closureと詳細が同じsettled frame snapshotを使う。
+  - 可視文言・アクセシビリティ文言・スマホ戦況文言が `石・マス` で同期する。
+  - 独立レビューでP0〜P3の未解決指摘がない。
+
 ## 3. 完了チェックリスト
 
 - [ ] `01-rulebook.md` が新しい表示/操作と一致する。
-- [ ] 盤上の石一覧がsettled frameから生成される。
+- [ ] 盤上の石・マス一覧がsettled frameから生成される。
 - [ ] 通常黒/白、特殊石、個数、空状態を表示できる。
 - [ ] 一覧クリック/タップで詳細ポップアップが開く。
 - [ ] 効果タグとタグ意味ポップアップが維持される。
@@ -133,7 +161,12 @@
 - [ ] focused test、型検査、ブラウザビルドが成功する。
 - [ ] 生成物と最終差分を確認する。
 - [ ] タスク所有ファイルだけをコミットする。
-- [x] PCで盤上の石一覧をマウスホイール横スクロールでき、端では親の縦スクロールを維持する。
+- [x] PCで盤上の石・マス一覧をマウスホイール横スクロールでき、端では親の縦スクロールを維持する。
+- [x] 盤面マーカー全7種を石とは別項目として表示できる。
+- [x] 同一セルの石と特殊マスが各自のsettled-frame詳細を開く。
+- [x] 特殊マスのtimer集約・表示・更新と永続穴が正しい。
+- [x] 石状態や盤面マーカー外の装飾を独立項目にしない。
+- [x] `盤上の石・マス` の可視文言・aria・スマホ戦況が同期する。
 
 ## 4. Self-review
 
@@ -142,6 +175,7 @@
 - 既存の `ui/board-dom-compat/renderer.ts` にユーザー由来の未コミット差分があるため、同ファイルを変更せずに成立する入力binder側の整理を採用した。
 - レスポンシブ表示はCSSだけでなくブラウザ実表示も確認するよう補強した。
 - ホイール追加では単純に全入力を捕捉せず、横方向入力が優勢な場合と左右端では既定動作を維持する計画へ修正した。
+- Step 8は独立設計レビューを先に行い、kind正規化、subject/type付きframe snapshot、`type + duration` 集約、CSSタイルshell、`特殊マス` タグ、全surface文言同期を必須条件として反映した。
 
 ## 5. Step 7 実施結果
 
@@ -162,3 +196,18 @@
 - 初回設計レビューでは、ブラウザ拡大縮小用の`Ctrl` / `Command`付きホイールを捕捉しない条件が必要との指摘があり、実装・テスト・設計へ反映した。
 - 最終実装レビュー: P0〜P3の指摘なし。縦優勢判定、overflow/端判定、重複登録防止、テスト、仕様同期を確認済み。
 - Vite生成後のbounded recheck: `index.html`、`index.vite.html`、Vite bundle、classic registryの同期に問題なし。追加修正なし。
+
+## 7. Step 8 実施結果
+
+- registry上の盤面マーカー全7種（封鎖、流星穴、凍結、種、毒、灼熱、治癒）を、settled frameから石とは別項目として投影する実装へ拡張した。
+- 同じセルに石と特殊マスが重なっても各項目が自身の詳細を開き、同種でも残りターンが異なる場合は別項目として集約することをfocused Jestで確認した。
+- 毒・灼熱など石に付く状態は独立マスにせず、石の詳細へ状態名と残りターンを表示する。board bonusとtheory numberも一覧対象外のまま維持した。
+- `npx jest --runInBand --runTestsByPath test/ui.presentation.stone-info-panel.test.ts test/ui.mobile-command-surface.test.ts test/ui.board-dom-compat.long-press-info.test.ts test/ui.layout-responsive.aspect-ratio.test.ts test/ui.left-info-stack-layout-contract.test.ts test/ui.board-render-projection.test.ts`: 6 suites / 65 tests passed。
+- `npm run typecheck`: 成功。
+- `npm run build:browser`: 成功。classic registryとcachebusterを更新。
+- `npm run build:vite`: 成功。標準Vite bundle、entry、startup versionを更新。
+- 実ブラウザ:
+  - `http://127.0.0.1:8000/`（Vite、Pixi）で見出し・案内文・ariaが `盤上の石・マス` に同期し、初期盤面2項目、Pixi canvas 1、DOM compatibility cell 0、console warning/errorなし。
+  - `http://127.0.0.1:8000/index.classic.html`（classic、Pixi）でも同じ表示とbackend構成を確認し、console warning/errorなし。
+- 独立実装レビューで指摘された、石の毒・灼熱状態名の明示と石専用aria表現を修正し、状態timer更新とタグ説明を回帰テストへ追加した。
+- 修正後の独立bounded recheckではP0〜P3の未解決指摘なし。reviewer側でもfocused Jest 2 suites / 17 tests passedと`git diff --check`成功を再確認した。

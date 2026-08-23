@@ -1,22 +1,22 @@
-# 盤上の石一覧・詳細ポップアップ設計
+# 盤上の石・マス一覧／詳細ポップアップ設計
 
 ## 1. 文書の役割
 
-- 対象: 盤面に現在表示されている石を石情報パネルへ一覧表示し、一覧内の石から詳細を開くUI変更
+- 対象: 盤面に現在表示されている石と特殊マスを情報パネルへ一覧表示し、一覧内の各項目から正しい詳細を開くUI変更
 - プレイヤー向け仕様の正本: `01-rulebook.md`
 - 内部境界の正本: `docs/architecture-contracts.md`
-- 非目標: 石やカードのゲームルール、ネットワーク権威、盤面描画方式、特殊石アセット自体の変更
+- 非目標: 石・特殊マス・カードのゲームルール、ネットワーク権威、盤面描画方式、特殊石アセット自体の変更
 
 ## 2. 問題と望ましい結果
 
 現在の石情報は、PCでは盤面石へのホバー、タッチ端末では盤面石へのタップ、さらに長押しでも開く。このため、カード効果で盤面の石を選ぶ操作と情報確認が同じ入力面に重なり、端末によって情報表示方法も異なる。
 
-変更後は、既存の石情報パネルを「盤上の石」一覧にする。盤面の確定表示に現在存在する石の見た目を種類別に表示し、一覧内の石をクリックまたはタップした時だけ詳細ポップアップを開く。盤面へのホバー、短押し、長押しは石情報を開かず、ゲーム操作と既存の盤面プレビューだけに使う。
+既存の変更で石情報パネルは「盤上の石」一覧になったが、封鎖・凍結・種・毒・灼熱・治癒・流星穴など石ではない盤面上の重要物を確認できない。変更後はパネルを「盤上の石・マス」一覧に拡張し、確定表示に存在する石とregistry上の盤面マーカーを別項目として表示する。一覧項目をクリックまたはタップした時だけ、その項目を作った確定表示時点の詳細ポップアップを開く。
 
 案内文は次の2行を基本とする。
 
-- 見出し: `盤上の石`
-- 案内: `石を選ぶと情報を表示`
+- 見出し: `盤上の石・マス`
+- 案内: `石・マスを選ぶと情報を表示`
 
 ## 3. スコープ
 
@@ -24,7 +24,10 @@
 
 - 通常黒石、通常白石、特殊石、顕現石、爆弾、配置時効果石など、確定表示フレーム上で石として存在する見た目の検出
 - 同じ所有者色・同じ石種の重複集約と個数表示
+- `SpecialStoneRegistry.isBoardMarkerType()` が正本とする `BLOCKADE` / `METEOR_HOLE` / `FREEZE` / `SEED` / `POISON_CELL` / `SCORCHED_CELL` / `HEALING_CELL` の検出
+- 同じ種類・同じ残りターンの盤面マーカーの集約と、異なる残りターンの別項目化
 - 現在選択中の通常石スキンと特殊石アセットを使った一覧サムネイル
+- 既存盤面アセットまたは盤面と意味を合わせたCSSタイルによる特殊マスのサムネイル
 - 一覧項目のクリック/タップによる詳細ポップアップ
 - 既存の短い説明、現在状態タグ、タグ意味ポップアップの再利用
 - PC、スマートフォン、iPadで同じ操作方法を提供
@@ -37,6 +40,8 @@
 - 石一覧から盤面マスを選択する機能
 - 石情報や一覧をゲーム状態・スナップショットへ保存すること
 - 同種同色の石が持つ残りターン差を一覧上で個別項目へ分割すること
+- `POISONED` / `SCORCHED` / `GUARD` / `LIVING_WILL` など石状態を独立したマス項目にすること
+- `board-bonus` / `theory-number-cell` / 選択候補 / ハイライトなどregistry上の盤面マーカーではない表示を一覧項目にすること
 
 ## 4. 現在の構造と根拠
 
@@ -44,6 +49,8 @@
 - `ui/presentation/stone-info-controller.ts` が石名、短い説明、現在状態タグ、タグ詳細を組み立てる。
 - `ui/board-renderer.ts` は `BoardVisualController.subscribeSettledFrame` を通じて、Pixi/DOM互換のどちらでも確定表示フレームを受け取る。
 - `BoardVisualFrame.model.cells[].stone` は、所有者、特殊石種、状態を含む。隠し罠はモデル構築時に通常石表示へ投影済みである。
+- `BoardVisualFrame.model.cells[].markers` は盤面に確定表示中のマーカーを含む。`blockade` は `data.type` で封鎖と流星穴を区別できるが、`frozen` / `seed` / `poison-cell` / `scorched-cell` / `healing-cell` は `data.type` を持たない場合があるため、frame kindから正規typeへ変換する必要がある。
+- `shared/special-stone-registry.ts` の `isBoardMarkerType()` が一覧へ含める盤面マーカーの分類正本、`getMarkerDurationValue()` がowner turn/completed turnの違いを吸収した残りターン正本である。
 - `BoardVisualFrame.appearance` は現在の通常石スキン画像URLを持ち、`ui/pixi/appearance-resolver.ts` は特殊石種と所有者から盤面と同じ特殊石画像を解決する。
 - `#left-info-stack` はデスクトップでは固定スタックだが、スマートフォン/iPad縦画面では石情報パネルが明示的に非表示である。
 
@@ -67,14 +74,17 @@
 
 `ui/presentation/stone-info-controller.ts` に、`BoardVisualFrame`を受けて石一覧を描画する公開capabilityを追加する。`ui/board-renderer.ts` のsettled frame購読処理から呼び出す。
 
-一覧は `model.cells` のうち `cell.stone` があるセルだけを対象とする。集約キーは以下とする。
+一覧は `model.cells` を2つの独立したpassで投影する。第1 passは従来どおり石項目、第2 passはregistry上の盤面マーカー項目とし、凍結マスなどを石種として扱わない。集約キーは以下とする。
 
 - 通常石: `normal:{owner}`
 - 特殊見た目: `special:{normalizedSpecialType}:{owner}`
+- 盤面マーカー: `board-marker:{normalizedType}:{duration-or-permanent}`
 
-これにより通常黒石/白石は別項目となり、同種同色の重複は1項目へ集約して `×N` を表示する。代表座標はcanonical cell順で最初のセルを使う。一覧順はsettled frameのセル順を保ち、盤面変化ごとの不要な並べ替えを避ける。
+これにより通常黒石/白石は別項目となり、同種同色の石は1項目へ集約して `×N` を表示する。盤面マーカーは現在の残りターンまで同じ個体だけを集約し、代表値だけを見せて誤解させない。流星穴は永続項目として集約する。一覧順は既存の石項目を先に保ち、その後へ盤面マーカーの初出セル順を並べる。
 
-石が0個なら `盤上に石はありません` を表示する。
+frame markerは最初に `kind -> type` を正規化する。`frozen -> FREEZE`、`seed -> SEED`、`poison-cell -> POISON_CELL`、`scorched-cell -> SCORCHED_CELL`、`healing-cell -> HEALING_CELL`、`blockade -> data.type || BLOCKADE` とし、その後 `isBoardMarkerType()` がtrueのものだけを採用する。将来type入りの盤面マーカーが追加された場合もregistry分類へ従う。
+
+石と盤面マーカーが0個なら `盤上に石・マスはありません` を表示する。
 
 ### 6.2 石の見た目
 
@@ -82,10 +92,14 @@
 - 特殊石は `resolveSpecialStoneAppearanceResource` を使用する。
 - 特殊画像が存在しない、または通常見た目として投影された石は、所有者色の通常石画像へ安全にフォールバックする。
 - 画像は情報表示専用のDOM `<img>` とし、盤面の描画やsettlementには関与しない。
+- 封鎖・凍結・種は `assets/images/other/X.png` / `ICE.png` / `seed.png` を使う。毒・灼熱・治癒・流星穴はpresentation専用CSSタイルと短い文字記号を使い、盤面と同系色にしつつ名称ラベルも残す。
+- 一覧entryは `visualKind: image | cell-tile` とtype別tokenを持つ。詳細ポップアップも画像とCSSタイルの両方を表示できるvisual shellを使う。DOM互換backendのruntime/CSS selectorを読み取らず、presentation CSSへ必要な色とasset URLだけを定義する。
 
 ### 6.3 詳細ポップアップ
 
-既存パネルに直接出していた `stone-info-name`、`stone-info-desc`、`stone-info-meta` を、新しい `#stone-info-detail-panel` 内へ移す。一覧ボタンは代表座標を保持し、押下時に既存の石情報解決処理を呼び出して詳細ポップアップを開く。
+一覧ボタンは座標だけでなく、`subjectKind: stone | board-marker`、正規type、owner、残りターン、表示用marker data、同じセルの石状態をsettled frame由来のdescriptorとして保持する。押下時はcanonical stateを再走査せず、このdescriptorから詳細を開く。これにより同一セル上の石と凍結・毒などを取り違えず、ネット再生中に一覧より新しいstateを先読みしない。
+
+石項目はboard markerを状態タグから除外し、通常石・特殊石本体・爆弾・石状態だけを解決する。盤面マーカー項目は指定typeのsnapshotだけを解決し、`includeSpecialStone: false` で既存タグ生成を使ったうえで `特殊マス` を付ける。残りターンは `getMarkerDurationValue()` から取得し、流星穴には出さない。一覧再描画signatureにはtype、duration、owner/source、visualVariantとdescriptorを含め、個数と座標が同じままtimerだけ変化した場合もbutton closureを更新する。
 
 ポップアップは以下に対応する。
 
@@ -95,7 +109,7 @@
 - 既存の効果タグボタンとタグ意味ポップアップ
 - `role="dialog"`、`aria-modal="true"`、見出し関連付け
 
-ポップアップを閉じても盤上の石一覧は常時残る。
+ポップアップを閉じても盤上の石・マス一覧は常時残る。
 
 ### 6.4 盤面入力の分離
 
@@ -127,10 +141,13 @@ PCでは、一覧上の縦方向マウスホイール入力を一覧の横移動
 - ネット対戦ではsettled frameだけを表示するため、server-authoritative stateとpresentation journalの順序を崩さない。
 - 隠し罠はsettled frame上で通常石に見えるため、一覧でも罠名や罠画像を公開しない。
 - DOM互換とPixiは同じ一覧projectionを使用する。
+- 一覧項目の詳細は、その項目を生成したsettled frame snapshotへ固定し、canonical runtime stateを先読みしない。
 
 ## 8. 検証方針
 
-- 石一覧DOM shell、通常黒白、特殊石、重複個数、空盤面、クリックで詳細を開くfocused Jest
+- 一覧DOM shell、通常黒白、特殊石、盤面マーカー全7種、重複個数、空盤面、クリックで詳細を開くfocused Jest
+- `data.type` がないframe kindの正規化、流星穴、owner-turn/completed-turn/permanent timer、異なるtimerの別集約をfocused Jestで確認
+- 同じセルの石と盤面マーカーを個別に選べること、石状態やboard bonus/theory numberを独立項目にしないこと、timerだけ変化したframeで詳細snapshotが更新されることをfocused Jestで確認
 - 盤面input controllerがホバー/タップ/長押しで情報を開かず、既存クリックを維持するfocused Jest
 - 既存の特殊石名・説明・状態タグ・隠し罠テスト
 - レスポンシブ契約テストでphone/iPad縦画面のパネル表示を確認
@@ -143,19 +160,22 @@ PCでは、一覧上の縦方向マウスホイール入力を一覧の横移動
 - 一覧上のホイールが親画面を常に止める: 実際に横へ移動できる時だけ既定動作を抑止し、左右端では親側へ入力を渡す。
 - カスタム通常石スキンのObject URL寿命: settled frameが保持するappearance URLを使い、盤面runtimeの現在lease寿命内だけ表示する。
 - 同種同色で状態値が異なる: 一覧では種類を集約し、代表セルの現在詳細を表示する。個別マス選択UIにはしないことを仕様上明記する。
+- 同種の特殊マスでtimerが異なる: `type + duration` で別項目にし、代表値を全個体の値のように見せない。
+- 同一セルに石と特殊マスが重なる: subject/type付きframe descriptorを使い、座標だけでdetailを再解決しない。
 - 生成物が既存の未コミット変更を取り込む: タスク所有ソースと生成hunkを分離して確認し、既存変更をstage/commitしない。
 
 ## 10. 完了条件
 
-1. 盤面の確定表示に存在する通常黒石、通常白石、特殊石が既存パネルへ種類別に表示される。
+1. 盤面の確定表示に存在する通常黒石、通常白石、特殊石とregistry上の盤面マーカー全7種が既存パネルへ種類別に表示される。
 2. 同種同色は1項目に集約され、現在個数が分かる。
-3. 一覧の石をクリック/タップすると、名称、短い説明、現在状態タグを含む詳細ポップアップが開く。
+3. 一覧の石または特殊マスをクリック/タップすると、選択対象を取り違えず、名称、短い説明、現在状態タグを含む詳細ポップアップが開く。
 4. 盤面ホバー、タップ、長押しでは石情報が開かない。
 5. カード効果の盤面石選択と石情報操作が競合しない。
 6. PC、スマートフォン、iPadで一覧から詳細を開ける。
 7. 隠し罠やネット再生順など既存の表示契約を破らない。
 8. 関連focused test、型検査、ブラウザビルドが通る。
 9. PCでは一覧上のマウスホイールで横移動でき、左右端では親画面の縦スクロールを妨げない。
+10. 特殊マスの残りターンが異なる場合は別項目となり、timerだけの更新でも詳細が最新settled frameへ更新される。
 
 ## 11. Self-review
 
@@ -165,3 +185,7 @@ PCでは、一覧上の縦方向マウスホイール入力を一覧の横移動
 - 盤面ホバー自体はカードの経路プレビュー等に必要なため、情報表示だけを除去し、hover stateは残す。
 - 変更はUI presentationと入力境界に限定され、ゲーム/ネット権威や盤面writerを変更しない。今回の追加変更では独立レビューを行い、ブラウザ拡大縮小用の修飾キー付きホイールを捕捉しない条件を追加した。
 - 追加のホイール操作は、縦入力だけを変換し、横入力と端での親スクロールを維持することで、マウスとタッチパッドの両方で不自然な二重移動やスクロール捕捉を避ける設計とした。
+- 特殊マス拡張の初案はtypeだけで集約して代表セルを開くものだったが、残りターンが異なる個体へ誤情報を示すため `type + duration` 集約へ修正した。
+- `marker.data.type` だけでは5種類を検出できないためkind正規化を明記し、registryを最終採否の正本にした。
+- 座標からcanonical markerを再取得する案は、同一セルの石/マス取り違えとネット再生中の先読みを起こすため、settled-frame descriptorへ修正した。
+- board markerを既存タグ生成へそのまま渡すと `特殊石` になるため、盤面マーカーdetailではその自動タグを抑止して `特殊マス` を明示する。

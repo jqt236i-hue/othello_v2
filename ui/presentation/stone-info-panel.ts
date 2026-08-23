@@ -5,9 +5,9 @@ function ensureStoneInfoListShell(panel: HTMLElement): void {
   if (title && instruction && list) return;
 
   panel.innerHTML = [
-    '<div id="stone-info-list-title" class="stone-info-name">盤上の石</div>',
-    '<div id="stone-info-list-instruction" class="stone-info-desc">石を選ぶと情報を表示</div>',
-    '<div id="stone-info-list" class="stone-info-list" role="group" aria-label="盤上の石"></div>'
+    '<div id="stone-info-list-title" class="stone-info-name">盤上の石・マス</div>',
+    '<div id="stone-info-list-instruction" class="stone-info-desc">石・マスを選ぶと情報を表示</div>',
+    '<div id="stone-info-list" class="stone-info-list" role="group" aria-label="盤上の石・マス"></div>'
   ].join('');
 }
 
@@ -82,11 +82,14 @@ export function ensureStoneInfoDetailPanel(doc: Document): HTMLElement | null {
     detail.tabIndex = -1;
     detail.innerHTML = [
       '<div id="stone-info-detail-header">',
-      '  <div id="stone-info-name" class="stone-info-name">石情報</div>',
-      '  <button id="stone-info-detail-close-btn" type="button" aria-label="石情報を閉じる">×</button>',
+      '  <div id="stone-info-name" class="stone-info-name">詳細情報</div>',
+      '  <button id="stone-info-detail-close-btn" type="button" aria-label="詳細情報を閉じる">×</button>',
       '</div>',
       '<div id="stone-info-detail-content">',
-      '  <img id="stone-info-detail-image" alt="" aria-hidden="true">',
+      '  <div id="stone-info-detail-visual" hidden>',
+      '    <img id="stone-info-detail-image" alt="" aria-hidden="true">',
+      '    <span id="stone-info-detail-marker" class="stone-info-marker-tile" aria-hidden="true" hidden></span>',
+      '  </div>',
       '  <div id="stone-info-detail-copy">',
       '    <div id="stone-info-desc" class="stone-info-desc"></div>',
       '    <div id="stone-info-meta" class="stone-info-meta is-empty"></div>',

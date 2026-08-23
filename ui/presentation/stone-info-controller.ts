@@ -148,6 +148,9 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '復活': '失われた時に元の色や状態へ戻る。',
     '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。',
+    '特殊マス': '石とは別に盤面へ残るマス効果。封鎖・凍結・種・毒・灼熱・治癒・流星穴が含まれる。',
+    '毒状態': '毒マスによって石へ付く状態。残りターンが0になると通常の破壊を受け、完全保護で解除される。',
+    '灼熱カウント': '灼熱マス上で同じ石が居続けられる残りターン。0になると通常の破壊を受ける。',
     '抹消': 'そのマスの石を取り除きます。\n完全保護や反転無効でも防げません。',
     '穴マス': 'マスを永続の穴にする。穴マスには誰も置けず、反転経路も遮断する。\n顕現石があるマス以外には確定で穴マスにできる。',
     '絶対執行': '盤界の執行者専用の抹消。不可侵以外の保護を貫通して特殊石を穴マスにする。',
@@ -275,7 +278,10 @@ function _getStoneInfoPanelRefs() {
         _stoneInfoPanelRefs.name &&
         _stoneInfoPanelRefs.desc &&
         _stoneInfoPanelRefs.meta &&
+        _stoneInfoPanelRefs.content &&
+        _stoneInfoPanelRefs.visual &&
         _stoneInfoPanelRefs.image &&
+        _stoneInfoPanelRefs.marker &&
         _stoneInfoPanelRefs.root.isConnected
     ) {
         return _stoneInfoPanelRefs;
@@ -283,11 +289,14 @@ function _getStoneInfoPanelRefs() {
     const name = root.querySelector('#stone-info-name');
     const desc = root.querySelector('#stone-info-desc');
     const meta = root.querySelector('#stone-info-meta');
+    const content = root.querySelector('#stone-info-detail-content');
+    const visual = root.querySelector('#stone-info-detail-visual');
     const image = root.querySelector('#stone-info-detail-image');
+    const marker = root.querySelector('#stone-info-detail-marker');
     const backdrop = document.getElementById('stone-info-detail-backdrop');
-    if (!name || !desc || !meta || !image || !backdrop) return null;
+    if (!name || !desc || !meta || !content || !visual || !image || !marker || !backdrop) return null;
     _bindStoneInfoMetaBadgeEvents(meta);
-    _stoneInfoPanelRefs = { root, name, desc, meta, image, backdrop };
+    _stoneInfoPanelRefs = { root, name, desc, meta, content, visual, image, marker, backdrop };
     return _stoneInfoPanelRefs;
 }
 
@@ -394,6 +403,8 @@ function _resolveStoneInfoTagMeaningKey(tag: any) {
     if (key.startsWith('反転回避')) return '反転回避';
     if (key.startsWith('破壊回避')) return '破壊回避';
     if (key.startsWith('復活')) return '復活';
+    if (key.startsWith('毒状態')) return '毒状態';
+    if (key.startsWith('灼熱カウント')) return '灼熱カウント';
     if (/^残り\d+(?:ターン|T)$/.test(key)) return '残りターン';
     return key;
 }
@@ -458,7 +469,7 @@ function _renderStoneInfoMetaBadges(metaEl: any, badges: any) {
         return;
     }
 
-    metaEl.setAttribute('aria-label', '石効果タグ');
+    metaEl.setAttribute('aria-label', '効果タグ');
     metaEl.classList.remove('is-empty');
     for (const badge of normalizedBadges) {
         const chip = document.createElement('button');
@@ -544,6 +555,70 @@ function _getEntryType(entry: any) {
     return _normalizeSpecialStoneInfoType(markerType);
 }
 
+const BOARD_MARKER_TYPE_BY_FRAME_KIND_FOR_DIFF: Record<string, string> = Object.freeze({
+    blockade: 'BLOCKADE',
+    frozen: 'FREEZE',
+    seed: 'SEED',
+    'poison-cell': 'POISON_CELL',
+    'scorched-cell': 'SCORCHED_CELL',
+    'healing-cell': 'HEALING_CELL'
+});
+
+const BOARD_MARKER_CATALOG_VISUALS_FOR_DIFF: Record<string, any> = Object.freeze({
+    BLOCKADE: Object.freeze({ token: 'blockade', symbol: '封', imageUrl: 'assets/images/other/X.png' }),
+    METEOR_HOLE: Object.freeze({ token: 'meteor-hole', symbol: '穴', imageUrl: '' }),
+    FREEZE: Object.freeze({ token: 'freeze', symbol: '凍', imageUrl: 'assets/images/other/ICE.png' }),
+    SEED: Object.freeze({ token: 'seed', symbol: '種', imageUrl: 'assets/images/other/seed.png' }),
+    POISON_CELL: Object.freeze({ token: 'poison-cell', symbol: '毒', imageUrl: '' }),
+    SCORCHED_CELL: Object.freeze({ token: 'scorched-cell', symbol: '灼', imageUrl: '' }),
+    HEALING_CELL: Object.freeze({ token: 'healing-cell', symbol: '癒', imageUrl: '' })
+});
+
+function _normalizeFrameMarkerKindForDiff(rawKind: any): string {
+    return String(rawKind || '').trim().toLowerCase().replace(/_/g, '-');
+}
+
+function _isBoardMarkerTypeForDiff(rawType: any): boolean {
+    const type = _normalizeSpecialStoneInfoType(rawType);
+    if (!type) return false;
+    const registry = _getSpecialStoneRegistryForDiff();
+    if (!registry || typeof registry.isBoardMarkerType !== 'function') {
+        throw new Error('SpecialStoneRegistry.isBoardMarkerType is required by stone-info-controller');
+    }
+    return registry.isBoardMarkerType(type) === true;
+}
+
+function _getBoardMarkerTypeFromFrameMarkerForDiff(marker: any): string | null {
+    if (!marker) return null;
+    const kind = _normalizeFrameMarkerKindForDiff(marker.kind);
+    const data = marker.data && typeof marker.data === 'object' ? marker.data : {};
+    const directType = _normalizeSpecialStoneInfoType(data.type);
+    if (directType && _isBoardMarkerTypeForDiff(directType)) return directType;
+    const inferredType = _normalizeSpecialStoneInfoType(BOARD_MARKER_TYPE_BY_FRAME_KIND_FOR_DIFF[kind]);
+    return inferredType && _isBoardMarkerTypeForDiff(inferredType) ? inferredType : null;
+}
+
+function _getMarkerDurationValueForDiff(rawType: any, markerData: any): number | null {
+    const type = _normalizeSpecialStoneInfoType(rawType);
+    const data = markerData && typeof markerData === 'object' ? markerData : {};
+    const registry = _getSpecialStoneRegistryForDiff();
+    if (registry && typeof registry.getMarkerDurationValue === 'function') {
+        const duration = registry.getMarkerDurationValue(type, data);
+        return duration === null || duration === undefined ? null : Number(duration);
+    }
+    const raw = data.remainingTurns ?? data.remainingOwnerTurns;
+    const value = Number(raw);
+    return raw === null || raw === undefined || raw === '' || !Number.isFinite(value)
+        ? null
+        : Math.max(0, Math.trunc(value));
+}
+
+function _getBoardMarkerCatalogVisualForDiff(rawType: any) {
+    const type = _normalizeSpecialStoneInfoType(rawType);
+    return (type && BOARD_MARKER_CATALOG_VISUALS_FOR_DIFF[type])
+        || { token: 'board-marker', symbol: 'マス', imageUrl: '' };
+}
+
 function _isOverlayOnlyMarkerEntryForDiff(entry: any) {
     const type = _getEntryType(entry);
     return type === 'LIVING_WILL';
@@ -555,11 +630,14 @@ function _createEntryStatusInputForDiff(entry: any, hasGuard: any) {
     if (!type) return null;
     const data = entry.marker.data || {};
     const isBomb = entry.kind === _getMarkerKinds().BOMB;
+    const registryDuration = _getMarkerDurationValueForDiff(type, data);
     return {
         kind: entry.kind,
         marker: entry.marker,
         type,
-        timer: isBomb ? data.remainingTurns : data.remainingOwnerTurns,
+        timer: registryDuration !== null
+            ? registryDuration
+            : (isBomb ? data.remainingTurns : data.remainingOwnerTurns),
         regenRemaining: data.regenRemaining,
         flipEvadeRemaining: data.flipEvadeRemaining,
         destroyEvadeRemaining: data.destroyEvadeRemaining,
@@ -567,7 +645,7 @@ function _createEntryStatusInputForDiff(entry: any, hasGuard: any) {
     };
 }
 
-function _buildSpecialStoneBadges(entries: any, hasGuard: any, primaryInput: any) {
+function _buildSpecialStoneBadges(entries: any, hasGuard: any, primaryInput: any, options?: any) {
     const resolvedEntries = Array.isArray(entries) ? entries : [];
     const statusInputs = resolvedEntries
         .map((entry) => _createEntryStatusInputForDiff(entry, false))
@@ -577,7 +655,8 @@ function _buildSpecialStoneBadges(entries: any, hasGuard: any, primaryInput: any
     return _buildSpecialStoneStatusTagsForDiff(statusInputs, {
         hasGuard,
         primary,
-        livingWillAura: resolvedEntries.some((entry) => _isOverlayOnlyMarkerEntryForDiff(entry))
+        livingWillAura: resolvedEntries.some((entry) => _isOverlayOnlyMarkerEntryForDiff(entry)),
+        includeSpecialStone: !(options && options.includeSpecialStone === false)
     });
 }
 
@@ -662,6 +741,7 @@ function _getCatalogSpecialType(cell: any) {
         && marker.kind === 'special'
         && marker.data
         && marker.data.type
+        && !_isBoardHiddenTrap({ data: marker.data })
         && !_isOverlayOnlyMarkerEntryForDiff({ marker, kind: _getMarkerKinds().SPECIAL_STONE })
     ));
     if (primary) return _normalizeSpecialStoneInfoType(primary.data.type);
@@ -669,14 +749,130 @@ function _getCatalogSpecialType(cell: any) {
     if (bomb) return _normalizeSpecialStoneInfoType(
         bomb.data && bomb.data.type ? bomb.data.type : 'TIME_BOMB'
     );
-    const frozen = markers.find((marker: any) => marker && marker.kind === 'frozen');
-    if (frozen) return 'FREEZE';
     return null;
 }
 
 function _hasCatalogMarker(cell: any, kind: string) {
     const markers = cell && Array.isArray(cell.markers) ? cell.markers : [];
     return markers.some((marker: any) => marker && marker.kind === kind);
+}
+
+const STONE_STATUS_TYPE_BY_FRAME_KIND_FOR_DIFF: Record<string, string> = Object.freeze({
+    guard: 'GUARD',
+    'living-will-aura': 'LIVING_WILL',
+    poisoned: 'POISONED',
+    scorched: 'SCORCHED'
+});
+
+function _getStoneStatusTypeFromFrameMarkerForDiff(marker: any): string | null {
+    if (!marker) return null;
+    const kind = _normalizeFrameMarkerKindForDiff(marker.kind);
+    const data = marker.data && typeof marker.data === 'object' ? marker.data : {};
+    const directType = _normalizeSpecialStoneInfoType(
+        data.type || (kind === 'special' ? marker.value : null)
+    );
+    if (directType) return directType;
+    if (kind === 'bomb') return 'TIME_BOMB';
+    return _normalizeSpecialStoneInfoType(STONE_STATUS_TYPE_BY_FRAME_KIND_FOR_DIFF[kind]);
+}
+
+function _createCatalogStatusInputFromFrameMarkerForDiff(marker: any): any {
+    const type = _getStoneStatusTypeFromFrameMarkerForDiff(marker);
+    if (!type || _isBoardMarkerTypeForDiff(type) || type === 'TRAP') return null;
+    const kind = _normalizeFrameMarkerKindForDiff(marker.kind);
+    const data = marker.data && typeof marker.data === 'object' ? marker.data : {};
+    const timer = _getMarkerDurationValueForDiff(type, data);
+    return Object.assign({}, data, {
+        kind: kind === 'bomb' ? _getMarkerKinds().BOMB : _getMarkerKinds().SPECIAL_STONE,
+        type,
+        timer: timer !== null
+            ? timer
+            : (kind === 'bomb' ? data.remainingTurns : data.remainingOwnerTurns)
+    });
+}
+
+function _createCatalogStoneDetailForDiff(cell: any, specialType: any, ownerKey: string) {
+    const markers = cell && Array.isArray(cell.markers) ? cell.markers : [];
+    const statusInputs = markers
+        .map((marker: any) => _createCatalogStatusInputFromFrameMarkerForDiff(marker))
+        .filter((input: any) => !!input);
+    const normalizedType = _normalizeSpecialStoneInfoType(specialType);
+    let primaryInput = normalizedType && normalizedType !== 'BREEDING_SPROUT'
+        ? statusInputs.find((input: any) => input.type === normalizedType) || null
+        : null;
+    if (normalizedType && normalizedType !== 'BREEDING_SPROUT') {
+        const stoneStatus = cell && cell.stone && cell.stone.status && typeof cell.stone.status === 'object'
+            ? cell.stone.status
+            : {};
+        const nestedSpecial = stoneStatus.special && typeof stoneStatus.special === 'object'
+            ? stoneStatus.special
+            : {};
+        const combined = Object.assign({}, stoneStatus, nestedSpecial, primaryInput || {}, {
+            type: normalizedType
+        });
+        const duration = _getMarkerDurationValueForDiff(normalizedType, combined);
+        if (duration !== null) combined.timer = duration;
+        primaryInput = combined;
+        const primaryIndex = statusInputs.findIndex((input: any) => input.type === normalizedType);
+        if (primaryIndex >= 0) {
+            statusInputs[primaryIndex] = primaryInput;
+        } else {
+            statusInputs.unshift(primaryInput);
+        }
+    }
+    const hasGuard = statusInputs.some((input: any) => input.type === 'GUARD');
+    const livingWillAura = statusInputs.some((input: any) => input.type === 'LIVING_WILL');
+    return {
+        subjectKind: 'stone',
+        type: normalizedType,
+        ownerKey,
+        isSprout: normalizedType === 'BREEDING_SPROUT',
+        primaryInput,
+        statusInputs,
+        hasGuard,
+        livingWillAura
+    };
+}
+
+function _createCatalogBoardMarkerDetailForDiff(marker: any, rawType: any) {
+    const type = _normalizeSpecialStoneInfoType(rawType);
+    const data = marker && marker.data && typeof marker.data === 'object' ? marker.data : {};
+    const markerData = Object.assign({}, data, { type });
+    const duration = _getMarkerDurationValueForDiff(type, markerData);
+    const primaryInput = Object.assign({}, markerData, {
+        kind: _getMarkerKinds().SPECIAL_STONE,
+        type,
+        timer: duration
+    });
+    return {
+        subjectKind: 'board-marker',
+        type,
+        ownerKey: marker && marker.owner ? String(marker.owner) : null,
+        sourcePlayer: markerData.sourcePlayer || null,
+        visualVariant: markerData.visualVariant || null,
+        duration,
+        primaryInput,
+        statusInputs: [primaryInput],
+        hasGuard: false,
+        livingWillAura: false
+    };
+}
+
+function _buildCatalogDetailSignatureForDiff(detail: any): string {
+    if (!detail) return '';
+    return JSON.stringify({
+        subjectKind: detail.subjectKind,
+        type: detail.type,
+        ownerKey: detail.ownerKey,
+        sourcePlayer: detail.sourcePlayer,
+        visualVariant: detail.visualVariant,
+        duration: detail.duration,
+        isSprout: detail.isSprout,
+        primaryInput: detail.primaryInput,
+        statusInputs: detail.statusInputs,
+        hasGuard: detail.hasGuard,
+        livingWillAura: detail.livingWillAura
+    });
 }
 
 function _resolveCatalogStoneImageUrl(frame: any, specialType: any, ownerKey: string) {
@@ -719,8 +915,9 @@ function _getCatalogStoneName(specialType: any, ownerKey: string) {
 function renderCurrentStoneInfoPanel(frame: any) {
     const refs = _getStoneInfoListRefs();
     if (!refs) return false;
-    refs.title.textContent = '盤上の石';
-    refs.instruction.textContent = '石を選ぶと情報を表示';
+    refs.title.textContent = '盤上の石・マス';
+    refs.instruction.textContent = '石・マスを選ぶと情報を表示';
+    refs.list.setAttribute('aria-label', '盤上の石・マス');
     refs.panel.classList.add('visible');
     refs.panel.setAttribute('aria-hidden', 'false');
 
@@ -760,16 +957,61 @@ function renderCurrentStoneInfoPanel(frame: any) {
             existing.count += 1;
             continue;
         }
+        const detail = _createCatalogStoneDetailForDiff(cell, specialType, ownerKey);
         groups.set(key, {
             key,
             row: Number(cell.row),
             col: Number(cell.col),
+            subjectKind: 'stone',
             ownerKey,
             specialType,
             name: _getCatalogStoneName(specialType, ownerKey),
             imageUrl: _resolveCatalogStoneImageUrl(frame, specialType, ownerKey),
+            visualKind: 'image',
+            visualToken: '',
+            visualSymbol: '',
+            duration: null,
+            detail,
+            detailSignature: _buildCatalogDetailSignatureForDiff(detail),
             count: 1
         });
+    }
+
+    for (const cell of cells) {
+        if (!cell) continue;
+        const markers = Array.isArray(cell.markers) ? cell.markers : [];
+        for (const marker of markers) {
+            const specialType = _getBoardMarkerTypeFromFrameMarkerForDiff(marker);
+            if (!specialType) continue;
+            if (specialType === 'SEED' && cell.stone) continue;
+            const detail = _createCatalogBoardMarkerDetailForDiff(marker, specialType);
+            const durationKey = detail.duration === null ? 'no-timer' : String(detail.duration);
+            const key = `board-marker:${specialType}:${durationKey}`;
+            const existing = groups.get(key);
+            if (existing) {
+                existing.count += 1;
+                continue;
+            }
+            const info = _getSpecialStoneInfoForDiff(specialType);
+            const visual = _getBoardMarkerCatalogVisualForDiff(specialType);
+            groups.set(key, {
+                key,
+                row: Number(cell.row),
+                col: Number(cell.col),
+                subjectKind: 'board-marker',
+                ownerKey: detail.ownerKey,
+                specialType,
+                name: info && info.name ? String(info.name) : specialType,
+                imageUrl: String(visual.imageUrl || ''),
+                visualKind: visual.imageUrl ? 'image' : 'cell-tile',
+                visualToken: String(visual.token || 'board-marker'),
+                visualSymbol: String(visual.symbol || 'マス'),
+                duration: detail.duration,
+                detail,
+                detailSignature: _buildCatalogDetailSignatureForDiff(detail),
+                count: 1
+            });
+        }
     }
 
     const entries = Array.from(groups.values());
@@ -778,7 +1020,11 @@ function renderCurrentStoneInfoPanel(frame: any) {
         entry.row,
         entry.col,
         entry.count,
-        entry.imageUrl
+        entry.imageUrl,
+        entry.visualKind,
+        entry.visualToken,
+        entry.duration,
+        entry.detailSignature
     ]));
     if (refs.list.getAttribute('data-stone-list-signature') === signature) return true;
     refs.list.setAttribute('data-stone-list-signature', signature);
@@ -787,7 +1033,7 @@ function renderCurrentStoneInfoPanel(frame: any) {
     if (!entries.length) {
         const empty = document.createElement('div');
         empty.className = 'stone-info-list-empty';
-        empty.textContent = '盤上に石はありません';
+        empty.textContent = '盤上に石・マスはありません';
         refs.list.appendChild(empty);
         return true;
     }
@@ -796,26 +1042,51 @@ function renderCurrentStoneInfoPanel(frame: any) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'stone-info-list-item';
-        button.setAttribute('aria-label', `${entry.name}の情報を表示（盤上に${entry.count}個）`);
+        const durationLabel = entry.subjectKind === 'board-marker' && entry.duration !== null
+            ? `、残り${entry.duration}ターン`
+            : '';
+        button.setAttribute('aria-label', `${entry.name}の情報を表示（盤上に${entry.count}個${durationLabel}）`);
         button.setAttribute('data-stone-catalog-key', entry.key);
+        button.setAttribute('data-stone-catalog-subject', entry.subjectKind);
         if (entry.specialType === 'BREEDING_SPROUT') {
             button.classList.add('stone-info-list-item--sprout');
         }
 
         const visual = document.createElement('span');
         visual.className = 'stone-info-list-visual';
-        const image = document.createElement('img');
-        image.className = 'stone-info-list-image';
-        image.alt = '';
-        image.setAttribute('aria-hidden', 'true');
-        if (entry.imageUrl) image.src = entry.imageUrl;
-        visual.appendChild(image);
+        if (entry.subjectKind === 'board-marker') {
+            visual.classList.add(
+                'stone-info-list-visual--board-marker',
+                `stone-info-marker-visual--${entry.visualToken}`
+            );
+        }
+        if (entry.imageUrl) {
+            const image = document.createElement('img');
+            image.className = 'stone-info-list-image';
+            image.alt = '';
+            image.setAttribute('aria-hidden', 'true');
+            image.src = entry.imageUrl;
+            visual.appendChild(image);
+        } else if (entry.subjectKind === 'board-marker') {
+            const markerTile = document.createElement('span');
+            markerTile.className = `stone-info-marker-tile stone-info-marker-tile--${entry.visualToken}`;
+            markerTile.textContent = entry.visualSymbol;
+            markerTile.setAttribute('aria-hidden', 'true');
+            visual.appendChild(markerTile);
+        }
         if (entry.specialType === 'BREEDING_SPROUT') {
             const sprout = document.createElement('span');
             sprout.className = 'stone-info-list-sprout';
             sprout.textContent = '♧';
             sprout.setAttribute('aria-hidden', 'true');
             visual.appendChild(sprout);
+        }
+        if (entry.subjectKind === 'board-marker' && entry.duration !== null) {
+            const timer = document.createElement('span');
+            timer.className = 'stone-info-list-marker-timer';
+            timer.textContent = String(entry.duration);
+            timer.setAttribute('aria-hidden', 'true');
+            visual.appendChild(timer);
         }
         if (entry.count > 1) {
             const count = document.createElement('span');
@@ -831,12 +1102,111 @@ function renderCurrentStoneInfoPanel(frame: any) {
         button.appendChild(visual);
         button.appendChild(label);
         button.addEventListener('click', () => {
-            showSpecialStoneInfoAt(entry.row, entry.col, { imageUrl: entry.imageUrl });
+            showSpecialStoneInfoAt(entry.row, entry.col, {
+                imageUrl: entry.imageUrl,
+                catalogEntry: entry
+            });
         });
         refs.list.appendChild(button);
     }
     _ensureDetailDismissHandlers();
     return true;
+}
+
+function _buildCatalogStatusBadgesForDiff(detail: any, includeSpecialStone: boolean): string[] {
+    const statusInputs = detail && Array.isArray(detail.statusInputs) ? detail.statusInputs : [];
+    const stoneOverlayInputs = statusInputs.filter((input: any) => (
+        input && (input.type === 'POISONED' || input.type === 'SCORCHED')
+    ));
+    const sharedStatusInputs = statusInputs.filter((input: any) => (
+        !input || (input.type !== 'POISONED' && input.type !== 'SCORCHED')
+    ));
+    const primary = detail && detail.primaryInput
+        ? Object.assign({}, detail.primaryInput, { hasGuard: detail.hasGuard === true })
+        : null;
+    const badges = _buildSpecialStoneStatusTagsForDiff(sharedStatusInputs, {
+        hasGuard: detail && detail.hasGuard === true,
+        primary,
+        livingWillAura: detail && detail.livingWillAura === true,
+        includeSpecialStone
+    });
+    for (const input of stoneOverlayInputs) {
+        const timer = input && input.timer !== null && input.timer !== undefined && Number.isFinite(Number(input.timer))
+            ? Math.max(0, Math.trunc(Number(input.timer)))
+            : null;
+        const label = input.type === 'POISONED' ? '毒状態' : '灼熱カウント';
+        badges.push(timer === null ? label : `${label} 残り${timer}T`);
+    }
+    return badges;
+}
+
+function _resolveCatalogEntryDetailForDiff(entry: any) {
+    const detail = entry && entry.detail ? entry.detail : null;
+    if (!detail) return null;
+    const badges: string[] = [];
+    let info: any = null;
+    let detailBackgroundImage = '';
+    if (detail.subjectKind === 'board-marker') {
+        const snapshot = detail.primaryInput
+            ? _createSpecialStoneStatusSnapshotForDiff(detail.primaryInput, { mode: 'info' })
+            : null;
+        const registryInfo = _getSpecialStoneInfoForDiff(detail.type);
+        info = snapshot
+            ? { name: snapshot.name, desc: snapshot.description }
+            : (registryInfo || { name: String(detail.type || ''), desc: '効果情報は未登録です。' });
+        badges.push('特殊マス');
+        badges.push(..._buildCatalogStatusBadgesForDiff(detail, false));
+        detailBackgroundImage = String(registryInfo && registryInfo.detailBackgroundImage || '').trim();
+    } else if (detail.isSprout) {
+        info = detail.ownerKey === 'white'
+            ? BREEDING_SPROUT_STONE_INFO.white
+            : BREEDING_SPROUT_STONE_INFO.black;
+        badges.push('繁殖生成石');
+    } else if (detail.type) {
+        const snapshot = detail.primaryInput
+            ? _createSpecialStoneStatusSnapshotForDiff(detail.primaryInput, { mode: 'info' })
+            : null;
+        const registryInfo = _getSpecialStoneInfoForDiff(detail.type);
+        info = snapshot
+            ? { name: snapshot.name, desc: snapshot.description }
+            : (registryInfo || { name: String(detail.type), desc: '効果情報は未登録です。' });
+        badges.push(..._buildCatalogStatusBadgesForDiff(detail, true));
+        detailBackgroundImage = String(registryInfo && registryInfo.detailBackgroundImage || '').trim();
+    } else {
+        info = detail.ownerKey === 'white' ? NORMAL_STONE_INFO.white : NORMAL_STONE_INFO.black;
+        badges.push(..._buildCatalogStatusBadgesForDiff(detail, true));
+        badges.push('通常石');
+    }
+    return { info, badges, detailBackgroundImage };
+}
+
+function _renderStoneInfoDetailVisualForDiff(refs: any, entry: any, rawImageUrl: any) {
+    const imageUrl = String(rawImageUrl || '').trim();
+    const isBoardMarker = !!(entry && entry.subjectKind === 'board-marker');
+    const visualToken = String(entry && entry.visualToken || 'board-marker');
+    const visualSymbol = String(entry && entry.visualSymbol || 'マス');
+    refs.image.removeAttribute('src');
+    refs.image.hidden = true;
+    refs.marker.className = 'stone-info-marker-tile';
+    refs.marker.textContent = '';
+    refs.marker.hidden = true;
+
+    let hasVisual = false;
+    if (imageUrl) {
+        refs.image.src = imageUrl;
+        refs.image.hidden = false;
+        hasVisual = true;
+    } else if (isBoardMarker) {
+        refs.marker.classList.add(
+            `stone-info-marker-tile--${visualToken}`,
+            'stone-info-marker-tile--detail'
+        );
+        refs.marker.textContent = visualSymbol;
+        refs.marker.hidden = false;
+        hasVisual = true;
+    }
+    refs.visual.hidden = !hasVisual;
+    refs.content.classList.toggle('has-visual', hasVisual);
 }
 
 function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
@@ -845,12 +1215,21 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
         if (_isStoneInfoDetailPanelVisible()) _hideStoneInfoDetailPanel();
         return false;
     };
-    const entries = _getMarkerEntriesAt(row, col);
-    const entry = entries.find((one) => !_isOverlayOnlyMarkerEntryForDiff(one)) || null;
+    const catalogEntry = options && options.catalogEntry ? options.catalogEntry : null;
+    const entries = catalogEntry ? [] : _getMarkerEntriesAt(row, col);
+    const entry = catalogEntry
+        ? null
+        : (entries.find((one) => !_isOverlayOnlyMarkerEntryForDiff(one)) || null);
     let info: any = null;
     let detailBackgroundImage = '';
     const badges = [];
-    if (entry) {
+    if (catalogEntry) {
+        const resolved = _resolveCatalogEntryDetailForDiff(catalogEntry);
+        if (!resolved || !resolved.info) return keepOrHideEmpty();
+        info = resolved.info;
+        detailBackgroundImage = resolved.detailBackgroundImage;
+        badges.push(...resolved.badges);
+    } else if (entry) {
         const type = _getEntryType(entry);
         if (!type) {
             return keepOrHideEmpty();
@@ -890,14 +1269,11 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     refs.name.textContent = info.name;
     _renderDiffTermText(refs.desc, info.desc);
     _renderStoneInfoMetaBadges(refs.meta, badges);
-    const imageUrl = String(options && options.imageUrl || '').trim();
-    if (imageUrl) {
-        refs.image.src = imageUrl;
-        refs.image.hidden = false;
-    } else {
-        refs.image.removeAttribute('src');
-        refs.image.hidden = true;
-    }
+    _renderStoneInfoDetailVisualForDiff(
+        refs,
+        catalogEntry,
+        options && options.imageUrl
+    );
     if (detailBackgroundImage) {
         let resolvedBackground = detailBackgroundImage;
         try {
