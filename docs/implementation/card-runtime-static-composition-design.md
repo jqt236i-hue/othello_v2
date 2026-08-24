@@ -751,7 +751,7 @@ Rollback は coherent phase commit 単位で行い、一 action の途中で旧 
 
 - classic partial-load compatibility は normal production entry と historical-only fallback を Gate A/B inventory で分類し、actual classic entry/reload proof 後に transitional fixture wiring を削除した。
 - public network / preview / CPU failure mapping は Gate B で固定した。正常系の wire schema は変えず、canonical branded failure だけを terminal integrity recovery へ分岐し、untagged exception の既存 fallback/default/propagation は維持した。
-- clean clone の hermetic `checkall` は Gate A の3 prerequisite commitsで修復・実証した。最終 task revision も commit 後に fresh-clone proof を実行して plan execution recordへ追記する。
+- clean clone の hermetic `checkall` は Gate A の3 prerequisite commitsで修復・実証した。最終 runtime revision `e101a8e29` も別の一時cloneで `npm ci && npm run checkall` を完走し、手元の生成物へ依存しないことを確認した。
 - final full Jest は 1,033 suites / 7,877 tests を 903.341秒で完走した。Jest project構成自体はscope外のまま変更していない。
 
 これらは source cutover 前の Gate A/B で解消した。classifier-only cancellation compatibility と lane-specific optional presentation は characterization 結果どおり保持し、推測で削除していない。

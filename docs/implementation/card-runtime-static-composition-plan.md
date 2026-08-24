@@ -1,6 +1,6 @@
 # Card / turn runtime static composition convergence implementation plan
 
-- Status: implementation, final verification, and independent post-implementation review completed; final commit and fresh-clone proof pending
+- Status: completed; implementation, final verification, independent post-implementation review, commits, and fresh-clone proof are finished
 - Date: 2026-08-24
 - Design authority: `docs/implementation/card-runtime-static-composition-design.md`
 - Document role: reviewed design を、挙動不変・green-to-green・coherent commit 単位で実装するための実行計画
@@ -1046,7 +1046,7 @@ The executor must replace `not run` with exact result, date, revision, duration,
 
 | Gate | Baseline | After relevant phase | Final |
 | --- | --- | --- | --- |
-| Fresh clone `npm ci && npm run checkall` | PASS 2026-08-24, Gate A ending at `17e04827f`; duration not retained | not run | Gate A proof retained; final task revision fresh-clone rerun pending final commit |
+| Fresh clone `npm ci && npm run checkall` | PASS 2026-08-24, Gate A ending at `17e04827f`; duration not retained | not run | PASS 2026-08-24 from committed runtime revision `e101a8e29`, about 228.6s including clone/install/check; temporary clone removed. `npm ci` reported the existing lockfile audit warning: 4 vulnerabilities (1 moderate, 3 high); no dependency was added by this refactor |
 | `npm run typecheck` | PASS 2026-08-24, Gate A | PASS inside each Gate B build | PASS 2026-08-24, direct run and repeated by final build gates |
 | `npm run build:ts` | PASS 2026-08-24, Gate A | PASS 2026-08-24 in dist/Worker gates | PASS 2026-08-24 in dist parity, Worker smoke, browser delivery, and Worker prepare |
 | `npm run check:window` | PASS 2026-08-24, Gate A | no product source changed in Gate B | PASS 2026-08-24; canonical `game/` has no forbidden `window` / `globalThis` property access |
@@ -1071,7 +1071,7 @@ The executor must replace `not run` with exact result, date, revision, duration,
 | Vite/Pixi browser scenario | n/a | actual built Vite card-runtime fixture PASS; full gameplay not run | PASS 2026-08-24 at `http://127.0.0.1:8000/?debug=1&noanim=1`; production Vite/Pixi, one canvas/no compatibility cells, human legal move plus CPU response to ROUND 2, black/white 3/3, reload-required absent, zero console errors; delivery reload parity and Pixi input/context-recovery E2E also PASS |
 | Classic/Pixi browser scenario | n/a | actual built classic card-runtime fixture PASS; full gameplay not run | PASS 2026-08-24 at `http://127.0.0.1:8000/index.classic.html?noanim=1`; production classic/Pixi, one canvas/no compatibility cells, initial ROUND 1 black/white 2/2, reload-required absent, zero console errors; delivery reload parity and DOM/Pixi input E2E also PASS |
 | Fixed-seed small selfplay | not run | PASS source + built dist, seed 31 / 2 plies, digest `c033…aa9c` | PASS 2026-08-24 in source/built dist; seed 31, 2 plies, digest `c033…aa9c` |
-| Final `git diff --check` / status / diff review | not run | n/a | PASS 2026-08-24; no whitespace errors (Git reported expected CRLF-to-LF normalization notices), 194 tracked task files plus reviewed task-owned additions/generated replacement, player-facing specs untouched; unrelated untracked `.codex/config.toml` excluded |
+| Final `git diff --check` / status / diff review | not run | n/a | PASS 2026-08-24 after whitespace cleanup; 230 task-owned files in the implementation commit, player-facing specs untouched; unrelated untracked `.codex/config.toml` excluded |
 
 Do not convert an unrun gate to “not applicable” without design-authority justification. If a gate is blocked, record the exact blocker and affected completion claim.
 
@@ -1141,7 +1141,7 @@ Do not convert an unrun gate to “not applicable” without design-authority ju
 - [x] Focused、network parity、Worker bundle、full Jest、browser、small selfplay gates are recorded.
 - [x] Independent reviewers' findings are resolved.
 - [x] Final task-owned diff and `git status --short` are inspected.
-- [ ] Task-owned changes are committed without unrelated files.
+- [x] Task-owned changes are committed without unrelated files.
 
 ## 17. Plan self-review and revisions
 
@@ -1181,6 +1181,8 @@ The plan was reviewed against the design, current source, existing completed ref
 ## 18. Execution record (2026-08-24)
 
 Gate A was completed in prerequisite commits `bed4bb3fe`, `ecb65e1f3`, and `17e04827f`. Gate B characterization was then completed before product cutover. The product implementation followed the planned green-to-green order, with these reviewed deviations from the provisional file map:
+
+The verified implementation was committed as `f0ace41b2`; whitespace-only cleanup was committed as `e101a8e29`. A fresh clone of `e101a8e29` completed `npm ci && npm run checkall`, after which the temporary clone was removed. The only remaining working-tree item is the unrelated pre-existing untracked `.codex/config.toml`, which was not staged or edited.
 
 - the stable facade remains `game/logic/cards.ts`; a separate `cards-legacy-facade.ts` was unnecessary because the existing entry can delegate directly without owning a second body;
 - UI and CPU tagged-failure handling stays at the closest existing query/turn boundaries plus one shared UI integrity latch, rather than adding parallel preview/AI adapter frameworks;
