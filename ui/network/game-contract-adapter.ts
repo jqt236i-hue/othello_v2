@@ -2,6 +2,8 @@
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+import CardDefinitions = require('../../game/logic/cards/defs');
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
@@ -56,7 +58,7 @@ function createNetworkGameContractAdapter(options?: NetworkGameContractAdapterOp
 
   function getCardLogicModule(): any {
     if (typeof cardLogicModule !== 'undefined') return cardLogicModule || null;
-    cardLogicModule = resolveModule(root, opts.moduleResolver, '../../game/logic/cards', 'CardLogic');
+    cardLogicModule = root && root.CardLogic ? root.CardLogic : null;
     return cardLogicModule || null;
   }
 
@@ -75,9 +77,19 @@ function createNetworkGameContractAdapter(options?: NetworkGameContractAdapterOp
   function resolveCardTypeForId(cardId: any): string | null {
     if (!cardId) return null;
     const cardLogic = getCardLogicModule();
-    if (!cardLogic || typeof cardLogic.getCardDef !== 'function') return null;
-    const def = cardLogic.getCardDef(cardId);
-    return def && def.type ? String(def.type) : null;
+    if (cardLogic && typeof cardLogic.getCardDef === 'function') {
+      const def = cardLogic.getCardDef(cardId);
+      if (def && def.type) return String(def.type);
+    }
+    if (CardDefinitions && typeof CardDefinitions.getCardType === 'function') {
+      const cardType = CardDefinitions.getCardType(String(cardId));
+      if (cardType) return String(cardType);
+    }
+    if (CardDefinitions && typeof CardDefinitions.getCardDef === 'function') {
+      const def = CardDefinitions.getCardDef(String(cardId));
+      if (def && def.type) return String(def.type);
+    }
+    return null;
   }
 
   function getPendingSelectionContract(cardType: any): any {

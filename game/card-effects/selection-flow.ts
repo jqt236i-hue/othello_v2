@@ -432,6 +432,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function publishPendingSelectionSnapshot(meta: any) {
         const payload = (meta && typeof meta === 'object') ? meta : {};
+        const isIntegrityBlocked = readSignalBridgeMethod('isCardRuntimeIntegrityBlocked');
+        if (isIntegrityBlocked) {
+            try {
+                if (isIntegrityBlocked() === true) {
+                    return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+                }
+            } catch (_error) {
+                return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+            }
+        }
         const publishSnapshotViaBridge = readSignalBridgeMethod('publishSnapshot');
         if (publishSnapshotViaBridge) {
             try {
@@ -439,6 +449,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             } catch (e) { /* ignore */ }
         }
         return undefined;
+    }
+
+    function isCardRuntimeIntegrityBlocked() {
+        const checker = readSignalBridgeMethod('isCardRuntimeIntegrityBlocked');
+        if (!checker) return false;
+        try {
+            return checker() === true;
+        } catch (_error) {
+            return true;
+        }
     }
 
     function setSelectionProcessing(nextValue: any) {
@@ -719,6 +739,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (!scheduleCpuTurn || !processCpuTurn) return false;
         const tid = scheduleCpuTurn(safeDelay, () => {
             try {
+                if (isCardRuntimeIntegrityBlocked()) {
+                    setSelectionProcessing(false);
+                    setSelectionCardAnimating(false);
+                    return;
+                }
                 const gameStateRef = resolveCurrentGameState();
                 const currentPlayer = gameStateRef ? gameStateRef.currentPlayer : null;
                 const currentTurnNumber = (gameStateRef && Number.isFinite(Number(gameStateRef.turnNumber))) ? Number(gameStateRef.turnNumber) : null;
@@ -732,6 +757,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     return;
                 }
                 setSelectionProcessing(false);
+                if (isCardRuntimeIntegrityBlocked()) {
+                    setSelectionCardAnimating(false);
+                    return;
+                }
                 processCpuTurn();
             } catch (e) {
                 setSelectionProcessing(false);
@@ -816,13 +845,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             setSelectionProcessing,
             setSelectionCardAnimating,
             setSelectionBusy,
+            isCardRuntimeIntegrityBlocked,
             publishPendingSelectionSnapshot,
             scheduleWhiteCpuTurn,
             waitForPlaybackViaBridge: async (playbackEvents: any) => {
                 const waitForPlaybackViaBridge = readSignalBridgeMethod('waitForPlaybackIdle');
                 if (typeof waitForPlaybackViaBridge !== 'function') return;
                 await waitForPlaybackViaBridge(playbackEvents);
-            }
+            },
+            waitForAuthoritativeVisualSettlement
         });
     }
 
@@ -1133,6 +1164,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             resolveRootFunction,
             finalizePendingSelectionFlow,
             clearPendingSelectionFailureState,
+            isCardRuntimeIntegrityBlocked,
             waitForSelectionPlaybackIdle,
             waitForAuthoritativeVisualSettlement
         };

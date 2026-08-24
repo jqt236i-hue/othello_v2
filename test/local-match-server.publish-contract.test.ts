@@ -3,7 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as Core from '../game/logic/core.js';
 import * as CardLogic from '../game/logic/cards.js';
+import { createCardRuntimeUnavailableError } from '../game/logic/card-runtime-errors';
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
+
+const MutableCardLogic: any = require('../dist/game/logic/cards');
 
 function requestJson(port, method, path, payload) {
   return new Promise((resolve, reject) => {
@@ -136,6 +139,53 @@ function createFinalDoublePlaceBoard() {
 describe('local match server publish contract', () => {
   afterEach(() => {
     resetRoomsForTests();
+  });
+
+  test('AUTO runtime failure is rejected over HTTP without changing authority state', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const originalHasUsableCard = MutableCardLogic.hasUsableCard;
+
+    try {
+      const created: any = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      let roomRef: any = null;
+      expect(patchRoomSnapshotForTests(created.data.roomId, (room) => {
+        room.networkAutoEnabled = true;
+        roomRef = room;
+      })).toBe(true);
+      const before = JSON.stringify(roomRef);
+      const unavailable = createCardRuntimeUnavailableError('state.availability', 'state');
+      let hasUsableCardCalls = 0;
+      MutableCardLogic.hasUsableCard = () => {
+        hasUsableCardCalls += 1;
+        throw unavailable;
+      };
+
+      const response: any = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId: created.data.roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        actor: 'black',
+        seatToken: created.data.seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_local_http_runtime_auto_failure_1',
+        actionType: 'auto_turn',
+        turnIndex: created.data.snapshot.cardState.turnIndex,
+        action: { type: 'auto_turn' }
+      });
+
+      expect(hasUsableCardCalls).toBeGreaterThan(0);
+      expect(response.status).toBe(409);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: false,
+        rejectedReason: 'RUNTIME_UNAVAILABLE',
+        stateVersion: created.data.stateVersion
+      }));
+      expect(JSON.stringify(roomRef)).toBe(before);
+    } finally {
+      MutableCardLogic.hasUsableCard = originalHasUsableCard;
+      await closeServer(server);
+    }
   });
 
   test('state response recovers buffered playback for current state version', async () => {

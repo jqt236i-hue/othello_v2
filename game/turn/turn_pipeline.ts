@@ -5,18 +5,12 @@
 
 'use strict';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-const CardLogic = _require('../logic/cards');
-const Core = _require('../logic/core');
-const TurnPipelinePhases = _require('./turn_pipeline_phases');
-const BoardOps = _require('../logic/board_ops');
-const SubPlacementContinuation = _require('./sub-placement-continuation');
-const TurnPipelineFactory = _require('./turn_pipeline_factory');
+import CardLogic = require('../logic/cards');
+import Core = require('../logic/core');
+import TurnPipelinePhases = require('./turn_pipeline_phases');
+import BoardOps = require('../logic/board_ops');
+import SubPlacementContinuation = require('./sub-placement-continuation');
+import TurnPipelineFactory = require('./turn_pipeline_factory');
 
 const pipeline = TurnPipelineFactory.createTurnPipelineModule({
   CardLogic,

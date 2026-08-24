@@ -32,8 +32,60 @@ interface SelectionPendingExecutionDeps {
     resolveRootFunction: (name: any) => any;
     finalizePendingSelectionFlow: (options: any) => Promise<any>;
     clearPendingSelectionFailureState: (cardStateValue: any, playerKey: any, options: any) => any;
+    isCardRuntimeIntegrityBlocked?: () => boolean;
     waitForSelectionPlaybackIdle?: (playbackEvents: any, options?: any) => Promise<any>;
     waitForAuthoritativeVisualSettlement?: (publishResult: any) => Promise<any>;
+}
+
+function isSelectionExecutionIntegrityBlocked(deps: SelectionPendingExecutionDeps): boolean {
+    if (!deps || typeof deps.isCardRuntimeIntegrityBlocked !== 'function') return false;
+    try {
+        return deps.isCardRuntimeIntegrityBlocked() === true;
+    } catch (_error) {
+        return true;
+    }
+}
+
+function isRuntimeUnavailableResult(result: any): boolean {
+    if (!result || typeof result !== 'object') return false;
+    const reason = String(result.reason || result.rejectedReason || '').trim().toUpperCase();
+    return reason === 'RUNTIME_UNAVAILABLE';
+}
+
+function invokeSelectionRecoveryEnsure(deps: SelectionPendingExecutionDeps): {
+    integrityBlocked: boolean;
+    threw: boolean;
+    error?: unknown;
+} {
+    let caughtError: unknown;
+    let threw = false;
+    try {
+        const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
+        if (typeof ensureFn === 'function') {
+            ensureFn({ useBlackDelay: true });
+        }
+    } catch (error) {
+        threw = true;
+        caughtError = error;
+    }
+    return {
+        integrityBlocked: isSelectionExecutionIntegrityBlocked(deps),
+        threw,
+        ...(threw ? { error: caughtError } : {})
+    };
+}
+
+function buildSelectionRuntimeUnavailableResult(
+    deps: SelectionPendingExecutionDeps,
+    result?: any
+): any {
+    try { deps.setSelectionProcessing(false); } catch (_error) { /* best-effort lock settlement */ }
+    try { deps.setSelectionCardAnimating(false); } catch (_error) { /* best-effort lock settlement */ }
+    return {
+        ok: false,
+        reason: 'runtime_unavailable',
+        result: result || { ok: false, reason: 'RUNTIME_UNAVAILABLE' }
+    };
 }
 
 async function waitForAuthoritativeNetworkSelectionPlayback(
@@ -48,14 +100,44 @@ async function waitForAuthoritativeNetworkSelectionPlayback(
         return { ok: true, reason: 'playback_wait_not_required' };
     }
     if (typeof deps.waitForAuthoritativeVisualSettlement === 'function') {
-        const exactResult = await deps.waitForAuthoritativeVisualSettlement(publishResult);
-        if (exactResult && typeof exactResult === 'object') return exactResult;
+        let exactFailure: any = null;
+        try {
+            const exactResult = await deps.waitForAuthoritativeVisualSettlement(publishResult);
+            if (exactResult && typeof exactResult === 'object' && exactResult.ok === true) {
+                return exactResult;
+            }
+            if (exactResult && typeof exactResult === 'object') {
+                exactFailure = exactResult;
+            }
+        } catch (error) {
+            exactFailure = { ok: false, reason: 'authoritative_visual_settlement_rejected', error };
+        }
+        if (exactFailure && !isSelectionExecutionIntegrityBlocked(deps)) {
+            return exactFailure;
+        }
     }
     if (typeof deps.waitForSelectionPlaybackIdle !== 'function') {
         return { ok: false, reason: 'visual_settlement_wait_unavailable' };
     }
-    await deps.waitForSelectionPlaybackIdle([], { force: true });
+    await deps.waitForSelectionPlaybackIdle([], { force: true, authorityAccepted: true });
     return { ok: true, reason: 'legacy_playback_wait' };
+}
+
+async function drainAcceptedSelectionPlaybackAfterLateIntegrityLatch(
+    settlementResult: any,
+    deps: SelectionPendingExecutionDeps
+): Promise<void> {
+    if (settlementResult && typeof settlementResult === 'object' && settlementResult.ok === true) return;
+    if (typeof deps.waitForSelectionPlaybackIdle !== 'function') return;
+    try {
+        await deps.waitForSelectionPlaybackIdle([], {
+            force: true,
+            authorityAccepted: true
+        });
+    } catch (_error) {
+        // The runtime is already terminal. This is a best-effort drain of an
+        // authority-accepted visual sequence before releasing local locks.
+    }
 }
 
 function buildPendingTypeAllowList(options: any, fallbackPendingType: any, deps: SelectionPendingExecutionDeps) {
@@ -171,6 +253,9 @@ function preservePendingSelectionIdentity(nextPending: any, previousPending: any
 
 async function executePendingSelectionCore(options: any, deps: SelectionPendingExecutionDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
+    if (isSelectionExecutionIntegrityBlocked(deps)) {
+        return buildSelectionRuntimeUnavailableResult(deps);
+    }
     const row = Number(opts.row);
     const col = Number(opts.col);
     const playerKey = deps.normalizeSelectionPlayerKey(opts.playerKey);
@@ -217,7 +302,20 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
     let shouldClearPendingEffectOnExit = false;
     let pendingFailureReason = null;
     let shouldRequestPostNetworkPublishRender = false;
+    let shouldClearPendingActionAfterNetworkRender = false;
     let shouldReleaseSelectionLockBeforeFinalize = false;
+    let integrityFinalizeFailed = false;
+    let uncommittedIntermediatePreviewRollback: { cardState: any; gameState: any } | null = null;
+    let intermediatePreviewRolledBack = false;
+
+    function rollbackUncommittedIntermediatePreview() {
+        if (!uncommittedIntermediatePreviewRollback || intermediatePreviewRolledBack) return;
+        intermediatePreviewRolledBack = true;
+        deps.applySelectionStateResult({
+            nextCardState: uncommittedIntermediatePreviewRollback.cardState,
+            nextGameState: uncommittedIntermediatePreviewRollback.gameState
+        }, stateRefs);
+    }
 
     function markPendingActionFailure(reason: any) {
         if (!pendingAction || typeof pendingAction !== 'object') return;
@@ -243,6 +341,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
 
         if (typeof opts.beforeRun === 'function') {
             const beforeRunResult = await opts.beforeRun(baseContext);
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                return buildSelectionRuntimeUnavailableResult(deps);
+            }
             if (beforeRunResult === false) {
                 return { ok: false, reason: 'before_run_rejected' };
             }
@@ -251,6 +352,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
         const actionPayload = (typeof opts.buildActionPayload === 'function')
             ? (await opts.buildActionPayload(baseContext))
             : Object.assign({}, opts.actionPayload || {});
+        if (isSelectionExecutionIntegrityBlocked(deps)) {
+            return buildSelectionRuntimeUnavailableResult(deps);
+        }
         const normalizedActionPayload = (actionPayload && typeof actionPayload === 'object')
             ? actionPayload
             : {};
@@ -273,11 +377,17 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 playbackEvents: []
             }));
             if (!publishResult || publishResult.ok !== true) {
-                markPendingActionFailure('network_publish_failed');
-                const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                if (typeof ensureFn === 'function') {
-                    ensureFn({ useBlackDelay: true });
+                if (isSelectionExecutionIntegrityBlocked(deps) || isRuntimeUnavailableResult(publishResult)) {
+                    return buildSelectionRuntimeUnavailableResult(deps, publishResult);
                 }
+                markPendingActionFailure('network_publish_failed');
+                const ensureOutcome = invokeSelectionRecoveryEnsure(deps);
+                if (ensureOutcome.integrityBlocked) {
+                    shouldClearPendingActionOnExit = false;
+                    pendingFailureReason = null;
+                    return buildSelectionRuntimeUnavailableResult(deps);
+                }
+                if (ensureOutcome.threw) throw ensureOutcome.error;
                 return {
                     ok: false,
                     reason: 'network_publish_failed',
@@ -285,12 +395,28 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 };
             }
             const settlementResult = await waitForAuthoritativeNetworkSelectionPlayback(contract, publishResult, deps);
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                await drainAcceptedSelectionPlaybackAfterLateIntegrityLatch(settlementResult, deps);
+                return buildSelectionRuntimeUnavailableResult(deps, publishResult);
+            }
             if (!settlementResult || settlementResult.ok !== true) {
                 return {
                     ok: false,
                     reason: 'visual_settlement_failed',
                     result: publishResult
                 };
+            }
+            const authoritativeState = deps.resolveAuthoritativeSelectionState();
+            const shouldRetainPendingAction = deps.shouldRetainPendingSelectionAction(
+                authoritativeState.cardState || stateRefs.cardState,
+                playerKey,
+                resolvedPendingType
+            );
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                return buildSelectionRuntimeUnavailableResult(deps, publishResult);
+            }
+            if (!shouldRetainPendingAction) {
+                deps.clearPendingSelectionAction(playerKey);
             }
             return {
                 ok: true,
@@ -318,6 +444,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 context: baseContext,
                 validateResult: opts.validateResult
             }, deps);
+            if (isSelectionExecutionIntegrityBlocked(deps) || isRuntimeUnavailableResult(preview && preview.result)) {
+                return buildSelectionRuntimeUnavailableResult(deps, preview && preview.result);
+            }
             if (!preview.ok) {
                 markPendingActionFailure('selection_not_applied');
                 deps.emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
@@ -344,11 +473,17 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     playbackEvents: []
                 }));
                 if (!publishResult || publishResult.ok !== true) {
-                    markPendingActionFailure('network_publish_failed');
-                    const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                    if (typeof ensureFn === 'function') {
-                        ensureFn({ useBlackDelay: true });
+                    if (isSelectionExecutionIntegrityBlocked(deps) || isRuntimeUnavailableResult(publishResult)) {
+                        return buildSelectionRuntimeUnavailableResult(deps, publishResult);
                     }
+                    markPendingActionFailure('network_publish_failed');
+                    const ensureOutcome = invokeSelectionRecoveryEnsure(deps);
+                    if (ensureOutcome.integrityBlocked) {
+                        shouldClearPendingActionOnExit = false;
+                        pendingFailureReason = null;
+                        return buildSelectionRuntimeUnavailableResult(deps);
+                    }
+                    if (ensureOutcome.threw) throw ensureOutcome.error;
                     return {
                         ok: false,
                         reason: 'network_publish_failed',
@@ -356,6 +491,10 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     };
                 }
                 const settlementResult = await waitForAuthoritativeNetworkSelectionPlayback(contract, publishResult, deps);
+                if (isSelectionExecutionIntegrityBlocked(deps)) {
+                    await drainAcceptedSelectionPlaybackAfterLateIntegrityLatch(settlementResult, deps);
+                    return buildSelectionRuntimeUnavailableResult(deps, publishResult);
+                }
                 if (!settlementResult || settlementResult.ok !== true) {
                     return {
                         ok: false,
@@ -366,7 +505,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
 
                 const authoritativeState = deps.resolveAuthoritativeSelectionState();
                 if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
-                    deps.clearPendingSelectionAction(playerKey);
+                    shouldClearPendingActionAfterNetworkRender = true;
                 }
                 shouldRequestPostNetworkPublishRender = true;
 
@@ -382,6 +521,10 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 };
             }
 
+            uncommittedIntermediatePreviewRollback = {
+                cardState: deps.cloneData(stateRefs.cardState),
+                gameState: deps.cloneData(stateRefs.gameState)
+            };
             executionResult = preview.result;
             appliedSelection = preview.appliedSelection;
             const appliedState = deps.applySelectionStateResult(executionResult, stateRefs) || stateRefs;
@@ -411,17 +554,28 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 deps.emitSelectionStateChangeSignals(playbackEvents);
             }
 
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                rollbackUncommittedIntermediatePreview();
+                return buildSelectionRuntimeUnavailableResult(deps);
+            }
+
             if (typeof opts.afterStateChange === 'function') {
                 await opts.afterStateChange(liveContext);
+                if (isSelectionExecutionIntegrityBlocked(deps)) {
+                    rollbackUncommittedIntermediatePreview();
+                    return buildSelectionRuntimeUnavailableResult(deps);
+                }
             }
 
             skipFinalizeNetworkPublish = true;
             shouldFinalize = contract.turnOutcome === 'end_turn' ? false : true;
             if (contract.turnOutcome === 'end_turn') {
-                const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                if (typeof ensureFn === 'function') {
-                    ensureFn({ useBlackDelay: true });
+                const ensureOutcome = invokeSelectionRecoveryEnsure(deps);
+                if (ensureOutcome.integrityBlocked) {
+                    rollbackUncommittedIntermediatePreview();
+                    return buildSelectionRuntimeUnavailableResult(deps);
                 }
+                if (ensureOutcome.threw) throw ensureOutcome.error;
             }
             return {
                 ok: true,
@@ -443,6 +597,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 context: baseContext,
                 validateResult: opts.validateResult
             }, deps);
+            if (isSelectionExecutionIntegrityBlocked(deps) || isRuntimeUnavailableResult(preview && preview.result)) {
+                return buildSelectionRuntimeUnavailableResult(deps, preview && preview.result);
+            }
             if (!preview.ok) {
                 markPendingActionFailure('selection_not_applied');
                 deps.emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
@@ -475,8 +632,23 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 deps.emitSelectionStateChangeSignals([]);
             }
 
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                deps.applySelectionStateResult({
+                    nextCardState: rollbackCardState,
+                    nextGameState: rollbackGameState
+                }, stateRefs);
+                return buildSelectionRuntimeUnavailableResult(deps);
+            }
+
             if (typeof opts.afterStateChange === 'function') {
                 await opts.afterStateChange(liveContext);
+                if (isSelectionExecutionIntegrityBlocked(deps)) {
+                    deps.applySelectionStateResult({
+                        nextCardState: rollbackCardState,
+                        nextGameState: rollbackGameState
+                    }, stateRefs);
+                    return buildSelectionRuntimeUnavailableResult(deps);
+                }
             }
 
             const publishResult = await Promise.resolve(deps.publishPendingSelectionSnapshot({
@@ -493,11 +665,17 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 if (opts.emitStateChanges !== false) {
                     deps.emitSelectionStateChangeSignals([]);
                 }
-                markPendingActionFailure('network_publish_failed');
-                const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                if (typeof ensureFn === 'function') {
-                    ensureFn({ useBlackDelay: true });
+                if (isSelectionExecutionIntegrityBlocked(deps) || isRuntimeUnavailableResult(publishResult)) {
+                    return buildSelectionRuntimeUnavailableResult(deps, publishResult);
                 }
+                markPendingActionFailure('network_publish_failed');
+                const ensureOutcome = invokeSelectionRecoveryEnsure(deps);
+                if (ensureOutcome.integrityBlocked) {
+                    shouldClearPendingActionOnExit = false;
+                    pendingFailureReason = null;
+                    return buildSelectionRuntimeUnavailableResult(deps);
+                }
+                if (ensureOutcome.threw) throw ensureOutcome.error;
                 return {
                     ok: false,
                     reason: 'network_publish_failed',
@@ -505,6 +683,10 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 };
             }
             const settlementResult = await waitForAuthoritativeNetworkSelectionPlayback(contract, publishResult, deps);
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                await drainAcceptedSelectionPlaybackAfterLateIntegrityLatch(settlementResult, deps);
+                return buildSelectionRuntimeUnavailableResult(deps, publishResult);
+            }
             if (!settlementResult || settlementResult.ok !== true) {
                 return {
                     ok: false,
@@ -515,7 +697,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
 
             const authoritativeState = deps.resolveAuthoritativeSelectionState();
             if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
-                deps.clearPendingSelectionAction(playerKey);
+                shouldClearPendingActionAfterNetworkRender = true;
             }
             shouldRequestPostNetworkPublishRender = true;
 
@@ -538,6 +720,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             : null;
 
         if (!executionResult || executionResult.ok === false) {
+            if (isSelectionExecutionIntegrityBlocked(deps) || isRuntimeUnavailableResult(executionResult)) {
+                return buildSelectionRuntimeUnavailableResult(deps, executionResult);
+            }
             markPendingActionFailure('selection_rejected');
             deps.emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                 action: pendingAction,
@@ -556,6 +741,9 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                 result: executionResult
             })))
             : true;
+        if (isSelectionExecutionIntegrityBlocked(deps)) {
+            return buildSelectionRuntimeUnavailableResult(deps);
+        }
 
         if (!appliedSelection) {
             markPendingActionFailure('selection_not_applied');
@@ -599,8 +787,15 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             deps.emitSelectionStateChangeSignals(playbackEvents);
         }
 
+        if (isSelectionExecutionIntegrityBlocked(deps)) {
+            return buildSelectionRuntimeUnavailableResult(deps);
+        }
+
         if (typeof opts.afterStateChange === 'function') {
             await opts.afterStateChange(liveContext);
+            if (isSelectionExecutionIntegrityBlocked(deps)) {
+                return buildSelectionRuntimeUnavailableResult(deps);
+            }
         }
 
         shouldFinalize = true;
@@ -632,13 +827,27 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     skipNetworkPublish: skipFinalizeNetworkPublish,
                     clearCardAnimatingOnFinish: true
                 }, (opts.finalizeOptions && typeof opts.finalizeOptions === 'object') ? opts.finalizeOptions : {});
+                const configuredRuntimeUnavailableCallback = typeof finalizeOptions.onRuntimeUnavailable === 'function'
+                    ? finalizeOptions.onRuntimeUnavailable
+                    : null;
+                finalizeOptions.onRuntimeUnavailable = (result: any) => {
+                    integrityFinalizeFailed = true;
+                    if (configuredRuntimeUnavailableCallback) {
+                        try { configuredRuntimeUnavailableCallback(result); } catch (_error) { /* fail-closed state remains authoritative */ }
+                    }
+                };
                 await deps.finalizePendingSelectionFlow(finalizeOptions);
+                if (isSelectionExecutionIntegrityBlocked(deps)) {
+                    integrityFinalizeFailed = true;
+                }
             } catch (e) {
                 deps.setSelectionProcessing(false);
                 deps.setSelectionCardAnimating(false);
-                const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                if (typeof ensureFn === 'function') {
-                    try { ensureFn({ useBlackDelay: true }); } catch (ignore) { /* ignore */ }
+                if (isSelectionExecutionIntegrityBlocked(deps)) {
+                    integrityFinalizeFailed = true;
+                } else {
+                    const ensureOutcome = invokeSelectionRecoveryEnsure(deps);
+                    if (ensureOutcome.integrityBlocked) integrityFinalizeFailed = true;
                 }
             }
         } else {
@@ -652,10 +861,29 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
             deps.setSelectionProcessing(false);
             deps.setSelectionCardAnimating(false);
             if (shouldRequestPostNetworkPublishRender && typeof opts.defaultSelectionHandoffRender === 'function') {
-                try { await opts.defaultSelectionHandoffRender(); } catch (e) { /* ignore */ }
+                if (isSelectionExecutionIntegrityBlocked(deps)) {
+                    integrityFinalizeFailed = true;
+                } else {
+                    try { await opts.defaultSelectionHandoffRender(); } catch (e) { /* ignore */ }
+                    if (isSelectionExecutionIntegrityBlocked(deps)) {
+                        integrityFinalizeFailed = true;
+                    }
+                }
+            }
+            if (!integrityFinalizeFailed && isSelectionExecutionIntegrityBlocked(deps)) {
+                integrityFinalizeFailed = true;
+            }
+            if (!integrityFinalizeFailed && shouldClearPendingActionAfterNetworkRender) {
+                deps.clearPendingSelectionAction(playerKey);
             }
         }
+        if (integrityFinalizeFailed) {
+            rollbackUncommittedIntermediatePreview();
+        }
         releaseSelectionSettlementLock();
+        if (integrityFinalizeFailed) {
+            return buildSelectionRuntimeUnavailableResult(deps);
+        }
     }
 }
 

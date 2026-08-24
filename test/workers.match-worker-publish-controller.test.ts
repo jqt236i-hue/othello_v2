@@ -215,6 +215,86 @@ describe('match worker publish controller', () => {
     expect(room.snapshot.cardState.chargeDeltaEvents).toEqual([]);
     expect(room.authoritativeStateHash).toBe(computeHashIgnoringChargeDelta(room.snapshot));
   });
+
+  test('runtime-unavailable rejection restores pre-command housekeeping and performs no authority side effect', async () => {
+    const room: any = {
+      roomId: 'ROOM_FAILURE',
+      stateVersion: 0,
+      seats: { black: true, white: false },
+      seatTokens: { black: 'token_black', white: '' },
+      snapshot: {
+        gameState: { currentPlayer: 1, turnNumber: 1 },
+        cardState: { pendingEffectByPlayer: { black: null, white: null } }
+      }
+    };
+    const before = JSON.stringify(room);
+    const appendAuthorityLog = jest.fn();
+    const saveRoom = jest.fn(async () => undefined);
+    const broadcastSnapshot = jest.fn(async () => undefined);
+    const controller = createMatchWorkerPublishController({
+      loadRoom: async () => undefined,
+      getRoom: () => room,
+      applyExpiredTurnTimeoutIfNeeded: async () => ({ applied: false }),
+      normalizePlayerKey: (value: any) => (value === 'white' ? 'white' : 'black'),
+      normalizeOperationId: (value: any) => String(value || '').trim(),
+      isNetworkDebugFillHandPayload: () => false,
+      resolveAuthenticatedSeatKey: (_room: any, seatKey: any) => seatKey,
+      ensureAcceptedOperationsBySeat: (currentRoom: any) => {
+        currentRoom.lastAcceptedOperationBySeat = { black: null, white: null };
+        return currentRoom.lastAcceptedOperationBySeat;
+      },
+      MatchAuthority: {
+        computeAuthoritativeStateHash: () => 'computed-before-command',
+        buildPublishResponseOptions: (options: any) => options,
+        hasRequiredOperationId: () => true,
+        resolveAcceptedOperation: (currentRoom: any) => {
+          currentRoom.acceptedOperationHistoryBySeat = { black: [], white: [] };
+          return null;
+        },
+        buildVersionRejectedPublishResponseOptions: () => ({ ok: false, rejectedReason: 'VERSION_MISMATCH' }),
+        appendAuthorityLog,
+        isFateWillControllerForCurrentTurn: () => false
+      },
+      asRecord: (value: any) => (value && typeof value === 'object' ? value : {}),
+      buildPublishPayload: (_room: any, _viewerSeatKey: any, options: any) => ({
+        ok: options.ok,
+        rejectedReason: options.rejectedReason,
+        stateVersion: _room.stateVersion
+      }),
+      getCurrentPlayerKey: () => 'black',
+      isSnapshotGameOver: async () => false,
+      toPublicNetworkDebugEnabled: () => false,
+      applyCommandPublishToSnapshot: async () => ({
+        ok: false,
+        rejectedReason: 'RUNTIME_UNAVAILABLE',
+        errorMessage: 'internal capability unavailable'
+      }),
+      saveRoom,
+      broadcastSnapshot,
+      jsonResponse
+    });
+
+    const response = await controller.handlePublish({
+      seatKey: 'black',
+      playerKey: 'black',
+      seatToken: 'token_black',
+      baseVersion: 0,
+      operationId: 'op_runtime_failure_1',
+      actionType: 'pass',
+      action: { type: 'pass', playerKey: 'black' }
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      rejectedReason: 'RUNTIME_UNAVAILABLE',
+      stateVersion: 0
+    });
+    expect(JSON.stringify(room)).toBe(before);
+    expect(appendAuthorityLog).not.toHaveBeenCalled();
+    expect(saveRoom).not.toHaveBeenCalled();
+    expect(broadcastSnapshot).not.toHaveBeenCalled();
+  });
 });
 
 describe('match worker publish controller: FATE_WILL controller can publish owner-side action', () => {

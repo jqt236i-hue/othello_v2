@@ -1,6 +1,8 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 declare const ActionManager: any;
 
+import { isCardRuntimeUnavailableError } from '../logic/card-runtime-errors';
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
@@ -1545,6 +1547,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
      */
     function runTurnWithAdapter(cardState: any, gameState: any, playerKey: any, action: any, turnPipeline: any) {
         if (!turnPipeline) throw new Error('TurnPipeline not available');
+        if (pipelineUIAdapterRuntime
+            && typeof pipelineUIAdapterRuntime.isCardRuntimeIntegrityBlocked === 'function'
+            && pipelineUIAdapterRuntime.isCardRuntimeIntegrityBlocked() === true) {
+            return { ok: false, rejectedReason: 'RUNTIME_UNAVAILABLE', events: [] };
+        }
         const suppressUiLogs = !!(action && action.__suppressUiLogs === true);
 
         // Build options for applyTurnSafe: include current state version and previous action ids if ActionManager is available
@@ -1569,6 +1576,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng, options);
 
         if (result.ok === false) {
+            if (isCardRuntimeUnavailableError(result.runtimeError)
+                && pipelineUIAdapterRuntime
+                && typeof pipelineUIAdapterRuntime.handleCardRuntimeIntegrityFailure === 'function') {
+                pipelineUIAdapterRuntime.handleCardRuntimeIntegrityFailure(
+                    result.runtimeError,
+                    'pipeline-ui-adapter'
+                );
+            }
             return { ok: false, rejectedReason: result.rejectedReason || 'UNKNOWN', events: result.events };
         }
 

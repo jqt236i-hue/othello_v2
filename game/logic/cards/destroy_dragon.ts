@@ -3,7 +3,11 @@
  * @description Destroy Dragon Will effect helpers
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardKernelImport = require('../../../shared/shared-board-utils');
+import BoardOpsImport = require('../board_ops');
+import RandomSourceImport = require('../cards-internal/random-source');
+import CardMarkersImport = require('./markers');
 
 type DestroyDragonOwnerValue = number;
 type DestroyDragonSeatKey = 'black' | 'white';
@@ -143,32 +147,11 @@ interface DestroyDragonModuleApi {
   processDestroyDragonEffectsAtTurnStartAnchor(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, row: number, col: number, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult;
 }
 
-interface DestroyDragonRoot {
-  SharedConstants?: DestroyDragonSharedConstants;
-  SharedBoardUtils?: DestroyDragonBoardKernelModule | null;
-  BoardOps?: DestroyDragonBoardOpsModule | null;
-  CardRandomSource?: DestroyDragonRandomSourceModule | null;
-  CardMarkers?: DestroyDragonCardMarkersModule | null;
-}
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-function safeRequire<T>(id: string): T | null {
-  try {
-    return _require(id) as T;
-  } catch (e) {
-    return null;
-  }
-}
-
-const root = typeof self !== 'undefined' ? self as unknown as DestroyDragonRoot : undefined;
-const SharedConstants = safeRequire<DestroyDragonSharedConstants>('../../../shared-constants') || root?.SharedConstants;
-const BoardKernelModule = safeRequire<DestroyDragonBoardKernelModule>('../../../shared/shared-board-utils') || root?.SharedBoardUtils || null;
-const BoardOpsModule = safeRequire<DestroyDragonBoardOpsModule>('../board_ops') || root?.BoardOps || null;
-const RandomSourceModule = safeRequire<DestroyDragonRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
-const CardMarkersModule = safeRequire<DestroyDragonCardMarkersModule>('./markers') || root?.CardMarkers || null;
+const SharedConstants = SharedConstantsImport as unknown as DestroyDragonSharedConstants;
+const BoardKernelModule = BoardKernelImport as unknown as DestroyDragonBoardKernelModule;
+const BoardOpsModule = BoardOpsImport as unknown as DestroyDragonBoardOpsModule;
+const RandomSourceModule = RandomSourceImport as unknown as DestroyDragonRandomSourceModule;
+const CardMarkersModule = CardMarkersImport as unknown as DestroyDragonCardMarkersModule;
 
 const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
 

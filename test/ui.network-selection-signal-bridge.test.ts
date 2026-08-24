@@ -43,4 +43,35 @@ describe('network selection signal bridge', () => {
       presentationCursor: { visualSeq: 7, stateVersion: 13 }
     })).toBeUndefined();
   });
+
+  test.each([
+    ['network-only', { actionType: 'pending_select', action: { type: 'pending_select' } }],
+    ['deferred multi-stage', {
+      actionType: 'pending_select',
+      deferPublish: true,
+      action: { type: 'pending_select', stage: 'selectSecondTarget', selectedTargets: [{ row: 2, col: 3 }] }
+    }]
+  ])('installed production bridge blocks %s pending publish after integrity failure', async (_label, meta) => {
+    const { createCardRuntimeUnavailableError } = require('../game/logic/card-runtime-errors');
+    const integrity = require('../ui/card-runtime-integrity');
+    const selectionFlow = require('../game/card-effects/selection-flow');
+    const { installNetworkSelectionSignalBridge } = require('../ui/network/selection-signal-bridge');
+    const client = {
+      isActive: jest.fn(() => true),
+      isSpectator: jest.fn(() => false),
+      publishSnapshot: jest.fn(() => Promise.resolve({ ok: true }))
+    };
+
+    expect(installNetworkSelectionSignalBridge({ selectionFlow, root: {}, client })).toBe(true);
+    expect(integrity.latchCardRuntimeIntegrityFailure(
+      createCardRuntimeUnavailableError('pending.effectResolver', 'pending'),
+      { source: 'selection-bridge-test' }
+    )).toBe(true);
+
+    await expect(selectionFlow.publishPendingSelectionSnapshot(meta)).resolves.toEqual({
+      ok: false,
+      reason: 'RUNTIME_UNAVAILABLE'
+    });
+    expect(client.publishSnapshot).not.toHaveBeenCalled();
+  });
 });

@@ -17,6 +17,11 @@
           readHumanVsHumanMode: function () {
             return !!(target && target.DEBUG_HUMAN_VS_HUMAN === true);
           },
+          isCardRuntimeIntegrityBlocked: function () {
+            var integrity = target && target.CardRuntimeIntegrity;
+            if (!integrity || typeof integrity.isCardRuntimeIntegrityBlocked !== 'function') return false;
+            try { return integrity.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+          },
           getPlaybackStateManager: getPlaybackStateManager,
           acquireSelectionSettlementLock: function (meta) {
             var playbackState = getPlaybackStateManager();

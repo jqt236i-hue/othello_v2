@@ -2,6 +2,7 @@ import {
     measureCpuTurnSync,
     type CpuTurnPerformanceScope
 } from './cpu-turn-performance';
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 
 type CpuDecisionCardChoiceConfig = {
     buildCardQuiescenceSnapshot: (playerKey: any, level: any, legalMoves: any, context: any) => any;
@@ -301,6 +302,7 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
                 const currentGameState = cfg.getGameState();
                 cardChoice = aiSystem.selectCardToUse(safeCardState, currentGameState, playerKey, level, legalMoves, null);
             } catch (e) {
+                if (isCardRuntimeUnavailableError(e)) throw e;
                 cfg.warn('[CPU] AISystem.selectCardToUse failed', e);
                 cardChoice = null;
             }

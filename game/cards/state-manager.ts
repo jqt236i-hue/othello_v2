@@ -1,76 +1,19 @@
 'use strict';
 
 import { CardState } from '../../src/types';
+import SharedConstantsImport = require('../../shared-constants');
+import DeckSpecHelpersImport = require('../../shared/deck-spec');
+import PlayerEncodingImport = require('../../shared/player-encoding');
+import CardHandManagerImport = require('../logic/cards-internal/hand-manager');
+import CardChargeLedgerImport = require('../logic/cards-internal/charge-ledger');
+import CardMarkersImport = require('../logic/cards/markers');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function readRuntimeGlobal(globalKey: string): any {
-    if (!globalKey) return null;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
-            return (globalThis as any)[globalKey];
-        }
-        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
-            return (self as any)[globalKey];
-        }
-    } catch (e) {
-        return null;
-    }
-    return null;
-}
-
-function unwrapModule(mod: any): any {
-    if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
-        return mod.default || mod;
-    }
-    return mod;
-}
-
-const CardModuleResolver = safeRequire('../logic/cards-internal/module-resolver');
-
-function loadRuntimeModule(id: string, globalKey: string): any {
-    if (CardModuleResolver && typeof CardModuleResolver.resolveModule === 'function') {
-        const resolved = CardModuleResolver.resolveModule({
-            globalName: globalKey,
-            requirePath: id,
-            requireFn: _require,
-            label: globalKey
-        });
-        if (resolved) return unwrapModule(resolved);
-    }
-
-    return unwrapModule(safeRequire(id)) || unwrapModule(readRuntimeGlobal(globalKey));
-}
-
-const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
-
-const DeckSpecHelpers = loadRuntimeModule('../../shared/deck-spec', 'DeckSpecHelpers');
-
-const PlayerEncoding = loadRuntimeModule('../../shared/player-encoding', 'PlayerEncoding');
-
-const CardHandManager = loadRuntimeModule('../logic/cards-internal/hand-manager', 'CardHandManager');
-
-const CardChargeLedger = loadRuntimeModule('../logic/cards-internal/charge-ledger', 'CardChargeLedger');
-
-const CardMarkers = loadRuntimeModule('../logic/cards/markers', 'CardMarkers');
+const SharedConstants: any = SharedConstantsImport;
+const DeckSpecHelpers: any = DeckSpecHelpersImport;
+const PlayerEncoding: any = PlayerEncodingImport;
+const CardHandManager: any = CardHandManagerImport;
+const CardChargeLedger: any = CardChargeLedgerImport;
+const CardMarkers: any = CardMarkersImport;
 
 const { CHARGE_MAX, CARD_DEFS } = SharedConstants || {};
 const { normalizePlayerKey } = PlayerEncoding || {};

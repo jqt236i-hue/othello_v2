@@ -142,4 +142,38 @@ describe('cpu-turn-scheduler', () => {
     expect(() => callbacks[0]()).not.toThrow();
     expect(runCpuTurn).toHaveBeenCalledTimes(1);
   });
+
+  test('a reserved CPU callback becomes inert when runtime integrity latches before it fires', () => {
+    const callbacks: Array<() => void> = [];
+    const runCpuTurn = jest.fn();
+    const setProcessing = jest.fn();
+    let blocked = false;
+    const scheduler = SchedulerModule.createCpuTurnScheduler({
+      debugCpuTrace: jest.fn(),
+      getAnimationRetryDelayMs: () => 0,
+      getCurrentPlayerKeySafe: () => 'white',
+      getCurrentTurnNumberSafe: () => 12,
+      getTimerService: () => ({
+        setTimeout: (callback: () => void) => {
+          callbacks.push(callback);
+          return callbacks.length;
+        },
+        clearTimeout: jest.fn()
+      }),
+      getTimers: () => null,
+      isAborted: () => blocked,
+      runCpuTurn,
+      setProcessing,
+      shouldAbortCpuForHumanMode: () => false
+    });
+    const generationBefore = scheduler.getCpuRetryGeneration();
+
+    scheduler.scheduleRunCpuTurn('white', { autoMode: false }, 0);
+    blocked = true;
+    callbacks[0]();
+
+    expect(runCpuTurn).not.toHaveBeenCalled();
+    expect(setProcessing).toHaveBeenCalledWith(false);
+    expect(scheduler.getCpuRetryGeneration()).toBeGreaterThan(generationBefore);
+  });
 });

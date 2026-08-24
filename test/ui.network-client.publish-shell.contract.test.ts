@@ -78,4 +78,33 @@ describe('NetworkMatchClient publish shell contract', () => {
     expect(result).toEqual({ ok: false, reason: 'PUBLISH_ERROR' });
     expect(statusWriter).toHaveBeenCalledWith('ネット対戦: 通信失敗 (PUBLISH_FLOW_UNAVAILABLE)', true);
   });
+
+  test('integrity latch rejects at the final publish boundary before the controller', async () => {
+    const publishSnapshot = jest.fn(() => Promise.resolve({ ok: true }));
+    jest.doMock('../ui/network/publish-flow', () => ({
+      createNetworkPublishFlowController: () => ({ publishSnapshot })
+    }));
+    const integrity = require('../ui/card-runtime-integrity');
+    const { createCardRuntimeUnavailableError } = require('../game/logic/card-runtime-errors');
+    integrity.latchCardRuntimeIntegrityFailure(
+      createCardRuntimeUnavailableError('targeting.targetResolver', 'targeting'),
+      { source: 'network-client-publish-shell-test' }
+    );
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const statusWriter = jest.fn();
+    client.setStatusWriter(statusWriter);
+
+    await expect(client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'pass',
+      action: { type: 'pass', playerKey: 'black' }
+    })).resolves.toEqual({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+    expect(publishSnapshot).not.toHaveBeenCalled();
+    expect(statusWriter).toHaveBeenCalledWith(
+      'ゲーム実行環境を確認できませんでした。ページを再読み込みしてください。',
+      true
+    );
+  });
 });

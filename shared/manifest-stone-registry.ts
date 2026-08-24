@@ -1,10 +1,4 @@
-(function (root: any, factory) {
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.ManifestStoneRegistry = factory();
-    }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function () {
+const ManifestStoneRegistry = (function () {
     'use strict';
 
     const MANIFEST_STONE_KIND = 'manifestStone';
@@ -119,6 +113,6 @@
         isInviolableManifestStoneType,
         createManifestStoneMarkerData
     });
-}));
+})();
 
-export {};
+export = ManifestStoneRegistry;

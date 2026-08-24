@@ -273,6 +273,44 @@ describe('UI bootstrap early CPU registration', () => {
     expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
   });
 
+  test('installGameDI exposes the card runtime integrity latch on the initial pending-selection bridge', () => {
+    const bridgeState = { bridge: null };
+    const isCardRuntimeIntegrityBlocked = jest.fn(() => true);
+    jest.doMock('../game/card-effects/selection-flow', () => ({
+      setSignalBridge: (bridge) => {
+        bridgeState.bridge = bridge;
+      }
+    }));
+    jest.doMock('../ui/card-runtime-integrity', () => ({
+      isCardRuntimeIntegrityBlocked
+    }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+    jest.doMock('../game/pass-handler', () => ({
+      setPassHandlerRuntime: jest.fn(),
+      setPlaybackStateManager: jest.fn(),
+      setNetworkMatchClient: jest.fn()
+    }));
+    jest.doMock('../game/cpu-decision', () => ({
+      setCpuDecisionRuntime: jest.fn(),
+      selectMoveFromOnnxPolicyAsync: jest.fn()
+    }));
+    jest.doMock('../game/turn/turn_pipeline_phases', () => ({
+      setTurnPipelinePhasesRuntime: jest.fn()
+    }));
+
+    try {
+      const uiBoot = require('../ui/bootstrap.ts');
+      uiBoot.installGameDI();
+
+      expect(bridgeState.bridge).toBeTruthy();
+      expect(typeof bridgeState.bridge.isCardRuntimeIntegrityBlocked).toBe('function');
+      expect(bridgeState.bridge.isCardRuntimeIntegrityBlocked()).toBe(true);
+      expect(isCardRuntimeIntegrityBlocked).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.dontMock('../ui/card-runtime-integrity');
+    }
+  });
+
   test('installGameDI wires current cardState into destroy selection handlers', () => {
     const destroySetUIImpl = jest.fn();
     jest.doMock('../game/card-effects/destroy', () => ({
@@ -342,6 +380,9 @@ describe('UI bootstrap early CPU registration', () => {
         bridgeState.bridge = bridge;
       }
     };
+    window.CardRuntimeIntegrity = {
+      isCardRuntimeIntegrityBlocked: jest.fn(() => true)
+    };
     window.PresentationHelper = {
       emitPresentationEvent: jest.fn(() => true)
     };
@@ -372,6 +413,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(bridgeState.bridge).toBeTruthy();
     expect(typeof bridgeState.bridge.readMatchMode).toBe('function');
     expect(typeof bridgeState.bridge.readHumanVsHumanMode).toBe('function');
+    expect(bridgeState.bridge.isCardRuntimeIntegrityBlocked()).toBe(true);
     expect(bridgeState.bridge.getPlaybackStateManager()).toBe(window.PlaybackStateManager);
     expect(bridgeState.bridge.setSelectionBusy(true)).toBe(true);
     expect(window.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: true, cardAnimating: true });

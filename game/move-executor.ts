@@ -467,6 +467,35 @@ function isMoveExecutorNetworkPublishActive() {
     }
 }
 
+function isMoveExecutorRuntimeIntegrityBlocked(): boolean {
+    if (!__uiImpl_move_executor || typeof __uiImpl_move_executor.isCardRuntimeIntegrityBlocked !== 'function') {
+        return false;
+    }
+    try { return __uiImpl_move_executor.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+}
+
+function isMoveExecutorRuntimeUnavailableResult(result: any): boolean {
+    if (!result || typeof result !== 'object') return false;
+    const reason = String(result.reason || result.rejectedReason || '').trim().toUpperCase();
+    if (reason === 'RUNTIME_UNAVAILABLE') return true;
+    const nested = result.result;
+    if (!nested || typeof nested !== 'object') return false;
+    const nestedReason = String(nested.reason || nested.rejectedReason || '').trim().toUpperCase();
+    return nestedReason === 'RUNTIME_UNAVAILABLE';
+}
+
+async function waitForAcceptedMoveVisualSettlement(publishResult: any): Promise<void> {
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.waitForAuthoritativeVisualSettlement === 'function') {
+        try {
+            const exactResult = await __uiImpl_move_executor.waitForAuthoritativeVisualSettlement(publishResult);
+            if (exactResult && typeof exactResult === 'object' && exactResult.ok === true) return;
+        } catch (_error) { /* accepted publish still requires the fallback drain */ }
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.waitForPlayback === 'function') {
+        await __uiImpl_move_executor.waitForPlayback();
+    }
+}
+
 function publishNetworkSnapshot(meta: any) {
     if (__uiImpl_move_executor && typeof __uiImpl_move_executor.publishSnapshot === 'function') {
         if (!isMoveExecutorNetworkPublishActive()) {
@@ -552,6 +581,10 @@ function assignMoveExecutorGameState(snapshot: any) {
 
 async function executeMove(move: any, internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }) {
     try {
+        if (isMoveExecutorRuntimeIntegrityBlocked()) {
+            setMoveExecutorProcessing(false);
+            return { ok: false, reason: 'runtime_unavailable' };
+        }
         const hadSelection = cardState.selectedCardId !== null;
         cardState.selectedCardId = null;
         const turnOwnerKey = resolveMoveExecutorTurnOwnerKey(move);
@@ -570,18 +603,26 @@ async function executeMove(move: any, internalOptions?: { performanceScope?: Cpu
             throw new Error('TurnPipeline/TurnPipelineUIAdapter is not available. Legacy path has been removed.');
         }
 
-        if (internalOptions && internalOptions.performanceScope) {
-            await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline, internalOptions);
-        } else {
-            await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline);
+        const executionResult = internalOptions && internalOptions.performanceScope
+            ? await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline, internalOptions)
+            : await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline);
+        if (isMoveExecutorRuntimeIntegrityBlocked() || isMoveExecutorRuntimeUnavailableResult(executionResult)) {
+            setMoveExecutorProcessing(false);
+            return { ok: false, reason: 'runtime_unavailable', result: executionResult };
         }
         if (pipelineSnapshot) {
             comparePipelineSnapshot(pipelineSnapshot, cardState, gameState);
         }
+        return executionResult;
 
     } catch (error) {
+        if (isMoveExecutorRuntimeIntegrityBlocked() || isMoveExecutorRuntimeUnavailableResult(error)) {
+            setMoveExecutorProcessing(false);
+            return { ok: false, reason: 'runtime_unavailable', result: error };
+        }
         console.error('[CRITICAL] Error in executeMove:', error);
         setMoveExecutorProcessing(false);
+        return { ok: false, reason: 'execution_failed', error };
     } finally {
         const safeIsProcessing = readMoveExecutorProcessing();
         const safeIsCardAnimating = readMoveExecutorCardAnimating();
@@ -597,6 +638,10 @@ async function executeMoveViaPipeline(
     pipeline: any,
     internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
 ) {
+    if (isMoveExecutorRuntimeIntegrityBlocked()) {
+        setMoveExecutorProcessing(false);
+        return { ok: false, reason: 'runtime_unavailable' };
+    }
     const performanceScope = internalOptions && internalOptions.performanceScope
         ? internalOptions.performanceScope
         : null;
@@ -629,22 +674,49 @@ async function executeMoveViaPipeline(
         // 応答が来るまでは入力ロックを維持して、重複 placement publish を防ぐ。
         setMoveExecutorProcessing(true);
         try {
-            await Promise.resolve(publishPromise);
+            const publishResult = await Promise.resolve(publishPromise);
+            if (isMoveExecutorRuntimeIntegrityBlocked()) {
+                if (publishResult && publishResult.ok === true) {
+                    await waitForAcceptedMoveVisualSettlement(publishResult);
+                }
+                return { ok: false, reason: 'runtime_unavailable', result: publishResult };
+            }
+            if (isMoveExecutorRuntimeUnavailableResult(publishResult)) {
+                return { ok: false, reason: 'runtime_unavailable', result: publishResult };
+            }
+            if (!publishResult || publishResult.ok !== true) {
+                emitMoveExecutorBoardUpdate();
+                return { ok: false, reason: 'network_publish_failed', result: publishResult };
+            }
+            await waitForAcceptedMoveVisualSettlement(publishResult);
+            if (isMoveExecutorRuntimeIntegrityBlocked()) {
+                return { ok: false, reason: 'runtime_unavailable', result: publishResult };
+            }
+            emitMoveExecutorBoardUpdate();
+            return { ok: true, publishResult };
+        } catch (error) {
+            if (isMoveExecutorRuntimeIntegrityBlocked()) {
+                return { ok: false, reason: 'runtime_unavailable', result: error };
+            }
+            emitMoveExecutorBoardUpdate();
+            throw error;
         } finally {
             setMoveExecutorProcessing(false);
-            emitMoveExecutorBoardUpdate();
         }
-        return;
     }
 
     // Check if action was rejected (explicit false check, not truthy check)
     if (res.ok === false) {
+        if (isMoveExecutorRuntimeIntegrityBlocked() || isMoveExecutorRuntimeUnavailableResult(res)) {
+            setMoveExecutorProcessing(false);
+            return { ok: false, reason: 'runtime_unavailable', result: res };
+        }
         console.warn('[MoveExecutor] Action rejected:', res.rejectedReason, 'events:', JSON.stringify(res.events || res, null, 2));
         // Do not record, do not increment turnIndex
         // Important: reset processing state to allow auto-loop to continue
         setMoveExecutorProcessing(false);
         emitMoveExecutorBoardUpdate();
-        return;
+        return { ok: false, reason: 'action_rejected', result: res };
     }
 
     const applyCanonicalMoveResult = () => {
@@ -741,7 +813,7 @@ async function executeMoveViaPipeline(
 
     if (typeof finalizeTurn === 'function') {
         const networkPublishActive = isMoveExecutorNetworkPublishActive();
-        await finalizeTurn({
+        const handoffResult = await finalizeTurn({
             playerKey,
             actionType: (action && (action as any).type) ? (action as any).type : 'place',
             action,
@@ -753,6 +825,7 @@ async function executeMoveViaPipeline(
             performanceScope,
             setProcessing: (nextValue: boolean) => { setMoveExecutorProcessing(nextValue); },
             afterTurnStart: () => {
+                if (isMoveExecutorRuntimeIntegrityBlocked()) return;
                 try {
                     const now = getTimeNow();
                     if (typeof now === 'number') writeMoveExecutorRuntimeValue('__lastMoveCompletedAt', now);
@@ -762,6 +835,10 @@ async function executeMoveViaPipeline(
             publishSnapshot: publishNetworkSnapshot,
             onTurnStart: onTurnStartLogic,
             scheduleCpuTurn: ({ delayMs, expectedTurnNumber, nextPlayerKey }: any) => {
+                if (isMoveExecutorRuntimeIntegrityBlocked()) {
+                    setMoveExecutorProcessing(false);
+                    return false;
+                }
                 const scheduleFn = (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function')
                     ? __uiImpl_move_executor.scheduleCpuTurn
                     : null;
@@ -803,6 +880,11 @@ async function executeMoveViaPipeline(
                     const callbackStartedAtMs = performanceScope
                         ? readCpuTurnPerformanceNowMs(performanceScope)
                         : null;
+                    if (isMoveExecutorRuntimeIntegrityBlocked()) {
+                        recordHandoff('handled', callbackStartedAtMs);
+                        setMoveExecutorProcessing(false);
+                        return;
+                    }
                     if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
                         recordHandoff('stale', callbackStartedAtMs);
                         setMoveExecutorProcessing(false);
@@ -842,12 +924,37 @@ async function executeMoveViaPipeline(
                 return true;
             },
             onHumanTurnReady: ({ nextPlayerKey }: any) => {
+                if (isMoveExecutorRuntimeIntegrityBlocked()) {
+                    setMoveExecutorProcessing(false);
+                    return;
+                }
                 if (nextPlayerKey === 'white' && humanMode) {
                     debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
                 }
                 emitMoveExecutorBoardUpdate();
-            }
+            },
+            isAborted: () => isMoveExecutorRuntimeIntegrityBlocked()
         });
+        if (isMoveExecutorRuntimeIntegrityBlocked() || isMoveExecutorRuntimeUnavailableResult(handoffResult)) {
+            if (
+                handoffResult
+                && handoffResult.authoritativePublishAccepted === true
+                && handoffResult.publishResult
+                && handoffResult.publishResult.ok === true
+            ) {
+                try {
+                    await waitForAcceptedMoveVisualSettlement(handoffResult.publishResult);
+                } catch (error) {
+                    debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] accepted handoff visual settlement failed', error);
+                }
+            }
+            setMoveExecutorProcessing(false);
+            return {
+                ok: false,
+                reason: 'runtime_unavailable',
+                result: handoffResult
+            };
+        }
         if (performanceScope) {
             measureCpuTurnSync(performanceScope, 'presentation-handoff', () => emitMoveExecutorBoardUpdate());
         } else {

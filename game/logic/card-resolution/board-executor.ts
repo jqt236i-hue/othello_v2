@@ -4,23 +4,11 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-registry');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry');
-const ManifestStoneRegistryFallback = safeRequire('../../../shared/manifest-stone-registry');
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const ManifestStoneRegistryFallback: any = ManifestStoneRegistryImport;
 
 const BOARD_EXECUTOR_MARKER_TYPE = 'BOARD_EXECUTOR';
 const BOARD_EXECUTOR_DURATION_OWNER_TURNS = 4;

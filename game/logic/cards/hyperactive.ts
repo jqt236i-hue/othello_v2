@@ -4,97 +4,36 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardUtilsImport = require('../../../shared/shared-board-utils');
+import RandomSourceImport = require('../cards-internal/random-source');
+import StoneStatusSnapshotImport = require('../../../shared/stone-status-snapshot');
+import EvasionStatusImport = require('../../../shared/evasion-status');
+import EvasionDestinationImport = require('../cards-internal/evasion-destination');
+import HyperactiveCoreUtilsImport = require('./hyperactive-core-utils');
+import HyperactiveBoardShapeImport = require('./hyperactive-board-shape');
+import CardMarkersImport = require('./markers');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+const SharedConstants: any = SharedConstantsImport;
+const BoardUtils: any = BoardUtilsImport;
+const RandomSourceModule: any = RandomSourceImport;
+const StoneStatusSnapshot: any = StoneStatusSnapshotImport;
+const EvasionStatusModule: any = EvasionStatusImport;
+const EvasionDestinationModule: any = EvasionDestinationImport;
+const HyperactiveCoreUtils: any = HyperactiveCoreUtilsImport;
+const HyperactiveBoardShape: any = HyperactiveBoardShapeImport;
+const CardMarkersModule: any = CardMarkersImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const BLACK: any = SharedConstants.BLACK;
+const WHITE: any = SharedConstants.WHITE;
+const EMPTY: any = SharedConstants.EMPTY;
 
 let hyperactiveRuntime: any = null;
 
 function setHyperactiveRuntime(runtime: any): void {
     hyperactiveRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
-    refreshHyperactiveRuntimeModules();
 }
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (!key) return undefined;
-    try {
-        if (hyperactiveRuntime && typeof hyperactiveRuntime.readRuntimeModule === 'function') {
-            const value = hyperactiveRuntime.readRuntimeModule(key);
-            if (value !== undefined && value !== null) {
-                return value;
-            }
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, key)) {
-            return (globalThis as any)[key];
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof self !== 'undefined' && Object.prototype.hasOwnProperty.call(self, key)) {
-            return (self as any)[key];
-        }
-    } catch (e) { /* ignore */ }
-    return undefined;
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function resolveHyperactiveModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-    }
-
-    return getRuntimeGlobalValue(globalKey);
-}
-
-let SharedConstants: any = null;
-let BoardUtils: any = null;
-let RandomSourceModule: any = null;
-let StoneStatusSnapshot: any = null;
-let EvasionStatusModule: any = null;
-let EvasionDestinationModule: any = null;
-let HyperactiveCoreUtils: any = null;
-let HyperactiveBoardShape: any = null;
-let CardMarkersModule: any = null;
-let SpecialStoneRegistry: any = null;
-let BLACK: any;
-let WHITE: any;
-let EMPTY: any;
-
-function refreshHyperactiveRuntimeModules(): void {
-    SharedConstants = resolveHyperactiveModuleOrGlobal('../../../shared-constants', 'SharedConstants');
-    BoardUtils = resolveHyperactiveModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-    RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
-    StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
-    EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
-    EvasionDestinationModule = resolveHyperactiveModuleOrGlobal('../cards-internal/evasion-destination', 'CardEvasionDestination') || null;
-    HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
-    HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
-    CardMarkersModule = resolveHyperactiveModuleOrGlobal('./markers', 'CardMarkers');
-    SpecialStoneRegistry = resolveHyperactiveModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
-    const constants = SharedConstants || {};
-    BLACK = constants.BLACK;
-    WHITE = constants.WHITE;
-    EMPTY = constants.EMPTY;
-}
-
-refreshHyperactiveRuntimeModules();
 
 const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
@@ -127,10 +66,6 @@ function getBoardShapeDeps() {
 }
 
 function resolveHyperactiveBoardShapeModule(): any {
-    if (HyperactiveBoardShape && typeof HyperactiveBoardShape === 'object') {
-        return HyperactiveBoardShape;
-    }
-    HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
     return HyperactiveBoardShape;
 }
 
@@ -876,8 +811,6 @@ type FlipEvadeProfile = {
 };
 
 function getEvasionStatusModule(): any {
-    if (EvasionStatusModule) return EvasionStatusModule;
-    EvasionStatusModule = resolveHyperactiveModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus') || null;
     return EvasionStatusModule;
 }
 

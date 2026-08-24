@@ -2,11 +2,11 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const cardsPath = path.resolve(__dirname, '..', 'game', 'logic', 'cards.ts');
+const cardsFactoryPath = path.resolve(__dirname, '..', 'game', 'logic', 'cards-runtime-factory.ts');
 
 function exportedCardApiKeys(source: string): string[] {
   const start = source.indexOf('const cardsApi: any = {');
-  const end = source.indexOf('export = cardsApi;');
+  const end = source.indexOf('return cardsApi;');
   if (start < 0 || end < start) throw new Error('cardsApi export boundary was not found');
 
   return Array.from(
@@ -17,7 +17,7 @@ function exportedCardApiKeys(source: string): string[] {
 
 describe('cards API export inventory', () => {
   test('keeps the public facade key set stable while internals are extracted', () => {
-    const keys = exportedCardApiKeys(fs.readFileSync(cardsPath, 'utf8'));
+    const keys = exportedCardApiKeys(fs.readFileSync(cardsFactoryPath, 'utf8'));
     const signature = crypto
       .createHash('sha256')
       .update(JSON.stringify([...keys].sort()))

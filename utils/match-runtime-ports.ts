@@ -51,6 +51,7 @@ export interface MatchCommandSchemaCapabilities {
 
 export interface MatchAutoCommandCapabilities {
   isAutoTurnPublishBody: (body: MatchCommandRecord) => boolean;
+  isRuntimeUnavailableError: (error: unknown) => boolean;
   resolveAutoTurnPublishBody: (options: {
     body: MatchCommandRecord;
     snapshot: MatchCommandSnapshot;

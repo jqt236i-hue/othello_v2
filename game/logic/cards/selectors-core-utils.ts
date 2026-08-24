@@ -1,5 +1,5 @@
 import type { CardState } from '../../../src/types';
-import SpecialStoneRegistry = require('../../../shared/special-stone-registry');
+import SpecialStoneRegistry = require('../../../shared/special-stone-registry-static');
 
 type SpecialStoneRegistryRuntimeLike = {
     isInviolableCell?: (markers: unknown, row: unknown, col: unknown) => boolean;

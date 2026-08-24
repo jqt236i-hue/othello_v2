@@ -4,30 +4,9 @@
  */
 
 import { CardDef } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const SharedConstants = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared-constants')
-    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const SharedConstants: any = SharedConstantsImport;
 
 const { CARD_DEFS } = SharedConstants || {};
 

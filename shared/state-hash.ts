@@ -3,13 +3,7 @@
  * @description State hash computation utility
  */
 
-(function (root: any, factory: () => any) {
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.StateHash = factory();
-    }
-}(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+const StateHash = (function () {
     'use strict';
 
     function stableStringify(value: unknown): string {
@@ -57,4 +51,6 @@
         stableStringify: stableStringify,
         computeStableHash: computeStableHash
     };
-}));
+})();
+
+export = StateHash;

@@ -1,3 +1,5 @@
+import CardRuntimeIntegrity = require('../card-runtime-integrity');
+
 function readRuntimeValue(root: any, key: string): any {
     try {
         if (root && typeof root[key] !== 'undefined') return root[key];
@@ -23,6 +25,16 @@ function createNetworkSelectionSignalBridge(options: any): any {
     const config = options || {};
     const root = config.root || (typeof globalThis !== 'undefined' ? globalThis : null);
     const client = config.client || {};
+    const isCardRuntimeIntegrityBlocked = (): boolean => {
+        if (typeof config.isCardRuntimeIntegrityBlocked === 'function') {
+            try { return config.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+        }
+        return !!(
+            CardRuntimeIntegrity
+            && typeof CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked === 'function'
+            && CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() === true
+        );
+    };
     return {
         readMatchMode: () => {
             try {
@@ -54,17 +66,22 @@ function createNetworkSelectionSignalBridge(options: any): any {
             return undefined;
         },
         publishSnapshot: (meta: any) => {
+            if (isCardRuntimeIntegrityBlocked()) {
+                return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+            }
             if (typeof client.publishSnapshot !== 'function') return undefined;
             if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
             if (typeof client.isSpectator === 'function' && client.isSpectator() === true) return undefined;
             return client.publishSnapshot(meta);
         },
         isNetworkPublishActive: () => {
+            if (isCardRuntimeIntegrityBlocked()) return false;
             if (typeof client.publishSnapshot !== 'function') return false;
             if (typeof client.isSpectator === 'function' && client.isSpectator() === true) return false;
             if (typeof client.isActive === 'function') return client.isActive() === true;
             return true;
         },
+        isCardRuntimeIntegrityBlocked,
         armBoardUpdateDuringPlayback: (context: any) => {
             return typeof config.armBoardUpdateDuringPlayback === 'function'
                 ? config.armBoardUpdateDuringPlayback(context)

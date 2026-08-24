@@ -222,6 +222,28 @@ Lane promotion and root deployment are separate phases:
 - Root deployment does not modify lane-local promotion metadata or deploy truth.
 - Root デプロイ後の `worker-public/` 同期は `npm run worker:deploy` (および `npm run worker:dev`) が `npm run worker:prepare` を `&&` で連結しているため自動。`npx wrangler deploy` を直接叩く場合のみ個別実行する。
 
+### 5.4 Card / turn runtime static-composition contract
+
+`game/logic/cards.ts` is the stable compatibility facade for the public `CardLogic` surface. It constructs that facade once from `getDefaultCardRuntimeServices()` and `createCardLogicRuntime()`; it does not own a second rule body or perform runtime discovery. `game/logic/cards-runtime-factory.ts` owns the canonical implementation factory, `game/logic/card-runtime-composer.ts` owns the default static service graph, and `game/logic/card-runtime-contracts.ts` owns its required capability schema. The factory must not import the composer or facade, and canonical leaf modules must not import or cache the whole facade.
+
+The composed card service graph is grouped by state/deck/hand, target/legality, board/topology, marker/protection, pending, and resolution capabilities. The root and each group are shallow-frozen after validation. Imported modules themselves are not deep-frozen. Match state, room state, action data, events, pending instances, and PRNG instances are invocation-owned values and must never be stored in the static graph. Turn construction follows the same rule through `game/turn/turn-runtime-services.ts`: the phase manifest and narrow ports are validated before an action starts, while state and random-source references remain per invocation.
+
+Canonical card and turn execution must use static imports or validated ports. Runtime `require`, `__non_webpack_require__`, computed global lookup, lazy import, and a second success-shaped rule implementation are forbidden inside the canonical reachable graph. `npm run check:card-runtime-boundary` owns this structural proof, including negative fixtures, construction-DAG checks, whole-facade-cache checks, and the restriction that only composition/facade owners may hold the root aggregate.
+
+Special-stone rules follow the same dependency direction. `shared/special-stone-registry-factory.ts` owns the rule table and registry algorithms, and `shared/special-stone-registry-static.ts` owns the canonical singleton built from explicit dependencies. `shared/special-stone-registry.ts` is a compatibility-only facade for legacy optional-module and late-global delivery; when its explicit dependencies are complete it must return the exact static singleton. Canonical card, turn, shared, Worker, and headless code must import the static entry or a narrow injected port and must not import the compatibility facade. The boundary checker owns the canonical-to-compatibility prohibition, while the Worker bundle smoke check proves that the facade's optional dependencies remain literal statically bundled imports rather than dynamic require calls.
+
+A missing required capability is represented by the canonical branded `runtime_unavailable` Error shape. Its hidden `Symbol.for` property is a structural cross-bundle transport brand, not a security or producer-provenance boundary; producer ownership is enforced structurally. Only the canonical constructor, service validators/composers, and explicit required-capability assertions may create it. Consumers use `isCardRuntimeUnavailableError()` before their existing fallback. They must not retag arbitrary exceptions, infer the tag from message/code alone, or change the characterized behavior of untagged rule/programming exceptions.
+
+The failure contract is fail-before-mutation:
+
+- headless `applyTurnSafe` rejects with `RUNTIME_UNAVAILABLE`, keeps the original game/card references and version, and emits no events;
+- browser UI latches the integrity failure once, cancels only uncommitted local selection, settles owned input/busy locks, blocks later card/board/pass publish, and presents reload-required without retry;
+- CPU releases processing, invalidates/cancels its scheduler generation and timers, preserves canonical pending, and chooses no alternate card, move, or pass;
+- direct, AUTO, and timeout pass paths reject before state, pending, event, version, or PRNG change;
+- Worker/local authority preserves the pre-command room and housekeeping state and performs no save, storage write, presentation-journal append, or broadcast for that rejection.
+
+`workers/match-worker-game-runtime.ts` is the frozen Worker command port. Worker error transport remains the existing `RUNTIME_UNAVAILABLE` rejection category; network wire, snapshot, saved-data, and model formats are unchanged. Actual built delivery is proven separately for source/built Node and local authority, canonical Worker bundle, and production Vite/classic entries. Temporary non-shipping composition fixtures must not remain after those actual-entry gates pass.
+
 ## 6. Core state contracts
 
 ### 6.1 `gameState`
@@ -680,7 +702,7 @@ This rule exists because runtime-only divergence in effect lookup previously cau
 
 ### 10.1 Flip-protection context
 
-`shared/special-stone-registry.ts` is the source of truth for special-stone flip protection.
+`shared/special-stone-registry-factory.ts` is the source of truth for special-stone flip protection. `shared/special-stone-registry-static.ts` is the canonical singleton; the unsuffixed `shared/special-stone-registry.ts` entry is compatibility-only.
 Card resolution paths that need `protectedStones`, `permaProtectedStones`, `inviolableStones`, `bombs`, or `blockedCells` must build them through `game/logic/cards-internal/protection-context.ts` or a wrapper that delegates to it.
 
 `inviolableStones` is for manifest stones and other explicit不可侵 boundary objects only; `強い意志` remains `PERMA_PROTECTED` and must not promote into another marker type.
@@ -691,13 +713,13 @@ The only valid exceptions are explicit non-registry overlays whose duration or b
 
 When adding a new flip-protected special stone:
 
-- set `flipProtected: true` in `shared/special-stone-registry.ts`
+- set `flipProtected: true` in `shared/special-stone-registry-factory.ts`
 - cover it through registry-wide tests rather than a single named-stone assertion
 - run focused card-resolution tests that exercise effect resolution, target availability, and any fallback path touched by the card
 
 ### 10.2 Destroy-protection context
 
-`shared/special-stone-registry.ts` is the source of truth for special-stone destroy protection.
+`shared/special-stone-registry-factory.ts` is the source of truth for special-stone destroy protection. Canonical consumers use `shared/special-stone-registry-static.ts` or a narrow port, never the compatibility facade.
 Core destruction paths must resolve marker-level destroy protection through `game/logic/cards-internal/destroy-protection-context.ts` or a wrapper that delegates to it.
 
 Do not add local hand-written lists of destroy-protected special-stone types in `game/logic/board_ops.ts`, card effect modules, target resolvers, CPU helpers, worker logic, or UI presentation.
@@ -706,14 +728,14 @@ Do not add local hand-written lists of destroy-protected special-stone types in 
 
 When adding a new destroy-protected stone status:
 
-- set `destroyProtected: true` in `shared/special-stone-registry.ts`
+- set `destroyProtected: true` in `shared/special-stone-registry-factory.ts`
 - classify the status through the registry instead of adding a local BoardOps branch
 - cover the blocker with registry-wide tests and one focused destruction regression
 - keep cell removal, holes, movement, ownership changes, and non-destroy effects outside this protection unless the rulebook explicitly says otherwise
 
 ### 10.3 Ownership-change lifecycle
 
-`shared/special-stone-registry.ts` is the source of truth for the lifecycle of stone effects when an occupied cell actually changes owner. Each marker resolves to exactly one typed policy: `revert`, `resolve_after_change`, or `preserve`.
+`shared/special-stone-registry-factory.ts` is the source of truth for the lifecycle of stone effects when an occupied cell actually changes owner. `shared/special-stone-registry-static.ts` exposes that canonical registry instance. Each marker resolves to exactly one typed policy: `revert`, `resolve_after_change`, or `preserve`.
 
 - `game/logic/board_ops.ts::changeAt` owns the atomic board-color change and removal of `revert` markers. Callers must not infer cleanup from `reason` text or maintain card-type removal lists.
 - `resolve_after_change` markers remain until the shared CardLogic post-flip reaction queue resolves them. The queue must include follow-up flips created by regen capture and Living Will restoration, preserve ordered owner/source batches, and fail loudly on a detected cycle or safety-limit breach.

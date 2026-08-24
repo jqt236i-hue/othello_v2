@@ -1,4 +1,5 @@
 const Planner = require('../game/cpu-network-command-planner');
+const { createCardRuntimeUnavailableError } = require('../game/logic/card-runtime-errors');
 
 function createInput(overrides: any = {}) {
   return Object.assign({
@@ -28,6 +29,34 @@ function createInput(overrides: any = {}) {
 }
 
 describe('CpuNetworkCommandPlanner', () => {
+  test.each([
+    ['hasUsableCard', {
+      hasUsableCard: (error: Error) => jest.fn(() => { throw error; })
+    }],
+    ['analyzeCardUsability', {
+      hasUsableCard: () => jest.fn(() => true),
+      analyzeCardUsability: (error: Error) => jest.fn(() => { throw error; })
+    }],
+    ['getUsableCardIds', {
+      hasUsableCard: () => jest.fn(() => true),
+      getUsableCardIds: (error: Error) => jest.fn(() => { throw error; })
+    }]
+  ])('propagates tagged CardLogic.%s failure instead of inventing a move or pass', (_name, factories) => {
+    const unavailable = createCardRuntimeUnavailableError('state.availability', 'state');
+    const CardLogic = Object.fromEntries(Object.entries(factories).map(([key, factory]) => [
+      key,
+      (factory as (error: Error) => jest.Mock)(unavailable)
+    ]));
+    const input = createInput({
+      CardLogic,
+      getLegalMoves: jest.fn().mockReturnValue([]),
+      computeCpuAction: jest.fn().mockReturnValue({ type: 'pass' })
+    });
+
+    expect(() => Planner.planCpuNetworkCommand(input)).toThrow(unavailable);
+    expect(input.getLegalMoves).not.toHaveBeenCalled();
+  });
+
   test('replans an invalid projected pass from the canonical card cost ledger', () => {
     const CardLogic = {
       hasUsableCard: jest.fn().mockReturnValue(true),

@@ -39,14 +39,15 @@ describe('NetworkGameContractAdapter', () => {
     });
   });
 
-  test('fails closed when dependencies are absent', () => {
+  test('keeps narrow static card definitions while absent pending dependencies fail closed', () => {
     const adapter = AdapterModule.createNetworkGameContractAdapter({
       cardLogicModule: null,
       pendingCoordinatorModule: null,
       pendingSelectionContractModule: null
     });
 
-    expect(adapter.resolveCardTypeForId('guard_01')).toBeNull();
+    expect(adapter.resolveCardTypeForId('guard_01')).toBe('GUARD_WILL');
+    expect(adapter.resolveCardTypeForId('missing')).toBeNull();
     expect(adapter.getPendingSelectionContract('GUARD_WILL')).toBeNull();
     expect(adapter.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(false);
     expect(adapter.getPendingEffectType({}, 'black')).toBeNull();

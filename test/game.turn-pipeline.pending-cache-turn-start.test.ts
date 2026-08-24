@@ -55,6 +55,11 @@ describe('TurnPipelinePhases turn start pending cache sync', () => {
       syncPendingSelectionActionCache: PendingCoordinator.syncPendingSelectionActionCache
     };
     jest.doMock('../game/turn/pending-coordinator', () => pendingCoordinatorMock, { virtual: false });
+    // This test deliberately supplies a partial coordinator to exercise the
+    // phase-local compatibility fallback. Keep the isolated phase import from
+    // composing the full production CardLogic service graph with that partial
+    // test double; production composition correctly requires the complete API.
+    jest.doMock('../game/logic/context', () => ({}), { virtual: false });
 
     const isolatedTurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
     const prng = createPrng();
@@ -89,6 +94,7 @@ describe('TurnPipelinePhases turn start pending cache sync', () => {
     } finally {
       getLegalMovesSpy.mockRestore();
       jest.dontMock('../game/turn/pending-coordinator');
+      jest.dontMock('../game/logic/context');
     }
   });
 });

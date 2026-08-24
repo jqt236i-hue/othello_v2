@@ -6,7 +6,7 @@ type CardResolutionBoardView = {
     isPlayable: (row: number, col: number) => boolean;
 };
 
-const SharedBoardUtils: any = require('../../../shared/shared-board-utils');
+import SharedBoardUtils = require('../../../shared/shared-board-utils');
 
 function requireBoardKernel(): any {
     if (

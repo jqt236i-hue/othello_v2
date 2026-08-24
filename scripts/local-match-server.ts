@@ -9,6 +9,7 @@ const { URL } = require('url');
 
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
+const { isCardRuntimeUnavailableError } = require('../game/logic/card-runtime-errors');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases');
 const TurnPipelineUIAdapter = require('../game/turn/pipeline_ui_adapter');
@@ -556,6 +557,7 @@ function createLocalMatchCommandCapabilities() {
         },
         autoCommand: {
             isAutoTurnPublishBody: (body: any) => MatchAutoCommand.isMatchAutoTurnPublishBody(body),
+            isRuntimeUnavailableError: (error: unknown) => isCardRuntimeUnavailableError(error),
             resolveAutoTurnPublishBody: (options: any) => MatchAutoCommand.resolveMatchAutoTurnPublishBody({
                 body: options.body,
                 snapshot: options.snapshot,

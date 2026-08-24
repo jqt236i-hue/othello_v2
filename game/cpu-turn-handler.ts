@@ -5,6 +5,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 import {
     createCpuTurnPerformanceScope,
     measureCpuTurnSync,
@@ -162,12 +163,28 @@ let __uiImpl_cpu: Record<string, any> = {};
 let cpuTurnPerformanceRunSequence = 0;
 let cpuTurnInvocationRunSequence = 0;
 let cpuTurnDecisionEpochSequence = 0;
+let cpuRuntimeIntegrityFailure: unknown = null;
 function setCpuUIImpl(obj: any): void {
     if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) {
         __uiImpl_cpu = {};
         return;
     }
     __uiImpl_cpu = Object.assign({}, __uiImpl_cpu, obj || {});
+}
+
+function isCpuRuntimeIntegrityBlocked(): boolean {
+    if (cpuRuntimeIntegrityFailure !== null) return true;
+    if (!__uiImpl_cpu || typeof __uiImpl_cpu.isCardRuntimeIntegrityBlocked !== 'function') return false;
+    try { return __uiImpl_cpu.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+}
+
+function stopCpuForRuntimeIntegrityIfBlocked(): boolean {
+    if (!isCpuRuntimeIntegrityBlocked()) return false;
+    if (CpuTurnScheduler && typeof CpuTurnScheduler.resetCpuTurnHandlerState === 'function') {
+        CpuTurnScheduler.resetCpuTurnHandlerState();
+    }
+    setCpuProcessing(false);
+    return true;
 }
 
 function getCpuTurnPerformanceRecorder(): CpuTurnPerformanceRecorder | null {
@@ -874,6 +891,7 @@ function resolveCurrentCpuGameStateForBoard() {
             ? gameState
             : null;
     } catch (e) {
+        if (isCardRuntimeUnavailableError(e)) throw e;
         return null;
     }
 }
@@ -886,6 +904,7 @@ function resolveCurrentCpuCardState() {
             ? cardState
             : null;
     } catch (e) {
+        if (isCardRuntimeUnavailableError(e)) throw e;
         return null;
     }
 }
@@ -903,6 +922,7 @@ function createCpuTurnBoardContext(state: any, cardStateRef: any) {
     try {
         return boardUtils.createBoardContext(state, cardStateRef);
     } catch (e) {
+        if (isCardRuntimeUnavailableError(e)) throw e;
         return null;
     }
 }
@@ -1215,7 +1235,9 @@ const CpuTurnScheduler = (CpuTurnSchedulerModule && typeof CpuTurnSchedulerModul
         getTimers,
         createCpuTurnPerformanceCorrelationId,
         readNowMs: () => readInjectedCpuTurnPerformanceNowMs(),
+        isAborted: () => isCpuRuntimeIntegrityBlocked(),
         runCpuTurn: (playerKey: any, options?: any) => runCpuTurn(playerKey, options || {}),
+        setProcessing: (nextValue: boolean) => setCpuProcessing(nextValue),
         shouldAbortCpuForHumanMode
     })
     : null;
@@ -1676,6 +1698,7 @@ function buildCpuRetryCardDecisionContext(
             performanceScope || null
         );
     } catch (e) {
+        if (isCardRuntimeUnavailableError(e)) throw e;
         return null;
     }
 }
@@ -1693,6 +1716,7 @@ function isCpuRetryCardChoiceAllowed(
     try {
         return isCardChoiceAllowedByRiskFn(playerKey, level, legalMovesCount, cardId, decisionContext) === true;
     } catch (e) {
+        if (isCardRuntimeUnavailableError(e)) throw e;
         return true;
     }
 }
@@ -1790,6 +1814,7 @@ const CpuTurnCardPhase = (CpuTurnCardPhaseModule && typeof CpuTurnCardPhaseModul
             typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null
         ),
         getLastUsedCardIdSafe,
+        isAborted: stopCpuForRuntimeIntegrityIfBlocked,
         getUseCardWithPolicyFn: () => resolvePreparedCardPolicyHook(
             'cpuMaybeUseCardWithPolicy',
             typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null
@@ -1851,6 +1876,7 @@ const CpuTurnPendingPhase = (CpuTurnPendingPhaseModule && typeof CpuTurnPendingP
         getCurrentPlayerKeySafe,
         getPendingDispatchHandlers,
         isCpuDebugLogAvailable,
+        isAborted: stopCpuForRuntimeIntegrityIfBlocked,
         isUiAnimationBusy,
         readCpuPendingSelection,
         resetPendingSelectRetryState,
@@ -1923,6 +1949,7 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
             || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null)
         ),
         handleCpuTurnError,
+        isAborted: stopCpuForRuntimeIntegrityIfBlocked,
         isCpuDebugLogAvailable,
         isUiAnimationBusy,
         readNowMs: () => readCpuTurnNowMs(),
@@ -1944,6 +1971,11 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
     : null;
 
 async function processCpuTurn(options: any = {}): Promise<void> {
+    if (isCpuRuntimeIntegrityBlocked()) {
+        CpuTurnScheduler.resetCpuTurnHandlerState();
+        setCpuProcessing(false);
+        return;
+    }
     const internalOptions = options && typeof options === 'object' ? options : {};
     const performanceCorrelationId = getCpuTurnPerformanceRecorder()
         ? readCpuTurnPerformanceCorrelationId(internalOptions)
@@ -1987,6 +2019,11 @@ async function processCpuTurn(options: any = {}): Promise<void> {
 }
 
 async function processAutoBlackTurn(): Promise<void> {
+    if (isCpuRuntimeIntegrityBlocked()) {
+        CpuTurnScheduler.resetCpuTurnHandlerState();
+        setCpuProcessing(false);
+        return;
+    }
     if (isHumanVsHumanModeEnabled()) return;
     // Re-enabled for Auto mode: invoke black run with autoMode flag
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
@@ -2009,6 +2046,24 @@ function handleCpuTurnError(
     autoMode: boolean,
     performanceScope?: CpuTurnPerformanceScope | null
 ): void {
+    if (stopCpuForRuntimeIntegrityIfBlocked()) return;
+    if (isCardRuntimeUnavailableError(error)) {
+        const firstFailure = cpuRuntimeIntegrityFailure === null;
+        cpuRuntimeIntegrityFailure = error;
+        if (CpuTurnScheduler && typeof CpuTurnScheduler.resetCpuTurnHandlerState === 'function') {
+            CpuTurnScheduler.resetCpuTurnHandlerState();
+        }
+        setCpuProcessing(false);
+        if (firstFailure) {
+            emitCpuTurnLogAdded(`${selfName}のゲーム実行環境を確認できませんでした。再読み込みしてください`);
+            try {
+                if (__uiImpl_cpu && typeof __uiImpl_cpu.handleCardRuntimeIntegrityFailure === 'function') {
+                    __uiImpl_cpu.handleCardRuntimeIntegrityFailure(error, 'cpu-turn-handler');
+                }
+            } catch (_notificationError) { /* the CPU remains terminally stopped */ }
+        }
+        return;
+    }
     const message = error && error.message ? error.message : String(error);
     console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
     console.error(`[AI] Error message: ${message}`);
@@ -2042,6 +2097,11 @@ function handleCpuTurnError(
 }
 
 async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void> {
+    if (isCpuRuntimeIntegrityBlocked()) {
+        CpuTurnScheduler.resetCpuTurnHandlerState();
+        setCpuProcessing(false);
+        return;
+    }
     const autoMode = options && options.autoMode === true;
     const inheritedPerformanceCorrelationId = getCpuTurnPerformanceRecorder()
         ? readCpuTurnPerformanceCorrelationId(options)
@@ -2159,12 +2219,15 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
             });
         }
 
+        if (stopCpuForRuntimeIntegrityIfBlocked()) return;
+
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const quiescencePreparation = await prepareCpuCardQuiescenceForRun(
                 analysisForRun,
                 playerKey,
                 performanceScope
             );
+            if (stopCpuForRuntimeIntegrityIfBlocked()) return;
             if (quiescencePreparation === 'stale') {
                 setCpuProcessing(false);
                 scheduleRunCpuTurn(playerKey, inheritedResumeOptions, 0);
@@ -2182,6 +2245,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 analysisSeed: analysisForRun && analysisForRun.seed,
                 getPreparedCardDecision: analysisForRun && analysisForRun.getPreparedCardDecision
             });
+            if (stopCpuForRuntimeIntegrityIfBlocked()) return;
             if (cardPhaseResult && cardPhaseResult.status === 'handled') {
                 return;
             }
@@ -2202,6 +2266,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 performanceScope,
                 analysisSeed: analysisForRun && analysisForRun.seed
             });
+            if (stopCpuForRuntimeIntegrityIfBlocked()) return;
             if (pendingPhaseResult && pendingPhaseResult.status === 'handled') {
                 return;
             }
@@ -2210,6 +2275,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
             resetPendingSelectRetryState(playerKey);
         }
 
+        if (stopCpuForRuntimeIntegrityIfBlocked()) return;
         await CpuTurnMovePhase.runCpuTurnMovePhase({
             playerKey,
             autoMode,
@@ -2229,6 +2295,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 : null,
             isAnalysisCurrent: analysisForRun && analysisForRun.isCurrent
         });
+        stopCpuForRuntimeIntegrityIfBlocked();
     } catch (error) {
         handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);
     }

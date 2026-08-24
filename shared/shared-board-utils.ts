@@ -6,15 +6,28 @@
  *   aware callers must pass an explicit BoardContext.
  */
 
-(function (root: any, factory) {
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'), require('./board/topology'), require('./board/expansion-sockets'), require('./board/state-kernel'), require('./board/search-state'));
-    } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null, root.BoardSearchState || null);
-    } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null, root.BoardSearchState || null);
-    }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null, BoardStateKernelModule: typeof import('./board/state-kernel') | null, BoardSearchStateModule: typeof import('./board/search-state') | null) {
+import SharedConstantsImport = require('../shared-constants');
+import BoardUtilsImport = require('./board-utils');
+import PaddedBoardCoordinatesImport = require('./board/padded-coordinates');
+import CanonicalBoardEncodingImport = require('./board/canonical-encoding');
+import BoardNotationImport = require('./board/notation');
+import BoardDimensionsImport = require('./board/dimensions');
+import BoardConfigurationImport = require('./board/configuration');
+import InitialBoardLayoutImport = require('./board/initial-layout');
+import BoardExpansionDescriptorsImport = require('./board/expansion-descriptors');
+import BoardCellAccessImport = require('./board/cell-access');
+import BoardCornersImport = require('./board/corners');
+import BoardEdgeRunsImport = require('./board/edge-runs');
+import BoardRiskCellsImport = require('./board/risk-cells');
+import BoardShapeIterationImport = require('./board/shape-iteration');
+import BoardLegalMovesImport = require('./board/legal-moves');
+import BoardControlCountsImport = require('./board/control-counts');
+import BoardTopologyImport = require('./board/topology');
+import BoardExpansionSocketsImport = require('./board/expansion-sockets');
+import BoardStateKernelImport = require('./board/state-kernel');
+import BoardSearchStateImport = require('./board/search-state');
+
+const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null, BoardStateKernelModule: typeof import('./board/state-kernel') | null, BoardSearchStateModule: typeof import('./board/search-state') | null) {
     'use strict';
 
     interface CellCoord {
@@ -882,6 +895,27 @@
         posToNotation,
         toBoardCellKey
     };
-}));
+})(
+    SharedConstantsImport,
+    BoardUtilsImport,
+    PaddedBoardCoordinatesImport,
+    CanonicalBoardEncodingImport,
+    BoardNotationImport,
+    BoardDimensionsImport,
+    BoardConfigurationImport,
+    InitialBoardLayoutImport,
+    BoardExpansionDescriptorsImport,
+    BoardCellAccessImport,
+    BoardCornersImport,
+    BoardEdgeRunsImport,
+    BoardRiskCellsImport,
+    BoardShapeIterationImport,
+    BoardLegalMovesImport,
+    BoardControlCountsImport,
+    BoardTopologyImport,
+    BoardExpansionSocketsImport,
+    BoardStateKernelImport,
+    BoardSearchStateImport
+);
 
-export {};
+export = SharedBoardUtils;

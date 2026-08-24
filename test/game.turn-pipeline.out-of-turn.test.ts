@@ -31,14 +31,21 @@ describe('turn_pipeline applyTurnSafe out-of-turn guard', () => {
 
     jest.isolateModules(() => {
       jest.doMock('../game/logic/cards', () => ({
-        flushPresentationEvents: jest.fn(() => [])
+        flushPresentationEvents: jest.fn(() => []),
+        getCardContext: jest.fn(() => ({})),
+        hasUsableCard: jest.fn(() => false),
+        applyCardUsage: jest.fn(() => false)
       }));
       jest.doMock('../game/logic/core', () => ({
         BLACK: 1,
-        WHITE: -1
+        WHITE: -1,
+        getLegalMoves: jest.fn(() => [])
       }));
       jest.doMock('../game/turn/turn_pipeline_phases', () => phaseMocks);
-      jest.doMock('../game/logic/board_ops', () => ({}));
+      jest.doMock('../game/logic/board_ops', () => ({
+        setActionContext: jest.fn(),
+        clearActionContext: jest.fn()
+      }));
 
       const isolatedTurnPipeline = require('../game/turn/turn_pipeline.js');
       isolatedTurnPipeline.applyTurn(

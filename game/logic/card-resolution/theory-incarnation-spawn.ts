@@ -1,7 +1,7 @@
 import type { GameState, PlayerKey } from '../../../src/types';
 
-const TheoryIncarnationState = require('./theory-incarnation-state');
-const CardResolutionBoardView = require('./board-view-access');
+import TheoryIncarnationState = require('./theory-incarnation-state');
+import CardResolutionBoardView = require('./board-view-access');
 
 const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
 const THEORY_SPAWN_ROULETTE_MS = 2500;

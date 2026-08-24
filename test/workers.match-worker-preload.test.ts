@@ -7,22 +7,26 @@ function readRepoFile(relativePath: string): string {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
-function toWorkerImportPath(cardLogicImportPath: string): string {
-  return `../game/logic/${cardLogicImportPath.slice('./'.length)}.js`;
+function getStaticImportPaths(source: string): string[] {
+  return Array.from(source.matchAll(/import\s+[^;=]+?=\s*require\('([^']+)'\)/g))
+    .map((match) => match[1]);
 }
 
-function toRuntimePreloadImportPathFromEffectResolver(requirePath: string): string {
-  const sourcePath = path.posix.normalize(path.posix.join('game/cards', requirePath));
-  return `../${sourcePath}.js`;
-}
-
-function toRuntimePreloadImportPathFromTurnPhase(requirePath: string): string {
-  if (requirePath.startsWith('./')) return `../game/turn/${requirePath.slice('./'.length)}.js`;
-  if (requirePath.startsWith('../logic/')) return `../game/logic/${requirePath.slice('../logic/'.length)}.js`;
-  if (requirePath === '../../shared-constants') return '../shared-constants.js';
-  if (requirePath.startsWith('../../shared/')) return `../shared/${requirePath.slice('../../shared/'.length)}.js`;
-  if (requirePath.startsWith('../../utils/')) return `../utils/${requirePath.slice('../../utils/'.length)}.js`;
-  throw new Error(`Unhandled turn phase require path: ${requirePath}`);
+function expectStaticImportsResolve(sourcePath: string): string[] {
+  const source = readRepoFile(sourcePath);
+  const importPaths = getStaticImportPaths(source);
+  expect(importPaths.length).toBeGreaterThan(0);
+  for (const importPath of importPaths) {
+    if (!importPath.startsWith('.')) continue;
+    const basePath = path.resolve(ROOT, path.dirname(sourcePath), importPath);
+    expect(
+      fs.existsSync(`${basePath}.ts`)
+      || fs.existsSync(`${basePath}.js`)
+      || fs.existsSync(path.join(basePath, 'index.ts'))
+      || fs.existsSync(path.join(basePath, 'index.js'))
+    ).toBe(true);
+  }
+  return importPaths;
 }
 
 function toRuntimePreloadImportPathFromPipelineUIAdapter(requirePath: string): string {
@@ -41,7 +45,7 @@ function expectRuntimePreloadRegistration(runtimePreloadSource: string, globalKe
   expect(runtimePreloadSource).toContain(`require('${importPath}')`);
 }
 
-function expectWorkerModuleRegistration(workerSource: string, _globalKey: string, _importPath: string): void {
+function expectWorkerModuleRegistration(workerSource: string): void {
   expect(workerSource).toContain(
     "import { WORKER_RUNTIME_GLOBAL_KEYS } from './match-worker-runtime-preload.js';"
   );
@@ -58,70 +62,45 @@ function extractStringLiteralMap(source: string, startToken: string, endToken: s
   )).map((match) => [match[1], match[2]]));
 }
 
-function extractRuntimePreloadRegistrations(source: string): Map<string, string> {
-  return new Map(Array.from(source.matchAll(
-    /installRuntimeModule\('([^']+)',\s*\(\)\s*=>\s*require\('([^']+)'\)\)/g
-  )).map((match) => [match[1], match[2]]));
-}
-
-describe('match worker card preload', () => {
-  test('preloads every cards-internal dependency required by game/logic/cards', () => {
-    const cardLogicSource = readRepoFile('game/logic/cards.ts');
+describe('match worker runtime module wiring', () => {
+  test('canonical CardLogic uses a static facade and composer while compatibility globals remain preloadable', () => {
+    const facadeSource = readRepoFile('game/logic/cards.ts');
+    const composerSource = readRepoFile('game/logic/card-runtime-composer.ts');
     const workerSource = readRepoFile('workers/match-worker.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const dependencies = Array.from(cardLogicSource.matchAll(
-      /resolveCardLogicModuleOrGlobal\('(\.\/cards-internal\/[^']+)',\s*'([^']+)'\)/g
-    )).map((match) => ({
-      importPath: toWorkerImportPath(match[1]),
-      globalKey: match[2]
-    }));
 
-    expect(dependencies.length).toBeGreaterThan(0);
-    for (const dependency of dependencies) {
-      expectWorkerModuleRegistration(workerSource, dependency.globalKey, dependency.importPath);
-      expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
-    }
+    expect(facadeSource).toContain("from './card-runtime-composer'");
+    expect(facadeSource).toContain("require('./cards-runtime-factory')");
+    expect(facadeSource).not.toMatch(/resolveCardLogicModuleOrGlobal|resolveRequiredCardModule|safeRequire/);
+    expectStaticImportsResolve('game/logic/card-runtime-composer.ts');
+    expect(composerSource).not.toMatch(/resolveCardLogicModuleOrGlobal|resolveRequiredCardModule|safeRequire/);
+    expectWorkerModuleRegistration(workerSource);
+    expectRuntimePreloadRegistration(
+      runtimePreloadSource,
+      'CardRandomSource',
+      '../game/logic/cards-internal/random-source.js'
+    );
   });
 
-  test('runtime preload exposes every required card module resolved by game/logic/cards', () => {
-    const cardLogicSource = readRepoFile('game/logic/cards.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const dependencies = Array.from(cardLogicSource.matchAll(
-      /resolveRequiredCardModule\('(\.\/[^']+)',\s*'([^']+)'\)/g
-    )).map((match) => ({
-      importPath: toWorkerImportPath(match[1]),
-      globalKey: match[2]
-    }));
-
-    expect(dependencies.length).toBeGreaterThan(0);
-    for (const dependency of dependencies) {
-      expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
-    }
-  });
-
-  test('runtime preload exposes every module dynamically resolved by the card effect resolver', () => {
+  test('card effect resolver statically imports every required stage and protection capability', () => {
     const effectResolverSource = readRepoFile('game/cards/effect-resolver.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const registrations = extractRuntimePreloadRegistrations(runtimePreloadSource);
-    const dependencies = Array.from(effectResolverSource.matchAll(
-      /loadRuntimeModule\(\s*'([^']+)'\s*,\s*'([^']+)'/g
-    )).map((match) => ({
-      importPath: toRuntimePreloadImportPathFromEffectResolver(match[1]),
-      globalKey: match[2]
-    }));
+    const importPaths = expectStaticImportsResolve('game/cards/effect-resolver.ts');
+    const expectedImports = [
+      '../logic/cards-internal/protection-context',
+      './card-usage-consumption-stage',
+      './card-usage-pending-stage',
+      './card-usage-immediate-stage',
+      './card-usage-sacrifice-stage',
+      './card-usage-presentation-stage',
+      './card-usage-validation-stage'
+    ];
 
-    expect(dependencies.length).toBeGreaterThan(0);
-    for (const dependency of dependencies) {
-      expect(registrations.get(dependency.globalKey)).toBe(dependency.importPath);
-    }
+    expect(importPaths).toEqual(expect.arrayContaining(expectedImports));
+    expect(effectResolverSource).not.toMatch(/loadRuntimeModule|safeRequire|globalThis|\bself\s*\./);
   });
 
-  test('worker preloads nested hole-style cell removal dependency used by card modules', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
+  test('hole-style card modules statically import the canonical cell-removal implementation', () => {
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const cellRemovalRuntimeShimPath = 'game/logic/cards/cell-removal.js';
-    const cellRemovalImportPath = '../game/logic/cards/cell-removal.js';
-    const cellRemovalGlobalKey = 'CardCellRemoval';
     const dependentCardSources = [
       'game/logic/cards/meteor.ts',
       'game/logic/cards/meteor_god.ts',
@@ -131,168 +110,47 @@ describe('match worker card preload', () => {
 
     for (const sourcePath of dependentCardSources) {
       const source = readRepoFile(sourcePath);
-      expect(source).toContain("safeRequire('./cell-removal')");
-      expect(source).toContain('CardCellRemoval');
-      expect(source).toMatch(/self[^;]+CardCellRemoval/);
+      expect(getStaticImportPaths(source)).toContain('./cell-removal');
+      expect(source).not.toMatch(/safeRequire|globalThis|\bself\s*\./);
     }
-    expect(fs.existsSync(path.join(ROOT, cellRemovalRuntimeShimPath))).toBe(true);
-    expectWorkerModuleRegistration(workerSource, cellRemovalGlobalKey, cellRemovalImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, cellRemovalGlobalKey, cellRemovalImportPath);
-  });
-
-  test('worker exposes shared evasion status before bundled card modules load', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const evasionStatusImportPath = '../shared/evasion-status.js';
-    const evasionStatusGlobalKey = 'EvasionStatus';
-
-    expectWorkerModuleRegistration(workerSource, evasionStatusGlobalKey, evasionStatusImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, evasionStatusGlobalKey, evasionStatusImportPath);
-  });
-
-  test('worker exposes protection context before card effect resolver loads', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const protectionContextImportPath = '../game/logic/cards-internal/protection-context.js';
-    const protectionContextGlobalKey = 'CardProtectionContext';
-
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext'"
+    expect(fs.existsSync(path.join(ROOT, 'game/logic/cards/cell-removal.js'))).toBe(true);
+    expectRuntimePreloadRegistration(
+      runtimePreloadSource,
+      'CardCellRemoval',
+      '../game/logic/cards/cell-removal.js'
     );
-    expectWorkerModuleRegistration(workerSource, protectionContextGlobalKey, protectionContextImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, protectionContextGlobalKey, protectionContextImportPath);
   });
 
-  test('worker exposes card usage consumption before card effect resolver loads', () => {
+  test('worker exposes shared evasion status for remaining compatibility consumers', () => {
     const workerSource = readRepoFile('workers/match-worker.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const consumptionImportPath = '../game/cards/card-usage-consumption-stage.js';
-    const consumptionGlobalKey = 'CardUsageConsumptionStage';
 
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('./card-usage-consumption-stage', 'CardUsageConsumptionStage'"
-    );
-    expectWorkerModuleRegistration(workerSource, consumptionGlobalKey, consumptionImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, consumptionGlobalKey, consumptionImportPath);
+    expectWorkerModuleRegistration(workerSource);
+    expectRuntimePreloadRegistration(runtimePreloadSource, 'EvasionStatus', '../shared/evasion-status.js');
   });
 
-  test('worker exposes card usage pending state before card effect resolver loads', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const pendingImportPath = '../game/cards/card-usage-pending-stage.js';
-    const pendingGlobalKey = 'CardUsagePendingStage';
-
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('./card-usage-pending-stage', 'CardUsagePendingStage'"
-    );
-    expectWorkerModuleRegistration(workerSource, pendingGlobalKey, pendingImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, pendingGlobalKey, pendingImportPath);
-  });
-
-  test('worker exposes card usage immediate effects before card effect resolver loads', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const immediateImportPath = '../game/cards/card-usage-immediate-stage.js';
-    const immediateGlobalKey = 'CardUsageImmediateStage';
-
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('./card-usage-immediate-stage', 'CardUsageImmediateStage'"
-    );
-    expectWorkerModuleRegistration(workerSource, immediateGlobalKey, immediateImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, immediateGlobalKey, immediateImportPath);
-  });
-
-  test('worker exposes card usage sacrifice handling before card effect resolver loads', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const sacrificeImportPath = '../game/cards/card-usage-sacrifice-stage.js';
-    const sacrificeGlobalKey = 'CardUsageSacrificeStage';
-
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('./card-usage-sacrifice-stage', 'CardUsageSacrificeStage'"
-    );
-    expectWorkerModuleRegistration(workerSource, sacrificeGlobalKey, sacrificeImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, sacrificeGlobalKey, sacrificeImportPath);
-  });
-
-  test('worker exposes card usage presentation before card effect resolver loads', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const presentationImportPath = '../game/cards/card-usage-presentation-stage.js';
-    const presentationGlobalKey = 'CardUsagePresentationStage';
-
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('./card-usage-presentation-stage', 'CardUsagePresentationStage'"
-    );
-    expectWorkerModuleRegistration(workerSource, presentationGlobalKey, presentationImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, presentationGlobalKey, presentationImportPath);
-  });
-
-  test('worker exposes card usage validation before card effect resolver loads', () => {
-    const workerSource = readRepoFile('workers/match-worker.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const validationImportPath = '../game/cards/card-usage-validation-stage.js';
-    const validationGlobalKey = 'CardUsageValidationStage';
-
-    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
-      "loadRuntimeModule('./card-usage-validation-stage', 'CardUsageValidationStage'"
-    );
-    expectWorkerModuleRegistration(workerSource, validationGlobalKey, validationImportPath);
-    expectRuntimePreloadRegistration(runtimePreloadSource, validationGlobalKey, validationImportPath);
-  });
-
-  test('runtime preload exposes every turn pipeline phase fallback module', () => {
+  test('turn pipeline phases are a resolvable static import graph with no runtime fallback loader', () => {
     const turnPhaseSource = readRepoFile('game/turn/turn_pipeline_phases.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const moduleGlobals = extractStringLiteralMap(
-      turnPhaseSource,
-      'TURN_PIPELINE_PHASE_MODULE_GLOBALS',
-      'function getRuntimeModuleGlobal'
-    );
-    const dependencies = Array.from(moduleGlobals.entries()).map(([requirePath, globalKey]) => ({
-      importPath: toRuntimePreloadImportPathFromTurnPhase(requirePath),
-      globalKey
-    }));
-    const requirePaths = Array.from(turnPhaseSource.matchAll(/requireOptionalModule\('([^']+)'\)/g)).map((match) => match[1]);
+    const importPaths = expectStaticImportsResolve('game/turn/turn_pipeline_phases.ts');
 
-    expect(dependencies.length).toBeGreaterThan(0);
-    for (const requirePath of requirePaths) {
-      expect(moduleGlobals.has(requirePath)).toBe(true);
-    }
-    for (const dependency of dependencies) {
-      expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
-    }
+    expect(importPaths).toEqual(expect.arrayContaining([
+      './turn_pipeline_phase_helpers',
+      './pending-coordinator',
+      './action-phase/place-resolution',
+      './turn-start/marker-phase',
+      './turn-start/timer-phase'
+    ]));
+    expect(turnPhaseSource).not.toMatch(
+      /requireOptionalModule|TURN_PIPELINE_PHASE_MODULE_GLOBALS|TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS/
+    );
   });
 
-  test('turn pipeline optional modules are statically loadable for workerd bundles', () => {
-    const turnPhaseSource = readRepoFile('game/turn/turn_pipeline_phases.ts');
-    const loaderBlock = turnPhaseSource.slice(
-      turnPhaseSource.indexOf('TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS'),
-      turnPhaseSource.indexOf('function getRuntimeModuleGlobal')
-    );
-    const requirePaths = Array.from(turnPhaseSource.matchAll(/requireOptionalModule\('([^']+)'\)/g)).map((match) => match[1]);
-
-    expect(loaderBlock.length).toBeGreaterThan(0);
-    expect(requirePaths.length).toBeGreaterThan(0);
-    for (const requirePath of requirePaths) {
-      expect(loaderBlock).toContain(`'${requirePath}': () => require('${requirePath}')`);
-    }
-  });
-
-  test('runtime preload exposes nested turn-start marker phase modules', () => {
+  test('turn-start marker phases statically import their nested phase modules', () => {
     const markerPhaseSource = readRepoFile('game/turn/turn-start/marker-phase.ts');
-    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
-    const dependencies = Array.from(markerPhaseSource.matchAll(
-      /requireTurnStartModule\('(\.\/[^']+)',\s*'([^']+)'\)/g
-    )).map((match) => ({
-      importPath: `../game/turn/turn-start/${match[1].slice('./'.length)}.js`,
-      globalKey: match[2]
-    }));
+    const importPaths = expectStaticImportsResolve('game/turn/turn-start/marker-phase.ts');
 
-    expect(dependencies.length).toBeGreaterThan(0);
-    for (const dependency of dependencies) {
-      expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
-    }
+    expect(importPaths).toEqual(expect.arrayContaining(['./bomb-phase', './special-stone-phase']));
+    expect(markerPhaseSource).not.toMatch(/requireTurnStartModule|safeRequire|globalThis|\bself\s*\./);
   });
 
   test('runtime preload exposes every pipeline UI adapter fallback module', () => {

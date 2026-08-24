@@ -1,5 +1,8 @@
 'use strict';
 
+import { isCardRuntimeUnavailableError } from '../../game/logic/card-runtime-errors';
+import CardRuntimeIntegrity = require('../card-runtime-integrity');
+
 type NetworkAutoRoot = Record<string, any>;
 
 type NetworkAutoController = {
@@ -264,6 +267,9 @@ function createNetworkAutoPlayController(rootRef?: NetworkAutoRoot): NetworkAuto
   let lastSignature = '';
 
   async function tick(): Promise<{ handled: boolean; published?: boolean; reason?: string }> {
+    if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+      return { handled: true, published: false, reason: 'RUNTIME_UNAVAILABLE' };
+    }
     if (!isNetworkModeActive(root)) return { handled: false, reason: 'NOT_NETWORK_MODE' };
     const client = root && root.NetworkMatchClient;
     if (!client || typeof client.publishCommand !== 'function') return { handled: true, reason: 'CLIENT_UNAVAILABLE' };
@@ -287,7 +293,17 @@ function createNetworkAutoPlayController(rootRef?: NetworkAutoRoot): NetworkAuto
       return { handled: true, reason: 'PLANNER_UNAVAILABLE' };
     }
 
-    const planned = planner.planCpuNetworkCommand(createPlannerInput(root, state, turnKey));
+    let planned: any;
+    try {
+      planned = planner.planCpuNetworkCommand(createPlannerInput(root, state, turnKey));
+    } catch (error) {
+      if (!isCardRuntimeUnavailableError(error)) throw error;
+      CardRuntimeIntegrity.latchCardRuntimeIntegrityFailure(error, {
+        source: 'network-auto-play'
+      });
+      lastSignature = '';
+      return { handled: true, published: false, reason: 'RUNTIME_UNAVAILABLE' };
+    }
     const action = planned && planned.action;
     if (!action) return { handled: true, reason: 'NO_ACTION_SELECTED' };
 

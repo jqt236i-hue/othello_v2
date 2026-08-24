@@ -1,4 +1,4 @@
-const ImmediateEffectDispatcher = require('./immediate-effect-dispatcher');
+import ImmediateEffectDispatcher = require('./immediate-effect-dispatcher');
 
 type ResolveTheorySpawnImmediateEffectsOptions = {
     CardLogic: any;

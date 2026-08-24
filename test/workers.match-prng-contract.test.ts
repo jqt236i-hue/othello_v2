@@ -9,6 +9,34 @@ const runtimeScope = globalThis as typeof globalThis & {
 };
 const originalSubPlacementContinuation = runtimeScope.TurnSubPlacementContinuation;
 
+function createCardLogicPort() {
+  return {
+    flushPresentationEvents: jest.fn(() => []),
+    getCardContext: jest.fn(() => ({})),
+    hasUsableCard: jest.fn(() => false),
+    applyCardUsage: jest.fn(() => false)
+  };
+}
+
+function createCorePort() {
+  return {
+    BLACK: 1,
+    WHITE: -1,
+    getLegalMoves: jest.fn(() => [])
+  };
+}
+
+function createBoardOpsPort() {
+  return {
+    setActionContext: jest.fn((cardState: any, meta: any) => {
+      cardState._currentActionMeta = meta;
+    }),
+    clearActionContext: jest.fn((cardState: any) => {
+      delete cardState._currentActionMeta;
+    })
+  };
+}
+
 beforeEach(() => {
   runtimeScope.TurnSubPlacementContinuation = {
     isSubPlacementTurnActive: () => false
@@ -24,13 +52,8 @@ afterEach(() => {
 });
 
 test('worker TurnPipeline applyTurnSafe persists next prngState and returns a stateHash', () => {
-  const CardLogic = {
-    flushPresentationEvents: jest.fn(() => [])
-  };
-  const Core = {
-    BLACK: 1,
-    WHITE: -1
-  };
+  const CardLogic = createCardLogicPort();
+  const Core = createCorePort();
   const TurnPipelinePhases = {
     applyTurnStartPhase: jest.fn(),
     applyCardUsagePhase: jest.fn(),
@@ -38,14 +61,7 @@ test('worker TurnPipeline applyTurnSafe persists next prngState and returns a st
       if (prng && typeof prng.random === 'function') prng.random();
     })
   };
-  const BoardOps = {
-    setActionContext: jest.fn((cardState: any, meta: any) => {
-      cardState._currentActionMeta = meta;
-    }),
-    clearActionContext: jest.fn((cardState: any) => {
-      delete cardState._currentActionMeta;
-    })
-  };
+  const BoardOps = createBoardOpsPort();
   let calls = 0;
   const prng = {
     random: jest.fn(() => {
@@ -72,20 +88,15 @@ test('worker TurnPipeline applyTurnSafe persists next prngState and returns a st
 });
 
 test('worker TurnPipeline applyTurnSafe shares root expectedStateVersion rejection guard', () => {
-  const CardLogic = {
-    flushPresentationEvents: jest.fn(() => [])
-  };
-  const Core = {
-    BLACK: 1,
-    WHITE: -1
-  };
+  const CardLogic = createCardLogicPort();
+  const Core = createCorePort();
   const TurnPipelinePhases = {
     applyTurnStartPhase: jest.fn(),
     applyCardUsagePhase: jest.fn(),
     applyActionPhase: jest.fn()
   };
 
-  const TurnPipeline = createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, {});
+  const TurnPipeline = createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, createBoardOpsPort());
   const result = TurnPipeline.applyTurnSafe(
     { markers: [], presentationEvents: [] },
     { currentPlayer: 1, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },

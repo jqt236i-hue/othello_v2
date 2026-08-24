@@ -1,4 +1,6 @@
 const NetworkAutoPlay = require('../ui/network/auto-play');
+const CardRuntimeIntegrity = require('../ui/card-runtime-integrity');
+const { createCardRuntimeUnavailableError } = require('../game/logic/card-runtime-errors');
 
 function createRoot(overrides: any = {}) {
   const publishCommand = jest.fn().mockResolvedValue({ ok: true });
@@ -55,6 +57,14 @@ function expectAutoTurnPublished(
 }
 
 describe('NetworkAutoPlay', () => {
+  beforeEach(() => {
+    CardRuntimeIntegrity.resetCardRuntimeIntegrityState();
+  });
+
+  afterEach(() => {
+    CardRuntimeIntegrity.resetCardRuntimeIntegrityState();
+  });
+
   test('publishes a Lv1-style selected move for the local network seat', async () => {
     const root = createRoot();
     const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
@@ -95,6 +105,60 @@ describe('NetworkAutoPlay', () => {
       SubPlacementContinuation: root.TurnSubPlacementContinuation
     }));
     expectAutoTurnPublished(root, 'use_card', plannedAction);
+  });
+
+  test('latches a tagged planner failure and never retries or publishes another network action', async () => {
+    const unavailable = createCardRuntimeUnavailableError('state.availability', 'state');
+    const planner = {
+      planCpuNetworkCommand: jest.fn(() => { throw unavailable; })
+    };
+    const root = createRoot({ CpuNetworkCommandPlanner: planner });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    await expect(controller.tick()).resolves.toEqual({
+      handled: true,
+      published: false,
+      reason: 'RUNTIME_UNAVAILABLE'
+    });
+    await expect(controller.tick()).resolves.toEqual({
+      handled: true,
+      published: false,
+      reason: 'RUNTIME_UNAVAILABLE'
+    });
+
+    expect(planner.planCpuNetworkCommand).toHaveBeenCalledTimes(1);
+    expect(root.NetworkMatchClient.publishCommand).not.toHaveBeenCalled();
+    expect(CardRuntimeIntegrity.getCardRuntimeIntegrityState()).toMatchObject({
+      blocked: true,
+      source: 'network-auto-play',
+      capability: 'state.availability',
+      cohort: 'state'
+    });
+  });
+
+  test('real planner propagates a tagged CardLogic query failure without publishing a pass', async () => {
+    const planner = require('../game/cpu-network-command-planner');
+    const unavailable = createCardRuntimeUnavailableError('state.availability', 'state');
+    const root = createRoot({
+      CpuNetworkCommandPlanner: planner,
+      CardLogic: {
+        hasUsableCard: jest.fn(() => { throw unavailable; })
+      }
+    });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    await expect(controller.tick()).resolves.toEqual({
+      handled: true,
+      published: false,
+      reason: 'RUNTIME_UNAVAILABLE'
+    });
+
+    expect(root.NetworkMatchClient.publishCommand).not.toHaveBeenCalled();
+    expect(root.getLegalMoves).not.toHaveBeenCalled();
+    expect(CardRuntimeIntegrity.getCardRuntimeIntegrityState()).toMatchObject({
+      blocked: true,
+      source: 'network-auto-play'
+    });
   });
 
   test('does not publish when the room does not allow network auto', async () => {

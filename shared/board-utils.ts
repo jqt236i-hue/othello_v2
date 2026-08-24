@@ -5,7 +5,7 @@
 
 import { Board, BoardValue, PlayerValue, DiscCount } from '../src/types';
 
-const SharedConstants = require('../shared-constants');
+import SharedConstants = require('../shared-constants');
 
 const EMPTY: BoardValue = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
   ? Number(SharedConstants.EMPTY) as BoardValue

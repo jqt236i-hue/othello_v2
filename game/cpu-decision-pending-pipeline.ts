@@ -19,6 +19,12 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
     let cachedTurnPipelineAdapter: any = null;
     let cachedTurnPipeline: any = null;
 
+    function isRuntimeUnavailableResult(value: any): boolean {
+        if (!value || typeof value !== 'object') return false;
+        const reason = String(value.reason || value.rejectedReason || '').trim().toUpperCase();
+        return reason === 'RUNTIME_UNAVAILABLE';
+    }
+
     function resolveTurnPipelineAdapter(): any {
         const globalAdapter = cfg.readRuntimeModule('TurnPipelineUIAdapter');
         if (globalAdapter) {
@@ -87,6 +93,9 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
 
         const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
         if (!res || res.ok === false) {
+            if (isRuntimeUnavailableResult(res)) {
+                return { ok: false, handled: true, reason: 'runtime_unavailable', res };
+            }
             return { ok: false, res };
         }
 
@@ -100,7 +109,18 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
             });
         }
         cfg.emitCpuSelectionStateChange();
-        await cfg.finalizeCpuPendingSelectionFlow(playerKey, pendingType, res.playbackEvents, action);
+        const finalizationResult = await cfg.finalizeCpuPendingSelectionFlow(
+            playerKey,
+            pendingType,
+            res.playbackEvents,
+            action
+        );
+        if (isRuntimeUnavailableResult(finalizationResult)) {
+            return { ok: false, handled: true, reason: 'runtime_unavailable', res };
+        }
+        if (finalizationResult === false) {
+            return { ok: false, handled: true, reason: 'finalization_failed', res };
+        }
         return { ok: true, res };
     }
 

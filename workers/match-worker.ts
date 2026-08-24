@@ -71,6 +71,10 @@ import { createMatchWorkerTimeoutController } from './match-worker-timeout-contr
 import { createMatchWorkerTurnTimerController } from './match-worker-turn-timer-controller';
 import { createMatchWorkerTurnTimerHelpers } from './match-worker-turn-timer';
 import { createMatchWorkerPublishController } from './match-worker-publish-controller';
+import {
+    createMatchWorkerGameRuntime,
+    type MatchWorkerGameRuntime
+} from './match-worker-game-runtime';
 import { createMatchSpectateController } from '../utils/match-spectate-controller';
 import { createMatchJoinController } from '../utils/match-join-controller';
 import { createMatchLeaveController } from '../utils/match-leave-controller';
@@ -101,6 +105,7 @@ import {
 } from '../utils/match-auto-command';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
+import { isCardRuntimeUnavailableError } from '../game/logic/card-runtime-errors';
 
 const MatchAuthority = matchAuthority;
 type MatchWorkerCryptoLike = {
@@ -727,6 +732,7 @@ function buildWorkerMatchCommandCapabilities(options: {
     ) {
         capabilities.autoCommand = {
             isAutoTurnPublishBody: (body: unknown) => isMatchAutoTurnPublishBody(body),
+            isRuntimeUnavailableError: (error: unknown) => isCardRuntimeUnavailableError(error),
             resolveAutoTurnPublishBody: (autoOptions: any) => resolveMatchAutoTurnPublishBody({
                 body: autoOptions.body,
                 snapshot: autoOptions.snapshot,
@@ -1047,6 +1053,10 @@ async function applyCommandPublishToSnapshot(
         pendingEffectId: result.pendingEffectId
     };
 }
+
+const DEFAULT_MATCH_WORKER_GAME_RUNTIME = createMatchWorkerGameRuntime({
+    applyCommandPublishToSnapshot
+});
 
 async function applyTimeoutPassToSnapshot(options: {
     room: MatchWorkerRoomState;
@@ -1807,8 +1817,13 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     turnTimerController: ReturnType<typeof createMatchWorkerTurnTimerController> | null;
     timeoutController: ReturnType<typeof createMatchWorkerTimeoutController> | null;
     publishController: ReturnType<typeof createMatchWorkerPublishController> | null;
+    gameRuntime: MatchWorkerGameRuntime;
 
-    constructor(state: DurableObjectStateLike, env?: MatchWorkerEnv | null) {
+    constructor(
+        state: DurableObjectStateLike,
+        env?: MatchWorkerEnv | null,
+        gameRuntime?: MatchWorkerGameRuntime | null
+    ) {
         this.state = state;
         this.env = env && typeof env === 'object' ? env : null;
         this.room = null;
@@ -1828,6 +1843,26 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.turnTimerController = null;
         this.timeoutController = null;
         this.publishController = null;
+        this.gameRuntime = gameRuntime
+            ? createMatchWorkerGameRuntime(gameRuntime)
+            : DEFAULT_MATCH_WORKER_GAME_RUNTIME;
+    }
+
+    async applyGameRuntimeCommand(
+        room: MatchWorkerRoomState | null | undefined,
+        body: Record<string, unknown>,
+        playerKey: MatchAuthoritySeatKey
+    ): Promise<Record<string, unknown>> {
+        try {
+            return await this.gameRuntime.applyCommandPublishToSnapshot(room, body, playerKey);
+        } catch (error) {
+            if (!isCardRuntimeUnavailableError(error)) throw error;
+            return {
+                ok: false,
+                rejectedReason: 'RUNTIME_UNAVAILABLE',
+                errorMessage: error.message
+            };
+        }
     }
 
     getLeaderboardRoomController() {
@@ -2042,7 +2077,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 deepClone,
                 makeInitialSnapshot,
                 buildInitialDeckSnapshotOptions,
-                applyCommandPublishToSnapshot,
+                applyCommandPublishToSnapshot: (
+                    room: MatchWorkerRoomState | null | undefined,
+                    body: Record<string, unknown>,
+                    playerKey: MatchAuthoritySeatKey
+                ) => this.applyGameRuntimeCommand(room, body, playerKey),
                 isSnapshotGameOver: (snapshot: MatchWorkerPublicSnapshot | null | undefined) => this.isSnapshotGameOver(snapshot),
                 finalizeRatedMatchAfterAcceptedPublish: async () => {
                     const result = await this.resolveRatedNormalResult();

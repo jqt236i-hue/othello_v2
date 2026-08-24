@@ -1,17 +1,7 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedConstants = require('../../../shared-constants');
 
-(function (root: any, factory: any) {
-    if (root && root.SharedConstants) {
-        root.CardOwnershipEffects = factory(root.SharedConstants);
-    } else if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
-    } else {
-        root.CardOwnershipEffects = factory(root.SharedConstants);
-    }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any) {
-    'use strict';
-
-    const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
 function unwrapMarkerEntry(markerEntry: any): any | null {
     if (!markerEntry || typeof markerEntry !== 'object') return null;
@@ -368,9 +358,10 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     };
 }
 
-    return {
-        applyTemptWill,
-        transferCellMarkerOwnership,
-        applyCaptureWill
-    };
-}));
+const CardOwnershipEffects = {
+    applyTemptWill,
+    transferCellMarkerOwnership,
+    applyCaptureWill
+};
+
+export = CardOwnershipEffects;

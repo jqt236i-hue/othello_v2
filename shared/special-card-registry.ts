@@ -1,10 +1,4 @@
-(function (root: any, factory) {
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.SpecialCardRegistry = factory();
-    }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function () {
+const SpecialCardRegistry = (function () {
     'use strict';
 
     const INVIOLABLE_SPECIAL_CARD_IDS = Object.freeze([
@@ -126,6 +120,6 @@
         getSpecialCardPresentationByMarkerType,
         isInviolableSpecialCardId
     });
-}));
+})();
 
-export {};
+export = SpecialCardRegistry;

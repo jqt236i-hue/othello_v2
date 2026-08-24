@@ -1,25 +1,15 @@
 'use strict';
 
 import PendingSelectionRegistry = require('./pending-selection-registry');
+import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-registry');
+import SpecialCardRegistryImport = require('../../../shared/special-card-registry');
+import CardMarkersImport = require('../cards/markers');
+import BoardExecutorResolutionImport = require('../card-resolution/board-executor');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry');
-const SpecialCardRegistry = safeRequire('../../../shared/special-card-registry');
-const CardMarkersModule = safeRequire('../cards/markers');
-const BoardExecutorResolution = safeRequire('../card-resolution/board-executor');
+const ManifestStoneRegistry: any = ManifestStoneRegistryImport;
+const SpecialCardRegistry: any = SpecialCardRegistryImport;
+const CardMarkersModule: any = CardMarkersImport;
+const BoardExecutorResolution: any = BoardExecutorResolutionImport;
 
 interface CardUsageContext {
     gameState?: any;

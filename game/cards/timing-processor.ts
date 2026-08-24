@@ -4,113 +4,17 @@
  */
 
 import { CardState, GameState } from '../../src/types';
+import CardEffectTimingModule = require('../logic/cards-internal/effect-timing');
+import CardTimeBombModule = require('../logic/cards/time_bomb');
+import DragonEffectsModule = require('../logic/effects/dragon');
+import CardUdgModule = require('../logic/cards/udg');
+import CardHyperactiveModule = require('../logic/cards/hyperactive');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function readRuntimeGlobal(globalKey: string): any {
-    if (!globalKey) return null;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
-            return (globalThis as any)[globalKey];
-        }
-        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
-            return (self as any)[globalKey];
-        }
-    } catch (e) {
-        return null;
-    }
-    return null;
-}
-
-function unwrapModule(mod: any): any {
-    if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
-        return mod.default || mod;
-    }
-    return mod;
-}
-
-const CardModuleResolver = safeRequire('../logic/cards-internal/module-resolver');
-
-function loadRuntimeModule(id: string, globalKey: string): any {
-    if (CardModuleResolver && typeof CardModuleResolver.resolveModule === 'function') {
-        const resolved = CardModuleResolver.resolveModule({
-            globalName: globalKey,
-            requirePath: id,
-            requireFn: _require,
-            label: globalKey
-        });
-        if (resolved) return unwrapModule(resolved);
-    }
-
-    return unwrapModule(safeRequire(id)) || unwrapModule(readRuntimeGlobal(globalKey));
-}
-
-function requireRuntimeModule(id: string, globalKey: string): any {
-    const mod = loadRuntimeModule(id, globalKey);
-    if (!mod) {
-        throw new Error(`[timing-processor.ts] ${globalKey} module not available`);
-    }
-    return mod;
-}
-
-let CardEffectTimingModuleCache: any = null;
-let CardTimeBombModuleCache: any = null;
-let DragonEffectsModuleCache: any = null;
-let CardUdgModuleCache: any = null;
-let CardHyperactiveModuleCache: any = null;
-
-function getCardEffectTimingModule(): any {
-    if (!CardEffectTimingModuleCache) {
-        CardEffectTimingModuleCache = requireRuntimeModule('../logic/cards-internal/effect-timing', 'CardEffectTiming');
-    }
-    return CardEffectTimingModuleCache;
-}
-
-function getCardTimeBombModule(): any {
-    if (!CardTimeBombModuleCache) {
-        CardTimeBombModuleCache = requireRuntimeModule('../logic/cards/time_bomb', 'CardTimeBomb');
-    }
-    return CardTimeBombModuleCache;
-}
-
-function getDragonEffectsModule(): any {
-    if (!DragonEffectsModuleCache) {
-        DragonEffectsModuleCache = requireRuntimeModule('../logic/effects/dragon', 'DragonEffects');
-    }
-    return DragonEffectsModuleCache;
-}
-
-function getCardUdgModule(): any {
-    if (!CardUdgModuleCache) {
-        CardUdgModuleCache = requireRuntimeModule('../logic/cards/udg', 'CardUdg');
-    }
-    return CardUdgModuleCache;
-}
-
-function getCardHyperactiveModule(): any {
-    if (!CardHyperactiveModuleCache) {
-        CardHyperactiveModuleCache = requireRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
-    }
-    return CardHyperactiveModuleCache;
-}
+function getCardEffectTimingModule(): any { return CardEffectTimingModule; }
+function getCardTimeBombModule(): any { return CardTimeBombModule; }
+function getDragonEffectsModule(): any { return DragonEffectsModule; }
+function getCardUdgModule(): any { return CardUdgModule; }
+function getCardHyperactiveModule(): any { return CardHyperactiveModule; }
 
 function onTurnStart(cardState: CardState, playerKey: string, gameState: GameState, prng: any, effectTimingContext: any) {
     const CardEffectTimingModule = getCardEffectTimingModule();

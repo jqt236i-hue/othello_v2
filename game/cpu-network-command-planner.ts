@@ -1,15 +1,14 @@
 'use strict';
 
+import CoreLogic = require('./logic/core');
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
+import SubPlacementContinuation = require('./turn/sub-placement-continuation');
+
 type PlannerInput = Record<string, any>;
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire | null = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : (typeof require === 'function' ? require : null);
-
-let coreLogicModule: any = null;
-let subPlacementContinuationModule: any = null;
+function rethrowCardRuntimeUnavailable(error: unknown): void {
+  if (isCardRuntimeUnavailableError(error)) throw error;
+}
 
 function normalizePlayerKey(value: any): 'black' | 'white' {
   return String(value || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
@@ -68,26 +67,12 @@ function readPending(cardState: any, playerKey: string): any | null {
 function resolveCoreLogic(input: PlannerInput): any | null {
   if (input && input.CoreLogic) return input.CoreLogic;
   if (input && input.Core) return input.Core;
-  if (!coreLogicModule && _require) {
-    try {
-      coreLogicModule = _require('./logic/core');
-    } catch (e) {
-      coreLogicModule = null;
-    }
-  }
-  return coreLogicModule;
+  return CoreLogic;
 }
 
 function resolveSubPlacementContinuation(input: PlannerInput): any | null {
   if (input && input.SubPlacementContinuation) return input.SubPlacementContinuation;
-  if (!subPlacementContinuationModule && _require) {
-    try {
-      subPlacementContinuationModule = _require('./turn/sub-placement-continuation');
-    } catch (e) {
-      subPlacementContinuationModule = null;
-    }
-  }
-  return subPlacementContinuationModule;
+  return SubPlacementContinuation;
 }
 
 function isSubPlacementTurnActive(input: PlannerInput, playerKey: string): boolean {
@@ -96,6 +81,7 @@ function isSubPlacementTurnActive(input: PlannerInput, playerKey: string): boole
   try {
     return continuation.isSubPlacementTurnActive(input.cardState, playerKey) === true;
   } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
     return false;
   }
 }
@@ -105,7 +91,10 @@ function resolveCardContext(input: PlannerInput): any {
   if (logic && typeof logic.getCardContext === 'function') {
     try {
       return logic.getCardContext(input.cardState);
-    } catch (e) { /* fall through */ }
+    } catch (e) {
+      rethrowCardRuntimeUnavailable(e);
+      /* preserve the characterized untagged fallback */
+    }
   }
   return {};
 }
@@ -116,6 +105,7 @@ function isFreePlacementPending(input: PlannerInput, pendingType: string): boole
   try {
     return logic.isFreePlacementPendingType(pendingType) === true;
   } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
     return false;
   }
 }
@@ -163,13 +153,19 @@ function getCoreLegalMoves(input: PlannerInput, playerKey: string, pendingType: 
     try {
       const moves = core.getFreePlacementMoves(input.gameState, playerValue, context);
       if (Array.isArray(moves) && moves.length > 0) return moves;
-    } catch (e) { /* fall through */ }
+    } catch (e) {
+      rethrowCardRuntimeUnavailable(e);
+      /* preserve the characterized untagged fallback */
+    }
   }
   if (typeof core.getLegalMoves === 'function') {
     try {
       const moves = core.getLegalMoves(input.gameState, playerValue, context);
       if (Array.isArray(moves)) return moves;
-    } catch (e) { /* fall through */ }
+    } catch (e) {
+      rethrowCardRuntimeUnavailable(e);
+      /* preserve the characterized untagged fallback */
+    }
   }
   return [];
 }
@@ -185,7 +181,10 @@ function getLegalMoves(input: PlannerInput, playerKey: string, pendingType: stri
       );
       if (Array.isArray(moves) && moves.length > 0) return moves;
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    /* preserve the characterized untagged fallback */
+  }
   return getCoreLegalMoves(input, playerKey, pendingType);
 }
 
@@ -195,7 +194,10 @@ function selectMove(input: PlannerInput, moves: any[], playerKey: string): any {
       const selected = input.selectCpuMoveWithPolicy(moves, playerKey);
       if (selected && Number.isFinite(Number(selected.row)) && Number.isFinite(Number(selected.col))) return selected;
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    /* preserve the characterized untagged fallback */
+  }
   return moves[0] || null;
 }
 
@@ -208,6 +210,7 @@ function hasUsableCard(input: PlannerInput, playerKey: string): boolean {
       logic.hasUsableCard(input.cardState, input.gameState, playerKey) === true
     );
   } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
     return false;
   }
 }
@@ -219,7 +222,10 @@ function getUsableCardIds(input: PlannerInput, playerKey: string): string[] {
       const usable = logic.getUsableCardIds(input.cardState, input.gameState, playerKey);
       if (Array.isArray(usable)) return usable.map((id: any) => String(id || '').trim()).filter(Boolean);
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    /* preserve the characterized untagged fallback */
+  }
   try {
     const hand = input
       && input.cardState
@@ -229,6 +235,7 @@ function getUsableCardIds(input: PlannerInput, playerKey: string): string[] {
       : [];
     return hand.map((id: any) => String(id || '').trim()).filter(Boolean);
   } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
     return [];
   }
 }
@@ -258,7 +265,10 @@ function getUsableCardSelections(input: PlannerInput, playerKey: string): Array<
           .filter(Boolean) as Array<{ cardId: string; handIndex?: number }>;
       }
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    /* preserve the characterized untagged fallback */
+  }
   return getUsableCardIds(input, playerKey).map((cardId) => ({ cardId }));
 }
 
@@ -290,10 +300,16 @@ function resolveCardDecision(input: PlannerInput, playerKey: string): any {
         };
       }
     }
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    /* preserve the characterized untagged fallback */
+  }
   try {
     if (typeof input.computeCpuAction === 'function') return input.computeCpuAction(playerKey);
-  } catch (e) { /* fall through */ }
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    /* preserve the characterized untagged fallback */
+  }
   return null;
 }
 
@@ -384,14 +400,20 @@ function collectPendingTargets(input: PlannerInput, playerKey: string, pending: 
       try {
         const targets = attempt();
         if (Array.isArray(targets)) return targets;
-      } catch (e) { /* try next */ }
+      } catch (e) {
+        rethrowCardRuntimeUnavailable(e);
+        /* preserve the characterized untagged retry */
+      }
     }
   }
   if (logic && typeof logic.getSelectableTargets === 'function') {
     try {
       const targets = logic.getSelectableTargets(input.cardState, input.gameState, playerKey);
       return Array.isArray(targets) ? targets : [];
-    } catch (e) { /* fall through */ }
+    } catch (e) {
+      rethrowCardRuntimeUnavailable(e);
+      /* preserve the characterized untagged fallback */
+    }
   }
   return [];
 }
@@ -459,6 +481,7 @@ function planPendingSelectionFallback(input: PlannerInput, pending: any, pending
       ? createCancelCardAction()
       : null;
   } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
     return null;
   }
 }
@@ -555,6 +578,7 @@ function planCanonicalCpuNetworkCommand(inputValue: PlannerInput): any {
           CardLogic
         }, playerKey);
       } catch (e) {
+        rethrowCardRuntimeUnavailable(e);
         return null;
       }
       const selected = usableSelections.find((item) => (

@@ -1,3 +1,8 @@
+import SharedConstantsImport = require('../../../shared-constants');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import RandomSourceImport = require('../cards-internal/random-source');
+import SpawnAndFlipImport = require('../cards-internal/spawn-and-flip-core');
+
 type BreedingOwnerValue = number;
 type BreedingSeatKey = 'black' | 'white';
 interface BreedingSharedConstants {
@@ -124,38 +129,8 @@ interface BreedingImmediateResult extends BreedingBatchResult {
     destroyed: BreedingDestroyedPosition[];
 }
 
-interface BreedingModuleApi {
-    processBreedingEffects(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, prng: BreedingRandomLike, deps?: BreedingProcessDeps): BreedingProcessResult;
-    processBreedingEffectsAtAnchor(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, row: number, col: number, prng: BreedingRandomLike, deps?: BreedingProcessDeps): BreedingImmediateResult;
-    processBreedingEffectsAtTurnStartAnchor(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, row: number, col: number, prng: BreedingRandomLike, deps?: BreedingProcessDeps): BreedingProcessResult;
-    spawnAndFlipBatch(cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps): BreedingBatchResult;
-}
-
 interface BreedingSpawnAndFlipModule {
     spawnAndFlipBatch?: (cardState: BreedingCardState, gameState: BreedingGameState, playerKey: BreedingSeatKey, player: BreedingOwnerValue, targets: BreedingPosition[], cause: string, reason: string, anchorPos: BreedingPosition, deps: BreedingProcessDeps) => BreedingBatchResult;
-}
-
-interface BreedingRoot {
-    SharedConstants?: BreedingSharedConstants;
-    SharedBoardUtils?: BreedingSharedBoardUtilsModule | null;
-    CardRandomSource?: BreedingRandomSourceModule | null;
-    CardSpawnAndFlip?: BreedingSpawnAndFlipModule | null;
-    CardBreeding?: BreedingModuleApi;
-}
-
-function _resolveSpawnAndFlipRuntimeModule(root: BreedingRoot): BreedingSpawnAndFlipModule | null {
-    if (root && root.CardSpawnAndFlip && typeof root.CardSpawnAndFlip.spawnAndFlipBatch === 'function') {
-        return root.CardSpawnAndFlip;
-    }
-    try {
-        if (typeof require === 'function') {
-            const requiredModule = require('../cards-internal/spawn-and-flip');
-            if (requiredModule && typeof requiredModule.spawnAndFlipBatch === 'function') {
-                return requiredModule;
-            }
-        }
-    } catch (_error) { /* ignore */ }
-    return null;
 }
 
 const CardBreeding = /**
@@ -163,22 +138,7 @@ const CardBreeding = /**
  * @description Breeding effect helpers (Shared between Browser and Headless)
  */
 
-(function (root: BreedingRoot, factory: (constants: BreedingSharedConstants, boardUtils: BreedingSharedBoardUtilsModule | null, randomSource: BreedingRandomSourceModule | null, spawnAndFlipModule: BreedingSpawnAndFlipModule | null) => BreedingModuleApi) {
-    if (root && root.SharedConstants) {
-        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, _resolveSpawnAndFlipRuntimeModule(root));
-    }
-    if (typeof module === 'object' && module.exports) {
-        return module.exports = factory(
-            require('../../../shared-constants'),
-            require('../../../shared/shared-board-utils'),
-            require('../cards-internal/random-source'),
-            require('../cards-internal/spawn-and-flip')
-        );
-    } else {
-        if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
-        return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null, _resolveSpawnAndFlipRuntimeModule(root));
-    }
-}(typeof self !== 'undefined' ? self as unknown as BreedingRoot : globalThis as unknown as BreedingRoot, function (SharedConstants: BreedingSharedConstants, SharedBoardUtils: BreedingSharedBoardUtilsModule | null, RandomSourceModule: BreedingRandomSourceModule | null, SpawnAndFlipModule: BreedingSpawnAndFlipModule | null) {
+(function (SharedConstants: BreedingSharedConstants, SharedBoardUtils: BreedingSharedBoardUtilsModule | null, RandomSourceModule: BreedingRandomSourceModule | null, SpawnAndFlipModule: BreedingSpawnAndFlipModule | null) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -589,6 +549,11 @@ const CardBreeding = /**
         processBreedingEffectsAtTurnStartAnchor,
         spawnAndFlipBatch
     };
-}));
+})(
+    SharedConstantsImport,
+    SharedBoardUtilsImport,
+    RandomSourceImport,
+    SpawnAndFlipImport as unknown as BreedingSpawnAndFlipModule
+);
 
 export = CardBreeding;

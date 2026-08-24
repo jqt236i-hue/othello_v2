@@ -34,6 +34,7 @@ type CpuTurnMovePhaseConfig = {
         autoMode: any,
         performanceScope?: CpuTurnPerformanceScope | null
     ) => any;
+    isAborted?: () => boolean;
     isCpuDebugLogAvailable: () => any;
     isUiAnimationBusy: () => any;
     readNowMs: () => any;
@@ -77,6 +78,21 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         return Date.now();
     }
 
+    function abortIfNeeded(): boolean {
+        if (typeof cfg.isAborted !== 'function' || cfg.isAborted() !== true) return false;
+        cfg.setCpuProcessing(false);
+        return true;
+    }
+
+    function isRuntimeUnavailableResult(result: any): boolean {
+        if (!result || typeof result !== 'object') return false;
+        const reason = String(result.reason || result.rejectedReason || '').trim().toUpperCase();
+        if (reason === 'RUNTIME_UNAVAILABLE') return true;
+        const nested = result.result;
+        if (!nested || typeof nested !== 'object') return false;
+        return String(nested.reason || nested.rejectedReason || '').trim().toUpperCase() === 'RUNTIME_UNAVAILABLE';
+    }
+
     async function runCpuTurnMovePhase(args: any): Promise<any> {
         const opts = (args && typeof args === 'object') ? args : {};
         const playerKey = opts.playerKey;
@@ -105,7 +121,10 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             ? cfg.getCurrentStateVersionSafe()
             : null;
 
+        if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
+
         const invokeCpuPass = async (passFn: any, passOptions: any): Promise<any> => {
+            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             const passPromise = performanceScope
                 ? Promise.resolve(passFn(playerKey, passOptions, { performanceScope }))
                 : Promise.resolve(passFn(playerKey, passOptions));
@@ -134,7 +153,12 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         'error'
                     );
                 }
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 throw error;
+            }
+            if (abortIfNeeded() || isRuntimeUnavailableResult(result)) {
+                cfg.setCpuProcessing(false);
+                return { status: 'handled', reason: 'runtime_unavailable' };
             }
             if (result === false) {
                 cfg.setCpuProcessing(false);
@@ -167,6 +191,8 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         const candidateMoves: any[] = performanceScope
             ? measureCpuTurnSync(performanceScope, 'move-candidates', deriveCandidates)
             : deriveCandidates();
+
+        if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
 
         if (!candidateMoves.length) {
             const cardState = cfg.getCardState();
@@ -240,6 +266,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 )
             );
             if (!othelloMode && stillUsableCard) {
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 const expectedRetryTurnNumber = cfg.getCurrentTurnNumberSafe();
                 let retried = false;
                 const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
@@ -252,6 +279,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         )
                         : !!useCardWithPolicyFn(playerKey, null, preparedCardDecision);
                 }
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 const currentPlayerKeyAfterRetry = cfg.getCurrentPlayerKeySafe();
                 const currentTurnNumberAfterRetry = cfg.getCurrentTurnNumberSafe();
                 if (
@@ -262,6 +290,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     return { status: 'handled' };
                 }
                 if (!retried) {
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                     retried = performanceScope
                         ? measureCpuTurnSync(
                             performanceScope,
@@ -269,6 +298,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                             () => cfg.tryApplyAnyUsableCard(playerKey, level, 0, [], preparedCardDecision)
                         )
                         : cfg.tryApplyAnyUsableCard(playerKey, level, 0, [], preparedCardDecision);
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 }
                 if (retried) {
                     cfg.setCpuProcessing(false);
@@ -278,6 +308,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             }
             const passFn = cfg.resolveProcessPassTurn();
             if (passFn) {
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 if (cfg.shouldAbortCpuForHumanMode(playerKey, 'before_pass')) {
                     return { status: 'handled' };
                 }
@@ -341,6 +372,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         : Promise.resolve(selectMoveFromOnnx(candidateMoves, playerKey, level));
                     onnxWaitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                     move = await onnxPromise;
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                     if (isAnalysisCurrent && !isAnalysisCurrent(true)) {
                         if (performanceScope && onnxWaitStartedAtMs !== null) {
                             recordCpuTurnPerformanceInterval(
@@ -384,6 +416,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                             'error'
                         );
                     }
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                     cfg.debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
                         playerKey,
                         error: e && (e as any).message ? (e as any).message : String(e)
@@ -450,6 +483,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                                     ? readCpuTurnPerformanceNowMs(performanceScope)
                                     : null;
                                 const batch = await Promise.resolve(searchPlacementLookahead(request));
+                                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                                 if (performanceScope && workerWaitStartedAtMs !== null) {
                                     recordCpuTurnPerformanceInterval(
                                         performanceScope,
@@ -500,6 +534,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                                     'error'
                                 );
                             }
+                            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                             if (isAnalysisCurrent && !isAnalysisCurrent(true)) {
                                 cfg.setCpuProcessing(false);
                                 cfg.scheduleRunCpuTurn(playerKey, {
@@ -566,6 +601,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                                 : Promise.resolve(scoreCandidatesInWorker(expectedRequest));
                             workerWaitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                             batch = await workerPromise;
+                            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                         }
                     } catch (e) {
                         if (performanceScope && workerWaitStartedAtMs !== null) {
@@ -579,6 +615,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                             );
                             workerWaitRecorded = true;
                         }
+                        if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                         cfg.debugCpuTrace('[AI] Dedicated Worker candidate scoring failed; using exact local scorer', {
                             playerKey,
                             decisionEpoch,
@@ -638,6 +675,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         }
                     }
                 }
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 move = performanceScope
                     ? measureCpuTurnSync(
                         performanceScope,
@@ -658,6 +696,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             }
         }
         if (!move) {
+            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             const passFn = cfg.resolveProcessPassTurn();
             if (passFn) {
                 return invokeCpuPass(passFn, autoMode);
@@ -685,6 +724,10 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             onGuardResolved?: (outcome: 'continue' | 'handled' | 'stale' | 'error') => void,
             crossedAsyncBoundary = false
         ) => {
+            if (abortIfNeeded()) {
+                if (onGuardResolved) onGuardResolved('handled');
+                return { status: 'handled', reason: 'runtime_unavailable' };
+            }
             if (cfg.shouldAbortCpuForHumanMode(playerKey, 'commit_selected_move')) {
                 if (onGuardResolved) onGuardResolved('handled');
                 return;
@@ -758,6 +801,10 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 if (onGuardResolved) onGuardResolved('handled');
                 return;
             }
+            if (abortIfNeeded()) {
+                if (onGuardResolved) onGuardResolved('handled');
+                return { status: 'handled', reason: 'runtime_unavailable' };
+            }
             if (onGuardResolved) onGuardResolved('continue');
             try {
                 const beforeState = cfg.getGameState();
@@ -766,12 +813,14 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 if (typeof executeMoveFn !== 'function') {
                     throw new Error('executeMove is not available');
                 }
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                 const executionPromise = performanceScope
                     ? Promise.resolve(executeMoveFn(move, { performanceScope }))
                     : Promise.resolve(executeMoveFn(move));
                 const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
+                let executionResult: any;
                 try {
-                    await executionPromise;
+                    executionResult = await executionPromise;
                     if (performanceScope && waitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(
                             performanceScope,
@@ -793,7 +842,12 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                             'error'
                         );
                     }
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                     throw error;
+                }
+                if (abortIfNeeded() || isRuntimeUnavailableResult(executionResult)) {
+                    cfg.setCpuProcessing(false);
+                    return { status: 'handled', reason: 'runtime_unavailable' };
                 }
                 const afterState = cfg.getGameState();
                 const cornersAfterMove = cfg.countOwnedBasicCornersSafe(afterState, playerKey);
@@ -821,6 +875,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             });
             const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
             cfg.scheduleRetry(() => {
+                if (abortIfNeeded()) return;
                 let waitRecorded = false;
                 const finishWait = (outcome: 'continue' | 'handled' | 'stale' | 'error'): void => {
                     if (!performanceScope || waitStartedAtMs === null || waitRecorded) return;
@@ -836,12 +891,14 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 };
                 commitSelectedMove(finishWait, true).catch((error: any) => {
                     finishWait('error');
+                    if (abortIfNeeded()) return;
                     cfg.handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);
                 });
             }, extraDelayMs);
         } else {
             await commitSelectedMove();
         }
+        if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
         cfg.resetPendingSelectRetryState(playerKey);
         return { status: 'handled' };
     }

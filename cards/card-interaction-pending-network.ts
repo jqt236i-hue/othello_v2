@@ -12,6 +12,7 @@ type PendingNetworkDeps = {
     setPendingSelectionBusy: (active: any) => any;
     normalizeOwnerKey: (ownerKey: any) => any;
     publishLocks: Record<string, boolean>;
+    isCardRuntimeIntegrityBlocked?: () => boolean;
 };
 
 const NetworkClientAdapter: any = require('./card-interaction-network-client');

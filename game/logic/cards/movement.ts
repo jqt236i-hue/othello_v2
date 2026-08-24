@@ -1,42 +1,15 @@
 'use strict';
 
 import { GameState } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import RandomSourceImport = require('../cards-internal/random-source');
+import SelectorsCoreUtilsImport = require('./selectors-core-utils');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const SharedConstants = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared-constants')
-    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-
-const RandomSourceModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../cards-internal/random-source')
-    : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
-
-const SelectorsCoreUtils = ((typeof module === 'object' && module.exports)
-    ? safeRequire('./selectors-core-utils')
-    : null) || (typeof self !== 'undefined' ? (self as any).CardSelectorsCoreUtils : null);
-
-const SpecialStoneRegistry = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared/special-stone-registry')
-    : null) || (typeof self !== 'undefined' ? (self as any).SpecialStoneRegistry : null);
+const SharedConstants: any = SharedConstantsImport;
+const RandomSourceModule: any = RandomSourceImport;
+const SelectorsCoreUtils: any = SelectorsCoreUtilsImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
 
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)

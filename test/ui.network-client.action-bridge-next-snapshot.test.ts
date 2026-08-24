@@ -588,8 +588,8 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
   test('PendingCoordinator が無くても use_card はローカル実行せず authority publish に寄せる', async () => {
     jest.doMock('../game/turn/pending-coordinator', () => null);
-    jest.doMock('../game/logic/cards', () => {
-      const actual = jest.requireActual('../game/logic/cards');
+    jest.doMock('../game/logic/cards/defs', () => {
+      const actual = jest.requireActual('../game/logic/cards/defs');
       return {
         ...actual,
         getCardDef(cardId) {
@@ -638,8 +638,8 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
   test('即時 use_card の publish 応答は authority playback として適用する', async () => {
     jest.doMock('../game/turn/pending-coordinator', () => null);
-    jest.doMock('../game/logic/cards', () => {
-      const actual = jest.requireActual('../game/logic/cards');
+    jest.doMock('../game/logic/cards/defs', () => {
+      const actual = jest.requireActual('../game/logic/cards/defs');
       return {
         ...actual,
         getCardDef(cardId) {

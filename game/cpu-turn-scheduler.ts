@@ -17,8 +17,10 @@ type CpuTurnSchedulerConfig = {
     getTimerService: () => any;
     getTimers: () => any;
     getCpuTurnPerformanceRecorder?: () => CpuTurnPerformanceRecorder | null;
+    isAborted?: () => boolean;
     readNowMs?: () => number;
     runCpuTurn: (playerKey: any, options?: any) => any;
+    setProcessing?: (nextValue: boolean) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
 };
 
@@ -54,6 +56,11 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
     const scheduledRetryTimerIds = new Set<any>();
     let cpuRetryGeneration = 0;
 
+    function isSchedulerAborted(): boolean {
+        if (typeof cfg.isAborted !== 'function') return false;
+        try { return cfg.isAborted() === true; } catch (_error) { return true; }
+    }
+
     function resetPendingSelectRetryState(playerKey: any): void {
         const key = retryStateKey(playerKey);
         pendingSelectRetryStateByPlayer[key].key = '';
@@ -75,6 +82,13 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
             } catch (e) { /* ignore */ }
         }
         scheduledRetryTimerIds.clear();
+    }
+
+    function settleAbortedScheduling(): void {
+        resetCpuTurnHandlerState();
+        if (typeof cfg.setProcessing === 'function') {
+            try { cfg.setProcessing(false); } catch (_error) { /* terminal settlement is best-effort */ }
+        }
     }
 
     function getCpuRetryGeneration(): number {
@@ -99,12 +113,24 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
         delayMs: any = cfg.getAnimationRetryDelayMs(),
         onWaitRejected?: (error: unknown) => void
     ): boolean {
+        if (isSchedulerAborted()) {
+            settleAbortedScheduling();
+            return false;
+        }
         const timers = cfg.getTimers ? cfg.getTimers() : null;
         if (hasUsableWaitMs(timers)) {
             try {
                 Promise.resolve(timers.waitMs(delayMs)).then(() => {
+                    if (isSchedulerAborted()) {
+                        settleAbortedScheduling();
+                        return;
+                    }
                     try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
                 }).catch((error) => {
+                    if (isSchedulerAborted()) {
+                        settleAbortedScheduling();
+                        return;
+                    }
                     if (typeof onWaitRejected === 'function') {
                         try { onWaitRejected(error); } catch (nestedError) {
                             console.error('[AI] scheduleRetry rejection handler failed', nestedError);
@@ -121,6 +147,10 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
         if (timerService && typeof timerService.setTimeout === 'function') {
             const tid = timerService.setTimeout(() => {
                 scheduledRetryTimerIds.delete(tid);
+                if (isSchedulerAborted()) {
+                    settleAbortedScheduling();
+                    return;
+                }
                 try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
             }, delayMs);
             scheduledRetryTimerIds.add(tid);
@@ -130,6 +160,10 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
     }
 
     function scheduleRunCpuTurn(playerKey: any, options: any, delayMs: any): void {
+        if (isSchedulerAborted()) {
+            settleAbortedScheduling();
+            return;
+        }
         const key = retryStateKey(playerKey);
         const expectedRetryGeneration = cpuRetryGeneration;
         if (cpuRetryPendingByPlayer[key] === expectedRetryGeneration) return;

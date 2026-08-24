@@ -3,7 +3,13 @@
  * @description Sacrifice Will card-nullification helpers.
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import PlayerEncodingImport = require('../../../shared/player-encoding');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+
+const OwnerHelpersModule: any = {
+    normalizePlayerKeyOptional: PlayerEncodingImport.parseSeatKeyOptional
+};
+const SharedBoardUtils: any = SharedBoardUtilsImport;
 
 type PlayerKey = 'black' | 'white';
 
@@ -35,28 +41,6 @@ const INVIOLABLE_SPECIAL_CARD_TYPES = Object.freeze({
     BOARD_EXECUTOR: true,
     OBSERVER_WILL: true
 });
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const OwnerHelpersModule = safeRequire('../../../utils/owner-helpers');
-const SharedBoardUtils = safeRequire('../../../shared/shared-board-utils') ||
-    (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
 
 function normalizePlayerKey(value: any): PlayerKey | null {
     if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {

@@ -1,5 +1,10 @@
 const path = require('path');
 
+afterEach(() => {
+  jest.dontMock('../shared-constants');
+  jest.resetModules();
+});
+
 function loadDeckSpecWithCardDefs(cardDefs: any[]) {
   jest.resetModules();
   jest.doMock('../shared-constants', () => ({

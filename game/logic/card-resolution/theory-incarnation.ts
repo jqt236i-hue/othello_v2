@@ -7,9 +7,9 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
 const THEORY_DURATION_OWNER_TURNS = 3;
-const TheoryIncarnationState = require('./theory-incarnation-state');
-const TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
-const CardResolutionBoardView = require('./board-view-access');
+import TheoryIncarnationState = require('./theory-incarnation-state');
+import TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
+import CardResolutionBoardView = require('./board-view-access');
 
 const {
     ownerKeyOf,

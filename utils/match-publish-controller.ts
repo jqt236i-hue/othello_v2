@@ -2,6 +2,31 @@ import { compactNetworkPresentationEnvelope } from '../shared/network-presentati
 
 export function createMatchPublishController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
+  const preCommandHousekeepingKeys = Object.freeze([
+    'lastAcceptedOperationBySeat',
+    'acceptedOperationHistoryBySeat',
+    'authorityLog',
+    'sseEventBuffer',
+    'authoritativeStateHash'
+  ]);
+
+  function capturePreCommandHousekeeping(room: Record<string, unknown>) {
+    return preCommandHousekeepingKeys.map((key) => ({
+      key,
+      hadOwn: Object.prototype.hasOwnProperty.call(room, key),
+      value: room[key]
+    }));
+  }
+
+  function restorePreCommandHousekeeping(
+    room: Record<string, unknown>,
+    captured: Array<{ key: string; hadOwn: boolean; value: unknown }>
+  ) {
+    for (const entry of captured) {
+      if (entry.hadOwn) room[entry.key] = entry.value;
+      else delete room[entry.key];
+    }
+  }
 
   function resolveAutoPassNoticeForCommand(actionType: unknown, actionValue: unknown, playerKey: unknown) {
     const action = cfg.asRecord(actionValue);
@@ -43,6 +68,7 @@ export function createMatchPublishController(config?: any): any {
     }
 
     await cfg.applyExpiredTurnTimeoutIfNeeded();
+    const preCommandHousekeeping = capturePreCommandHousekeeping(room);
 
     const seatKey = typeof cfg.resolveSeatKey === 'function'
       ? cfg.resolveSeatKey(body)
@@ -293,16 +319,20 @@ export function createMatchPublishController(config?: any): any {
     } else if (hasCommandPayload) {
       const commandResult = await cfg.applyCommandPublishToSnapshot(room, body, playerKey);
       if (!commandResult.ok) {
-        cfg.MatchAuthority.appendAuthorityLog(room, {
-          kind: 'publish_rejected',
-          operationId,
-          actionType,
-          baseVersion,
-          committedVersion: room.stateVersion,
-          stateHashBefore,
-          pendingEffectId: commandResult.pendingEffectId || null,
-          rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-        }, undefined);
+        if (commandResult.rejectedReason === 'RUNTIME_UNAVAILABLE') {
+          restorePreCommandHousekeeping(room, preCommandHousekeeping);
+        } else {
+          cfg.MatchAuthority.appendAuthorityLog(room, {
+            kind: 'publish_rejected',
+            operationId,
+            actionType,
+            baseVersion,
+            committedVersion: room.stateVersion,
+            stateHashBefore,
+            pendingEffectId: commandResult.pendingEffectId || null,
+            rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
+          }, undefined);
+        }
         return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
           ok: false,
           rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',

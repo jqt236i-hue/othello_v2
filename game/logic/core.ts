@@ -4,45 +4,11 @@
  * Pure functions only. No UI dependencies.
  */
 
+import SharedConstantsImport = require('../../shared-constants');
+import SharedBoardUtilsImport = require('../../shared/shared-board-utils');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function getRuntimeGlobalValueOrDefault(key: string, fallbackValue: any): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return fallbackValue;
-}
-
-function resolveCoreModuleOrGlobal(id: string, globalKey: string, fallbackValue: any): any {
-    if (typeof module === 'object' && module.exports) {
-        const loaded = safeRequire(id);
-        if (loaded) return loaded;
-    }
-
-    return getRuntimeGlobalValueOrDefault(globalKey, fallbackValue);
-}
-
-const SharedConstants = resolveCoreModuleOrGlobal('../../shared-constants', 'SharedConstants', undefined);
-const SharedBoardUtils = resolveCoreModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils', null);
+const SharedConstants: any = SharedConstantsImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;

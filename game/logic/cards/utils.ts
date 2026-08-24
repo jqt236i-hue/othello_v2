@@ -1,35 +1,18 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstantsImport = require('../../../shared-constants');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-registry');
+import PlayerSeatContractImport = require('../../../shared/player-seat-contract');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import PlayerEncodingImport = require('../../../shared/player-encoding');
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-
-declare const CHARGE_MAX: any;
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
-const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
-const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
-const PlayerSeatContract = safeRequire('../../../shared/player-seat-contract') || getRuntimeGlobalValue('PlayerSeatContract');
-const SharedBoardUtils = safeRequire('../../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
-
-let OwnerHelpersModule: any = null;
-OwnerHelpersModule = safeRequire('../../../utils/owner-helpers') || getRuntimeGlobalValue('OwnerHelpers');
+const SharedConstants: any = SharedConstantsImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const ManifestStoneRegistry: any = ManifestStoneRegistryImport;
+const PlayerSeatContract: any = PlayerSeatContractImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const OwnerHelpersModule: any = {
+    normalizePlayerKeyOptional: PlayerEncodingImport.parseSeatKeyOptional
+};
 
 function isManifestStoneTypeForUtils(rawType: any): boolean {
     if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
@@ -79,11 +62,6 @@ function resolveChargeMax(): number {
     if (SharedConstants && Number.isFinite(Number(SharedConstants.CHARGE_MAX))) {
         return Number(SharedConstants.CHARGE_MAX);
     }
-    try {
-        if (typeof CHARGE_MAX !== 'undefined' && Number.isFinite(Number(CHARGE_MAX))) {
-            return Number(CHARGE_MAX);
-        }
-    } catch (e) { /* ignore */ }
     return 99;
 }
 

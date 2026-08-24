@@ -14,7 +14,18 @@ type CpuDecisionSelectionFlowConfig = {
 export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionSelectionFlowConfig;
 
+    function isCpuSelectionRuntimeIntegrityBlocked(): boolean {
+        const runtime = cfg.getRuntime();
+        if (!runtime || typeof runtime.isCardRuntimeIntegrityBlocked !== 'function') return false;
+        try {
+            return runtime.isCardRuntimeIntegrityBlocked() === true;
+        } catch (_error) {
+            return true;
+        }
+    }
+
     function emitBoardUpdateSafely(): void {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) return;
         try {
             cfg.emitBoardUpdate();
         } catch (e) { /* ignore */ }
@@ -70,6 +81,9 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
     }
 
     function publishCpuSelectionNetworkSnapshot(playerKey: any, action: any, playbackEvents: any, snapshotOverride?: any): any {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) {
+            return { ok: false, reason: 'RUNTIME_UNAVAILABLE' };
+        }
         const meta = {
             playerKey: playerKey || 'black',
             actionType: 'place',
@@ -94,6 +108,7 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
     }
 
     function isCpuSelectionNetworkPublishActive(): boolean {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) return false;
         const runtime = cfg.getRuntime();
         if (runtime && typeof runtime.publishSnapshot === 'function') {
             if (typeof runtime.isNetworkPublishActive === 'function') {
@@ -109,6 +124,7 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
     }
 
     async function waitForCpuSelectionPlaybackIdle(playbackEvents: any): Promise<any> {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) return;
         const networkTurnHandoff = cfg.getNetworkTurnHandoff();
         if (networkTurnHandoff && typeof networkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
             return networkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
@@ -128,22 +144,27 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
     }
 
     function scheduleCpuSelectionWhiteTurn(delayMs: any, expectedTurnNumber: any): any {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) return false;
         const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
         const timerService = cfg.getTimerService();
-        if (!timerService) return;
+        if (!timerService) return false;
         const tid = timerService.setTimeout(() => {
+            if (isCpuSelectionRuntimeIntegrityBlocked()) return;
             const gameState = cfg.getGameState();
             const activePlayerKey = cfg.resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
             const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
             if (activePlayerKey !== 'white') return;
             if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
             const cpuTurnFn = resolveCpuDecisionProcessCpuTurn();
+            if (isCpuSelectionRuntimeIntegrityBlocked()) return;
             if (cpuTurnFn) cpuTurnFn();
         }, safeDelay);
         if (tid && typeof tid.unref === 'function') tid.unref();
+        return true;
     }
 
     async function continueCpuSelectionTurnHandoff(playerKey: any, playbackEvents: any, action: any): Promise<any> {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) return;
         const networkTurnHandoff = cfg.getNetworkTurnHandoff();
         const finalizeTurn = (networkTurnHandoff && typeof networkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
             ? networkTurnHandoff.finalizeNetworkTurnHandoff
@@ -157,36 +178,42 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
             playbackEvents,
             humanMode: isCpuSelectionHumanVsHumanModeEnabled(),
             publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }: any) => {
-                publishCpuSelectionNetworkSnapshot(publishPlayerKey, publishAction || action, publishPlaybackEvents);
+                return publishCpuSelectionNetworkSnapshot(publishPlayerKey, publishAction || action, publishPlaybackEvents);
             },
             resolveCurrentPlayerKey: () => {
                 const gameState = cfg.getGameState();
                 return cfg.resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
             },
             scheduleCpuTurn: ({ delayMs: nextDelayMs, expectedTurnNumber: nextExpectedTurnNumber }: any) => {
-                scheduleCpuSelectionWhiteTurn(nextDelayMs, nextExpectedTurnNumber);
+                return scheduleCpuSelectionWhiteTurn(nextDelayMs, nextExpectedTurnNumber);
             },
             onHumanTurnReady: () => {
                 emitBoardUpdateSafely();
-            }
+            },
+            isAborted: () => isCpuSelectionRuntimeIntegrityBlocked()
         });
     }
 
     function maybeContinueCpuSelectionTurnHandoff(playerKey: any, pendingType: any, playbackEvents: any, action?: any): any {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) return;
         if (!cfg.isSelectionOnlyEndTurnPendingType(pendingType)) return;
         const gameState = cfg.getGameState();
         const activePlayerKey = cfg.resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
         if (!activePlayerKey || activePlayerKey === playerKey) return;
         Promise.resolve(continueCpuSelectionTurnHandoff(playerKey, playbackEvents, action)).catch(() => {
-            emitBoardUpdateSafely();
+            if (!isCpuSelectionRuntimeIntegrityBlocked()) emitBoardUpdateSafely();
         });
     }
 
     function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playbackEvents: any, action: any): any {
+        if (isCpuSelectionRuntimeIntegrityBlocked()) {
+            return Promise.resolve({ ok: false, reason: 'runtime_unavailable' });
+        }
         const normalizedPlaybackEvents = Array.isArray(playbackEvents) ? playbackEvents : [];
         const pendingSelectionFlow = cfg.resolvePendingSelectionFlow('finalizePendingSelectionFlow');
 
         if (pendingSelectionFlow && typeof pendingSelectionFlow.finalizePendingSelectionFlow === 'function') {
+            let runtimeUnavailableReported = false;
             return Promise.resolve(pendingSelectionFlow.finalizePendingSelectionFlow({
                 playerKey,
                 pendingType,
@@ -208,32 +235,52 @@ export function createCpuDecisionSelectionFlow(config: CpuDecisionSelectionFlowC
                 isNetworkPublishActive: () => isCpuSelectionNetworkPublishActive(),
                 onSettled: () => {
                     emitBoardUpdateSafely();
+                },
+                onRuntimeUnavailable: () => {
+                    runtimeUnavailableReported = true;
                 }
-            })).catch(() => {
+            })).then((result: any) => {
+                if (runtimeUnavailableReported || isCpuSelectionRuntimeIntegrityBlocked()) {
+                    return { ok: false, reason: 'runtime_unavailable' };
+                }
+                return result;
+            }).catch(() => {
+                if (runtimeUnavailableReported || isCpuSelectionRuntimeIntegrityBlocked()) {
+                    return { ok: false, reason: 'runtime_unavailable' };
+                }
+                if (isCpuSelectionRuntimeIntegrityBlocked()) return;
                 if (cfg.isSelectionOnlyEndTurnPendingType(pendingType)) {
                     maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, normalizedPlaybackEvents, action);
                     return;
                 }
 
                 Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
-                    publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
+                    if (!isCpuSelectionRuntimeIntegrityBlocked()) {
+                        publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
+                    }
                 }).catch(() => { /* ignore */ });
             });
         }
 
+        if (isCpuSelectionRuntimeIntegrityBlocked()) {
+            return Promise.resolve({ ok: false, reason: 'runtime_unavailable' });
+        }
         if (cfg.isSelectionOnlyEndTurnPendingType(pendingType)) {
             maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, normalizedPlaybackEvents, action);
             return Promise.resolve();
         }
 
         return Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
-            publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
+            if (!isCpuSelectionRuntimeIntegrityBlocked()) {
+                publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
+            }
         }).catch(() => { /* ignore */ });
     }
 
     return {
         readCpuDecisionMatchMode,
         readCpuDecisionHumanVsHumanFlag,
+        isCpuSelectionRuntimeIntegrityBlocked,
         resolveCpuDecisionProcessCpuTurn,
         isCpuSelectionHumanVsHumanModeEnabled,
         publishCpuSelectionNetworkSnapshot,

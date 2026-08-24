@@ -4,44 +4,19 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import MarkersAdapterImport = require('../markers_adapter');
+import CardUtilsImport = require('./utils');
+import PresentationImport = require('../presentation');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-registry');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function resolveCardMarkersModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require(id) || getRuntimeGlobalValue(globalKey);
-        } catch (e) {
-            return getRuntimeGlobalValue(globalKey);
-        }
-    }
-
-    return getRuntimeGlobalValue(globalKey);
-}
-
-const SharedBoardUtils = resolveCardMarkersModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-const MarkersAdapterModule = resolveCardMarkersModuleOrGlobal('../markers_adapter', 'MarkersAdapter');
-const CardUtilsModule = resolveCardMarkersModuleOrGlobal('./utils', 'CardUtils');
-const PresentationModule = resolveCardMarkersModuleOrGlobal('../presentation', 'PresentationHelper');
-const SpecialStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
-const ManifestStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const MarkersAdapterModule: any = MarkersAdapterImport;
+const CardUtilsModule: any = CardUtilsImport;
+const PresentationModule: any = PresentationImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const ManifestStoneRegistry: any = ManifestStoneRegistryImport;
 
 function isManifestStoneType(rawType: any): boolean {
     if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
@@ -78,8 +53,7 @@ function getPresentationHelper(): any {
     if (PresentationModule && typeof PresentationModule.emitPresentationEvent === 'function') {
         return PresentationModule;
     }
-    const helper = getRuntimeGlobalValue('PresentationHelper');
-    return (helper && typeof helper.emitPresentationEvent === 'function') ? helper : null;
+    return null;
 }
 
 function getPrimaryDurationMarker(markersAtCell: any[]): any {
@@ -1126,7 +1100,7 @@ function applyCorrosionWill(cardState: CardState, gameState: GameState, playerKe
     return { applied: true, affectedCount: details.length, details };
 }
 
-export = {
+const CardMarkersExports: any = {
     MARKER_KINDS,
     MARKER_CATEGORIES,
     ensureMarkers,
@@ -1184,3 +1158,5 @@ export = {
     addSpecialStoneDurationOnHealingCells,
     applyCorrosionWill
 };
+
+export = CardMarkersExports;

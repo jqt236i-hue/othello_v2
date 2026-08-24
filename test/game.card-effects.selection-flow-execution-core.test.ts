@@ -145,4 +145,571 @@ describe('selection-flow execution core network publish refresh', () => {
       deps.calls.findIndex((entry) => entry[0] === 'cardAnimating' && entry[1] === false)
     );
   });
+
+  test('rolls back a multi-stage preview and reports runtime_unavailable when integrity latches after state change', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'BOARD_SHRINK_GOD',
+      contract: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true },
+      pendingAfterPreview: { type: 'BOARD_SHRINK_GOD', stage: 'selectTarget', cardId: 'board_shrink_god_01' }
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 1,
+      col: 1,
+      playerKey: 'black',
+      pendingType: 'BOARD_SHRINK_GOD',
+      actionPayload: { shrinkTarget: { row: 1, col: 1 } },
+      validateResult: () => true,
+      afterStateChange: () => {
+        blocked = true;
+      }
+    }, deps);
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'runtime_unavailable',
+      result: { ok: false, reason: 'RUNTIME_UNAVAILABLE' }
+    });
+    expect(deps.applySelectionStateResult).toHaveBeenCalledTimes(2);
+    expect(deps.publishPendingSelectionSnapshot).not.toHaveBeenCalled();
+    expect(deps.finalizePendingSelectionFlow).not.toHaveBeenCalled();
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test.each(['rejects after latching', 'resolves before a queued latch'])(
+    'rolls back an uncommitted multi-stage preview when the finalizer %s',
+    async (finalizerMode) => {
+      let blocked = false;
+      const pendingType = 'BOARD_SHRINK_GOD';
+      const deps = createDeps({
+        pendingType,
+        contract: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true },
+        pendingAfterPreview: { type: pendingType, stage: 'selectTarget', cardId: 'board_shrink_god_01' }
+      });
+      const ensureCurrentPlayerCanActOrPass = jest.fn();
+      const renderAfterFinalize = jest.fn();
+      deps.isCardRuntimeIntegrityBlocked = () => blocked;
+      deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+        ? ensureCurrentPlayerCanActOrPass
+        : null;
+      deps.finalizePendingSelectionFlow = finalizerMode === 'rejects after latching'
+        ? jest.fn(async () => {
+          blocked = true;
+          throw new Error('runtime unavailable while finalizing intermediate preview');
+        })
+        : jest.fn(() => {
+          queueMicrotask(() => {
+            blocked = true;
+          });
+          return Promise.resolve(true);
+        });
+
+      const result = await ExecutionCore.executePendingSelectionCore({
+        row: 1,
+        col: 1,
+        playerKey: 'black',
+        pendingType,
+        actionPayload: { shrinkTarget: { row: 1, col: 1 } },
+        validateResult: () => true,
+        defaultSelectionHandoffRender: renderAfterFinalize
+      }, deps);
+
+      expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+      expect(deps.applySelectionStateResult).toHaveBeenCalledTimes(2);
+      expect(deps.applySelectionStateResult.mock.calls[1][0]).toMatchObject({
+        nextCardState: {
+          turnIndex: 4,
+          pendingEffectByPlayer: {
+            black: { type: pendingType, stage: 'selectTarget' }
+          }
+        },
+        nextGameState: { currentPlayer: 1, turnNumber: 9 }
+      });
+      expect(deps.publishPendingSelectionSnapshot).not.toHaveBeenCalled();
+      expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+      expect(renderAfterFinalize).not.toHaveBeenCalled();
+      expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+      expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+    }
+  );
+
+  test('settles an authority-accepted publish exactly once, then suppresses all later callbacks after a latch race', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
+    });
+    const exactVisualSettlement = jest.fn(async () => ({ ok: true, visualSeq: 19 }));
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => {
+      blocked = true;
+      return { ok: true, presentationCursor: { visualSeq: 19 } };
+    });
+    deps.waitForAuthoritativeVisualSettlement = exactVisualSettlement;
+    deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+      ? ensureCurrentPlayerCanActOrPass
+      : null;
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(exactVisualSettlement).toHaveBeenCalledTimes(1);
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(deps.finalizePendingSelectionFlow).not.toHaveBeenCalled();
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test.each(['reported failure', 'rejection'])(
+    'authority-accepted publish drains accepted visuals after a latch races with exact settlement %s',
+    async (exactFailureMode) => {
+      let blocked = false;
+      const deps = createDeps({
+        pendingType: 'TRAP_WILL',
+        contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
+      });
+      let resolveLegacyDrain: () => void = () => undefined;
+      const legacyDrain = jest.fn(() => new Promise<void>((resolve) => {
+        resolveLegacyDrain = resolve;
+      }));
+      const exactSettlement = exactFailureMode === 'rejection'
+        ? jest.fn(async () => { blocked = true; throw new Error('exact waiter rejected'); })
+        : jest.fn(async () => { blocked = true; return { ok: false, reason: 'session_changed' }; });
+      const renderAfterPublish = jest.fn();
+      deps.isCardRuntimeIntegrityBlocked = () => blocked;
+      deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+      deps.publishPendingSelectionSnapshot = jest.fn(async () => ({
+        ok: true,
+        presentationCursor: { visualSeq: 20 }
+      }));
+      deps.waitForAuthoritativeVisualSettlement = exactSettlement;
+      deps.waitForSelectionPlaybackIdle = legacyDrain;
+
+      const executionPromise = ExecutionCore.executePendingSelectionCore({
+        row: 2,
+        col: 3,
+        playerKey: 'black',
+        pendingType: 'TRAP_WILL',
+        actionPayload: { target: { row: 2, col: 3 } },
+        defaultSelectionHandoffRender: renderAfterPublish
+      }, deps);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(exactSettlement).toHaveBeenCalledTimes(1);
+      expect(legacyDrain).toHaveBeenCalledWith([], { force: true, authorityAccepted: true });
+      expect(renderAfterPublish).not.toHaveBeenCalled();
+      expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+
+      resolveLegacyDrain();
+      const result = await executionPromise;
+
+      expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+      expect(renderAfterPublish).not.toHaveBeenCalled();
+      expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+    }
+  );
+
+  test('keeps the legacy visual waiter for compatibility when the exact waiter is unavailable', async () => {
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
+    });
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: true }));
+    deps.waitForAuthoritativeVisualSettlement = jest.fn(async () => undefined);
+    deps.waitForSelectionPlaybackIdle = jest.fn(async () => undefined);
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: true, publishedByNetwork: true });
+    expect(deps.waitForSelectionPlaybackIdle).toHaveBeenCalledWith([], {
+      force: true,
+      authorityAccepted: true
+    });
+  });
+
+  test.each(['reported failure', 'rejection'])(
+    'does not weaken strict visual settlement after an ordinary exact waiter %s',
+    async (exactFailureMode) => {
+      const deps = createDeps({
+        pendingType: 'TRAP_WILL',
+        contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
+      });
+      const legacyDrain = jest.fn(async () => undefined);
+      deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+      deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: true }));
+      deps.waitForAuthoritativeVisualSettlement = exactFailureMode === 'rejection'
+        ? jest.fn(async () => { throw new Error('exact waiter rejected'); })
+        : jest.fn(async () => ({ ok: false, reason: 'session_changed' }));
+      deps.waitForSelectionPlaybackIdle = legacyDrain;
+      const renderAfterPublish = jest.fn();
+
+      const result = await ExecutionCore.executePendingSelectionCore({
+        row: 2,
+        col: 3,
+        playerKey: 'black',
+        pendingType: 'TRAP_WILL',
+        actionPayload: { target: { row: 2, col: 3 } },
+        defaultSelectionHandoffRender: renderAfterPublish
+      }, deps);
+
+      expect(result).toMatchObject({ ok: false, reason: 'visual_settlement_failed' });
+      expect(legacyDrain).not.toHaveBeenCalled();
+      expect(renderAfterPublish).not.toHaveBeenCalled();
+      expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+    }
+  );
+
+  test.each(['direct publish', 'completed multi-stage publish', 'preview-then-publish'])(
+    'late integrity latch after exact settlement failure drains accepted visuals for %s',
+    async (lane) => {
+      let blocked = false;
+      const pendingType = lane === 'completed multi-stage publish'
+        ? 'BOARD_EXPANSION_GOD'
+        : 'TRAP_WILL';
+      const contract = lane === 'completed multi-stage publish'
+        ? { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true }
+        : { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true };
+      const deps = createDeps({
+        pendingType,
+        contract,
+        previewThenPublish: lane === 'preview-then-publish'
+      });
+      if (lane === 'direct publish') {
+        deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+      }
+      let resolveExactSettlement = null;
+      const exactSettlement = jest.fn(() => new Promise((resolve) => {
+        resolveExactSettlement = resolve;
+      }));
+      const legacyDrain = jest.fn(async () => undefined);
+      const renderAfterPublish = jest.fn();
+      const ensureCurrentPlayerCanActOrPass = jest.fn();
+      deps.isCardRuntimeIntegrityBlocked = () => blocked;
+      deps.publishPendingSelectionSnapshot = jest.fn(async () => ({
+        ok: true,
+        presentationCursor: { visualSeq: 27 }
+      }));
+      deps.waitForAuthoritativeVisualSettlement = exactSettlement;
+      deps.waitForSelectionPlaybackIdle = legacyDrain;
+      deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+        ? ensureCurrentPlayerCanActOrPass
+        : null;
+
+      const executionPromise = ExecutionCore.executePendingSelectionCore({
+        row: 2,
+        col: 3,
+        playerKey: 'black',
+        pendingType,
+        actionPayload: { target: { row: 2, col: 3 } },
+        validateResult: () => true,
+        defaultSelectionHandoffRender: renderAfterPublish
+      }, deps);
+      for (let index = 0; index < 8 && !resolveExactSettlement; index += 1) {
+        await Promise.resolve();
+      }
+      expect(resolveExactSettlement).toEqual(expect.any(Function));
+
+      resolveExactSettlement({ ok: false, reason: 'session_changed' });
+      queueMicrotask(() => {
+        blocked = true;
+      });
+      const result = await executionPromise;
+
+      expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+      expect(exactSettlement).toHaveBeenCalledTimes(1);
+      expect(legacyDrain).toHaveBeenCalledWith([], { force: true, authorityAccepted: true });
+      expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+      expect(renderAfterPublish).not.toHaveBeenCalled();
+      expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    }
+  );
+
+  test('publish-only acceptance clears a stale cached action after authority ends the pending selection', async () => {
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true }
+    });
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: true }));
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: true, publishedByNetwork: true });
+    expect(deps.clearPendingSelectionAction).toHaveBeenCalledWith('black');
+  });
+
+  test('publish-only acceptance retains cache while authority keeps the same pending selection', async () => {
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true }
+    });
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.shouldRetainPendingSelectionAction = () => true;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: true }));
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: true, publishedByNetwork: true });
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+  });
+
+  test('publish-only latch during authority cache inspection preserves the cached action', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true }
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.shouldRetainPendingSelectionAction = () => {
+      blocked = true;
+      return false;
+    };
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: true }));
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+  });
+
+  test('preserves the pending action when authority rejects with RUNTIME_UNAVAILABLE', async () => {
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true }
+    });
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: false, reason: 'RUNTIME_UNAVAILABLE' }));
+    deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+      ? ensureCurrentPlayerCanActOrPass
+      : null;
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test('treats a finalizer exception that raises the integrity latch as runtime_unavailable', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: false }
+    });
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+      ? ensureCurrentPlayerCanActOrPass
+      : null;
+    deps.finalizePendingSelectionFlow = jest.fn(async () => {
+      blocked = true;
+      throw new Error('integrity failure while finalizing');
+    });
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'runtime_unavailable',
+      result: { ok: false, reason: 'RUNTIME_UNAVAILABLE' }
+    });
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test('rechecks integrity after a successful finalizer resolves across a microtask boundary', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: false }
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.finalizePendingSelectionFlow = jest.fn(() => {
+      queueMicrotask(() => {
+        blocked = true;
+      });
+      return Promise.resolve(true);
+    });
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test('propagates an explicit runtime-unavailable finalizer report without relying on a global latch', async () => {
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: false }
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => false;
+    deps.finalizePendingSelectionFlow = jest.fn(async (options) => {
+      options.onRuntimeUnavailable({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+      return false;
+    });
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test('does not restore ordinary recovery when ensure itself raises the integrity latch', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: false }
+    });
+    const ensureCurrentPlayerCanActOrPass = jest.fn(() => {
+      blocked = true;
+      throw new Error('runtime unavailable during ensure');
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+      ? ensureCurrentPlayerCanActOrPass
+      : null;
+    deps.finalizePendingSelectionFlow = jest.fn(() => Promise.reject(new Error('ordinary finalizer failure')));
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
+
+  test('preserves pending failure state when direct publish recovery ensure raises the integrity latch', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true }
+    });
+    const ensureCurrentPlayerCanActOrPass = jest.fn(() => {
+      blocked = true;
+      throw new Error('runtime unavailable during ensure');
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.shouldUseNetworkPublishOnlyPendingSelection = () => true;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: false, reason: 'OUT_OF_TURN' }));
+    deps.resolveRootFunction = (name) => name === 'ensureCurrentPlayerCanActOrPass'
+      ? ensureCurrentPlayerCanActOrPass
+      : null;
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } }
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(deps.clearPendingSelectionFailureState).not.toHaveBeenCalled();
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+  });
+
+  test('cannot return publish-only success when the post-settlement render raises the integrity latch', async () => {
+    let blocked = false;
+    const deps = createDeps({
+      pendingType: 'TRAP_WILL',
+      contract: { kind: 'single_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true },
+      previewThenPublish: true
+    });
+    deps.isCardRuntimeIntegrityBlocked = () => blocked;
+    deps.publishPendingSelectionSnapshot = jest.fn(async () => ({ ok: true }));
+    const renderAfterPublish = jest.fn(async () => {
+      blocked = true;
+      throw new Error('runtime unavailable while rendering');
+    });
+
+    const result = await ExecutionCore.executePendingSelectionCore({
+      row: 2,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      actionPayload: { target: { row: 2, col: 3 } },
+      defaultSelectionHandoffRender: renderAfterPublish
+    }, deps);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+    expect(renderAfterPublish).toHaveBeenCalledTimes(1);
+    expect(deps.clearPendingSelectionAction).not.toHaveBeenCalled();
+    expect(deps.busy).toEqual({ processing: false, cardAnimating: false });
+  });
 });

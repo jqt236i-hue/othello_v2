@@ -1,4 +1,4 @@
-const ImmediateEffectDispatcher = require('../immediate-effect-dispatcher');
+import ImmediateEffectDispatcher = require('../immediate-effect-dispatcher');
 
 type ResolvePlacementImmediateEffectsOptions = {
     CardLogic: any;
@@ -96,7 +96,7 @@ function resolvePlacementImmediateEffects(options: ResolvePlacementImmediateEffe
         effects && effects.grassPlaced ? 'GRASS' : null,
         effects && effects.meteorGodPlaced ? 'METEOR_GOD' : null,
         effects && effects.willHunterKingPlaced ? 'WILL_HUNTER_KING' : null
-    ].filter(Boolean);
+    ].filter((value): value is string => value !== null);
 
     for (const typeKey of immediateTypes) {
         ImmediateEffectDispatcher.resolveImmediateEffects({

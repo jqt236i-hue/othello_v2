@@ -20,7 +20,7 @@ type ResolvePlacementActionOptions = {
     isOthelloMode: () => boolean;
 };
 
-const TheorySpawnResolutionModule = require('../theory-spawn-resolution');
+import TheorySpawnResolutionModule = require('../theory-spawn-resolution');
 
 type ResolvePlacementActionResult = {
     boardBonusGained?: number;

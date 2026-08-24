@@ -1,114 +1,37 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
+import MarkersAdapter = require('../logic/markers_adapter');
+import CardUtilsModule = require('../logic/cards/utils');
+import CardContextModule = require('../logic/context');
+import SharedConstantsModule = require('../../shared-constants');
+import SharedBoardUtilsImport = require('../../shared/shared-board-utils');
+import PlayerEncodingModule = require('../../shared/player-encoding');
+import DestroyOutcomeContractImport = require('../../shared/destroy-outcome-contract');
+import PhaseHelpersModule = require('./turn_pipeline_phase_helpers');
+import PendingCoordinatorModule = require('./pending-coordinator');
+import SubPlacementContinuationModule = require('./sub-placement-continuation');
+import ActionPhaseContinuationModule = require('./action-phase/continuation');
+import ActionPhasePlacementEffectsModule = require('./action-phase/placement-effects');
+import CardUsageImmediateEffectsModule = require('./card-usage/immediate-effects');
+import TurnBoardChargeModule = require('./board-charge');
+import TurnPresentationHelpersModule = require('./presentation-helpers');
+import TurnRoundStateModule = require('./round-state');
+import ActionPhasePrePlacementSelectionModule = require('./action-phase/pre-placement-selection');
+import ActionPhasePlaceResolutionModule = require('./action-phase/place-resolution');
+import ActionPhasePlacementImmediateEffectsModule = require('./action-phase/placement-immediate-effects');
+import ActionPhaseTurnHandoffModule = require('./action-phase/turn-handoff');
+import PhasePresentationFinalizerModule = require('./phase-presentation-finalizer');
+import TurnStartMarkerPhaseModule = require('./turn-start/marker-phase');
+import TurnStartPostProcessingModule = require('./turn-start/post-processing');
+import TurnStartTimerPhaseModule = require('./turn-start/timer-phase');
+import TheorySpawnResolutionModule = require('./theory-spawn-resolution');
+import { isCardRuntimeUnavailableError } from '../logic/card-runtime-errors';
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+const OwnerHelpersModule: any = Object.freeze({
+    normalizePlayerKeyOptional: PlayerEncodingModule.parseSeatKeyOptional
+});
 
-    const TURN_PIPELINE_PHASE_MODULE_GLOBALS: Record<string, string> = Object.freeze({
-        '../logic/markers_adapter': 'MarkersAdapter',
-        '../logic/cards/utils': 'CardUtils',
-        '../logic/context': 'CardContext',
-        '../../shared-constants': 'SharedConstants',
-        '../../shared/shared-board-utils': 'SharedBoardUtils',
-        '../../utils/owner-helpers': 'OwnerHelpers',
-        '../../shared/destroy-outcome-contract': 'DestroyOutcomeContract',
-        './turn_pipeline_phase_helpers': 'TurnPipelinePhaseHelpers',
-        './pending-coordinator': 'TurnPendingCoordinator',
-        './sub-placement-continuation': 'TurnSubPlacementContinuation',
-        './action-phase/continuation': 'TurnActionPhaseContinuation',
-        './action-phase/placement-effects': 'TurnActionPhasePlacementEffects',
-        './card-usage/immediate-effects': 'TurnCardUsageImmediateEffects',
-        './board-charge': 'TurnBoardCharge',
-        './presentation-helpers': 'TurnPresentationHelpers',
-        './round-state': 'TurnRoundState',
-        './action-phase/pre-placement-selection': 'TurnActionPhasePrePlacementSelection',
-        './action-phase/place-resolution': 'TurnActionPhasePlaceResolution',
-        './action-phase/placement-immediate-effects': 'TurnActionPhasePlacementImmediateEffects',
-        './action-phase/turn-handoff': 'TurnActionPhaseTurnHandoff',
-        './phase-presentation-finalizer': 'TurnPhasePresentationFinalizer',
-        './turn-start/marker-phase': 'TurnStartMarkerPhase',
-        './turn-start/post-processing': 'TurnStartPostProcessing',
-        './turn-start/timer-phase': 'TurnStartTimerPhase',
-        './theory-spawn-resolution': 'TurnTheorySpawnResolution'
-    });
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
 
-    const TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS: Record<string, () => any> = Object.freeze({
-        '../logic/markers_adapter': () => require('../logic/markers_adapter'),
-        '../logic/cards/utils': () => require('../logic/cards/utils'),
-        '../logic/context': () => require('../logic/context'),
-        '../../shared-constants': () => require('../../shared-constants'),
-        '../../shared/shared-board-utils': () => require('../../shared/shared-board-utils'),
-        '../../utils/owner-helpers': () => require('../../utils/owner-helpers'),
-        '../../shared/destroy-outcome-contract': () => require('../../shared/destroy-outcome-contract'),
-        './turn_pipeline_phase_helpers': () => require('./turn_pipeline_phase_helpers'),
-        './pending-coordinator': () => require('./pending-coordinator'),
-        './sub-placement-continuation': () => require('./sub-placement-continuation'),
-        './action-phase/continuation': () => require('./action-phase/continuation'),
-        './action-phase/placement-effects': () => require('./action-phase/placement-effects'),
-        './card-usage/immediate-effects': () => require('./card-usage/immediate-effects'),
-        './board-charge': () => require('./board-charge'),
-        './presentation-helpers': () => require('./presentation-helpers'),
-        './round-state': () => require('./round-state'),
-        './action-phase/pre-placement-selection': () => require('./action-phase/pre-placement-selection'),
-        './action-phase/place-resolution': () => require('./action-phase/place-resolution'),
-        './action-phase/placement-immediate-effects': () => require('./action-phase/placement-immediate-effects'),
-        './action-phase/turn-handoff': () => require('./action-phase/turn-handoff'),
-        './phase-presentation-finalizer': () => require('./phase-presentation-finalizer'),
-        './turn-start/marker-phase': () => require('./turn-start/marker-phase'),
-        './turn-start/post-processing': () => require('./turn-start/post-processing'),
-        './turn-start/timer-phase': () => require('./turn-start/timer-phase'),
-        './theory-spawn-resolution': () => require('./theory-spawn-resolution')
-    });
-
-    function getRuntimeModuleGlobal(globalKey: string): any {
-        if (!globalKey) return null;
-        try {
-            if (typeof self !== 'undefined' && (self as any)[globalKey]) {
-                return (self as any)[globalKey];
-            }
-            if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
-                return (globalThis as any)[globalKey];
-            }
-        } catch (e) { /* ignore */ }
-        return null;
-    }
-
-    function unwrapOptionalModule(value: any, depth = 0): any {
-        if (!value || typeof value !== 'object' || depth > 5) return value;
-        if (value['module.exports'] && value['module.exports'] !== value) {
-            return unwrapOptionalModule(value['module.exports'], depth + 1);
-        }
-        if (value.default && value.default !== value) {
-            return unwrapOptionalModule(value.default, depth + 1);
-        }
-        return value;
-    }
-
-    function hasUsableOptionalModule(value: any): boolean {
-        if (!value) return false;
-        if (typeof value === 'function') return true;
-        if (typeof value !== 'object') return true;
-        return Object.keys(value).some((key) => key !== '__esModule');
-    }
-
-    function requireOptionalModule(id: string): any {
-        const staticLoader = TURN_PIPELINE_PHASE_STATIC_MODULE_LOADERS[id];
-        if (typeof staticLoader === 'function') {
-            try {
-                const staticModule = unwrapOptionalModule(staticLoader());
-                if (hasUsableOptionalModule(staticModule)) return staticModule;
-            } catch (e) { /* fall through to runtime require/global fallback */ }
-        }
-        try {
-            const requiredModule = unwrapOptionalModule(_require(id));
-            if (hasUsableOptionalModule(requiredModule)) return requiredModule;
-        } catch (e) {
-            /* fall through to global fallback */
-        }
-        return unwrapOptionalModule(getRuntimeModuleGlobal(TURN_PIPELINE_PHASE_MODULE_GLOBALS[id]));
-    }
-
-    const MarkersAdapter = requireOptionalModule('../logic/markers_adapter');
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
     function isBombCategoryMarker(marker: any) {
         if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
@@ -121,11 +44,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             marker.data.category === 'bomb'
         );
     }
-    const CardUtilsModule = requireOptionalModule('../logic/cards/utils');
-    const SharedConstantsModule = requireOptionalModule('../../shared-constants');
-    const SharedBoardUtils = requireOptionalModule('../../shared/shared-board-utils');
-    const OwnerHelpersModule = requireOptionalModule('../../utils/owner-helpers');
-    const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
         REGENERATED: 'regenerated',
@@ -406,24 +324,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         ? resolvedChargeMax
         : 99;
 
-    const PhaseHelpersModule = requireOptionalModule('./turn_pipeline_phase_helpers');
-    const PendingCoordinatorModule = requireOptionalModule('./pending-coordinator');
-    const SubPlacementContinuationModule = requireOptionalModule('./sub-placement-continuation');
-    const ActionPhaseContinuationModule = requireOptionalModule('./action-phase/continuation');
-    const ActionPhasePlacementEffectsModule = requireOptionalModule('./action-phase/placement-effects');
-    const CardUsageImmediateEffectsModule = requireOptionalModule('./card-usage/immediate-effects');
-    const TurnBoardChargeModule = requireOptionalModule('./board-charge');
-    const TurnPresentationHelpersModule = requireOptionalModule('./presentation-helpers');
-    const TurnRoundStateModule = requireOptionalModule('./round-state');
-    const ActionPhasePrePlacementSelectionModule = requireOptionalModule('./action-phase/pre-placement-selection');
-    const ActionPhasePlaceResolutionModule = requireOptionalModule('./action-phase/place-resolution');
-    const ActionPhasePlacementImmediateEffectsModule = requireOptionalModule('./action-phase/placement-immediate-effects');
-    const ActionPhaseTurnHandoffModule = requireOptionalModule('./action-phase/turn-handoff');
-    const PhasePresentationFinalizerModule = requireOptionalModule('./phase-presentation-finalizer');
-    const TurnStartMarkerPhaseModule = requireOptionalModule('./turn-start/marker-phase');
-    const TurnStartPostProcessingModule = requireOptionalModule('./turn-start/post-processing');
-    const TurnStartTimerPhaseModule = requireOptionalModule('./turn-start/timer-phase');
-    const TheorySpawnResolutionModule = requireOptionalModule('./theory-spawn-resolution');
 
     function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
         if (!(Core && typeof Core.applyPass === 'function')) {
@@ -883,7 +783,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function syncTurnStartPendingSelectionCache(ctx: TurnPipelinePhaseContext): void {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
-            PendingCoordinatorModule.syncPendingSelectionActionCache(ctx.cardState);
+            (PendingCoordinatorModule as any).syncPendingSelectionActionCache(ctx.cardState);
         }
     }
 
@@ -1432,13 +1332,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function resolveSafeCardContext(CardLogic: any, cardState: any) {
         let ctx = null;
         try {
-            const ctxHelper = requireOptionalModule('../logic/context');
-            if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
-                ctx = ctxHelper.getSafeCardContext(cardState, undefined, undefined, CardLogic);
+            if (CardContextModule && typeof CardContextModule.getSafeCardContext === 'function') {
+                ctx = CardContextModule.getSafeCardContext(cardState, undefined, undefined, CardLogic);
             }
-        } catch (e) { /* ignore and fallback */ }
+        } catch (error) {
+            if (isCardRuntimeUnavailableError(error)) throw error;
+            /* preserve the characterized untagged fallback */
+        }
         if (!ctx) {
-            try { ctx = CardLogic.getCardContext(cardState); } catch (e) { ctx = { protectedStones: [], permaProtectedStones: [], bombs: [] }; }
+            try {
+                ctx = CardLogic.getCardContext(cardState);
+            } catch (error) {
+                if (isCardRuntimeUnavailableError(error)) throw error;
+                ctx = { protectedStones: [], permaProtectedStones: [], bombs: [] };
+            }
         }
         return ctx;
     }

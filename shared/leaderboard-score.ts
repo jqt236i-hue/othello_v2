@@ -1,25 +1,8 @@
 'use strict';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedBoardUtilsImport = require('./shared-board-utils');
 
-function requireLeaderboardDependency(id: string): any {
-  if (typeof __non_webpack_require__ !== 'undefined') return __non_webpack_require__(id);
-  if (typeof require === 'function') return require(id);
-  return null;
-}
-
-function resolveLeaderboardBoardKernel(): any {
-  try {
-    const required = requireLeaderboardDependency('./shared-board-utils');
-    if (required) return required;
-  } catch (e) { /* use the installed browser runtime below */ }
-  if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
-    return (globalThis as any).SharedBoardUtils;
-  }
-  return null;
-}
-
-const SharedBoardUtils = resolveLeaderboardBoardKernel();
+const SharedBoardUtils: any = SharedBoardUtilsImport;
 if (!SharedBoardUtils || typeof SharedBoardUtils.countStateDiscs !== 'function') {
   throw new Error('SharedBoardUtils.countStateDiscs is required by LeaderboardScore');
 }

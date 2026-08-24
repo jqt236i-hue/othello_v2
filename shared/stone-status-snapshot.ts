@@ -1,22 +1,8 @@
-(function (root: any, factory) {
-    if (typeof module !== 'undefined' && module.exports) {
-        let SpecialStoneRegistry = null;
-        let EvasionStatus = null;
-        let ManifestStoneRegistry = null;
-        try {
-            SpecialStoneRegistry = require('./special-stone-registry');
-        } catch (e) { /* ignore */ }
-        try {
-            EvasionStatus = require('./evasion-status');
-        } catch (e) { /* ignore */ }
-        try {
-            ManifestStoneRegistry = require('./manifest-stone-registry');
-        } catch (e) { /* ignore */ }
-        module.exports = factory(SpecialStoneRegistry, EvasionStatus, ManifestStoneRegistry);
-    } else {
-        root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null, root.EvasionStatus || null, root.ManifestStoneRegistry || null);
-    }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SpecialStoneRegistry: unknown, EvasionStatus: unknown, ManifestStoneRegistry: unknown) {
+import SpecialStoneRegistryImport = require('./special-stone-registry-static');
+import EvasionStatusImport = require('./evasion-status');
+import ManifestStoneRegistryImport = require('./manifest-stone-registry');
+
+const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, EvasionStatus: unknown, ManifestStoneRegistry: unknown) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -137,12 +123,6 @@
             typeof candidate.getDestroyEvadeDefault === 'function'
         ) {
             return candidate;
-        }
-        if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).EvasionStatus) {
-            return (globalThis as Record<string, unknown>).EvasionStatus;
-        }
-        if (typeof self !== 'undefined' && (self as Record<string, unknown>).EvasionStatus) {
-            return (self as Record<string, unknown>).EvasionStatus;
         }
         return null;
     }
@@ -422,6 +402,6 @@
         buildSpecialStoneStatusTags,
         resolveStoneVisualStatusFromMarkers
     };
-}));
+})(SpecialStoneRegistryImport, EvasionStatusImport, ManifestStoneRegistryImport);
 
-export {};
+export = StoneStatusSnapshot;

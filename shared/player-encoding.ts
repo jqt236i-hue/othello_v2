@@ -6,26 +6,10 @@
  */
 
 import { PlayerKey, PlayerValue } from '../src/types';
+import SharedConstants = require('../shared-constants');
+import PlayerSeatContract = require('./player-seat-contract');
 
-declare const require: any;
-
-(function (root: any, factory: (sharedConstants: any, playerSeatContract: any) => any) {
-    if (typeof module === 'object' && module.exports) {
-        let SharedConstantsModule = null;
-        try {
-            SharedConstantsModule = require('../shared-constants');
-        } catch (e) { /* ignore */ }
-        module.exports = factory(SharedConstantsModule, require('./player-seat-contract'));
-    } else {
-        const globalScope = (typeof globalThis !== 'undefined') ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : {}));
-        const playerSeatContract = (globalScope as any).PlayerSeatContract
-            || (typeof (globalScope as any).require === 'function'
-                ? (globalScope as any).require('shared/player-seat-contract')
-                : null);
-        root.PlayerEncoding = factory((globalScope as any).SharedConstants || null, playerSeatContract);
-    }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any, PlayerSeatContract: any) {
+const PlayerEncoding = (function (SharedConstants: any, PlayerSeatContract: any) {
     'use strict';
 
     if (!PlayerSeatContract) {
@@ -97,4 +81,6 @@ declare const require: any;
         playerValueToKey,
         isValidPlayerKey
     };
-}));
+})(SharedConstants, PlayerSeatContract);
+
+export = PlayerEncoding;

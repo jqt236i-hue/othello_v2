@@ -22,11 +22,31 @@ type OverlaySelectionDeps = {
     renderCardUiWithOptionalPlaybackDelay: (shouldDelay: any, options: any) => any;
     ensureCurrentPlayerCanActOrPass?: any;
     ensureCurrentPlayerCanActOrPassSafely: () => any;
+    isCardRuntimeIntegrityBlocked?: () => boolean;
     getRunResultPlaybackEvents: (runResult: any) => any[];
     getCardDisplayLabel: (cardId: any, cardDef: any) => any;
 };
 
+function isOverlaySelectionIntegrityBlocked(deps: OverlaySelectionDeps): boolean {
+    if (typeof deps.isCardRuntimeIntegrityBlocked !== 'function') return false;
+    try {
+        return deps.isCardRuntimeIntegrityBlocked() === true;
+    } catch (_error) {
+        return true;
+    }
+}
+
+function buildOverlaySelectionRuntimeUnavailableResult(deps: OverlaySelectionDeps): any {
+    deps.setPendingSelectionBusy(false);
+    return {
+        ok: false,
+        reason: 'runtime_unavailable',
+        result: { ok: false, reason: 'RUNTIME_UNAVAILABLE' }
+    };
+}
+
 function requestCardUiRefresh(deps: OverlaySelectionDeps, reason: any) {
+    if (isOverlaySelectionIntegrityBlocked(deps)) return;
     if (typeof deps.requestCardUiSync === 'function') {
         try {
             deps.requestCardUiSync(reason);
@@ -70,7 +90,9 @@ function finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runR
     const playbackEvents = deps.getRunResultPlaybackEvents(runResult);
     if (!deps.pendingSelectionFlowModule || typeof deps.pendingSelectionFlowModule.finalizePendingSelectionFlow !== 'function') {
         deps.setPendingSelectionBusy(false);
-        deps.ensureCurrentPlayerCanActOrPassSafely();
+        if (!isOverlaySelectionIntegrityBlocked(deps)) {
+            deps.ensureCurrentPlayerCanActOrPassSafely();
+        }
         return;
     }
     Promise.resolve().then(() => deps.pendingSelectionFlowModule.finalizePendingSelectionFlow({
@@ -86,12 +108,15 @@ function finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runR
         deps.setPendingSelectionBusy(false);
     }).catch(() => {
         deps.setPendingSelectionBusy(false);
-        deps.ensureCurrentPlayerCanActOrPassSafely();
+        if (!isOverlaySelectionIntegrityBlocked(deps)) {
+            deps.ensureCurrentPlayerCanActOrPassSafely();
+        }
     });
 }
 
 function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: OverlaySelectionDeps) {
     if (!selectedCardId) return { ok: false, reason: 'no_selection' };
+    if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
     if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     if (!hasCurrentPendingSelection(playerKey, 'HEAVEN_BLESSING', deps)) {
         requestCardUiRefresh(deps, 'card-interaction:stale-heaven-selection');
@@ -111,6 +136,7 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
                 deps.hideHeavenOverlay();
             },
             onFailure: () => {
+                if (isOverlaySelectionIntegrityBlocked(deps)) return;
                 requestCardUiRefresh(deps, 'card-interaction:heaven-selection-publish-failure');
                 deps.addLog('天の恵みの選択送信に失敗しました');
             }
@@ -118,7 +144,9 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
             completed = true;
             return { ok: true, publishedByNetwork: true };
         }
+        if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
         const result = deps.runPipelineAction(playerKey, action);
+        if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
         if (!result.ok) return result;
         deps.addLog(`${playerKey === 'black' ? '黒' : '白'}が天の恵みで${def ? def.name : selectedCardId}を獲得`);
         deps.clearHeavenSelection(playerKey);
@@ -136,6 +164,7 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
 
 function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId: any, deps: OverlaySelectionDeps) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
+    if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
     if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     if (!hasCurrentPendingSelection(playerKey, 'CONDEMN_WILL', deps)) {
         requestCardUiRefresh(deps, 'card-interaction:stale-condemn-selection');
@@ -154,6 +183,7 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
                 deps.hideHeavenOverlay();
             },
             onFailure: () => {
+                if (isOverlaySelectionIntegrityBlocked(deps)) return;
                 requestCardUiRefresh(deps, 'card-interaction:condemn-selection-publish-failure');
                 deps.addLog('断罪の意志の選択送信に失敗しました');
             }
@@ -161,7 +191,9 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
             completed = true;
             return { ok: true, publishedByNetwork: true };
         }
+        if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
         const result = deps.runPipelineAction(playerKey, action);
+        if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
         if (!result.ok) return result;
         deps.addLog(`${playerKey === 'black' ? '黒' : '白'}が断罪の意志で${deps.getCardDisplayLabel(targetCardId, targetDef)}を破壊`);
         deps.clearHeavenSelection(playerKey);
@@ -180,6 +212,7 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
 
 function executeObserverWillSelection(playerKey: any, targetIndex: any, targetCardId: any, deps: OverlaySelectionDeps) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
+    if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
     if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     if (!hasCurrentPendingSelection(playerKey, 'OBSERVER_WILL', deps)) {
         requestCardUiRefresh(deps, 'card-interaction:stale-observer-selection');
@@ -198,6 +231,7 @@ function executeObserverWillSelection(playerKey: any, targetIndex: any, targetCa
                 deps.hideHeavenOverlay();
             },
             onFailure: () => {
+                if (isOverlaySelectionIntegrityBlocked(deps)) return;
                 requestCardUiRefresh(deps, 'card-interaction:observer-selection-publish-failure');
                 deps.addLog('盤理の観測者の選択送信に失敗しました');
             }
@@ -205,7 +239,9 @@ function executeObserverWillSelection(playerKey: any, targetIndex: any, targetCa
             completed = true;
             return { ok: true, publishedByNetwork: true };
         }
+        if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
         const result = deps.runPipelineAction(playerKey, action);
+        if (isOverlaySelectionIntegrityBlocked(deps)) return buildOverlaySelectionRuntimeUnavailableResult(deps);
         if (!result.ok) return result;
         deps.addLog(`${playerKey === 'black' ? '黒' : '白'}が盤理の観測者で${deps.getCardDisplayLabel(targetCardId, targetDef)}を獲得`);
         deps.clearHeavenSelection(playerKey);

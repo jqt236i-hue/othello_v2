@@ -1,16 +1,5 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-const PresentationQueue = _require('../../shared/presentation-queue');
+import PresentationQueue = require('../../shared/presentation-queue');
+import { isCardRuntimeUnavailableError } from './card-runtime-errors';
 
 interface PresentationEvent {
     type: string;
@@ -25,6 +14,7 @@ interface CardState {
 interface PresentationRuntime {
     emitPresentationEvent?: (cardState: CardState | null, ev: PresentationEvent) => any;
     getCardState?: () => CardState | null;
+    flushPresentationEvents?: (cardState: CardState | null) => PresentationEvent[];
 }
 
 let warnedNoBoardOps = false;
@@ -76,15 +66,17 @@ function flushPersistedEvents(): boolean {
             : null;
 
         try {
-            const CardLogic = _require('./cards');
-            if (CardLogic && typeof CardLogic.flushPresentationEvents === 'function') {
-                const events = CardLogic.flushPresentationEvents(cardStateRef) || [];
-                for (const ev of events) {
-                    try { presentationRuntime.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
-                }
-                flushedCount += events.length;
+            const events = typeof presentationRuntime.flushPresentationEvents === 'function'
+                ? presentationRuntime.flushPresentationEvents(cardStateRef) || []
+                : PresentationQueue.drainLivePresentationEvents(cardStateRef);
+            for (const ev of events) {
+                try { presentationRuntime.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
             }
-        } catch (_e) { /* ignore and continue */ }
+            flushedCount += events.length;
+        } catch (error) {
+            if (isCardRuntimeUnavailableError(error)) throw error;
+            /* preserve the existing best-effort presentation fallback */
+        }
 
         if (cardStateRef && Array.isArray(cardStateRef._presentationEventsPersist) && cardStateRef._presentationEventsPersist.length) {
             const persisted = cardStateRef._presentationEventsPersist.slice();
@@ -96,7 +88,10 @@ function flushPersistedEvents(): boolean {
         }
 
         return flushedCount > 0;
-    } catch (_e) { /* ignore */ }
+    } catch (error) {
+        if (isCardRuntimeUnavailableError(error)) throw error;
+        /* preserve the existing best-effort presentation fallback */
+    }
     return false;
 }
 

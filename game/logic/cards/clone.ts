@@ -1,34 +1,11 @@
 'use strict';
 
 import { CardState, GameState } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import RandomSourceImport = require('../cards-internal/random-source');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const SharedConstants = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared-constants')
-    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-
-const RandomSourceModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../cards-internal/random-source')
-    : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+const SharedConstants: any = SharedConstantsImport;
+const RandomSourceModule: any = RandomSourceImport;
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)

@@ -1,6 +1,4 @@
-export {};
-
-const SharedBoardUtils: any = require('../../../shared/shared-board-utils');
+import SharedBoardUtils = require('../../../shared/shared-board-utils');
 
 type RiboTimeStopConstants = {
     RIBO_WILL_OWNER_TURNS: number;
@@ -436,7 +434,7 @@ function processRiboWillTurnStartEffects(cardState: any, gameState: any, playerK
     return summary;
 }
 
-module.exports = {
+const CardRiboTimeStop = {
     armRiboWillEffect,
     getTimeStopGodDestroyableCount,
     getTimeStopDeityDestroyableCount,
@@ -448,3 +446,5 @@ module.exports = {
     processTimeStopEffectsAtTurnStartAnchor,
     processRiboWillTurnStartEffects
 };
+
+export = CardRiboTimeStop;

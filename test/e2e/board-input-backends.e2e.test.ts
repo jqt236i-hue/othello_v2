@@ -139,8 +139,7 @@ describe('board input backend E2E', () => {
     await page.evaluate(() => {
       const root = window as any;
       root.__observedBoardPointerTypes = [];
-      const board = document.getElementById('board');
-      board?.addEventListener('pointerdown', (event: PointerEvent) => {
+      document.addEventListener('pointerdown', (event: PointerEvent) => {
         root.__observedBoardPointerTypes.push(event.pointerType);
       }, true);
     });

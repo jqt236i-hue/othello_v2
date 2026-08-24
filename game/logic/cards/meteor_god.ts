@@ -3,7 +3,12 @@
  * @description Meteor God timed anchor effect helpers.
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardUtilsImport = require('../../../shared/shared-board-utils');
+import BoardOpsImport = require('../board_ops');
+import RandomSourceImport = require('../cards-internal/random-source');
+import CardMarkersImport = require('./markers');
+import CardCellRemovalImport = require('./cell-removal');
 
 type MeteorGodOwnerValue = number;
 type MeteorGodSeatKey = 'black' | 'white';
@@ -148,36 +153,12 @@ interface MeteorGodModuleApi {
   ) => MeteorGodProcessResult;
 }
 
-function _require(id: string): any {
-  if (typeof __non_webpack_require__ !== 'undefined') {
-    return __non_webpack_require__(id);
-  }
-  if (typeof require === 'function') {
-    return require(id);
-  }
-  throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-  try {
-    return _require(id);
-  } catch (_error) {
-    return null;
-  }
-}
-
-const SharedConstants = (safeRequire('../../../shared-constants')
-  || (typeof self !== 'undefined' ? (self as any).SharedConstants : null)) as MeteorGodSharedConstants | null;
-const BoardUtils = safeRequire('../../../shared/shared-board-utils')
-  || (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
-const BoardOpsModule: MeteorGodBoardOpsModule | null = safeRequire('../board_ops')
-  || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
-const RandomSourceModule = safeRequire('./random-source');
-const CardMarkersModule: MeteorGodCardMarkersModule | null = safeRequire('./markers')
-  || (typeof self !== 'undefined' ? (self as any).CardMarkers : null);
-const CardCellRemoval = ((typeof module === 'object' && module.exports)
-  ? safeRequire('./cell-removal')
-  : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null);
+const SharedConstants = SharedConstantsImport as unknown as MeteorGodSharedConstants;
+const BoardUtils: any = BoardUtilsImport;
+const BoardOpsModule = BoardOpsImport as unknown as MeteorGodBoardOpsModule;
+const RandomSourceModule: any = RandomSourceImport;
+const CardMarkersModule = CardMarkersImport as unknown as MeteorGodCardMarkersModule;
+const CardCellRemoval: any = CardCellRemovalImport;
 
 if (!SharedConstants ||
     SharedConstants.BLACK === undefined ||

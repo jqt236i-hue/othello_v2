@@ -54,6 +54,13 @@ try {
     }
 } catch (e: any) { /* ignore */ }
 
+let CardRuntimeIntegrityModule: any = null;
+try {
+    if (typeof _require === 'function') {
+        CardRuntimeIntegrityModule = _require('./card-runtime-integrity');
+    }
+} catch (e: any) { /* ignore */ }
+
 let PixiRuntimeContract: any = null;
 try {
     if (typeof _require === 'function') {
@@ -755,6 +762,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             readMatchMode: runtimeResolvers.readMatchMode,
             readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
             resolveRuntimeValue: runtimeResolvers.resolveRuntimeValue,
+            isCardRuntimeIntegrityBlocked: () => {
+                if (!CardRuntimeIntegrityModule
+                    || typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked !== 'function') return false;
+                try { return CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+            },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
             acquireSelectionSettlementLock: (meta: any) => {
                 try {
@@ -971,6 +983,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             },
             publishSnapshot: (meta: any) => {
                 try {
+                    if (CardRuntimeIntegrityModule
+                        && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+                        && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true) {
+                        return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+                    }
                     if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
                     if (typeof (globalThis as any).NetworkMatchClient.publishSnapshot !== 'function') return undefined;
                     if (typeof (globalThis as any).NetworkMatchClient.isActive === 'function' && !(globalThis as any).NetworkMatchClient.isActive()) {
@@ -984,6 +1001,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             },
             isNetworkPublishActive: () => {
                 try {
+                    if (CardRuntimeIntegrityModule
+                        && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+                        && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true) return false;
                     if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
                     if (typeof (globalThis as any).NetworkMatchClient.publishSnapshot !== 'function') return false;
                     if (isNetworkMatchClientSpectator((globalThis as any).NetworkMatchClient)) return false;
@@ -1433,8 +1453,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     function configurePresentationRuntime() {
         try {
             const presentation = require('../game/logic/presentation');
+            const cardLogic = require('../game/logic/cards');
             if (!presentation || typeof presentation.setPresentationRuntime !== 'function') return;
             presentation.setPresentationRuntime({
+                flushPresentationEvents: (cardStateValue: any) => (
+                    cardLogic && typeof cardLogic.flushPresentationEvents === 'function'
+                        ? cardLogic.flushPresentationEvents(cardStateValue)
+                        : []
+                ),
                 getCardState: () => {
                     try {
                         return (typeof globalThis !== 'undefined' && (globalThis as any).cardState)
@@ -1465,6 +1491,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         configurePresentationRuntime();
         try {
             const pipelineUIAdapter = require('../game/turn/pipeline_ui_adapter');
+            const cardRuntimeIntegrity = require('./card-runtime-integrity');
             if (pipelineUIAdapter && typeof pipelineUIAdapter.setPipelineUIAdapterRuntime === 'function') {
                 pipelineUIAdapter.setPipelineUIAdapterRuntime({
                     getGamePrng: () => {
@@ -1475,7 +1502,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         } catch (e: any) {
                             return undefined;
                         }
-                    }
+                    },
+                    isCardRuntimeIntegrityBlocked: () => cardRuntimeIntegrity
+                        && typeof cardRuntimeIntegrity.isCardRuntimeIntegrityBlocked === 'function'
+                        && cardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() === true,
+                    handleCardRuntimeIntegrityFailure: (error: unknown, source: string) => cardRuntimeIntegrity
+                        && typeof cardRuntimeIntegrity.latchCardRuntimeIntegrityFailure === 'function'
+                        && cardRuntimeIntegrity.latchCardRuntimeIntegrityFailure(error, { source })
                 });
             }
         } catch (e: any) { /* ignore */ }
@@ -1721,6 +1754,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 try { cpu = require('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
                 cpuDecision.setCpuDecisionRuntime({
                     processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
+                    isCardRuntimeIntegrityBlocked: () => CardRuntimeIntegrityModule
+                        && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+                        && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true,
                     readMatchMode: runtimeResolvers.readMatchMode,
                     readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
                     readDebugFlag: (name: any) => {
@@ -1801,6 +1837,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     },
                     publishSnapshot: (meta: any) => {
                         try {
+                            if (CardRuntimeIntegrityModule
+                                && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+                                && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true) {
+                                return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+                            }
                             if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
                             const client = (globalThis as any).NetworkMatchClient;
                             if (typeof client.publishSnapshot !== 'function') return undefined;
@@ -1813,6 +1854,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     },
                     isNetworkPublishActive: () => {
                         try {
+                            if (CardRuntimeIntegrityModule
+                                && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+                                && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true) return false;
                             if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
                             const client = (globalThis as any).NetworkMatchClient;
                             if (typeof client.publishSnapshot !== 'function') return false;
@@ -1873,13 +1917,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             if (hyperactiveCards && typeof hyperactiveCards.setHyperactiveRuntime === 'function') {
                 hyperactiveCards.setHyperactiveRuntime({
                     isDebugLogAvailable: () => isDebugSessionEnabled(),
-                    debugLog,
-                    readRuntimeModule: (key: string) => {
-                        try {
-                            if (typeof globalThis !== 'undefined') return (globalThis as any)[key];
-                        } catch (e: any) { /* ignore */ }
-                        return undefined;
-                    }
+                    debugLog
                 });
             }
         } catch (e: any) { /* ignore */ }

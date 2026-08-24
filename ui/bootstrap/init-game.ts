@@ -9,6 +9,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+let CardRuntimeIntegrityModule: any = null;
+try {
+  CardRuntimeIntegrityModule = _require('../card-runtime-integrity');
+} catch (_error) { /* compatibility boot may install it later */ }
+
 declare const loadCpuPolicy: (() => void) | undefined;
 declare const CpuPolicy: {
   loadPolicyForLevel?: (level: number) => Promise<unknown>;
@@ -83,6 +88,11 @@ function readPlaybackFlag(getPlaybackStateModule: () => any, getterName: string,
 
 function publishSnapshotFromNetworkClient(meta: any, isNetworkMatchClientSpectator: (client: any) => boolean): any {
   try {
+    if (CardRuntimeIntegrityModule
+      && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+      && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true) {
+      return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+    }
     if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
     const client = (globalThis as any).NetworkMatchClient;
     if (typeof client.publishSnapshot !== 'function') return undefined;
@@ -189,6 +199,11 @@ function installMoveExecutorRuntime(deps: any): void {
       })(),
       readMatchMode: runtimeResolvers.readMatchMode,
       readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
+      isCardRuntimeIntegrityBlocked: () => {
+        if (!CardRuntimeIntegrityModule
+          || typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked !== 'function') return false;
+        try { return CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+      },
       setProcessing: (next: boolean) => {
         try {
           const playbackState = getPlaybackStateModule();
@@ -318,9 +333,22 @@ function installMoveExecutorRuntime(deps: any): void {
       },
       now: () => Date.now(),
       waitForPlayback: uiMod.waitForPlaybackIdle,
+      waitForAuthoritativeVisualSettlement: (publishResult: any) => {
+        try {
+          if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
+          const client = (globalThis as any).NetworkMatchClient;
+          if (typeof client.waitForAuthoritativeVisualSettlement !== 'function') return undefined;
+          return client.waitForAuthoritativeVisualSettlement(publishResult);
+        } catch (e) {
+          return undefined;
+        }
+      },
       publishSnapshot: (meta: any) => publishSnapshotFromNetworkClient(meta, isNetworkMatchClientSpectator),
       isNetworkPublishActive: () => {
         try {
+          if (CardRuntimeIntegrityModule
+            && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+            && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true) return false;
           if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
           const client = (globalThis as any).NetworkMatchClient;
           if (typeof client.publishSnapshot !== 'function') return false;

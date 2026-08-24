@@ -5,18 +5,12 @@
  */
 
 import { CardState } from '../../src/types';
+import MarkersAdapterImport = require('./markers_adapter');
+import CardLogicImport = require('./cards');
+import { isCardRuntimeUnavailableError } from './card-runtime-errors';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
+const MarkersAdapter: any = MarkersAdapterImport;
+const CardLogic: any = CardLogicImport;
 
 interface MarkerData {
     row: number;
@@ -45,7 +39,6 @@ interface SafeCardContext {
 function mapBombMarkers(cardState: CardState | null | undefined): MarkerData[] {
     if (!cardState) return [];
     try {
-        const MarkersAdapter = _require('./markers_adapter');
         if (MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function') {
             return MarkersAdapter.getBombMarkers(cardState).map((m: any) => ({
                 row: m.row,
@@ -88,13 +81,12 @@ function getSafeCardContext(
         return cardLogic.getCardContext(cardState);
     }
 
-    // Prefer CardLogic when available.
     try {
-        const cardsImpl = _require('./cards');
-        if (cardsImpl && typeof cardsImpl.getCardContext === 'function') {
-            return cardsImpl.getCardContext(cardState);
+        if (CardLogic && typeof CardLogic.getCardContext === 'function') {
+            return CardLogic.getCardContext(cardState);
         }
     } catch (e: any) {
+        if (isCardRuntimeUnavailableError(e)) throw e;
         console.warn('[getSafeCardContext] CardLogic.getCardContext threw — falling back to safe context:', e && e.message);
     }
 

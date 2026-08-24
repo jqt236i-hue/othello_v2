@@ -143,6 +143,14 @@ if (
         };
     }
 
+    function isAuthoritativePublishAccepted(publishSnapshotFn: any, publishOutcome: any): boolean {
+        return typeof publishSnapshotFn === 'function'
+            && !!publishOutcome
+            && !!publishOutcome.publishResult
+            && typeof publishOutcome.publishResult === 'object'
+            && publishOutcome.publishResult.ok === true;
+    }
+
     async function publishTurnHandoffSnapshot(publishSnapshotFn: any, meta: any, options: any): Promise<any> {
         var publishFn = (typeof publishSnapshotFn === 'function') ? publishSnapshotFn : null;
         var opts = (options && typeof options === 'object') ? options : {};
@@ -208,7 +216,7 @@ if (
 
         try {
             var awaitedPublishResult = await Promise.resolve(publishFn(payload));
-            if (awaitedPublishResult && typeof awaitedPublishResult === 'object' && awaitedPublishResult.ok === false) {
+            if (!awaitedPublishResult || typeof awaitedPublishResult !== 'object' || awaitedPublishResult.ok !== true) {
                 if (onPublishFailed) {
                     await Promise.resolve(onPublishFailed({
                         reason: 'network_publish_failed',
@@ -466,11 +474,45 @@ if (
         const awaitPublishResult = opts.awaitPublishResult === true;
         const deferResultToAuthoritativeSnapshot = opts.deferResultToAuthoritativeSnapshot === true;
         const scheduleCpuTurn = (typeof opts.scheduleCpuTurn === 'function') ? opts.scheduleCpuTurn : null;
+        const isAborted = (typeof opts.isAborted === 'function') ? opts.isAborted : null;
         const cpuDelayMs = Number.isFinite(Number(opts.cpuDelayMs))
             ? Math.max(0, Math.trunc(Number(opts.cpuDelayMs)))
             : 200;
 
+        function shouldAbortHandoff(): boolean {
+            if (!isAborted) return false;
+            try {
+                return isAborted() === true;
+            } catch (_error) {
+                return true;
+            }
+        }
+
+        function buildAbortedHandoffResult(
+            playbackEvents: any[] = basePlaybackEvents,
+            turnStartEvents: any[] = [],
+            publishResult?: any,
+            authoritativePublishAccepted = false
+        ): any {
+            if (setProcessing) setProcessing(false);
+            return {
+                ok: false,
+                reason: 'runtime_unavailable',
+                result: { ok: false, reason: 'RUNTIME_UNAVAILABLE' },
+                gameOver: false,
+                scheduledCpu: false,
+                nextPlayerKey: resolveCurrentPlayerKey(),
+                playbackEvents,
+                turnStartPlaybackEvents: turnStartEvents,
+                publishResult,
+                authoritativePublishAccepted
+            };
+        }
+
+        if (shouldAbortHandoff()) return buildAbortedHandoffResult();
+
         if (isGameOverNow(opts.isGameOver, snapshotOverride)) {
+            if (shouldAbortHandoff()) return buildAbortedHandoffResult();
             const publishGameOver = () => publishTurnHandoffSnapshot(publishSnapshotFn, {
                     playerKey,
                     actionType,
@@ -489,6 +531,14 @@ if (
                     publishGameOver
                 )
                 : await publishGameOver();
+            if (shouldAbortHandoff()) {
+                return buildAbortedHandoffResult(
+                    basePlaybackEvents,
+                    [],
+                    gameOverPublish.publishResult,
+                    isAuthoritativePublishAccepted(publishSnapshotFn, gameOverPublish)
+                );
+            }
             if (!gameOverPublish.ok) {
                 if (setProcessing) setProcessing(false);
                 return {
@@ -504,6 +554,14 @@ if (
             }
             if (!deferResultToAuthoritativeSnapshot) {
                 await waitForPlaybackIdleIfNeeded(basePlaybackEvents);
+                if (shouldAbortHandoff()) {
+                    return buildAbortedHandoffResult(
+                        basePlaybackEvents,
+                        [],
+                        gameOverPublish.publishResult,
+                        isAuthoritativePublishAccepted(publishSnapshotFn, gameOverPublish)
+                    );
+                }
                 showResultIfAvailable(opts.showResult);
             }
             if (setProcessing) setProcessing(false);
@@ -513,7 +571,9 @@ if (
                 scheduledCpu: false,
                 nextPlayerKey: resolveCurrentPlayerKey(),
                 playbackEvents: basePlaybackEvents,
-                turnStartPlaybackEvents: []
+                turnStartPlaybackEvents: [],
+                publishResult: gameOverPublish.publishResult,
+                authoritativePublishAccepted: isAuthoritativePublishAccepted(publishSnapshotFn, gameOverPublish)
             };
         }
 
@@ -530,6 +590,7 @@ if (
             } else {
                 await waitForPlaybackIdleIfNeeded(basePlaybackEvents);
             }
+            if (shouldAbortHandoff()) return buildAbortedHandoffResult();
         }
 
         const playbackHelpers = resolvePlaybackEventHelpers();
@@ -537,6 +598,9 @@ if (
         if (typeof turnStartFn === 'function') {
             const MAX_TURN_START_CHAIN = 8;
             for (let index = 0; index < MAX_TURN_START_CHAIN; index += 1) {
+                if (shouldAbortHandoff()) {
+                    return buildAbortedHandoffResult(basePlaybackEvents, turnStartPlaybackEvents);
+                }
                 const gameStateRef = readCurrentGameState();
                 const beforePlayerKey = resolvePlayerKeyFromTurnValue(gameStateRef ? gameStateRef.currentPlayer : null);
                 const invokeTurnStart = () => turnStartFn(gameStateRef ? gameStateRef.currentPlayer : null);
@@ -548,6 +612,9 @@ if (
                         invokeTurnStart
                     )
                     : await invokeTurnStart();
+                if (shouldAbortHandoff()) {
+                    return buildAbortedHandoffResult(basePlaybackEvents, turnStartPlaybackEvents);
+                }
                 if (turnStartResult && Array.isArray(turnStartResult.playbackEvents)) {
                     turnStartPlaybackEvents = (playbackHelpers && typeof playbackHelpers.appendPlaybackEventsAfter === 'function')
                         ? playbackHelpers.appendPlaybackEventsAfter(turnStartPlaybackEvents, turnStartResult.playbackEvents)
@@ -569,6 +636,9 @@ if (
             : basePlaybackEvents.concat(turnStartPlaybackEvents);
 
         if (typeof opts.afterTurnStart === 'function') {
+            if (shouldAbortHandoff()) {
+                return buildAbortedHandoffResult(combinedPlaybackEvents, turnStartPlaybackEvents);
+            }
             const invokeAfterTurnStart = () => opts.afterTurnStart({
                     playbackEvents: combinedPlaybackEvents.slice(),
                     turnStartPlaybackEvents: turnStartPlaybackEvents.slice(),
@@ -584,8 +654,14 @@ if (
             } else {
                 await invokeAfterTurnStart();
             }
+            if (shouldAbortHandoff()) {
+                return buildAbortedHandoffResult(combinedPlaybackEvents, turnStartPlaybackEvents);
+            }
         }
 
+        if (shouldAbortHandoff()) {
+            return buildAbortedHandoffResult(combinedPlaybackEvents, turnStartPlaybackEvents);
+        }
         const publishCompletedTurn = () => publishTurnHandoffSnapshot(publishSnapshotFn, {
                 playerKey,
                 actionType,
@@ -604,6 +680,14 @@ if (
                 publishCompletedTurn
             )
             : await publishCompletedTurn();
+        if (shouldAbortHandoff()) {
+            return buildAbortedHandoffResult(
+                combinedPlaybackEvents,
+                turnStartPlaybackEvents,
+                publishOutcome.publishResult,
+                isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
+            );
+        }
         if (!publishOutcome.ok) {
             if (setProcessing) setProcessing(false);
             return {
@@ -621,6 +705,14 @@ if (
         if (opts.checkGameOverAfterTurnStart !== false && isGameOverNow(opts.isGameOver, snapshotOverride)) {
             if (!deferResultToAuthoritativeSnapshot) {
                 await waitForPlaybackIdleIfNeeded(combinedPlaybackEvents);
+                if (shouldAbortHandoff()) {
+                    return buildAbortedHandoffResult(
+                        combinedPlaybackEvents,
+                        turnStartPlaybackEvents,
+                        publishOutcome.publishResult,
+                        isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
+                    );
+                }
                 showResultIfAvailable(opts.showResult);
             }
             if (setProcessing) setProcessing(false);
@@ -630,7 +722,9 @@ if (
                 scheduledCpu: false,
                 nextPlayerKey: resolveCurrentPlayerKey(),
                 playbackEvents: combinedPlaybackEvents,
-                turnStartPlaybackEvents
+                turnStartPlaybackEvents,
+                publishResult: publishOutcome.publishResult,
+                authoritativePublishAccepted: isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
             };
         }
 
@@ -638,6 +732,9 @@ if (
         const gameStateRef = readCurrentGameState();
         const cardStateRef = readCurrentCardState();
         const nextPlayerKey = resolveCurrentPlayerKey();
+        if (shouldAbortHandoff()) {
+            return buildAbortedHandoffResult(combinedPlaybackEvents, turnStartPlaybackEvents);
+        }
         const cpuTurnOwnerKey = (!humanMode)
             ? resolveCpuTurnOwnerKey(gameStateRef, cardStateRef)
             : null;
@@ -653,12 +750,28 @@ if (
                 scheduleAccepted = performanceScope
                     ? measureCpuTurnSync(performanceScope, 'presentation-handoff', scheduleCpu)
                     : scheduleCpu();
+                if (shouldAbortHandoff()) {
+                    return buildAbortedHandoffResult(
+                        combinedPlaybackEvents,
+                        turnStartPlaybackEvents,
+                        publishOutcome.publishResult,
+                        isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
+                    );
+                }
             } catch (e) {
                 if (setProcessing) setProcessing(false);
                 throw e;
             }
             if (scheduleAccepted === false) {
                 if (setProcessing) setProcessing(false);
+                if (shouldAbortHandoff()) {
+                    return buildAbortedHandoffResult(
+                        combinedPlaybackEvents,
+                        turnStartPlaybackEvents,
+                        publishOutcome.publishResult,
+                        isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
+                    );
+                }
                 if (onHumanTurnReady) {
                     onHumanTurnReady({ nextPlayerKey, scheduledCpu: false });
                 }
@@ -668,7 +781,9 @@ if (
                     scheduledCpu: false,
                     nextPlayerKey,
                     playbackEvents: combinedPlaybackEvents,
-                    turnStartPlaybackEvents
+                    turnStartPlaybackEvents,
+                    publishResult: publishOutcome.publishResult,
+                    authoritativePublishAccepted: isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
                 };
             }
             return {
@@ -677,11 +792,21 @@ if (
                 scheduledCpu: true,
                 nextPlayerKey,
                 playbackEvents: combinedPlaybackEvents,
-                turnStartPlaybackEvents
+                turnStartPlaybackEvents,
+                publishResult: publishOutcome.publishResult,
+                authoritativePublishAccepted: isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
             };
         }
 
         if (setProcessing) setProcessing(false);
+        if (shouldAbortHandoff()) {
+            return buildAbortedHandoffResult(
+                combinedPlaybackEvents,
+                turnStartPlaybackEvents,
+                publishOutcome.publishResult,
+                isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
+            );
+        }
         if (onHumanTurnReady) {
             onHumanTurnReady({ nextPlayerKey, scheduledCpu: false });
         }
@@ -692,7 +817,9 @@ if (
             scheduledCpu: false,
             nextPlayerKey,
             playbackEvents: combinedPlaybackEvents,
-            turnStartPlaybackEvents
+            turnStartPlaybackEvents,
+            publishResult: publishOutcome.publishResult,
+            authoritativePublishAccepted: isAuthoritativePublishAccepted(publishSnapshotFn, publishOutcome)
         };
     }
 

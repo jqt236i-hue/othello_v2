@@ -31,6 +31,7 @@ if (!run('node', ['scripts/check-refactor-safety.js'])) ok = false;
 if (!run('node', ['scripts/check-ts-migration-safety.js'])) ok = false;
 if (!run('node', ['dist/scripts/check-board-kernel-boundary.js'])) ok = false;
 if (!run('node', ['dist/scripts/check-board-test-selectors.js'])) ok = false;
+if (!run('node', ['dist/scripts/check-card-runtime-boundary.js'])) ok = false;
 if (!run('node', ['dist/scripts/check-browser-build-up-to-date.js'])) ok = false;
 if (!run('node', ['scripts/check-asset-file-case.js'])) ok = false;
 if (!runNpmScript('check:artifact-retention')) ok = false;

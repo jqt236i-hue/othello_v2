@@ -1,52 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as ts from 'typescript';
-import * as vm from 'vm';
 
-const SharedBoardUtils = require('../shared/shared-board-utils');
+describe('CardHyperactive static runtime dependencies', () => {
+  test('imports canonical board APIs without runtime-global discovery and preserves behavior', () => {
+    const sourcePath = path.resolve(__dirname, '..', 'game', 'logic', 'cards', 'hyperactive.ts');
+    const source = fs.readFileSync(sourcePath, 'utf8');
+    expect(source).toContain("import SharedConstantsImport = require('../../../shared-constants');");
+    expect(source).toContain("import BoardUtilsImport = require('../../../shared/shared-board-utils');");
+    expect(source).not.toMatch(/safeRequire|globalThis|\bself\s*\./);
 
-function transpileCommonJs(sourcePath: string): string {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-  return ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2019,
-      esModuleInterop: true
-    }
-  }).outputText;
-}
-
-function runCommonJsModuleInSandbox(sourcePath: string, sandbox: any): any {
-  sandbox.module = { exports: {} };
-  sandbox.exports = sandbox.module.exports;
-  vm.runInContext(transpileCommonJs(sourcePath), sandbox, { filename: sourcePath });
-  return sandbox.module.exports;
-}
-
-function loadHyperactiveWithWorkerLikeGlobals(): any {
-  const boardShapePath = path.resolve(__dirname, '..', 'game', 'logic', 'cards', 'hyperactive-board-shape.ts');
-  const sourcePath = path.resolve(__dirname, '..', 'game', 'logic', 'cards', 'hyperactive.ts');
-  const sandbox: any = {
-    console,
-    module: { exports: {} },
-    exports: {},
-    require: () => {
-      throw new Error('require is unavailable in this worker-like runtime');
-    }
-  };
-  sandbox.globalThis = sandbox;
-  sandbox.self = sandbox;
-  sandbox.SharedConstants = { BLACK: 1, WHITE: -1, EMPTY: 0 };
-  sandbox.SharedBoardUtils = SharedBoardUtils;
-
-  vm.createContext(sandbox);
-  runCommonJsModuleInSandbox(boardShapePath, sandbox);
-  return runCommonJsModuleInSandbox(sourcePath, sandbox);
-}
-
-describe('CardHyperactive worker runtime globals', () => {
-  test('uses preloaded canonical board APIs and constants when require is unavailable', () => {
-    const CardHyperactive = loadHyperactiveWithWorkerLikeGlobals();
+    const CardHyperactive = require('../game/logic/cards/hyperactive.ts');
     const gameState: any = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
     };

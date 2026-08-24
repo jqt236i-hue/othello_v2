@@ -5,6 +5,7 @@ import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as TurnPipelineUIAdapter from '../game/turn/pipeline_ui_adapter.js';
 import * as BoardExpansionEffects from '../game/card-effects/board-expansion.js';
 import * as BoardShrinkEffects from '../game/card-effects/board-shrink.js';
+import * as SelectionFlowNetworkHandoff from '../game/card-effects/selection-flow-network-handoff';
 
 function createPlaybackBridgeMethods(playbackStateManager) {
   return {
@@ -90,7 +91,7 @@ function createPlaybackBridgeMethods(playbackStateManager) {
   };
 }
 
-function attachPlaybackStateManager() {
+function attachPlaybackStateManager(bridgeOverrides = {}) {
   const playbackStateManager = require('../ui/playback-state-manager.js');
   playbackStateManager.clearPlaybackLock();
   global.PlaybackStateManager = playbackStateManager;
@@ -185,7 +186,8 @@ function attachPlaybackStateManager() {
     getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
     getTurnPipeline: () => global.TurnPipeline,
     getActionManager: () => global.ActionManager,
-    getPresentationHelper: () => require('../game/logic/presentation.js')
+    getPresentationHelper: () => require('../game/logic/presentation.js'),
+    ...bridgeOverrides
   });
   return playbackStateManager;
 }
@@ -204,6 +206,7 @@ describe('pending selection flow contracts', () => {
     } catch (e) { /* ignore */ }
     delete global.ActionManager;
     delete global.cardState;
+    delete global.gameState;
     delete global.NetworkMatchClient;
     delete global.MATCH_MODE;
     delete global.PlaybackStateManager;
@@ -232,6 +235,57 @@ describe('pending selection flow contracts', () => {
     expect(flow.shouldDeferNetworkPublishForPendingType('HEAVEN_BLESSING')).toBe(true);
     expect(flow.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
     expect(flow.isSelectionOnlyEndTurnPendingType('TRAP_WILL')).toBe(true);
+  });
+
+  test('playback waiter cannot start a local fallback after an unaccepted integrity latch', async () => {
+    let blocked = false;
+    const legacyWaiter = jest.fn(async () => undefined);
+    const deps = {
+      waitForPlaybackViaBridge: jest.fn(async () => {
+        blocked = true;
+        throw new Error('runtime unavailable');
+      }),
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      getNetworkTurnHandoff: () => ({ waitForPlaybackIdleIfNeeded: legacyWaiter })
+    } as any;
+
+    await SelectionFlowNetworkHandoff.waitForSelectionPlaybackIdle([{ type: 'move' }], deps);
+    expect(legacyWaiter).not.toHaveBeenCalled();
+
+    blocked = false;
+    await SelectionFlowNetworkHandoff.waitForSelectionPlaybackIdle([{ type: 'move' }], deps, {
+      force: true,
+      authorityAccepted: true
+    });
+    expect(legacyWaiter).toHaveBeenCalledTimes(1);
+  });
+
+  test('playback waiter rechecks a latch queued immediately behind bridge rejection', async () => {
+    let blocked = false;
+    let rejectBridge = null;
+    const legacyWaiter = jest.fn(async () => undefined);
+    const bridgeWait = jest.fn(() => new Promise((_resolve, reject) => {
+      rejectBridge = reject;
+    }));
+    const deps = {
+      waitForPlaybackViaBridge: bridgeWait,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      getNetworkTurnHandoff: () => ({ waitForPlaybackIdleIfNeeded: legacyWaiter })
+    } as any;
+
+    const waitPromise = SelectionFlowNetworkHandoff.waitForSelectionPlaybackIdle(
+      [{ type: 'move' }],
+      deps
+    );
+    await Promise.resolve();
+    expect(rejectBridge).toEqual(expect.any(Function));
+    rejectBridge(new Error('bridge reset'));
+    queueMicrotask(() => {
+      blocked = true;
+    });
+    await waitPromise;
+
+    expect(legacyWaiter).not.toHaveBeenCalled();
   });
 
   test('busy fallback stays local without mutating legacy global flags when PlaybackStateManager is unavailable', async () => {
@@ -980,6 +1034,507 @@ describe('pending selection flow contracts', () => {
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
     expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+  });
+
+  test('latched end-turn finalization preserves pending action and stops every handoff callback', async () => {
+    let blocked = false;
+    const publishSnapshot = jest.fn(async () => ({ ok: true }));
+    const waitForPlaybackIdle = jest.fn(async () => undefined);
+    const waitForAuthoritativeVisualSettlement = jest.fn(async () => ({ ok: true, visualSeq: 1 }));
+    const processCpuTurn = jest.fn();
+    const scheduleCpuTurn = jest.fn(() => true);
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      publishSnapshot,
+      waitForPlaybackIdle,
+      waitForAuthoritativeVisualSettlement,
+      processCpuTurn,
+      scheduleCpuTurn
+    });
+    global.cardState = {
+      turnIndex: 41,
+      pendingEffectByPlayer: {
+        black: { type: 'TRAP_WILL', stage: 'selectTarget', cardId: 'trap_01' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 1, turnNumber: 42, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'TRAP_WILL', {
+      trapTarget: { row: 2, col: 2 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onSettled = jest.fn();
+    const onHumanTurnReady = jest.fn();
+    flow.setSelectionBusy(true);
+    blocked = true;
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      action,
+      playbackEvents: [{ type: 'trap' }],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass,
+      onSettled,
+      onHumanTurnReady
+    });
+
+    expect(result).toBe(false);
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+    expect(publishSnapshot).not.toHaveBeenCalled();
+    expect(waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(waitForAuthoritativeVisualSettlement).not.toHaveBeenCalled();
+    expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(processCpuTurn).not.toHaveBeenCalled();
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(onHumanTurnReady).not.toHaveBeenCalled();
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(global.PlaybackStateManager.getProcessing()).toBe(false);
+    expect(global.PlaybackStateManager.getCardAnimating()).toBe(false);
+  });
+
+  test('continue-turn RUNTIME_UNAVAILABLE keeps the staged action and skips playback and recovery callbacks', async () => {
+    let blocked = false;
+    const publishSnapshot = jest.fn(async () => {
+      blocked = true;
+      return { ok: false, reason: 'RUNTIME_UNAVAILABLE' };
+    });
+    const waitForPlaybackIdle = jest.fn(async () => undefined);
+    const waitForAuthoritativeVisualSettlement = jest.fn(async () => ({ ok: true, visualSeq: 1 }));
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      publishSnapshot,
+      waitForPlaybackIdle,
+      waitForAuthoritativeVisualSettlement
+    });
+    global.cardState = {
+      turnIndex: 51,
+      pendingEffectByPlayer: {
+        black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 1, turnNumber: 52, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 1, col: 1 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onSettled = jest.fn();
+    flow.setSelectionBusy(true);
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'DESTROY_ONE_STONE',
+      action,
+      playbackEvents: [{ type: 'destroy_animation' }],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass,
+      onSettled
+    });
+
+    expect(result).toBe(false);
+    expect(publishSnapshot).toHaveBeenCalledTimes(1);
+    expect(waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(waitForAuthoritativeVisualSettlement).not.toHaveBeenCalled();
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(global.PlaybackStateManager.getProcessing()).toBe(false);
+    expect(global.PlaybackStateManager.getCardAnimating()).toBe(false);
+  });
+
+  test('accepted continue-turn publish drains exact visuals once before integrity abort', async () => {
+    let blocked = false;
+    const publishResult = { ok: true, presentationCursor: { visualSeq: 61 } };
+    const publishSnapshot = jest.fn(async () => {
+      blocked = true;
+      return publishResult;
+    });
+    const waitForPlaybackIdle = jest.fn(async () => undefined);
+    const waitForAuthoritativeVisualSettlement = jest.fn(async () => ({ ok: true, visualSeq: 61 }));
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      publishSnapshot,
+      waitForPlaybackIdle,
+      waitForAuthoritativeVisualSettlement
+    });
+    global.cardState = {
+      turnIndex: 61,
+      pendingEffectByPlayer: {
+        black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 1, turnNumber: 62, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 3, col: 3 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onSettled = jest.fn();
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'DESTROY_ONE_STONE',
+      action,
+      playbackEvents: [{ type: 'destroy_animation' }],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass,
+      onSettled
+    });
+
+    expect(result).toBe(false);
+    expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledTimes(1);
+    expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledWith(publishResult);
+    expect(waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+  });
+
+  test('falls back to the playback drain when exact accepted-publish settlement reports failure', async () => {
+    let blocked = false;
+    const publishResult = { ok: true, presentationCursor: { visualSeq: 62 } };
+    const publishSnapshot = jest.fn(async () => {
+      blocked = true;
+      return publishResult;
+    });
+    const waitForPlaybackIdle = jest.fn(async () => undefined);
+    const waitForAuthoritativeVisualSettlement = jest.fn(async () => ({
+      ok: false,
+      visualSeq: 62,
+      reason: 'session_changed'
+    }));
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      publishSnapshot,
+      waitForPlaybackIdle,
+      waitForAuthoritativeVisualSettlement
+    });
+    global.cardState = {
+      turnIndex: 62,
+      pendingEffectByPlayer: {
+        black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 1, turnNumber: 63, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 4, col: 4 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'DESTROY_ONE_STONE',
+      action,
+      playbackEvents: [{ type: 'destroy_animation' }],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState
+    });
+
+    expect(result).toBe(false);
+    expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledWith(publishResult);
+    expect(waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+  });
+
+  test('accepted end-turn publish settles exact visuals and a reserved CPU callback stays inert after a latch race', async () => {
+    let blocked = false;
+    let reservedCpuCallback = null;
+    const publishResult = { ok: true, presentationCursor: { visualSeq: 63 } };
+    const publishSnapshot = jest.fn(async () => publishResult);
+    const waitForPlaybackIdle = jest.fn(async () => undefined);
+    const waitForAuthoritativeVisualSettlement = jest.fn(async () => ({ ok: true, visualSeq: 63 }));
+    const processCpuTurn = jest.fn();
+    const scheduleCpuTurn = jest.fn((_delay, callback) => {
+      reservedCpuCallback = callback;
+      queueMicrotask(() => {
+        blocked = true;
+      });
+      return true;
+    });
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      readHumanVsHumanMode: () => false,
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      publishSnapshot,
+      waitForPlaybackIdle,
+      waitForAuthoritativeVisualSettlement,
+      scheduleCpuTurn,
+      processCpuTurn
+    });
+    global.cardState = {
+      turnIndex: 63,
+      pendingEffectByPlayer: {
+        black: { type: 'TRAP_WILL', stage: 'selectTarget', cardId: 'trap_01' },
+        white: null
+      },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
+    global.gameState = { currentPlayer: 'white', turnNumber: 64, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'TRAP_WILL', {
+      trapTarget: { row: 5, col: 5 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onHumanTurnReady = jest.fn();
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      action,
+      playbackEvents: [{ type: 'trap' }],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass,
+      onHumanTurnReady
+    });
+
+    expect(result).toBe(false);
+    expect(scheduleCpuTurn).toHaveBeenCalledTimes(1);
+    expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledTimes(1);
+    expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledWith(publishResult);
+    expect(waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+    expect(processCpuTurn).not.toHaveBeenCalled();
+    expect(onHumanTurnReady).not.toHaveBeenCalled();
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+
+    expect(typeof reservedCpuCallback).toBe('function');
+    reservedCpuCallback();
+    expect(processCpuTurn).not.toHaveBeenCalled();
+    expect(global.PlaybackStateManager.getProcessing()).toBe(false);
+    expect(global.PlaybackStateManager.getCardAnimating()).toBe(false);
+  });
+
+  test('returns fail-closed when post-selection ensure raises the integrity latch', async () => {
+    let blocked = false;
+    const waitForPlaybackIdle = jest.fn(async () => undefined);
+    attachPlaybackStateManager({
+      readMatchMode: () => 'cpu',
+      isNetworkPublishActive: () => false,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      waitForPlaybackIdle
+    });
+    global.cardState = {
+      turnIndex: 64,
+      pendingEffectByPlayer: {
+        black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 'black', turnNumber: 65, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 6, col: 6 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+    const ensureCurrentPlayerCanActOrPass = jest.fn(() => {
+      blocked = true;
+      throw new Error('runtime unavailable during ensure');
+    });
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'DESTROY_ONE_STONE',
+      action,
+      playbackEvents: [],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass
+    });
+
+    expect(result).toBe(false);
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+    expect(global.PlaybackStateManager.getProcessing()).toBe(false);
+    expect(global.PlaybackStateManager.getCardAnimating()).toBe(false);
+  });
+
+  test.each([
+    ['missing publish acknowledgement', undefined],
+    ['explicit publish rejection', { ok: false, reason: 'OUT_OF_TURN' }]
+  ])('continue-turn finalization treats %s as an ordinary publish failure', async (_label, publishResult) => {
+    const publishSnapshot = jest.fn(async () => publishResult);
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onSettled = jest.fn();
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => false,
+      publishSnapshot
+    });
+    global.cardState = {
+      turnIndex: 65,
+      pendingEffectByPlayer: {
+        black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 'black', turnNumber: 66, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 6, col: 6 }
+    }, { cardState: global.cardState });
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'DESTROY_ONE_STONE',
+      action,
+      playbackEvents: [],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass,
+      onSettled
+    });
+
+    expect(result).toBe(false);
+    expect(publishSnapshot).toHaveBeenCalledTimes(1);
+    expect(flow.readPendingSelectionAction('black')).toBeNull();
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(onSettled).not.toHaveBeenCalled();
+    expect(global.PlaybackStateManager.getProcessing()).toBe(false);
+    expect(global.PlaybackStateManager.getCardAnimating()).toBe(false);
+  });
+
+  test('continue-turn callback latch restores a cache cleared after canonical settlement', async () => {
+    let blocked = false;
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onSettled = jest.fn(() => {
+      blocked = true;
+    });
+    attachPlaybackStateManager({
+      readMatchMode: () => 'cpu',
+      isNetworkPublishActive: () => false,
+      isCardRuntimeIntegrityBlocked: () => blocked
+    });
+    global.cardState = {
+      turnIndex: 66,
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    global.gameState = { currentPlayer: 'black', turnNumber: 67, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 1, col: 2 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'DESTROY_ONE_STONE',
+      action,
+      playbackEvents: [],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass,
+      onSettled
+    });
+
+    expect(result).toBe(false);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+  });
+
+  test('end-turn handoff restores a cleared cache when publish recovery races with the integrity latch', async () => {
+    let blocked = false;
+    const publishSnapshot = jest.fn(async () => ({ ok: false, reason: 'OUT_OF_TURN' }));
+    const ensureCurrentPlayerCanActOrPass = jest.fn(() => {
+      queueMicrotask(() => {
+        blocked = true;
+      });
+    });
+    attachPlaybackStateManager({
+      readMatchMode: () => 'network',
+      isNetworkPublishActive: () => true,
+      isCardRuntimeIntegrityBlocked: () => blocked,
+      publishSnapshot
+    });
+    global.cardState = {
+      turnIndex: 67,
+      pendingEffectByPlayer: {
+        black: { type: 'TRAP_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = { currentPlayer: 'white', turnNumber: 68, board: [] };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const action = flow.createPendingSelectionAction('black', 'TRAP_WILL', {
+      trapTarget: { row: 2, col: 2 }
+    }, { cardState: global.cardState });
+    const cachedBefore = cloneJson(flow.readPendingSelectionAction('black'));
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      action,
+      playbackEvents: [],
+      cardStateValue: global.cardState,
+      gameStateValue: global.gameState,
+      ensureCurrentPlayerCanActOrPass
+    });
+
+    expect(result).toBe(false);
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(flow.readPendingSelectionAction('black')).toEqual(cachedBefore);
+    expect(global.PlaybackStateManager.getProcessing()).toBe(false);
+    expect(global.PlaybackStateManager.getCardAnimating()).toBe(false);
   });
 
   test('finalizePendingSelectionFlow prefers bridge match mode over legacy global mode', async () => {

@@ -1,3 +1,5 @@
+import CardMarkers = require('../cards/markers');
+
 type Marker = {
     kind?: string;
     row?: number;
@@ -47,14 +49,9 @@ type MarkerContextIndex = {
 
 function resolveMarkerContextIndexFactory(deps: ProtectionContextDeps): ((cardState: unknown, options?: unknown) => MarkerContextIndex) | null {
     if (deps && typeof deps.createMarkerContextIndex === 'function') return deps.createMarkerContextIndex;
-    try {
-        if (typeof require === 'function') {
-            const markersModule = require('../cards/markers');
-            if (markersModule && typeof markersModule.createMarkerContextIndex === 'function') {
-                return markersModule.createMarkerContextIndex;
-            }
-        }
-    } catch (e) { /* fall through to compatibility index */ }
+    if (CardMarkers && typeof CardMarkers.createMarkerContextIndex === 'function') {
+        return CardMarkers.createMarkerContextIndex;
+    }
     return null;
 }
 

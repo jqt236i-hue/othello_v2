@@ -226,6 +226,80 @@ describe('cpu turn move phase no-legal card retry', () => {
     expect(scheduleRunCpuTurn).toHaveBeenCalledWith('white', { autoMode: false }, 0);
   });
 
+  test('raw runtime-unavailable pass is terminal and is never republished', async () => {
+    const passFn = jest.fn(async () => ({ ok: false, reason: 'runtime_unavailable' }));
+    const { config, scheduleRunCpuTurn } = createConfig({
+      resolveProcessPassTurn: jest.fn(() => passFn)
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now()
+    });
+
+    expect(result).toEqual({ status: 'handled', reason: 'runtime_unavailable' });
+    expect(passFn).toHaveBeenCalledTimes(1);
+    expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
+    expect(config.setCpuProcessing).toHaveBeenCalledWith(false);
+  });
+
+  test.each(['resolve', 'reject'])(
+    'stops an in-flight ONNX decision after the integrity latch before it can commit or retry (%s)',
+    async (mode) => {
+      let blocked = false;
+      let resolveDecision: (value: any) => void = () => undefined;
+      let rejectDecision: (error: any) => void = () => undefined;
+      const decisionPromise = new Promise((resolve, reject) => {
+        resolveDecision = resolve;
+        rejectDecision = reject;
+      });
+      const executeMove = jest.fn();
+      const passFn = jest.fn();
+      const { config, scheduleRunCpuTurn } = createConfig({
+        isAborted: () => blocked,
+        resolveGenerateMovesForPlayer: jest.fn(() => jest.fn(() => [
+          { row: 3, col: 4, flips: [{ row: 3, col: 3 }] }
+        ])),
+        getSelectMoveFromOnnxFn: jest.fn(() => jest.fn(() => decisionPromise)),
+        shouldUseOnnxMoveDecision: jest.fn(() => true),
+        resolveExecuteMoveFn: jest.fn(() => executeMove),
+        resolveProcessPassTurn: jest.fn(() => passFn),
+        selectCpuMoveSafe: jest.fn(() => ({ row: 3, col: 4, flips: [] }))
+      });
+      const phase = createCpuTurnMovePhase(config as any);
+      const runPromise = phase.runCpuTurnMovePhase({
+        playerKey: 'white',
+        autoMode: false,
+        level: 2,
+        selfColor: -1,
+        selfName: '白',
+        othelloMode: false,
+        pending: { type: 'CAPTURE_WILL', stage: 'apply', pendingEffectId: 'pending-stable' },
+        turnStartMs: Date.now()
+      });
+      await Promise.resolve();
+      blocked = true;
+      if (mode === 'resolve') resolveDecision({ row: 3, col: 4, flips: [] });
+      else rejectDecision(new TypeError('ordinary ONNX failure'));
+
+      const result = await runPromise;
+
+      expect(result).toEqual({ status: 'handled', reason: 'runtime_unavailable' });
+      expect(executeMove).not.toHaveBeenCalled();
+      expect(passFn).not.toHaveBeenCalled();
+      expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
+      expect(config.resetPendingSelectRetryState).not.toHaveBeenCalled();
+      expect(config.setCpuProcessing).toHaveBeenCalledWith(false);
+    }
+  );
+
   test('retries when pass handler is not available for a no-action CPU turn', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const { config, scheduleRunCpuTurn } = createConfig({

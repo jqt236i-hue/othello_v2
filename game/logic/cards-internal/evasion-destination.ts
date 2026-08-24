@@ -87,11 +87,4 @@ const CardEvasionDestination = {
     selectNearestEmptyEvasionDestination
 };
 
-const evasionDestinationRoot = (typeof globalThis !== 'undefined')
-    ? (globalThis as any)
-    : (typeof self !== 'undefined' ? (self as any) : null);
-if (evasionDestinationRoot && !evasionDestinationRoot.CardEvasionDestination) {
-    evasionDestinationRoot.CardEvasionDestination = CardEvasionDestination;
-}
-
 export = CardEvasionDestination;

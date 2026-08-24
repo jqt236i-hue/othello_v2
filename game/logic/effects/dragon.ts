@@ -3,47 +3,17 @@
  * @description DRAGON effect helper - TypeScript module for browser and Node.js
  */
 
+import SharedConstantsImport = require('../../../shared-constants');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import RandomSourceImport = require('../cards-internal/random-source');
+import DefaultBoardOpsImport = require('../board_ops');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function resolveDragonModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-    }
-
-    return getRuntimeGlobalValue(globalKey);
-}
-
-const SharedConstants = resolveDragonModuleOrGlobal('../../../shared-constants', 'SharedConstants');
-const SharedBoardUtils = resolveDragonModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-const RandomSourceModule = resolveDragonModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
-const DefaultBoardOps = resolveDragonModuleOrGlobal('../board_ops', 'BoardOps');
-const SpecialStoneRegistry = resolveDragonModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
+const SharedConstants: any = SharedConstantsImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const RandomSourceModule: any = RandomSourceImport;
+const DefaultBoardOps: any = DefaultBoardOpsImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
 
 const { BLACK, WHITE } = SharedConstants || {};
 const P_BLACK = BLACK || 1;

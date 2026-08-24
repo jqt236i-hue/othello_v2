@@ -3,46 +3,13 @@
  * @description REGEN effect helpers (Shared between Browser and Headless)
  */
 
-const CardRegen = (function (root: any, factory: any) {
-    if (typeof module === 'object' && module.exports) {
-        let CardMarkersModule = null;
-        let SpecialStoneRegistryModule = null;
-        let ProtectionContextModule = null;
-        try {
-            CardMarkersModule = require('./markers');
-        } catch (e) { /* ignore */ }
-        try {
-            SpecialStoneRegistryModule = require('../../../shared/special-stone-registry');
-        } catch (e) { /* ignore */ }
-        try {
-            ProtectionContextModule = require('../cards-internal/protection-context');
-        } catch (e) { /* ignore */ }
-        return factory(
-            require('../../../shared-constants'),
-            require('../../../shared/shared-board-utils'),
-            CardMarkersModule,
-            SpecialStoneRegistryModule,
-            ProtectionContextModule
-        );
-    }
-    if (root && root.SharedConstants) {
-        return (root.CardRegen = factory(
-            root.SharedConstants,
-            root.SharedBoardUtils || null,
-            root.CardMarkers || null,
-            root.SpecialStoneRegistry || null,
-            root.CardProtectionContext || null
-        ));
-    } else {
-        return (root.CardRegen = factory(
-            root.SharedConstants,
-            root.SharedBoardUtils || null,
-            root.CardMarkers || null,
-            root.SpecialStoneRegistry || null,
-            root.CardProtectionContext || null
-        ));
-    }
-}(typeof self !== 'undefined' ? self : this, function (
+import SharedConstantsImport = require('../../../shared-constants');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import CardMarkersImport = require('./markers');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import ProtectionContextImport = require('../cards-internal/protection-context');
+
+const CardRegen = (function (
     SharedConstants: any,
     SharedBoardUtils: any,
     CardMarkersModule: any,
@@ -54,26 +21,16 @@ const CardRegen = (function (root: any, factory: any) {
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
     const REGEN_REVIVE_LIMIT = 3;
 
-    function getRuntimeGlobalValue(key: string): any {
-        if (typeof self !== 'undefined' && (self as any)[key]) {
-            return (self as any)[key];
-        }
-        return null;
-    }
-
     function getCardMarkersModule() {
-        if (CardMarkersModule) return CardMarkersModule;
-        return getRuntimeGlobalValue('CardMarkers');
+        return CardMarkersModule;
     }
 
     function getSpecialStoneRegistryModule() {
-        if (SpecialStoneRegistryModule) return SpecialStoneRegistryModule;
-        return getRuntimeGlobalValue('SpecialStoneRegistry');
+        return SpecialStoneRegistryModule;
     }
 
     function getProtectionContextModule() {
-        if (ProtectionContextModule) return ProtectionContextModule;
-        return getRuntimeGlobalValue('CardProtectionContext');
+        return ProtectionContextModule;
     }
 
     if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined) {
@@ -446,6 +403,12 @@ const CardRegen = (function (root: any, factory: any) {
         applyRegenAfterDestroy,
         findActiveRegenMarkerAt
     };
-}));
+})(
+    SharedConstantsImport,
+    SharedBoardUtilsImport,
+    CardMarkersImport,
+    SpecialStoneRegistryImport,
+    ProtectionContextImport
+);
 
 export = CardRegen;

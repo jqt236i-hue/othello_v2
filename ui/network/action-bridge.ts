@@ -2,6 +2,8 @@
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+import CardRuntimeIntegrity = require('../card-runtime-integrity');
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
@@ -141,6 +143,34 @@ function buildSkippedLocalExecutionResult(publishPromise: any): any {
   };
 }
 
+function buildRuntimeIntegrityRejection(): any {
+  return {
+    ok: false,
+    rejectedReason: 'RUNTIME_UNAVAILABLE',
+    events: [],
+    playbackEvents: []
+  };
+}
+
+function isCardRuntimeIntegrityBlocked(): boolean {
+  try {
+    return !!(CardRuntimeIntegrity
+      && typeof CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked === 'function'
+      && CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() === true);
+  } catch (_error) {
+    return true;
+  }
+}
+
+function isRuntimeUnavailableResult(result: any): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const reason = String(result.reason || result.rejectedReason || '').trim().toUpperCase();
+  if (reason === 'RUNTIME_UNAVAILABLE') return true;
+  const nested = result.result;
+  if (!nested || typeof nested !== 'object') return false;
+  return String(nested.reason || nested.rejectedReason || '').trim().toUpperCase() === 'RUNTIME_UNAVAILABLE';
+}
+
 function getPendingEffectType(cardStateValue: any, playerKey: any, options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   try {
@@ -184,6 +214,17 @@ function createNetworkActionBridge(config?: any): any {
     cfg.settlePlacementFeedback(token, result);
   }
 
+  function cancelPlacementFeedback(token: any): void {
+    if (token == null) return;
+    if (typeof cfg.cancelPlacementFeedback === 'function') {
+      cfg.cancelPlacementFeedback(token);
+      return;
+    }
+    // Compatibility fallback for embedders that have not yet supplied the
+    // silent cleanup port. The production client always supplies it.
+    settlePlacementFeedback(token, { ok: false, reason: 'RUNTIME_UNAVAILABLE', silent: true });
+  }
+
   function queueBoardPlacementPublish(playerKey: any, action: any, showPlacementFeedback: boolean): any {
     const feedbackToken = showPlacementFeedback ? beginPlacementFeedback(playerKey, action) : null;
     let publishPromise: any;
@@ -193,13 +234,23 @@ function createNetworkActionBridge(config?: any): any {
         placementFeedbackToken: feedbackToken
       });
     } catch (error) {
-      settlePlacementFeedback(feedbackToken, { ok: false, reason: 'PUBLISH_START_FAILED' });
+      if (isCardRuntimeIntegrityBlocked()) {
+        cancelPlacementFeedback(feedbackToken);
+      } else {
+        settlePlacementFeedback(feedbackToken, { ok: false, reason: 'PUBLISH_START_FAILED' });
+      }
       throw error;
     }
     if (feedbackToken != null) {
       void Promise.resolve(publishPromise).then(
-        (result) => settlePlacementFeedback(feedbackToken, result),
-        () => settlePlacementFeedback(feedbackToken, { ok: false, reason: 'PUBLISH_ERROR' })
+        (result) => {
+          if (isCardRuntimeIntegrityBlocked() || isRuntimeUnavailableResult(result)) cancelPlacementFeedback(feedbackToken);
+          else settlePlacementFeedback(feedbackToken, result);
+        },
+        () => {
+          if (isCardRuntimeIntegrityBlocked()) cancelPlacementFeedback(feedbackToken);
+          else settlePlacementFeedback(feedbackToken, { ok: false, reason: 'PUBLISH_ERROR' });
+        }
       );
     }
     return buildSkippedLocalExecutionResult(publishPromise);
@@ -213,6 +264,7 @@ function createNetworkActionBridge(config?: any): any {
 
     originalRunTurnWithAdapter = rootRef.TurnPipelineUIAdapter.runTurnWithAdapter;
     rootRef.TurnPipelineUIAdapter.runTurnWithAdapter = function wrappedRunTurnWithAdapter(cardStateArg: any, gameStateArg: any, playerKey: any, action: any, turnPipeline: any) {
+      if (isCardRuntimeIntegrityBlocked()) return buildRuntimeIntegrityRejection();
       if (typeof cfg.isActive === 'function' && cfg.isActive() === true) {
         const actionType = action && (action.type || action.actionType) ? String(action.type || action.actionType) : '';
         const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);

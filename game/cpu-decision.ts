@@ -22,6 +22,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CpuTurnPerformanceScope } from './cpu-turn-performance';
 import { normalizeBoardPositions } from '../shared/board/move-codec';
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 
 /**
  * @file cpu-decision.ts
@@ -2031,7 +2032,10 @@ function getTargetAwareCardUsabilityAnalysis(playerKey: any): any {
         try {
             const analysis = cardLogicRef.analyzeCardUsability(cs, gs, playerKey);
             if (analysis && Array.isArray(analysis.usableCardIds)) return analysis;
-        } catch (e) { /* preserve compatibility fallback */ }
+        } catch (error) {
+            if (isCardRuntimeUnavailableError(error)) throw error;
+            /* preserve compatibility fallback */
+        }
     }
     if (typeof cardLogicRef.getUsableCardIds === 'function') {
         try {
@@ -2040,7 +2044,10 @@ function getTargetAwareCardUsabilityAnalysis(playerKey: any): any {
                 cardLogicRef.getUsableCardIds(cs, gs, playerKey) || [],
                 cardLogicRef
             );
-        } catch (e) { /* ignore */ }
+        } catch (error) {
+            if (isCardRuntimeUnavailableError(error)) throw error;
+            /* preserve compatibility fallback */
+        }
     }
     if (typeof cardLogicRef.hasUsableCard === 'function' && cardLogicRef.hasUsableCard(cs, gs, playerKey)) {
         // Fallback when only boolean API is available.
@@ -2050,7 +2057,12 @@ function getTargetAwareCardUsabilityAnalysis(playerKey: any): any {
     if (typeof cardLogicRef.canUseCard === 'function') {
         const hand = (cs.hands && cs.hands[playerKey]) ? cs.hands[playerKey] : [];
         const usable = hand.filter((id: any) => {
-            try { return !!cardLogicRef.canUseCard(cs, playerKey, id); } catch (e) { return false; }
+            try {
+                return !!cardLogicRef.canUseCard(cs, playerKey, id);
+            } catch (error) {
+                if (isCardRuntimeUnavailableError(error)) throw error;
+                return false;
+            }
         });
         return buildFallbackCardUsabilityAnalysis(playerKey, usable, cardLogicRef);
     }

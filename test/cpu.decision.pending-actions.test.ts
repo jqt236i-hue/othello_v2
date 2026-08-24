@@ -85,6 +85,38 @@ describe('cpu decision pending actions controller', () => {
     expect(ctx.clearCpuPendingEffect).not.toHaveBeenCalled();
   });
 
+  test('target action does not double-apply after terminal runtime-unavailable finalization', async () => {
+    const ctx = createController();
+    ctx.runCpuPendingSelectionViaPipeline.mockResolvedValueOnce({
+      ok: false,
+      handled: true,
+      reason: 'runtime_unavailable',
+      res: { ok: true }
+    });
+
+    await ctx.controller.cpuSelectStrongWindWillWithPolicy('white');
+
+    expect(ctx.cardLogic.applyStrongWindWill).not.toHaveBeenCalled();
+    expect(ctx.emitCpuSelectionStateChange).not.toHaveBeenCalled();
+    expect(ctx.clearCpuPendingEffect).not.toHaveBeenCalled();
+  });
+
+  test('target action does not fall back after an adapter runtime-unavailable rejection', async () => {
+    const ctx = createController();
+    ctx.runCpuPendingSelectionViaPipeline.mockResolvedValueOnce({
+      ok: false,
+      handled: true,
+      reason: 'runtime_unavailable',
+      res: { ok: false, rejectedReason: 'RUNTIME_UNAVAILABLE' }
+    });
+
+    await ctx.controller.cpuSelectStrongWindWillWithPolicy('white');
+
+    expect(ctx.cardLogic.applyStrongWindWill).not.toHaveBeenCalled();
+    expect(ctx.emitCpuSelectionStateChange).not.toHaveBeenCalled();
+    expect(ctx.clearCpuPendingEffect).not.toHaveBeenCalled();
+  });
+
   test('target action falls back to direct apply when pending pipeline rejects', async () => {
     const ctx = createController();
     ctx.runCpuPendingSelectionViaPipeline.mockResolvedValueOnce({

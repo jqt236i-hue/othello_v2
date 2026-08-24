@@ -13,6 +13,10 @@ import type {
   MatchCommandAuthorityContext,
   MatchCommandExecutionCapabilities
 } from '../utils/match-runtime-ports';
+import {
+  createCardRuntimeUnavailableError,
+  isCardRuntimeUnavailableError
+} from '../game/logic/card-runtime-errors';
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -58,6 +62,7 @@ function createExecutionCapabilities(overrides: any = {}): MatchCommandExecution
     },
     autoCommand: {
       isAutoTurnPublishBody: (body) => body.actionType === 'auto_turn',
+      isRuntimeUnavailableError: () => false,
       resolveAutoTurnPublishBody: ({ body }) => ({
         ok: true,
         body: {
@@ -397,6 +402,7 @@ describe('shared match command prepare and apply stages', () => {
     const failedCapabilities = createExecutionCapabilities({
       autoCommand: {
         isAutoTurnPublishBody: () => true,
+        isRuntimeUnavailableError: () => false,
         resolveAutoTurnPublishBody: () => ({ ok: false, rejectedReason: 'AUTO_NO_ACTION' })
       }
     });
@@ -408,6 +414,27 @@ describe('shared match command prepare and apply stages', () => {
       kind: 'terminal',
       result: { ok: false, rejectedReason: 'AUTO_NO_ACTION' }
     });
+  });
+
+  test('AUTO preserves the canonical runtime-unavailable rejection before mutation', () => {
+    const unavailable = createCardRuntimeUnavailableError('state.availability', 'state');
+    const capabilities = createExecutionCapabilities({
+      autoCommand: {
+        isAutoTurnPublishBody: () => true,
+        isRuntimeUnavailableError: isCardRuntimeUnavailableError,
+        resolveAutoTurnPublishBody: () => { throw unavailable; }
+      }
+    });
+
+    expect(prepareMatchCommandExecution(
+      createAuthorityContext({ networkAutoEnabled: true }),
+      { actionType: 'auto_turn' },
+      capabilities
+    )).toEqual({
+      kind: 'terminal',
+      result: { ok: false, rejectedReason: 'RUNTIME_UNAVAILABLE' }
+    });
+    expect(capabilities.pipeline.applyTurnSafe).not.toHaveBeenCalled();
   });
 
   test.each([

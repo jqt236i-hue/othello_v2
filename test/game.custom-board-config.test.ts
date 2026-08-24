@@ -176,12 +176,13 @@ describe('custom board config foundations', () => {
     const cardState = CardLogic.createCardState(createPrng(), { boardConfig: { rows: 4, cols: 4 } });
 
     const expansionTargets = CardSelectors.getBoardExpansionTargets(cardState, gameState, 'black');
-    expect(expansionTargets).toHaveLength(16);
+    expect(expansionTargets).toHaveLength(8);
+    expect(expansionTargets.every((target) => (
+      target.directionKey === 'left' || target.directionKey === 'right'
+    ))).toBe(true);
     expect(expansionTargets).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 0, col: 0, side: 'left', directionKey: 'left' }),
-      expect.objectContaining({ row: 0, col: 0, side: 'top', directionKey: 'up' }),
-      expect.objectContaining({ row: 3, col: 3, side: 'right', directionKey: 'right' }),
-      expect.objectContaining({ row: 3, col: 3, side: 'bottom', directionKey: 'down' })
+      expect.objectContaining({ row: 3, col: 3, side: 'right', directionKey: 'right' })
     ]));
 
     const godCorners = CardSelectors.getBoardExpansionGodTargets(cardState, gameState, 'black');

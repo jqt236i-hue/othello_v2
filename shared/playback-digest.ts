@@ -3,13 +3,7 @@
  * @description Semantic digest for comparing local preview playback with authoritative playback.
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
-const StateHash = _require('./state-hash');
+import StateHash = require('./state-hash');
 
 function stringOrNull(value: unknown): string | null {
     if (value === null || typeof value === 'undefined' || value === '') return null;

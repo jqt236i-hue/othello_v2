@@ -84,6 +84,8 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
   try { networkClient = deps.requireModule('../ui/network-client'); } catch (e: any) { /* ignore */ }
   let perfBenchmarks: any = null;
   try { perfBenchmarks = deps.requireModule('../ui/perf-benchmarks'); } catch (e: any) { /* ignore */ }
+  let cardRuntimeIntegrity: any = null;
+  try { cardRuntimeIntegrity = deps.requireModule('../ui/card-runtime-integrity'); } catch (e: any) { /* ignore */ }
 
   const cpuGlobals = registerCpuRuntimeGlobals(cpu, cpuDecision, moveGenerator);
   if (!cpu) return { registeredGlobals: cpuGlobals };
@@ -164,6 +166,18 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
         ? deps.isCpuCardQuiescenceAvailable
         : () => typeof deps.searchCardQuiescenceInWorker === 'function',
       disableSynchronousCardQuiescenceFallback: true,
+      handleCardRuntimeIntegrityFailure: (error: unknown, source: string) => {
+        if (cardRuntimeIntegrity && typeof cardRuntimeIntegrity.latchCardRuntimeIntegrityFailure === 'function') {
+          return cardRuntimeIntegrity.latchCardRuntimeIntegrityFailure(error, { source });
+        }
+        return false;
+      },
+      isCardRuntimeIntegrityBlocked: () => {
+        if (!cardRuntimeIntegrity || typeof cardRuntimeIntegrity.isCardRuntimeIntegrityBlocked !== 'function') {
+          return false;
+        }
+        try { return cardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() === true; } catch (_error) { return true; }
+      },
       readProcessing: () => {
         try {
           const playbackState = deps.getPlaybackStateModuleForReset();

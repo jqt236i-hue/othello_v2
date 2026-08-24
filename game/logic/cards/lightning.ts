@@ -3,7 +3,11 @@
  * @description Lightning Will effect helpers
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardUtilsImport = require('../../../shared/shared-board-utils');
+import BoardOpsImport = require('../board_ops');
+import RandomSourceImport = require('../cards-internal/random-source');
+import CardMarkersImport = require('./markers');
 
 type LightningOwnerValue = number;
 type LightningSeatKey = 'black' | 'white';
@@ -138,32 +142,11 @@ interface LightningModuleApi {
   processLightningWillEffectsAtTurnStartAnchor(cardState: LightningCardState, gameState: LightningGameState, playerKey: LightningSeatKey, row: number, col: number, deps?: LightningProcessDeps): LightningProcessResult;
 }
 
-interface LightningRoot {
-  SharedConstants?: LightningSharedConstants;
-  SharedBoardUtils?: any;
-  BoardOps?: LightningBoardOpsModule | null;
-  CardRandomSource?: LightningRandomSourceModule | null;
-  CardMarkers?: LightningCardMarkersModule | null;
-}
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-function safeRequire<T>(id: string): T | null {
-  try {
-    return _require(id) as T;
-  } catch (e) {
-    return null;
-  }
-}
-
-const root = typeof self !== 'undefined' ? self as unknown as LightningRoot : undefined;
-const SharedConstants = safeRequire<LightningSharedConstants>('../../../shared-constants') || root?.SharedConstants;
-const BoardUtils = safeRequire<any>('../../../shared/shared-board-utils') || root?.SharedBoardUtils || null;
-const BoardOpsModule = safeRequire<LightningBoardOpsModule>('../board_ops') || root?.BoardOps || null;
-const RandomSourceModule = safeRequire<LightningRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
-const CardMarkersModule = safeRequire<LightningCardMarkersModule>('./markers') || root?.CardMarkers || null;
+const SharedConstants = SharedConstantsImport as unknown as LightningSharedConstants;
+const BoardUtils: any = BoardUtilsImport;
+const BoardOpsModule = BoardOpsImport as unknown as LightningBoardOpsModule;
+const RandomSourceModule = RandomSourceImport as unknown as LightningRandomSourceModule;
+const CardMarkersModule = CardMarkersImport as unknown as LightningCardMarkersModule;
 
 const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
 

@@ -1,3 +1,9 @@
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardOpsImport = require('../board_ops');
+import RandomSourceImport = require('../cards-internal/random-source');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import CardMarkersImport = require('./markers');
+
 type SniperOwnerValue = number;
 type SniperSeatKey = 'black' | 'white';
 type SniperExpansionSide = 'left' | 'right' | 'top' | 'bottom';
@@ -129,36 +135,14 @@ interface SniperProcessResult extends SniperTurnStartResult {
     anchors: Array<SniperEffectPosition & { remainingNow: number }>;
 }
 
-interface SniperModuleApi {
-    processSniperWillEffects(cardState: SniperCardState, gameState: SniperGameState, playerKey: SniperSeatKey, deps?: SniperProcessDeps): SniperProcessResult;
-    processSniperWillEffectsAtTurnStartAnchor(cardState: SniperCardState, gameState: SniperGameState, playerKey: SniperSeatKey, row: number, col: number, deps?: SniperProcessDeps): SniperTurnStartResult;
-}
-
-interface SniperRoot {
-    SharedConstants?: SniperSharedConstants;
-    SharedBoardUtils?: any;
-    BoardOps?: SniperBoardOpsModule | null;
-    CardRandomSource?: SniperRandomSourceModule | null;
-    CardMarkers?: { isInviolableCell?: (cardState: SniperCardState, row: number, col: number) => boolean } | null;
-    CardSniper?: SniperModuleApi;
-}
+type SniperCardMarkersModule = { isInviolableCell?: (cardState: SniperCardState, row: number, col: number) => boolean } | null;
 
 const CardSniper = /**
  * @file sniper.js
  * @description Sniper Will effect helpers
  */
 
-(function (root: SniperRoot, factory: (constants: SniperSharedConstants, boardOps: SniperBoardOpsModule | null, randomSource: SniperRandomSourceModule | null, boardUtils: any, cardMarkers: SniperRoot['CardMarkers']) => SniperModuleApi) {
-    if (root && root.SharedConstants) {
-        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null, root.CardMarkers || null);
-    }
-    if (typeof module === 'object' && module.exports) {
-        return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'), require('../../../shared/shared-board-utils'), require('./markers'));
-    } else {
-        if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
-        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null, root.CardMarkers || null);
-    }
-}(typeof self !== 'undefined' ? self as unknown as SniperRoot : globalThis as unknown as SniperRoot, function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null, BoardUtils: any, CardMarkersModule: SniperRoot['CardMarkers']) {
+(function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null, BoardUtils: any, CardMarkersModule: SniperCardMarkersModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -179,7 +163,7 @@ const CardSniper = /**
         throw new Error('CardMarkers.isInviolableCell is required by CardSniper');
     }
     const RequiredCardMarkersModule = CardMarkersModule as Required<Pick<
-        NonNullable<SniperRoot['CardMarkers']>,
+        NonNullable<SniperCardMarkersModule>,
         'isInviolableCell'
     >>;
 
@@ -465,6 +449,12 @@ const CardSniper = /**
         processSniperWillEffects,
         processSniperWillEffectsAtTurnStartAnchor
     };
-}));
+})(
+    SharedConstantsImport,
+    BoardOpsImport as unknown as SniperBoardOpsModule,
+    RandomSourceImport as unknown as SniperRandomSourceModule,
+    SharedBoardUtilsImport,
+    CardMarkersImport
+);
 
 export = CardSniper;

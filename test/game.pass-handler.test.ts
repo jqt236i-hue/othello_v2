@@ -136,6 +136,37 @@ describe('pass-handler flows', () => {
         }
     });
 
+    test('handleBlackPassWhenNoMoves suppresses delayed logs and pass work after the integrity latch', async () => {
+        jest.useFakeTimers();
+        let blocked = false;
+        const emitLogAdded = jest.fn();
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 14 };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn(() => ({ ok: true, gameState: {}, cardState: {}, events: [] }))
+        };
+        try {
+            const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
+            ph.setPassHandlerRuntime({
+                isCardRuntimeIntegrityBlocked: () => blocked,
+                emitLogAdded,
+                setProcessing: (next: boolean) => { (global as any).isProcessing = next === true; }
+            });
+            (global as any).isProcessing = true;
+
+            await ph.handleBlackPassWhenNoMoves();
+            blocked = true;
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+            expect(emitLogAdded).not.toHaveBeenCalled();
+            expect((global as any).isProcessing).toBe(false);
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
+    });
+
     test('processPassTurn handles pass and does not throw when TurnPipeline present', async () => {
         (global as any).TurnPipeline = {
             applyTurnSafe: jest.fn((cs: any, gs: any) => ({
@@ -844,6 +875,52 @@ describe('pass-handler flows', () => {
         } finally { /* runtime override is isolated to this module instance */ }
     });
 
+    test('white CPU scheduling stays inert when runtime integrity latches after reservation', async () => {
+        delete require.cache[modPath];
+        let blocked = false;
+        const cpuTurnMock = jest.fn();
+        const delayedCallbacks: Array<() => void> = [];
+        (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
+        (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).WHITE, turnNumber: 4 }),
+                cardState: cs,
+                events: []
+            }))
+        };
+
+        const ph = require('../game/pass-handler');
+        ph.setPassHandlerTimerService({
+            setTimeout: (callback: () => void) => {
+                delayedCallbacks.push(callback);
+                return delayedCallbacks.length;
+            },
+            clearTimeout: jest.fn()
+        });
+        ph.setPassHandlerRuntime({
+            processCpuTurn: cpuTurnMock,
+            readMatchMode: () => 'cpu',
+            readHumanVsHumanMode: () => false,
+            readExplicitCpuTurnDelayMs: () => 10,
+            isCardRuntimeIntegrityBlocked: () => blocked,
+            setProcessing: (next: boolean) => {
+                (global as any).isProcessing = next === true;
+            }
+        });
+
+        await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+        expect(delayedCallbacks).toHaveLength(1);
+
+        blocked = true;
+        delayedCallbacks[0]();
+
+        expect(cpuTurnMock).not.toHaveBeenCalled();
+        expect((global as any).isProcessing).toBe(false);
+    });
+
     test('white CPU scheduling retries briefly when processCpuTurn becomes available after pass', async () => {
         jest.useFakeTimers();
         delete require.cache[modPath];
@@ -1174,6 +1251,35 @@ describe('pass-handler flows', () => {
         await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
 
         expect(setBusyStateMock).toHaveBeenCalledWith({ processing: false });
+        expect((global as any).isProcessing).toBe(false);
+    });
+
+    test('raw runtime-unavailable network pass is terminal and emits no success log', async () => {
+        delete require.cache[modPath];
+        (global as any).MATCH_MODE = 'network';
+        (global as any).LOCAL_PLAYER_KEY = 'black';
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 20 };
+        (global as any).cardState = {
+            turnIndex: 8,
+            pendingEffectByPlayer: { black: null, white: null },
+            hands: { black: [], white: [] }
+        };
+        const emitLogAdded = jest.fn();
+        const setProcessing = jest.fn((next: boolean) => { (global as any).isProcessing = next; });
+        const ph = require('../game/pass-handler');
+        ph.setPassHandlerRuntime({
+            readMatchMode: () => 'network',
+            readNetworkSeatKey: () => 'black',
+            publishSnapshot: jest.fn(async () => ({ ok: false, reason: 'RUNTIME_UNAVAILABLE' })),
+            emitLogAdded,
+            setProcessing
+        });
+
+        const result = await ph.processPassTurn('black', false);
+
+        expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable' });
+        expect(emitLogAdded).not.toHaveBeenCalled();
+        expect(setProcessing).toHaveBeenCalledWith(false);
         expect((global as any).isProcessing).toBe(false);
     });
 });

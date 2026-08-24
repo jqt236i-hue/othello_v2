@@ -19,6 +19,7 @@ type CpuDecisionCardRiskConfig = {
 };
 
 import { createCpuCardQuiescenceRequest } from './ai/cpu-card-quiescence';
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 
 const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'TIME_BOMB',
@@ -219,6 +220,7 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
             if (!decision) return true;
             return decision.shouldUse === true;
         } catch (e) {
+            if (isCardRuntimeUnavailableError(e)) throw e;
             return true;
         }
     }
@@ -262,6 +264,7 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
 
             return Number(decision.score) >= (Number(decision.minUseScore) + requiredMargin);
         } catch (e) {
+            if (isCardRuntimeUnavailableError(e)) throw e;
             return true;
         }
     }

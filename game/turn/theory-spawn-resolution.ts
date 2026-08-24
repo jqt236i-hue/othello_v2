@@ -1,4 +1,4 @@
-const TheorySpawnImmediateEffectsModule = require('./theory-spawn-immediate-effects');
+import TheorySpawnImmediateEffectsModule = require('./theory-spawn-immediate-effects');
 
 type ResolveTheorySpawnTurnResultOptions = {
     CardLogic: any;
@@ -40,6 +40,8 @@ function resolveTheorySpawnTurnResult(options: ResolveTheorySpawnTurnResultOptio
     }
 }
 
-module.exports = {
+const TheorySpawnResolution = {
     resolveTheorySpawnTurnResult
 };
+
+export = TheorySpawnResolution;

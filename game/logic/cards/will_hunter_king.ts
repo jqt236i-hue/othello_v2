@@ -1,50 +1,19 @@
 'use strict';
 
 import { GameState } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import CardUtilsImport = require('./utils');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import BoardOpsImport = require('../board_ops');
+import BoardUtilsImport = require('../../../shared/shared-board-utils');
+import RandomSourceImport = require('../cards-internal/random-source');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (_e) {
-        return null;
-    }
-}
-
-const SharedConstants = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared-constants')
-    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-
-const CardUtilsModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('./utils')
-    : null) || (typeof self !== 'undefined' ? (self as any).CardUtils : null);
-
-const SpecialStoneRegistry = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared/special-stone-registry')
-    : null) || (typeof self !== 'undefined' ? (self as any).SpecialStoneRegistry : null);
-
-const BoardOpsModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../board_ops')
-    : null) || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
-
-const BoardUtils = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared/shared-board-utils')
-    : null) || (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
-
-const RandomSourceModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../cards-internal/random-source')
-    : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+const SharedConstants: any = SharedConstantsImport;
+const CardUtilsModule: any = CardUtilsImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const BoardOpsModule: any = BoardOpsImport;
+const BoardUtils: any = BoardUtilsImport;
+const RandomSourceModule: any = RandomSourceImport;
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);

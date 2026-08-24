@@ -4,41 +4,13 @@
  */
 
 import { CardState, GameState } from '../../../src/types';
+import BoardOpsImport = require('../board_ops');
+import DestroyOutcomeImport = require('../../../shared/destroy-outcome-contract');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (_e) {
-        return null;
-    }
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function resolveDestroyOneStoneModuleOrGlobal(id: string, globalKey: string): any {
-    return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-}
-
-const BoardOpsModule = resolveDestroyOneStoneModuleOrGlobal('../board_ops', 'BoardOps');
-const DestroyOutcomeContract = resolveDestroyOneStoneModuleOrGlobal('../../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
-const SharedBoardUtils = resolveDestroyOneStoneModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
+const BoardOpsModule: any = BoardOpsImport;
+const DestroyOutcomeContract: any = DestroyOutcomeImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
     || Object.freeze({

@@ -1,73 +1,24 @@
+import SharedConstantsImport = require('../../shared-constants');
+import SharedBoardUtilsImport = require('../../shared/shared-board-utils');
+import CardMarkersImport = require('../logic/cards/markers');
+import CardSelectorsImport = require('../logic/cards/selectors');
+import CardTargetsImport = require('../logic/cards/targets');
+import CardFlipsImport = require('../logic/cards/flips');
+import SpecialStoneRegistryImport = require('../../shared/special-stone-registry-static');
+import CardProtectionContextImport = require('../logic/cards-internal/protection-context');
+import PendingSelectionRegistryImport = require('../logic/cards-internal/pending-selection-registry');
+import SelectorOrchestratorImport = require('../logic/cards-internal/selector-orchestrator');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function readRuntimeGlobal(globalKey: string): any {
-    if (!globalKey) return null;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
-            return (globalThis as any)[globalKey];
-        }
-        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
-            return (self as any)[globalKey];
-        }
-    } catch (e) {
-        return null;
-    }
-    return null;
-}
-
-function unwrapModule(mod: any): any {
-    if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'module.exports')) {
-        return mod['module.exports'] || mod;
-    }
-    if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
-        return mod.default || mod;
-    }
-    return mod;
-}
-
-const CardModuleResolver = safeRequire('../logic/cards-internal/module-resolver');
-
-function loadRuntimeModule(id: string, globalKey: string): any {
-    if (CardModuleResolver && typeof CardModuleResolver.resolveModule === 'function') {
-        const resolved = CardModuleResolver.resolveModule({
-            globalName: globalKey,
-            requirePath: id,
-            requireFn: _require,
-            label: globalKey
-        });
-        if (resolved) return unwrapModule(resolved);
-    }
-
-    return unwrapModule(safeRequire(id)) || unwrapModule(readRuntimeGlobal(globalKey));
-}
-
-const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
-const SharedBoardUtils = loadRuntimeModule('../../shared/shared-board-utils', 'SharedBoardUtils');
-const CardMarkers = loadRuntimeModule('../logic/cards/markers', 'CardMarkers');
-const CardSelectors = loadRuntimeModule('../logic/cards/selectors', 'CardSelectors');
-const CardTargets = loadRuntimeModule('../logic/cards/targets', 'CardTargets');
-const CardFlips = loadRuntimeModule('../logic/cards/flips', 'CardFlips');
-const SpecialStoneRegistry = loadRuntimeModule('../../shared/special-stone-registry', 'SpecialStoneRegistry');
-const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext');
+const SharedConstants: any = SharedConstantsImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const CardMarkers: any = CardMarkersImport;
+const CardSelectors: any = CardSelectorsImport;
+const CardTargets: any = CardTargetsImport;
+const CardFlips: any = CardFlipsImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const CardProtectionContext: any = CardProtectionContextImport;
+const PendingSelectionRegistry: any = PendingSelectionRegistryImport;
+const SelectorOrchestrator: any = SelectorOrchestratorImport;
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS, BOARD_SIZE } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;
@@ -702,7 +653,7 @@ const Flips = CardFlips || {};
     }
 
     function getSelectableTargetsViaRegistry(context: any) {
-        const registry = safeRequire('../logic/cards-internal/pending-selection-registry');
+        const registry = PendingSelectionRegistry;
         if (!registry || typeof registry.getPendingSelectionEntry !== 'function') return [];
         const entry = registry.getPendingSelectionEntry(context && context.pending && context.pending.type);
         const target = entry && entry.target;
@@ -717,8 +668,6 @@ const Flips = CardFlips || {};
         const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending) return [];
         const context = buildSelectableTargetContext(cardState, gameState, playerKey, pending);
-        const SelectorOrchestrator = safeRequire('../logic/cards-internal/selector-orchestrator');
-
         if (SelectorOrchestrator && typeof SelectorOrchestrator.getSelectableTargetsForPending === 'function') {
             return SelectorOrchestrator.getSelectableTargetsForPending(context);
         }

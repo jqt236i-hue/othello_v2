@@ -1,6 +1,6 @@
 # Card / turn runtime static composition convergence design
 
-- Status: independently re-reviewed and regression-hardened design; implementation not started; blocked by the implementation start gate in Section 4
+- Status: implementation, final verification, and independent post-implementation review completed
 - Date: 2026-08-24
 - Document role: カード／ターン authority 内に残る runtime discovery と成功形 fallback を外側の明示 composition へ収束させる、supported-runtime gameplay 挙動不変・invalid-composition fail-closed リファクタリングの設計正本
 - Target: `game/logic/cards.ts`、`game/cards/effect-resolver.ts`、`game/turn/turn_pipeline_phases.ts` と、そこから到達可能な card-runtime dependency graph、それらを構成する browser / headless / local server / Worker runtime 境界
@@ -143,10 +143,21 @@ Phase A 完了後、次をすべて満たして design / plan を再 review し�
 6. activation failure、Worker preload failure、direct command rejection、preview unavailable、CPU runtime unavailable の exact current mapping と、success-shaped fallback を除去した target mapping が対で記録される。complete supported runtime の wire/schema/result は不変とする。
 7. supported runtime が partial module graph を valid production path として使うか否かが、classic/Vite/Worker/local/headless/CPU/selfplay の actual entry evidence で確定する。production build、rollback lane、public compatibility test のいずれかで到達する path を「壊れているから unsupported」と推測しない。
 8. `FacadeIdentityManifest` が lane ごとに facade object identity、CommonJS/default/global/module-bridge alias、全 property descriptor と symbol/prototype、function alias/reference group、repeated import/load、module evaluation/registration count/order、module-scoped mutable state/reset/reconstruction owner を記録し、target parity owner/test を持つ。
-9. failure taxonomy が nominal tag の唯一の生成点と `isCardRuntimeUnavailableError()` classifier を固定する。各 catch site は (a) normal return、(b) tagged `runtime_unavailable`、(c) untagged rule/programming exception を別々にcharacterizeする。tagだけを既存fallbackより先にintegrity recoveryへ分岐し、untagged exceptionはそのsiteで現在観測されるfallback/既定値/伝播をexactに保つ。catch-all retag、error-message matching、`instanceof` だけに依存する cross-bundle 判定を禁止する。
+9. failure taxonomy が canonical branded structural tag の唯一の生成点と `isCardRuntimeUnavailableError()` classifier を固定する。各 catch site は (a) normal return、(b) tagged `runtime_unavailable`、(c) untagged rule/programming exception を別々にcharacterizeする。tagだけを既存fallbackより先にintegrity recoveryへ分岐し、untagged exceptionはそのsiteで現在観測されるfallback/既定値/伝播をexactに保つ。catch-all retag、error-message matching、`instanceof` だけに依存する cross-bundle 判定を禁止する。
 10. UI input/preview、CPU processing/scheduler/pending、AUTO/timeout/pass、network command、headless/selfplay ごとに current/target recovery state tableを作り、lock owner、scheduler generation、retry有無、pending保持、turn保持、canonical state/version/PRNG/events不変、player-visible terminal surfaceを固定する。
 
 Gate B が満たせない場合、product source を部分実装せず、design assumption を更新して再 review する。
+
+### 4.2.1 Gate B findings (2026-08-24)
+
+Gate B characterization changed two planning assumptions without changing product source.
+
+- The actual TypeScript-AST graph has 17 roots, 259 reachable source nodes, 1,098 edges, 713 ambient/compatibility lookups, and 188 unresolved runtime-discovery edges. Its baseline digest is `49fa3eec667c73d9b3a048d69f7b34ed88883971a784f0de45aa66a444a701ce`. Local authority and selfplay are explicit production roots; UI/CPU/selfplay consumer roots record their public-facade edge but stop traversal before pulling consumer algorithms into the canonical service closure. DI-port and whole-facade-cache relations are first-class edge kinds. Every lookup records owner、reason、removal cohort、and test owner. The only unresolved **literal relative** edge is the existing optional `game/logic/cards/meteor_god.ts` lookup of `./random-source`; it is pinned separately from 187 non-literal runtime-discovery edges rather than silently treated as a traversed module.
+- The explicit entry ledger covers all 263 facade functions plus 60 directly reachable production/public compatibility entries, including local authority、Worker Durable Object/default fetch、and selfplay execution. Export or production-call-chain reachability is AST-proven. Cold-cache writes are observable runtime state and are classified together with canonical/event/PRNG effects when an entry performs both; pending reads that repair shape、pending action construction、failure cleanup、generated-flip consumption、and turn-end processing are compound-classified according to their actual effects.
+- A classifier-only cancellation-manager override is executable supported direct/public compatibility behavior. It currently preserves the same refund, usage reset, discard-to-hand restoration, and pending-clear result as the complete-manager path with `refundCost:false`, `resetUsage:false`, and `noConsume:true`. The refactor must retain this behind an explicit legacy cancellation adapter; it is not eligible for invalid-composition hardening in this task.
+- Optional presentation differs by supported delivery lane for the characterized chaos-summon probe: headless/local/Worker emit `SPAWN,CARD_USED`, while Vite/classic additionally emit `STATUS_APPLIED`. Canonical board/marker result and PRNG state/call ledger are exact across lanes. This is an existing optional `BoardOps` presentation capability, so parity means an exact pinned result **within each supported lane**, not forced cross-lane convergence of optional presentation events.
+- Worker preload registers a runtime key before invoking its loader, skips loading when a usable global already exists, and propagates a loader exception so module evaluation aborts. The target composer may fail earlier and with the canonical branded structural tag, but may not turn this into a usable partial Worker runtime.
+- The fixed-seed canonical fixture digest is `b5057647f5541562184b9b9e267fce5595522db2cc42421a91c646974d31d221`; its complete-state canonical projection digest is `924fa6147bcd9c1a282f739fee785189357eb5b2291e90357e93c03a1e76a576`, and its complete PRNG ledger digest is `7689826231285861f7c2f042574eff906a4b5fb1516aca81a89120e15e4fdd18`. The projection preserves full event/marker metadata and explicitly inventories function/undefined/shared-reference normalization. It also exercises turn-start、protection context、and 10x10 topology. Source、legacy wrapper、built Node、Worker fixture、Vite、classic、repeated-load、and same-seed non-sharing use this exact fixture. Local authority instead has a separately pinned seed-17 command fixture through its actual public command path; it is not described as the same CardLogic fixture.
 
 ### 4.3 Hermetic verification is a separate prerequisite commit
 
@@ -305,9 +316,9 @@ Public compatibility proof は sorted key hash だけに依存しない。key + 
 | Optional presentation/debug | diagnostics、debug logger、noncanonical presentation annotation | explicit no-op 可。canonical state/result へ影響しないことを test |
 | Classic compatibility export | historical global names、CommonJS/default unwrap、legacy signature facade | boot adapter が全量提供。core は探索しない |
 
-required capability が一件でも不足する incomplete service graph は作らない。partial manager、classifier-only object、empty protection context を valid canonical runtime とみなさない。
+required capability が一件でも不足する incomplete canonical service graph は作らない。empty protection context を valid canonical runtime とみなさない。Gate B で supported public compatibility と確定した classifier-only cancellation overrideだけは、complete canonical managerへ委譲する明示 legacy adapter の入力として保持する。その object 自体を新 canonical service graph として採用したり、他 capability の partial graph を許可したりはしない。
 
-Failure tag は一つの canonical contract module が所有する nominal value とし、少なくとも stable internal code、capability/cohort identifier、non-enumerable nominal brand を持つ。生成を許すのは service-graph validator、runtime composer、または validator済み graph に対する明示 required-capability assertion だけである。任意の rule callback を囲む `catch` から tag を作ってはいけない。consumer は canonical `isCardRuntimeUnavailableError()` classifier でtagだけを既存fallbackより先に除外する。untagged exceptionは無条件再throwせず、そのcatch siteのcharacterized current behaviorが再throwなら再throw、alternate query/`true`/`false`/`[]`/`null`等なら同じ挙動を保つ。untagged success-shaped fallback自体のhardeningは別のbehavior-change taskである。
+Failure tag は一つの canonical contract module が所有する branded structural Error shape とし、少なくとも stable internal code、capability/cohort identifier、non-enumerable cross-bundle brand を持つ。brand は transport classification 用であり、security/provenance boundary ではない。生成を許すのは service-graph validator、runtime composer、または validator済み graph に対する明示 required-capability assertion だけである。任意の rule callback を囲む `catch` から tag を作ってはいけない。consumer は canonical `isCardRuntimeUnavailableError()` classifier でtagだけを既存fallbackより先に除外する。untagged exceptionは無条件再throwせず、そのcatch siteのcharacterized current behaviorが再throwなら再throw、alternate query/`true`/`false`/`[]`/`null`等なら同じ挙動を保つ。untagged success-shaped fallback自体のhardeningは別のbehavior-change taskである。
 
 したがって `canUseCard() === false`、`hasUsableCard() === false`、空 target、card個別の不成立、入力不正は従来どおり rule-level result であり、`runtime_unavailable` ではない。逆に `runtime_unavailable` を `false`、`[]`、`null`、成功形 result、card illegal、合法行動0へ変換してはいけない。特に自動パスは `01-rulebook.md:60-62` と `正本/ターン進行正本.md:271-275` の「使用可能カード0」が正常に計算できた場合だけ成立し、dependency query failure では command 全体を mutation 前に中止する。
 
@@ -355,7 +366,7 @@ UI/CPU recovery は新しい gameplay result ではなく壊れた runtime の�
 2. manager absent;
 3. classifier present / canonical cancel capability absent.
 
-Complete canonical manager と「override は無いが canonical manager は存在する」supported path は current refund/pending/result の exact parity を保つ。真の incomplete / partial graph は card result parity 対象ではなく activation/preflight failure・zero mutation とする。ただし supported runtime または public compatibility contract が3番の partial success pathへ到達すると Gate B で判明した場合は stop condition とし、本 refactor では削除しない。current result preservation と activation failure を同じ path に同時要求しない。
+Gate B では3経路すべてが executable compatibility behavior であることを確認した。Complete canonical manager と「override は無いが canonical manager は存在する」経路に加え、classifier-only override も current refund/pending/result の exact parity を保つ。classifier-only object は明示 legacy adapter が canonical complete cancellation algorithmへ変換し、core dependency selectionには使わない。それ以外の真の incomplete / partial graph は card result parity 対象ではなく activation/preflight failure・zero mutation とする。current result preservation と activation failure を同じ path に同時要求しない。
 
 ### 6.7 Turn pipeline is composed, not redesigned
 
@@ -503,15 +514,15 @@ Runtime preparation と production cutover を分ける。headless だけ先に 
 | Serialization | snapshot / save JSON、authoritative / projected hash equality |
 | Card accounting | charge、hand、discard、usage count、refund exact equality |
 | Pending | full payload、target order、`pendingEffectId`、continue/end outcome exact equality |
-| Events | `events[]` と presentation metadata の value / count / order exact equality |
+| Events | 同一 supported lane の old/new `events[]` と presentation metadata の value / count / order exact equality。Gate B で固定した optional-presentation lane差は各lane baselineに対してexact |
 | Randomness | PRNG call count、draw order、ending `prngState` exact equality |
 | Board semantics | protection、permanent protection、bomb、marker、blocked cell、expanded topology equality |
 | Turn flow | turn-start anchor、placement/immediate/charge/handoff、pass/continue/end equality |
 | Network authority | accept/reject、version、operation record、journal、snapshot、SSE payload equality |
-| Runtime parity | classic、Vite、headless、local、Worker、CPU、small selfplay result equality |
+| Runtime parity | classic、Vite、headless、local、Worker、CPU、small selfplay の canonical result equalityと、各laneのoptional presentation baseline exact parity |
 | Headless boundary | `game/` に DOM、sound、timer、network client dependency を追加しない |
 | Failure atomicity | required capability missing で first mutation 前 failure、input state unchanged |
-| Failure classification | validator/composer/required assertionだけがnominal tagを生成し、rule/programming exceptionはtagged dependency failureへ変換されず、catch siteごとのcurrent fallback/propagationがexact parity |
+| Failure classification | validator/composer/required assertionだけがcanonical branded structural tagを生成し、rule/programming exceptionはtagged dependency failureへ変換されず、catch siteごとのcurrent fallback/propagationがexact parity |
 | Pass safety | usable-card query failureは`0 cards`にならず、AUTO/timeout/direct passをmutation前にrejectする |
 | Recovery safety | UI lock/input latch、CPU processing/scheduler generation/pending、authority state/version、headless recordがterminal transition表どおりで、retry loop・pending loss・alternative actionがない |
 
@@ -582,13 +593,13 @@ New structural / delivery checks:
 - migrated Worker preload global key の再導入 prohibition;
 - public export inventory and classic registry order;
 - failure-before-mutation negative fixtures。
-- nominal failure-tag source guard、catch-all retag prohibition、untagged-exception catch-site behavior parity fixtures。
+- canonical branded structural tag source guard、catch-all retag prohibition、untagged-exception catch-site behavior parity fixtures。
 - facade identity/evaluation manifest parity and module-scoped-state reconstruction fixtures。
 - `check:card-runtime-boundary`: typed contract shell phase で導入し、manifest roots と outer-adapter roots を分け、outer → core は許可、core → adapter は禁止する。`require`、`__non_webpack_require__`、resolver helper、`globalThis`、`self`、computed global key、dynamic import、whole-facade cache を検出し、negative self-fixture を持つ。現行 lookup は owner / reason / removal cohort 付き allowlist に固定し、各 cohort で単調に減らし、final canonical allowlist を0件にする。
 - `check:card-runtime-dist-parity`: Jest を経由しない child process が built `dist/game/logic/cards` と legacy wrapper を load し、さらに built local match server を ephemeral port で起動・command fixture 実行・teardown して、API schema と fixed-seed fixture digest を比較する。
 - `match:card-runtime-delivery-check`: actual built Vite / classic entry を ephemeral test server で開き、`window.CardLogic` の API schema と独立 PRNG fixture の state/events/ledger を比較する。server は test lifecycle が teardown する。
 
-同一 fixture / seed / action 列は、それぞれ同じ初期 seed/input から独立再構築した factory direct call、legacy facade、headless pipeline、small selfplay、local authority、built Worker bundle、built Vite、built classic lane で比較する。source Jest が `.ts` を直接選択するだけでは `dist` / bundle delivery proof にならないため、source、built dist、Worker bundle、browser bundle を別 gate として記録する。
+同一 fixture / seed / action 列は、それぞれ同じ初期 seed/input から独立再構築した factory direct call、legacy facade、headless pipeline、small selfplay、local authority、built Worker bundle、built Vite、built classic lane で比較する。canonical result / PRNG ledger は cross-lane exact、optional presentation は Gate B で固定した lane-specific projection に対して exact とする。source Jest が `.ts` を直接選択するだけでは `dist` / bundle delivery proof にならないため、source、built dist、Worker bundle、browser bundle を別 gate として記録する。
 
 Actual production-entry proof owner は次に固定し、各 production cohort の同一 revision で通す。
 
@@ -628,7 +639,7 @@ long selfplay / training は実行しない。fixed-seed small sample で public
 | circular dependency を避けるため global を再導入 | composition root で cycle を解き、core import graph guard を通す。解けなければ stop condition |
 | preflight 自体が rule evaluation / RNG を行う | presence/schema validation only、PRNG call-count negative test |
 | representative apply entry または289-key facadeだけ守り、direct resolver/phase/command/module-bridge/global entryが未保護になる | facadeを必須部分集合とする全production/public entry `MutationEntryManifest`、direct preflightまたはpreflight済みouter-only reachabilityのmachine proof、cohortごとのcompleteness gate |
-| catch-all がcard-rule/programming exceptionを`runtime_unavailable`へ偽装し新規bugを隠す、または一律再throwで既存fallbackを壊す | nominal tagの生成点をvalidator/composer/required assertionに限定、canonical classifier、tagを既存fallbackより先に分岐、untagged catch-site behavior parity、message/code spoof negative test |
+| catch-all がcard-rule/programming exceptionを`runtime_unavailable`へ偽装し新規bugを隠す、または一律再throwで既存fallbackを壊す | canonical branded structural tagの生成点をvalidator/composer/required assertionに限定、canonical classifier、tagを既存fallbackより先に分岐、untagged catch-site behavior parity、message/code spoof negative test |
 | CPU tagged failureが現行generic error handlerへ入りpending消去と無限retryを起こす | dedicated runtime-integrity branch、processing release、scheduler generation invalidate/timer cancel、pending保持、retry/alternate action禁止のfocused test |
 | usability failureを0 cardsと解釈し仕様に反して自動パスする | query failureをrule resultと分離、AUTO/timeout/direct pass preflight rejection、`01-rulebook`/ターン進行正本準拠fixture |
 | UI failureでbusy/input lockが残る、または失敗後にpublishできる | outer integrity latch、owner別settlement、uncommitted previewのみ取消、canonical pending保持、reload-required E2E |
@@ -687,7 +698,7 @@ Rollback は coherent phase commit 単位で行い、一 action の途中で旧 
 13. `git status --short` と staged diff を確認し、task-owned coherent commits だけを作る。
 14. non-Jest built-dist、canonical Worker bundle、actual built Vite/classic delivery parity が final revision で pass し、transitional fixture entry / fixture-only wiring が残らない。
 15. production-reachable browser/Worker graphを変えた各commitが同一commitの生成同期を持ち、省略commitはnon-shipping/unreachableのmachine proofを記録する。
-16. nominal failure tagの生成点がvalidator/composer/required assertionに限定され、untagged exceptionがdependency failureへ変換されず、各catch siteのcurrent fallback/既定値/伝播がexactに維持される。
+16. canonical branded structural failure tagの生成点がvalidator/composer/required assertionに限定され、untagged exceptionがdependency failureへ変換されず、各catch siteのcurrent fallback/既定値/伝播がexactに維持される。
 17. UI/CPU/AUTO/timeout/network/headlessのruntime-integrity fixtureが、canonical pending/turn/state/PRNG/events保持、lock/schedulerのterminal settlement、retry/alternate action/auto-pass禁止を証明する。
 
 ## 13. Self-review and independent review record
@@ -736,17 +747,31 @@ Rollback は coherent phase commit 単位で行い、一 action の途中で旧 
 - invalid composition hardeningをplayer-visible仕様変更と混同しないため、actual production/public compatibility entryでpartial graph非到達を証明できない限りcutoverを停止する条件を強化した。
 - Gate Bでは現行の問題挙動もbaselineとして正確に記録し、target safetyをまだproductionへ要求しない。current mappingとtarget invariantを対で固定し、dormant target assertionはadapter準備後、production assertionはcohort cutover時に有効化する段階差を明確にした。
 
-### 13.4 Residual design uncertainty
+### 13.4 Resolved design uncertainty
 
-- 現行 classic partial-load compatibility のうち、supported normal path と historical-only path の境界は Phase A inventory で確定する。
-- public network / preview / CPU failure mapping は wire schema を変えない前提だが、current exact response は Gate B までに plan execution recordへ固定し、design / plan を再 review する。未確定のまま product source edit を開始しない。
-- clean clone `checkall` failure は source wiring からの推論であり、external CI prebuild の有無は未確認である。実装開始前に actual fresh-clone proof が必要である。
-- full Jest は過去記録で約16分規模であり、final gate の実行時間を確保する。Jest project redesign は本 scope 外である。
+- classic partial-load compatibility は normal production entry と historical-only fallback を Gate A/B inventory で分類し、actual classic entry/reload proof 後に transitional fixture wiring を削除した。
+- public network / preview / CPU failure mapping は Gate B で固定した。正常系の wire schema は変えず、canonical branded failure だけを terminal integrity recovery へ分岐し、untagged exception の既存 fallback/default/propagation は維持した。
+- clean clone の hermetic `checkall` は Gate A の3 prerequisite commitsで修復・実証した。最終 task revision も commit 後に fresh-clone proof を実行して plan execution recordへ追記する。
+- final full Jest は 1,033 suites / 7,877 tests を 903.341秒で完走した。Jest project構成自体はscope外のまま変更していない。
 
-これらは source cutover 前に解消すべき discovery であり、推測で compatibility behavior を削除する許可ではない。
+これらは source cutover 前の Gate A/B で解消した。classifier-only cancellation compatibility と lane-specific optional presentation は characterization 結果どおり保持し、推測で削除していない。
+
+## 14. Implementation outcome (2026-08-24)
+
+設計どおり、公開 `CardLogic` は `game/logic/cards.ts` の薄い互換 facade のまま維持し、実装本体を `cards-runtime-factory.ts`、静的 module 構成を `card-runtime-composer.ts`、型付き capability と validation を `card-runtime-contracts.ts`、障害分類を `card-runtime-errors.ts` へ分離した。default graph は module activation 時に一度だけ構成され、service group と root は shallow freeze される。state、events、pending、action、PRNG は graph に保持しない。
+
+Canonical card/turn graph の runtime discovery と未解決 relative edge は0件になった。`cards.ts` / factory / composer の construction DAG と root aggregate owner は structural checker が固定する。`board_ops` と Living Will の循環は、明示 `BoardOps` port を受ける `living-will-core.ts` と公開互換 facade を分けて解消し、rule body は複製していない。
+
+`runtime_unavailable` は hidden `Symbol.for` brand を持つ canonical structural Error shape として実装した。別 bundle の canonical errorを判定できる一方、message/code/plain object/foreign error spoof は拒否する。これはcross-bundle transport分類でありsecurity/provenance保証ではない。producerはcheckerがcanonical constructor/validator/assertion ownerへ限定し、任意のcatchからretagしない。untagged exceptionの既存fallback/伝播はcharacterizationどおり維持する。
+
+防御的なaction-time failureは、headlessでは元state参照・version・eventsを変えずrejectし、UIでは未commit選択だけを一度取り消してlockをsettleし、CPUではpendingを保持してscheduler/timerを停止し、direct/AUTO/timeout passでは進行しない。Worker/local authorityはroom、operation history、authority log、SSE buffer、hash、storage/save/broadcastを変更しない。正常なcomplete runtimeのルール、RNG、pending、event order、公開API、network/saved/model formatは変更していない。
+
+実装後は service contract、integrity consumer、selection finalizer の3方向から独立レビューを行い、いずれも承認、P0-P2 findingsなしとなった。最終修正では authority/cache callback 中に同一microtaskで integrity latch が立つ競合、accepted publish後のexact visual settlement待ち、pending cache保持を再点検した。authoritative visual settlement自体が永久に返らない場合はbusyを維持してreloadを待つ。これは未確定の盤面で進行する新規バグを避けるための意図的なfail-closedである。
+
+Preparation専用のWorker/Vite/classic fixture sourceとfixture-only wiringはactual production entry proof後に削除した。最終delivery ownerはbuilt Node/local authority、canonical Worker bundle、actual Vite、actual classic、CPU/small selfplayである。`01-rulebook.md` と `正本/*.md` はplayer-visible仕様不変のため変更していない。
 
 ## 非技術者向けの要約
 
-このリファクタリングはカードの強さやルールを変えるものではなく、同じゲーム処理をブラウザ、CPU、サーバーで一つの安全な組み立て方へ統一する計画です。今回の再レビューでは、部品不足を検知した時に「カードが使えない」「カードが0枚」「自動パス」と誤認したり、CPUが同じ失敗を繰り返したり、途中の選択状態を消したりする危険を重点的に塞ぎました。
+このリファクタリングはカードの強さやルールを変えず、同じゲーム処理をブラウザ、CPU、サーバーで一つの安全な組み立て方へ統一しました。部品不足を検知した時に「カードが使えない」「カードが0枚」「自動パス」と誤認したり、CPUが同じ失敗を繰り返したり、途中の確定済み選択状態を消したりする危険を重点的に塞いでいます。
 
-実装は、正常な対局の結果、演出順、乱数、手番、公開APIの同一性が完全一致する証拠を先に作ってから進めます。不完全な読み込みが現在も正式に使われていると判明した場合、または少しでも通常対局の結果が変わる場合は、その段階で停止して判断を求めます。
+正常な対局の結果、演出順、乱数、手番、公開APIの同一性を固定した証拠を先に作り、それを各実配信経路で継続検証する形で実装しました。不完全な実行環境だけを安全停止させ、通常対局の仕様は維持しています。

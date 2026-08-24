@@ -3,83 +3,27 @@
  * @description Card effect resolution and context builders (restored from worker-public mirror)
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstants = require('../../shared-constants');
+import CardHandManagerModule = require('../logic/cards-internal/hand-manager');
+import CardChargeLedgerModule = require('../logic/cards-internal/charge-ledger');
+import CardStateManagerModule = require('./state-manager');
+import CardPendingStateManagerModule = require('../logic/cards-internal/pending-state-manager');
+import CardUsagePrechecksModule = require('../logic/cards-internal/card-usage-prechecks');
+import PendingSelectionRegistryModule = require('../logic/cards-internal/pending-selection-registry');
+import CardMarkersModule = require('../logic/cards/markers');
+import SpecialStoneRegistryImport = require('../../shared/special-stone-registry-static');
+import SpecialCardRegistry = require('../../shared/special-card-registry');
+import ManifestStoneRegistry = require('../../shared/manifest-stone-registry');
+import CardProtectionContext = require('../logic/cards-internal/protection-context');
+import CardSacrificeWillModule = require('../logic/cards/sacrifice_will');
+import CardUsageConsumptionStage = require('./card-usage-consumption-stage');
+import CardUsagePendingStage = require('./card-usage-pending-stage');
+import CardUsageImmediateStage = require('./card-usage-immediate-stage');
+import CardUsageSacrificeStage = require('./card-usage-sacrifice-stage');
+import CardUsagePresentationStage = require('./card-usage-presentation-stage');
+import CardUsageValidationStage = require('./card-usage-validation-stage');
 
-function _require(id: string): any {
-  if (typeof __non_webpack_require__ !== 'undefined') {
-    return __non_webpack_require__(id);
-  }
-  if (typeof require === 'function') {
-    return require(id);
-  }
-  throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-  try {
-    return _require(id);
-  } catch (e) {
-    return null;
-  }
-}
-
-function readRuntimeGlobal(globalKey: string): any {
-  if (!globalKey) return null;
-  try {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
-      return (globalThis as any)[globalKey];
-    }
-    if (typeof self !== 'undefined' && (self as any)[globalKey]) {
-      return (self as any)[globalKey];
-    }
-  } catch (e) {
-    return null;
-  }
-  return null;
-}
-
-function unwrapModule(mod: any): any {
-  if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
-    return mod.default || mod;
-  }
-  return mod;
-}
-
-const CardModuleResolver = safeRequire('../logic/cards-internal/module-resolver');
-
-function loadRuntimeModule(id: string, globalKey: string, fallbackValue: any = null): any {
-  if (CardModuleResolver && typeof CardModuleResolver.resolveModule === 'function') {
-    const resolved = CardModuleResolver.resolveModule({
-      globalName: globalKey,
-      requirePath: id,
-      requireFn: _require,
-      label: globalKey
-    });
-    if (resolved) return unwrapModule(resolved);
-  }
-
-  return unwrapModule(safeRequire(id)) || unwrapModule(readRuntimeGlobal(globalKey)) || fallbackValue;
-}
-
-const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants', {});
-const CardHandManagerModule = loadRuntimeModule('../logic/cards-internal/hand-manager', 'CardHandManager');
-const CardChargeLedgerModule = loadRuntimeModule('../logic/cards-internal/charge-ledger', 'CardChargeLedger');
-const CardStateManagerModule = loadRuntimeModule('./state-manager', 'CardStateManager');
-const CardPendingStateManagerModule = loadRuntimeModule('../logic/cards-internal/pending-state-manager', 'CardPendingStateManager');
-const CardUsagePrechecksModule = loadRuntimeModule('../logic/cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
-const PendingSelectionRegistryModule = loadRuntimeModule('../logic/cards-internal/pending-selection-registry', 'PendingSelectionRegistry', {});
-const CardMarkersModule = loadRuntimeModule('../logic/cards/markers', 'CardMarkers', null);
-const SpecialStoneRegistry = loadRuntimeModule('../../shared/special-stone-registry', 'SpecialStoneRegistry', null);
-const SpecialCardRegistry = loadRuntimeModule('../../shared/special-card-registry', 'SpecialCardRegistry', null);
-const ManifestStoneRegistry = loadRuntimeModule('../../shared/manifest-stone-registry', 'ManifestStoneRegistry', null);
-const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext', null);
-const CardSacrificeWillModule = loadRuntimeModule('../logic/cards/sacrifice_will', 'CardSacrificeWill', null);
-const CardUsageConsumptionStage = loadRuntimeModule('./card-usage-consumption-stage', 'CardUsageConsumptionStage', null);
-const CardUsagePendingStage = loadRuntimeModule('./card-usage-pending-stage', 'CardUsagePendingStage', null);
-const CardUsageImmediateStage = loadRuntimeModule('./card-usage-immediate-stage', 'CardUsageImmediateStage', null);
-const CardUsageSacrificeStage = loadRuntimeModule('./card-usage-sacrifice-stage', 'CardUsageSacrificeStage', null);
-const CardUsagePresentationStage = loadRuntimeModule('./card-usage-presentation-stage', 'CardUsagePresentationStage', null);
-const CardUsageValidationStage = loadRuntimeModule('./card-usage-validation-stage', 'CardUsageValidationStage', null);
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
 
 const {
   CARD_DEFS,

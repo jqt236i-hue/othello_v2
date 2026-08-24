@@ -1,0 +1,24 @@
+{
+  "digest": "212143b2a9a9006086c89caefa1ebc85cd77e1f761c10951627724cec728db20",
+  "cardId": "destroy_01",
+  "cardType": "DESTROY_ONE_STONE",
+  "score": 1066,
+  "stateDelta": [
+    {
+      "after": 3,
+      "before": { "$runtime": "missing" },
+      "path": "$cpuState.cardState._handCopyIdsByPlayer.black[0]"
+    },
+    {
+      "after": 4,
+      "before": 3,
+      "path": "$cpuState.cardState._nextCardCopySeq"
+    }
+  ],
+  "prng": {
+    "decision": { "calls": 0, "state": 123456793 },
+    "decisionLedger": [],
+    "setupAfter": { "calls": 89, "state": 460374127 },
+    "setupBefore": { "calls": 89, "state": 460374127 }
+  }
+}

@@ -67,6 +67,25 @@ function findBundledWorkerFile(directory: string): string {
     return expected || candidates[0];
 }
 
+function assertSpecialStoneRegistryUsesStaticWorkerRequires(bundleFile: string): void {
+    const source = fs.readFileSync(bundleFile, 'utf8');
+    const segmentStart = source.indexOf('function isUsableEvasionStatus');
+    const segmentEnd = source.indexOf('module.exports = SpecialStoneRegistry', segmentStart);
+    assertTrue(segmentStart >= 0 && segmentEnd > segmentStart, 'bundled SpecialStoneRegistry compatibility segment was not found');
+    const registrySegment = source.slice(segmentStart, segmentEnd);
+    assertTrue(
+        registrySegment.includes('EvasionStatus = require_evasion_status()')
+        && registrySegment.includes('ManifestStoneRegistry = require_manifest_stone_registry()')
+        && registrySegment.includes('require_special_stone_registry_static()'),
+        'bundled SpecialStoneRegistry dependencies are not statically resolved'
+    );
+    assertTrue(
+        !registrySegment.includes('tryLoadOptionalModule')
+        && !/\b__require\s*\(/.test(registrySegment),
+        'bundled SpecialStoneRegistry compatibility path contains a dynamic require'
+    );
+}
+
 function runBundledAuthorityScenarios(bundleModuleUrl: string): any {
     const runner = [
         "import { createRequire } from 'module';",
@@ -190,10 +209,72 @@ function runBundledAuthorityScenarios(bundleModuleUrl: string): any {
         "  }",
         "});",
         "const continuationPublished = await continuationPublishResponse.json();",
+        "const failureStorage = new Map();",
+        "let failurePutCount = 0;",
+        "let failureBroadcastCount = 0;",
+        "let failureRuntimeInvocations = 0;",
+        "const makeRuntimeUnavailable = () => {",
+        "  const error = new Error('injected bundled card runtime failure');",
+        "  Object.defineProperties(error, {",
+        "    name: { value: 'CardRuntimeUnavailableError', configurable: true },",
+        "    code: { value: 'runtime_unavailable', enumerable: true },",
+        "    capability: { value: 'targeting.targetResolver', enumerable: true },",
+        "    cohort: { value: 'targeting', enumerable: true },",
+        "    [Symbol.for('card-reversi.card-runtime-unavailable.v1')]: {",
+        "      value: 'card-runtime-unavailable:v1', enumerable: false, configurable: false, writable: false",
+        "    }",
+        "  });",
+        "  return error;",
+        "};",
+        "const failureDurableObject = new MatchRoomDurableObject({ storage: {",
+        "  get: async (key) => failureStorage.get(key),",
+        "  put: async (key, value) => { failurePutCount += 1; failureStorage.set(key, value); },",
+        "  delete: async (key) => failureStorage.delete(key),",
+        "  setAlarm: async () => {},",
+        "  deleteAlarm: async () => {}",
+        "} }, null, Object.freeze({",
+        "  applyCommandPublishToSnapshot: async () => {",
+        "    failureRuntimeInvocations += 1;",
+        "    throw makeRuntimeUnavailable();",
+        "  }",
+        "}));",
+        "failureDurableObject.broadcastSnapshot = async () => { failureBroadcastCount += 1; };",
+        "const failurePrng = SeededPRNG.createPRNG(33);",
+        "const failureGameState = Core.createGameState();",
+        "const failureCardState = CardLogic.createCardState(failurePrng);",
+        "TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, failureCardState, failureGameState, 'black', [], failurePrng);",
+        "const failureCreateResponse = await failureDurableObject.handleInternalCreate(",
+        "  new URL('https://room/internal/create'),",
+        "  { roomId: 'BNDF', playerName: 'bundle失敗黒', seed: 33, snapshot: { gameState: failureGameState, cardState: failureCardState } }",
+        ");",
+        "const failureCreated = await failureCreateResponse.json();",
+        "if (!failureCreateResponse.ok || failureCreated.ok !== true) throw new Error('bundled failure room create failed');",
+        "const failureRoomBefore = JSON.stringify(failureDurableObject.room);",
+        "const failureStorageBefore = JSON.stringify([...failureStorage.entries()]);",
+        "const failurePutCountBefore = failurePutCount;",
+        "const failureBroadcastCountBefore = failureBroadcastCount;",
+        "const failurePublishResponse = await failureDurableObject.handlePublish({",
+        "  roomId: failureCreated.roomId,",
+        "  seatKey: 'black', playerKey: 'black', seatToken: failureCreated.seatToken,",
+        "  baseVersion: failureCreated.stateVersion, operationId: 'op_bundle_runtime_unavailable_1',",
+        "  actionType: 'pass', actor: 'black', turnIndex: failureCreated.snapshot.cardState.turnIndex,",
+        "  action: { type: 'pass', playerKey: 'black', forcePass: true, reason: 'smoke' }",
+        "});",
+        "const failurePublished = await failurePublishResponse.json();",
+        "const failureEvidence = {",
+        "  status: failurePublishResponse.status,",
+        "  payload: failurePublished,",
+        "  runtimeInvocations: failureRuntimeInvocations,",
+        "  roomUnchanged: JSON.stringify(failureDurableObject.room) === failureRoomBefore,",
+        "  storageUnchanged: JSON.stringify([...failureStorage.entries()]) === failureStorageBefore,",
+        "  putCountUnchanged: failurePutCount === failurePutCountBefore,",
+        "  broadcastCountUnchanged: failureBroadcastCount === failureBroadcastCountBefore",
+        "};",
         "process.stdout.write(JSON.stringify({",
         "  cardUtilsCharge: { result: bundledChargeResult, state: bundledChargeState },",
         "  poison: { status: publishResponse.status, payload: published },",
-        "  doublePlace: { status: continuationPublishResponse.status, payload: continuationPublished }",
+        "  doublePlace: { status: continuationPublishResponse.status, payload: continuationPublished },",
+        "  runtimeUnavailable: failureEvidence",
         "}));"
     ].join('\n');
     const result = spawnSync(
@@ -222,6 +303,8 @@ function verifyBundledAuthorityScenarios(): void {
             `Wrangler dry-run bundle failed\n${describeSpawnFailure(bundled)}`
         );
         const bundleFile = findBundledWorkerFile(bundleDirectory);
+        assertSpecialStoneRegistryUsesStaticWorkerRequires(bundleFile);
+        console.log('[worker-bundle-smoke] bundled SpecialStoneRegistry static resolution passed');
         const moduleFile = path.join(bundleDirectory, 'match-worker.bundle-smoke.mjs');
         fs.copyFileSync(bundleFile, moduleFile);
         const result = runBundledAuthorityScenarios(pathToFileURL(moduleFile).href);
@@ -309,6 +392,22 @@ function verifyBundledAuthorityScenarios(): void {
             `bundled DOUBLE_PLACE continuation did not hand off to white: ${String(doublePlaceGameState && doublePlaceGameState.currentPlayer)}`
         );
         console.log('[worker-bundle-smoke] bundled DOUBLE_PLACE continuation passed');
+
+        const runtimeUnavailable = result && result.runtimeUnavailable;
+        assertTrue(
+            runtimeUnavailable
+            && runtimeUnavailable.status === 409
+            && runtimeUnavailable.payload
+            && runtimeUnavailable.payload.ok === false
+            && runtimeUnavailable.payload.rejectedReason === 'RUNTIME_UNAVAILABLE'
+            && runtimeUnavailable.runtimeInvocations === 1
+            && runtimeUnavailable.roomUnchanged === true
+            && runtimeUnavailable.storageUnchanged === true
+            && runtimeUnavailable.putCountUnchanged === true
+            && runtimeUnavailable.broadcastCountUnchanged === true,
+            `bundled runtime-unavailable atomicity failed: ${JSON.stringify(runtimeUnavailable)}`
+        );
+        console.log('[worker-bundle-smoke] bundled runtime-unavailable atomicity passed');
     } finally {
         fs.rmSync(bundleDirectory, { recursive: true, force: true });
     }

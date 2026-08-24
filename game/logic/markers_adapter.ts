@@ -119,12 +119,8 @@ const FALLBACK_MANIFEST_STONE_TYPES = Object.freeze([
     'BOARD_EXECUTOR',
     'OBSERVER_WILL'
 ]);
-const ManifestStoneRegistry = (() => {
-    try { return require('../../shared/manifest-stone-registry'); } catch (e) { return null; }
-})();
-const SpecialStoneRegistry = (() => {
-    try { return require('../../shared/special-stone-registry'); } catch (e) { return null; }
-})();
+import ManifestStoneRegistry = require('../../shared/manifest-stone-registry');
+import SpecialStoneRegistry = require('../../shared/special-stone-registry-static');
 
 function markerOccupiesCell(marker: Marker, row: number, col: number): boolean {
     if (SpecialStoneRegistry && typeof SpecialStoneRegistry.markerOccupiesCell === 'function') {

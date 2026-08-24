@@ -346,4 +346,85 @@ describe('手札破壊ボタン', () => {
     delete global.isProcessing;
     delete global.isCardAnimating;
   });
+
+  test('network hand destroy shows success only after authoritative acceptance settles', async () => {
+    let resolvePublish;
+    const publishPromise = new Promise((resolve) => { resolvePublish = resolve; });
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise,
+      playbackEvents: []
+    }));
+    require('../cards/card-interaction.js');
+    window.onCardClick('trash_card', 'black');
+    global.SoundEngine.playEffectByKey.mockClear();
+    global.addLog.mockClear();
+
+    window.destroySelectedHandCard();
+
+    expect(global.cardState.selectedCardId).toBe('trash_card');
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('stone_destroy');
+    expect(global.addLog).not.toHaveBeenCalledWith(expect.stringContaining('手札を破壊'));
+
+    resolvePublish({ ok: true });
+    await publishPromise;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBeNull();
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
+    expect(global.addLog).toHaveBeenCalledWith('黒が手札を破壊: trash_card');
+  });
+
+  test('network runtime-unavailable hand destroy preserves selection and suppresses success and recovery UI', async () => {
+    let resolvePublish;
+    const publishPromise = new Promise((resolve) => { resolvePublish = resolve; });
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise,
+      playbackEvents: []
+    }));
+    require('../cards/card-interaction.js');
+    window.onCardClick('trash_card', 'black');
+    window.destroySelectedHandCard();
+    global.SoundEngine.playEffectByKey.mockClear();
+    global.addLog.mockClear();
+    global.renderCardUI.mockClear();
+    global.ensureCurrentPlayerCanActOrPass.mockClear();
+
+    resolvePublish({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+    await publishPromise;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBe('trash_card');
+    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalledWith('stone_destroy');
+    expect(global.addLog).not.toHaveBeenCalled();
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+    expect(global.window.isProcessing).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+  });
+
+  test('ordinary network hand-destroy rejection keeps the established failure recovery surface', async () => {
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise: Promise.resolve({ ok: false, reason: 'OUT_OF_TURN' }),
+      playbackEvents: []
+    }));
+    require('../cards/card-interaction.js');
+    window.onCardClick('trash_card', 'black');
+    global.addLog.mockClear();
+
+    window.destroySelectedHandCard();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBe('trash_card');
+    expect(global.addLog).toHaveBeenCalledWith('カード破壊に失敗しました (OUT_OF_TURN)');
+    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+  });
 });

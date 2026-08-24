@@ -1,40 +1,5 @@
 import type { CardDef } from '../../../src/types';
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function resolveModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-    }
-    return getRuntimeGlobalValue(globalKey);
-}
-
-const SharedConstants = resolveModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+import SharedConstants = require('../../../shared-constants');
 const { CARD_DEFS, CARD_TYPE_BY_ID } = SharedConstants || {};
 
 const CAPTURE_SOURCE_CARD_TYPE_BY_SPECIAL_TYPE = Object.freeze({

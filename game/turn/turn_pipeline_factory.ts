@@ -5,11 +5,15 @@
 
 'use strict';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+import PlayerEncoding = require('../../shared/player-encoding');
+import defaultDeepClone = require('../../utils/deepClone');
+import StateHash = require('../../shared/state-hash');
+import {
+  assertTurnRuntimeServices,
+  createTurnRuntimeServices,
+  isCardRuntimeUnavailableError,
+  type TurnRuntimeServices
+} from './turn-runtime-services';
 
 type TurnPipelineDeps = {
   CardLogic: any;
@@ -27,18 +31,9 @@ function asRecord(value: any): Record<string, any> {
   return value && typeof value === 'object' ? value : {};
 }
 
-function loadOptional(modulePath: string): any {
-  try {
-    return _require(modulePath);
-  } catch (e) {
-    return null;
-  }
-}
-
 function defaultNormalizePlayerKey(player: any, Core: any): string | null {
-  const OwnerHelpersModule = loadOptional('../../utils/owner-helpers');
-  if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
-    const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(player);
+  if (PlayerEncoding && typeof PlayerEncoding.parseSeatKeyOptional === 'function') {
+    const normalized = PlayerEncoding.parseSeatKeyOptional(player);
     if (normalized) return normalized;
   }
   if (player === (Core && Core.BLACK) || player === 'black') return 'black';
@@ -48,31 +43,40 @@ function defaultNormalizePlayerKey(player: any, Core: any): string | null {
 
 function resolveDeepClone(explicitDeepClone: any): (value: any) => any {
   if (typeof explicitDeepClone === 'function') return explicitDeepClone;
-  const deepClone = loadOptional('../../utils/deepClone');
-  if (typeof deepClone !== 'function') {
+  if (typeof defaultDeepClone !== 'function') {
     throw new Error('deepClone util is required for applyTurnSafe');
   }
-  return deepClone;
+  return defaultDeepClone;
 }
 
 function defaultComputeStateHash(gameState: any, cardState: any, _prngState: any): string | null {
-  const StateHash = loadOptional('../../shared/state-hash');
   if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
   return StateHash.computeStableHash({ gameState, cardState });
 }
 
 function createTurnPipelineModule(deps: TurnPipelineDeps): any {
-  const CardLogic = deps && deps.CardLogic;
-  const Core = deps && deps.Core;
-  const TurnPipelinePhases = deps && deps.TurnPipelinePhases;
-  const BoardOps = deps && deps.BoardOps;
-  const SubPlacementContinuation = deps && deps.SubPlacementContinuation;
-  const normalizePlayerKey = typeof deps.normalizePlayerKey === 'function'
+  const normalizePlayerKey = typeof deps?.normalizePlayerKey === 'function'
     ? (player: any) => deps.normalizePlayerKey!(player, Core)
     : (player: any) => defaultNormalizePlayerKey(player, Core);
   const computeStateHash = typeof deps.computeStateHash === 'function'
     ? deps.computeStateHash
     : defaultComputeStateHash;
+  const services: TurnRuntimeServices = createTurnRuntimeServices({
+    cardLogic: deps.CardLogic,
+    core: deps.Core,
+    phases: deps.TurnPipelinePhases,
+    boardOps: deps.BoardOps,
+    subPlacement: deps.SubPlacementContinuation,
+    deepClone: resolveDeepClone(deps.deepClone),
+    normalizePlayerKey,
+    validateState: deps.validateState,
+    computeStateHash
+  });
+  const CardLogic = services.cardLogic;
+  const Core = services.core;
+  const TurnPipelinePhases = services.phases;
+  const BoardOps = services.boardOps;
+  const SubPlacementContinuation = services.subPlacement;
 
   function flushPresentationEvents(cardState: any): any[] {
     const cardStateRecord = asRecord(cardState);
@@ -99,6 +103,7 @@ function createTurnPipelineModule(deps: TurnPipelineDeps): any {
   }
 
   function applyTurn(cardState: any, gameState: any, playerKey: any, action: any, prng?: any, options?: any): any {
+    assertTurnRuntimeServices(services);
     const events: any[] = [];
     const p = prng && typeof prng.random === 'function' ? prng : undefined;
     const opts = asRecord(options);
@@ -176,7 +181,26 @@ function createTurnPipelineModule(deps: TurnPipelineDeps): any {
   }
 
   function applyTurnSafe(cardState: any, gameState: any, playerKey: any, action: any, prng?: any, options?: any): any {
-    const deepClone = resolveDeepClone(deps.deepClone);
+    try {
+      assertTurnRuntimeServices(services);
+    } catch (error) {
+      if (!isCardRuntimeUnavailableError(error)) throw error;
+      const currentVersion = (options && typeof options.currentStateVersion === 'number')
+        ? options.currentStateVersion
+        : 0;
+      const rejection = {
+        ok: false,
+        gameState,
+        cardState,
+        events: [],
+        nextStateVersion: currentVersion,
+        rejectedReason: 'RUNTIME_UNAVAILABLE',
+        errorMessage: error.message
+      };
+      Object.defineProperty(rejection, 'runtimeError', { value: error, enumerable: false });
+      return rejection;
+    }
+    const deepClone = services.deepClone;
     const cs = deepClone(cardState);
     const gs = deepClone(gameState);
     const actionRecord = asRecord(action);
@@ -212,8 +236,8 @@ function createTurnPipelineModule(deps: TurnPipelineDeps): any {
     try {
       const result = applyTurn(cs, gs, effectivePipelinePlayerKey || playerKey, action, prng, options);
 
-      if (typeof deps.validateState === 'function') {
-        const validation = deps.validateState(result.gameState, result.cardState);
+      if (typeof services.validateState === 'function') {
+        const validation = services.validateState(result.gameState, result.cardState);
         if (validation && validation.valid === false) {
           const events = [{ type: 'action_rejected', player: playerKey, reason: 'INVALID_STATE', message: 'State validation failed', details: validation.errors }];
           return { ok: false, gameState: gs, cardState: cs, events, nextStateVersion: currentVersion, rejectedReason: 'INVALID_STATE', errorMessage: 'State validation failed' };
@@ -238,6 +262,19 @@ function createTurnPipelineModule(deps: TurnPipelineDeps): any {
         stateHash
       };
     } catch (e: any) {
+      if (isCardRuntimeUnavailableError(e)) {
+        const rejection = {
+          ok: false,
+          gameState,
+          cardState,
+          events: [],
+          nextStateVersion: currentVersion,
+          rejectedReason: 'RUNTIME_UNAVAILABLE',
+          errorMessage: e.message
+        };
+        Object.defineProperty(rejection, 'runtimeError', { value: e, enumerable: false });
+        return rejection;
+      }
       const rawMsg = (e && e.message) ? String(e.message) : 'unknown_error';
       const includeStack = (
         typeof process !== 'undefined' &&

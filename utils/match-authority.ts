@@ -7,6 +7,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 import type { PlayerKey } from '../src/types';
 import * as NetworkContract from '../shared/network-contract';
 import * as SharedBoardUtilsStaticModule from '../shared/shared-board-utils';
+import GachaHandCatalogImport = require('../shared/gacha-hand-catalog-shared');
+import StateHashImport = require('../shared/state-hash');
+import PlaybackDigestImport = require('../shared/playback-digest');
+import ManifestStoneRegistryImport = require('../shared/manifest-stone-registry');
+import PlayerIdentityContractImport = require('../shared/player-identity-contract');
 import type {
     MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityAcceptedOperationHistoryBySeat,
@@ -126,16 +131,6 @@ interface MatchAuthorityPlaybackAdapterLike {
     mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown;
 }
 
-function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | null {
-    if (typeof require !== 'function') return null;
-    try {
-        const loaded = _require(modulePath) as unknown;
-        return loaded && typeof loaded === 'object' ? loaded as T : null;
-    } catch (e) {
-        return null;
-    }
-}
-
 function requireStaticSharedBoardUtils(moduleValue: unknown): MatchAuthoritySharedBoardUtils {
     const direct = moduleValue && typeof moduleValue === 'object'
         ? moduleValue as MatchAuthoritySharedBoardUtils
@@ -157,14 +152,14 @@ function requireStaticSharedBoardUtils(moduleValue: unknown): MatchAuthorityShar
 }
 
 const SharedBoardUtils = requireStaticSharedBoardUtils(SharedBoardUtilsStaticModule);
-const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHandCatalogShared>('../shared/gacha-hand-catalog-shared.js');
-const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
-const PlaybackDigest = loadOptionalCommonJsModule<MatchAuthorityPlaybackDigest>('../shared/playback-digest');
-const ManifestStoneRegistry = loadOptionalCommonJsModule<MatchAuthorityManifestStoneRegistry>('../shared/manifest-stone-registry');
-const PlayerIdentityContract = loadOptionalCommonJsModule<{
+const GachaHandCatalogShared = GachaHandCatalogImport as unknown as MatchAuthorityGachaHandCatalogShared;
+const StateHash = StateHashImport as unknown as MatchAuthorityStateHash;
+const PlaybackDigest = PlaybackDigestImport as unknown as MatchAuthorityPlaybackDigest;
+const ManifestStoneRegistry = ManifestStoneRegistryImport as unknown as MatchAuthorityManifestStoneRegistry;
+const PlayerIdentityContract = PlayerIdentityContractImport as unknown as {
     normalizePlayerId?: (value: unknown) => string | null;
     normalizeSeatPlayerIds?: (value: unknown) => MatchAuthoritySeatPlayerIds;
-}>('../shared/player-identity-contract');
+};
 
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);

@@ -1,7 +1,7 @@
 import type { GameState, PlayerKey } from '../../../src/types';
 
-const TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
-const CardResolutionBoardView = require('./board-view-access');
+import TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
+import CardResolutionBoardView = require('./board-view-access');
 
 const CHAOS_SUMMON_TYPE = 'CHAOS_SUMMON';
 const CHAOS_SUMMON_SPAWN_REASON = 'chaos_summon_spawn';

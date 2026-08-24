@@ -1,10 +1,4 @@
-(function (root: any, factory) {
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.EvasionStatus = factory();
-    }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function () {
+const EvasionStatus: any = (function () {
     'use strict';
 
     interface EvasionProfile {
@@ -219,6 +213,6 @@
         getFlipEvadeCause,
         getFlipEvadeMoveReason
     };
-}));
+})();
 
-export {};
+export = EvasionStatus;

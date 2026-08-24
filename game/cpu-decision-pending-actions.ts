@@ -53,7 +53,7 @@ function isAppliedResult(result: any): boolean {
 }
 
 function isPendingPipelineHandled(result: any): boolean {
-    return !!(result && result.ok === true);
+    return !!(result && (result.ok === true || result.handled === true));
 }
 
 export function createCpuDecisionPendingActions(config: PendingActionsConfig): any {

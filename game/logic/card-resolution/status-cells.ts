@@ -1,14 +1,5 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
-(function (root: any, factory: any) {
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.CardStatusCellsEffects = factory();
-    }
-}(typeof self !== 'undefined' ? self : this, function () {
-    'use strict';
-
 type StatusCellSubjectKind = 'stone_body' | 'stone_status' | 'cell_marker' | 'topology' | 'placement_effect';
 type StatusCellOwnershipPolicy = 'stone_owner' | 'source_player' | 'none';
 type StatusCellDurationClock = 'owner_turn' | 'completed_turn' | 'permanent' | 'none';
@@ -781,21 +772,22 @@ function processPoisonTurnEnd(cardState: CardState, gameState: GameState, comple
     return processStatusCellTurnEnd(cardState, gameState, completedTurnNumber, deps);
 }
 
-    return {
-        removeTemporarySpecialCellsAt,
-        applyStatusCellMarker,
-        applyBlockadeWill,
-        applyFreezeWill,
-        applyMassFreezeWill,
-        applySeedWill,
-        applySeedMarker,
-        applyPoisonWill,
-        applyScorchedCell,
-        applyHealingCell,
-        syncPoisonContacts,
-        syncScorchContacts,
-        syncHazardContacts,
-        processStatusCellTurnEnd,
-        processPoisonTurnEnd
-    };
-}));
+const CardStatusCellsEffects = {
+    removeTemporarySpecialCellsAt,
+    applyStatusCellMarker,
+    applyBlockadeWill,
+    applyFreezeWill,
+    applyMassFreezeWill,
+    applySeedWill,
+    applySeedMarker,
+    applyPoisonWill,
+    applyScorchedCell,
+    applyHealingCell,
+    syncPoisonContacts,
+    syncScorchContacts,
+    syncHazardContacts,
+    processStatusCellTurnEnd,
+    processPoisonTurnEnd
+};
+
+export = CardStatusCellsEffects;

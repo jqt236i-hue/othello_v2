@@ -76,6 +76,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const NetworkPresenceToastModule = resolveNetworkClientModule('./network/presence-toast', null);
     const NetworkDiagnosticsModule = resolveNetworkClientModule('./network/diagnostics', null);
     const NetworkSelectionSignalBridgeModule = resolveNetworkClientModule('./network/selection-signal-bridge', null);
+    const CardRuntimeIntegrityModule = resolveNetworkClientModule('./card-runtime-integrity', null);
     const NetworkGameContract = NetworkGameContractAdapterModule
         && typeof NetworkGameContractAdapterModule.createNetworkGameContractAdapter === 'function'
         ? NetworkGameContractAdapterModule.createNetworkGameContractAdapter({ root })
@@ -1539,6 +1540,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 const controller = networkPlacementFeedbackController;
                 return controller && typeof controller.settlePlacement === 'function'
                     ? controller.settlePlacement(token, result)
+                    : false;
+            },
+            cancelPlacementFeedback: (token: any) => {
+                const controller = networkPlacementFeedbackController;
+                return controller && typeof controller.settlePlacement === 'function'
+                    ? controller.settlePlacement(token, { silent: true, reason: 'RUNTIME_UNAVAILABLE' })
                     : false;
             },
             queueCommandPublish: (playerKey: any, action: any, options: any) => queueCommandPublish(playerKey, action, options),
@@ -4238,6 +4245,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function publishSnapshot(meta: any) {
+        if (
+            CardRuntimeIntegrityModule
+            && typeof CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked === 'function'
+            && CardRuntimeIntegrityModule.isCardRuntimeIntegrityBlocked() === true
+        ) {
+            emitStatus('ゲーム実行環境を確認できませんでした。ページを再読み込みしてください。', true);
+            return Promise.resolve({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+        }
         if (isSpectator()) {
             emitStatus('観測中は操作できません', true);
             return Promise.resolve({ ok: false, reason: 'SPECTATOR_READ_ONLY' });

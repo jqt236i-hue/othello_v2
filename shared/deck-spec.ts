@@ -1,21 +1,11 @@
-(function (root: any, factory) {
-    if (root && root.SharedConstants) {
-        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null, root.SpecialCardRegistry || null);
-    } else if (typeof module !== 'undefined' && module.exports) {
-        let cardCatalog = null;
-        try {
-            const path = require('path');
-            cardCatalog = require(path.resolve(process.cwd(), 'cards', 'catalog.json'));
-        } catch (e) { /* ignore */ }
-        let specialCardRegistry = null;
-        try {
-            specialCardRegistry = require('./special-card-registry');
-        } catch (e) { /* ignore */ }
-        module.exports = factory(require('../shared-constants'), cardCatalog, specialCardRegistry);
-    } else {
-        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null, root.SpecialCardRegistry || null);
-    }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown, SpecialCardRegistryInput: unknown) {
+import SharedConstantsImport = require('../shared-constants');
+import SpecialCardRegistryImport = require('./special-card-registry');
+
+const DeckSpecHelpers: any = (function (
+    SharedConstants: unknown,
+    CardCatalog: unknown,
+    SpecialCardRegistryInput: unknown
+) {
     'use strict';
 
     interface CardDef {
@@ -505,6 +495,6 @@
         expandDeckSpec,
         summarizeDeckSpec
     };
-}));
+})(SharedConstantsImport, Object.freeze({ version: 1 }), SpecialCardRegistryImport);
 
-export {};
+export = DeckSpecHelpers;

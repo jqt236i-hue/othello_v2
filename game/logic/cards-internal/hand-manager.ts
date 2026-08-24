@@ -3,25 +3,17 @@
  * @description Card hand management shared between Browser and Headless.
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import CardMarkersImport = require('../cards/markers');
+import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-registry');
+import SpecialCardRegistryImport = require('../../../shared/special-card-registry');
+import BoardExecutorResolutionImport = require('../card-resolution/board-executor');
+import CardUsagePrechecksImport = require('./card-usage-prechecks');
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const CardMarkersModule = safeRequire('../cards/markers');
-const ManifestStoneRegistryModule = safeRequire('../../../shared/manifest-stone-registry');
-const SpecialCardRegistryModule = safeRequire('../../../shared/special-card-registry');
-const BoardExecutorResolutionModule = safeRequire('../card-resolution/board-executor');
-const CardUsagePrechecksModule = safeRequire('./card-usage-prechecks');
+const CardMarkersModule: any = CardMarkersImport;
+const ManifestStoneRegistryModule: any = ManifestStoneRegistryImport;
+const SpecialCardRegistryModule: any = SpecialCardRegistryImport;
+const BoardExecutorResolutionModule: any = BoardExecutorResolutionImport;
+const CardUsagePrechecksModule: any = CardUsagePrechecksImport;
 
 interface Context {
     constants?: any;

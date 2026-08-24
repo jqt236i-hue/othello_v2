@@ -6,39 +6,12 @@
  *    enemy normal stone to a fresh ZOMBIE marker owned by the infected owner.
  */
 
-const CardZombieWill = (function (root: any, factory: any) {
-    if (typeof module === 'object' && module.exports) {
-        let CardMarkersModule = null;
-        let SpecialStoneRegistryModule = null;
-        try {
-            CardMarkersModule = require('./markers');
-        } catch (e) { /* ignore */ }
-        try {
-            SpecialStoneRegistryModule = require('../../../shared/special-stone-registry');
-        } catch (e) { /* ignore */ }
-        return factory(
-            require('../../../shared-constants'),
-            require('../../../shared/shared-board-utils'),
-            CardMarkersModule,
-            SpecialStoneRegistryModule
-        );
-    }
-    if (root && root.SharedConstants) {
-        return (root.CardZombieWill = factory(
-            root.SharedConstants,
-            root.SharedBoardUtils || null,
-            root.CardMarkers || null,
-            root.SpecialStoneRegistry || null
-        ));
-    } else {
-        return (root.CardZombieWill = factory(
-            root.SharedConstants,
-            root.SharedBoardUtils || null,
-            root.CardMarkers || null,
-            root.SpecialStoneRegistry || null
-        ));
-    }
-}(typeof self !== 'undefined' ? self : this, function (
+import SharedConstantsImport = require('../../../shared-constants');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import CardMarkersImport = require('./markers');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+
+const CardZombieWill = (function (
     SharedConstants: any,
     SharedBoardUtils: any,
     CardMarkersModule: any,
@@ -49,24 +22,15 @@ const CardZombieWill = (function (root: any, factory: any) {
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
     const ZOMBIE_INFECTION_INTERVAL = 4;
 
-    function getRuntimeGlobalValue(key: string): any {
-        if (typeof self !== 'undefined' && (self as any)[key]) {
-            return (self as any)[key];
-        }
-        return null;
-    }
-
     function getCardMarkersModule(deps?: any) {
         if (deps && Object.prototype.hasOwnProperty.call(deps, 'CardMarkers')) {
             return deps.CardMarkers;
         }
-        if (CardMarkersModule) return CardMarkersModule;
-        return getRuntimeGlobalValue('CardMarkers');
+        return CardMarkersModule;
     }
 
     function getSpecialStoneRegistryModule() {
-        if (SpecialStoneRegistryModule) return SpecialStoneRegistryModule;
-        return getRuntimeGlobalValue('SpecialStoneRegistry');
+        return SpecialStoneRegistryModule;
     }
 
     if (BLACK === undefined || WHITE === undefined || !Array.isArray(DIRECTIONS)) {
@@ -377,6 +341,6 @@ const CardZombieWill = (function (root: any, factory: any) {
         processZombieEffectsAtTurnStartAnchor,
         ZOMBIE_INFECTION_INTERVAL
     };
-}));
+})(SharedConstantsImport, SharedBoardUtilsImport, CardMarkersImport, SpecialStoneRegistryImport);
 
 export = CardZombieWill;

@@ -4,44 +4,13 @@
  */
 
 import { GameState } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardUtilsImport = require('../../../shared/shared-board-utils');
+import CardUtilsImport = require('./utils');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function resolveTargetsModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-    }
-
-    return getRuntimeGlobalValue(globalKey);
-}
-
-const SharedConstants = resolveTargetsModuleOrGlobal('../../../shared-constants', 'SharedConstants');
-const BoardUtils = resolveTargetsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
+const SharedConstants: any = SharedConstantsImport;
+const BoardUtils: any = BoardUtilsImport;
+const CardUtils: any = CardUtilsImport;
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
@@ -83,7 +52,7 @@ function forEachBoardShapeCell(cardState: any, gameState: GameState, visitor: (r
 }
 
 function getCardUtils(): any {
-    return ((typeof module === 'object' && module.exports) ? safeRequire('./utils') : null) || getRuntimeGlobalValue('CardUtils');
+    return CardUtils;
 }
 
 function normalizeMarkerType(marker: any): string {

@@ -1,19 +1,9 @@
 'use strict';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
-let pendingStateManagerModule: any = null;
+import PendingStateManager = require('../logic/cards-internal/pending-state-manager');
 
 function resolvePendingStateManager(): any {
-    if (pendingStateManagerModule) return pendingStateManagerModule;
-    try {
-        pendingStateManagerModule = _require('../logic/cards-internal/pending-state-manager');
-    } catch (e) { /* ignore */ }
-    return pendingStateManagerModule || null;
+    return PendingStateManager;
 }
 
 function getPendingSelectionContract(cardType: any): any {

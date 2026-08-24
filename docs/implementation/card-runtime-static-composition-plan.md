@@ -1,6 +1,6 @@
 # Card / turn runtime static composition convergence implementation plan
 
-- Status: reviewed implementation plan; implementation not started
+- Status: implementation, final verification, and independent post-implementation review completed; final commit and fresh-clone proof pending
 - Date: 2026-08-24
 - Design authority: `docs/implementation/card-runtime-static-composition-design.md`
 - Document role: reviewed design を、挙動不変・green-to-green・coherent commit 単位で実装するための実行計画
@@ -25,7 +25,7 @@ Delivery rules:
 9. test failure を skip、allowlist、期待値緩和で消さない。retry が pass した場合も initial failure と原因推定を記録する。
 10. long selfplay / training job は実行しない。
 11. Ownership switch の有無にかかわらず、browser/Worker の production-reachable graph を変える全 commit は `worker:prepare` と説明可能な generated/mirror diff、actual current-owner production-entry proof を同じ commit に含める。同期を省略できるのは non-shipping module/fixture が production graph と shipping output の双方から到達不能だと machine check した場合だけである。
-12. `runtime_unavailable` はcanonical validator/composer/明示required assertionだけが生成するnominal tagとする。consumerはcanonical classifierでtagだけを既存fallbackより先に分岐し、rule/programming exception、message/code spoof、任意のcatch-allをdependency failureへ変換しない。untagged exceptionは各catch siteの現行fallback/既定値/伝播をexactに保つ。
+12. `runtime_unavailable` はcanonical validator/composer/明示required assertionだけが生成するbranded structural Error tagとする。hidden brandはcross-bundle transport classification用でありsecurity/provenance boundaryではない。consumerはcanonical classifierでtagだけを既存fallbackより先に分岐し、rule/programming exception、message/code spoof、任意のcatch-allをdependency failureへ変換しない。untagged exceptionは各catch siteの現行fallback/既定値/伝播をexactに保つ。
 13. Complete service graph validationをgameplay/match readiness barrierに置く。action-time tagはruntime-integrity breachとしてterminal recoveryへ送り、normal rule resultにしない。
 14. usability query failureを`false`/`[]`/`null`へ畳まず、AUTO/timeout/direct pass、CPU alternative action、UI publishをmutation前に中止する。
 15. Healthy supported runtimeではpublic facadeのkeys/signaturesだけでなく、observed object/function alias identity、property descriptors/symbol/prototype、module evaluation/registration order、module-scoped state lifetimeもexact parityとする。
@@ -48,7 +48,7 @@ Exact path は Step 1 inventory で既存 naming / cycle boundary と照合す�
 Preferred locations:
 
 - `game/logic/card-runtime-contracts.ts` — narrow readonly card service groups、validator、cohort ownership types;
-- `game/logic/card-runtime-errors.ts` — nominal runtime-integrity error/tag、唯一のfactory、canonical classifier; contractsと同一fileで十分なら分割しない;
+- `game/logic/card-runtime-errors.ts` — branded structural runtime-integrity error/tag、唯一のfactory、canonical classifier; contractsと同一fileで十分なら分割しない;
 - `game/logic/card-runtime-composer.ts` — canonical static/default composition root;
 - `game/logic/cards-runtime-factory.ts` — canonical implementation factory that consumes named ports and never imports composer/facade/adapters;
 - `game/logic/cards-legacy-facade.ts` — 289-key compatibility projection combining factory and a complete composer;
@@ -86,7 +86,7 @@ Likely new owners:
 - `test/game.card-runtime-composition.test.ts`;
 - `test/game.card-runtime-failure-atomicity.test.ts`;
 - `test/game.card-runtime-query-failure.test.ts` — preview/CPU dependency-sensitive query propagation and success-shaped fallback prohibition;
-- `test/game.card-runtime-error-classification.test.ts` — only canonical constructors produce the nominal tag; rule/programming/message/code-spoof exceptions are not reclassified;
+- `test/game.card-runtime-error-classification.test.ts` — only canonical constructors produce the branded structural tag; rule/programming/message/code-spoof exceptions are not reclassified;
 - `test/game.cards-api-identity.test.ts` — facade/alias/function/descriptor/symbol/prototype/repeated-load and evaluation/registration contract;
 - `test/game.turn-runtime-pass-failure.test.ts` — usability dependency failure cannot become AUTO/timeout/direct pass;
 - `test/cpu.turn-handler.runtime-unavailable.test.ts` — processing/scheduler/timer/pending terminal recovery with no retry or alternative action;
@@ -282,7 +282,7 @@ Prove what every loader, fallback, public export, mutation, event, and PRNG path
    - `match:card-runtime-worker-fixture-check`: explicit test-only `worker-bundle-smoke --fixture-entry` mode bundles/executes the reviewed Worker fixture through Wrangler dry-run into temporary output;
    - add package scripts and teardown/error fixtures, but do not change game/runtime product behavior.
 17. Add dedicated non-shipping Worker、Vite、classic fixture entries for later composer-preparation proof. Reuse each production compiler/bundler configuration、alias、plugin、and module-order rule, emit only temporary test output, and add an assertion that no fixture entry appears in production registry、`vite-dist/`、`worker-public/`、or public boot HTML.
-18. Define the nominal failure taxonomy before any product source edit:
+18. Define the branded structural failure taxonomy before any product source edit:
    - one canonical constructor/factory and `isCardRuntimeUnavailableError()` classifier;
    - validator/composer/explicit required assertion are the only allowed producers;
    - raw message/code、plain object、arbitrary `instanceof` failure、rule exception、programming exception are negative fixtures;
@@ -291,17 +291,28 @@ Prove what every loader, fallback, public export, mutation, event, and PRNG path
 19. Build a machine-readable recovery-state matrix for Vite/classic boot、UI preview/action、CPU turn/scheduler、AUTO/timeout/direct pass、Worker/local command、headless/selfplay. Record pre/post canonical state/pending/turn/version/PRNG/events、busy/input lock owner、CPU processing/retry generation/timer set、retry/alternate action/publish count、terminal player surface.
 20. Prove supported-runtime status with actual production/public compatibility entries. If any official lane、rollback lane、generated bundle、or public compatibility test intentionally accepts a partial graph, stop and revise the design; do not relabel it unsupported from absence assumptions.
 
+### Gate B decisions recorded on 2026-08-24
+
+- The AST-derived baseline is 17 roots / 259 nodes / 1,098 edges / 713 ambient lookups / 188 unresolved runtime-discovery edges, digest `49fa3eec667c73d9b3a048d69f7b34ed88883971a784f0de45aa66a444a701ce`. Local authority and selfplay are explicit roots; UI/CPU/selfplay consumers stop after recording their public-facade edge. DI-port and whole-facade-cache relations are explicit edge kinds, and every lookup owns a reason、removal cohort、and test owner. The sole unresolved literal-relative lookup is `game/logic/cards/meteor_god.ts` -> `./random-source`; keep it explicitly classified until its cohort removes runtime discovery.
+- The explicit `MutationEntryManifest` baseline is all 263 facade functions plus 60 direct production/public compatibility entries. AST proof distinguishes exported/installed entries from private production call chains and includes local authority、Worker Durable Object/default fetch、and selfplay public entries. Lazy cache initialization is a runtime-state write even when the same entry later mutates canonical state, appends events, or consumes PRNG.
+- Complete-manager, absent-override, and classifier-only cancellation paths are all supported executable compatibility behavior. Preserve classifier-only refund、usage reset、discard restore、pending clear、and return shape through a named legacy adapter; do not convert this path to activation failure.
+- The common fixed-seed canonical fixture is exact across source、legacy wrapper、built Node、Worker、Vite、classic and has digest `b5057647f5541562184b9b9e267fce5595522db2cc42421a91c646974d31d221`; full canonical projection is `924fa614…a576`. It preserves full event/marker metadata、inventories runtime-only projections、and covers turn-start、protection、and 10x10 topology. Local authority uses a separate exact seed-17 public-command fixture (`1b228b…7644`) and must not be reported as the same fixture. The chaos-summon optional presentation probe is intentionally pinned per lane: headless/local/Worker emit `SPAWN,CARD_USED`; Vite/classic emit `SPAWN,STATUS_APPLIED,CARD_USED`. Canonical board/marker state and PRNG ledger remain exact, so implementation must not "repair" this optional-presentation difference.
+- Worker preload failure is executable evidence: key registration precedes loading, an existing usable global skips the loader, and loader failure propagates to abort evaluation. Target composition may fail earlier but cannot produce a partial usable runtime.
+- The branded structural characterization model has stable `runtime_unavailable` code、capability、cohort、and a non-enumerable/non-writable/non-configurable `Symbol.for` brand. The brand is transport classification rather than a security/provenance boundary. The classifier accepts a separately evaluated canonical Error and rejects message/code/plain-object/foreign-TypeError spoofs; production creation remains limited to the planned validator/composer/assertion owners.
+- Actual current entries now back the recovery record: local authority rejection preserves snapshot/version; Worker composer rejection preserves caller state/version; selfplay non-retryable rejection is terminal; UI publish rejection settles its busy lock; generic CPU recovery schedules one current-generation timer and the scheduler reset invalidates generation/timers. Target no-retry/no-publish behavior remains explicitly inactive until Steps 5-7 rather than being falsely claimed as current behavior.
+- Cancellation compatibility runs all eight combinations of `refundCost:false`、`resetUsage:false`、and `noConsume:true` through the complete manager、absent override、direct facade、and classifier-only manager paths.
+- Dedicated Worker、Vite、and classic non-shipping entries exist. Worker uses the production Wrangler dry-run path; Vite derives the root production config and emits only to an OS temporary directory; classic is transpiled to a temporary entry and executes against the actual classic registry. Shipping-output absence is machine-checked.
+
 ### Focused verification
 
 ```powershell
 npx jest --runInBand --runTestsByPath `
   test/game.cards-api-export-inventory.test.ts `
   test/game.cards-api-identity.test.ts `
-  test/game.card-runtime-error-classification.test.ts `
-  test/game.card-runtime-query-failure.test.ts `
-  test/game.turn-runtime-pass-failure.test.ts `
-  test/cpu.turn-handler.runtime-unavailable.test.ts `
-  test/ui.card-runtime-integrity-failure.test.ts `
+  test/game.card-runtime-characterization.test.ts `
+  test/game.card-runtime-current-failure-characterization.test.ts `
+  test/game.card-runtime-parity-fixture.test.ts `
+  test/card-runtime-nonshipping-fixture.test.ts `
   test/game.card-usage-pending-stage.test.ts `
   test/cards.pending-selection-contract.test.ts `
   test/game.pending-coordinator.contract.test.ts `
@@ -309,13 +320,13 @@ npx jest --runInBand --runTestsByPath `
   test/game.turn-pipeline-action-stage.test.ts `
   test/scripts.worker-runtime-preload.test.ts `
   test/workers.match-worker-card-preload.test.ts `
+  test/workers.match-auto-turn-authority.test.ts `
+  test/workers.match-worker-timeout-controller.test.ts `
   test/browser-vite.classic-compat-loader.test.ts
 npm run check:card-runtime-dist-parity
 npm run match:card-runtime-delivery-check
 npm run match:card-runtime-worker-fixture-check
 ```
-
-Add new characterization paths to this invocation after their exact filenames are chosen.
 
 Step 1の新規failure/identity testは **current-characterization mode** で実行する。このstepでは現行alternate-query/default/propagation、CPU generic pending-clear/retry、UI state、pass/turn resultをgreen baselineとして記録し、target production recoveryをまだ要求しない。Target mappingはmachine-readable fixture/contractとしてcurrent mappingと対で固定し、no auto-pass/retry/pending-loss/alternate-actionというtarget invariantのschema/completenessだけを検証する。まだ存在しないproduct error moduleやadapterをimportするtarget suite、skip/pending/red testは作らない。Dormant target adapter/recovery assertionはStep 5、production assertionはStep 6/7で初めて有効化する。
 
@@ -336,7 +347,7 @@ Step 1の新規failure/identity testは **current-characterization mode** で実
 - API schema is stronger than key hash alone;
 - `FacadeIdentityManifest` and evaluation/module-state baseline are complete in every supported lane;
 - all supported lanes and failure mappings are recorded;
-- nominal tag producers/classifier and untagged-exception catch-site behavior fixtures are fixed;
+- branded structural tag producers/classifier and untagged-exception catch-site behavior fixtures are fixed;
 - recovery-state matrix proves no auto-pass、alternate action、CPU retry loop、pending loss、post-failure publish、or orphaned lock;
 - partial-manager reachability is decided;
 - non-shipping delivery entries reuse production-equivalent build settings and are proven absent from every shipping manifest/output;
@@ -346,7 +357,7 @@ Step 1の新規failure/identity testは **current-characterization mode** で実
 
 Before Step 2:
 
-1. write the exact graph roots/boundaries、complete `MutationEntryManifest`、`FacadeIdentityManifest`、nominal failure taxonomy、recovery-state matrix、external failure mappings、partial-manager/supported-runtime decision、fixture-entry shipping-absence proof、and baseline result into this plan's execution record;
+1. write the exact graph roots/boundaries、complete `MutationEntryManifest`、`FacadeIdentityManifest`、branded structural failure taxonomy、recovery-state matrix、external failure mappings、partial-manager/supported-runtime decision、fixture-entry shipping-absence proof、and baseline result into this plan's execution record;
 2. update the design if any assumption changed;
 3. request independent architecture and gameplay-authority review;
 4. do not edit product source until the review has no unresolved P0/P1 finding.
@@ -405,7 +416,7 @@ Introduce the target shape and completeness validation while every production co
 14. Add `scripts/check-card-runtime-boundary.ts` now, with negative self-fixtures for each prohibited lookup / dependency form. Seed it from the Gate B graph and `MutationEntryManifest`.
 15. Represent every current canonical lookup as an explicit legacy allowlist entry with node、lookup form、owner、reason、and mandatory removal cohort. The checker must reject a new entry or expanded pattern unless the reviewed manifests are updated; every later cohort must monotonically shrink the allowlist, and Step 8 must reduce the canonical allowlist to zero.
 16. Add `check:card-runtime-boundary` to `package.json` and the hermetic `checkall` bundle in this step. The checker enforces import direction、root-aggregate confinement、whole-facade-cache restrictions、stateful-service restrictions、and current/future ambient lookup dispositions from the beginning of migration.
-17. Add the nominal runtime-integrity error contract and structural guard:
+17. Add the branded structural runtime-integrity error contract and structural guard:
    - only validator/composer/explicit required assertion can call its factory;
    - all consumers use the canonical classifier and catch only that tag;
    - checker rejects catch-all retagging、message/code matching as authority、and duplicate tag factories;
@@ -437,7 +448,7 @@ npx jest --runInBand --runTestsByPath `
 - the structural checker is hermetic、wired into `checkall`、and pins every legacy canonical lookup to an owned removal cohort;
 - complete / incomplete service graphs are deterministic;
 - validation has zero gameplay side effect and zero PRNG draw;
-- nominal error production/classification is unique and cannot swallow generic exceptions;
+- branded structural error production/classification is unique and cannot swallow generic exceptions;
 - facade identity/evaluation baseline remains unchanged;
 - production behavior and public facade remain unchanged.
 
@@ -587,7 +598,7 @@ Make both browser delivery lanes construct and exercise the same canonical servi
    - AUTO/timeout/direct pass: usability dependency failure rejects before pass mutation and cannot mean `0 usable cards`;
    - untagged rule/programming exception: remains outside the tag path and follows that catch site's characterized current alternate-query/default/propagation behavior;
    - incomplete browser runtime at activation: gameplay remains disabled or whole-lane boot compatibility path is selected before match start.
-7. Prepare dormant UI preview and CPU legality/candidate adapter modules that detect only the canonical nominal tag and route it before trying another dependency-sensitive query、returning `true`/empty success、or evaluating another CPU candidate/action. Prepare the outer browser/CPU integrity recovery callbacks in the same non-shipping harness. Untagged exceptions must follow each catch site's Gate B current alternate-query/default/propagation behavior; do not blanket-rethrow them. Do not import adapters from production entries until their Step 6 capability cohort switches in every lane.
+7. Prepare dormant UI preview and CPU legality/candidate adapter modules that detect only the canonical branded structural tag and route it before trying another dependency-sensitive query、returning `true`/empty success、or evaluating another CPU candidate/action. Prepare the outer browser/CPU integrity recovery callbacks in the same non-shipping harness. Untagged exceptions must follow each catch site's Gate B current alternate-query/default/propagation behavior; do not blanket-rethrow them. Do not import adapters from production entries until their Step 6 capability cohort switches in every lane.
 8. Prove complete-runtime preview and CPU outputs/action order remain exact; the only changed branch is invalid-composition dependency failure characterized at Gate B.
 9. Update classic registry source only if required; regenerate registry / cachebusters from scripts.
 10. Verify built artifacts separately from source tests.
@@ -629,7 +640,7 @@ When browser operation begins:
 ### Done when
 
 - built Vite and classic lanes expose the exact public facade;
-- production-equivalent non-shipping Vite/classic fixture lanes can construct the new graph and execute the same isolated fixtures/results as headless;
+- production-equivalent non-shipping Vite/classic fixture lanes can construct the new graph and execute the same isolated canonical fixture, while matching their Gate B lane-specific optional-presentation projection exactly;
 - fixture entries remain absent from every shipping registry/output, and no claim of actual new-composer production-entry parity is made before Step 6;
 - dormant composers/query adapters are machine-proven unreachable from production, or every production delivery/mirror change is synchronized and actual current-owner entries are re-proven in this same commit;
 - preview failure does not mutate authority or become a generic crash;
@@ -692,14 +703,15 @@ Each cohort is its own coherent commit unless the diff is demonstrably small and
 
 Classify current paths before cutover:
 
-- complete canonical pending manager and no-override supported path: preserve exact refund/pending/result;
-- absent / classifier-only incomplete graph: activation/preflight failure with zero mutation **only if Gate B proved it is not a supported production or public compatibility success path**;
+- complete canonical pending manager、no-override path、and classifier-only override path: preserve exact refund/pending/result;
+- route the classifier-only override through an explicit legacy adapter backed by the complete canonical cancellation algorithm; do not expose it as the new core service graph;
+- other absent/incomplete capability graphs: activation/preflight failure with zero mutation;
 - `refundCost: false`;
 - `resetUsage: false`;
 - `noConsume: true`;
 - network-specific option combinations already covered by tests.
 
-If any supported runtime / public compatibility contract reaches the classifier-only partial-success mutation path, stop this cohort and retain it until a separate compatibility decision. Do not simultaneously require its old card result and convert the same path to activation failure. Failure mapping remains wire-compatible.
+Gate B already proved the classifier-only direct/public path is supported, so this cohort must retain it. Stop only if another partial-success shape exists outside the recorded classifier-only adapter or if the adapter cannot preserve exact state/result identity. Do not simultaneously require an old card result and convert the same path to activation failure. Failure mapping remains wire-compatible.
 
 ### Apply-stage invariants
 
@@ -738,7 +750,7 @@ The generated browser/Worker diff belongs in the **same cohort commit** as its p
 - a cycle requires global service location;
 - a cohort requires card behavior/spec change;
 - a stateful invocation value must enter static services.
-- a supported path depends on an incomplete/partial manager success body.
+- an unrecorded supported path depends on an incomplete/partial manager success body outside the explicit classifier-only cancellation adapter.
 - `runtime_unavailable` would be converted to canonical card-illegal false or an alternate CPU action.
 - any failure path reaches pass/turn handoff、clears canonical pending、keeps a CPU retry timer/generation active、leaves UI/CPU processing locked、or permits a later UI/network publish.
 - a rule/programming exception is reclassified as `runtime_unavailable` or an internal dependency failure reaches the generic CPU pending-clear/retry path.
@@ -786,7 +798,7 @@ Remove runtime discovery from the already decomposed turn pipeline without redes
    - timeout / AUTO shared command entry;
    - `events[]` order and PRNG consumption.
 10. In the pass/action cohort, inject failure into protection-context and `hasUsableCard` dependencies for direct、AUTO、timeout commands. Reject before pass events、turn handoff、pass counters、stateVersion、PRNG、journal/broadcast change; never infer `0 usable cards` from failure.
-11. Apply the nominal classifier rule here too: only tagged dependency failure takes the integrity path; ordinary Core/CardLogic exceptions retain current error ownership and are not converted to empty context or runtime unavailable.
+11. Apply the branded structural classifier rule here too: only tagged dependency failure takes the integrity path; ordinary Core/CardLogic exceptions retain current error ownership and are not converted to empty context or runtime unavailable.
 12. Shrink the structural legacy allowlist for every migrated phase and run the boundary checker. Do not defer a new turn lookup guard until Step 8.
 13. Run `worker:prepare` after the production source cutover and include its explained generated browser/Worker diff in the **same ownership-switch commit**. If the commit is too large, move more dormant preparation earlier; never land the switch with stale delivery.
 
@@ -816,7 +828,7 @@ npm run check:card-runtime-dist-parity
 npm run match:card-runtime-delivery-check
 ```
 
-Run the exact turn fixture manifest through independently reconstructed headless, local, bundled Worker, Vite, and classic runtimes with identical initial seeds and separate instrumented PRNGs.
+Run the exact turn fixture manifest through independently reconstructed headless, local, bundled Worker, Vite, and classic runtimes with identical initial seeds and separate instrumented PRNGs. Compare canonical result/PRNG cross-lane and optional presentation against each lane's Gate B baseline.
 
 Use the Step 6 lane-specific actual production-entry proof owners for this turn cohort. Transitional fixture entries are not acceptable evidence after production ownership switches.
 
@@ -843,7 +855,7 @@ After every supported lane and cohort already has an active preflight and comple
 ### Actions
 
 1. Verify the aggregate of all already-active cohort preflights covers every canonical-required manifest node and every non-pure function / dependency-sensitive query in `MutationEntryManifest`. This step must not be the first activation of a production preflight or tagged query adapter.
-2. Verify typed internal `runtime_unavailable` remains distinct from rule-level unavailable and uses the Gate B runtime-specific normalization; do not change public wire schema. Audit every producer/catch: only canonical validator/composer/required assertions construct the nominal tag; consumers分岐はcanonical classifier resultだけをcurrent fallbackより先に扱い、untagged exceptionはsiteごとのcurrent fallback/default/propagationを維持する。
+2. Verify typed internal `runtime_unavailable` remains distinct from rule-level unavailable and uses the Gate B runtime-specific normalization; do not change public wire schema. Audit every producer/catch: only canonical validator/composer/required assertions construct the branded structural tag; consumers分岐はcanonical classifier resultだけをcurrent fallbackより先に扱い、untagged exceptionはsiteごとのcurrent fallback/default/propagationを維持する。
 3. Prove authoritative failure leaves unchanged:
    - `gameState` / `cardState`;
    - stateVersion / operation acceptance;
@@ -907,7 +919,7 @@ Use the exact package script established in Step 2. Any instability is a blockin
 
 - incomplete canonical service graph cannot reach mutation;
 - every non-pure `MutationEntryManifest` function fails before its recorded first observable effect, and every dependency-sensitive query propagates tagged failure without success-shaped fallback;
-- nominal tag production/detection is unique, untagged catch-site behavior is exact, and tagged UI/CPU/pass/headless terminal recovery has no retry、pending loss、alternative action、post-failure publish、or orphaned lock;
+- branded structural tag production/detection is unique, untagged catch-site behavior is exact, and tagged UI/CPU/pass/headless terminal recovery has no retry、pending loss、alternative action、post-failure publish、or orphaned lock;
 - facade/alias/descriptor/evaluation/module-state identity remains exact after cleanup;
 - every canonical-required manifest node is migrated and the closure has no ambient runtime discovery;
 - the canonical legacy lookup allowlist is zero; only reviewed outer-adapter compatibility entries remain;
@@ -998,7 +1010,7 @@ At minimum request independent reviews for:
 1. **Authority / behavior parity** — state、events、PRNG、pending、turn ordering、failure atomicity;
 2. **Runtime / delivery parity** — classic、Vite、headless、local、Worker preload/bundle、generated outputs;
 3. **Architecture / maintainability** — narrow ports、lifetime ownership、reachable-graph lookup guard、duplicate authority absence.
-4. **Regression / failure recovery** — nominal error classification、untagged catch-site fallback/default/propagation parity、UI lock/input settlement、CPU scheduler/pending/no-retry、AUTO/timeout/pass safety、player-visible reload-required behavior.
+4. **Regression / failure recovery** — branded structural error classification、untagged catch-site fallback/default/propagation parity、UI lock/input settlement、CPU scheduler/pending/no-retry、AUTO/timeout/pass safety、player-visible reload-required behavior.
 5. **Public identity / initialization** — facade/object/function aliases、descriptors/symbol/prototype、module evaluation/registration order、module-scoped state、repeated boot/Worker reconstruction.
 
 ### Actions
@@ -1034,32 +1046,32 @@ The executor must replace `not run` with exact result, date, revision, duration,
 
 | Gate | Baseline | After relevant phase | Final |
 | --- | --- | --- | --- |
-| Fresh clone `npm ci && npm run checkall` | not run | not run | not run |
-| `npm run typecheck` | not run | not run | not run |
-| `npm run build:ts` | not run | not run | not run |
-| `npm run check:window` | not run | not run | not run |
-| `npm run check:card-runtime-boundary` | n/a | not run | not run |
-| `npm run check:card-runtime-dist-parity` | n/a | not run | not run |
-| `npm run match:card-runtime-delivery-check` | n/a | not run | not run |
-| preparation-only `match:card-runtime-worker-fixture-check` | n/a | not run | removed after actual production proof |
-| API key + kind / constants / semantic probes | not run | not run | not run |
-| Facade identity / descriptor / evaluation / module-state manifest | not run | not run | not run |
-| Gate B graph / `MutationEntryManifest` / failure mappings / partial-manager / non-shipping-entry proof | not run | not run | not run |
-| Card canonical-state / runtime-reference characterization matrix | not run | not run | not run |
-| Turn exact characterization matrix | not run | not run | not run |
-| Failure-before-mutation matrix | not run | not run | not run |
-| Error-classification negative matrix | not run | not run | not run |
-| UI/CPU/pass/headless terminal-recovery matrix | not run | not run | not run |
-| `npm run test:network:parity` | not run | not run | not run |
-| `npm run worker:prepare` | not run | not run | not run |
-| `npm run worker:bundle:smoke` | not run | not run | not run |
-| `npm run build:browser` / `build:vite` | not run | not run | not run |
-| `npm run checkall` | not run | not run | not run |
-| `npm run test:jest` | not run | not run | not run |
-| Vite/Pixi browser scenario | not run | not run | not run |
-| Classic/Pixi browser scenario | not run | not run | not run |
-| Fixed-seed small selfplay | not run | not run | not run |
-| Final `git diff --check` / status / diff review | not run | n/a | not run |
+| Fresh clone `npm ci && npm run checkall` | PASS 2026-08-24, Gate A ending at `17e04827f`; duration not retained | not run | Gate A proof retained; final task revision fresh-clone rerun pending final commit |
+| `npm run typecheck` | PASS 2026-08-24, Gate A | PASS inside each Gate B build | PASS 2026-08-24, direct run and repeated by final build gates |
+| `npm run build:ts` | PASS 2026-08-24, Gate A | PASS 2026-08-24 in dist/Worker gates | PASS 2026-08-24 in dist parity, Worker smoke, browser delivery, and Worker prepare |
+| `npm run check:window` | PASS 2026-08-24, Gate A | no product source changed in Gate B | PASS 2026-08-24; canonical `game/` has no forbidden `window` / `globalThis` property access |
+| `npm run check:card-runtime-boundary` | n/a | PASS 2026-08-24 during static-graph cutover | PASS 2026-08-24 after strict re-review corrections; `canonicalNodes=180 runtimeDiscovery=0 staticRequire=0 unresolved=0 legacyLookups=0 compatibilityEntries=0 wholeFacadeCaches=0 negativeFixtures=8` |
+| `npm run check:card-runtime-dist-parity` | n/a | PASS 2026-08-24, 23.5s; facade 289 keys, full fixture `b505…d221`, small selfplay `c033…aa9c`, CPU `432c…4db0`, separate local authority `1b228b…7644` | PASS 2026-08-24, 22.0s; facade 289 keys, schema `2e905842…b4be`, fixture `b505…d221`, selfplay `c033…aa9c`, CPU `212143…db20`, local authority `1b228b…7644` |
+| `npm run match:card-runtime-delivery-check` | n/a | PASS 2026-08-24, 30.5s; actual Vite/classic/reload plus temporary non-shipping Vite/classic entries | PASS 2026-08-24; actual production Vite/classic/reload, 289 keys, fixture `b505…d221`; transitional entries absent |
+| preparation-only `match:card-runtime-worker-fixture-check` | n/a | PASS 2026-08-24, 23.8s; Wrangler non-shipping fixture `b505…d221`, same-isolate and new-isolate identity/reconstruction | removed after actual production proof |
+| API key + kind / constants / semantic probes | PASS 2026-08-24 Gate A inventory | PASS 2026-08-24 in focused Gate B suite | PASS 2026-08-24 in full Jest and built-delivery parity; 289-key schema unchanged |
+| Facade identity / descriptor / evaluation / module-state manifest | n/a | PASS 2026-08-24 in source + built Vite/classic + Worker fixture | PASS 2026-08-24 in full Jest, built Vite/classic reload, and canonical Worker smoke |
+| Gate B graph / `MutationEntryManifest` / failure mappings / partial-manager / non-shipping-entry proof | n/a | PASS locally 2026-08-24; 16 suites / 84 tests / 12.22s; independently challenged before product cutover | PASS 2026-08-24 in focused/full suites and structural gate; three final independent reviewers APPROVE with no P0-P2 findings |
+| Card canonical-state / runtime-reference characterization matrix | n/a | PASS 2026-08-24; full-state/runtime-only inventory、turn-start/protection/10x10 scenarios、concurrent same-seed non-sharing | PASS 2026-08-24 in full Jest; fixture and runtime-reference inventories unchanged |
+| Turn exact characterization matrix | n/a | PASS current baseline in focused Gate B turn suites | PASS 2026-08-24 in full Jest, including out-of-turn, pass, pending, AUTO, and timeout paths |
+| Failure-before-mutation matrix | not run | PASS current local/Worker/headless input/version atomicity; target product preflight not run | PASS 2026-08-24 for headless, UI, CPU, direct/AUTO/timeout pass, local authority, and canonical Worker storage/broadcast surfaces |
+| Error-classification negative matrix | n/a | PASS stable code/capability/cohort + hidden brand + cross-realm canonical positive + structural spoof negatives; target product adapter not run | PASS 2026-08-24; canonical branded structural positives accepted and code/message/plain-object/foreign-error spoofs rejected |
+| UI/CPU/pass/headless terminal-recovery matrix | n/a | PASS current executable lock/publish、scheduler generation/timer、AUTO/timeout、selfplay terminal mapping + target schema completeness; target product recovery not run | PASS 2026-08-24; no alternate action/retry/auto-pass/pending loss and terminal owners settle |
+| `npm run test:network:parity` | not run | not run | PASS 2026-08-24; 36/36 suites, 583/583 tests; Jest open-handle diagnostic warning after success, exit 0 |
+| `npm run worker:prepare` | not run | not run | PASS 2026-08-24; Vite/browser build and preload checks passed, mirror verified 960 files |
+| `npm run worker:bundle:smoke` | PASS 2026-08-24, Gate A | production entry unchanged in Gate B; fixture bundle gate PASS | PASS 2026-08-24; charge, poison AUTO, DOUBLE_PLACE, runtime-unavailable atomicity, create/join/state/leave |
+| `npm run build:browser` / `build:vite` | PASS 2026-08-24, Gate A | PASS 2026-08-24 in 30.5s delivery gate | PASS 2026-08-24 in final delivery and `worker:prepare`; latest delivery build transformed 1,476 Vite modules |
+| `npm run checkall` | PASS 2026-08-24, Gate A | PASS 2026-08-24 before focused Gate B rerun | PASS 2026-08-24; all checks passed, including dependency boundaries, browser freshness, mirror, and JS inventory |
+| `npm run test:jest` | not run | not run | PASS 2026-08-24; 1033/1033 suites, 7877/7877 tests, 903.341s |
+| Vite/Pixi browser scenario | n/a | actual built Vite card-runtime fixture PASS; full gameplay not run | PASS 2026-08-24 at `http://127.0.0.1:8000/?debug=1&noanim=1`; production Vite/Pixi, one canvas/no compatibility cells, human legal move plus CPU response to ROUND 2, black/white 3/3, reload-required absent, zero console errors; delivery reload parity and Pixi input/context-recovery E2E also PASS |
+| Classic/Pixi browser scenario | n/a | actual built classic card-runtime fixture PASS; full gameplay not run | PASS 2026-08-24 at `http://127.0.0.1:8000/index.classic.html?noanim=1`; production classic/Pixi, one canvas/no compatibility cells, initial ROUND 1 black/white 2/2, reload-required absent, zero console errors; delivery reload parity and DOM/Pixi input E2E also PASS |
+| Fixed-seed small selfplay | not run | PASS source + built dist, seed 31 / 2 plies, digest `c033…aa9c` | PASS 2026-08-24 in source/built dist; seed 31, 2 plies, digest `c033…aa9c` |
+| Final `git diff --check` / status / diff review | not run | n/a | PASS 2026-08-24; no whitespace errors (Git reported expected CRLF-to-LF normalization notices), 194 tracked task files plus reviewed task-owned additions/generated replacement, player-facing specs untouched; unrelated untracked `.codex/config.toml` excluded |
 
 Do not convert an unrun gate to “not applicable” without design-authority justification. If a gate is blocked, record the exact blocker and affected completion claim.
 
@@ -1070,7 +1082,7 @@ Do not convert an unrun gate to “not applicable” without design-authority ju
 | Gate A hermetic implementation baseline | 0 |
 | Gate B current runtime/fallback/failure mapping | 1 |
 | Facade identity/evaluation/module-state parity | 1–10 |
-| Nominal failure classification / untagged catch-site behavior parity | 1–10 |
+| Branded structural failure classification / untagged catch-site behavior parity | 1–10 |
 | UI/CPU/pass/headless terminal recovery | 1、5–10 |
 | 289-key function classification and mutator entry/preflight ownership | 1–8 |
 | Narrow typed immutable services | 2 |
@@ -1095,40 +1107,40 @@ Do not convert an unrun gate to “not applicable” without design-authority ju
 
 ## 16. Final completion checklist
 
-- [ ] Gate A hermetic start gate is satisfied and separately committed if repaired.
-- [ ] Gate B graph/failure/partial-runtime characterization is independently reviewed before product source edits.
-- [ ] Step 1 inventory covers the reachable card-runtime graph, not only top-level files.
-- [ ] `MutationEntryManifest` treats the 289-key facade as a mandatory subset and also classifies every production/public direct resolver/phase/command/module-bridge/global entry; it records complete effect/dependency flags、fully owns every non-pure function's cohort/first observable effect/preflight/failure/runtime/test metadata、owns every dependency-sensitive query's activation preflight/tagged propagation/fallback prohibition、and proves self-preflight or preflighted-outer-only reachability for each direct entry.
-- [ ] API key + kind、constants、semantic probes are fixed.
-- [ ] `FacadeIdentityManifest` fixes facade/function aliases、all own-key descriptors/symbol/prototype、repeated-load identity、module evaluation/registration trace、module-scoped state/reset/reconstruction owner in every lane.
-- [ ] Static service graphs contain no match/room/state/RNG/events/pending instance.
-- [ ] Invocation context preserves current RNG source and call order.
-- [ ] Headless/local、Worker、Vite、classic all compose the same canonical services.
-- [ ] Every commit changing a production-reachable browser/Worker graph runs `worker:prepare` and includes explained generated/mirror output in that same commit, or records machine proof that the change is non-shipping/unreachable.
-- [ ] Worker performs no runtime discovery after command mutation begins.
-- [ ] Card cohorts and turn phases pass exact old/new comparison from independently reconstructed same-seed runtimes/PRNGs.
-- [ ] `applyCardUsage()` signature and stage order are unchanged.
-- [ ] Pending payload、refund、usage、events、canonical-state comparator、runtime-reference topology、PRNG ledger、snapshot/hash are exact.
-- [ ] Authoritative dependency failure occurs before mutation and stays wire-compatible.
-- [ ] Tagged preview / CPU dependency failure reaches the integrity owner, not a generic crash or invented valid result; untagged exceptions retain each catch site's current fallback/default/propagation.
-- [ ] Dependency-sensitive UI/CPU queries propagate tagged failure and cannot fall through to `true`、empty success、another query、candidate、or action.
-- [ ] Only canonical validator/composer/required assertions create `runtime_unavailable`; message/code spoof、rule exceptions、programming exceptions are not reclassified and retain their characterized catch-site behavior.
-- [ ] UI integrity recovery blocks later card/board/pass publish、settles owner locks、cancels only uncommitted preview/selection、preserves canonical pending、and shows reload-required without retry.
-- [ ] CPU integrity recovery releases processing、invalidates/cancels scheduler generation/timers、preserves canonical pending、does not enter generic pending-clear/retry handling、and chooses no card/move/pass.
-- [ ] Usability/context dependency failure cannot become direct/AUTO/timeout pass or advance the turn.
-- [ ] No production shadow execution exists.
-- [ ] Gate B manifest canonical-required closure has no ambient runtime discovery and no unclassified/unmigrated node.
-- [ ] `check:card-runtime-boundary` is active from Step 2、wired into hermetic `checkall` with negative self-fixtures、ratchets on every cohort、and ends with zero canonical legacy allowlist entries.
-- [ ] Non-shipping Worker/Vite/classic preparation entries reuse production-equivalent build settings、remain absent from shipping output、are replaced by actual production-entry proof at cutover、and their source/fixture-only wiring is removed after complete-graph proof.
-- [ ] Headless/local、canonical Worker bundle、actual Vite、actual classic、CPU/selfplay production-entry proof passes on the same final revision.
-- [ ] Non-Jest dist and actual built Vite/classic parity gates pass.
-- [ ] No duplicate rule fallback or permanent old core lane remains.
-- [ ] 289-key legacy facade and classic globals remain exact.
-- [ ] `01-rulebook.md` and `正本/*.md` are unchanged because behavior is unchanged.
-- [ ] Stable architecture docs and generated delivery match implementation.
-- [ ] Focused、network parity、Worker bundle、full Jest、browser、small selfplay gates are recorded.
-- [ ] Independent reviewers' findings are resolved.
-- [ ] Final task-owned diff and `git status --short` are inspected.
+- [x] Gate A hermetic start gate is satisfied and separately committed if repaired.
+- [x] Gate B graph/failure/partial-runtime characterization is independently reviewed before product source edits.
+- [x] Step 1 inventory covers the reachable card-runtime graph, not only top-level files.
+- [x] `MutationEntryManifest` treats the 289-key facade as a mandatory subset and also classifies every production/public direct resolver/phase/command/module-bridge/global entry; it records complete effect/dependency flags、fully owns every non-pure function's cohort/first observable effect/preflight/failure/runtime/test metadata、owns every dependency-sensitive query's activation preflight/tagged propagation/fallback prohibition、and proves self-preflight or preflighted-outer-only reachability for each direct entry.
+- [x] API key + kind、constants、semantic probes are fixed.
+- [x] `FacadeIdentityManifest` fixes facade/function aliases、all own-key descriptors/symbol/prototype、repeated-load identity、module evaluation/registration trace、module-scoped state/reset/reconstruction owner in every lane.
+- [x] Static service graphs contain no match/room/state/RNG/events/pending instance.
+- [x] Invocation context preserves current RNG source and call order.
+- [x] Headless/local、Worker、Vite、classic all compose the same canonical services.
+- [x] Every commit changing a production-reachable browser/Worker graph runs `worker:prepare` and includes explained generated/mirror output in that same commit, or records machine proof that the change is non-shipping/unreachable.
+- [x] Worker performs no runtime discovery after command mutation begins.
+- [x] Card cohorts and turn phases pass exact old/new comparison from independently reconstructed same-seed runtimes/PRNGs.
+- [x] `applyCardUsage()` signature and stage order are unchanged.
+- [x] Pending payload、refund、usage、events、canonical-state comparator、runtime-reference topology、PRNG ledger、snapshot/hash are exact.
+- [x] Authoritative dependency failure occurs before mutation and stays wire-compatible.
+- [x] Tagged preview / CPU dependency failure reaches the integrity owner, not a generic crash or invented valid result; untagged exceptions retain each catch site's current fallback/default/propagation.
+- [x] Dependency-sensitive UI/CPU queries propagate tagged failure and cannot fall through to `true`、empty success、another query、candidate、or action.
+- [x] Only canonical validator/composer/required assertions create `runtime_unavailable`; message/code spoof、rule exceptions、programming exceptions are not reclassified and retain their characterized catch-site behavior.
+- [x] UI integrity recovery blocks later card/board/pass publish、settles owner locks、cancels only uncommitted preview/selection、preserves canonical pending、and shows reload-required without retry.
+- [x] CPU integrity recovery releases processing、invalidates/cancels scheduler generation/timers、preserves canonical pending、does not enter generic pending-clear/retry handling、and chooses no card/move/pass.
+- [x] Usability/context dependency failure cannot become direct/AUTO/timeout pass or advance the turn.
+- [x] No production shadow execution exists.
+- [x] Gate B manifest canonical-required closure has no ambient runtime discovery and no unclassified/unmigrated node.
+- [x] `check:card-runtime-boundary` is active from Step 2、wired into hermetic `checkall` with negative self-fixtures、ratchets on every cohort、and ends with zero canonical legacy allowlist entries.
+- [x] Non-shipping Worker/Vite/classic preparation entries reuse production-equivalent build settings、remain absent from shipping output、are replaced by actual production-entry proof at cutover、and their source/fixture-only wiring is removed after complete-graph proof.
+- [x] Headless/local、canonical Worker bundle、actual Vite、actual classic、CPU/selfplay production-entry proof passes on the same final revision.
+- [x] Non-Jest dist and actual built Vite/classic parity gates pass.
+- [x] No duplicate rule fallback or permanent old core lane remains.
+- [x] 289-key legacy facade and classic globals remain exact.
+- [x] `01-rulebook.md` and `正本/*.md` are unchanged because behavior is unchanged.
+- [x] Stable architecture docs and generated delivery match implementation.
+- [x] Focused、network parity、Worker bundle、full Jest、browser、small selfplay gates are recorded.
+- [x] Independent reviewers' findings are resolved.
+- [x] Final task-owned diff and `git status --short` are inspected.
 - [ ] Task-owned changes are committed without unrelated files.
 
 ## 17. Plan self-review and revisions
@@ -1150,12 +1162,12 @@ The plan was reviewed against the design, current source, existing completed ref
 - Authoritative apply、UI preview、CPU/legality failure policies were separated with internal tagged `runtime_unavailable`; CPU cannot choose an alternate action.
 - PRNG parity uses independently reconstructed same-seed runtimes and instrumented PRNGs, never generic clone or shared mutable PRNG.
 - Runtime-only PRNG/function identities use deterministic descriptors and alias-topology proof; canonical state uses a normalized comparator, while failure atomicity keeps same-instance pre/post raw equality.
-- Partial cancellation success is preserved only if Gate B proves it is a supported path; an incomplete graph can become activation failure only when it is not a supported/public compatibility success path.
+- Gate B proved classifier-only cancellation is a supported direct/public compatibility path. Preserve it through an explicit complete-algorithm legacy adapter; only other incomplete graphs may become activation failures.
 - Named non-Jest dist and actual built Vite/classic parity gates were added, plus explicit `check:card-runtime-boundary` wiring and negative self-fixtures.
 - The boundary checker was moved from final cleanup to Step 2 with an owned legacy allowlist that every cohort must monotonically shrink to zero.
 - `MutationEntryManifest` now treats the 289-key facade as a mandatory subset and additionally covers direct effect-resolver、turn phase/action、AUTO/timeout command、module-bridge/global entries. Each direct entry needs self-preflight or preflighted-outer-only reachability proof, so neither the facade nor representative apply/turn entries can stand in for unreviewed paths.
 - A `FacadeIdentityManifest` now protects observable object/function aliases、descriptors/symbol/prototype、module evaluation/registration order、and module-scoped state lifetime that the existing key-hash test cannot detect.
-- Nominal runtime-error production is restricted to validator/composer/required assertions; tag-only catches and negative rule/programming/message-spoof fixtures prevent the refactor from hiding new bugs as missing dependencies.
+- Branded structural runtime-error production is restricted to validator/composer/required assertions; tag-only catches and negative rule/programming/message-spoof fixtures prevent the refactor from hiding new bugs as missing dependencies.
 - UI、CPU scheduler、AUTO/timeout/pass、network、headless terminal recovery is explicit. In particular, tagged CPU failure bypasses the current generic pending-clear/retry handler, cancels retry ownership, preserves canonical pending, and cannot fall through to another action or pass.
 - Step 1 failure tests run only in current-characterization mode and record current/target mappings as a pair; dormant target assertions activate in Step 5 and production assertions in Step 6/7, avoiding premature product edits or intentionally red/skipped tests.
 - Step 7 reruns pass/turn atomicity together with CPU scheduler、UI latch、error classification、public identity tests so a turn-phase tag cannot escape through an unsafe outer recovery path.
@@ -1166,4 +1178,44 @@ The plan was reviewed against the design, current source, existing completed ref
 - Classic fallback was restricted to boot-time whole-lane selection and removed as duplicate core authority before completion.
 - RNG hidden-state cleanup, CPU session refactor, network session/SSE refactor, training schema, Pixi decomposition, and artifact transaction redesign remain separate follow-up candidates.
 
-No product implementation is performed by this plan document. Its next executor must start at Gate A, complete Gate B before product source edits, and may not skip either gate merely because the current developer checkout already contains `dist/`.
+## 18. Execution record (2026-08-24)
+
+Gate A was completed in prerequisite commits `bed4bb3fe`, `ecb65e1f3`, and `17e04827f`. Gate B characterization was then completed before product cutover. The product implementation followed the planned green-to-green order, with these reviewed deviations from the provisional file map:
+
+- the stable facade remains `game/logic/cards.ts`; a separate `cards-legacy-facade.ts` was unnecessary because the existing entry can delegate directly without owning a second body;
+- UI and CPU tagged-failure handling stays at the closest existing query/turn boundaries plus one shared UI integrity latch, rather than adding parallel preview/AI adapter frameworks;
+- Living Will received a private explicit-port core split to remove the only construction cycle while keeping its public compatibility facade;
+- preparation-only Worker/Vite/classic fixture entries and CLI branches were removed after actual production Vite/classic and canonical Worker proofs passed.
+
+Implemented ownership is now:
+
+| Concern | Final owner |
+| --- | --- |
+| public 289-key compatibility facade | `game/logic/cards.ts` |
+| canonical rule factory | `game/logic/cards-runtime-factory.ts` |
+| static default graph | `game/logic/card-runtime-composer.ts` |
+| capability schema / validation | `game/logic/card-runtime-contracts.ts` |
+| branded structural failure / classifier | `game/logic/card-runtime-errors.ts` |
+| turn service validation | `game/turn/turn-runtime-services.ts` |
+| browser terminal latch | `ui/card-runtime-integrity.ts` |
+| Worker command port | `workers/match-worker-game-runtime.ts` |
+| graph/boundary ratchet | `scripts/card-runtime-graph.ts`, `scripts/check-card-runtime-boundary.ts` |
+| built Node/local and browser actual-entry parity | `scripts/check-card-runtime-dist-parity.ts`, `scripts/card-runtime-browser-parity-check.ts` |
+| special-stone rule implementation / canonical singleton / legacy facade | `shared/special-stone-registry-factory.ts` / `shared/special-stone-registry-static.ts` / `shared/special-stone-registry.ts` |
+
+The final canonical graph has zero runtime-discovery edges, zero unresolved relative imports, zero whole-facade caches, and no construction SCC. Supported classifier-only cancellation behavior and lane-specific optional presentation remain unchanged. Tagged failures are proven atomic in headless, UI, CPU, direct/AUTO/timeout pass, local authority, and canonical Worker execution. `01-rulebook.md` and `正本/*.md` remain untouched because no player-visible behavior changed.
+
+The final verification pass found and corrected several test/integration assumptions instead of weakening production safeguards:
+
+- the first full Jest run passed 1025/1033 suites and 7717/7743 tests, exposing 8 suites / 26 tests that still encoded dynamic-preload/global-fallback assumptions, incomplete canonical dependency mocks, a stale 16-cell expansion expectation, one mock leak, and a Pixi input observer attached to a non-contractual bubbling element;
+- the expansion expectation was aligned to the existing left/right-only rulebook and detailed-spec contract (8 targets), without changing production behavior;
+- preload/global-fallback tests were rewritten to assert static imports and absence of runtime discovery; incomplete mocks were completed so production preflight remained strict; the leaked mock is now reset; Pixi input observation moved to the document capture path while retaining canonical move and spectator assertions;
+- a network adapter regression discovered by `test:network:parity` was fixed by importing the narrow card-definition port instead of restoring the whole facade;
+- stale generated browser/Worker output found by the first final `checkall` was regenerated through `worker:prepare`, not hand-edited;
+- the corrected focused set passed 8/8 suites and 63/63 tests; later strict final review added race/atomicity coverage, bringing the final suite to 7,877 tests;
+- strict review then found same-microtask integrity-latch races around authority/cache callbacks, preservation of same-type pending cache, and accepted-publish visual-settlement ordering. These were corrected without changing rule results or wire shapes; the three final reviewers independently returned APPROVE with no P0-P2 findings (service contract 51/51, integrity consumers 166/166, selection finalizer 211/211 focused tests);
+- the penultimate full Jest run passed 1032/1033 suites and 7876/7877 tests. Its sole failure was a test that intentionally replaced `pending-coordinator` with an incomplete historical partial mock; production composition correctly rejected that invalid graph. The phase-local test was isolated from full composition without weakening production validation, its focused rerun passed 2/2, and the final full Jest run passed 1033/1033 suites and 7877/7877 tests in 903.341s.
+
+Browser-driven evidence used the persistent canonical play server at `http://127.0.0.1:8000/`, owned by this repository's `http-server` process (PID 33120). The actual Vite/Pixi lane loaded ready with one canvas, no DOM compatibility cells, no reload-required state, and zero console errors. A legal opening move was made through the rendered board; the CPU replied and the game reached ROUND 2 at black/white 3/3 with the human turn restored. The actual classic/Pixi lane also loaded with one canvas, no compatibility cells, initial ROUND 1 black/white 2/2, no reload-required state, and zero console errors. The delivery gate additionally repeated Vite/classic with reload and fixed fixture parity. Automated board-input E2E exercised Pixi mouse/touch/pen input on base, expanded, hole, and circle topologies, DOM input, keyboard/modal blocking, expansion selection, and local spectator read-only behavior. No network match mode was used in the manual board scenario.
+
+Final command evidence and independent-review disposition are recorded in Sections 14 and 16 after the last generated synchronization and correction pass.

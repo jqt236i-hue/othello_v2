@@ -63,12 +63,4 @@ const CardTheoryIncarnationBindings = {
     buildTheoryIncarnationResolutionDeps
 };
 
-const theoryIncarnationBindingsRuntimeRoot = typeof self !== 'undefined'
-    ? (self as any)
-    : (typeof global !== 'undefined' ? (global as any) : null);
-
-if (theoryIncarnationBindingsRuntimeRoot) {
-    theoryIncarnationBindingsRuntimeRoot.CardTheoryIncarnationBindings = CardTheoryIncarnationBindings;
-}
-
-module.exports = CardTheoryIncarnationBindings;
+export = CardTheoryIncarnationBindings;

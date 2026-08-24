@@ -12,6 +12,7 @@ import {
     type CpuTurnPerformanceScope
 } from './cpu-turn-performance';
 import { resolveCpuTurnDelayMs } from './cpu-turn-delay';
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 
 declare let cardState: any;
 declare let gameState: any;
@@ -234,6 +235,27 @@ function normalizePlayerKeyOptional(value: any) {
     return null;
 }
 
+function isPassBlockedByCardRuntimeIntegrity(): boolean {
+    try {
+        return !!(passHandlerRuntime
+            && typeof passHandlerRuntime.isCardRuntimeIntegrityBlocked === 'function'
+            && passHandlerRuntime.isCardRuntimeIntegrityBlocked() === true);
+    } catch (_error) {
+        return true;
+    }
+}
+
+function handlePassCardRuntimeIntegrityFailure(error: unknown, source: string): boolean {
+    if (!isCardRuntimeUnavailableError(error)) return false;
+    setPassHandlerProcessing(false);
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.handleCardRuntimeIntegrityFailure === 'function') {
+            passHandlerRuntime.handleCardRuntimeIntegrityFailure(error, source);
+        }
+    } catch (_notificationError) { /* pass remains blocked */ }
+    return true;
+}
+
 function normalizePlayerKey(value: any, fallbackKey: string) {
     const normalized = normalizePlayerKeyOptional(value);
     if (normalized) return normalized;
@@ -419,6 +441,10 @@ function createPassHandoffPerformanceScope(playerKey: any): CpuTurnPerformanceSc
 }
 
 function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
+    if (isPassBlockedByCardRuntimeIntegrity()) {
+        setPassHandlerProcessing(false);
+        return false;
+    }
     if (isHumanVsHumanModeEnabled()) return;
     const opts = options || {};
     const expectedTurnNumber = Number.isFinite(opts.expectedTurnNumber)
@@ -455,6 +481,11 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
         const releaseCpuHandoffProcessing = () => {
             setPassHandlerProcessing(false);
         };
+        if (isPassBlockedByCardRuntimeIntegrity()) {
+            recordHandoffDelay('stale', callbackStartedAtMs);
+            releaseCpuHandoffProcessing();
+            return;
+        }
         const currentGameState = resolvePassHandlerGameState();
         const currentPlayerKey = normalizePlayerKeyOptional(currentGameState ? currentGameState.currentPlayer : null);
         if (!currentPlayerKey) {
@@ -475,6 +506,11 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
         const currentTurnNumber = (currentGameState && Number.isFinite(currentGameState.turnNumber)) ? currentGameState.turnNumber : null;
         const cpuFn = resolveCpuTurnFnForPass();
         if (!cpuFn) {
+            if (isPassBlockedByCardRuntimeIntegrity()) {
+                recordHandoffDelay('stale', callbackStartedAtMs);
+                releaseCpuHandoffProcessing();
+                return;
+            }
             if (retryCount < WHITE_CPU_TURN_MAX_RETRIES) {
                 scheduleWhiteCpuTurnGuarded(WHITE_CPU_TURN_RETRY_DELAY_MS, {
                     nextPlayerKey: expectedPlayerKey || currentPlayerKey,
@@ -493,6 +529,10 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
         // If it is still white's turn, continue with the latest white turn instead of dropping the handoff.
         if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) {
             releaseCpuHandoffProcessing();
+            if (isPassBlockedByCardRuntimeIntegrity()) {
+                recordHandoffDelay('stale', callbackStartedAtMs);
+                return;
+            }
             try {
                 if (performanceScope) cpuFn(withCpuTurnPerformanceOptions({}, performanceScope.correlationId));
                 else cpuFn();
@@ -504,6 +544,10 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
             return;
         }
         releaseCpuHandoffProcessing();
+        if (isPassBlockedByCardRuntimeIntegrity()) {
+            recordHandoffDelay('stale', callbackStartedAtMs);
+            return;
+        }
         try {
             if (performanceScope) cpuFn(withCpuTurnPerformanceOptions({}, performanceScope.correlationId));
             else cpuFn();
@@ -652,6 +696,9 @@ function canPublishNetworkPassForTurnOwner(turnOwnerKey: string) {
 }
 
 function publishPassSnapshot(playerKey: string, actionOverride?: any, options?: any) {
+    if (isPassBlockedByCardRuntimeIntegrity()) {
+        return { ok: false, rejectedReason: 'RUNTIME_UNAVAILABLE' };
+    }
     const normalizedPlayerKey = normalizePlayerKey(playerKey, 'black');
     const action = (actionOverride && typeof actionOverride === 'object')
         ? actionOverride
@@ -665,13 +712,30 @@ function publishPassSnapshot(playerKey: string, actionOverride?: any, options?: 
     return publishNetworkSnapshot(meta);
 }
 
+function isRuntimeUnavailablePublishResult(result: any): boolean {
+    if (!result || typeof result !== 'object') return false;
+    const reason = String(result.reason || result.rejectedReason || '').trim().toUpperCase();
+    if (reason === 'RUNTIME_UNAVAILABLE') return true;
+    const nested = result.result;
+    if (!nested || typeof nested !== 'object') return false;
+    return String(nested.reason || nested.rejectedReason || '').trim().toUpperCase() === 'RUNTIME_UNAVAILABLE';
+}
+
 async function publishNetworkPassCommand(turnOwnerKey: string, options?: any) {
     const publishPlayerKey = resolvePassPublishPlayerKey(turnOwnerKey || 'black');
     const publishAction = createPassNetworkAction(publishPlayerKey, cardState, options);
     const publishResult = publishPassSnapshot(publishPlayerKey, publishAction, options);
     if (publishResult && typeof publishResult.then === 'function') {
         const awaitedResult = await publishResult;
+        if (isPassBlockedByCardRuntimeIntegrity() || isRuntimeUnavailablePublishResult(awaitedResult)) {
+            setPassHandlerProcessing(false);
+            return { ok: false, reason: 'runtime_unavailable', result: awaitedResult };
+        }
         return !(awaitedResult && typeof awaitedResult === 'object' && awaitedResult.ok === false);
+    }
+    if (isPassBlockedByCardRuntimeIntegrity() || isRuntimeUnavailablePublishResult(publishResult)) {
+        setPassHandlerProcessing(false);
+        return { ok: false, reason: 'runtime_unavailable', result: publishResult };
     }
     return !(publishResult && typeof publishResult === 'object' && publishResult.ok === false);
 }
@@ -682,7 +746,10 @@ function hasUsableCardFor(playerKey: string) {
         if (typeof CardLogic !== 'undefined' && typeof CardLogic.hasUsableCard === 'function') {
             return CardLogic.hasUsableCard(cardState, gameState, playerKey);
         }
-    } catch (e) { /* ignore */ }
+    } catch (error) {
+        if (handlePassCardRuntimeIntegrityFailure(error, 'pass-handler:hasUsableCard')) throw error;
+        /* preserve the characterized untagged fallback */
+    }
     return false;
 }
 
@@ -692,7 +759,10 @@ function isPlacementLockedForPlayerKey(playerKey: string) {
             && CardLogic
             && typeof CardLogic.isPlacementLockedForPlayer === 'function'
             && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
-    } catch (e) { /* ignore */ }
+    } catch (error) {
+        if (handlePassCardRuntimeIntegrityFailure(error, 'pass-handler:isPlacementLocked')) throw error;
+        /* preserve the characterized untagged fallback */
+    }
     return false;
 }
 
@@ -733,7 +803,10 @@ function getLegalMovesForPlayer(playerValue: any, playerKeyOverride?: string) {
                 ? CardLogic.getCardContext(cardState)
                 : { protectedStones: [], permaProtectedStones: [], bombs: [] };
             return core.getLegalMoves(gameState, corePlayerValue, ctx) || [];
-        } catch (e) { /* ignore */ }
+        } catch (error) {
+            if (handlePassCardRuntimeIntegrityFailure(error, 'pass-handler:getCardContext')) throw error;
+            /* preserve the characterized untagged fallback */
+        }
     }
 
     if (typeof getLegalMoves !== 'function') return [];
@@ -746,7 +819,8 @@ function getLegalMovesForPlayer(playerValue: any, playerKeyOverride?: string) {
             ? getFlipBlockers()
             : [];
         return getLegalMoves(probeState, protection, perma) || [];
-    } catch (e) {
+    } catch (error) {
+        if (handlePassCardRuntimeIntegrityFailure(error, 'pass-handler:getLegalMoves')) throw error;
         return [];
     }
 }
@@ -842,7 +916,14 @@ function finalizeNoActionTerminal() {
     return true;
 }
 
-function handleRejectedPass() {
+function handleRejectedPass(result?: any) {
+    if (result && result.rejectedReason === 'RUNTIME_UNAVAILABLE') {
+        if (isCardRuntimeUnavailableError(result.runtimeError)) {
+            handlePassCardRuntimeIntegrityFailure(result.runtimeError, 'pass-handler:applyPass');
+        }
+        setPassHandlerProcessing(false);
+        return false;
+    }
     if (finalizeNoActionTerminal()) return true;
     console.warn('[PASS-HANDLER] Pass was rejected; keeping current turn');
     setPassHandlerProcessing(false);
@@ -856,6 +937,7 @@ function syncPassPipelineState(result: any) {
 }
 
 function ensureCurrentPlayerCanActOrPass(options?: any) {
+    if (isPassBlockedByCardRuntimeIntegrity()) return false;
     if (!gameState || !cardState) return false;
     if (
         gameState.__resultShown === true
@@ -897,6 +979,9 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
  * Helper to apply pass via TurnPipeline with safe fallback.
  */
 function applyPassViaPipelineImpl(playerKey: string, options?: any) {
+    if (isPassBlockedByCardRuntimeIntegrity()) {
+        return { ok: false, events: [], rejectedReason: 'RUNTIME_UNAVAILABLE' };
+    }
     const globalTurnPipeline = (typeof TurnPipeline !== 'undefined') ? TurnPipeline : null;
     const hasTurnPipelineApi = (candidate: any) => !!candidate
         && (typeof candidate.applyTurnSafe === 'function' || typeof candidate.applyTurn === 'function');
@@ -928,7 +1013,18 @@ function applyPassViaPipelineImpl(playerKey: string, options?: any) {
         if (!result.ok) {
             console.error('[PASS-HANDLER] Pass rejected:', result.events);
             // Log rejected event but continue - do NOT record
-            return { ok: false, events: result.events };
+            const rejection: any = {
+                ok: false,
+                events: result.events,
+                rejectedReason: result.rejectedReason || 'UNKNOWN'
+            };
+            if (isCardRuntimeUnavailableError(result.runtimeError)) {
+                Object.defineProperty(rejection, 'runtimeError', {
+                    value: result.runtimeError,
+                    enumerable: false
+                });
+            }
+            return rejection;
         }
         gameState = result.gameState;
         cardState = result.cardState;
@@ -1088,6 +1184,10 @@ async function finalizePassTurnHandoff(
     publishAction: any,
     internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
 ) {
+    if (isPassBlockedByCardRuntimeIntegrity()) {
+        setPassHandlerProcessing(false);
+        return false;
+    }
     const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
     const safePublishPlayerKey = normalizePlayerKey(publishPlayerKey, safeLastPlayerKey);
     if (isExplicitNetworkMatchMode()) {
@@ -1131,21 +1231,30 @@ async function finalizePassTurnHandoff(
         },
         onHumanTurnReady: () => {
             emitPassHandlerBoardUpdate();
-        }
+        },
+        isAborted: () => isPassBlockedByCardRuntimeIntegrity()
     });
 
+    if (isPassBlockedByCardRuntimeIntegrity()) {
+        setPassHandlerProcessing(false);
+        return false;
+    }
     return true;
 }
 
 async function handleDoublePlaceNoSecondMove(move: any, passedPlayer: any) {
     const playerName = getPlayerName(passedPlayer);
     scheduleWithDelay(DOUBLE_PLACE_PASS_DELAY_MS, async () => {
+        if (isPassBlockedByCardRuntimeIntegrity()) {
+            setPassHandlerProcessing(false);
+            return;
+        }
         emitPassHandlerLog(`${playerName}: 追加配置の続きが無いため終了`);
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
         const result = applyPassViaPipeline(playerKey);
         if (!result.ok) {
-            return handleRejectedPass();
+            return handleRejectedPass(result);
         }
         syncPassPipelineState(result);
 
@@ -1160,6 +1269,10 @@ async function handleBlackPassWhenNoMoves() {
     const expectedPlayerKey = normalizePlayerKeyOptional(expectedPlayer);
     const expectedTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
     scheduleWithDelay(safeBlackPassDelay, async () => {
+        if (isPassBlockedByCardRuntimeIntegrity()) {
+            setPassHandlerProcessing(false);
+            return;
+        }
         const currentGameState = resolvePassHandlerGameState();
         const currentPlayerKey = normalizePlayerKeyOptional(currentGameState ? currentGameState.currentPlayer : null);
         const currentTurnNumber = (currentGameState && Number.isFinite(currentGameState.turnNumber)) ? currentGameState.turnNumber : null;
@@ -1182,7 +1295,7 @@ async function handleBlackPassWhenNoMoves() {
         const passOptions = pending ? undefined : { autoNoActionPass: true };
         const result = applyPassViaPipeline(playerKey, passOptions);
         if (!result.ok) {
-            return handleRejectedPass();
+            return handleRejectedPass(result);
         }
         syncPassPipelineState(result);
         if (passOptions && passOptions.autoNoActionPass === true) {
@@ -1198,24 +1311,36 @@ async function processPassTurn(
     autoMode?: boolean | { autoMode?: boolean; autoNoActionPass?: boolean },
     internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
 ) {
+    if (isPassBlockedByCardRuntimeIntegrity()) {
+        setPassHandlerProcessing(false);
+        return false;
+    }
     const passTurnOptions = normalizeProcessPassTurnOptions(autoMode);
     const normalizedRequestPlayerKey = normalizePlayerKey(playerKey, 'black');
     const selfName = normalizedRequestPlayerKey === 'white' ? '白' : '黒';
-    emitPassHandlerLog(`${selfName}: パス${passTurnOptions.autoMode ? ' (AUTO)' : ''}`);
+    const passLogMessage = `${selfName}: パス${passTurnOptions.autoMode ? ' (AUTO)' : ''}`;
     const passedPlayer = gameState.currentPlayer;
     const passedPlayerKey = normalizePlayerKey(passedPlayer, normalizedRequestPlayerKey);
 
     const passOptions = passTurnOptions.autoNoActionPass === true ? { autoNoActionPass: true } : undefined;
 
     if (isExplicitNetworkMatchMode()) {
-        return publishNetworkPassCommand(passedPlayerKey, passOptions);
+        const publishOutcome = await publishNetworkPassCommand(passedPlayerKey, passOptions);
+        if (isRuntimeUnavailablePublishResult(publishOutcome) || isPassBlockedByCardRuntimeIntegrity()) {
+            setPassHandlerProcessing(false);
+            return publishOutcome;
+        }
+        emitPassHandlerLog(passLogMessage);
+        return publishOutcome;
     }
+
+    emitPassHandlerLog(passLogMessage);
 
     const result = internalOptions && internalOptions.performanceScope
         ? applyPassViaPipeline(passedPlayerKey, passOptions, internalOptions)
         : applyPassViaPipeline(passedPlayerKey, passOptions);
     if (!result.ok) {
-        return handleRejectedPass();
+        return handleRejectedPass(result);
     }
     syncPassPipelineState(result);
     if (passOptions && passOptions.autoNoActionPass === true) {

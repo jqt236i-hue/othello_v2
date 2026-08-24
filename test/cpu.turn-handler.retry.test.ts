@@ -178,6 +178,43 @@ describe('cpu-turn-handler helpers', () => {
     expect(waitMs).toHaveBeenCalledTimes(1);
   });
 
+  test('processCpuTurn stops before pass, move, or retry work when the UI integrity latch is set', async () => {
+    const waitMs = jest.fn(() => Promise.resolve());
+    const executeMove = jest.fn();
+    const processPassTurn = jest.fn();
+    mod.setTimers({ waitMs });
+    global.isProcessing = true;
+    global.gameState = {
+      currentPlayer: -1,
+      turnNumber: 15,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      hands: { black: [], white: [] },
+      charge: { black: 0, white: 0 }
+    };
+    mod.setCpuUIImpl({
+      isCardRuntimeIntegrityBlocked: () => true,
+      resolveRuntimeFunction: (name: string) => {
+        if (name === 'executeMove') return executeMove;
+        if (name === 'processPassTurn') return processPassTurn;
+        return null;
+      },
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
+      setProcessing: (next: boolean) => { global.isProcessing = next === true; }
+    });
+
+    await mod.processCpuTurn();
+
+    expect(executeMove).not.toHaveBeenCalled();
+    expect(processPassTurn).not.toHaveBeenCalled();
+    expect(waitMs).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(false);
+  });
+
   test('runCpuTurn aborts black auto turn when runtime state has advanced to white', async () => {
     global.BLACK = 1;
     global.WHITE = -1;

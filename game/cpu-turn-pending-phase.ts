@@ -13,6 +13,7 @@ type CpuTurnPendingPhaseConfig = {
     getAnimationRetryDelayMs: () => any;
     getCurrentPlayerKeySafe: () => any;
     getPendingDispatchHandlers: (playerKey: any) => any;
+    isAborted?: () => boolean;
     isCpuDebugLogAvailable: () => any;
     isUiAnimationBusy: () => any;
     readCpuPendingSelection: (playerKey: any) => any;
@@ -27,6 +28,12 @@ type CpuTurnPendingPhaseConfig = {
 export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuTurnPendingPhaseConfig;
 
+    function abortIfNeeded(): boolean {
+        if (typeof cfg.isAborted !== 'function' || cfg.isAborted() !== true) return false;
+        cfg.setCpuProcessing(false);
+        return true;
+    }
+
     async function runCpuTurnPendingPhase(args: any): Promise<any> {
         const opts = (args && typeof args === 'object') ? args : {};
         const playerKey = opts.playerKey;
@@ -40,6 +47,8 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
         let pending = Object.prototype.hasOwnProperty.call(opts, 'pending')
             ? opts.pending
             : cfg.readCpuPendingSelection(playerKey);
+
+        if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
 
         if (pending && pending.stage === 'selectTarget') {
             if (performanceScope) {
@@ -62,6 +71,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
             const dispatchHandlers = cfg.getPendingDispatchHandlers(playerKey);
             const handler = pendingDispatchKey ? dispatchHandlers[pendingDispatchKey] : null;
             if (handler) {
+                if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                 if (cfg.isCpuDebugLogAvailable()) {
                     cfg.emitCpuDebugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', {
                         playerKey,
@@ -89,8 +99,10 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                             'error'
                         );
                     }
+                    if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                     throw error;
                 }
+                if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                 if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
                     if (performanceScope && waitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
@@ -98,6 +110,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                     return { status: 'handled', pending };
                 }
                 pending = cfg.readCpuPendingSelection(playerKey);
+                if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                 if (cfg.isUiAnimationBusy()) {
                     if (performanceScope && waitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
@@ -140,6 +153,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                 cfg.scheduleRunCpuTurn(playerKey, resumeOptions, 0);
                 return { status: 'handled', pending };
             } else {
+                if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                 if (cfg.shouldAbortStuckPendingSelection(playerKey, pending)) {
                     cfg.clearCpuPendingSelection(playerKey);
                     cfg.resetPendingSelectRetryState(playerKey);
@@ -150,6 +164,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
             }
         }
 
+        if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
         cfg.resetPendingSelectRetryState(playerKey);
         return { status: 'continue', pending };
     }

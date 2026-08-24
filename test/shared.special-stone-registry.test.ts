@@ -368,9 +368,12 @@ describe('special stone registry rule classification', () => {
   test('late-bound global EvasionStatus still supplies evade defaults', () => {
     const previous = (globalThis as any).EvasionStatus;
     try {
+      delete (globalThis as any).EvasionStatus;
       jest.resetModules();
-      jest.doMock('../shared/evasion-status', () => ({}));
       const realEvasionStatus = jest.requireActual('../shared/evasion-status');
+      jest.doMock('../shared/evasion-status', () => {
+        throw new Error('optional evasion module unavailable');
+      });
       const lateRegistry = require('../shared/special-stone-registry');
       (globalThis as any).EvasionStatus = realEvasionStatus;
 
@@ -392,6 +395,107 @@ describe('special stone registry rule classification', () => {
       jest.dontMock('../shared/evasion-status');
       if (previous === undefined) delete (globalThis as any).EvasionStatus;
       else (globalThis as any).EvasionStatus = previous;
+      jest.resetModules();
+    }
+  });
+
+  test('normal compatibility, static, wrapper, and repeated entries share one identity', () => {
+    try {
+      jest.resetModules();
+      jest.isolateModules(() => {
+        const compatibility = require('../shared/special-stone-registry');
+        const staticEntry = require('../shared/special-stone-registry-static');
+        const wrapper = require('../shared/special-stone-registry.js');
+        const repeated = require('../shared/special-stone-registry');
+        expect(compatibility).toBe(staticEntry);
+        expect(wrapper).toBe(staticEntry);
+        expect(repeated).toBe(staticEntry);
+      });
+    } finally {
+      jest.resetModules();
+    }
+  });
+
+  test('late-bound global ManifestStoneRegistry survives an optional require failure', () => {
+    const previous = (globalThis as any).ManifestStoneRegistry;
+    const metadata = Object.freeze({
+      cardId: 'compat_manifest_01',
+      markerType: 'COMPAT_MANIFEST_TEST',
+      displayName: '互換顕現石',
+      durationOwnerTurns: 2,
+      inviolable: true,
+      visualEffectKey: 'compatManifest',
+      imagePathByOwner: Object.freeze({ black: 'black.png', white: 'white.png' })
+    });
+    try {
+      delete (globalThis as any).ManifestStoneRegistry;
+      jest.resetModules();
+      jest.doMock('../shared/manifest-stone-registry', () => {
+        throw new Error('optional manifest module unavailable');
+      });
+      const lateRegistry = require('../shared/special-stone-registry');
+      (globalThis as any).ManifestStoneRegistry = {
+        MANIFEST_STONE_METADATA: { COMPAT_MANIFEST_TEST: metadata },
+        isManifestStoneType: (value: unknown) => value === 'COMPAT_MANIFEST_TEST',
+        getManifestStoneMetadata: (value: unknown) => value === 'COMPAT_MANIFEST_TEST' ? metadata : null
+      };
+
+      expect(lateRegistry.classifySpecialStoneRuleClass('COMPAT_MANIFEST_TEST')).toBe('manifest_stone');
+      expect(lateRegistry.getSpecialCardMarkerMetadata('COMPAT_MANIFEST_TEST')).toBe(metadata);
+    } finally {
+      jest.dontMock('../shared/manifest-stone-registry');
+      if (previous === undefined) delete (globalThis as any).ManifestStoneRegistry;
+      else (globalThis as any).ManifestStoneRegistry = previous;
+      jest.resetModules();
+    }
+  });
+
+  test('canonical static entry never observes later compatibility globals', () => {
+    const previousEvasion = (globalThis as any).EvasionStatus;
+    const previousManifest = (globalThis as any).ManifestStoneRegistry;
+    try {
+      jest.resetModules();
+      jest.doMock('../shared/evasion-status', () => ({}));
+      jest.doMock('../shared/manifest-stone-registry', () => ({}));
+      const staticEntry = require('../shared/special-stone-registry-static');
+      (globalThis as any).EvasionStatus = jest.requireActual('../shared/evasion-status');
+      (globalThis as any).ManifestStoneRegistry = {
+        MANIFEST_STONE_METADATA: {},
+        isManifestStoneType: (value: unknown) => value === 'STATIC_MUST_IGNORE_GLOBAL',
+        getManifestStoneMetadata: () => ({ markerType: 'STATIC_MUST_IGNORE_GLOBAL' })
+      };
+
+      expect(staticEntry.getSpecialStoneInfo('AFTERIMAGE_WILL').tagFlipEvadeDefault).toBeUndefined();
+      expect(staticEntry.classifySpecialStoneRuleClass('STATIC_MUST_IGNORE_GLOBAL')).toBe('true_special_stone');
+      expect(staticEntry.getSpecialCardMarkerMetadata('STATIC_MUST_IGNORE_GLOBAL')).toBeNull();
+    } finally {
+      jest.dontMock('../shared/evasion-status');
+      jest.dontMock('../shared/manifest-stone-registry');
+      if (previousEvasion === undefined) delete (globalThis as any).EvasionStatus;
+      else (globalThis as any).EvasionStatus = previousEvasion;
+      if (previousManifest === undefined) delete (globalThis as any).ManifestStoneRegistry;
+      else (globalThis as any).ManifestStoneRegistry = previousManifest;
+      jest.resetModules();
+    }
+  });
+
+  test('required MultiCellStone load failures remain visible', () => {
+    try {
+      jest.resetModules();
+      jest.doMock('../shared/evasion-status', () => {
+        throw new Error('optional evasion unavailable');
+      });
+      jest.doMock('../shared/manifest-stone-registry', () => {
+        throw new Error('optional manifest unavailable');
+      });
+      jest.doMock('../shared/multi-cell-stone', () => {
+        throw new Error('required multi-cell unavailable');
+      });
+      expect(() => require('../shared/special-stone-registry')).toThrow('required multi-cell unavailable');
+    } finally {
+      jest.dontMock('../shared/evasion-status');
+      jest.dontMock('../shared/manifest-stone-registry');
+      jest.dontMock('../shared/multi-cell-stone');
       jest.resetModules();
     }
   });

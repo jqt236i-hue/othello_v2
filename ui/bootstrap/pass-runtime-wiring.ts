@@ -46,6 +46,8 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
   const passHandler = deps.requireModule('../game/pass-handler');
   let perfBenchmarks: any = null;
   try { perfBenchmarks = deps.requireModule('../ui/perf-benchmarks'); } catch (e: any) { /* ignore */ }
+  let cardRuntimeIntegrity: any = null;
+  try { cardRuntimeIntegrity = deps.requireModule('../ui/card-runtime-integrity'); } catch (e: any) { /* ignore */ }
   const perfEnabled = !!(
     perfBenchmarks
     && typeof perfBenchmarks.isPerfBenchEnabled === 'function'
@@ -106,6 +108,12 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
         },
         readMatchMode: runtimeResolvers.readMatchMode,
         readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
+        isCardRuntimeIntegrityBlocked: () => cardRuntimeIntegrity
+          && typeof cardRuntimeIntegrity.isCardRuntimeIntegrityBlocked === 'function'
+          && cardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() === true,
+        handleCardRuntimeIntegrityFailure: (error: unknown, source: string) => cardRuntimeIntegrity
+          && typeof cardRuntimeIntegrity.latchCardRuntimeIntegrityFailure === 'function'
+          && cardRuntimeIntegrity.latchCardRuntimeIntegrityFailure(error, { source }),
         readNetworkSeatKey: () => {
           try {
             if (typeof globalThis === 'undefined') return null;

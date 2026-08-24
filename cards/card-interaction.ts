@@ -20,6 +20,8 @@ declare const playCardUseHandAnimation: any;
 declare const processPassTurn: any;
 declare const waitForPlaybackIdle: any;
 
+import CardRuntimeIntegrity = require('../ui/card-runtime-integrity');
+
 type CardInteractionRuntimeRoot = typeof globalThis & Record<string, any>;
 type CardInteractionPlayerKey = 'black' | 'white';
 type CardInteractionNullableRecord = Record<string, any> | null;
@@ -605,7 +607,14 @@ function _getCardInteractionPendingNetworkDeps() {
         playbackStateManager: _playbackStateModule,
         setPendingSelectionBusy: _setPendingSelectionBusy,
         normalizeOwnerKey: _normalizeOwnerKey,
-        publishLocks: _networkOnlyPendingSelectionPublishLocks
+        publishLocks: _networkOnlyPendingSelectionPublishLocks,
+        isCardRuntimeIntegrityBlocked: CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked,
+        syncPendingSelectionActionCache: (cardStateValue: any) => (
+            _pendingSelectionFlowModule
+            && typeof _pendingSelectionFlowModule.syncPendingSelectionActionCache === 'function'
+                ? _pendingSelectionFlowModule.syncPendingSelectionActionCache(cardStateValue)
+                : { cleared: [], retained: [] }
+        )
     };
 }
 
@@ -641,6 +650,7 @@ function _getCardInteractionOverlaySelectionDeps() {
         renderCardUiWithOptionalPlaybackDelay: _renderCardUiWithOptionalPlaybackDelay,
         ensureCurrentPlayerCanActOrPass: (typeof ensureCurrentPlayerCanActOrPass === 'function') ? ensureCurrentPlayerCanActOrPass : null,
         ensureCurrentPlayerCanActOrPassSafely: _ensureCurrentPlayerCanActOrPassSafely,
+        isCardRuntimeIntegrityBlocked: CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked,
         getRunResultPlaybackEvents: _getRunResultPlaybackEvents,
         getCardDisplayLabel: _getCardDisplayLabel
     };
@@ -1272,6 +1282,15 @@ function _ensureHandDestroyFlags() {
     }
 }
 
+function _latchCardRuntimeIntegrityFailureForInteraction(error: unknown, source: string) {
+    return CardRuntimeIntegrity.latchCardRuntimeIntegrityFailure(error, {
+        source,
+        cancelUncommittedSelection: _clearSelectedCardSelection,
+        settleInputLocks: () => _clearCardUiBusyFlags({ clearProcessing: true }),
+        emitLog: (message: string) => { if (typeof addLog === 'function') addLog(message); }
+    });
+}
+
 function _isSelectedCardUsableNow(playerKey: any, cardId: any, opts: any) {
     if (!playerKey || !cardId || !cardState || !gameState) return false;
     if (!_doesPlayerOwnCard(playerKey, cardId)) return false;
@@ -1284,13 +1303,23 @@ function _isSelectedCardUsableNow(playerKey: any, cardId: any, opts: any) {
             const usableIds = CardLogic.getUsableCardIds(cardState, gameState, playerKey, ruleCheckOptions) || [];
             return usableIds.includes(cardId);
         }
-    } catch (e) { /* ignore */ }
+    } catch (error) {
+        if (_latchCardRuntimeIntegrityFailureForInteraction(error, 'card-interaction:getUsableCardIds')) {
+            return false;
+        }
+        /* preserve the characterized untagged fallback */
+    }
 
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.canUseCard === 'function') {
             return !!CardLogic.canUseCard(cardState, playerKey, cardId, ruleCheckOptions);
         }
-    } catch (e) { /* ignore */ }
+    } catch (error) {
+        if (_latchCardRuntimeIntegrityFailureForInteraction(error, 'card-interaction:canUseCard')) {
+            return false;
+        }
+        /* preserve the characterized untagged fallback */
+    }
 
     return true;
 }
@@ -1587,6 +1616,7 @@ function _clearLocalPlaybackSoundSkip(soundKey: any) {
 }
 
 function _canInteractWithCardUi() {
+    if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) return false;
     if (_isSelectionSettlementLocked()) return false;
     if (!_isCardUiBusy()) return true;
     return _releaseStaleVisualPlaybackLock();
@@ -1609,7 +1639,10 @@ function _getLegalMovesForCurrentPlayer() {
             ? CardLogic.getCardContext(cardState)
             : { protectedStones: [], permaProtectedStones: [], bombs: [] };
         return core.getLegalMoves(gameState, playerValue, ctx) || [];
-    } catch (e) {
+    } catch (error) {
+        if (_latchCardRuntimeIntegrityFailureForInteraction(error, 'card-interaction:getCardContext')) {
+            return [];
+        }
         return [];
     }
 }
@@ -1620,7 +1653,10 @@ function _isPlacementLockedForPlayer(playerKey: any) {
             && CardLogic
             && typeof CardLogic.isPlacementLockedForPlayer === 'function'
             && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
-    } catch (e) {
+    } catch (error) {
+        if (_latchCardRuntimeIntegrityFailureForInteraction(error, 'card-interaction:isPlacementLocked')) {
+            return true;
+        }
         return false;
     }
 }
@@ -1844,6 +1880,9 @@ function _commitSharedStateSnapshot(stateKey: any, nextState: any) {
 }
 
 function _runPipelineAction(playerKey: any, action: any) {
+    if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+        return { ok: false, rejectedReason: 'RUNTIME_UNAVAILABLE' };
+    }
     if (typeof TurnPipelineUIAdapter === 'undefined' || typeof TurnPipeline === 'undefined') {
         console.error('[CARD_UI] TurnPipeline/Adapter not available for action', action);
         return { ok: false, rejectedReason: 'PIPELINE_UNAVAILABLE' };
@@ -2118,6 +2157,15 @@ function _getRunResultPublishPromise(runResult: any) {
         : null;
 }
 
+function _isRuntimeUnavailablePublishResult(result: any) {
+    if (!result || typeof result !== 'object') return false;
+    const reason = String(result.reason || result.rejectedReason || '').trim().toUpperCase();
+    if (reason === 'RUNTIME_UNAVAILABLE') return true;
+    const nested = result.result;
+    if (!nested || typeof nested !== 'object') return false;
+    return String(nested.reason || nested.rejectedReason || '').trim().toUpperCase() === 'RUNTIME_UNAVAILABLE';
+}
+
 function _isFreePlacementPendingActionForCardUi(pending: any) {
     if (!pending || typeof pending !== 'object') return false;
     const pendingType = String(pending.type || '').trim().toUpperCase();
@@ -2195,12 +2243,33 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
     const publishPromise = _getRunResultPublishPromise(runResult);
     if (!publishPromise) return false;
 
+    const settleIntegrityStop = () => {
+        _setPendingSelectionBusy(false);
+        _clearServerAuthoredCardUseClickBuffer();
+    };
+
+    if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+        settleIntegrityStop();
+        return true;
+    }
+
     _beginServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId);
     _setPendingSelectionBusy(true);
     _renderCardUiSafely();
 
     Promise.resolve(publishPromise)
         .then(async (publishResult) => {
+            if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                if (publishResult && publishResult.ok === true) {
+                    try { await _waitForAuthoritativeVisualPlaybackDrain(publishResult); } catch (_error) { /* accepted visuals settle best-effort */ }
+                }
+                settleIntegrityStop();
+                return;
+            }
+            if (_isRuntimeUnavailablePublishResult(publishResult)) {
+                settleIntegrityStop();
+                return;
+            }
             if (!publishResult || publishResult.ok !== true) {
                 _setPendingSelectionBusy(false);
                 _clearServerAuthoredCardUseClickBuffer();
@@ -2218,11 +2287,19 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
             try {
                 await _waitForAuthoritativeVisualPlaybackDrain(publishResult);
             } catch (error: any) {
+                if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                    settleIntegrityStop();
+                    return;
+                }
                 _clearServerAuthoredCardUseClickBuffer();
                 const reason = error && error.message
                     ? String(error.message)
                     : 'VISUAL_SETTLEMENT_FAILED';
                 addLog(`盤面演出の同期を待機しています (${reason})`);
+                return;
+            }
+            if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                settleIntegrityStop();
                 return;
             }
             _setPendingSelectionBusy(false);
@@ -2253,6 +2330,10 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
             }
         })
         .catch((error) => {
+            if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                settleIntegrityStop();
+                return;
+            }
             _setPendingSelectionBusy(false);
             _clearServerAuthoredCardUseClickBuffer();
             const reason = (error && error.message)
@@ -2263,6 +2344,75 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
             if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
                 ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
             }
+        });
+
+    return true;
+}
+
+function _handleServerAuthoredCardMutation(runResult: any, options: any) {
+    const publishPromise = _getRunResultPublishPromise(runResult);
+    if (!publishPromise) return false;
+    const opts = (options && typeof options === 'object') ? options : {};
+    const settleIntegrityStop = () => {
+        _setPendingSelectionBusy(false);
+    };
+
+    if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+        settleIntegrityStop();
+        return true;
+    }
+
+    _setPendingSelectionBusy(true);
+    _renderCardUiSafely();
+
+    Promise.resolve(publishPromise)
+        .then(async (publishResult) => {
+            if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                if (publishResult && publishResult.ok === true) {
+                    try { await _waitForAuthoritativeVisualPlaybackDrain(publishResult); } catch (_error) { /* settle accepted visuals best-effort */ }
+                }
+                settleIntegrityStop();
+                return;
+            }
+            if (_isRuntimeUnavailablePublishResult(publishResult)) {
+                settleIntegrityStop();
+                return;
+            }
+            if (!publishResult || publishResult.ok !== true) {
+                _setPendingSelectionBusy(false);
+                const reason = publishResult && (publishResult.reason || publishResult.rejectedReason)
+                    ? String(publishResult.reason || publishResult.rejectedReason)
+                    : 'NETWORK_PUBLISH_FAILED';
+                if (typeof opts.onRejected === 'function') opts.onRejected(reason);
+                return;
+            }
+            try {
+                await _waitForAuthoritativeVisualPlaybackDrain(publishResult);
+            } catch (error: any) {
+                if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                    settleIntegrityStop();
+                    return;
+                }
+                _setPendingSelectionBusy(false);
+                const reason = error && error.message ? String(error.message) : 'VISUAL_SETTLEMENT_FAILED';
+                if (typeof opts.onSettlementFailed === 'function') opts.onSettlementFailed(reason);
+                return;
+            }
+            if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                settleIntegrityStop();
+                return;
+            }
+            _setPendingSelectionBusy(false);
+            if (typeof opts.onAccepted === 'function') opts.onAccepted(publishResult);
+        })
+        .catch((error) => {
+            if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) {
+                settleIntegrityStop();
+                return;
+            }
+            _setPendingSelectionBusy(false);
+            const reason = error && error.message ? String(error.message) : 'PUBLISH_ERROR';
+            if (typeof opts.onRejected === 'function') opts.onRejected(reason);
         });
 
     return true;
@@ -2402,6 +2552,9 @@ function _getProjectedHandCost(state: any, ownerKey: any, handIndex: any, fallba
 function _runCardPipelineActionOrLogFailure(playerKey: any, action: any, failureMessage: any) {
     const result = _runPipelineAction(playerKey, action);
     if (result.ok) return result;
+    if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() || _isRuntimeUnavailablePublishResult(result)) {
+        return null;
+    }
     const reason = result.rejectedReason || (result.result && result.result.rejectedReason) || null;
     addLog(`${failureMessage}${reason ? ` (${reason})` : ''}`);
     return null;
@@ -2967,19 +3120,35 @@ function destroySelectedHandCard() {
 
     const result = _runCardPipelineActionOrLogFailure(playerKey, action, 'カード破壊に失敗しました');
     if (!result) return;
-
-    playUiEffectSound('stone_destroy');
-
-    const playerName = actionPlayerKey === 'black' ? '黒' : '白';
-    addLog(`${playerName}が手札を破壊: ${cardDef ? cardDef.name : cardId}`);
-
-    _clearSelectedCardSelection();
-    const hasHandRemovePlayback = _hasHandRemovePlaybackEvent(result);
-    _finalizeCardActionUi({
-        delayHandVisual: hasHandRemovePlayback,
-        boardUpdateMode: _resolveBoardUpdateModeForRunResult(result, 'immediate'),
-        delayBoardVisual: false
-    });
+    const finalizeAcceptedDestroy = () => {
+        playUiEffectSound('stone_destroy');
+        const playerName = actionPlayerKey === 'black' ? '黒' : '白';
+        addLog(`${playerName}が手札を破壊: ${cardDef ? cardDef.name : cardId}`);
+        _clearSelectedCardSelection();
+        const hasHandRemovePlayback = _hasHandRemovePlaybackEvent(result);
+        _finalizeCardActionUi({
+            delayHandVisual: hasHandRemovePlayback,
+            boardUpdateMode: _resolveBoardUpdateModeForRunResult(result, 'immediate'),
+            delayBoardVisual: false
+        });
+    };
+    const skippedLocalExecution = !!(
+        result.result && result.result.skippedLocalExecution === true
+    );
+    if (skippedLocalExecution && _handleServerAuthoredCardMutation(result, {
+        onAccepted: finalizeAcceptedDestroy,
+        onRejected: (reason: any) => {
+            addLog(`カード破壊に失敗しました (${reason})`);
+            _renderCardUiSafely();
+            _ensureCurrentPlayerCanActOrPassSafely();
+        },
+        onSettlementFailed: (reason: any) => {
+            addLog(`手札表示の同期を待機しています (${reason})`);
+        }
+    })) {
+        return;
+    }
+    finalizeAcceptedDestroy();
 }
 
 function useSelectedCard() {
@@ -3033,6 +3202,7 @@ function useSelectedCard() {
         Number.isInteger(selectedHandIndex) && selectedHandIndex >= 0 ? { handIndex: selectedHandIndex } : null
     );
     if (!_isSelectedCardUsableNow(actionPlayerKey, cardId, usableCheckOptions)) {
+        if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) return;
         addLog('このカードは現在使用できません（対象不足など）');
         _requestCardUiSyncForInteraction('card-interaction:unusable-selected-card');
         return;
@@ -3181,19 +3351,37 @@ function cancelPendingSelection(specificPlayerKey: any) {
 
     const result = _runPipelineAction(playerKey, action);
     if (!result.ok) {
+        if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked() || _isRuntimeUnavailablePublishResult(result)) return;
         addLog(`キャンセルに失敗しました`);
         return;
     }
-
-    if (pending.type === 'POSITION_SWAP_WILL') {
-        addLog(`${playerKey === 'black' ? '黒' : '白'}の入替の意志をキャンセルしました`);
-    } else if (pending.type === 'DESTROY_ONE_STONE') {
-        addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊の意志をキャンセルしました`);
-    } else {
-        addLog(`${playerKey === 'black' ? '黒' : '白'}の対象選択をキャンセルしました`);
+    const finalizeAcceptedCancel = () => {
+        if (pending.type === 'POSITION_SWAP_WILL') {
+            addLog(`${playerKey === 'black' ? '黒' : '白'}の入替の意志をキャンセルしました`);
+        } else if (pending.type === 'DESTROY_ONE_STONE') {
+            addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊の意志をキャンセルしました`);
+        } else {
+            addLog(`${playerKey === 'black' ? '黒' : '白'}の対象選択をキャンセルしました`);
+        }
+        _requestCardUiSyncForInteraction('card-interaction:cancel-pending-selection');
+        _requestImmediateVisualBoardRefresh();
+    };
+    const skippedLocalExecution = !!(
+        result.result && result.result.skippedLocalExecution === true
+    );
+    if (skippedLocalExecution && _handleServerAuthoredCardMutation(result, {
+        onAccepted: finalizeAcceptedCancel,
+        onRejected: (reason: any) => {
+            addLog(`キャンセルに失敗しました (${reason})`);
+            _renderCardUiSafely();
+        },
+        onSettlementFailed: (reason: any) => {
+            addLog(`対象選択表示の同期を待機しています (${reason})`);
+        }
+    })) {
+        return;
     }
-    _requestCardUiSyncForInteraction('card-interaction:cancel-pending-selection');
-    _requestImmediateVisualBoardRefresh();
+    finalizeAcceptedCancel();
 }
 
 function cancelPendingDestroy(specificPlayerKey: any) {

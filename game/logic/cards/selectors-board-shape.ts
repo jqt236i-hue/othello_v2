@@ -139,14 +139,4 @@ const CardSelectorsBoardShape = {
   getMeteorHoleCells,
 };
 
-const selectorsBoardShapeRoot =
-  typeof globalThis !== "undefined"
-    ? (globalThis as any)
-    : typeof self !== "undefined"
-      ? (self as any)
-      : null;
-if (selectorsBoardShapeRoot && !selectorsBoardShapeRoot.CardSelectorsBoardShape) {
-  selectorsBoardShapeRoot.CardSelectorsBoardShape = CardSelectorsBoardShape;
-}
-
 export = CardSelectorsBoardShape;

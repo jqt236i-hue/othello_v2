@@ -1,73 +1,30 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
+import PendingStateManager = require('../logic/cards-internal/pending-state-manager');
+import PendingSelectionRegistry = require('../logic/cards-internal/pending-selection-registry');
+import PlayerEncoding = require('../../shared/player-encoding');
+import deepClone = require('../../utils/deepClone');
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-const pendingCoordinatorModule = (function (root: any) {
+const pendingCoordinatorModule = (function () {
     'use strict';
 
-    var cachedPendingStateManager: any = null;
-    var cachedPendingSelectionRegistry: any = null;
-    var cachedOwnerHelpers: any = null;
-    var cachedCardLogic: any = null;
     var pendingSelectionActionByPlayer: Record<string, any> = {
         black: null,
         white: null
     };
 
-    function resolveCachedModule(cacheRef: any, requirePath: string, globalKey: string): any {
-        if (cacheRef && typeof cacheRef === 'object') {
-            return cacheRef;
-        }
-        var resolvedModule = cacheRef;
-        if (typeof require === 'function') {
-            try { resolvedModule = _require(requirePath); } catch (e) { /* ignore */ }
-        }
-        if (!resolvedModule && root && root[globalKey]) {
-            resolvedModule = root[globalKey];
-        }
-        return resolvedModule;
-    }
-
     function getPendingStateManager() {
-        cachedPendingStateManager = resolveCachedModule(
-            cachedPendingStateManager,
-            '../logic/cards-internal/pending-state-manager',
-            'CardPendingStateManager'
-        );
-        return cachedPendingStateManager;
+        return PendingStateManager;
     }
 
     function getPendingSelectionRegistry() {
-        cachedPendingSelectionRegistry = resolveCachedModule(
-            cachedPendingSelectionRegistry,
-            '../logic/cards-internal/pending-selection-registry',
-            'PendingSelectionRegistry'
-        );
-        return cachedPendingSelectionRegistry;
+        return PendingSelectionRegistry;
     }
 
     function getOwnerHelpers() {
-        cachedOwnerHelpers = resolveCachedModule(
-            cachedOwnerHelpers,
-            '../../utils/owner-helpers',
-            'OwnerHelpers'
-        );
-        return cachedOwnerHelpers;
-    }
-
-    function getCardLogic() {
-        cachedCardLogic = resolveCachedModule(
-            cachedCardLogic,
-            '../logic/cards',
-            'CardLogic'
-        );
-        return cachedCardLogic;
+        return PlayerEncoding;
     }
 
     function callPendingStateManager(methodName: string, args: any[], fallbackValue: any): any {
-        var pendingStateManager = getPendingStateManager();
+        var pendingStateManager = getPendingStateManager() as Record<string, any>;
         if (!pendingStateManager || typeof pendingStateManager[methodName] !== 'function') {
             return fallbackValue;
         }
@@ -87,12 +44,7 @@ const pendingCoordinatorModule = (function (root: any) {
     }
 
     function cloneData(value: any): any {
-        try {
-            if (root && typeof root.structuredClone === 'function') {
-                return root.structuredClone(value);
-            }
-        } catch (e) { /* ignore */ }
-        return JSON.parse(JSON.stringify(value));
+        return deepClone(value);
     }
 
     function clonePendingSelectionAction(action: any): any {
@@ -499,16 +451,7 @@ const pendingCoordinatorModule = (function (root: any) {
         copySelectionTargetCoordinatesToPlacePayload(normalizedPayload, actionType);
         var createAction = (typeof opts.createAction === 'function')
             ? opts.createAction
-            : (
-                root
-                && root.ActionManager
-                && root.ActionManager.ActionManager
-                && typeof root.ActionManager.ActionManager.createAction === 'function'
-                    ?                 function (type: any, ownerKey: any, payload: any) {
-                        return root.ActionManager.ActionManager.createAction(type, ownerKey, payload);
-                    }
-                    : null
-            );
+            : null;
         var action = createAction
             ? createAction(actionType, normalizedPlayerKey, normalizedPayload)
             : Object.assign({ type: actionType }, normalizedPayload);
@@ -579,6 +522,6 @@ const pendingCoordinatorModule = (function (root: any) {
         createPendingSelectionAction: createPendingSelectionAction,
         clearPendingSelectionFailureState: clearPendingSelectionFailureState
     };
-})(null /* @compat - bootstrap DI fallback */);
+})();
 
 export = pendingCoordinatorModule;

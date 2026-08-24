@@ -4,7 +4,9 @@
  */
 
 import type { CardState, PlayerKey } from '../../../src/types';
-import MarkersModule = require('../../logic/cards/markers');
+import MarkersModuleImport = require('../../logic/cards/markers');
+
+const MarkersModule: any = MarkersModuleImport;
 
 interface MarkersExports {
   MARKER_KINDS: Record<string, string>;

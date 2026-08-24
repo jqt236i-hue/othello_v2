@@ -1,5 +1,3 @@
-export {};
-
 type TargetAccessDeps = {
     CardTargetsModule: any;
     CardSelectorsModule: any;
@@ -234,7 +232,7 @@ function getSelectableTargets(cardState: any, gameState: any, playerKey: any, de
     return resolveTargetResolverTargets('getSelectableTargets', [cardState, gameState, playerKey], deps);
 }
 
-module.exports = {
+const CardTargetAccess = {
     getTemptWillTargets,
     getCaptureWillTargets,
     getTemptTargets,
@@ -288,3 +286,5 @@ module.exports = {
     getGravityTargets,
     getSelectableTargets
 };
+
+export = CardTargetAccess;

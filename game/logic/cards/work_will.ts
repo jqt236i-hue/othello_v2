@@ -1,6 +1,6 @@
 import { BLACK, WHITE, EMPTY, CHARGE_MAX } from '../../../shared-constants';
 
-const SharedBoardUtils: any = require('../../../shared/shared-board-utils');
+import SharedBoardUtils = require('../../../shared/shared-board-utils');
 
 type PlayerKey = 'black' | 'white';
 type BoardValue = number | string | null;

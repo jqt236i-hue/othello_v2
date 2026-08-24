@@ -3,7 +3,13 @@
  * @description Canonical GRASS_WILL anchor lifecycle and deterministic seed placement.
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstantsImport = require('../../../shared-constants');
+import BoardUtilsImport = require('../../../shared/shared-board-utils');
+import RandomSourceImport = require('../cards-internal/random-source');
+
+const SharedConstants: any = SharedConstantsImport;
+const BoardUtils: any = BoardUtilsImport;
+const RandomSourceModule: any = RandomSourceImport;
 
 type GrassSeatKey = 'black' | 'white';
 type GrassRandomLike = (() => number) | { random: () => number };
@@ -88,30 +94,6 @@ interface GrassResult {
     anchors: Array<{ row: number; col: number; remainingNow: number }>;
     expired: Array<{ row: number; col: number; owner: GrassSeatKey; reason: string }>;
 }
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') return __non_webpack_require__(id);
-    if (typeof require === 'function') return require(id);
-    throw new Error(`Unable to require ${id}`);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (_error) {
-        return null;
-    }
-}
-
-function getRuntimeGlobal(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) return (globalThis as any)[key];
-    if (typeof self !== 'undefined' && (self as any)[key]) return (self as any)[key];
-    return null;
-}
-
-const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGlobal('SharedConstants');
-const BoardUtils = safeRequire('../../../shared/shared-board-utils') || getRuntimeGlobal('SharedBoardUtils');
-const RandomSourceModule = safeRequire('../cards-internal/random-source') || getRuntimeGlobal('CardRandomSource');
 
 const BLACK = Number(SharedConstants && SharedConstants.BLACK);
 const WHITE = Number(SharedConstants && SharedConstants.WHITE);

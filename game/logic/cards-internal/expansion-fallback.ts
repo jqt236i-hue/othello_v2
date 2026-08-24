@@ -1,39 +1,9 @@
 import type { GameState } from "../../../src/types";
+import SharedConstantsImport = require("../../../shared-constants");
+import BoardUtilsImport = require("../../../shared/shared-board-utils");
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-  if (typeof __non_webpack_require__ !== "undefined") {
-    return __non_webpack_require__(id);
-  }
-  if (typeof require === "function") return require(id);
-  throw new Error(`Unable to require ${id}`);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-  if (typeof globalThis !== "undefined" && (globalThis as any)[key]) {
-    return (globalThis as any)[key];
-  }
-  if (typeof self !== "undefined" && (self as any)[key]) {
-    return (self as any)[key];
-  }
-  return null;
-}
-
-function safeRequire(id: string): any {
-  try {
-    return _require(id);
-  } catch (_error) {
-    return null;
-  }
-}
-
-const SharedConstants =
-  safeRequire("../../../shared-constants") ||
-  getRuntimeGlobalValue("SharedConstants");
-const BoardUtils =
-  safeRequire("../../../shared/shared-board-utils") ||
-  getRuntimeGlobalValue("SharedBoardUtils");
+const SharedConstants: any = SharedConstantsImport;
+const BoardUtils: any = BoardUtilsImport;
 
 if (
   !BoardUtils ||

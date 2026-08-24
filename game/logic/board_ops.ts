@@ -1,51 +1,31 @@
 import type { PlayerKey } from '../../src/types';
+import CardMarkersImport = require('./cards/markers');
+import SharedBoardUtilsImport = require('../../shared/shared-board-utils');
+import CardFlipsImport = require('./cards/flips');
+import CardProtectionContextImport = require('./cards-internal/protection-context');
+import CardChargeLedgerImport = require('./cards-internal/charge-ledger');
+import SharedConstantsImport = require('../../shared-constants');
+import PresentationEffectProfilesImport = require('../../shared/presentation-effect-profiles');
+import EvasionStatusImport = require('../../shared/evasion-status');
+import EvasionDestinationImport = require('./cards-internal/evasion-destination');
+import SpecialStoneRegistryImport = require('../../shared/special-stone-registry-static');
+import ManifestStoneRegistryImport = require('../../shared/manifest-stone-registry');
+import DestroyProtectionContextImport = require('./cards-internal/destroy-protection-context');
+import CardRegenImport = require('./cards/regen');
+import CardLivingWillImport = require('./cards/living-will-core');
+import MarkersAdapterImport = require('./markers_adapter');
+import DestroyOutcomeContractImport = require('../../shared/destroy-outcome-contract');
+import StoneStatusSnapshotImport = require('../../shared/stone-status-snapshot');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return null;
-}
-
-let CardMarkersModule: any = null;
-let SharedBoardUtilsModule: any = null;
-let CardFlipsModule: any = null;
-let CardProtectionContextModule: any = null;
-let CardChargeLedgerModule: any = null;
-
-CardMarkersModule = safeRequire('./cards/markers') || getRuntimeGlobalValue('CardMarkers');
-SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
-CardFlipsModule = safeRequire('./cards/flips') || getRuntimeGlobalValue('CardFlips');
-CardProtectionContextModule = safeRequire('./cards-internal/protection-context') || getRuntimeGlobalValue('CardProtectionContext');
-CardChargeLedgerModule = safeRequire('./cards-internal/charge-ledger') || getRuntimeGlobalValue('CardChargeLedger');
-
-const SharedConstants = safeRequire('../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
-const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || getRuntimeGlobalValue('PresentationEffectProfiles');
-const EvasionStatus = safeRequire('../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
-const EvasionDestination = safeRequire('./cards-internal/evasion-destination') || getRuntimeGlobalValue('CardEvasionDestination');
+const CardMarkersModule: any = CardMarkersImport;
+const SharedBoardUtilsModule: any = SharedBoardUtilsImport;
+const CardFlipsModule: any = CardFlipsImport;
+const CardProtectionContextModule: any = CardProtectionContextImport;
+const CardChargeLedgerModule: any = CardChargeLedgerImport;
+const SharedConstants: any = SharedConstantsImport;
+const PresentationEffectProfiles: any = PresentationEffectProfilesImport;
+const EvasionStatus: any = EvasionStatusImport;
+const EvasionDestination: any = EvasionDestinationImport;
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
@@ -67,15 +47,15 @@ function getCardChargeLedgerModule(): any {
 }
 
 function getSpecialStoneRegistryModule(): any {
-    return safeRequire('../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
+    return SpecialStoneRegistryImport;
 }
 
 function getManifestStoneRegistryModule(): any {
-    return safeRequire('../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
+    return ManifestStoneRegistryImport;
 }
 
 function getDestroyProtectionContextModule(): any {
-    return safeRequire('./cards-internal/destroy-protection-context') || getRuntimeGlobalValue('DestroyProtectionContext');
+    return DestroyProtectionContextImport;
 }
 
 function isOverlayOnlySpecialStoneType(type: string): boolean {
@@ -88,27 +68,21 @@ function isOverlayOnlySpecialStoneType(type: string): boolean {
 }
 
 function getCardRegenModule(): any {
-    return safeRequire('./cards/regen') || getRuntimeGlobalValue('CardRegen');
+    return CardRegenImport;
 }
 
 function getCardLivingWillModule(): any {
-    return safeRequire('./cards/living_will') || getRuntimeGlobalValue('CardLivingWill');
+    return CardLivingWillImport;
 }
 
-const MarkersAdapter = ((): any => {
-    return safeRequire('./markers_adapter');
-})();
+const MarkersAdapter: any = MarkersAdapterImport;
 
 const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
     || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
 
-const DestroyOutcomeContract = ((): any => {
-    return safeRequire('../../shared/destroy-outcome-contract') || getRuntimeGlobalValue('DestroyOutcomeContract');
-})();
+const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
 
-const StoneStatusSnapshot = ((): any => {
-    return safeRequire('../../shared/stone-status-snapshot') || getRuntimeGlobalValue('StoneStatusSnapshot');
-})();
+const StoneStatusSnapshot: any = StoneStatusSnapshotImport;
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
     || Object.freeze({

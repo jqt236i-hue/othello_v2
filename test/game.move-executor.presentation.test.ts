@@ -179,6 +179,77 @@ describe('move-executor presentation emission', () => {
         expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
     });
 
+    test('turn-start integrity latch aborts publish, CPU handoff, and later board callbacks', async () => {
+        let blocked = false;
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: -1, turnNumber: 9, board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+        global.onTurnStart = jest.fn(async () => {
+            blocked = true;
+            return { playbackEvents: [{ type: 'turn_start_draw', phase: 1 }] };
+        });
+        const publishSnapshot = jest.fn(async () => ({ ok: true }));
+        const scheduleCpuTurn = jest.fn();
+        const processCpuTurn = jest.fn();
+        const emitBoardUpdate = jest.fn(() => true);
+        const setProcessing = jest.fn();
+        const finalizeNetworkTurnHandoff = jest.fn(async (options: any) => {
+            await options.onTurnStart(global.gameState.currentPlayer);
+            if (options.isAborted()) {
+                options.setProcessing(false);
+                return {
+                    ok: false,
+                    reason: 'runtime_unavailable',
+                    result: { ok: false, reason: 'RUNTIME_UNAVAILABLE' },
+                    scheduledCpu: false
+                };
+            }
+            await options.publishSnapshot({});
+            options.scheduleCpuTurn({ delayMs: 0, expectedTurnNumber: 9, nextPlayerKey: 'white' });
+            options.onHumanTurnReady({ nextPlayerKey: 'white' });
+            return { ok: true };
+        });
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            networkTurnHandoff: { finalizeNetworkTurnHandoff },
+            isCardRuntimeIntegrityBlocked: () => blocked,
+            isNetworkPublishActive: () => true,
+            publishSnapshot,
+            scheduleCpuTurn,
+            processCpuTurn,
+            emitBoardUpdate,
+            setProcessing
+        });
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                ok: true,
+                nextGameState: global.gameState,
+                nextCardState: global.cardState,
+                playbackEvents: [],
+                phases: {},
+                placementEffects: {},
+                immediate: {}
+            }))
+        };
+
+        await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 },
+            false,
+            'black',
+            adapter,
+            {}
+        );
+
+        expect(finalizeNetworkTurnHandoff).toHaveBeenCalledWith(expect.objectContaining({
+            isAborted: expect.any(Function)
+        }));
+        expect(publishSnapshot).not.toHaveBeenCalled();
+        expect(scheduleCpuTurn).not.toHaveBeenCalled();
+        expect(processCpuTurn).not.toHaveBeenCalled();
+        expect(emitBoardUpdate).not.toHaveBeenCalled();
+        expect(setProcessing).toHaveBeenLastCalledWith(false);
+    });
+
     test('ネット対戦では publish 応答を待ち、終局表示を authoritative snapshot へ委譲する', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
@@ -674,5 +745,163 @@ describe('move-executor presentation emission', () => {
 
         expect(setProcessing).toHaveBeenLastCalledWith(false);
         expect(global.isProcessing).toBe(false);
+    });
+
+    test('accepted network-only execution drains visuals but suppresses board refresh after the integrity latch', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+        let blocked = false;
+        const emitBoardUpdate = jest.fn(() => true);
+        const waitForAuthoritativeVisualSettlement = jest.fn(async () => {
+            blocked = true;
+            return { ok: true };
+        });
+        const setProcessing = jest.fn();
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            emitBoardUpdate,
+            isCardRuntimeIntegrityBlocked: () => blocked,
+            waitForAuthoritativeVisualSettlement,
+            setProcessing
+        });
+        const publishResult = { ok: true, presentationCursor: { visualSeq: 22 } };
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                skippedLocalExecution: true,
+                publishPromise: Promise.resolve(publishResult)
+            }))
+        };
+
+        const result = await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 },
+            false,
+            'black',
+            adapter,
+            {}
+        );
+
+        expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledWith(publishResult);
+        expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable', result: publishResult });
+        expect(emitBoardUpdate).not.toHaveBeenCalled();
+        expect(setProcessing).toHaveBeenLastCalledWith(false);
+    });
+
+    test('raw runtime-unavailable network result never refreshes the board', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+        const emitBoardUpdate = jest.fn(() => true);
+        const waitForAuthoritativeVisualSettlement = jest.fn();
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({ emitBoardUpdate, waitForAuthoritativeVisualSettlement });
+        const publishResult = { ok: false, reason: 'RUNTIME_UNAVAILABLE' };
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                skippedLocalExecution: true,
+                publishPromise: Promise.resolve(publishResult)
+            }))
+        };
+
+        const result = await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 }, false, 'black', adapter, {}
+        );
+
+        expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable', result: publishResult });
+        expect(waitForAuthoritativeVisualSettlement).not.toHaveBeenCalled();
+        expect(emitBoardUpdate).not.toHaveBeenCalled();
+    });
+
+    test('ordinary network rejection keeps the existing board refresh recovery', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+        const emitBoardUpdate = jest.fn(() => true);
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({ emitBoardUpdate });
+        const publishResult = { ok: false, reason: 'OUT_OF_TURN' };
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                skippedLocalExecution: true,
+                publishPromise: Promise.resolve(publishResult)
+            }))
+        };
+
+        const result = await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 }, false, 'black', adapter, {}
+        );
+
+        expect(result).toMatchObject({ ok: false, reason: 'network_publish_failed', result: publishResult });
+        expect(emitBoardUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    test('runtime-unavailable handoff remains structured without a local latch or board refresh', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: -1, board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+        const emitBoardUpdate = jest.fn(() => true);
+        const handoffResult = { ok: false, reason: 'RUNTIME_UNAVAILABLE' };
+        const finalizeNetworkTurnHandoff = jest.fn(async () => handoffResult);
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            emitBoardUpdate,
+            networkTurnHandoff: { finalizeNetworkTurnHandoff },
+            isCardRuntimeIntegrityBlocked: () => false
+        });
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                ok: true,
+                nextGameState: global.gameState,
+                nextCardState: global.cardState,
+                playbackEvents: [],
+                phases: {},
+                placementEffects: {},
+                immediate: {}
+            }))
+        };
+
+        const result = await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 }, false, 'black', adapter, {}
+        );
+
+        expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable', result: handoffResult });
+        expect(emitBoardUpdate).not.toHaveBeenCalled();
+    });
+
+    test('runtime-unavailable handoff drains an authority-accepted visual sequence before stopping', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: -1, board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+        const emitBoardUpdate = jest.fn(() => true);
+        const publishResult = { ok: true, presentationCursor: { visualSeq: 28 } };
+        const handoffResult = {
+            ok: false,
+            reason: 'runtime_unavailable',
+            authoritativePublishAccepted: true,
+            publishResult
+        };
+        const waitForAuthoritativeVisualSettlement = jest.fn(async () => ({ ok: true, visualSeq: 28 }));
+        const finalizeNetworkTurnHandoff = jest.fn(async () => handoffResult);
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            emitBoardUpdate,
+            networkTurnHandoff: { finalizeNetworkTurnHandoff },
+            isCardRuntimeIntegrityBlocked: () => false,
+            waitForAuthoritativeVisualSettlement
+        });
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                ok: true,
+                nextGameState: global.gameState,
+                nextCardState: global.cardState,
+                playbackEvents: [],
+                phases: {},
+                placementEffects: {},
+                immediate: {}
+            }))
+        };
+
+        const result = await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 }, false, 'black', adapter, {}
+        );
+
+        expect(waitForAuthoritativeVisualSettlement).toHaveBeenCalledWith(publishResult);
+        expect(result).toMatchObject({ ok: false, reason: 'runtime_unavailable', result: handoffResult });
+        expect(emitBoardUpdate).not.toHaveBeenCalled();
     });
 });

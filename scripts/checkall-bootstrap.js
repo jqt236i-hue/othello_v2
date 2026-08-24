@@ -10,6 +10,7 @@ const REQUIRED_DIST_SCRIPTS = Object.freeze([
   "run-all-checks.js", "check-window-usage.js", "check-refactor-safety.js",
   "check-ts-migration-safety.js", "check-board-kernel-boundary.js",
   "check-board-test-selectors.js", "check-browser-build-up-to-date.js",
+  "check-card-runtime-boundary.js",
   "check-asset-file-case.js", "check-artifact-retention.js", "check-worker-mirror.js",
   "test-shim-forwarding.js", "inventory-js-legacy.js"
 ]);

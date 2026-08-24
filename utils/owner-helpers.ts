@@ -98,7 +98,7 @@ interface OwnerHelpersApi {
     resolveNetworkInputPermissions(options?: OwnerNetworkInputPermissionOptions | null): OwnerNetworkInputPermissions;
 }
 
-(function (root: OwnerHelpersRoot | undefined) {
+const OwnerHelpersModule = (function (root: OwnerHelpersRoot | undefined) {
     'use strict';
 
     const PlayerSeatContract = (() => {
@@ -498,4 +498,7 @@ interface OwnerHelpersApi {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = OwnerHelpers;
     }
+    return OwnerHelpers;
 })(typeof self !== 'undefined' ? self as unknown as OwnerHelpersRoot : globalThis as OwnerHelpersRoot);
+
+export = OwnerHelpersModule;

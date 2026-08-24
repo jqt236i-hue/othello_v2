@@ -1,17 +1,7 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedConstants = require('../../../shared-constants');
 
-(function (root: any, factory: any) {
-    if (root && root.SharedConstants) {
-        root.CardPositionSwapEffects = factory(root.SharedConstants);
-    } else if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
-    } else {
-        root.CardPositionSwapEffects = factory(root.SharedConstants);
-    }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any) {
-    'use strict';
-
-    const { EMPTY } = SharedConstants || {};
+const { EMPTY } = SharedConstants || {};
 
 function applyPositionSwapWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
@@ -74,7 +64,8 @@ function applyPositionSwapWill(cardState: CardState, gameState: GameState, playe
     return { applied: true, completed: true, from: first, to: { row, col } };
 }
 
-    return {
-        applyPositionSwapWill
-    };
-}));
+const CardPositionSwapEffects = {
+    applyPositionSwapWill
+};
+
+export = CardPositionSwapEffects;

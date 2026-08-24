@@ -4,7 +4,7 @@
     } else {
         root.GachaHandCatalogSharedModule = factory();
     }
-}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function () {
+}(typeof self !== 'undefined' ? self : globalThis as Record<string, unknown>, function () {
     'use strict';
 
     interface CatalogItem {
@@ -155,3 +155,5 @@
         buildCatalogFromAssetManifest
     });
 }));
+
+export {};

@@ -746,6 +746,41 @@ describe('card use source element selection', () => {
     expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
+  test('network runtime-unavailable card use releases locks without failure UI or auto-pass recovery', async () => {
+    let resolvePublish;
+    const publishPromise = new Promise((resolve) => {
+      resolvePublish = resolve;
+    });
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      publishPromise,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    global.cardState.selectedCardOwnerKey = 'black';
+    window.useSelectedCard();
+    global.addLog.mockClear();
+    global.renderCardUI.mockClear();
+    global.ensureCurrentPlayerCanActOrPass.mockClear();
+
+    resolvePublish({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+    await publishPromise;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.cardState.selectedCardId).toBe('dup_card');
+    expect(global.cardState.selectedCardOwnerKey).toBe('black');
+    expect(global.window.isProcessing).toBe(false);
+    expect(global.window.isCardAnimating).toBe(false);
+    expect(global.addLog).not.toHaveBeenCalled();
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
+  });
+
   test('network mode wakes current player when server-authored card use publish promise rejects', async () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';
@@ -1651,5 +1686,62 @@ describe('card use source element selection', () => {
       expect(global.renderBoard).toHaveBeenCalledTimes(1);
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(0);
       expect(global.addLog).toHaveBeenCalledWith('黒の対象選択をキャンセルしました');
+    });
+
+    test('network cancel waits for authoritative acceptance before showing success', async () => {
+      let resolvePublish;
+      const publishPromise = new Promise((resolve) => { resolvePublish = resolve; });
+      global.cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        skippedLocalExecution: true,
+        publishPromise,
+        playbackEvents: []
+      }));
+      require('../cards/card-interaction.js');
+      global.addLog.mockClear();
+
+      window.cancelPendingSelection('black');
+      expect(global.addLog).not.toHaveBeenCalledWith('黒の対象選択をキャンセルしました');
+
+      global.cardState.pendingEffectByPlayer.black = null;
+      resolvePublish({ ok: true });
+      await publishPromise;
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.addLog).toHaveBeenCalledWith('黒の対象選択をキャンセルしました');
+      expect(global.window.isProcessing).toBe(false);
+      expect(global.window.isCardAnimating).toBe(false);
+    });
+
+    test('network runtime-unavailable cancel preserves pending state without success or failure UI', async () => {
+      let resolvePublish;
+      const publishPromise = new Promise((resolve) => { resolvePublish = resolve; });
+      const pending = { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' };
+      global.cardState.pendingEffectByPlayer.black = pending;
+      global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+        ok: true,
+        skippedLocalExecution: true,
+        publishPromise,
+        playbackEvents: []
+      }));
+      require('../cards/card-interaction.js');
+      window.cancelPendingSelection('black');
+      global.addLog.mockClear();
+      global.renderCardUI.mockClear();
+      global.emitBoardUpdate.mockClear();
+
+      resolvePublish({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+      await publishPromise;
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.cardState.pendingEffectByPlayer.black).toBe(pending);
+      expect(global.addLog).not.toHaveBeenCalled();
+      expect(global.renderCardUI).not.toHaveBeenCalled();
+      expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+      expect(global.window.isProcessing).toBe(false);
+      expect(global.window.isCardAnimating).toBe(false);
     });
   });

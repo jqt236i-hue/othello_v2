@@ -1,5 +1,3 @@
-export {};
-
 type RandomBoardSpawnDeps = {
     getEmptyBoardShapeCellsForCard: (cardState: any, gameState: any) => any[];
     isBlockedCell: (cardState: any, row: any, col: any, gameState: any) => boolean;
@@ -253,7 +251,7 @@ function resolveSupportTroopsWillUsage(cardState: any, gameState: any, playerKey
     });
 }
 
-module.exports = {
+const CardRandomBoardSpawn = {
     collectRandomBoardSpawnablePositions,
     resolveRandomBoardSpawnEffectUsage,
     canUseReinforcementWillForPlayer,
@@ -261,3 +259,5 @@ module.exports = {
     canUseSupportTroopsWillForPlayer,
     resolveSupportTroopsWillUsage
 };
+
+export = CardRandomBoardSpawn;

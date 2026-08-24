@@ -4,42 +4,12 @@
  */
 
 import { CardState, GameState } from '../../../src/types';
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
+import CardCellRemovalImport = require('./cell-removal');
 
 const BOARD_SHRINK_SELECTION_COUNT = 3;
 const BOARD_SHRINK_HOLE_VISUAL_VARIANT = 'BOARD_FRAME';
 
-const CardCellRemoval = ((typeof module === 'object' && module.exports)
-    ? safeRequire('./cell-removal')
-    : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null) || {
-    applyHoleStyleCellRemoval: (_cardState: CardState, _gameState: GameState, targetRow: number, targetCol: number, _playerKey: string, cause: string) => ({
-        applied: false,
-        reason: 'cell_removal_dependency_missing',
-        row: targetRow,
-        col: targetCol,
-        cause
-    }),
-    runHoleStyleCellRemovalBlock: (_cardState: CardState, _gameState: GameState, _blockDeps: any, fn: () => any) => fn()
-};
+const CardCellRemoval: any = CardCellRemovalImport;
 
 interface Target { row: number; col: number }
 

@@ -160,11 +160,4 @@ const CardHyperactiveBoardShape = {
     hasBoardShapeCell
 };
 
-const boardShapeRoot = (typeof globalThis !== 'undefined')
-    ? (globalThis as any)
-    : (typeof self !== 'undefined' ? (self as any) : null);
-if (boardShapeRoot && !boardShapeRoot.CardHyperactiveBoardShape) {
-    boardShapeRoot.CardHyperactiveBoardShape = CardHyperactiveBoardShape;
-}
-
 export = CardHyperactiveBoardShape;

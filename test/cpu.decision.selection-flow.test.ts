@@ -12,6 +12,7 @@ function createSelectionFlow(overrides?: Record<string, unknown>) {
     readMatchMode: jest.fn(() => null),
     getCurrentMatchMode: jest.fn(() => null),
     readHumanVsHumanMode: jest.fn(() => false),
+    isCardRuntimeIntegrityBlocked: jest.fn(() => false),
     processCpuTurn: jest.fn()
   } as any;
   const networkTurnHandoff = {
@@ -120,6 +121,17 @@ describe('cpu decision selection flow controller', () => {
     expect(ctx.runtime.processCpuTurn).not.toHaveBeenCalled();
   });
 
+  test('a reserved CPU selection callback stays inert after the integrity latch', () => {
+    const ctx = createSelectionFlow();
+
+    ctx.controller.scheduleCpuSelectionWhiteTurn(15, 7);
+    const handle = ctx.timerService.setTimeout.mock.results[0].value;
+    ctx.runtime.isCardRuntimeIntegrityBlocked.mockReturnValue(true);
+    handle.callback();
+
+    expect(ctx.runtime.processCpuTurn).not.toHaveBeenCalled();
+  });
+
   test('maybeContinueCpuSelectionTurnHandoff finalizes only after the turn is handed to the opponent', async () => {
     const ctx = createSelectionFlow({ gameState: { currentPlayer: 1, turnNumber: 8 } });
 
@@ -147,6 +159,56 @@ describe('cpu decision selection flow controller', () => {
 
     expect(ctx.networkTurnHandoff.finalizeNetworkTurnHandoff).toHaveBeenCalledTimes(1);
     expect(ctx.runtime.publishSnapshot).not.toHaveBeenCalled();
+  });
+
+  test('finalizer rejection after the integrity latch cannot resume CPU handoff, playback, publish, or rendering', async () => {
+    let blocked = false;
+    const ctx = createSelectionFlow({
+      runtime: {
+        isCardRuntimeIntegrityBlocked: jest.fn(() => blocked)
+      },
+      gameState: { currentPlayer: 1, turnNumber: 8 },
+      pendingSelectionFlow: {
+        finalizePendingSelectionFlow: jest.fn(() => {
+          blocked = true;
+          return Promise.reject(new Error('runtime unavailable'));
+        })
+      }
+    });
+
+    await ctx.controller.finalizeCpuPendingSelectionFlow('white', 'TRAP_WILL', [{ type: 'move' }], { type: 'place' });
+    await flushPromises();
+
+    expect(ctx.networkTurnHandoff.finalizeNetworkTurnHandoff).not.toHaveBeenCalled();
+    expect(ctx.networkTurnHandoff.waitForPlaybackIdleIfNeeded).not.toHaveBeenCalled();
+    expect(ctx.runtime.publishSnapshot).not.toHaveBeenCalled();
+    expect(ctx.emitBoardUpdate).not.toHaveBeenCalled();
+    expect(ctx.runtime.processCpuTurn).not.toHaveBeenCalled();
+  });
+
+  test('explicit finalizer runtime-unavailable report becomes a terminal structured result', async () => {
+    const ctx = createSelectionFlow({
+      gameState: { currentPlayer: 1, turnNumber: 8 },
+      pendingSelectionFlow: {
+        finalizePendingSelectionFlow: jest.fn((options: any) => {
+          options.onRuntimeUnavailable({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+          return Promise.resolve(false);
+        })
+      }
+    });
+
+    const result = await ctx.controller.finalizeCpuPendingSelectionFlow(
+      'white',
+      'TRAP_WILL',
+      [{ type: 'move' }],
+      { type: 'place' }
+    );
+
+    expect(result).toEqual({ ok: false, reason: 'runtime_unavailable' });
+    expect(ctx.networkTurnHandoff.finalizeNetworkTurnHandoff).not.toHaveBeenCalled();
+    expect(ctx.networkTurnHandoff.waitForPlaybackIdleIfNeeded).not.toHaveBeenCalled();
+    expect(ctx.runtime.publishSnapshot).not.toHaveBeenCalled();
+    expect(ctx.emitBoardUpdate).not.toHaveBeenCalled();
   });
 
   test('finalizeCpuPendingSelectionFlow waits for playback and publishes snapshot for non-selection-only pending types', async () => {

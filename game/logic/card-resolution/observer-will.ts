@@ -10,7 +10,7 @@ type RepaymentRef = {
     index: number;
 };
 
-const CardResolutionBoardView = require('./board-view-access');
+import CardResolutionBoardView = require('./board-view-access');
 const OBSERVER_WILL_OBSERVED_COST_DELTA = 5;
 
 function ownerKeyOf(playerKey: any): PlayerKey {

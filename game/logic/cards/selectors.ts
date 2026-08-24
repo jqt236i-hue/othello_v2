@@ -4,47 +4,17 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import CardUtilsImport = require('./utils');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import SelectorsCoreUtilsImport = require('./selectors-core-utils');
+import SelectorsBoardShapeImport = require('./selectors-board-shape');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function resolveSelectorsModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-    }
-
-    return getRuntimeGlobalValue(globalKey);
-}
-
-const SharedConstants = resolveSelectorsModuleOrGlobal('../../../shared-constants', 'SharedConstants');
-const CardUtils = resolveSelectorsModuleOrGlobal('./utils', 'CardUtils');
-const SharedBoardUtils = resolveSelectorsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-const SelectorsCoreUtils = resolveSelectorsModuleOrGlobal('./selectors-core-utils', 'CardSelectorsCoreUtils');
-const SelectorsBoardShape = resolveSelectorsModuleOrGlobal('./selectors-board-shape', 'CardSelectorsBoardShape');
+const SharedConstants: any = SharedConstantsImport;
+const CardUtils: any = CardUtilsImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const SelectorsCoreUtils: any = SelectorsCoreUtilsImport;
+const SelectorsBoardShape: any = SelectorsBoardShapeImport;
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;

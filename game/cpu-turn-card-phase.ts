@@ -14,6 +14,7 @@ type CpuTurnCardPhaseConfig = {
     getCurrentPlayerKeySafe?: () => any;
     getCurrentTurnNumberSafe?: () => any;
     getUseCardWithPolicyFn: () => any;
+    isAborted?: () => boolean;
     isUiAnimationBusy: () => any;
     runCpuTurn: (playerKey: any, options?: any) => any;
     scheduleRetry: (fn: any, delayMs?: any) => any;
@@ -26,6 +27,12 @@ type CpuTurnCardPhaseConfig = {
 
 export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuTurnCardPhaseConfig;
+
+    function abortIfNeeded(): boolean {
+        if (typeof cfg.isAborted !== 'function' || cfg.isAborted() !== true) return false;
+        cfg.setCpuProcessing(false);
+        return true;
+    }
 
     function shouldSkipStaleResume(expectedPlayerKey: any, expectedTurnNumber: any): boolean {
         const currentPlayerKey = typeof cfg.getCurrentPlayerKeySafe === 'function'
@@ -59,18 +66,22 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
             ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, level)
             : { autoMode };
 
+        if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
+
         if (typeof cfg.shouldSkipCardPhaseForProfile === 'function'
             && cfg.shouldSkipCardPhaseForProfile(playerKey, level)) {
             return { status: 'continue' };
         }
 
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
+            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             const destroyHandCardWithPolicyFn = cfg.getDestroyHandCardWithPolicyFn();
             let destroyedForCycle = (typeof destroyHandCardWithPolicyFn === 'function')
                 ? (performanceScope
                     ? !!destroyHandCardWithPolicyFn(playerKey, performanceScope, preparedCardDecision)
                     : !!destroyHandCardWithPolicyFn(playerKey, null, preparedCardDecision))
                 : false;
+            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             if (!destroyedForCycle) {
                 destroyedForCycle = performanceScope
                     ? measureCpuTurnSync(
@@ -79,6 +90,7 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                         () => cfg.tryDestroyHighPriorityHandCardViaAdapter(playerKey)
                     )
                     : cfg.tryDestroyHighPriorityHandCardViaAdapter(playerKey);
+                if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             }
             if (destroyedForCycle) {
                 cfg.setCpuProcessing(false);
@@ -90,6 +102,7 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                     : null;
                 const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                 const scheduled = cfg.scheduleRetry(() => {
+                    if (abortIfNeeded()) return;
                     if (shouldSkipStaleResume(expectedPlayerKey, expectedTurnNumber)) {
                         if (performanceScope && waitStartedAtMs !== null) {
                             recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'stale');
@@ -110,6 +123,7 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                     cfg.runCpuTurn(playerKey, resumeOptions);
                 }, cfg.getAnimationRetryDelayMs());
                 if (scheduled === false) {
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                     if (performanceScope && waitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(
                             performanceScope,
@@ -132,12 +146,14 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
             && !hasPendingSelection
             && (analyzedUsableCardIds === null || analyzedUsableCardIds.length > 0)
         ) {
+            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
             const applied = (typeof useCardWithPolicyFn === 'function')
                 ? (performanceScope
                     ? !!useCardWithPolicyFn(playerKey, performanceScope, preparedCardDecision)
                     : !!useCardWithPolicyFn(playerKey, null, preparedCardDecision))
                 : false;
+            if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
             if (applied) {
                 if (performanceScope) {
                     measureCpuTurnSync(performanceScope, 'commentary-context', () => {
@@ -161,6 +177,7 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                     : null;
                 const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                 const resumeAfterCardAnimation = () => {
+                    if (abortIfNeeded()) return;
                     if (cfg.shouldAbortCpuForHumanMode(playerKey, 'resume_after_card_animation')) {
                         if (performanceScope && waitStartedAtMs !== null) {
                             recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
@@ -188,6 +205,7 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                 };
                 const scheduled = cfg.scheduleRetry(resumeAfterCardAnimation, cfg.getAnimationRetryDelayMs());
                 if (scheduled === false) {
+                    if (abortIfNeeded()) return { status: 'handled', reason: 'runtime_unavailable' };
                     if (performanceScope && waitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(
                             performanceScope,

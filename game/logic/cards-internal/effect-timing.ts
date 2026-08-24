@@ -3,39 +3,13 @@
  * @description Turn-start and placement-effect orchestration shared between Browser and Headless.
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import EvasionStatusImport = require('../../../shared/evasion-status');
+import SpecialStoneMarkerFactoryImport = require('../card-resolution/special-stone-marker-factory');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
 
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return null;
-}
-
-const EvasionStatus = safeRequire('../../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
-const SpecialStoneMarkerFactory = safeRequire('../card-resolution/special-stone-marker-factory');
-const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
+const EvasionStatus: any = EvasionStatusImport;
+const SpecialStoneMarkerFactory: any = SpecialStoneMarkerFactoryImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
 
 interface Context {
     constants?: any;

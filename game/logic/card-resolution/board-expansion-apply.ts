@@ -1,17 +1,7 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedConstants = require('../../../shared-constants');
 
-(function (root: any, factory: any) {
-    if (root && root.SharedConstants) {
-        root.CardBoardExpansionApply = factory(root.SharedConstants);
-    } else if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
-    } else {
-        root.CardBoardExpansionApply = factory(root.SharedConstants);
-    }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any) {
-    'use strict';
-
-    const { EMPTY } = SharedConstants || {};
+const { EMPTY } = SharedConstants || {};
 
 function resolveExpansionTarget(targets: any[], row: number, col: number, directionKey: any): any {
     const anchorMatches = (Array.isArray(targets) ? targets : []).filter((target: any) => (
@@ -208,8 +198,9 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     };
 }
 
-    return {
-        applyBoardExpansionWill,
-        applyBoardExpansionGod
-    };
-}));
+const CardBoardExpansionApply = {
+    applyBoardExpansionWill,
+    applyBoardExpansionGod
+};
+
+export = CardBoardExpansionApply;

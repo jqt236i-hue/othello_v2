@@ -1,0 +1,29 @@
+{
+  "fixtureVersion": "card-runtime-parity-v1",
+  "overallDigest": "b5057647f5541562184b9b9e267fce5595522db2cc42421a91c646974d31d221",
+  "canonicalDigest": "924fa6147bcd9c1a282f739fee785189357eb5b2291e90357e93c03a1e76a576",
+  "prngLedgerDigest": "7689826231285861f7c2f042574eff906a4b5fb1516aca81a89120e15e4fdd18",
+  "resultDigest": "1aba6e3e92fbb83565028b296af022309619d1806f913e839042e815e3d18bd8",
+  "pendingDigest": "96348d55f0d98ae52bab59586cb7a449eba8eac13e1cfdc4461021d106aa0c5d",
+  "scenarioDigest": "fe345ae29e81254a2c4dedac02b9fb2e8f8f5dd3bae3472d06d763161447ab34",
+  "runtimeProjectionInventory": [
+    { "path": "$cardState._defaultRandomSource.getLedger", "kind": "function", "projection": "name-only" },
+    { "path": "$cardState._defaultRandomSource.getState", "kind": "function", "projection": "name-only" },
+    { "path": "$cardState._defaultRandomSource.random", "kind": "function", "projection": "name-only" },
+    { "path": "$cardState._defaultRandomSource.shuffle", "kind": "function", "projection": "name-only" },
+    { "path": "$cardState.presentationEvents[0]", "kind": "shared-or-circular-reference", "projection": 11 }
+  ],
+  "prng": {
+    "state": 798149743,
+    "calls": 98
+  },
+  "eventTypes": ["CARD_USED"],
+  "heavenOffers": ["condemn_01", "crystal_stone", "equality_will_01", "tempt_01", "super_gravity_01"],
+  "pending": {
+    "type": "DESTROY_ONE_STONE",
+    "cardId": "destroy_01",
+    "pendingEffectId": "pending_0_1",
+    "sourceHandIndex": 0,
+    "stage": "selectTarget"
+  }
+}

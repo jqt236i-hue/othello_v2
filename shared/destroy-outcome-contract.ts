@@ -3,13 +3,7 @@
  * @description Destroy outcome contract types and utilities
  */
 
-(function (root: any, factory: () => any) {
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.DestroyOutcomeContract = factory();
-    }
-}(typeof self !== 'undefined' ? self : this, function () {
+const DestroyOutcomeContract = (function () {
     'use strict';
 
     const DESTROY_OUTCOME_KINDS: Record<string, string> = Object.freeze({
@@ -120,6 +114,6 @@
         createDestroyOutcome,
         normalizeDestroyOutcome
     };
-}));
+})();
 
-export {};
+export = DestroyOutcomeContract;

@@ -1,3 +1,5 @@
+import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
+
 export type CpuDecisionRuntime = Record<string, any> | null;
 
 export function createCpuDecisionRuntimeBoundary() {
@@ -21,7 +23,10 @@ export function createCpuDecisionRuntimeBoundary() {
         const moduleRef = runtime.readModule(moduleKey);
         if (moduleRef) return moduleRef;
       }
-    } catch (e: any) { /* ignore */ }
+    } catch (error: any) {
+      if (isCardRuntimeUnavailableError(error)) throw error;
+      /* preserve compatibility fallback */
+    }
     return null;
   }
 
@@ -39,7 +44,10 @@ export function createCpuDecisionRuntimeBoundary() {
         const mode = String(runtime.MATCH_MODE || '').trim().toLowerCase();
         if (mode) return mode;
       }
-    } catch (e: any) { /* ignore */ }
+    } catch (error: any) {
+      if (isCardRuntimeUnavailableError(error)) throw error;
+      /* preserve compatibility fallback */
+    }
     return '';
   }
 
@@ -54,7 +62,10 @@ export function createCpuDecisionRuntimeBoundary() {
         const qs = runtime.readQuerySearch();
         return typeof qs === 'string' ? qs : String(qs || '');
       }
-    } catch (e: any) { /* ignore */ }
+    } catch (error: any) {
+      if (isCardRuntimeUnavailableError(error)) throw error;
+      /* preserve compatibility fallback */
+    }
     return '';
   }
 
@@ -93,7 +104,10 @@ export function createCpuTurnRuntimeBoundary(deps?: any) {
         const uiImpl = cfg.getUiImpl();
         return uiImpl && typeof uiImpl === 'object' ? uiImpl : null;
       }
-    } catch (e: any) { /* ignore */ }
+    } catch (error: any) {
+      if (isCardRuntimeUnavailableError(error)) throw error;
+      /* preserve compatibility fallback */
+    }
     return null;
   }
 
@@ -140,7 +154,10 @@ export function createCpuTurnRuntimeBoundary(deps?: any) {
       if (uiImpl && uiImpl.CardLogic && typeof uiImpl.CardLogic === 'object') {
         return uiImpl.CardLogic;
       }
-    } catch (e: any) { /* ignore */ }
+    } catch (error: any) {
+      if (isCardRuntimeUnavailableError(error)) throw error;
+      /* preserve compatibility fallback */
+    }
     const runtimeCardLogic = resolveRuntimeValue('CardLogic');
     if (runtimeCardLogic && typeof runtimeCardLogic === 'object') return runtimeCardLogic;
     try {
@@ -148,7 +165,10 @@ export function createCpuTurnRuntimeBoundary(deps?: any) {
         const fallbackCardLogic = cfg.getFallbackCardLogic();
         if (fallbackCardLogic && typeof fallbackCardLogic === 'object') return fallbackCardLogic;
       }
-    } catch (e: any) { /* ignore */ }
+    } catch (error: any) {
+      if (isCardRuntimeUnavailableError(error)) throw error;
+      /* preserve compatibility fallback */
+    }
     return null;
   }
 

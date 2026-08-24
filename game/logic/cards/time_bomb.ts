@@ -4,46 +4,15 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import SharedConstantsImport = require('../../../shared-constants');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import BoardOpsImport = require('../board_ops');
+import CardMarkersImport = require('./markers');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
-    return undefined;
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-function resolveTimeBombModuleOrGlobal(id: string, globalKey: string): any {
-    if (typeof module === 'object' && module.exports) {
-        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
-    }
-
-    return getRuntimeGlobalValue(globalKey);
-}
-
-const SharedConstants = resolveTimeBombModuleOrGlobal('../../../shared-constants', 'SharedConstants');
-const SharedBoardUtils = resolveTimeBombModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-const BoardOpsModule = resolveTimeBombModuleOrGlobal('../board_ops', 'BoardOps');
-const CardMarkersModule = resolveTimeBombModuleOrGlobal('./markers', 'CardMarkers');
+const SharedConstants: any = SharedConstantsImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const BoardOpsModule: any = BoardOpsImport;
+const CardMarkersModule: any = CardMarkersImport;
 
 const { TIME_BOMB_TURNS } = SharedConstants || {};
 const BOMB_CATEGORY = 'bomb';
@@ -52,8 +21,7 @@ const TIME_BOMB_DESTROY_REASON = 'bomb_explosion';
 const TIME_BOMB_PROJECTILE_STONE = 'time_bomb';
 
 function getCardMarkersModule(): any {
-    if (CardMarkersModule) return CardMarkersModule;
-    return getRuntimeGlobalValue('CardMarkers') || null;
+    return CardMarkersModule;
 }
 
 function getBombMarkers(cardState: CardState): any[] {

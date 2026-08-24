@@ -1,6 +1,10 @@
 async function flushPromises() {
-  await Promise.resolve();
-  await Promise.resolve();
+  // Pending-publish settlement intentionally crosses several microtask
+  // boundaries so an integrity latch queued beside an authority response can
+  // win before UI callbacks. Drain the complete local chain in tests.
+  for (let index = 0; index < 6; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 describe('PlaybackStateManager visual playback drain', () => {
@@ -158,6 +162,8 @@ describe('card interaction pending network settlement', () => {
       },
       setPendingSelectionBusy: jest.fn(),
       normalizeOwnerKey: (ownerKey: any) => String(ownerKey || '') === 'white' ? 'white' : 'black',
+      isCardRuntimeIntegrityBlocked: jest.fn(() => false),
+      syncPendingSelectionActionCache: jest.fn(),
       publishLocks
     };
   });
@@ -210,6 +216,286 @@ describe('card interaction pending network settlement', () => {
     expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
     expect(deps.renderCardUiSafely).toHaveBeenCalledTimes(1);
     expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
+  });
+
+  test('syncs a stale overlay action only after accepted authoritative playback settles', async () => {
+    const pendingCoordinator = require('../game/turn/pending-coordinator.js');
+    pendingCoordinator.storePendingSelectionAction(
+      'black',
+      { type: 'place', player: 'black', condemnTargetIndex: 0, turnIndex: 3 },
+      'CONDEMN_WILL'
+    );
+    deps.syncPendingSelectionActionCache = jest.fn((state: any) => (
+      pendingCoordinator.syncPendingSelectionActionCache(state)
+    ));
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 }
+    }, deps);
+    await flushPromises();
+
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).not.toHaveBeenCalled();
+    expect(pendingCoordinator.readPendingSelectionAction('black')).not.toBeNull();
+
+    resolveDrain && resolveDrain();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).toHaveBeenCalledWith((global as any).cardState);
+    expect(pendingCoordinator.readPendingSelectionAction('black')).toBeNull();
+  });
+
+  test('retains the overlay action when authority still exposes the same pending type', async () => {
+    const pendingCoordinator = require('../game/turn/pending-coordinator.js');
+    pendingCoordinator.storePendingSelectionAction(
+      'black',
+      { type: 'place', player: 'black', observerWillTargetIndex: 0, turnIndex: 3 },
+      'OBSERVER_WILL'
+    );
+    deps.syncPendingSelectionActionCache = jest.fn((state: any) => (
+      pendingCoordinator.syncPendingSelectionActionCache(state)
+    ));
+    (global as any).cardState.turnIndex = 3;
+    (global as any).cardState.pendingEffectByPlayer.black = {
+      type: 'OBSERVER_WILL',
+      stage: 'selectTarget'
+    };
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', observerWillTargetIndex: 0 }
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+    resolveDrain && resolveDrain();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).toHaveBeenCalledTimes(1);
+    expect(pendingCoordinator.readPendingSelectionAction('black')).toMatchObject({
+      observerWillTargetIndex: 0,
+      turnIndex: 3
+    });
+  });
+
+  test('does not sync the overlay cache when integrity latches before settlement', async () => {
+    let blocked = false;
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1' }
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+    blocked = true;
+    resolveDrain && resolveDrain();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).not.toHaveBeenCalled();
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(publishLocks.black).toBe(false);
+  });
+
+  test('does not sync or render when integrity latches immediately behind accepted visual settlement', async () => {
+    let blocked = false;
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 }
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+
+    resolveDrain && resolveDrain();
+    queueMicrotask(() => {
+      blocked = true;
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).not.toHaveBeenCalled();
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(publishLocks.black).toBe(false);
+  });
+
+  test('suppresses success rendering when cache synchronization queues an integrity latch', async () => {
+    let blocked = false;
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+    deps.syncPendingSelectionActionCache = jest.fn(() => {
+      queueMicrotask(() => {
+        blocked = true;
+      });
+    });
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 }
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+    resolveDrain && resolveDrain();
+    await flushPromises();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).toHaveBeenCalledTimes(1);
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(publishLocks.black).toBe(false);
+  });
+
+  test.each([
+    ['HEAVEN_BLESSING', { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1' }],
+    ['CONDEMN_WILL', { type: 'place', player: 'black', condemnTargetIndex: 0 }],
+    ['OBSERVER_WILL', { type: 'place', player: 'black', observerWillTargetIndex: 0 }]
+  ])('blocks %s direct pending publish after the runtime integrity latch', async (_pendingType, action) => {
+    deps.isCardRuntimeIntegrityBlocked.mockReturnValue(true);
+    const onSuccess = jest.fn();
+    const onFailure = jest.fn();
+
+    expect(pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action,
+      onSuccess,
+      onFailure
+    }, deps)).toBe(false);
+    await flushPromises();
+
+    expect((global as any).NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(publishLocks.black).toBe(false);
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+  });
+
+  test('drains an accepted publish but suppresses callbacks and rendering when integrity latches during the request', async () => {
+    let blocked = false;
+    const onSuccess = jest.fn();
+    const onFailure = jest.fn();
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+
+    expect(pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 },
+      onSuccess,
+      onFailure
+    }, deps)).toBe(true);
+    await flushPromises();
+
+    resolvePublish && resolvePublish({
+      ok: true,
+      presentationCursor: { visualSeq: 31, stateVersion: 44 }
+    });
+    blocked = true;
+    await flushPromises();
+
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(publishLocks.black).toBe(true);
+
+    resolveDrain && resolveDrain();
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+  });
+
+  test('releases both locks without callbacks when an accepted visual drain rejects after the integrity latch', async () => {
+    let blocked = false;
+    const onSuccess = jest.fn();
+    const onFailure = jest.fn();
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+    deps.playbackStateManager.waitForVisualPlaybackDrain = jest.fn(() => Promise.reject(new Error('drain failed')));
+
+    expect(pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', observerWillTargetIndex: 0 },
+      onSuccess,
+      onFailure
+    }, deps)).toBe(true);
+    await flushPromises();
+
+    resolvePublish && resolvePublish({ ok: true, presentationCursor: { visualSeq: 32 } });
+    blocked = true;
+    await flushPromises();
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+  });
+
+  test('releases busy when a latch is queued immediately behind accepted visual drain rejection', async () => {
+    let blocked = false;
+    let rejectDrain = null;
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+    deps.playbackStateManager.waitForVisualPlaybackDrain = jest.fn(() => new Promise((_resolve, reject) => {
+      rejectDrain = reject;
+    }));
+    const onSuccess = jest.fn();
+    const onFailure = jest.fn();
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', observerWillTargetIndex: 0 },
+      onSuccess,
+      onFailure
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: true });
+    await flushPromises();
+    expect(rejectDrain).toEqual(expect.any(Function));
+
+    rejectDrain(new Error('visual settlement reset'));
+    queueMicrotask(() => {
+      blocked = true;
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(deps.syncPendingSelectionActionCache).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+  });
+
+  test('treats RUNTIME_UNAVAILABLE as integrity settlement without ordinary failure callbacks', async () => {
+    const onSuccess = jest.fn();
+    const onFailure = jest.fn();
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 },
+      onSuccess,
+      onFailure
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: false, reason: 'RUNTIME_UNAVAILABLE' });
+    await flushPromises();
+
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
   });
 
   test('waits for publish visualSeq settlement instead of forced queue cleanup', async () => {
@@ -402,6 +688,85 @@ describe('card interaction pending network settlement', () => {
     expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
     expect(onFailure).toHaveBeenCalledWith({ ok: false, reason: 'OUT_OF_TURN' });
     expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+  });
+
+  test('ordinary authority rejection synchronizes and clears a stale overlay action before failure UI', async () => {
+    const pendingCoordinator = require('../game/turn/pending-coordinator.js');
+    pendingCoordinator.storePendingSelectionAction(
+      'black',
+      { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1', turnIndex: 4 },
+      'HEAVEN_BLESSING'
+    );
+    deps.syncPendingSelectionActionCache = jest.fn((state: any) => (
+      pendingCoordinator.syncPendingSelectionActionCache(state)
+    ));
+    const onFailure = jest.fn(() => {
+      expect(pendingCoordinator.readPendingSelectionAction('black')).toBeNull();
+    });
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1' },
+      onFailure
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: false, reason: 'OUT_OF_TURN' });
+    await flushPromises();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).toHaveBeenCalledWith((global as any).cardState);
+    expect(pendingCoordinator.readPendingSelectionAction('black')).toBeNull();
+    expect(onFailure).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not sync or report ordinary rejection when integrity latches immediately behind it', async () => {
+    let blocked = false;
+    const onFailure = jest.fn();
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1' },
+      onFailure
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: false, reason: 'OUT_OF_TURN' });
+    queueMicrotask(() => {
+      blocked = true;
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).not.toHaveBeenCalled();
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(publishLocks.black).toBe(false);
+  });
+
+  test('suppresses rejection UI when cache synchronization queues an integrity latch', async () => {
+    let blocked = false;
+    const onFailure = jest.fn();
+    deps.isCardRuntimeIntegrityBlocked = jest.fn(() => blocked);
+    deps.syncPendingSelectionActionCache = jest.fn(() => {
+      queueMicrotask(() => {
+        blocked = true;
+      });
+    });
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', heavenBlessingCardId: 'offer_1' },
+      onFailure
+    }, deps);
+    await flushPromises();
+    resolvePublish && resolvePublish({ ok: false, reason: 'OUT_OF_TURN' });
+    await flushPromises();
+    await flushPromises();
+
+    expect(deps.syncPendingSelectionActionCache).toHaveBeenCalledTimes(1);
+    expect(onFailure).not.toHaveBeenCalled();
+    expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
+    expect(publishLocks.black).toBe(false);
   });
 
   test('publish failure clears lock and busy before onFailure callback completes', async () => {

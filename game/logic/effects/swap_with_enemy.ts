@@ -3,62 +3,17 @@
  * @description SWAP_WITH_ENEMY helper - TypeScript module for browser and Node.js
  */
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import SharedConstantsImport = require('../../../shared-constants');
+import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
+import CardUtilsImport = require('../cards/utils');
+import CoreImport = require('../core');
+import BoardOpsImport = require('../board_ops');
 
-function _require(id: string): any {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-
-function safeRequire(id: string): any {
-    try {
-        return _require(id);
-    } catch (e) {
-        return null;
-    }
-}
-
-const SharedConstants = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared-constants')
-    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-
-const SharedBoardUtils = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared/shared-board-utils')
-    : null) || (typeof self !== 'undefined' ? ((self as any).SharedBoardUtils || null) : null);
-
-function resolveSwapWithEnemyModuleOrNull(id: string, resolveSelfFallback: () => any): any {
-    if (typeof require === 'function') {
-        try {
-            return _require(id);
-        } catch (e) {
-            return null;
-        }
-    }
-    return resolveSelfFallback();
-}
-
-const CardUtils = resolveSwapWithEnemyModuleOrNull('../cards/utils', () => {
-    if (typeof self !== 'undefined' && (self as any).CardUtils) {
-        return (self as any).CardUtils;
-    }
-    return null;
-});
-
-const CoreModule = resolveSwapWithEnemyModuleOrNull('../core', () => {
-    if (typeof self !== 'undefined') {
-        return (self as any).CoreLogic || (self as any).Core || null;
-    }
-    return null;
-});
-const DefaultBoardOps = resolveSwapWithEnemyModuleOrNull('../board_ops', () => {
-    if (typeof self !== 'undefined') return (self as any).BoardOps || null;
-    return null;
-});
+const SharedConstants: any = SharedConstantsImport;
+const SharedBoardUtils: any = SharedBoardUtilsImport;
+const CardUtils: any = CardUtilsImport;
+const CoreModule: any = CoreImport;
+const DefaultBoardOps: any = BoardOpsImport;
 
 const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
 const P_BLACK = BLACK || 1;

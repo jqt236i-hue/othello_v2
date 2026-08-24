@@ -365,6 +365,7 @@ function validateSharedCapabilityGroups(
         if (
             !capabilities.autoCommand
             || !hasFunction(capabilities.autoCommand, 'isAutoTurnPublishBody')
+            || !hasFunction(capabilities.autoCommand, 'isRuntimeUnavailableError')
             || !hasFunction(capabilities.autoCommand, 'resolveAutoTurnPublishBody')
         ) {
             return toFailure('AUTO_COMMAND_PLANNER_UNAVAILABLE');
@@ -511,10 +512,12 @@ export function prepareMatchCommandExecution(
         } catch (error) {
             return {
                 kind: 'terminal',
-                result: toFailure(
-                    'AUTO_COMMAND_PLANNER_UNAVAILABLE',
-                    error instanceof Error ? error.message : String(error || '')
-                )
+                result: capabilities.autoCommand!.isRuntimeUnavailableError(error)
+                    ? toFailure('RUNTIME_UNAVAILABLE')
+                    : toFailure(
+                        'AUTO_COMMAND_PLANNER_UNAVAILABLE',
+                        error instanceof Error ? error.message : String(error || '')
+                    )
             };
         }
         if (!autoCommand || autoCommand.ok !== true) {

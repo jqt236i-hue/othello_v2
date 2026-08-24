@@ -585,6 +585,48 @@ describe('network-turn-handoff', () => {
     expect(setProcessing).toHaveBeenCalledWith(false);
   });
 
+  test('awaited publish requires an explicit ok result before continuing the handoff', async () => {
+    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
+    const handoff = require('../game/network-turn-handoff.js');
+    const publishSnapshot = jest.fn(() => Promise.resolve(undefined));
+    const onPublishFailed = jest.fn();
+    const scheduleCpuTurn = jest.fn();
+    const onHumanTurnReady = jest.fn();
+    const setProcessing = jest.fn();
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3, turnIndex: 12 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot,
+      onPublishFailed,
+      awaitPublishResult: true,
+      scheduleCpuTurn,
+      setProcessing,
+      onHumanTurnReady,
+      humanMode: false
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'network_publish_failed',
+      result: { ok: false, reason: 'NETWORK_PUBLISH_FAILED' },
+      scheduledCpu: false
+    });
+    expect(onPublishFailed).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'network_publish_failed',
+      publishResult: undefined
+    }));
+    expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(onHumanTurnReady).not.toHaveBeenCalled();
+    expect(setProcessing).toHaveBeenCalledWith(false);
+  });
+
   test('perf scope separates network continuation sync slices from Promise waits without leaking into publish data', async () => {
     const handoff = require('../game/network-turn-handoff.js');
     const performance = require('../game/cpu-turn-performance');
@@ -653,5 +695,97 @@ describe('network-turn-handoff', () => {
         outcome: 'error'
       })
     ]));
+  });
+
+  test('aborts after an awaited turn-start phase without publishing or scheduling later work', async () => {
+    const handoff = require('../game/network-turn-handoff');
+    let aborted = false;
+    let resolveTurnStart;
+    const onTurnStart = jest.fn(() => new Promise((resolve) => {
+      resolveTurnStart = resolve;
+    }));
+    const publishSnapshot = jest.fn(async () => ({ ok: true }));
+    const scheduleCpuTurn = jest.fn();
+    const onHumanTurnReady = jest.fn();
+    const setProcessing = jest.fn();
+
+    const handoffPromise = handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip' }],
+      skipLocalPlaybackWait: true,
+      onTurnStart,
+      publishSnapshot,
+      scheduleCpuTurn,
+      onHumanTurnReady,
+      setProcessing,
+      humanMode: false,
+      isAborted: () => aborted
+    });
+
+    await Promise.resolve();
+    expect(onTurnStart).toHaveBeenCalledTimes(1);
+    aborted = true;
+    resolveTurnStart({ playbackEvents: [{ type: 'turn_start_draw' }] });
+    const result = await handoffPromise;
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'runtime_unavailable',
+      scheduledCpu: false,
+      authoritativePublishAccepted: false
+    });
+    expect(publishSnapshot).not.toHaveBeenCalled();
+    expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(onHumanTurnReady).not.toHaveBeenCalled();
+    expect(global.showResult).not.toHaveBeenCalled();
+    expect(setProcessing).toHaveBeenCalledWith(false);
+  });
+
+  test('aborts after an accepted game-over publish only after visual settlement and suppresses result callbacks', async () => {
+    global.isGameOver = jest.fn(() => true);
+    const handoff = require('../game/network-turn-handoff');
+    let aborted = false;
+    let resolvePlayback;
+    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+      resolvePlayback = resolve;
+    }));
+    const publishResult = { ok: true, presentationCursor: { visualSeq: 21 } };
+    const publishSnapshot = jest.fn(async () => publishResult);
+    const scheduleCpuTurn = jest.fn();
+    const onHumanTurnReady = jest.fn();
+    const setProcessing = jest.fn();
+
+    const handoffPromise = handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip' }],
+      publishSnapshot,
+      awaitPublishResult: true,
+      scheduleCpuTurn,
+      onHumanTurnReady,
+      setProcessing,
+      isAborted: () => aborted
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(publishSnapshot).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    aborted = true;
+    resolvePlayback();
+    const result = await handoffPromise;
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: 'runtime_unavailable',
+      scheduledCpu: false,
+      authoritativePublishAccepted: true,
+      publishResult
+    });
+    expect(global.showResult).not.toHaveBeenCalled();
+    expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(onHumanTurnReady).not.toHaveBeenCalled();
+    expect(setProcessing).toHaveBeenCalledWith(false);
   });
 });

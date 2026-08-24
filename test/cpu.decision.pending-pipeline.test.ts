@@ -158,6 +158,63 @@ describe('cpu decision pending pipeline controller', () => {
     }), ctx.pipeline);
   });
 
+  test('treats ordinary finalization failure as terminally handled after the pipeline already applied', async () => {
+    const ctx = createController({
+      adapter: {
+        runTurnWithAdapter: jest.fn(() => ({
+          ok: true,
+          nextCardState: { turnIndex: 8 },
+          nextGameState: { currentPlayer: 1 },
+          playbackEvents: []
+        }))
+      }
+    });
+    ctx.finalizeCpuPendingSelectionFlow.mockResolvedValue(false);
+
+    const result = await ctx.controller.runCpuPendingSelectionViaPipeline(
+      'white',
+      { trapTarget: { row: 2, col: 3 } },
+      'TRAP_WILL'
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      handled: true,
+      reason: 'finalization_failed'
+    });
+    expect(ctx.adapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(ctx.finalizeCpuPendingSelectionFlow).toHaveBeenCalledTimes(1);
+  });
+
+  test('treats adapter runtime-unavailable rejection as terminal before any state or presentation writes', async () => {
+    const ctx = createController({
+      adapter: {
+        runTurnWithAdapter: jest.fn(() => ({
+          ok: false,
+          rejectedReason: 'RUNTIME_UNAVAILABLE',
+          events: []
+        }))
+      }
+    });
+    const originalCardState = ctx.getCardState();
+
+    const result = await ctx.controller.runCpuPendingSelectionViaPipeline(
+      'white',
+      { trapTarget: { row: 2, col: 3 } },
+      'TRAP_WILL'
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      handled: true,
+      reason: 'runtime_unavailable'
+    });
+    expect(ctx.getCardState()).toBe(originalCardState);
+    expect(ctx.emitPresentationEventForCpu).not.toHaveBeenCalled();
+    expect(ctx.emitCpuSelectionStateChange).not.toHaveBeenCalled();
+    expect(ctx.finalizeCpuPendingSelectionFlow).not.toHaveBeenCalled();
+  });
+
   test('runCpuPendingSelectionViaPipeline returns null when adapter contract is unavailable', async () => {
     const ctx = createController({
       adapter: {
