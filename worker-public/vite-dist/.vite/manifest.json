@@ -198,7 +198,7 @@
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
   "browser-vite/generated-assets/optional-compatibility.mjs": {
-    "file": "assets/optional-compatibility-DqKLXiI2.mjs",
+    "file": "assets/optional-compatibility-DDFqpA08.mjs",
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
@@ -235,7 +235,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-DQd7eqT4.js",
+    "file": "assets/index.vite-C0NbiHeA.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -257,7 +257,7 @@
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-UiDuVAOA.mjs",
-      "assets/optional-compatibility-DqKLXiI2.mjs",
+      "assets/optional-compatibility-DDFqpA08.mjs",
       "assets/optional-diagnostics-DQiaJ-SF.mjs",
       "assets/black-C5I6QShq.png",
       "assets/hero-DbqiEqdj.png",

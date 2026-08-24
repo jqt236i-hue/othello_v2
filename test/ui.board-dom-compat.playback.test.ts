@@ -11,6 +11,10 @@ function createPlaybackContext(event: any) {
   });
 }
 
+async function flushMicrotasks(rounds = 12): Promise<void> {
+  for (let index = 0; index < rounds; index += 1) await Promise.resolve();
+}
+
 describe('DOM board playback phase ownership', () => {
   let dom: JSDOM;
 
@@ -25,6 +29,7 @@ describe('DOM board playback phase ownership', () => {
     jest.dontMock('../ui/layout-read-batch');
     jest.dontMock('../ui/transient-overlay-batch');
     jest.dontMock('../ui/stone-visuals');
+    jest.dontMock('../ui/animation-destroy-source-events');
     jest.resetModules();
     dom.window.close();
     delete (global as any).window;
@@ -234,6 +239,82 @@ describe('DOM board playback phase ownership', () => {
     expect(target.querySelector('.seed-icon')).not.toBeNull();
     expect(target.querySelector('.seed-turn')?.textContent).toBe('5');
     expect((target.querySelector('.seed-mark') as HTMLElement).style.opacity).toBe('');
+  });
+
+  test('grass beam landing commits the seed without a second opacity or highlight delay', async () => {
+    let finishBeam!: () => void;
+    const animateDestroyDragonBreath = jest.fn(() => new Promise<void>((resolve) => {
+      finishBeam = resolve;
+    }));
+    jest.doMock('../ui/animation-destroy-source-events', () => ({
+      animateDestroyDragonBreath
+    }));
+    document.body.innerHTML = `
+      <div id="board" data-board-renderer="dom">
+        <div class="cell" data-row="1" data-col="1"><div class="disc black"></div></div>
+        <div class="cell" data-row="2" data-col="2"></div>
+      </div>`;
+    const board = document.getElementById('board') as HTMLElement;
+    const source = document.querySelector('.cell[data-row="1"][data-col="1"]') as HTMLElement;
+    const target = document.querySelector('.cell[data-row="2"][data-col="2"]') as HTMLElement;
+    board.getBoundingClientRect = () => ({ left: 0, top: 0, width: 320, height: 320, right: 320, bottom: 320, x: 0, y: 0, toJSON: () => ({}) });
+    source.getBoundingClientRect = () => ({ left: 40, top: 40, width: 40, height: 40, right: 80, bottom: 80, x: 40, y: 40, toJSON: () => ({}) });
+    target.getBoundingClientRect = () => ({ left: 160, top: 160, width: 40, height: 40, right: 200, bottom: 200, x: 160, y: 160, toJSON: () => ({}) });
+    const scheduledDelays: number[] = [];
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
+    const handlers = createDomBoardPlaybackHandlers({
+      boardElement: board,
+      documentRef: document,
+      isNoAnim: () => false,
+      getTimer: () => ({
+        setTimeout: (_callback: () => void, delayMs: number) => {
+          scheduledDelays.push(delayMs);
+          return scheduledDelays.length;
+        },
+        clearTimeout: jest.fn()
+      })
+    });
+    const executor = createDomBoardPlaybackExecutor(handlers);
+    const meta = {
+      special: 'SEED',
+      owner: 'black',
+      cause: 'GRASS_WILL',
+      reason: 'grass_seeded',
+      sourceRow: 1,
+      sourceCol: 1,
+      sourceTrajectoryProfile: 'grassWillSeedBeam'
+    };
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta,
+      targets: [{
+        r: 2,
+        col: 2,
+        sourceRow: 1,
+        sourceCol: 1,
+        cause: 'GRASS_WILL',
+        reason: 'grass_seeded',
+        meta,
+        after: { special: 'SEED', owner: 'black', timer: 5 }
+      }]
+    };
+    let settled = false;
+    const pending = executor.playPhase([event], createPlaybackContext(event))
+      .then(() => { settled = true; });
+
+    await flushMicrotasks();
+    expect(animateDestroyDragonBreath).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    finishBeam();
+    await flushMicrotasks();
+
+    expect(settled).toBe(true);
+    await pending;
+    expect(target.querySelectorAll('.seed-mark')).toHaveLength(1);
+    expect((target.querySelector('.seed-mark') as HTMLElement).style.opacity).toBe('');
+    expect(scheduledDelays).toEqual([]);
   });
 
   test('SEED_WILL materializes the same seed marker during status playback', async () => {

@@ -1,7 +1,7 @@
 # PixiJS board source trajectory migration design
 
 - Status: implemented
-- Last reviewed: 2026-07-19
+- Last reviewed: 2026-08-24
 - Scope: 盤面セルから盤面セルへ移動する破壊前・変化前の source trajectory
 - Player-visible specification: 2026-07-19にoffscreen区間の表示を明確化
 
@@ -101,8 +101,8 @@ parity trace は、移行前の `global:destroy_source_animation` / `global:zomb
 | --- | --- | --- | --- |
 | `sniperShot` | source → target | owner 色の通常石画像、通常石の25%相当、小球を直線移動 | `clamp(90 + distance*0.35, 120, 420) ms`、linear、通常はanimation finishで到達扱い、safety deadlineはduration+120ms |
 | `robotVacuumSuck` | target → source | `ownerBefore`色の対象石を吸引元へ移動しつつ 1 → 0.68 に縮小、opacity 1 → 0.78 | `clamp(140 + distance*0.28, 140, 360) ms`、通常はanimation finish、safety deadlineはduration+120ms。到達後はgeneric fadeを重ねずcell clear |
-| `destroyDragonBreath` | source → target | 黄橙赤の beam、source muzzle。Pixi laneのtarget impactは既存`destroy.ts`だけが描く | beam `clamp(240 + distance*0.28, 280, 520) ms`、trajectory gateは常にduration+120ms |
-| `meteorGodBlackBeam` | source → target | 黒紫の outer/core beam、source muzzle。Pixi laneのtarget impact/ringは既存`destroy.ts`だけが描く | beam `clamp(230 + distance*0.22, 260, 460) ms`、trajectory gateは常にduration+140ms |
+| `destroyDragonBreath` | source → target | 黄橙赤の beam、source muzzle。Pixi laneのtarget impactは既存`destroy.ts`だけが描く | beam `clamp(240 + distance*0.28, 280, 520) ms`、通常はanimation finish、safety deadlineはduration+120ms |
+| `meteorGodBlackBeam` | source → target | 黒紫の outer/core beam、source muzzle。Pixi laneのtarget impact/ringは既存`destroy.ts`だけが描く | beam `clamp(230 + distance*0.22, 260, 460) ms`、通常はanimation finish、safety deadlineはduration+140ms |
 | `lightningDestroyed` | source → target | 青白い main glow/core、seeded branches。Pixi laneのtarget flash/ringは既存`destroy.ts`だけが描く | `clamp(170 + distance*0.12, 170, 300) ms`。Pixi laneはsource animations finish（通常duration、deadline duration+140ms）、DOM laneは自身のtarget要素を含む既存finish/deadlineを維持 |
 | `udgDestroyed` | source → target | `lightningDestroyed` と同じ trajectory renderer | 同上 |
 | `zombieBite` | source → target | 黒紫の影が這い、対象を挟む上下の半透明牙が閉じた後に屍石化 | 800 ms。`prefers-reduced-motion` では source trajectory を出さず、既存 target change policyを維持 |

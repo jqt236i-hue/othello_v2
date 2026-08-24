@@ -14,9 +14,101 @@ function makeTimer() {
   };
 }
 
+async function flushMicrotasks(rounds = 8): Promise<void> {
+  for (let index = 0; index < rounds; index += 1) await Promise.resolve();
+}
+
 describe('destroy source animation batching', () => {
   beforeEach(() => {
     jest.resetModules();
+  });
+
+  test.each([
+    ['dragon beam', 'animateDestroyDragonBreath'],
+    ['meteor black beam', 'animateMeteorGodBlackBeam']
+  ])('%s settles on actual Web Animation completion and keeps the deadline as fallback', async (_label, methodName) => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window as any;
+    (global as any).document = dom.window.document as any;
+
+    const finishAnimations: Array<() => void> = [];
+    const animate = jest.fn(() => {
+      let finish!: () => void;
+      const finished = new Promise<void>((resolve) => { finish = resolve; });
+      finishAnimations.push(finish);
+      return { finished, cancel: jest.fn() };
+    });
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'animate', {
+      configurable: true,
+      value: animate
+    });
+    const deadlineCallbacks: Array<() => void> = [];
+    const clearTimeout = jest.fn();
+    const source = { row: 1, col: 1 };
+    const target = {
+      r: 2,
+      col: 2,
+      meta: { sourceTrajectoryProfile: 'fireWillFlameBeam' }
+    };
+    const animationModule = require('../ui/animation-destroy-source-events');
+    const makeDeps = () => ({
+      isNoAnim: () => false,
+      getCellClientRect: (row: number, col: number) => (
+        row === source.row && col === source.col
+          ? makeRect(100, 100)
+          : row === target.r && col === target.col
+            ? makeRect(220, 180)
+            : null
+      ),
+      resolveSniperSource: () => source,
+      resolveRobotVacuumSource: () => source,
+      resolveDestroyDragonSource: () => source,
+      waitForAnimationFinish: jest.fn(),
+      sleep: jest.fn(),
+      timer: () => ({
+        setTimeout: (callback: () => void) => {
+          deadlineCallbacks.push(callback);
+          return deadlineCallbacks.length;
+        },
+        clearTimeout
+      }),
+      playbackScope: null,
+      suppressTargetImpact: true,
+      random: () => 0.5
+    });
+    let settled = false;
+    const pending = animationModule[methodName](target, makeDeps())
+      .then(() => { settled = true; });
+
+    await Promise.resolve();
+    expect(finishAnimations.length).toBeGreaterThan(0);
+    expect(deadlineCallbacks).toHaveLength(1);
+    finishAnimations.forEach((finish) => finish());
+    await flushMicrotasks();
+    const settledAtAnimationFinish = settled;
+
+    deadlineCallbacks.forEach((finish) => finish());
+    await pending;
+    expect(settledAtAnimationFinish).toBe(true);
+    expect(clearTimeout).toHaveBeenCalled();
+
+    deadlineCallbacks.length = 0;
+    clearTimeout.mockClear();
+    animate.mockImplementation(() => ({ cancel: jest.fn() } as any));
+    let fallbackSettled = false;
+    const fallbackPending = animationModule[methodName](target, makeDeps())
+      .then(() => { fallbackSettled = true; });
+
+    await flushMicrotasks();
+    expect(fallbackSettled).toBe(false);
+    expect(deadlineCallbacks).toHaveLength(1);
+    deadlineCallbacks.forEach((finish) => finish());
+    await fallbackPending;
+    expect(fallbackSettled).toBe(true);
+
+    dom.window.close();
+    delete (global as any).window;
+    delete (global as any).document;
   });
 
   test('DOM runtime keeps shared-launch order while owning cached cell-to-client-rect reads', async () => {

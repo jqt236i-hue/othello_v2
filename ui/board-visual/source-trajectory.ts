@@ -143,14 +143,14 @@ Record<BoardSourceTrajectoryProfileKey, BoardSourceTrajectoryProfile>
   }),
   destroyDragonBreath: Object.freeze({
     profileKey: 'destroyDragonBreath', eventType: 'destroy', primitive: 'beam', direction: 'source-to-target',
-    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    duration: duration(240, 0.28, 280, 520), settlement: 'animations-or-deadline', deadlinePaddingMs: 120,
     easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
     targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'unchanged',
     visualSeedPolicy: 'none', haloCells: 0.75
   }),
   meteorGodBlackBeam: Object.freeze({
     profileKey: 'meteorGodBlackBeam', eventType: 'destroy', primitive: 'beam', direction: 'source-to-target',
-    duration: duration(230, 0.22, 260, 460), settlement: 'fixed-deadline', deadlinePaddingMs: 140,
+    duration: duration(230, 0.22, 260, 460), settlement: 'animations-or-deadline', deadlinePaddingMs: 140,
     easing: 'cubic-bezier(0.2, 0.78, 0.18, 1)', ownerPolicy: 'none', texturePolicy: 'none',
     targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'unchanged',
     visualSeedPolicy: 'none', haloCells: 1
@@ -171,21 +171,21 @@ Record<BoardSourceTrajectoryProfileKey, BoardSourceTrajectoryProfile>
   }),
   fireWillFlameBeam: Object.freeze({
     profileKey: 'fireWillFlameBeam', eventType: 'status_applied', primitive: 'beam', direction: 'source-to-target',
-    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    duration: duration(240, 0.28, 280, 520), settlement: 'animations-or-deadline', deadlinePaddingMs: 120,
     easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
     targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'skip-source',
     visualSeedPolicy: 'none', haloCells: 0.75
   }),
   waterWillHealingBeam: Object.freeze({
     profileKey: 'waterWillHealingBeam', eventType: 'status_applied', primitive: 'beam', direction: 'source-to-target',
-    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    duration: duration(240, 0.28, 280, 520), settlement: 'animations-or-deadline', deadlinePaddingMs: 120,
     easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
     targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'skip-source',
     visualSeedPolicy: 'none', haloCells: 0.75
   }),
   grassWillSeedBeam: Object.freeze({
     profileKey: 'grassWillSeedBeam', eventType: 'status_applied', primitive: 'beam', direction: 'source-to-target',
-    duration: duration(240, 0.28, 280, 520), settlement: 'fixed-deadline', deadlinePaddingMs: 120,
+    duration: duration(240, 0.28, 280, 520), settlement: 'animations-or-deadline', deadlinePaddingMs: 120,
     easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', ownerPolicy: 'none', texturePolicy: 'none',
     targetImpactOwner: 'board-backend', noAnimation: 'zero-duration-no-object', reducedMotion: 'skip-source',
     visualSeedPolicy: 'none', haloCells: 0.75

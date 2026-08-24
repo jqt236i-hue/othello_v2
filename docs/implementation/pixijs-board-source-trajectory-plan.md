@@ -147,7 +147,7 @@ git diff --check
 1. 既存effect layer内にpooled handlesを追加し、新Application/canvas/renderer/ticker/contextを作らない。
 2. projectile/suctionをstone texture Sprite、breath/black beamをGraphics/geometry、lightningをseeded polyline、zombieをshadow/fang primitivesで実装する。
 3. target flash/ring/impactは既存`destroy.ts`/`flip.ts`のownerとし、二重描画しない。
-4. Phase 0 timingを再現する。dragonはduration+120ms、black beamはduration+140ms、Pixi lightning sourceはanimation finishまたはduration+140ms deadlineとする。
+4. 移行当時はPhase 0 timing baselineとして、dragonのduration+120msとblack beamのduration+140msをfixtureへ記録した。この基準は後に通常のanimation finish＋safety deadlineへ置き換えられ、現行fixtureは `docs/architecture-contracts.md` 7.3.1 と設計書5.2の現行契約に従う。
 5. 全raw requestを同期startしてPromise mapを作った後だけboard callbackを呼ぶ二段executorを実装する。
 6. geometryを同一frame/topology/layout revisionからsnapshotし、開始前revision changeだけ再計算する。開始後endpointを動かさない。
 7. cell objectを参照せずworld→sceneを求め、source/target/path/void cellを追加materializeしない。

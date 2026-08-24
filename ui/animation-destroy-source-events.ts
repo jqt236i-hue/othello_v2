@@ -138,12 +138,8 @@ function waitForAnimationsOrDeadline(
             try {
                 if (animation?.finished && typeof animation.finished.then === 'function') {
                     Promise.resolve(animation.finished).then(completeOne, completeOne);
-                } else {
-                    completeOne();
                 }
-            } catch (e: any) {
-                completeOne();
-            }
+            } catch (e: any) { /* unreadable completion falls back to deadline */ }
         }
         if (settled) return;
 
@@ -442,7 +438,7 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
             }
         } catch (e: any) { /* ignore */ }
 
-        await waitForScopedDeadline(deps, durationMs + 120);
+        await waitForAnimationsOrDeadline(deps, animations, durationMs + 120);
     } finally {
         cleanupTransientAnimation(layer, animations);
     }
@@ -612,7 +608,7 @@ async function animateMeteorGodBlackBeam(target: any, deps: DestroySourceAnimati
             }
         } catch (e: any) { /* ignore */ }
 
-        await waitForScopedDeadline(deps, durationMs + 140);
+        await waitForAnimationsOrDeadline(deps, animations, durationMs + 140);
     } finally {
         cleanupTransientAnimation(layer, animations);
     }

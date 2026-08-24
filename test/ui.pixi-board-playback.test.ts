@@ -1073,14 +1073,12 @@ describe('Pixi board playback contract', () => {
     expect(harness.log).not.toContain('scene:hide:5,1');
     expect(settled).toBe(false);
 
-    harness.application.tick(400);
+    harness.application.tick(280);
     await flushMicrotasks();
     harness.application.tick(1);
     await flushMicrotasks();
-    for (let index = 0; index < 4 && !settled; index += 1) {
-      harness.application.tick(1000);
-      await flushMicrotasks();
-    }
+    harness.application.tick(1);
+    await flushMicrotasks(24);
     expect(settled).toBe(true);
     await pending;
     expect(harness.log).not.toContain('scene:hide:5,1');
@@ -1139,7 +1137,7 @@ describe('Pixi board playback contract', () => {
     expect(harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'))).toBe(-1);
     expect(settled).toBe(false);
 
-    harness.application.tick(400);
+    harness.application.tick(280);
     await flushMicrotasks();
     harness.application.tick(1);
     await flushMicrotasks();
@@ -1147,10 +1145,8 @@ describe('Pixi board playback contract', () => {
     const seedAcquire = harness.log.indexOf('scene:ghost-acquire:5,1:marker:seed');
     expect(sourceRelease).toBeGreaterThan(preImpactHide);
     expect(seedAcquire).toBeGreaterThan(sourceRelease);
-    for (let index = 0; index < 4 && !settled; index += 1) {
-      harness.application.tick(1000);
-      await flushMicrotasks();
-    }
+    harness.application.tick(1);
+    await flushMicrotasks(24);
     expect(settled).toBe(true);
     await pending;
 
@@ -1209,14 +1205,12 @@ describe('Pixi board playback contract', () => {
     expect(harness.log).not.toContain('scene:hide:5,1');
     expect(settled).toBe(false);
 
-    harness.application.tick(400);
+    harness.application.tick(280);
     await flushMicrotasks();
     harness.application.tick(1);
     await flushMicrotasks();
-    for (let index = 0; index < 4 && !settled; index += 1) {
-      harness.application.tick(1000);
-      await flushMicrotasks();
-    }
+    harness.application.tick(1);
+    await flushMicrotasks(24);
     expect(settled).toBe(true);
     await pending;
     expect(harness.log).not.toContain('scene:hide:5,1');

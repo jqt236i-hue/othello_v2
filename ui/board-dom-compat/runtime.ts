@@ -687,6 +687,7 @@ class DomBoardPlaybackRuntime {
     target: any,
     phase: DomPhaseRuntimeContext
   ): Promise<void> {
+    const sourceTrajectoryOwnsImpact = this.isGrassSeedTrajectory(event, target);
     const cell = this.seedTargetCell(event, target, phase);
     if (!cell) return;
     let seedMark = cell.querySelector('.seed-mark') as HTMLElement | null;
@@ -710,14 +711,14 @@ class DomBoardPlaybackRuntime {
         ?? eventMeta.timer;
       const created = renderer.createSeedMark(remaining) as HTMLElement | null;
       if (!created) throw new Error('DOM seed marker creation failed');
-      created.style.opacity = '0';
+      created.style.opacity = sourceTrajectoryOwnsImpact ? '' : '0';
       cell.appendChild(created);
       seedMark = created;
     }
     if (!seedMark) throw new Error('DOM seed marker unavailable after creation');
     cell.classList.add('seeded-cell');
     seedMark.style.visibility = 'visible';
-    if (this.isNoAnim()) {
+    if (this.isNoAnim() || sourceTrajectoryOwnsImpact) {
       seedMark.style.opacity = '';
       return;
     }
@@ -1280,6 +1281,7 @@ class DomBoardPlaybackRuntime {
     await this.runInPhase([event], context, async (phase) => {
       if (!AnimationStatusEvents || typeof AnimationStatusEvents.handleStatusChangeEvent !== 'function') throw new Error('DOM status event module unavailable');
       const trajectoryTargets: any[] = [];
+      const ordinaryTargets: any[] = [];
       for (const target of Array.isArray(event.targets) ? event.targets : []) {
         if (PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey('status_applied', target)) {
           trajectoryTargets.push(target);
@@ -1287,11 +1289,17 @@ class DomBoardPlaybackRuntime {
           this.recordTargetStage('impact-start', 'status_applied', target);
           await this.sourceTrajectoryRunForEvent(phase, event).waitForTarget('status_applied', target, event);
           await this.revealSeedAtImpact(event, target, phase);
-        } else if (this.isSeedStatus(event, target)) {
-          await this.revealSeedAtImpact(event, target, phase);
+        } else {
+          ordinaryTargets.push(target);
+          if (this.isSeedStatus(event, target)) {
+            await this.revealSeedAtImpact(event, target, phase);
+          }
         }
       }
-      await AnimationStatusEvents.handleStatusChangeEvent(event, {
+      if (ordinaryTargets.length > 0) await AnimationStatusEvents.handleStatusChangeEvent({
+        ...event,
+        targets: ordinaryTargets
+      }, {
         eventTypes: EVENT_TYPES,
         visuals: Visuals,
         overlayCrossfadeMs: OVERLAY_CROSSFADE_MS,

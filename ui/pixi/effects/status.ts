@@ -205,6 +205,10 @@ async function playStatusTarget(
     'status_applied',
     target
   );
+  // A source trajectory is the complete visible transition for its target.
+  // Reusing the generic status fade/highlight after landing would delay the
+  // committed marker and the following impact-sound phase a second time.
+  const sourceTrajectoryOwnsImpact = !!profileKey;
   const special = resolveStatusSpecial(event, target);
   const meta = eventMeta(event);
   const targetMeta = target?.meta && typeof target.meta === 'object' ? target.meta : {};
@@ -237,7 +241,9 @@ async function playStatusTarget(
   await sourceTrajectoryGate;
   const stoneMutation = resolveStatusPlaybackStoneMutation(event, target);
   if (!usesSeedMarker && (stoneMutation === 'preserve' || stoneMutation === 'timer-only')) {
-    const tone = resolveStatusHighlightTone(event, target, projection.noAnimation);
+    const tone = sourceTrajectoryOwnsImpact
+      ? null
+      : resolveStatusHighlightTone(event, target, projection.noAnimation);
     const durationMs = tone ? projection.timings.positiveHighlightMinimumMs : 0;
     let highlight: PixiPlaybackCellHighlightHandle | null = null;
     try {
@@ -271,7 +277,9 @@ async function playStatusTarget(
     }
     return;
   }
-  const mode = resolveStatusMode(event, target, special);
+  const mode = sourceTrajectoryOwnsImpact
+    ? 'immediate'
+    : resolveStatusMode(event, target, special);
   const beforeColor = Number(target?.before?.color);
   const eventBefore = (beforeColor === 1 || beforeColor === -1)
     ? createPlaybackStoneVisual(target.before)
@@ -279,7 +287,9 @@ async function playStatusTarget(
   const current = eventBefore
     || projection.getProjectedStone(coordinate.row, coordinate.col);
   const after = resolveStatusAfterVisual(event, target, current, special);
-  const tone = resolveStatusHighlightTone(event, target, projection.noAnimation);
+  const tone = sourceTrajectoryOwnsImpact
+    ? null
+    : resolveStatusHighlightTone(event, target, projection.noAnimation);
   const visualDurationMs = resolveVisualDurationMs(event, target, mode, projection);
   const durationMs = Math.max(
     visualDurationMs,
