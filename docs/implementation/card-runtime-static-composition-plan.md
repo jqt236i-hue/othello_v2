@@ -1250,3 +1250,11 @@ Final command evidence and independent-review disposition are recorded in Sectio
 途中で実在しない test path を含めた focused command が一度失敗したが、product/test failure ではない。実在する card-interaction test path へ訂正した同一範囲の実行は全件 PASS した。
 
 この追加レビューで player-visible rule、card behavior、turn order、animation/sound、visible text、wire schema、saved/model format の変更は発生していない。`01-rulebook.md` と `正本/*.md` は未変更のまま、architecture contract と generated browser/Worker delivery だけを実装へ同期した。
+
+## 20. Post-review hermetic replay (2026-08-24)
+
+Post-review commit `ed3d373a6530f9d76d14229ec4fa92c89946bb20` を local working tree から分離した temporary clone へ detached checkout し、未追跡・ignored・既存生成物を持ち込まない状態から `npm ci` と `npm run checkall` を実行した。依存関係425 packagesの導入と全 checkall gate が PASS し、実行後の clone `git status --short` も空だった。これにより、修正commitが元working treeだけに存在するdist、browser、Worker、model artifactへ依存しないことを追加証明した。
+
+依存関係監査も同じ clone で分離確認した。`npm audit --omit=dev --json` は production vulnerabilities 0件。全dependency監査の4件（high 3、moderate 1）は `brace-expansion`、`js-yaml`、`nanoid`、`postcss` の既存transitive dev dependenciesで、Jest/Vite等のtest/build tooling経路に限定される。今回のrefactor範囲では `package.json` / `package-lock.json` を変更しておらず、player runtime、browser shipping bundle、Worker runtimeへのproduction exposureはないため、無関係なdependency upgradeは本修正commitへ混在させない。
+
+元working treeのWorker mirrorにだけ存在したmodel 6 filesとONNX runtime 3 filesは、`.gitignore`対象のlocal optional artifactsであることを確認した。clean cloneのmirror/checkallがそれらなしでPASSしているため、commit必須生成物でもrefactorのhidden dependencyでもない。tracked source、generated delivery、player-visible specsへの追加変更は不要と判定した。
