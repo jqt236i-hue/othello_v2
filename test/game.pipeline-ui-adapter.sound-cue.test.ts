@@ -1223,9 +1223,11 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
   });
 
   test('森羅万象神の大型石出現時に専用 sound_effect を同じ phase に1回追加する', () => {
-    const base = [{
-      type: 'status_applied',
-      phase: 9,
+    const presentation = [{
+      type: 'STATUS_APPLIED',
+      row: 2,
+      col: 3,
+      cause: 'SHINRA_BANSHO_GOD',
       reason: 'shinra_summoned',
       meta: {
         special: 'SHINRA_BANSHO_GOD',
@@ -1236,10 +1238,14 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
           { row: 3, col: 3 },
           { row: 3, col: 4 }
         ]
-      },
-      targets: [{ row: 2, col: 3, reason: 'shinra_summoned' }]
+      }
     }];
+    const finalCardState = { markers: [] };
+    const finalGameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
 
+    const base = adapter.mapToPlaybackEvents(presentation, finalCardState, finalGameState);
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
     const cues = out.filter((ev) => (
       ev &&
@@ -1251,7 +1257,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cues).toEqual([expect.objectContaining({
       type: 'sound_effect',
-      phase: 9,
+      phase: 1,
       targets: [expect.objectContaining({ soundKey: 'shinra_bansho_god_summon' })]
     })]);
   });

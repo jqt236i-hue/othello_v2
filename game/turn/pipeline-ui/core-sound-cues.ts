@@ -166,15 +166,25 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         deps.pushCueForPhases(ctx, theoryIncarnationSpawnPhases, 'theory_incarnation_spawn', 'theory_incarnation_spawn');
     }
 
-    const shinraBanshoGodSummonPhases = deps.collectUniquePhases(
-        ctx.base,
-        (ev: any) => (
+    const isShinraBanshoGodSummonEvent = (ev: any) => {
+        if (!(
             ev &&
             ev.type === 'status_applied' &&
             ev.meta &&
-            String(ev.meta.special || '').toUpperCase() === 'SHINRA_BANSHO_GOD' &&
-            String(ev.reason || ev.meta.reason || '').toLowerCase() === 'shinra_summoned'
-        )
+            String(ev.meta.special || '').toUpperCase() === 'SHINRA_BANSHO_GOD'
+        )) {
+            return false;
+        }
+        const reasons = [
+            ev.reason,
+            ev.meta.reason,
+            ...(Array.isArray(ev.targets) ? ev.targets.map((target: any) => target && target.reason) : [])
+        ].map((reason: any) => String(reason || '').toLowerCase());
+        return reasons.includes('shinra_summoned');
+    };
+    const shinraBanshoGodSummonPhases = deps.collectUniquePhases(
+        ctx.base,
+        (ev: any) => isShinraBanshoGodSummonEvent(ev)
     );
     if (shinraBanshoGodSummonPhases.length > 0) {
         deps.pushCueForPhases(
