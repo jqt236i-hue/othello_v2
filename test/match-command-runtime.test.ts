@@ -60,9 +60,11 @@ function createExecutionCapabilities(overrides: any = {}): MatchCommandExecution
         action: input.action || { type: input.actionType || 'pass' }
       })
     },
+    runtimeFailure: {
+      isRuntimeUnavailableError: () => false
+    },
     autoCommand: {
       isAutoTurnPublishBody: (body) => body.actionType === 'auto_turn',
-      isRuntimeUnavailableError: () => false,
       resolveAutoTurnPublishBody: ({ body }) => ({
         ok: true,
         body: {
@@ -402,7 +404,6 @@ describe('shared match command prepare and apply stages', () => {
     const failedCapabilities = createExecutionCapabilities({
       autoCommand: {
         isAutoTurnPublishBody: () => true,
-        isRuntimeUnavailableError: () => false,
         resolveAutoTurnPublishBody: () => ({ ok: false, rejectedReason: 'AUTO_NO_ACTION' })
       }
     });
@@ -419,9 +420,9 @@ describe('shared match command prepare and apply stages', () => {
   test('AUTO preserves the canonical runtime-unavailable rejection before mutation', () => {
     const unavailable = createCardRuntimeUnavailableError('state.availability', 'state');
     const capabilities = createExecutionCapabilities({
+      runtimeFailure: { isRuntimeUnavailableError: isCardRuntimeUnavailableError },
       autoCommand: {
         isAutoTurnPublishBody: () => true,
-        isRuntimeUnavailableError: isCardRuntimeUnavailableError,
         resolveAutoTurnPublishBody: () => { throw unavailable; }
       }
     });
@@ -825,6 +826,45 @@ describe('shared match command presentation, turn-start, and single executor', (
       { player: 'white', amount: 7 }
     ]);
     expect(result.playbackDiagnostics).toBeNull();
+  });
+
+  test('maps post-action turn-start runtime failure without mutating authority input', () => {
+    const context: any = createAuthorityContext();
+    const before = clone(context);
+    const capabilities = createExecutionCapabilities({
+      runtimeFailure: { isRuntimeUnavailableError: isCardRuntimeUnavailableError }
+    });
+    const unavailable = createCardRuntimeUnavailableError('turnStart.phase', 'turn-phases');
+    (capabilities.turnStart.applyTurnStartPhase as jest.Mock).mockImplementation(() => {
+      throw unavailable;
+    });
+
+    expect(executeMatchCommand(
+      context,
+      { actionType: 'place', action: { type: 'place', row: 2, col: 3 } },
+      capabilities
+    )).toEqual({
+      ok: false,
+      rejectedReason: 'RUNTIME_UNAVAILABLE',
+      errorMessage: unavailable.message
+    });
+    expect(context).toEqual(before);
+  });
+
+  test('keeps ordinary post-action turn-start exceptions on the existing throw path', () => {
+    const capabilities = createExecutionCapabilities({
+      runtimeFailure: { isRuntimeUnavailableError: isCardRuntimeUnavailableError }
+    });
+    const ordinaryFailure = new TypeError('ordinary turn-start bug');
+    (capabilities.turnStart.applyTurnStartPhase as jest.Mock).mockImplementation(() => {
+      throw ordinaryFailure;
+    });
+
+    expect(() => executeMatchCommand(
+      createAuthorityContext(),
+      { actionType: 'place', action: { type: 'place', row: 2, col: 3 } },
+      capabilities
+    )).toThrow(ordinaryFailure);
   });
 
   test('skipped same-player continuation never invokes turn-start capabilities', () => {

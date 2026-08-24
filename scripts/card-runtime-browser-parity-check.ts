@@ -103,8 +103,10 @@ async function readLane(page: Page, url: string, lane: string): Promise<any> {
   const result = await page.evaluate(() => {
     const root = globalThis as any;
     const cardLogic = root.CardLogic;
+    const spawnAndFlipGlobalBeforeRequire = root.CardSpawnAndFlip;
     const requiredOnce = root.require('game/logic/cards');
     const requiredTwice = root.require('./dist/game/logic/cards');
+    const spawnAndFlipRequired = root.require('game/logic/cards-internal/spawn-and-flip');
     const moduleExportUtils = root.require('shared/module-export-utils');
     const unwrapped = moduleExportUtils.unwrapModuleExport(requiredOnce);
     const pendingCoordinator = root.require('game/turn/pending-coordinator');
@@ -135,6 +137,8 @@ async function readLane(page: Page, url: string, lane: string): Promise<any> {
         globalEqualsNormalizedRequire: cardLogic === requiredTwice,
         repeatedRequireIdentity: requiredOnce === requiredTwice,
         unwrapIdentity: unwrapped === cardLogic,
+        spawnAndFlipGlobalPresentBeforeRequire: !!spawnAndFlipGlobalBeforeRequire,
+        spawnAndFlipGlobalEqualsWrapper: spawnAndFlipGlobalBeforeRequire === spawnAndFlipRequired,
         requireAliasesIdentity: root.require === root._require && root.require === root.__require
           && root.require === root.__non_webpack_require__
       },

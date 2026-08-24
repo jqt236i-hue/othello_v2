@@ -555,9 +555,11 @@ function createLocalMatchCommandCapabilities() {
                 NetworkActionSchema.buildAction(input, fallbackActor, fallbackTurnIndex)
             )
         },
+        runtimeFailure: {
+            isRuntimeUnavailableError: (error: unknown) => isCardRuntimeUnavailableError(error)
+        },
         autoCommand: {
             isAutoTurnPublishBody: (body: any) => MatchAutoCommand.isMatchAutoTurnPublishBody(body),
-            isRuntimeUnavailableError: (error: unknown) => isCardRuntimeUnavailableError(error),
             resolveAutoTurnPublishBody: (options: any) => MatchAutoCommand.resolveMatchAutoTurnPublishBody({
                 body: options.body,
                 snapshot: options.snapshot,

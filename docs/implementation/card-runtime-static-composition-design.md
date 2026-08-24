@@ -775,3 +775,23 @@ Preparation専用のWorker/Vite/classic fixture sourceとfixture-only wiringはa
 このリファクタリングはカードの強さやルールを変えず、同じゲーム処理をブラウザ、CPU、サーバーで一つの安全な組み立て方へ統一しました。部品不足を検知した時に「カードが使えない」「カードが0枚」「自動パス」と誤認したり、CPUが同じ失敗を繰り返したり、途中の確定済み選択状態を消したりする危険を重点的に塞いでいます。
 
 正常な対局の結果、演出順、乱数、手番、公開APIの同一性を固定した証拠を先に作り、それを各実配信経路で継続検証する形で実装しました。不完全な実行環境だけを安全停止させ、通常対局の仕様は維持しています。
+
+## 15. Post-completion strict independent review (2026-08-24)
+
+実装完了後、新規バグと意図しない仕様変更を最優先に、2体のSOL reviewerが gameplay/UI と cross-runtime/network の2方向から並列で独立レビューした。各 reviewer は修正前後の source、focused tests、production delivery を確認し、最終的に双方とも APPROVE、未解決の P0-P2 finding なしと判定した。
+
+レビューで見つかった欠陥と設計上の修正は次のとおり。
+
+1. UI integrity latch が owner 登録より先に成立した場合、後から読み込まれた card interaction の選択状態と busy lock が回収されない経路があった。generation ごとの named settlement owner registry を設け、latch 前登録、latch 後登録、reset 後再登録のすべてで各 owner を一度だけ settle する。
+2. local authority の turn-start failure が Worker と異なり HTTP 500 へ漏れる経路があった。tagged canonical runtime failure だけを共有 command-boundary classifier で `409 RUNTIME_UNAVAILABLE` に正規化し、untagged exception は従来どおり generic owner へ伝播させる。state/version/history/broadcast は mutation 前のまま保持する。
+3. fresh classic boot で legacy `globalThis.CardSpawnAndFlip` が欠落していた。canonical module を classic load graph に戻し、fresh boot と reload の global/function identity を delivery gate で固定した。
+4. runtime failure classifier が hostile Proxy/getter を読むと classifier 自体が例外を投げ得た。own data descriptor だけを一度読む total classifier に変更し、reflection trap、accessor、spoof、foreign error は false とする。
+5. turn factory が歴史的に optional な BoardOps/SubPlacement ports を誤って必須化し得た。absent/partial optional-port fallback は維持し、required service だけを厳密に検証する。
+6. turn service validation が accessor を複数回評価し、余分な string/symbol key を許し、検証した graph と異なる値を返し得た。root key を exact にし、own data descriptor のみを採用し、検証済み参照から exact shallow-frozen graph を構成する。
+7. required `Core.BLACK` / `Core.WHITE` と optional `validateState` の検証が不足し、不正な frozen graph が validation bypass できた。両 constant の存在・非 `undefined`・相違と、required functions および存在時の `validateState` function を create/assert の両入口で検証する。
+
+これらは failure handling、互換 global、validator の安全性を元の契約へ戻す修正であり、カード効果、合法手、乱数、手番、イベント順、表示仕様、network/saved/model format は変更しない。したがって `01-rulebook.md` と `正本/*.md` は更新対象外のまま維持した。
+
+最終 revision では、focused 10 suites / 166 tests、turn service 13 tests、boundary/dist/browser delivery、canonical Worker smoke、mirror 960 files、network parity 36 suites / 584 tests、`checkall`、full Jest 1,034 suites / 7,897 tests がすべて green となった。network parity は通常実行後の Jest advisory を `--detectOpenHandles` 付きで再実行し、同じ 584 tests が exit 0、open handle の検出なしで完了した。
+
+最初の full Jest は structural fingerprint 2件と tablet E2E timeout 1件だけ失敗した。両 fingerprint は graph の意図した静的構造変更を source review 後に更新し、gameplay expectation は変更していない。tablet scenario は単独で 2/2 pass、最終 full suite も全件 pass した。最初の final `checkall` は browser build 後の mirror 2ファイル差分だけを検出し、`worker:prepare` で正規生成・同期後に再実行して pass した。

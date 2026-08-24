@@ -224,6 +224,19 @@ function hasFunction(value: unknown, key: string): boolean {
     );
 }
 
+function isRuntimeUnavailableFailure(
+    capabilities: MatchCommandExecutionCapabilities | null | undefined,
+    error: unknown
+): boolean {
+    try {
+        return !!capabilities
+            && hasFunction(capabilities.runtimeFailure, 'isRuntimeUnavailableError')
+            && capabilities.runtimeFailure.isRuntimeUnavailableError(error) === true;
+    } catch (_classificationError) {
+        return false;
+    }
+}
+
 function toFailure(
     rejectedReason: string,
     errorMessage?: unknown,
@@ -312,6 +325,9 @@ function validateSharedCapabilityGroups(
     if (!capabilities || !hasFunction(capabilities.schema, 'buildAction')) {
         return toFailure('COMMAND_SCHEMA_UNAVAILABLE');
     }
+    if (!hasFunction(capabilities.runtimeFailure, 'isRuntimeUnavailableError')) {
+        return toFailure('COMMAND_PIPELINE_UNAVAILABLE');
+    }
     if (
         !capabilities.snapshot
         || !hasFunction(capabilities.snapshot, 'cloneSnapshot')
@@ -365,7 +381,6 @@ function validateSharedCapabilityGroups(
         if (
             !capabilities.autoCommand
             || !hasFunction(capabilities.autoCommand, 'isAutoTurnPublishBody')
-            || !hasFunction(capabilities.autoCommand, 'isRuntimeUnavailableError')
             || !hasFunction(capabilities.autoCommand, 'resolveAutoTurnPublishBody')
         ) {
             return toFailure('AUTO_COMMAND_PLANNER_UNAVAILABLE');
@@ -512,7 +527,7 @@ export function prepareMatchCommandExecution(
         } catch (error) {
             return {
                 kind: 'terminal',
-                result: capabilities.autoCommand!.isRuntimeUnavailableError(error)
+                result: isRuntimeUnavailableFailure(capabilities, error)
                     ? toFailure('RUNTIME_UNAVAILABLE')
                     : toFailure(
                         'AUTO_COMMAND_PLANNER_UNAVAILABLE',
@@ -912,20 +927,28 @@ export function executeMatchCommand(
     body: unknown,
     capabilities: MatchCommandExecutionCapabilities
 ): MatchCommandExecutionResult {
-    const prepared = prepareMatchCommandExecution(context, body, capabilities);
-    if (prepared.kind === 'terminal') return prepared.result;
+    try {
+        const prepared = prepareMatchCommandExecution(context, body, capabilities);
+        if (prepared.kind === 'terminal') return prepared.result;
 
-    const applied = applyPreparedMatchCommandExecution(prepared.value, capabilities);
-    if (!('pipelineResult' in applied)) return applied;
+        const applied = applyPreparedMatchCommandExecution(prepared.value, capabilities);
+        if (!('pipelineResult' in applied)) return applied;
 
-    const actionPresentation = assembleMatchCommandActionPresentation(applied, capabilities);
-    const turnStart = actionPresentation.shouldReconcileTurnStart
-        ? reconcileMatchCommandTurnStart(context, actionPresentation.snapshot, capabilities)
-        : null;
-    return finalizeMatchCommandExecution(
-        applied,
-        actionPresentation,
-        turnStart,
-        capabilities
-    );
+        const actionPresentation = assembleMatchCommandActionPresentation(applied, capabilities);
+        const turnStart = actionPresentation.shouldReconcileTurnStart
+            ? reconcileMatchCommandTurnStart(context, actionPresentation.snapshot, capabilities)
+            : null;
+        return finalizeMatchCommandExecution(
+            applied,
+            actionPresentation,
+            turnStart,
+            capabilities
+        );
+    } catch (error) {
+        if (!isRuntimeUnavailableFailure(capabilities, error)) throw error;
+        return toFailure(
+            'RUNTIME_UNAVAILABLE',
+            error instanceof Error ? error.message : String(error || '')
+        );
+    }
 }

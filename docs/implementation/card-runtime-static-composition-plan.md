@@ -1062,12 +1062,12 @@ The executor must replace `not run` with exact result, date, revision, duration,
 | Failure-before-mutation matrix | not run | PASS current local/Worker/headless input/version atomicity; target product preflight not run | PASS 2026-08-24 for headless, UI, CPU, direct/AUTO/timeout pass, local authority, and canonical Worker storage/broadcast surfaces |
 | Error-classification negative matrix | n/a | PASS stable code/capability/cohort + hidden brand + cross-realm canonical positive + structural spoof negatives; target product adapter not run | PASS 2026-08-24; canonical branded structural positives accepted and code/message/plain-object/foreign-error spoofs rejected |
 | UI/CPU/pass/headless terminal-recovery matrix | n/a | PASS current executable lock/publish、scheduler generation/timer、AUTO/timeout、selfplay terminal mapping + target schema completeness; target product recovery not run | PASS 2026-08-24; no alternate action/retry/auto-pass/pending loss and terminal owners settle |
-| `npm run test:network:parity` | not run | not run | PASS 2026-08-24; 36/36 suites, 583/583 tests; Jest open-handle diagnostic warning after success, exit 0 |
+| `npm run test:network:parity` | not run | not run | PASS 2026-08-24 post-review; 36/36 suites, 584/584 tests; `--detectOpenHandles` rerun also PASS with no leaked handle reported |
 | `npm run worker:prepare` | not run | not run | PASS 2026-08-24; Vite/browser build and preload checks passed, mirror verified 960 files |
 | `npm run worker:bundle:smoke` | PASS 2026-08-24, Gate A | production entry unchanged in Gate B; fixture bundle gate PASS | PASS 2026-08-24; charge, poison AUTO, DOUBLE_PLACE, runtime-unavailable atomicity, create/join/state/leave |
 | `npm run build:browser` / `build:vite` | PASS 2026-08-24, Gate A | PASS 2026-08-24 in 30.5s delivery gate | PASS 2026-08-24 in final delivery and `worker:prepare`; latest delivery build transformed 1,476 Vite modules |
 | `npm run checkall` | PASS 2026-08-24, Gate A | PASS 2026-08-24 before focused Gate B rerun | PASS 2026-08-24; all checks passed, including dependency boundaries, browser freshness, mirror, and JS inventory |
-| `npm run test:jest` | not run | not run | PASS 2026-08-24; 1033/1033 suites, 7877/7877 tests, 903.341s |
+| `npm run test:jest` | not run | not run | PASS 2026-08-24 post-review; 1034/1034 suites, 7897/7897 tests, 968.601s |
 | Vite/Pixi browser scenario | n/a | actual built Vite card-runtime fixture PASS; full gameplay not run | PASS 2026-08-24 at `http://127.0.0.1:8000/?debug=1&noanim=1`; production Vite/Pixi, one canvas/no compatibility cells, human legal move plus CPU response to ROUND 2, black/white 3/3, reload-required absent, zero console errors; delivery reload parity and Pixi input/context-recovery E2E also PASS |
 | Classic/Pixi browser scenario | n/a | actual built classic card-runtime fixture PASS; full gameplay not run | PASS 2026-08-24 at `http://127.0.0.1:8000/index.classic.html?noanim=1`; production classic/Pixi, one canvas/no compatibility cells, initial ROUND 1 black/white 2/2, reload-required absent, zero console errors; delivery reload parity and DOM/Pixi input E2E also PASS |
 | Fixed-seed small selfplay | not run | PASS source + built dist, seed 31 / 2 plies, digest `c033…aa9c` | PASS 2026-08-24 in source/built dist; seed 31, 2 plies, digest `c033…aa9c` |
@@ -1221,3 +1221,32 @@ The final verification pass found and corrected several test/integration assumpt
 Browser-driven evidence used the persistent canonical play server at `http://127.0.0.1:8000/`, owned by this repository's `http-server` process (PID 33120). The actual Vite/Pixi lane loaded ready with one canvas, no DOM compatibility cells, no reload-required state, and zero console errors. A legal opening move was made through the rendered board; the CPU replied and the game reached ROUND 2 at black/white 3/3 with the human turn restored. The actual classic/Pixi lane also loaded with one canvas, no compatibility cells, initial ROUND 1 black/white 2/2, no reload-required state, and zero console errors. The delivery gate additionally repeated Vite/classic with reload and fixed fixture parity. Automated board-input E2E exercised Pixi mouse/touch/pen input on base, expanded, hole, and circle topologies, DOM input, keyboard/modal blocking, expansion selection, and local spectator read-only behavior. No network match mode was used in the manual board scenario.
 
 Final command evidence and independent-review disposition are recorded in Sections 14 and 16 after the last generated synchronization and correction pass.
+
+## 19. Post-completion strict SOL review execution record (2026-08-24)
+
+ユーザー指定どおり2体のSOL reviewerを並列起動し、一方は gameplay/UI/state settlement、もう一方は cross-runtime/network/classic delivery を独立に担当した。両 reviewer は初回 finding の修正後に同じ担当領域を再レビューし、最終判定は双方 APPROVE、未解決の P0-P2 finding なしとなった。
+
+完了した修正単位は次の7件である。
+
+- late owner registration を含む UI integrity settlement の generation-safe once 化。
+- local/Worker authority の tagged runtime failure mapping と mutation atomicity の統一。
+- fresh classic boot/reload における `CardSpawnAndFlip` global と function identity の復元。
+- hostile Proxy/getter/reflection trap に対して例外を投げない total runtime-error classifier。
+- BoardOps/SubPlacement の既存 optional compatibility 保持。
+- turn service graph の exact key/data-descriptor/same-reference/freeze validation。
+- `Core.BLACK` / `Core.WHITE` と required/optional service function validation の補完。
+
+修正後の最終確認は以下を完了した。
+
+- `npm run typecheck`: PASS。
+- focused integrity/turn/error/match/local/classic tests: 10 suites / 166 tests PASS。turn service compatibility は 13/13 PASS。
+- card runtime boundary: runtime discovery、static require、unresolved edge、legacy lookup、compatibility entry、whole-facade cache がすべて0。negative fixtures 8件 PASS。
+- built dist/browser delivery: public facade 289 keys、fresh Vite/classic/reload、`CardSpawnAndFlip` identity、固定fixture digestが PASS。
+- canonical Worker smoke と `worker:prepare`: runtime-unavailable atomicity、HTTP create/join/state/leave PASS、mirror 960 files verified。
+- `npm run test:network:parity -- --silent`: 36 suites / 584 tests PASS。終了後 advisory の確認として `--detectOpenHandles` 付きで再実行し、同じ全件が exit 0、残存 handle の報告なしで PASS。
+- `npm run checkall`: 最初は browser-generated index と mirror の2ファイル差分だけを検出。source failure ではなく、`worker:prepare` で正規同期後の再実行は PASS。
+- `npm run test:jest -- --silent`: 最初は 1,031/1,034 suites、7,894/7,897 tests。2件は静的 graph/owner fingerprint の意図した差、1件は full-load 時の tablet E2E timeout。構造を再確認して fingerprint のみ更新し、tablet 単独 2/2 PASS、最終再実行は 1,034/1,034 suites、7,897/7,897 tests PASS（968.601秒）。gameplay expectation は変更していない。
+
+途中で実在しない test path を含めた focused command が一度失敗したが、product/test failure ではない。実在する card-interaction test path へ訂正した同一範囲の実行は全件 PASS した。
+
+この追加レビューで player-visible rule、card behavior、turn order、animation/sound、visible text、wire schema、saved/model format の変更は発生していない。`01-rulebook.md` と `正本/*.md` は未変更のまま、architecture contract と generated browser/Worker delivery だけを実装へ同期した。

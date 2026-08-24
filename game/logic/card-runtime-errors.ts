@@ -46,20 +46,36 @@ export function createCardRuntimeUnavailableError(
 export function isCardRuntimeUnavailableError(value: unknown): value is CardRuntimeUnavailableShape {
     if (!value || typeof value !== 'object') return false;
     if (locallyCreatedRuntimeFailures.has(value)) return true;
-    const candidate = value as Record<PropertyKey, unknown>;
-    const brand = Object.getOwnPropertyDescriptor(candidate, CARD_RUNTIME_UNAVAILABLE_BRAND);
-    return Object.prototype.toString.call(candidate) === '[object Error]'
-        && candidate.name === 'CardRuntimeUnavailableError'
-        && candidate.code === CARD_RUNTIME_UNAVAILABLE_CODE
-        && typeof candidate.capability === 'string'
-        && candidate.capability.length > 0
-        && typeof candidate.cohort === 'string'
-        && candidate.cohort.length > 0
-        && !!brand
-        && brand.value === CARD_RUNTIME_UNAVAILABLE_BRAND_VALUE
-        && brand.enumerable === false
-        && brand.configurable === false
-        && brand.writable === false;
+    try {
+        const candidate = value as Record<PropertyKey, unknown>;
+        const name = Object.getOwnPropertyDescriptor(candidate, 'name');
+        const code = Object.getOwnPropertyDescriptor(candidate, 'code');
+        const capability = Object.getOwnPropertyDescriptor(candidate, 'capability');
+        const cohort = Object.getOwnPropertyDescriptor(candidate, 'cohort');
+        const brand = Object.getOwnPropertyDescriptor(candidate, CARD_RUNTIME_UNAVAILABLE_BRAND);
+        return Object.prototype.toString.call(candidate) === '[object Error]'
+            && !!name
+            && Object.prototype.hasOwnProperty.call(name, 'value')
+            && name.value === 'CardRuntimeUnavailableError'
+            && !!code
+            && Object.prototype.hasOwnProperty.call(code, 'value')
+            && code.value === CARD_RUNTIME_UNAVAILABLE_CODE
+            && !!capability
+            && Object.prototype.hasOwnProperty.call(capability, 'value')
+            && typeof capability.value === 'string'
+            && capability.value.length > 0
+            && !!cohort
+            && Object.prototype.hasOwnProperty.call(cohort, 'value')
+            && typeof cohort.value === 'string'
+            && cohort.value.length > 0
+            && !!brand
+            && brand.value === CARD_RUNTIME_UNAVAILABLE_BRAND_VALUE
+            && brand.enumerable === false
+            && brand.configurable === false
+            && brand.writable === false;
+    } catch (_error) {
+        return false;
+    }
 }
 
 export function assertCardRuntimeCapability<T>(

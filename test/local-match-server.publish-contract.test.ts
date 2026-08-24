@@ -7,6 +7,7 @@ import { createCardRuntimeUnavailableError } from '../game/logic/card-runtime-er
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
 
 const MutableCardLogic: any = require('../dist/game/logic/cards');
+const MutableTurnPipelinePhases: any = require('../dist/game/turn/turn_pipeline_phases');
 
 function requestJson(port, method, path, payload) {
   return new Promise((resolve, reject) => {
@@ -184,6 +185,54 @@ describe('local match server publish contract', () => {
       expect(JSON.stringify(roomRef)).toBe(before);
     } finally {
       MutableCardLogic.hasUsableCard = originalHasUsableCard;
+      await closeServer(server);
+    }
+  });
+
+  test('post-action turn-start runtime failure returns 409 without committing room state', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const originalApplyTurnStartPhase = MutableTurnPipelinePhases.applyTurnStartPhase;
+
+    try {
+      const created: any = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      let roomRef: any = null;
+      expect(patchRoomSnapshotForTests(created.data.roomId, (room) => {
+        roomRef = room;
+      })).toBe(true);
+      const before = JSON.stringify(roomRef);
+      const unavailable = createCardRuntimeUnavailableError('turnStart.phase', 'turn-phases');
+      let turnStartCalls = 0;
+      MutableTurnPipelinePhases.applyTurnStartPhase = (...args: any[]) => {
+        turnStartCalls += 1;
+        if (turnStartCalls === 2) throw unavailable;
+        return originalApplyTurnStartPhase(...args);
+      };
+
+      const response: any = await requestJson(
+        port,
+        'POST',
+        '/api/match/publish',
+        buildPlacePublishBody({
+          roomId: created.data.roomId,
+          snapshot: created.data.snapshot,
+          stateVersion: created.data.stateVersion,
+          seatKey: 'black',
+          seatToken: created.data.seatToken,
+          operationId: 'op_local_http_post_action_runtime_failure_1'
+        })
+      );
+
+      expect(turnStartCalls).toBe(2);
+      expect(response.status).toBe(409);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: false,
+        rejectedReason: 'RUNTIME_UNAVAILABLE',
+        stateVersion: created.data.stateVersion
+      }));
+      expect(JSON.stringify(roomRef)).toBe(before);
+    } finally {
+      MutableTurnPipelinePhases.applyTurnStartPhase = originalApplyTurnStartPhase;
       await closeServer(server);
     }
   });

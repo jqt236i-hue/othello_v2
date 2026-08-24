@@ -49,9 +49,12 @@ export interface MatchCommandSchemaCapabilities {
   } | null | undefined;
 }
 
+export interface MatchCommandRuntimeFailureCapabilities {
+  isRuntimeUnavailableError: (error: unknown) => boolean;
+}
+
 export interface MatchAutoCommandCapabilities {
   isAutoTurnPublishBody: (body: MatchCommandRecord) => boolean;
-  isRuntimeUnavailableError: (error: unknown) => boolean;
   resolveAutoTurnPublishBody: (options: {
     body: MatchCommandRecord;
     snapshot: MatchCommandSnapshot;
@@ -234,6 +237,7 @@ export interface MatchCommandPresentationCapabilities {
 export interface MatchCommandExecutionCapabilities {
   snapshot: MatchCommandSnapshotCapabilities;
   schema: MatchCommandSchemaCapabilities;
+  runtimeFailure: MatchCommandRuntimeFailureCapabilities;
   autoCommand?: MatchAutoCommandCapabilities | null;
   debug?: MatchCommandDebugCapabilities | null;
   random: MatchCommandRandomCapabilities;

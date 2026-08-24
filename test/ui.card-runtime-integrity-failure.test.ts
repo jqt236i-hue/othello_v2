@@ -31,10 +31,12 @@ describe('UI card runtime integrity latch', () => {
     const turnPipeline = { applyTurnSafe: jest.fn(() => ({ ok: true })) };
     const error = createCardRuntimeUnavailableError('targeting.targetResolver', 'targeting');
 
+    integrity.registerCardRuntimeIntegritySettlementOwner('ui-test-owner', {
+      cancelUncommittedSelection: cancelSelection,
+      settleInputLocks: settleLocks
+    });
     expect(integrity.latchCardRuntimeIntegrityFailure(error, {
       source: 'ui-test',
-      cancelUncommittedSelection: cancelSelection,
-      settleInputLocks: settleLocks,
       emitLog
     })).toBe(true);
     expect(integrity.getCardRuntimeIntegrityState()).toEqual({
@@ -51,8 +53,6 @@ describe('UI card runtime integrity latch', () => {
 
     expect(integrity.latchCardRuntimeIntegrityFailure(error, {
       source: 'ui-test-duplicate',
-      cancelUncommittedSelection: cancelSelection,
-      settleInputLocks: settleLocks,
       emitLog
     })).toBe(true);
     expect(cancelSelection).toHaveBeenCalledTimes(1);
@@ -69,6 +69,98 @@ describe('UI card runtime integrity latch', () => {
       events: []
     });
     expect(turnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+  });
+
+  test('a source-only first latch still settles every registered UI owner once', () => {
+    const integrity = require('../ui/card-runtime-integrity');
+    const cancelSelection = jest.fn(() => {
+      expect(integrity.isCardRuntimeIntegrityBlocked()).toBe(true);
+    });
+    const settleLocks = jest.fn(() => {
+      expect(integrity.isCardRuntimeIntegrityBlocked()).toBe(true);
+    });
+    const error = createCardRuntimeUnavailableError('turn.phases', 'turn-phases');
+
+    integrity.registerCardRuntimeIntegritySettlementOwner('card-owner-test', {
+      cancelUncommittedSelection: cancelSelection,
+      settleInputLocks: settleLocks
+    });
+
+    expect(integrity.latchCardRuntimeIntegrityFailure(error, { source: 'pipeline-first' })).toBe(true);
+    expect(cancelSelection).toHaveBeenCalledTimes(1);
+    expect(settleLocks).toHaveBeenCalledTimes(1);
+
+    expect(integrity.latchCardRuntimeIntegrityFailure(error, { source: 'duplicate' })).toBe(true);
+    expect(cancelSelection).toHaveBeenCalledTimes(1);
+    expect(settleLocks).toHaveBeenCalledTimes(1);
+  });
+
+  test('bootstrap reconstruction rearms registered owner settlement', () => {
+    const integrity = require('../ui/card-runtime-integrity');
+    const cancelSelection = jest.fn();
+    const settleLocks = jest.fn();
+    const error = createCardRuntimeUnavailableError('turn.phases', 'turn-phases');
+
+    integrity.registerCardRuntimeIntegritySettlementOwner('reconstructed-owner-test', {
+      cancelUncommittedSelection: cancelSelection,
+      settleInputLocks: settleLocks
+    });
+    integrity.latchCardRuntimeIntegrityFailure(error, { source: 'first-lifetime' });
+    integrity.resetCardRuntimeIntegrityState();
+    integrity.latchCardRuntimeIntegrityFailure(error, { source: 'reconstructed-lifetime' });
+
+    expect(cancelSelection).toHaveBeenCalledTimes(2);
+    expect(settleLocks).toHaveBeenCalledTimes(2);
+    expect(integrity.getCardRuntimeIntegrityState().source).toBe('reconstructed-lifetime');
+  });
+
+  test('pipeline-first failure clears Card Interaction selection and busy locks', () => {
+    const integrity = require('../ui/card-runtime-integrity');
+    const PipelineUIAdapter = require('../game/turn/pipeline_ui_adapter');
+    const error = createCardRuntimeUnavailableError('resolution.boardExecutor', 'resolution');
+    const cardState = {
+      hands: { black: ['work_01'], white: [] },
+      selectedCardId: 'work_01',
+      selectedCardOwnerKey: 'black',
+      selectedCardHandIndex: 0,
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    (global as any).cardState = cardState;
+    (global as any).gameState = { currentPlayer: 1, board: [] };
+    (global as any).window.cardState = cardState;
+    (global as any).window.gameState = (global as any).gameState;
+    (global as any).window.isProcessing = true;
+    (global as any).window.isCardAnimating = true;
+
+    require('../cards/card-interaction');
+    PipelineUIAdapter.setPipelineUIAdapterRuntime({
+      isCardRuntimeIntegrityBlocked: integrity.isCardRuntimeIntegrityBlocked,
+      handleCardRuntimeIntegrityFailure: (runtimeError: unknown, source: string) => (
+        integrity.latchCardRuntimeIntegrityFailure(runtimeError, { source })
+      )
+    });
+    const turnPipeline = {
+      applyTurnSafe: jest.fn(() => ({
+        ok: false,
+        rejectedReason: 'RUNTIME_UNAVAILABLE',
+        events: [],
+        runtimeError: error
+      }))
+    };
+
+    expect(PipelineUIAdapter.runTurnWithAdapter(
+      cardState,
+      (global as any).gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      turnPipeline
+    )).toEqual({ ok: false, rejectedReason: 'RUNTIME_UNAVAILABLE', events: [] });
+    expect(cardState.selectedCardId).toBeNull();
+    expect(cardState.selectedCardOwnerKey).toBeNull();
+    expect(cardState.selectedCardHandIndex).toBeNull();
+    expect((global as any).window.isProcessing).toBe(false);
+    expect((global as any).window.isCardAnimating).toBe(false);
+    expect(integrity.isCardRuntimeIntegrityBlocked()).toBe(true);
   });
 
   test('does not classify an ordinary rule exception as runtime unavailable', () => {

@@ -118,7 +118,7 @@ describe('CardLogic facade identity contract', () => {
     const inventoryHash = crypto.createHash('sha256')
       .update(JSON.stringify(owners))
       .digest('hex');
-    expect(inventoryHash).toBe('e790ce46ada16b6bb464af3e32f8f8d29ae9867c88ad5078eacc325dc4267179');
+    expect(inventoryHash).toBe('922feb74bd1abb3615bdd6cc87b51b4d7fd9a82235efcda1f12b4821cf17b4ca');
   });
 
   test('pins classic registration/global installation cardinality and ordering', () => {

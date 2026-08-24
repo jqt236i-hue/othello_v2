@@ -1285,8 +1285,6 @@ function _ensureHandDestroyFlags() {
 function _latchCardRuntimeIntegrityFailureForInteraction(error: unknown, source: string) {
     return CardRuntimeIntegrity.latchCardRuntimeIntegrityFailure(error, {
         source,
-        cancelUncommittedSelection: _clearSelectedCardSelection,
-        settleInputLocks: () => _clearCardUiBusyFlags({ clearProcessing: true }),
         emitLog: (message: string) => { if (typeof addLog === 'function') addLog(message); }
     });
 }
@@ -1573,6 +1571,11 @@ function _clearCardUiBusyFlags(options: any) {
         }
     } catch (e) { /* ignore */ }
 }
+
+CardRuntimeIntegrity.registerCardRuntimeIntegritySettlementOwner('card-interaction', {
+    cancelUncommittedSelection: _clearSelectedCardSelection,
+    settleInputLocks: () => _clearCardUiBusyFlags({ clearProcessing: true })
+});
 
 function _releaseStaleVisualPlaybackLock() {
     if (_isProcessingNow()) return false;

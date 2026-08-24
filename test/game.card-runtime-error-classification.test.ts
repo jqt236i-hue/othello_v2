@@ -54,6 +54,25 @@ describe('card runtime unavailable classification', () => {
     expect(isCardRuntimeUnavailableError(mutableBrand)).toBe(false);
   });
 
+  test('never lets hostile thrown objects make classification throw', () => {
+    const descriptorTrap = new Proxy(new Error('descriptor trap'), {
+      getOwnPropertyDescriptor: () => { throw new Error('descriptor inspection failed'); }
+    });
+    const tagTrap = new Error('tag trap');
+    Object.defineProperty(tagTrap, Symbol.toStringTag, {
+      get: () => { throw new Error('tag inspection failed'); }
+    });
+    const nameTrap = new Error('name trap');
+    Object.defineProperty(nameTrap, 'name', {
+      get: () => { throw new Error('name inspection failed'); }
+    });
+
+    for (const hostileValue of [descriptorTrap, tagTrap, nameTrap]) {
+      expect(() => isCardRuntimeUnavailableError(hostileValue)).not.toThrow();
+      expect(isCardRuntimeUnavailableError(hostileValue)).toBe(false);
+    }
+  });
+
   test('required assertions create the tag, while ordinary values and errors do not', () => {
     expect(() => assertCardRuntimeCapability({}, 'value')).not.toThrow();
     let caught: unknown;

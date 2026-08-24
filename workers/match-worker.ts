@@ -684,6 +684,9 @@ function buildWorkerMatchCommandCapabilities(options: {
                 ) => unknown
             )(input, fallbackActor, fallbackTurnIndex)
         },
+        runtimeFailure: {
+            isRuntimeUnavailableError: (error: unknown) => isCardRuntimeUnavailableError(error)
+        },
         authority: {
             normalizePlayerKey,
             parsePlayerKeyOptional: parseSeatKeyOptional,
@@ -732,7 +735,6 @@ function buildWorkerMatchCommandCapabilities(options: {
     ) {
         capabilities.autoCommand = {
             isAutoTurnPublishBody: (body: unknown) => isMatchAutoTurnPublishBody(body),
-            isRuntimeUnavailableError: (error: unknown) => isCardRuntimeUnavailableError(error),
             resolveAutoTurnPublishBody: (autoOptions: any) => resolveMatchAutoTurnPublishBody({
                 body: autoOptions.body,
                 snapshot: autoOptions.snapshot,
