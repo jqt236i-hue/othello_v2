@@ -212,6 +212,7 @@ interface InitDomElements {
   networkBoardShapeSelect: HTMLSelectElement | null;
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
+  networkTurnTimeSecondsInput: HTMLInputElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
   networkAllCardsDeckCheckbox: HTMLInputElement | null;

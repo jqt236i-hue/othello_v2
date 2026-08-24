@@ -21,6 +21,9 @@ describe('match-authority public contract types', () => {
     expect(MatchAuthority.CHAT_HISTORY_LIMIT).toBe(40);
     expect(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS).toBe(120);
     expect(MatchAuthority.NETWORK_TURN_LIMIT_MS).toBe(120000);
+    expect(MatchAuthority.NETWORK_TURN_LIMIT_MIN_SECONDS).toBe(3);
+    expect(MatchAuthority.NETWORK_TURN_LIMIT_MAX_SECONDS).toBe(1800);
+    expect(MatchAuthority.normalizeNetworkTurnLimitSeconds(1801)).toBe(1800);
     expect(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS).toBe(10000);
   });
 

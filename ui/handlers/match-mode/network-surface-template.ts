@@ -54,6 +54,14 @@ export const NETWORK_MODAL_INNER_HTML = `
                     </div>
                     <div id="networkBoardSizeNote" class="board-size-editor-note">部屋作成前に変更できます</div>
                 </div>
+                <label id="networkTurnTimeOptionRow" for="networkTurnTimeSecondsInput">
+                    <span>持ち時間</span>
+                    <span id="networkTurnTimeInputGroup">
+                        <input id="networkTurnTimeSecondsInput" class="compact-number-input" type="number" min="3" max="1800" step="1" inputmode="numeric" value="120" aria-describedby="networkTurnTimeNote" />
+                        <span>秒</span>
+                    </span>
+                    <span id="networkTurnTimeNote">3〜1800秒 / ホイールは10秒刻み</span>
+                </label>
                 <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
                     <input id="networkEnableDebugCheckbox" type="checkbox" />
                     デバッグモードを有効化

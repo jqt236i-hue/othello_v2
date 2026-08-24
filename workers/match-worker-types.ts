@@ -318,6 +318,7 @@ export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     networkDebugEnabled?: unknown;
     allCardsDeckEnabled?: unknown;
     networkAutoEnabled?: unknown;
+    turnTimeSeconds?: unknown;
     publishResponseMode?: unknown;
 }
 

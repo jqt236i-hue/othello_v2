@@ -75,6 +75,7 @@ interface InitDomElements {
   networkBoardShapeSelect: HTMLSelectElement | null;
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
+  networkTurnTimeSecondsInput: HTMLInputElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
   networkAllCardsDeckCheckbox: HTMLInputElement | null;
@@ -160,7 +161,7 @@ function getInitDomElements(): InitDomElements {
     networkServerInput: null, networkPlayerNameInput: null,
     networkRoomIdInput: null, networkBoardShapeSelect: null, networkBoardSizeRowsInput: null,
     networkBoardSizeColsInput: null, networkBoardSizeSummary: null,
-    networkBoardSizeNote: null, networkEnableDebugCheckbox: null,
+    networkBoardSizeNote: null, networkTurnTimeSecondsInput: null, networkEnableDebugCheckbox: null,
     networkEnableAutoCheckbox: null,
     networkAllCardsDeckCheckbox: null,
     networkCopyRoomBtn: null, networkRoomSettingsBtn: null,

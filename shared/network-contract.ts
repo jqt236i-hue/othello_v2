@@ -4,7 +4,30 @@ export const NETWORK_PLAYER_NAME_MAX = 7;
 export const NETWORK_CHAT_MAX_LENGTH = 20;
 export const NETWORK_CHAT_HISTORY_LIMIT = 40;
 export const NETWORK_TURN_LIMIT_SECONDS = 120;
+export const NETWORK_TURN_LIMIT_MIN_SECONDS = 3;
+export const NETWORK_TURN_LIMIT_MAX_SECONDS = 1800;
+export const NETWORK_TURN_LIMIT_WHEEL_STEP_SECONDS = 10;
 export const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
+
+export function normalizeNetworkTurnLimitSeconds(
+  value: unknown,
+  fallback: unknown = NETWORK_TURN_LIMIT_SECONDS
+): number {
+  const fallbackNumber = Number(fallback);
+  const normalizedFallback = Number.isFinite(fallbackNumber)
+    ? Math.max(
+      NETWORK_TURN_LIMIT_MIN_SECONDS,
+      Math.min(NETWORK_TURN_LIMIT_MAX_SECONDS, Math.trunc(fallbackNumber))
+    )
+    : NETWORK_TURN_LIMIT_SECONDS;
+  if (value === null || value === undefined || String(value).trim() === '') return normalizedFallback;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return normalizedFallback;
+  return Math.max(
+    NETWORK_TURN_LIMIT_MIN_SECONDS,
+    Math.min(NETWORK_TURN_LIMIT_MAX_SECONDS, Math.trunc(numeric))
+  );
+}
 
 export function normalizeNetworkRoomId(value: unknown): string {
   return String(value || '').trim().toUpperCase();

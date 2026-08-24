@@ -31,4 +31,14 @@ describe('shared network contract', () => {
     expect(MatchAuthority.NETWORK_TURN_LIMIT_MS).toBe(NetworkContract.NETWORK_TURN_LIMIT_MS);
     expect(MatchAuthority.ROOM_ID_LENGTH).toBe(NetworkContract.NETWORK_ROOM_ID_LENGTH);
   });
+
+  test('normalizes room turn time to an integer between 3 and 1800 seconds', () => {
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds(undefined)).toBe(120);
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds('')).toBe(120);
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds('3')).toBe(3);
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds(1800.9)).toBe(1800);
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds(2)).toBe(3);
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds(1801)).toBe(1800);
+    expect(NetworkContract.normalizeNetworkTurnLimitSeconds('invalid')).toBe(120);
+  });
 });

@@ -80,6 +80,7 @@ interface InitDomElements {
   networkBoardShapeSelect: HTMLSelectElement | null;
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
+  networkTurnTimeSecondsInput: HTMLInputElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
   networkAllCardsDeckCheckbox: HTMLInputElement | null;
@@ -381,6 +382,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       networkBoardShapeSelect: refs.networkBoardShapeSelect,
       networkBoardSizeSummary: refs.networkBoardSizeSummary,
       networkBoardSizeNote: refs.networkBoardSizeNote,
+      networkTurnTimeSecondsInput: refs.networkTurnTimeSecondsInput,
       networkEnableDebugCheckbox: refs.networkEnableDebugCheckbox,
       networkEnableAutoCheckbox: refs.networkEnableAutoCheckbox,
       networkAllCardsDeckCheckbox: refs.networkAllCardsDeckCheckbox,

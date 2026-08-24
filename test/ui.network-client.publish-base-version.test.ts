@@ -1253,7 +1253,7 @@ describe('NetworkMatchClient queued publish', () => {
     expect(client.getRoomBoardConfig()).toBeNull();
   });
 
-  test('createRoom は deckCode と roomBoardConfig を送信し部屋メタデータを保持する', async () => {
+  test('createRoom は deckCode、roomBoardConfig、持ち時間を送信し部屋メタデータを保持する', async () => {
     let createBody = null;
 
     global.fetch = jest.fn(async (url, init = {}) => {
@@ -1301,6 +1301,7 @@ describe('NetworkMatchClient queued publish', () => {
       serverUrl: 'http://localhost:8787',
       playerName: 'くろ',
       deckCode: 'D1C1:test_card*3',
+      turnTimeSeconds: 37,
       roomBoardConfig: {
         rows: 7,
         cols: 9
@@ -1312,6 +1313,7 @@ describe('NetworkMatchClient queued publish', () => {
       playerName: 'くろ',
       roomName: '無名部屋',
       deckCode: 'D1C1:test_card*3',
+      turnTimeSeconds: 37,
       roomBoardConfig: {
         rows: 7,
         cols: 9

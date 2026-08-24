@@ -822,6 +822,8 @@
         0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.46),
         0 0 calc(16px * var(--layout-stage-scale)) rgba(36, 244, 255, 0.12);
     transform: translate(-50%, -50%);
+    max-height: min(90vh, calc(720px * var(--layout-stage-scale)));
+    overflow-y: auto;
 }
 
 #networkRoomSettingsPopup.is-open {
@@ -860,6 +862,7 @@
 }
 
 #networkRoomSettingsPopup #networkBoardSizeRow,
+#networkRoomSettingsPopup #networkTurnTimeOptionRow,
 #networkRoomSettingsPopup #networkDebugOptionRow,
 #networkRoomSettingsPopup #networkAutoOptionRow,
 #networkRoomSettingsPopup #networkAllCardsDeckOptionRow {
@@ -883,6 +886,28 @@
     opacity: 1;
     pointer-events: auto;
     transition: opacity 180ms ease;
+}
+
+#networkRoomSettingsPopup #networkTurnTimeOptionRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+#networkTurnTimeInputGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(5px, 0.38vw, 7px);
+}
+
+#networkTurnTimeSecondsInput {
+    width: clamp(72px, 5.2vw, 92px);
+    text-align: right;
+}
+
+#networkTurnTimeNote {
+    grid-column: 1 / -1;
+    color: rgba(244, 234, 216, 0.62);
+    font-size: clamp(10px, 0.74vw, 12px);
 }
 
 #networkRoomSettingsPopup #networkDebugOptionRow,

@@ -87,6 +87,9 @@ async function createNetworkRoom(options: any): Promise<any> {
     const requestedAllCardsDeckEnabled = typeof options.readNetworkAllCardsDeckEnabled === 'function'
         ? options.readNetworkAllCardsDeckEnabled()
         : !!(options.allCardsDeckCheckbox && options.allCardsDeckCheckbox.checked);
+    const requestedTurnTimeSeconds = typeof options.readNetworkTurnTimeSeconds === 'function'
+        ? options.readNetworkTurnTimeSeconds()
+        : 120;
     options.notifyInvalidCustomDeckFallback(localDeckSelection);
     try {
         if (options.client && typeof options.client.setServerUrl === 'function') {
@@ -101,7 +104,8 @@ async function createNetworkRoom(options: any): Promise<any> {
             roomBoardConfig,
             networkDebugEnabled: requestedNetworkDebugEnabled,
             networkAutoEnabled: requestedNetworkAutoEnabled,
-            allCardsDeckEnabled: requestedAllCardsDeckEnabled
+            allCardsDeckEnabled: requestedAllCardsDeckEnabled,
+            turnTimeSeconds: requestedTurnTimeSeconds
         });
         if (result && result.ok && options.roomInput) {
             options.roomInput.value = result.roomName || options.readNetworkRoomName() || '無名部屋';

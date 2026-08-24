@@ -178,6 +178,8 @@ describe('network room list style', () => {
 
     expect(html).toMatch(/id="networkRoomSettingsBtn"[\s\S]*aria-controls="networkRoomSettingsPopup"[\s\S]*⚙/);
     expect(html).toMatch(/id="networkRoomSettingsPopup"[\s\S]*aria-hidden="true"/);
+    expect(html).toMatch(/id="networkTurnTimeSecondsInput"[\s\S]*type="number"[\s\S]*min="3"[\s\S]*max="1800"[\s\S]*value="120"/);
+    expect(html).toContain('ホイールは10秒刻み');
     expect(settingsBtnBlock).toMatch(/right:\s*calc\(100%\s*\+\s*clamp\(8px,\s*0\.58vw,\s*12px\)\)/);
     expect(settingsBtnBlock).toMatch(/border-radius:\s*50%/);
     expect(settingsPopupBlock).toMatch(/display:\s*none/);

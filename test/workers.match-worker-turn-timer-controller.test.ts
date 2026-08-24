@@ -4,7 +4,6 @@ import { createMatchWorkerTurnTimerHelpers } from '../workers/match-worker-turn-
 function createTimerHelpers() {
   return createMatchWorkerTurnTimerHelpers({
     limitSeconds: 120,
-    limitMs: 120000,
     resolveTurnSeatKey: (room) => {
       const gameState = room && room.snapshot && typeof room.snapshot === 'object'
         ? (room.snapshot as any).gameState
@@ -12,7 +11,11 @@ function createTimerHelpers() {
       return gameState && gameState.currentPlayer === -1 ? 'white' : 'black';
     },
     parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
-    asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {})
+    asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
+    normalizeLimitSeconds: (value, fallback) => {
+      const numeric = Number(value);
+      return Math.max(3, Math.min(1800, Number.isFinite(numeric) ? Math.trunc(numeric) : Number(fallback) || 120));
+    }
   });
 }
 
@@ -123,7 +126,7 @@ describe('match worker turn timer controller', () => {
     });
 
     await expect(controller.refreshTurnTimer({ nowMs: 5000, forceRestart: false })).resolves.toBe(false);
-    expect(room.turnTimer.limitSeconds).toBe(120);
+    expect(room.turnTimer.limitSeconds).toBe(3);
     expect(room.turnTimer.turnStartedAt).toBe(10);
     expect(room.turnTimer.turnDeadlineAt).toBe(20);
   });

@@ -440,7 +440,10 @@ export interface MatchAuthorityPublicApi {
     CHAT_MAX_LENGTH: number;
     CHAT_HISTORY_LIMIT: number;
     NETWORK_TURN_LIMIT_SECONDS: number;
+    NETWORK_TURN_LIMIT_MIN_SECONDS: number;
+    NETWORK_TURN_LIMIT_MAX_SECONDS: number;
     NETWORK_TURN_LIMIT_MS: number;
+    normalizeNetworkTurnLimitSeconds(value: unknown, fallback?: unknown): number;
     SSE_HEARTBEAT_INTERVAL_MS: number;
     normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta;
     ensureAcceptedOperationsBySeat(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat;

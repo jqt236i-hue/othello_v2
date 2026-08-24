@@ -34,6 +34,13 @@ const SharedBoardUtilsModule = (() => {
         return null;
     }
 })();
+const NetworkContractModule = (() => {
+    try {
+        return _require('../../shared/network-contract');
+    } catch (e) {
+        return null;
+    }
+})();
 const PlayerProfileModule = (() => {
     try {
         return _require('../player-profile');
@@ -145,6 +152,7 @@ const MODE_OTHELLO = 'othello';
         networkBoardShapeSelect: null,
         networkBoardSizeSummary: null,
         networkBoardSizeNote: null,
+        networkTurnTimeSecondsInput: null,
         networkEnableDebugCheckbox: null,
         networkEnableAutoCheckbox: null,
         networkAllCardsDeckCheckbox: null,
@@ -210,6 +218,7 @@ const MODE_OTHELLO = 'othello';
         networkBoardShapeSelect: 'networkBoardShapeSelect',
         networkBoardSizeSummary: 'networkBoardSizeSummary',
         networkBoardSizeNote: 'networkBoardSizeNote',
+        networkTurnTimeSecondsInput: 'networkTurnTimeSecondsInput',
         networkEnableDebugCheckbox: 'networkEnableDebugCheckbox',
         networkEnableAutoCheckbox: 'networkEnableAutoCheckbox',
         networkAllCardsDeckCheckbox: 'networkAllCardsDeckCheckbox',
@@ -447,6 +456,34 @@ const MODE_OTHELLO = 'othello';
         return Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
     }
 
+    function normalizeNetworkTurnTimeSeconds(value: any, fallback?: any) {
+        if (NetworkContractModule && typeof NetworkContractModule.normalizeNetworkTurnLimitSeconds === 'function') {
+            return NetworkContractModule.normalizeNetworkTurnLimitSeconds(value, fallback);
+        }
+        const fallbackValue = Number.isFinite(Number(fallback)) ? Math.trunc(Number(fallback)) : 120;
+        const numeric = Number(value);
+        return Math.max(3, Math.min(1800, Number.isFinite(numeric) ? Math.trunc(numeric) : fallbackValue));
+    }
+
+    function readNetworkTurnTimeSeconds() {
+        const input = uiRefs.networkTurnTimeSecondsInput;
+        const normalized = normalizeNetworkTurnTimeSeconds(input ? input.value : undefined);
+        if (input) input.value = String(normalized);
+        return normalized;
+    }
+
+    function stepNetworkTurnTimeSeconds(direction: any) {
+        const input = uiRefs.networkTurnTimeSecondsInput;
+        const current = normalizeNetworkTurnTimeSeconds(input ? input.value : undefined);
+        const wheelStep = NetworkContractModule
+            && Number.isFinite(Number(NetworkContractModule.NETWORK_TURN_LIMIT_WHEEL_STEP_SECONDS))
+            ? Number(NetworkContractModule.NETWORK_TURN_LIMIT_WHEEL_STEP_SECONDS)
+            : 10;
+        const next = normalizeNetworkTurnTimeSeconds(current + (Number(direction) > 0 ? wheelStep : -wheelStep), current);
+        if (input) input.value = String(next);
+        return next;
+    }
+
     function applyBoardDimensionInputBounds(inputRef: any, axis: any) {
         if (!inputRef) return;
         const sharedBoardUtils = root.SharedBoardUtils || SharedBoardUtilsModule || null;
@@ -675,6 +712,7 @@ const MODE_OTHELLO = 'othello';
         el.textContent = `${formatRoomDeckText(roomDeck)} / ${boardText}`;
         el.style.color = (hasCustomRoomDeck(roomDeck) || hasCustomRoomBoardConfig(roomBoardConfig)) ? '#ffecb3' : '#d7ccc8';
         renderNetworkBoardSizeControls(roomState, pendingBoardConfig);
+        renderNetworkTurnTimeControl(roomState);
         scheduleControlPanelLayoutSync();
         try {
             const controller = getDeckBuilderController();
@@ -925,6 +963,27 @@ const MODE_OTHELLO = 'othello';
         }
     }
 
+    function renderNetworkTurnTimeControl(roomState: any) {
+        const input = uiRefs.networkTurnTimeSecondsInput;
+        if (!input) return;
+        const clientActive = !!(
+            root.NetworkMatchClient
+            && typeof root.NetworkMatchClient.isActive === 'function'
+            && root.NetworkMatchClient.isActive()
+        );
+        const explicitRoomTimer = roomState && roomState.turnTimer && typeof roomState.turnTimer === 'object'
+            ? roomState.turnTimer
+            : null;
+        const roomTimer = explicitRoomTimer || (clientActive ? networkTurnTimerInfo : null);
+        const roomLimit = roomTimer && Number.isFinite(Number(roomTimer.limitSeconds))
+            ? normalizeNetworkTurnTimeSeconds(roomTimer.limitSeconds)
+            : null;
+        input.disabled = clientActive || explicitRoomTimer !== null;
+        input.value = String(roomLimit !== null
+            ? roomLimit
+            : normalizeNetworkTurnTimeSeconds(input.value));
+    }
+
     function renderNetworkRoomList(rooms: any[]) {
         const controller = getNetworkRoomListController();
         if (controller && typeof controller.renderNetworkRoomList === 'function') {
@@ -1118,6 +1177,7 @@ const MODE_OTHELLO = 'othello';
             if (uiRefs.networkEnableDebugCheckbox) uiRefs.networkEnableDebugCheckbox.checked = false;
             if (uiRefs.networkEnableAutoCheckbox) uiRefs.networkEnableAutoCheckbox.checked = false;
             if (uiRefs.networkAllCardsDeckCheckbox) uiRefs.networkAllCardsDeckCheckbox.checked = false;
+            if (uiRefs.networkTurnTimeSecondsInput) uiRefs.networkTurnTimeSecondsInput.value = '120';
             bindNetworkButtons();
             bindNetworkOverlayControls();
             networkSurfaceHydrated = true;
@@ -1896,6 +1956,9 @@ const MODE_OTHELLO = 'othello';
             normalizeRoomPassword,
             normalizeRoomName,
             readPrimaryWheelDelta,
+            normalizeNetworkTurnTimeSeconds,
+            readNetworkTurnTimeSeconds,
+            stepNetworkTurnTimeSeconds,
             getPendingRoomBoardConfig,
             stepBoardDimensionValue,
             syncNetworkCircleBoardSizeInputs,
@@ -1955,6 +2018,7 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkBoardShapeSelect = opts.networkBoardShapeSelect || null;
         uiRefs.networkBoardSizeSummary = opts.networkBoardSizeSummary || null;
         uiRefs.networkBoardSizeNote = opts.networkBoardSizeNote || null;
+        uiRefs.networkTurnTimeSecondsInput = opts.networkTurnTimeSecondsInput || null;
         uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;
         uiRefs.networkEnableAutoCheckbox = opts.networkEnableAutoCheckbox || null;
         uiRefs.networkAllCardsDeckCheckbox = opts.networkAllCardsDeckCheckbox || null;

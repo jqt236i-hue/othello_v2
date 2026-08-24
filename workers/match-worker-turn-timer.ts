@@ -2,10 +2,10 @@ import type { MatchWorkerRoomState } from './match-worker-types';
 
 type MatchWorkerTurnTimerHelperConfig = {
     limitSeconds: number;
-    limitMs: number;
     resolveTurnSeatKey: (room: MatchWorkerRoomState | null | undefined) => string;
     parseSeatKeyOptional: (value: unknown) => string | null;
     asRecord: (value: unknown) => Record<string, unknown>;
+    normalizeLimitSeconds?: (value: unknown, fallback?: unknown) => number;
     now?: () => number;
 };
 
@@ -13,11 +13,22 @@ export function createMatchWorkerTurnTimerHelpers(config: MatchWorkerTurnTimerHe
     const cfg = (config && typeof config === 'object') ? config : {} as MatchWorkerTurnTimerHelperConfig;
     const now = typeof cfg.now === 'function' ? cfg.now : () => Date.now();
     const limitSeconds = Number.isFinite(Number(cfg.limitSeconds)) ? Math.max(0, Math.trunc(Number(cfg.limitSeconds))) : 120;
-    const limitMs = Number.isFinite(Number(cfg.limitMs)) ? Math.max(0, Math.trunc(Number(cfg.limitMs))) : limitSeconds * 1000;
+
+    function resolveLimitSeconds(room: MatchWorkerRoomState | null | undefined): number {
+        const timer = room && room.turnTimer && typeof room.turnTimer === 'object'
+            ? cfg.asRecord(room.turnTimer)
+            : {};
+        if (typeof cfg.normalizeLimitSeconds === 'function') {
+            return cfg.normalizeLimitSeconds(timer.limitSeconds, limitSeconds);
+        }
+        const numeric = Number(timer.limitSeconds);
+        return Number.isFinite(numeric) ? Math.max(0, Math.trunc(numeric)) : limitSeconds;
+    }
 
     function createPausedTurnTimer(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> {
+        const roomLimitSeconds = resolveLimitSeconds(room);
         return {
-            limitSeconds,
+            limitSeconds: roomLimitSeconds,
             active: false,
             turnSeatKey: cfg.resolveTurnSeatKey(room),
             turnStartedAt: null,
@@ -27,12 +38,13 @@ export function createMatchWorkerTurnTimerHelpers(config: MatchWorkerTurnTimerHe
 
     function createActiveTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
         const startedAt = Number.isFinite(Number(nowMs)) ? Math.max(0, Math.trunc(Number(nowMs))) : now();
+        const roomLimitSeconds = resolveLimitSeconds(room);
         return {
-            limitSeconds,
+            limitSeconds: roomLimitSeconds,
             active: true,
             turnSeatKey: cfg.resolveTurnSeatKey(room),
             turnStartedAt: startedAt,
-            turnDeadlineAt: startedAt + limitMs
+            turnDeadlineAt: startedAt + (roomLimitSeconds * 1000)
         };
     }
 
@@ -64,7 +76,7 @@ export function createMatchWorkerTurnTimerHelpers(config: MatchWorkerTurnTimerHe
         const active = !!(timer && timerRecord.active === true && deadline !== null);
 
         return {
-            limitSeconds,
+            limitSeconds: resolveLimitSeconds(room),
             active,
             turnSeatKey: cfg.parseSeatKeyOptional(timerRecord.turnSeatKey) || cfg.resolveTurnSeatKey(room),
             turnStartedAt: active ? startedAt : null,

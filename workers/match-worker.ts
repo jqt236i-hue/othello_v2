@@ -140,7 +140,6 @@ const LEADERBOARD_MAX_LIMIT = 100;
 const LEADERBOARD_MAX_STORED_PLAYERS = 200;
 const LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const NETWORK_TURN_LIMIT_SECONDS = Number(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS);
-const NETWORK_TURN_LIMIT_MS = Number(MatchAuthority.NETWORK_TURN_LIMIT_MS);
 const SSE_HEARTBEAT_INTERVAL_MS = Number(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS);
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 let coreLogicModulePromise: Promise<MatchWorkerCoreModule> | null = null;
@@ -169,10 +168,10 @@ const MatchWorkerLeaderboardHelpers = createMatchWorkerLeaderboardHelpers({
 
 const MatchWorkerTurnTimerHelpers = createMatchWorkerTurnTimerHelpers({
     limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
-    limitMs: NETWORK_TURN_LIMIT_MS,
     resolveTurnSeatKey,
     parseSeatKeyOptional,
-    asRecord
+    asRecord,
+    normalizeLimitSeconds: MatchAuthority.normalizeNetworkTurnLimitSeconds
 });
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1536,6 +1535,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
     const opts = asRecord(options);
     const networkDebugEnabled = false;
     const networkAutoEnabled = opts.networkAutoEnabled === true;
+    const turnTimeSeconds = MatchAuthority.normalizeNetworkTurnLimitSeconds(opts.turnTimeSeconds);
     const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
     const playerName = normalizeNetworkPlayerName(opts.playerName) || MatchRoomLobby.createRandomPlayerName();
     const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
@@ -1610,6 +1610,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 selectedHandSkinId: opts.selectedHandSkinId,
                 networkDebugEnabled,
                 networkAutoEnabled,
+                turnTimeSeconds,
                 allCardsDeckEnabled,
                 initialDeckCardIdsByPlayer,
                 publishResponseMode,
@@ -3085,6 +3086,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const networkDebugEnabled = false;
         const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
         const networkAutoEnabled = opts.networkAutoEnabled === true;
+        const turnTimeSeconds = MatchAuthority.normalizeNetworkTurnLimitSeconds(opts.turnTimeSeconds);
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode);
         const matchType = String(opts.matchType || '').trim().toLowerCase() === 'rated' ? 'rated' : '';
         const ratedMatch = opts.ratedMatch && typeof opts.ratedMatch === 'object'
@@ -3118,7 +3120,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             spectators: {},
             maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
             turnTimer: {
-                limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
+                limitSeconds: turnTimeSeconds,
                 active: false,
                 turnSeatKey: getCurrentPlayerKey(snapshot && snapshot.gameState),
                 turnStartedAt: null,
@@ -3211,6 +3213,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const networkDebugEnabled = payload.networkDebugEnabled === true;
         const allCardsDeckEnabled = payload.allCardsDeckEnabled === true;
         const networkAutoEnabled = payload.networkAutoEnabled === true;
+        const turnTimeSeconds = MatchAuthority.normalizeNetworkTurnLimitSeconds(payload.turnTimeSeconds);
         const publishResponseMode = MatchAuthority.normalizePublishResponseMode(payload.publishResponseMode);
         const matchType = String(payload.matchType || '').trim().toLowerCase() === 'rated' ? 'rated' : '';
         const ratedMatch = payload.ratedMatch && typeof payload.ratedMatch === 'object'
@@ -3236,6 +3239,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             networkDebugEnabled,
             allCardsDeckEnabled,
             networkAutoEnabled,
+            turnTimeSeconds,
             matchType,
             ratedMatch,
             publishResponseMode,

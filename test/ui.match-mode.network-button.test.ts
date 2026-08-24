@@ -76,6 +76,7 @@ describe('match-mode network button behavior', () => {
       networkBoardSizeColsInput: document.getElementById('networkBoardSizeColsInput'),
       networkBoardSizeSummary: document.getElementById('networkBoardSizeSummary'),
       networkBoardSizeNote: document.getElementById('networkBoardSizeNote'),
+      networkTurnTimeSecondsInput: document.getElementById('networkTurnTimeSecondsInput'),
       networkEnableDebugCheckbox: document.getElementById('networkEnableDebugCheckbox'),
       networkEnableAutoCheckbox: document.getElementById('networkEnableAutoCheckbox'),
       networkAllCardsDeckCheckbox: document.getElementById('networkAllCardsDeckCheckbox'),
@@ -152,6 +153,7 @@ describe('match-mode network button behavior', () => {
       '</div>' +
       '<div id="networkBoardSizeNote"></div>' +
       '</div>' +
+      '<input id="networkTurnTimeSecondsInput" type="number" min="3" max="1800" value="120" />' +
       '<input id="networkEnableDebugCheckbox" type="checkbox" />' +
       '<input id="networkEnableAutoCheckbox" type="checkbox" />' +
       '<input id="networkAllCardsDeckCheckbox" type="checkbox" />' +
@@ -925,6 +927,42 @@ describe('match-mode network button behavior', () => {
       deckCode: ''
     }));
     expect(document.getElementById('networkStatusText').textContent).toContain('標準デッキで続行します');
+  });
+
+  test('持ち時間は直接入力とホイール10秒刻みの両方で変更できる', async () => {
+    const input = document.getElementById('networkTurnTimeSecondsInput') as HTMLInputElement;
+    const playerInput = document.getElementById('networkPlayerNameInput') as HTMLInputElement;
+
+    document.getElementById('modeNetworkBtn').click();
+    await Promise.resolve();
+
+    expect(input.value).toBe('120');
+    input.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: -1, bubbles: true, cancelable: true }));
+    expect(input.value).toBe('130');
+    input.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: 1, bubbles: true, cancelable: true }));
+    expect(input.value).toBe('120');
+
+    input.value = '2';
+    input.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(input.value).toBe('3');
+
+    input.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: 1, bubbles: true, cancelable: true }));
+    expect(input.value).toBe('3');
+
+    input.value = '1795';
+    input.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: -1, bubbles: true, cancelable: true }));
+    expect(input.value).toBe('1800');
+    input.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: -1, bubbles: true, cancelable: true }));
+    expect(input.value).toBe('1800');
+
+    input.value = '37';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    playerInput.value = 'くろ';
+    document.getElementById('networkCreateBtn').click();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRoom).toHaveBeenCalledWith(expect.objectContaining({ turnTimeSeconds: 37 }));
   });
 
   test('両者全カードデッキを選ぶと部屋作成 payload に反映される', async () => {

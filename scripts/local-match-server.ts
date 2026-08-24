@@ -73,8 +73,6 @@ const PORT = Number.isFinite(parsedArgPort)
 
 const CHAT_MAX_LENGTH = Number(MatchAuthority.CHAT_MAX_LENGTH);
 const CHAT_HISTORY_LIMIT = Number(MatchAuthority.CHAT_HISTORY_LIMIT);
-const NETWORK_TURN_LIMIT_SECONDS = Number(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS);
-const NETWORK_TURN_LIMIT_MS = Number(MatchAuthority.NETWORK_TURN_LIMIT_MS);
 const SSE_HEARTBEAT_INTERVAL_MS = Number(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS);
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 
@@ -785,9 +783,15 @@ function resolveTurnSeatKey(room: any) {
     return getCurrentPlayerKey(room && room.snapshot && room.snapshot.gameState);
 }
 
+function resolveRoomTurnLimitSeconds(room: any) {
+    const timer = room && room.turnTimer && typeof room.turnTimer === 'object' ? room.turnTimer : null;
+    return MatchAuthority.normalizeNetworkTurnLimitSeconds(timer && timer.limitSeconds);
+}
+
 function createPausedTurnTimer(room: any) {
+    const limitSeconds = resolveRoomTurnLimitSeconds(room);
     return {
-        limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
+        limitSeconds,
         active: false,
         turnSeatKey: resolveTurnSeatKey(room),
         turnStartedAt: null,
@@ -797,12 +801,13 @@ function createPausedTurnTimer(room: any) {
 
 function createActiveTurnTimer(room: any, nowMs: any) {
     const now = Number.isFinite(Number(nowMs)) ? Math.max(0, Math.trunc(Number(nowMs))) : Date.now();
+    const limitSeconds = resolveRoomTurnLimitSeconds(room);
     return {
-        limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
+        limitSeconds,
         active: true,
         turnSeatKey: resolveTurnSeatKey(room),
         turnStartedAt: now,
-        turnDeadlineAt: now + NETWORK_TURN_LIMIT_MS
+        turnDeadlineAt: now + (limitSeconds * 1000)
     };
 }
 
@@ -844,7 +849,7 @@ function refreshTurnTimer(room: any, options: any) {
         const timerSeatKey = parseSeatKeyOptional(timer.turnSeatKey);
         const timerDeadline = Number(timer.turnDeadlineAt);
         if (timerSeatKey === resolveTurnSeatKey(room) && Number.isFinite(timerDeadline)) {
-            timer.limitSeconds = NETWORK_TURN_LIMIT_SECONDS;
+            timer.limitSeconds = resolveRoomTurnLimitSeconds(room);
             return false;
         }
     }
@@ -863,7 +868,7 @@ function toPublicTurnTimer(room: any, nowMs: any) {
     const active = !!(timer && timer.active === true && deadline !== null);
 
     return {
-        limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
+        limitSeconds: resolveRoomTurnLimitSeconds(room),
         active,
         turnSeatKey: parseSeatKeyOptional(timer && timer.turnSeatKey) || resolveTurnSeatKey(room),
         turnStartedAt: active ? startedAt : null,
@@ -1391,7 +1396,10 @@ function makeRoom(options: any) {
         ratedMatch: opts.ratedMatch && typeof opts.ratedMatch === 'object' ? deepClone(opts.ratedMatch) : null,
         allCardsDeckEnabled: opts.allCardsDeckEnabled === true,
         publishResponseMode: MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode),
-        turnTimer: createPausedTurnTimer({ snapshot }),
+        turnTimer: createPausedTurnTimer({
+            snapshot,
+            turnTimer: { limitSeconds: MatchAuthority.normalizeNetworkTurnLimitSeconds(opts.turnTimeSeconds) }
+        }),
         lastAcceptedOperationBySeat: { black: null, white: null },
         eventSeq: 0,
         sseEventBuffer: [],
@@ -2030,7 +2038,8 @@ async function handleCreate(req: any, res: any) {
         roomBoardConfig,
         roomName,
         roomPassword,
-        publishResponseMode
+        publishResponseMode,
+        turnTimeSeconds: MatchAuthority.normalizeNetworkTurnLimitSeconds(body.turnTimeSeconds)
     });
     room.seats.black = true;
     room.seatNames.black = playerName;

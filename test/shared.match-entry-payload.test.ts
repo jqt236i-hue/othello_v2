@@ -87,6 +87,21 @@ describe('MatchEntryPayload', () => {
     }));
   });
 
+  test('create payload keeps a normalized room turn time when provided', () => {
+    const minimum = MatchEntryPayload.buildCreateRoomPayload({
+      playerName: 'テスト',
+      turnTimeSeconds: 2
+    });
+    const maximum = MatchEntryPayload.buildCreateRoomPayload({
+      playerName: 'テスト',
+      turnTimeSeconds: 1800.9
+    });
+
+    expect(minimum.payload.turnTimeSeconds).toBe(3);
+    expect(maximum.payload.turnTimeSeconds).toBe(1800);
+    expect(MatchEntryPayload.buildCreateRoomPayload({ playerName: 'テスト' }).payload.turnTimeSeconds).toBeUndefined();
+  });
+
   test('create payload includes verified player identity when provided', () => {
     const result = MatchEntryPayload.buildCreateRoomPayload(
       { playerName: 'テスト' },

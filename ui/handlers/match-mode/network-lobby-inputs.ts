@@ -164,6 +164,21 @@ function bindNetworkLobbyInputs(options: any): void {
     };
     bindNetworkBoardSizeInput(uiRefs.networkBoardSizeRowsInput, 'row');
     bindNetworkBoardSizeInput(uiRefs.networkBoardSizeColsInput, 'col');
+    if (uiRefs.networkTurnTimeSecondsInput && uiRefs.networkTurnTimeSecondsInput.dataset.networkTurnTimeBound !== '1') {
+        const input = uiRefs.networkTurnTimeSecondsInput;
+        input.addEventListener('change', () => {
+            if (input.disabled) return;
+            input.value = String(config.normalizeNetworkTurnTimeSeconds(input.value));
+        });
+        input.addEventListener('wheel', (event: any) => {
+            if (input.disabled) return;
+            const primaryDelta = config.readPrimaryWheelDelta(event);
+            if (!primaryDelta) return;
+            config.stepNetworkTurnTimeSeconds(primaryDelta < 0 ? 1 : -1);
+            if (event && event.cancelable) event.preventDefault();
+        }, { passive: false });
+        input.dataset.networkTurnTimeBound = '1';
+    }
     if (uiRefs.networkBoardShapeSelect && uiRefs.networkBoardShapeSelect.dataset.networkBoardShapeBound !== '1') {
         uiRefs.networkBoardShapeSelect.addEventListener('change', () => {
             if (uiRefs.networkBoardShapeSelect.disabled) return;

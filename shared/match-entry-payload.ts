@@ -2,6 +2,7 @@
 
 const MatchRoomLobby = require('./match-room-lobby');
 const IdentityContract = require('./player-identity-contract');
+const NetworkContract = require('./network-contract');
 
 interface MatchEntryPayloadHelpers {
   normalizePlayerName?: (value: unknown) => string;
@@ -23,6 +24,7 @@ interface MatchEntryPayloadOptions {
   networkDebugEnabled?: unknown;
   networkAutoEnabled?: unknown;
   allCardsDeckEnabled?: unknown;
+  turnTimeSeconds?: unknown;
   roomPassword?: unknown;
   roomName?: unknown;
 }
@@ -176,6 +178,9 @@ function buildCreateRoomPayload(
   }
   if (opts.allCardsDeckEnabled === true) {
     payload.allCardsDeckEnabled = true;
+  }
+  if (opts.turnTimeSeconds !== undefined && opts.turnTimeSeconds !== null && opts.turnTimeSeconds !== '') {
+    payload.turnTimeSeconds = NetworkContract.normalizeNetworkTurnLimitSeconds(opts.turnTimeSeconds);
   }
 
   const deckCode = appendOptionalDeckCode(payload, opts.deckCode, h);

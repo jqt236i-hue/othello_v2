@@ -41,6 +41,7 @@ function runJoinTimerScenario() {
     "    roomId: 'TMR1',",
     "    playerName: 'くろ',",
     "    seed: 1,",
+    "    turnTimeSeconds: 3,",
     "    snapshot: {",
     "      gameState: {",
     "        board,",
@@ -96,7 +97,7 @@ function runTimeoutPassScenario() {
     "    roomDeck: null,",
     "    lastAcceptedOperationBySeat: { black: null, white: null },",
     "    turnTimer: {",
-    "      limitSeconds: 120,",
+    "      limitSeconds: 3,",
     "      active: true,",
     "      turnSeatKey: 'black',",
     "      turnStartedAt: Date.now() - 300000,",
@@ -288,15 +289,17 @@ function runAlarmTimeoutScenario() {
 }
 
 describe('match worker turn timer', () => {
-  test('2人そろうと120秒手番タイマーが有効化される', () => {
+  test('2人そろうと部屋作成時の持ち時間で手番タイマーが有効化される', () => {
     const result = runJoinTimerScenario();
 
     expect(result.create.turnTimer.active).toBe(false);
 
     expect(result.join.turnTimer.active).toBe(true);
-    expect(result.join.turnTimer.limitSeconds).toBe(120);
+    expect(result.create.turnTimer.limitSeconds).toBe(3);
+    expect(result.join.turnTimer.limitSeconds).toBe(3);
     expect(result.join.turnTimer.turnSeatKey).toBe('black');
     expect(Number(result.join.turnTimer.turnDeadlineAt)).toBeGreaterThan(Number(result.join.serverTime));
+    expect(Number(result.join.turnTimer.turnDeadlineAt) - Number(result.join.turnTimer.turnStartedAt)).toBe(3000);
   });
 
   test('手番期限切れ時はサーバー側で自動的に手番が進む', () => {
@@ -336,9 +339,10 @@ describe('match worker turn timer', () => {
 
     const timer = result.statePayload.turnTimer;
     expect(timer.active).toBe(true);
-    expect(timer.limitSeconds).toBe(120);
+    expect(timer.limitSeconds).toBe(3);
     expect(timer.turnSeatKey).toBe('white');
     expect(Number(timer.turnDeadlineAt)).toBeGreaterThan(Number(result.statePayload.serverTime));
+    expect(Number(timer.turnDeadlineAt) - Number(timer.turnStartedAt)).toBe(3000);
   });
 
   test('2人そろってタイマーが有効になったら Durable Object alarm を次の期限へ張る', () => {

@@ -4,7 +4,6 @@ function createHelpers() {
   let currentTime = 1000;
   return createMatchWorkerTurnTimerHelpers({
     limitSeconds: 120,
-    limitMs: 120000,
     resolveTurnSeatKey: (room) => {
       const gameState = room && room.snapshot && typeof room.snapshot === 'object'
         ? (room.snapshot as any).gameState
@@ -13,7 +12,26 @@ function createHelpers() {
     },
     parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
     asRecord: (value) => (value && typeof value === 'object' ? value as Record<string, unknown> : {}),
+    normalizeLimitSeconds: (value, fallback) => {
+      const numeric = Number(value);
+      return Math.max(3, Math.min(1800, Number.isFinite(numeric) ? Math.trunc(numeric) : Number(fallback) || 120));
+    },
     now: () => currentTime++
+  });
+
+  test('uses the room-specific limit for paused, active, and public timers', () => {
+    const helpers = createHelpers();
+    const room = {
+      snapshot: { gameState: { currentPlayer: 1 } },
+      turnTimer: { limitSeconds: 3, active: false, turnSeatKey: 'black' }
+    } as any;
+
+    expect(helpers.createPausedTurnTimer(room).limitSeconds).toBe(3);
+    expect(helpers.createActiveTurnTimer(room, 5000)).toEqual(expect.objectContaining({
+      limitSeconds: 3,
+      turnDeadlineAt: 8000
+    }));
+    expect(helpers.toPublicTurnTimer(room, 5000).limitSeconds).toBe(3);
   });
 }
 

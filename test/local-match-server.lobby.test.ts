@@ -179,6 +179,39 @@ describe('local match server lobby', () => {
     }
   });
 
+  test('部屋ごとの持ち時間を3〜1800秒で保持し未指定時は120秒にする', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const minimum = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        turnTimeSeconds: 3
+      });
+      expect(minimum.status).toBe(200);
+      expect(minimum.data.turnTimer).toEqual(expect.objectContaining({ limitSeconds: 3, active: false }));
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: minimum.data.roomId,
+        playerName: 'しろ'
+      });
+      expect(joined.status).toBe(200);
+      expect(joined.data.turnTimer.limitSeconds).toBe(3);
+      expect(Number(joined.data.turnTimer.turnDeadlineAt) - Number(joined.data.turnTimer.turnStartedAt)).toBe(3000);
+
+      const maximum = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ2',
+        turnTimeSeconds: 9999
+      });
+      expect(maximum.data.turnTimer.limitSeconds).toBe(1800);
+
+      const defaultRoom = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ3' });
+      expect(defaultRoom.data.turnTimer.limitSeconds).toBe(120);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('10分以上参加されない部屋は一覧から消え参加できない', async () => {
     let nowMs = 1_700_000_000_000;
     const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => nowMs);

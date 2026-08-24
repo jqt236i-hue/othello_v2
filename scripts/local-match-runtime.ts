@@ -37,7 +37,13 @@ function createRoom(options: any) {
         roomBoardConfig: initialOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: opts.networkDebugEnabled === true,
         publishResponseMode: MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode),
-        turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },
+        turnTimer: {
+            limitSeconds: MatchAuthority.normalizeNetworkTurnLimitSeconds(opts.turnTimeSeconds),
+            active: false,
+            turnSeatKey: 'black',
+            turnStartedAt: null,
+            turnDeadlineAt: null
+        },
         lastAcceptedOperationBySeat: { black: null, white: null },
         acceptedOperationHistoryBySeat: { black: [], white: [] },
         eventSeq: 0,
