@@ -241,7 +241,18 @@ describe('DOM board playback phase ownership', () => {
     expect((target.querySelector('.seed-mark') as HTMLElement).style.opacity).toBe('');
   });
 
-  test('grass beam landing commits the seed without a second opacity or highlight delay', async () => {
+  test.each([
+    ['fire', 'FIRE_WILL', 'SCORCHED_CELL', 'scorched_cell_applied', 'fireWillFlameBeam', false],
+    ['water', 'WATER_WILL', 'HEALING_CELL', 'healing_cell_applied', 'waterWillHealingBeam', false],
+    ['grass', 'GRASS_WILL', 'SEED', 'grass_seeded', 'grassWillSeedBeam', true]
+  ])('%s beam shows a purple target highlight until its status appears', async (
+    _label,
+    cause,
+    special,
+    reason,
+    sourceTrajectoryProfile,
+    expectsSeed
+  ) => {
     let finishBeam!: () => void;
     const animateDestroyDragonBreath = jest.fn(() => new Promise<void>((resolve) => {
       finishBeam = resolve;
@@ -277,13 +288,13 @@ describe('DOM board playback phase ownership', () => {
     });
     const executor = createDomBoardPlaybackExecutor(handlers);
     const meta = {
-      special: 'SEED',
+      special,
       owner: 'black',
-      cause: 'GRASS_WILL',
-      reason: 'grass_seeded',
+      cause,
+      reason,
       sourceRow: 1,
       sourceCol: 1,
-      sourceTrajectoryProfile: 'grassWillSeedBeam'
+      sourceTrajectoryProfile
     };
     const event = {
       type: 'status_applied',
@@ -294,10 +305,12 @@ describe('DOM board playback phase ownership', () => {
         col: 2,
         sourceRow: 1,
         sourceCol: 1,
-        cause: 'GRASS_WILL',
-        reason: 'grass_seeded',
+        cause,
+        reason,
+        subjectKind: 'cell_marker',
+        stoneMutation: 'preserve',
         meta,
-        after: { special: 'SEED', owner: 'black', timer: 5 }
+        after: { special, owner: 'black', timer: 5 }
       }]
     };
     let settled = false;
@@ -306,14 +319,19 @@ describe('DOM board playback phase ownership', () => {
 
     await flushMicrotasks();
     expect(animateDestroyDragonBreath).toHaveBeenCalledTimes(1);
+    expect(target.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(target.querySelectorAll('.seed-mark')).toHaveLength(0);
     expect(settled).toBe(false);
     finishBeam();
     await flushMicrotasks();
 
     expect(settled).toBe(true);
     await pending;
-    expect(target.querySelectorAll('.seed-mark')).toHaveLength(1);
-    expect((target.querySelector('.seed-mark') as HTMLElement).style.opacity).toBe('');
+    expect(target.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(target.querySelectorAll('.seed-mark')).toHaveLength(expectsSeed ? 1 : 0);
+    if (expectsSeed) {
+      expect((target.querySelector('.seed-mark') as HTMLElement).style.opacity).toBe('');
+    }
     expect(scheduledDelays).toEqual([]);
   });
 

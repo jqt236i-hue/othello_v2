@@ -1036,7 +1036,7 @@ describe('Pixi board playback contract', () => {
     expect(harness.scene.getDiagnostics().activePlaybackEffectCount).toBe(0);
   });
 
-  test('FIRE_WILL status waits for the flame beam before applying the scorched target', async () => {
+  test('FIRE_WILL shows a purple target highlight during the flame beam', async () => {
     const harness = createHarness({
       frame: makeFrame([[5, 1, stone('white')]])
     });
@@ -1069,7 +1069,11 @@ describe('Pixi board playback contract', () => {
       .then(() => { settled = true; });
 
     await flushMicrotasks();
-    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:fireWillFlameBeam:'))).toBe(true);
+    const sourceAcquire = harness.log.findIndex((entry) => entry.startsWith('scene:source-acquire:fireWillFlameBeam:'));
+    const highlightAcquire = harness.log.indexOf('scene:highlight-acquire:5,1:positive');
+    expect(sourceAcquire).toBeGreaterThanOrEqual(0);
+    expect(highlightAcquire).toBeGreaterThan(sourceAcquire);
+    expect(harness.log.findIndex((entry) => entry.startsWith('scene:highlight-release:'))).toBe(-1);
     expect(harness.log).not.toContain('scene:hide:5,1');
     expect(settled).toBe(false);
 
@@ -1081,6 +1085,10 @@ describe('Pixi board playback contract', () => {
     await flushMicrotasks(24);
     expect(settled).toBe(true);
     await pending;
+    const sourceRelease = harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'));
+    const highlightRelease = harness.log.findIndex((entry) => entry.startsWith('scene:highlight-release:'));
+    expect(sourceRelease).toBeGreaterThan(highlightAcquire);
+    expect(highlightRelease).toBeGreaterThan(sourceRelease);
     expect(harness.log).not.toContain('scene:hide:5,1');
     expect(harness.log.some((entry) => entry.startsWith('scene:ghost-acquire:5,1:'))).toBe(false);
 
@@ -1098,7 +1106,7 @@ describe('Pixi board playback contract', () => {
     });
   });
 
-  test('GRASS_WILL status waits for the grass beam before applying the seed target', async () => {
+  test('GRASS_WILL shows a purple target highlight until the seed appears', async () => {
     const harness = createHarness();
     const meta = {
       special: 'SEED',
@@ -1129,12 +1137,14 @@ describe('Pixi board playback contract', () => {
       .then(() => { settled = true; });
 
     await flushMicrotasks();
-    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:grassWillSeedBeam:'))).toBe(true);
+    const sourceAcquire = harness.log.findIndex((entry) => entry.startsWith('scene:source-acquire:grassWillSeedBeam:'));
+    const highlightAcquire = harness.log.indexOf('scene:highlight-acquire:5,1:positive');
+    expect(sourceAcquire).toBeGreaterThanOrEqual(0);
+    expect(highlightAcquire).toBeGreaterThan(sourceAcquire);
     const preImpactHide = harness.log.indexOf('scene:hide:5,1');
-    expect(preImpactHide).toBeGreaterThan(
-      harness.log.findIndex((entry) => entry.startsWith('scene:source-acquire:grassWillSeedBeam:'))
-    );
+    expect(preImpactHide).toBeGreaterThan(sourceAcquire);
     expect(harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'))).toBe(-1);
+    expect(harness.log.findIndex((entry) => entry.startsWith('scene:highlight-release:'))).toBe(-1);
     expect(settled).toBe(false);
 
     harness.application.tick(280);
@@ -1142,9 +1152,11 @@ describe('Pixi board playback contract', () => {
     harness.application.tick(1);
     await flushMicrotasks();
     const sourceRelease = harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'));
+    const highlightRelease = harness.log.findIndex((entry) => entry.startsWith('scene:highlight-release:'));
     const seedAcquire = harness.log.indexOf('scene:ghost-acquire:5,1:marker:seed');
     expect(sourceRelease).toBeGreaterThan(preImpactHide);
-    expect(seedAcquire).toBeGreaterThan(sourceRelease);
+    expect(highlightRelease).toBeGreaterThan(sourceRelease);
+    expect(seedAcquire).toBeGreaterThan(highlightRelease);
     harness.application.tick(1);
     await flushMicrotasks(24);
     expect(settled).toBe(true);
@@ -1168,7 +1180,7 @@ describe('Pixi board playback contract', () => {
     });
   });
 
-  test('WATER_WILL status waits for the water beam before applying the healing target', async () => {
+  test('WATER_WILL shows a purple target highlight during the water beam', async () => {
     const harness = createHarness({
       frame: makeFrame([[5, 1, stone('white')]])
     });
@@ -1201,7 +1213,11 @@ describe('Pixi board playback contract', () => {
       .then(() => { settled = true; });
 
     await flushMicrotasks();
-    expect(harness.log.some((entry) => entry.startsWith('scene:source-acquire:waterWillHealingBeam:'))).toBe(true);
+    const sourceAcquire = harness.log.findIndex((entry) => entry.startsWith('scene:source-acquire:waterWillHealingBeam:'));
+    const highlightAcquire = harness.log.indexOf('scene:highlight-acquire:5,1:positive');
+    expect(sourceAcquire).toBeGreaterThanOrEqual(0);
+    expect(highlightAcquire).toBeGreaterThan(sourceAcquire);
+    expect(harness.log.findIndex((entry) => entry.startsWith('scene:highlight-release:'))).toBe(-1);
     expect(harness.log).not.toContain('scene:hide:5,1');
     expect(settled).toBe(false);
 
@@ -1213,6 +1229,10 @@ describe('Pixi board playback contract', () => {
     await flushMicrotasks(24);
     expect(settled).toBe(true);
     await pending;
+    const sourceRelease = harness.log.findIndex((entry) => entry.startsWith('scene:source-release:'));
+    const highlightRelease = harness.log.findIndex((entry) => entry.startsWith('scene:highlight-release:'));
+    expect(sourceRelease).toBeGreaterThan(highlightAcquire);
+    expect(highlightRelease).toBeGreaterThan(sourceRelease);
     expect(harness.log).not.toContain('scene:hide:5,1');
     expect(harness.log.some((entry) => entry.startsWith('scene:ghost-acquire:5,1:'))).toBe(false);
 

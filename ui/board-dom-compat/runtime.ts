@@ -1287,7 +1287,19 @@ class DomBoardPlaybackRuntime {
           trajectoryTargets.push(target);
           this.hideGrassSeedBeforeImpact(event, target, phase);
           this.recordTargetStage('impact-start', 'status_applied', target);
-          await this.sourceTrajectoryRunForEvent(phase, event).waitForTarget('status_applied', target, event);
+          const waitForTrajectory = () => this.sourceTrajectoryRunForEvent(phase, event)
+            .waitForTarget('status_applied', target, event);
+          const targetCell = this.getCellEl(target?.r ?? target?.row, target?.col ?? target?.c, phase);
+          if (!this.isNoAnim() && targetCell) {
+            await this.runWithTransientCellHighlight(
+              targetCell,
+              HIGHLIGHT_TONE_POSITIVE,
+              waitForTrajectory,
+              0
+            );
+          } else {
+            await waitForTrajectory();
+          }
           await this.revealSeedAtImpact(event, target, phase);
         } else {
           ordinaryTargets.push(target);

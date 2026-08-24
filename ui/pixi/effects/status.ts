@@ -238,7 +238,21 @@ async function playStatusTarget(
       profileKey
     });
   }
-  await sourceTrajectoryGate;
+  let sourcePreviewHighlight: PixiPlaybackCellHighlightHandle | null = null;
+  if (profileKey && !projection.noAnimation && !projection.reducedMotion) {
+    sourcePreviewHighlight = projection.acquireHighlight(
+      coordinate.row,
+      coordinate.col,
+      'positive'
+    );
+  }
+  try {
+    await sourceTrajectoryGate;
+  } finally {
+    if (sourcePreviewHighlight) {
+      projection.releaseHighlight(sourcePreviewHighlight);
+    }
+  }
   const stoneMutation = resolveStatusPlaybackStoneMutation(event, target);
   if (!usesSeedMarker && (stoneMutation === 'preserve' || stoneMutation === 'timer-only')) {
     const tone = sourceTrajectoryOwnsImpact
