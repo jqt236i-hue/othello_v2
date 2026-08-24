@@ -166,6 +166,25 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         deps.pushCueForPhases(ctx, theoryIncarnationSpawnPhases, 'theory_incarnation_spawn', 'theory_incarnation_spawn');
     }
 
+    const shinraBanshoGodSummonPhases = deps.collectUniquePhases(
+        ctx.base,
+        (ev: any) => (
+            ev &&
+            ev.type === 'status_applied' &&
+            ev.meta &&
+            String(ev.meta.special || '').toUpperCase() === 'SHINRA_BANSHO_GOD' &&
+            String(ev.reason || ev.meta.reason || '').toLowerCase() === 'shinra_summoned'
+        )
+    );
+    if (shinraBanshoGodSummonPhases.length > 0) {
+        deps.pushCueForPhases(
+            ctx,
+            shinraBanshoGodSummonPhases,
+            'shinra_bansho_god_summon',
+            'shinra_bansho_god_summoned'
+        );
+    }
+
     const seedSproutEvents = ctx.base.filter((ev: any) => (
         ev &&
         ev.type === 'spawn' &&

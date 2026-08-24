@@ -1222,6 +1222,55 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(theoryCue).toBeUndefined();
   });
 
+  test('森羅万象神の大型石出現時に専用 sound_effect を同じ phase に1回追加する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 9,
+      reason: 'shinra_summoned',
+      meta: {
+        special: 'SHINRA_BANSHO_GOD',
+        composite: true,
+        footprint: [
+          { row: 2, col: 3 },
+          { row: 2, col: 4 },
+          { row: 3, col: 3 },
+          { row: 3, col: 4 }
+        ]
+      },
+      targets: [{ row: 2, col: 3, reason: 'shinra_summoned' }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'shinra_bansho_god_summon'
+    ));
+
+    expect(cues).toEqual([expect.objectContaining({
+      type: 'sound_effect',
+      phase: 9,
+      targets: [expect.objectContaining({ soundKey: 'shinra_bansho_god_summon' })]
+    })]);
+  });
+
+  test('森羅万象神の融合が保留された場合は専用音を追加しない', () => {
+    const out = adapter.appendSoundEffectPlaybackEvents([], [{
+      type: 'shinra_bansho_god_fusion_deferred',
+      player: 'black'
+    }]);
+
+    expect(out.some((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'shinra_bansho_god_summon'
+    ))).toBe(false);
+  });
+
   test('gluttonous proliferation overlap keeps stone_destroy on overlap phase and clone_spawn on next phase', () => {
     const base = [
       {

@@ -165,6 +165,7 @@ const SoundEngine = {
         breeding_spawn: 'カード効果で石が生成されたタイミング.mp3',
         theory_incarnation_spawn: '理論の化身のルーレット効果音.mp3',
         chaos_summon_spawn: '混沌召喚のルーレット効果音.mp3',
+        shinra_bansho_god_summon: '森羅万象神が出現するタイミング.mp3',
         seed_place: '種まきの意志で種をまいたタイミング.mp3',
         seed_sprout: '種まきの意志で芽生えるタイミング.mp3',
         card_effect_flip: 'カード効果で石が反転したタイミング.mp3',
