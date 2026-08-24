@@ -71,4 +71,3 @@ export function assertCardRuntimeCapability<T>(
         throw createCardRuntimeUnavailableError(capability, cohort);
     }
 }
-

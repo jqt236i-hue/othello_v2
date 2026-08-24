@@ -1704,9 +1704,9 @@ const {
      * 1. Deck generation (shuffle for guaranteed cards per type)
      * 2. Deck final shuffle
      * 3. No initial hand draw (policy)
-     * 
+     *
      * For online/replay, both client and server should call this with the same seed.
-     * 
+     *
      * @param {Object} prng - PRNG object (required for determinism)
      * @returns {{ cardState: Object, prngState: Object }}
      */
@@ -1731,7 +1731,7 @@ const {
     /**
      * Add a marker to the unified markers array and sync to legacy arrays.
      * This is the primary method for adding special stones and bombs.
-     * 
+     *
      * @param {Object} cardState - Card state
      * @param {string} kind - 'specialStone' or 'bomb'
      * @param {number} row
@@ -2064,9 +2064,9 @@ const {
 
     /**
      * Draw a card
-     * @param {Object} cardState 
+     * @param {Object} cardState
      * @param {string} playerKey - 'black' or 'white'
-     * @param {Object} [prng] 
+     * @param {Object} [prng]
      * @returns {string|null} Drawn card ID
      */
     function commitDraw(cardState: any, playerKey: any, prng: any) {
@@ -5054,8 +5054,8 @@ const {
 
     /**
      * Get selectable friendly stone cells for the current pending effect (UI highlight helper).
-     * @param {Object} cardState 
-     * @param {Object} gameState 
+     * @param {Object} cardState
+     * @param {Object} gameState
      * @param {string} playerKey - 'black'|'white'
      * @returns {Array<{row:number,col:number}>}
      */
@@ -5063,7 +5063,7 @@ const {
         return CardTargetAccessModule.getSelectableTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
-    
+
 const cardsApi: any = {
         // Constants
         INITIAL_HAND_SIZE,
