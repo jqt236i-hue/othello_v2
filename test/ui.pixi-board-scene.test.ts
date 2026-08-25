@@ -806,13 +806,21 @@ describe('Pixi static retained views', () => {
     expect(foreground.commands.some((command) => command.op === 'fill')).toBe(false);
   });
 
-  test('removes Pixi cell hit ownership for holes and reset views', () => {
+  test('gives Pixi hit ownership only to selectable holes and clears reset views', () => {
     const fixture = createFakeRuntime();
     const hintView = HintView.createPixiHintView(fixture.runtime);
-    const hole = materializedCell(makeCell('2,3', { kind: 'hole' }));
+    const inertHole = materializedCell(makeCell('2,3', { kind: 'hole' }));
 
-    hintView.update(hole, viewContext());
+    hintView.update(inertHole, viewContext());
     expect(hintView.interactionRoot).toMatchObject({ eventMode: 'none', hitArea: null });
+
+    const selectableHole = materializedCell(makeCell('2,3', {
+      kind: 'hole',
+      interaction: { selectable: true }
+    }));
+    hintView.update(selectableHole, viewContext({ interactionRevisionSignature: 'static-interaction:hole-target' }));
+    expect(hintView.interactionRoot).toMatchObject({ eventMode: 'static' });
+    expect(hintView.interactionRoot.hitArea).not.toBeNull();
 
     const playable = materializedCell(makeCell('2,3', { interaction: { legal: true } }));
     hintView.update(playable, viewContext({ interactionRevisionSignature: 'static-interaction:playable' }));

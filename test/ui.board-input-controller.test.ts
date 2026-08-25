@@ -411,7 +411,7 @@ describe('board input controller', () => {
     expect(actions).toEqual([]);
   });
 
-  test('syncModel derives legal cells and hit testing from model interaction plus client rects', () => {
+  test('syncModel accepts selectable holes as targets without treating them as legal moves', () => {
     const legal = cell(1, 1, { interaction: {
       legal: true, legalFree: false, interactionLocked: false, directionHints: []
     } });
@@ -421,7 +421,13 @@ describe('board input controller', () => {
     const locked = cell(3, 3, { interaction: {
       legal: true, legalFree: false, interactionLocked: true, directionHints: []
     } });
-    const hole = cell(4, 4, { kind: 'hole' });
+    const selectableHole = cell(4, 4, {
+      kind: 'hole',
+      interaction: {
+        legal: false, legalFree: false, selectable: true, interactionLocked: false, directionHints: []
+      }
+    });
+    const inertHole = cell(5, 5, { kind: 'hole' });
     const getCellClientRect = jest.fn((row: number, col: number) => ({
       left: col * 10,
       top: row * 10,
@@ -431,8 +437,8 @@ describe('board input controller', () => {
       height: 10,
       layoutRevision: 4
     }));
-    const { controller } = createController({ getCellClientRect });
-    controller.syncModel(model([hole, locked, free, legal]));
+    const { controller, actions } = createController({ getCellClientRect });
+    controller.syncModel(model([inertHole, selectableHole, locked, free, legal]));
 
     expect(controller.getLegalCells()).toEqual([
       { row: 1, col: 1, key: '1,1' },
@@ -441,7 +447,16 @@ describe('board input controller', () => {
     ]);
     expect(controller.hitTestClientPoint(15, 15)).toEqual({ row: 1, col: 1, key: '1,1' });
     expect(controller.hitTestClientPoint(35, 35)).toBeNull();
-    expect(controller.hitTestClientPoint(45, 45)).toBeNull();
+    expect(controller.hitTestClientPoint(45, 45)).toEqual({ row: 4, col: 4, key: '4,4' });
+    expect(controller.hitTestClientPoint(55, 55)).toBeNull();
+
+    expect(controller.handlePointer({
+      type: 'pointerdown', row: 4, col: 4, pointerType: 'mouse', button: 0
+    })).toBe(true);
+    expect(controller.handlePointer({
+      type: 'pointerup', row: 4, col: 4, pointerType: 'mouse'
+    })).toBe(true);
+    expect(actions).toEqual([{ row: 4, col: 4 }]);
   });
 
   test('hit-tests an expansion cell at a negative world coordinate', () => {

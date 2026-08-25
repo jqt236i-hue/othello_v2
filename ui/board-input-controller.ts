@@ -265,12 +265,19 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     return currentModel?.viewerContext === 'spectator';
   };
 
+  const isInputEligibleCell = (cell: BoardRenderModel['cells'][number]): boolean => (
+    cell.kind === 'playable'
+    // Causal Replay deliberately targets an existing hole.  A hole remains
+    // non-interactive unless the canonical render model marks it selectable.
+    || (cell.kind === 'hole' && cell.interaction.selectable === true)
+  );
+
   const isInteractive = (row: number, col: number): boolean => {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
     if (options.isCellInteractive) return options.isCellInteractive(row, col) === true;
     if (!currentModel) return true;
     const cell = currentCellByKey.get(toCellKey(row, col));
-    return !!(cell && cell.kind === 'playable' && cell.interaction.interactionLocked !== true);
+    return !!(cell && isInputEligibleCell(cell) && cell.interaction.interactionLocked !== true);
   };
 
   const notifyBlocked = (reason: BoardInputBlockReason, source: BoardInputSource): void => {
@@ -475,15 +482,18 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       : null;
     for (const cell of model.cells) {
       nextCellByKey.set(cell.key, cell);
-      if (cell.kind !== 'playable') continue;
-      if (cell.interaction.legal === true || cell.interaction.legalFree === true) {
+      if (cell.kind === 'playable' && (
+        cell.interaction.legal === true || cell.interaction.legalFree === true
+      )) {
         legalCells.push({ row: cell.row, col: cell.col, key: cell.key });
       }
       if (!rebuildHitContract) continue;
       // Locking is transient presentation state and is intentionally excluded
-      // from the model identity. Keep playable coordinates in the retained hit
-      // contract so an unlock-only frame can become interactive without
-      // rebuilding geometry; isLocked()/isInteractive() remain the live gates.
+      // from the model identity. Keep eligible target coordinates in the
+      // retained hit contract so an unlock-only frame can become interactive
+      // without rebuilding geometry; isLocked()/isInteractive() remain the
+      // live gates.
+      if (!isInputEligibleCell(cell)) continue;
       const coordinateKey = toCellKey(cell.row, cell.col);
       const hitCell = Object.freeze({ row: cell.row, col: cell.col, key: cell.key });
       nextHitCells!.push(hitCell);

@@ -225,7 +225,11 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       selectionKinds: Array.from(interaction.selectionKinds),
       directionKeys: interaction.directionHints.map((hint) => hint.directionKey)
     };
-    const visible = cell.kind === 'playable';
+    // Causal Replay can select an existing hole.  It is the sole hole case
+    // that receives a target marker and pointer layer; ordinary holes remain
+    // visually and interactively inert.
+    const visible = cell.kind === 'playable'
+      || (cell.kind === 'hole' && interaction.selectable === true);
     if (painted) {
       surfaceRoot.visible = visible;
       root.visible = visible;
