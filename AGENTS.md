@@ -122,7 +122,13 @@ Invariants:
 4. Use 5174 only when Vite delivery itself must be confirmed. Do not run `npm run build:vite` while this repository is serving `vite-dist/` on 5174. Stop that Vite serve first, rebuild, then restart Vite only if still needed. Restore `npm run serve` on 8000 as the leftover play server.
 5. Do not stop, replace, or bulk-kill Node processes that do not belong to this repository, including other projects on 5173.
 6. Focused Jest, `test/e2e/`, and visual-regression helpers may start ephemeral servers on OS-assigned ports. Those belong to the test lifecycle and must be torn down by the test. They are not the play server; do not keep them as the leftover 8000 process and do not reuse their random ports as the canonical URL.
-7. Before completing a task that used or needed the browser, confirm `http://127.0.0.1:8000/` returns HTTP 200 and that 8000 is this repository's play server. If the server was missing at the start of browser work, start it persistently and leave it running.
+7. Any task that edits, fixes, or implements the playable game has the following mandatory completion gate, regardless of whether the browser was used during the task:
+   - After the final game change and the relevant tests, run at least `npm run build:browser` so the local play server can serve the finished changes. Also run any more specific build or generation command required elsewhere in this file. If a game source file changes afterward, rebuild before completing the task.
+   - Confirm that this repository's persistent `npm run serve` process is running on `http://127.0.0.1:8000/`. If it is stopped, start it persistently. A server that exists only while a temporary command or test is running does not count.
+   - After the final build, confirm that `http://127.0.0.1:8000/` returns HTTP 200 and that port 8000 belongs to this repository's play server.
+   - Leave the play server running after the final response. Do not stop it as cleanup.
+   - Do not mark the task complete or send the final response until the build, reflection, and server checks above have passed. If any check cannot be completed, report the task as incomplete and explain the blocker.
+   - State the successful final build and the running local play server in the completion report.
 
 When a browser check needs a server, inspect listeners first:
 
