@@ -16,8 +16,10 @@ const SharedBoardUtils: any = SharedBoardUtilsImport;
 const SelectorsCoreUtils: any = SelectorsCoreUtilsImport;
 const SelectorsBoardShape: any = SelectorsBoardShapeImport;
 
-const { EMPTY } = SharedConstants || {};
+const { EMPTY, BLACK, WHITE } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
+const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;
+const P_WHITE = (WHITE === undefined || WHITE === null) ? -1 : WHITE;
 const BOARD_SHRINK_SELECTION_COUNT = 3;
 
 function getSelectorsBoardShapeDeps() {
@@ -1187,8 +1189,7 @@ function getPoisonTargets(cardState: CardState, gameState: GameState): TargetCel
     return res;
 }
 
-// Scorch may overwrite any temporary special cell. Permanent holes are excluded.
-function getScorchTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+function getTemporaryStatusCellTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
@@ -1197,6 +1198,20 @@ function getScorchTargets(cardState: CardState, gameState: GameState): TargetCel
         res.push({ row: r, col: c });
     });
     return res;
+}
+
+// Scorch may overwrite a temporary special cell, but only beneath a non-inviolable enemy stone.
+function getScorchTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
+    const playerValue = playerKey === 'white' ? P_WHITE : P_BLACK;
+    return getTemporaryStatusCellTargets(cardState, gameState).filter((target) => {
+        const cellValue = getCellValue(cardState, gameState, target.row, target.col);
+        return cellValue !== P_EMPTY && cellValue !== playerValue && !isInviolableCell(cardState, target.row, target.col);
+    });
+}
+
+// Healing remains available on any non-hole cell, independent of scorch targeting.
+function getHealingCellTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    return getTemporaryStatusCellTargets(cardState, gameState);
 }
 
 // Return causal replay targets: existing meteor holes only.
@@ -1340,6 +1355,7 @@ export = {
     getBlockadeTargets,
     getPoisonTargets,
     getScorchTargets,
+    getHealingCellTargets,
     getMeteorTargets,
     getCausalReplayTargets,
     getBoardShrinkTargets,

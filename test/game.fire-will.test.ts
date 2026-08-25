@@ -41,9 +41,37 @@ describe('FIRE_WILL（火の意志）', () => {
     expect(CardLogic.SCORCHED_STONE_TURNS).toBe(3);
   });
 
+  test('灼熱マスは敵の通常石と特殊石だけを候補にし、不可侵・自石・空きマスは除外する', () => {
+    const { cardState, gameState } = createStates(0);
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+    gameState.board[1][1] = Shared.WHITE;
+    gameState.board[1][2] = Shared.BLACK;
+    gameState.board[1][3] = Shared.WHITE;
+    gameState.board[1][4] = Shared.WHITE;
+    CardLogic.addMarker(cardState, 'specialStone', 1, 3, 'white', {
+      type: 'SNIPER',
+      remainingOwnerTurns: 6
+    });
+    CardLogic.addMarker(cardState, 'manifestStone', 1, 4, 'white', {
+      type: 'BOARD_EXECUTOR',
+      remainingOwnerTurns: 4
+    });
+
+    expect(CardLogic.getScorchTargets(cardState, gameState, 'black')).toEqual([
+      { row: 1, col: 1 },
+      { row: 1, col: 3 }
+    ]);
+    expect(CardLogic.getHealingCellTargets(cardState, gameState, 'black')).toEqual(expect.arrayContaining([
+      { row: 0, col: 0 },
+      { row: 1, col: 2 },
+      { row: 1, col: 4 }
+    ]));
+  });
+
   test('配置時に火石を作り、同じ手番では持続を減らさず灼熱マスを1つ作る', () => {
     const prng = createPrng(0);
     const { cardState, gameState } = createStates(0);
+    gameState.board[0][0] = Shared.WHITE;
     gameState.board[2][4] = Shared.WHITE;
     gameState.board[2][5] = Shared.BLACK;
     cardState.pendingEffectByPlayer.black = {
@@ -83,6 +111,7 @@ describe('FIRE_WILL（火の意志）', () => {
   test('6回目の所有者ターン開始でも灼熱化してから火石が通常石へ戻る', () => {
     const { cardState, gameState } = createStates(0.25);
     gameState.board[4][4] = Shared.BLACK;
+    gameState.board[0][0] = Shared.WHITE;
     CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
       type: 'FIRE',
       remainingOwnerTurns: 1
@@ -108,6 +137,7 @@ describe('FIRE_WILL（火の意志）', () => {
   test('火石による灼熱生成イベントに炎ビームの発射元を保持する', () => {
     const { cardState, gameState } = createStates(0);
     gameState.board[4][4] = Shared.BLACK;
+    gameState.board[0][0] = Shared.WHITE;
     CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
       type: 'FIRE',
       remainingOwnerTurns: 6
@@ -144,6 +174,28 @@ describe('FIRE_WILL（火の意志）', () => {
           sourceTrajectoryProfile: 'fireWillFlameBeam'
         })
       }));
+  });
+
+  test('敵石がない発動では灼熱マスを作らない', () => {
+    const { cardState, gameState } = createStates(0);
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+    gameState.board[4][4] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
+      type: 'FIRE',
+      remainingOwnerTurns: 6
+    });
+
+    const result = CardLogic.processFireWillEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      4,
+      4,
+      createPrng(0)
+    );
+
+    expect(result.scorched).toEqual([]);
+    expect(marker(cardState, 'SCORCHED_CELL')).toBeFalsy();
   });
 
   test('灼熱マスは毒マスを完全上書きし、既に石へ付いた毒状態は残す', () => {

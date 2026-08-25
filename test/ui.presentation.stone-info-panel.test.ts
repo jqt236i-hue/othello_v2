@@ -160,26 +160,26 @@ describe('current board stone catalog presentation', () => {
 
     const items = Array.from(document.querySelectorAll('.stone-info-list-item')) as HTMLButtonElement[];
     expect(items.map((item) => item.dataset.stoneCatalogKey)).toEqual([
-      'board-marker:BLOCKADE:3',
-      'board-marker:METEOR_HOLE:no-timer',
-      'board-marker:FREEZE:4',
-      'board-marker:SEED:5',
-      'board-marker:POISON_CELL:9',
-      'board-marker:SCORCHED_CELL:8',
-      'board-marker:HEALING_CELL:7'
+      'board-marker:BLOCKADE',
+      'board-marker:METEOR_HOLE',
+      'board-marker:FREEZE',
+      'board-marker:SEED',
+      'board-marker:POISON_CELL',
+      'board-marker:SCORCHED_CELL',
+      'board-marker:HEALING_CELL'
     ]);
     expect(items.every((item) => item.dataset.stoneCatalogSubject === 'board-marker')).toBe(true);
-    expect(document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"] .stone-info-list-count')?.textContent)
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL"] .stone-info-list-count')?.textContent)
       .toBe('×2');
-    expect(document.querySelector('[data-stone-catalog-key="board-marker:BLOCKADE:3"] img')?.getAttribute('src'))
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:BLOCKADE"] img')?.getAttribute('src'))
       .toContain('assets/images/other/X.png');
-    expect(document.querySelector('[data-stone-catalog-key="board-marker:FREEZE:4"] img')?.getAttribute('src'))
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:FREEZE"] img')?.getAttribute('src'))
       .toContain('assets/images/other/ICE.png');
-    expect(document.querySelector('[data-stone-catalog-key="board-marker:SEED:5"] img')?.getAttribute('src'))
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:SEED"] img')?.getAttribute('src'))
       .toContain('assets/images/other/seed.png');
-    expect(document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"] .stone-info-marker-tile--poison-cell'))
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL"] .stone-info-marker-tile--poison-cell'))
       .not.toBeNull();
-    expect(document.querySelector('[data-stone-catalog-key="board-marker:METEOR_HOLE:no-timer"] .stone-info-list-marker-timer'))
+    expect(document.querySelector('[data-stone-catalog-key="board-marker:METEOR_HOLE"] .stone-info-list-marker-timer'))
       .toBeNull();
   });
 
@@ -199,8 +199,8 @@ describe('current board stone catalog presentation', () => {
 
     const normalButton = document.querySelector('[data-stone-catalog-key="normal:black"]') as HTMLButtonElement;
     const goldButton = document.querySelector('[data-stone-catalog-key="special:GOLD:black"]') as HTMLButtonElement;
-    const freezeButton = document.querySelector('[data-stone-catalog-key="board-marker:FREEZE:4"]') as HTMLButtonElement;
-    const poisonButton = document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"]') as HTMLButtonElement;
+    const freezeButton = document.querySelector('[data-stone-catalog-key="board-marker:FREEZE"]') as HTMLButtonElement;
+    const poisonButton = document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL"]') as HTMLButtonElement;
     expect(document.querySelector('[data-stone-catalog-key*="TRAP"]')).toBeNull();
 
     normalButton.click();
@@ -233,28 +233,30 @@ describe('current board stone catalog presentation', () => {
       .toBe(true);
   });
 
-  test('separates board markers with different timers and refreshes detail when only the settled timer changes', () => {
+  test('groups healing cells with different timers by type and refreshes all settled timers in detail', () => {
     const mod = setupDom();
-    const poisonCell = (row: number, remainingTurns: number) => boardCell(row, 0, [{
-      kind: 'poison-cell',
+    const healingCell = (row: number, remainingTurns: number) => boardCell(row, 0, [{
+      kind: 'healing-cell',
       owner: null,
       data: { remainingTurns, sourcePlayer: 'black' }
     }]);
 
-    mod.renderCurrentStoneInfoPanel(frame([poisonCell(0, 9), poisonCell(1, 7)]));
-    expect(Array.from(document.querySelectorAll('[data-stone-catalog-key^="board-marker:POISON_CELL"]'))
-      .map((element) => element.getAttribute('data-stone-catalog-key'))).toEqual([
-      'board-marker:POISON_CELL:9',
-      'board-marker:POISON_CELL:7'
-    ]);
+    mod.renderCurrentStoneInfoPanel(frame([healingCell(0, 8), healingCell(1, 6)]));
+    const healingEntries = Array.from(document.querySelectorAll('[data-stone-catalog-key="board-marker:HEALING_CELL"]'));
+    expect(healingEntries).toHaveLength(1);
+    expect(healingEntries[0].querySelector('.stone-info-list-count')?.textContent).toBe('×2');
+    expect(healingEntries[0].querySelector('.stone-info-list-marker-timer')).toBeNull();
 
-    (document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:9"]') as HTMLButtonElement).click();
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り9T');
-
-    mod.renderCurrentStoneInfoPanel(frame([poisonCell(0, 8), poisonCell(1, 7)]));
-    (document.querySelector('[data-stone-catalog-key="board-marker:POISON_CELL:8"]') as HTMLButtonElement).click();
+    (healingEntries[0] as HTMLButtonElement).click();
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り8T');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り9T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り6T');
+
+    mod.renderCurrentStoneInfoPanel(frame([healingCell(0, 7), healingCell(1, 5)]));
+    (document.querySelector('[data-stone-catalog-key="board-marker:HEALING_CELL"]') as HTMLButtonElement).click();
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り7T');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5T');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り8T');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り6T');
   });
 
   test('refreshes a stone overlay status when only its settled timer changes', () => {

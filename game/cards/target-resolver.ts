@@ -1005,6 +1005,13 @@ const Flips = CardFlips || {};
         return [];
     }
 
+    function getHealingCellTargets(cardState: any, gameState: any, playerKey: any) {
+        if (typeof Selectors.getHealingCellTargets === 'function') {
+            return Selectors.getHealingCellTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
     function getEqualityTargets(cardState: any, gameState: any, playerKey: any) {
         void cardState;
         void gameState;
@@ -1166,6 +1173,7 @@ export = {
     getBlockadeTargets,
     getPoisonTargets,
     getScorchTargets,
+    getHealingCellTargets,
     getCellTeleportTargets,
     getSniperTargets,
     getTimeBombTargets,

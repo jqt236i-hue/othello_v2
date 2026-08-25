@@ -2696,7 +2696,7 @@ const {
     }
 
     function getHealingCellTargets(cardState: any, gameState: any, playerKey: any) {
-        return getScorchTargets(cardState, gameState, playerKey);
+        return CardTargetAccessModule.getHealingCellTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
     function getMeteorTargets(cardState: any, gameState: any, playerKey: any) {

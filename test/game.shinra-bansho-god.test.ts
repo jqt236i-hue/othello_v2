@@ -227,6 +227,7 @@ describe('森羅万象神', () => {
     CardLogic.resolveShinraBanshoGodFusions(cardState, gameState, prng);
     prng.random.mockClear();
     gameState.board[7][7] = Shared.WHITE;
+    addShinraGroup(cardState, gameState, 'white', 4, 4);
 
     const result = CardLogic.processShinraBanshoGodAtTurnStartAnchor(
       cardState,
@@ -238,6 +239,9 @@ describe('森羅万象神', () => {
     );
 
     expect(result.fire.scorched).toHaveLength(1);
+    expect(result.fire.scorched).toEqual([
+      expect.objectContaining({ row: 7, col: 7, sourceRow: 0, sourceCol: 0 })
+    ]);
     expect(result.water.healingCells).toHaveLength(1);
     expect(result.grass.seeded).toHaveLength(1);
     expect(result.lightning.destroyed).toEqual([

@@ -985,11 +985,13 @@ function renderCurrentStoneInfoPanel(frame: any) {
             if (!specialType) continue;
             if (specialType === 'SEED' && cell.stone) continue;
             const detail = _createCatalogBoardMarkerDetailForDiff(marker, specialType);
-            const durationKey = detail.duration === null ? 'no-timer' : String(detail.duration);
-            const key = `board-marker:${specialType}:${durationKey}`;
+            const key = `board-marker:${specialType}`;
             const existing = groups.get(key);
             if (existing) {
                 existing.count += 1;
+                if (detail.duration !== null && !existing.durationValues.includes(detail.duration)) {
+                    existing.durationValues.push(detail.duration);
+                }
                 continue;
             }
             const info = _getSpecialStoneInfoForDiff(specialType);
@@ -1007,6 +1009,7 @@ function renderCurrentStoneInfoPanel(frame: any) {
                 visualToken: String(visual.token || 'board-marker'),
                 visualSymbol: String(visual.symbol || 'マス'),
                 duration: detail.duration,
+                durationValues: detail.duration === null ? [] : [detail.duration],
                 detail,
                 detailSignature: _buildCatalogDetailSignatureForDiff(detail),
                 count: 1
@@ -1015,6 +1018,11 @@ function renderCurrentStoneInfoPanel(frame: any) {
     }
 
     const entries = Array.from(groups.values());
+    for (const entry of entries) {
+        if (entry.subjectKind !== 'board-marker') continue;
+        entry.durationValues.sort((a: number, b: number) => b - a);
+        entry.duration = entry.durationValues.length === 1 ? entry.durationValues[0] : null;
+    }
     const signature = JSON.stringify(entries.map((entry: any) => [
         entry.key,
         entry.row,
@@ -1024,6 +1032,7 @@ function renderCurrentStoneInfoPanel(frame: any) {
         entry.visualKind,
         entry.visualToken,
         entry.duration,
+        entry.durationValues,
         entry.detailSignature
     ]));
     if (refs.list.getAttribute('data-stone-list-signature') === signature) return true;
@@ -1042,8 +1051,11 @@ function renderCurrentStoneInfoPanel(frame: any) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'stone-info-list-item';
-        const durationLabel = entry.subjectKind === 'board-marker' && entry.duration !== null
-            ? `、残り${entry.duration}ターン`
+        const durationValues = entry.subjectKind === 'board-marker' && Array.isArray(entry.durationValues)
+            ? entry.durationValues
+            : [];
+        const durationLabel = durationValues.length > 0
+            ? `、残り${durationValues.map((duration: number) => `${duration}ターン`).join('・')}`
             : '';
         button.setAttribute('aria-label', `${entry.name}の情報を表示（盤上に${entry.count}個${durationLabel}）`);
         button.setAttribute('data-stone-catalog-key', entry.key);
@@ -1155,7 +1167,13 @@ function _resolveCatalogEntryDetailForDiff(entry: any) {
             ? { name: snapshot.name, desc: snapshot.description }
             : (registryInfo || { name: String(detail.type || ''), desc: '効果情報は未登録です。' });
         badges.push('特殊マス');
-        badges.push(..._buildCatalogStatusBadgesForDiff(detail, false));
+        badges.push(..._buildCatalogStatusBadgesForDiff(detail, false).filter((badge) => (
+            !/^残り\d+(?:ターン|T)$/.test(badge)
+        )));
+        const durationValues = entry && Array.isArray(entry.durationValues)
+            ? entry.durationValues
+            : [];
+        badges.push(...durationValues.map((duration: number) => `残り${duration}T`));
         detailBackgroundImage = String(registryInfo && registryInfo.detailBackgroundImage || '').trim();
     } else if (detail.isSprout) {
         info = detail.ownerKey === 'white'

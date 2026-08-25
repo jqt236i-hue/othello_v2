@@ -336,7 +336,7 @@ export const CARD_RUNTIME_REQUIRED_EXPORTS = Object.freeze({
             'getSelectableTargets', 'getDestroyTargets', 'getSwapTargets', 'getGuardTargets',
             'getCaptureTargets', 'getTemptTargets', 'getPositionSwapTargets', 'getSeedTargets',
             'getCloneTargets', 'getBreedingTargets', 'getMeteorTargets', 'getCausalReplayTargets',
-            'getFreezeTargets', 'getBlockadeTargets', 'getPoisonTargets', 'getScorchTargets',
+            'getFreezeTargets', 'getBlockadeTargets', 'getPoisonTargets', 'getScorchTargets', 'getHealingCellTargets',
             'getCellTeleportTargets', 'getSniperTargets', 'getTimeBombTargets', 'getLightningTargets',
             'getCrossBombTargets', 'getXBombTargets', 'getReinforcementTargets',
             'getEqualityTargets', 'getLastResortTargets'
@@ -353,7 +353,7 @@ export const CARD_RUNTIME_REQUIRED_EXPORTS = Object.freeze({
             'getBoardExpansionGodTargets', 'getBoardExpansionGodRequiredSelectionCount',
             'getBoardShrinkSelectionCount', 'getBoardShrinkPendingSelectionsForCard',
             'getBoardShrinkTargets', 'getBoardShrinkGodTargets', 'getCellTeleportDestinations',
-            'getCellTeleportTargets', 'getBlockadeTargets', 'getPoisonTargets', 'getScorchTargets',
+            'getCellTeleportTargets', 'getBlockadeTargets', 'getPoisonTargets', 'getScorchTargets', 'getHealingCellTargets',
             'getMeteorTargets', 'getCausalReplayTargets', 'getFreezeTargets', 'getSeedTargets',
             'getStrongWindTargets', 'getSuperBuoyancyTargets', 'getBuoyancyTargets',
             'getSuperGravityTargets', 'getSuperAttractionTargets', 'getSuperAttractionPathPreview',
@@ -368,7 +368,7 @@ export const CARD_RUNTIME_REQUIRED_EXPORTS = Object.freeze({
             'getCellTeleportTargets', 'getCellTeleportDestinations', 'getCloneTargets',
             'getBoardExpansionSocketTargets', 'getBoardExpansionGodSocketTargets',
             'getBoardExpansionTargets', 'getBoardExpansionGodTargets', 'getBlockadeTargets',
-            'getPoisonTargets', 'getScorchTargets', 'getMeteorTargets', 'getCausalReplayTargets',
+            'getPoisonTargets', 'getScorchTargets', 'getHealingCellTargets', 'getMeteorTargets', 'getCausalReplayTargets',
             'getBoardShrinkTargets', 'getBoardShrinkGodTargets', 'getFreezeTargets', 'getSeedTargets',
             'isBlockedCell'
         ),

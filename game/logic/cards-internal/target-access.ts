@@ -188,6 +188,10 @@ function getScorchTargets(cardState: any, gameState: any, playerKey: any, deps: 
     return resolveTargetResolverTargets('getScorchTargets', [cardState, gameState, playerKey], deps);
 }
 
+function getHealingCellTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
+    return resolveTargetResolverTargets('getHealingCellTargets', [cardState, gameState, playerKey], deps);
+}
+
 function getCausalReplayTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
     return resolveTargetResolverTargets('getCausalReplayTargets', [cardState, gameState, playerKey], deps);
 }
@@ -273,6 +277,7 @@ const CardTargetAccess = {
     getBlockadeTargets,
     getPoisonTargets,
     getScorchTargets,
+    getHealingCellTargets,
     getMeteorTargets,
     getCausalReplayTargets,
     getFreezeTargets,
