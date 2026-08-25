@@ -23,12 +23,14 @@ function createController(options?: {
   let savedCount = 0;
   let clearedHandle: any = null;
   const written: string[] = [];
+  const writeStarted: string[] = [];
   const closed: string[] = [];
   const scheduledTimeouts = new Map<any, { callback: (...args: any[]) => void; ms: number }>();
   let nextTimeoutHandle = 777;
 
   const writer = {
     async write(chunk: Uint8Array) {
+      writeStarted.push(Buffer.from(chunk).toString('utf8'));
       if (options && options.writeReject) {
         throw new Error('WRITE_FAIL');
       }
@@ -94,6 +96,7 @@ function createController(options?: {
     getBuffer: () => sseEventBuffer,
     getSavedCount: () => savedCount,
     getWritten: () => written,
+    getWriteStarted: () => writeStarted,
     getClearedHandle: () => clearedHandle,
     getClosed: () => closed,
     getHeartbeatTimerId: () => heartbeatTimerId,
@@ -142,6 +145,27 @@ describe('match worker stream controller', () => {
 
     expect(ctx.streams.size).toBe(0);
     expect(ctx.getClosed()).toEqual(['closed']);
+  });
+
+  test('two queued writes start in event order and a timeout closes the shared slow stream', async () => {
+    const ctx = createController({ writePending: true, writeTimeoutMs: 25 });
+
+    const first = ctx.controller.sendSse('stream1', 'snapshot', { stateVersion: 3 }, { eventId: 'SSE1_3_1' });
+    const second = ctx.controller.sendSse('stream1', 'snapshot', { stateVersion: 4 }, { eventId: 'SSE1_4_2' });
+    expect(ctx.getWriteStarted()).toHaveLength(2);
+    expect(ctx.getWriteStarted()[0]).toContain('id: SSE1_3_1');
+    expect(ctx.getWriteStarted()[1]).toContain('id: SSE1_4_2');
+
+    const timeouts = ctx.getScheduledTimeouts();
+    expect(timeouts).toHaveLength(2);
+    ctx.fireTimeout(timeouts[0][0]);
+    await first;
+    expect(ctx.streams.size).toBe(0);
+    expect(ctx.getClosed()).toEqual(['closed']);
+
+    ctx.fireTimeout(timeouts[1][0]);
+    await second;
+    expect(ctx.streams.size).toBe(0);
   });
 
   test('compacts only snapshot delivery for an explicitly V2 stream without mutating the buffered payload', async () => {

@@ -269,13 +269,15 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
 
     expect(boardRenderer.setBoardPresentationPreviewHints([
-      { cellKey: '2,3', kind: 'network-pending-placement' }
+      { cellKey: '2,3', kind: 'network-pending-placement', owner: 'black' }
     ])).toBe(true);
     const cell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
     expect(cell.classList.contains('network-pending-placement-preview')).toBe(true);
+    expect(cell.classList.contains('network-pending-placement-black')).toBe(true);
 
     expect(boardRenderer.setBoardPresentationPreviewHints([])).toBe(true);
     expect(cell.classList.contains('network-pending-placement-preview')).toBe(false);
+    expect(cell.classList.contains('network-pending-placement-black')).toBe(false);
   });
 
   test('renderBoardFull highlights the first selected stone during POSITION_SWAP_WILL targeting', () => {

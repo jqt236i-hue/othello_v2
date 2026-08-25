@@ -113,7 +113,8 @@ export function validateBoardPresentationOverlayState(value: unknown): BoardPres
   })) : [];
   const previewHints = Array.isArray(source.previewHints) ? source.previewHints.map((hint: any) => ({
     cellKey: String(hint && hint.cellKey || ''),
-    kind: String(hint && hint.kind || '')
+    kind: String(hint && hint.kind || ''),
+    owner: hint && (hint.owner === 'black' || hint.owner === 'white') ? hint.owner : null
   })).filter((hint) => hint.cellKey && hint.kind) : [];
   return deepFreeze({
     hoveredCellKey: normalizeKey(source.hoveredCellKey),
@@ -137,8 +138,13 @@ function withOverlayInteraction(
   const directionHintIds = directionHints.map((hint) => hint.id);
   const localPendingHintIds = overlay.localPendingHints.filter((hint) => hint.cellKey === cell.key).map((hint) => hint.id);
   const previewKinds = cell.interaction.previewKinds.slice();
+  let networkPendingPlacementOwner = cell.interaction.networkPendingPlacementOwner;
   for (const hint of overlay.previewHints) {
-    if (hint.cellKey === cell.key && !previewKinds.includes(hint.kind)) previewKinds.push(hint.kind);
+    if (hint.cellKey !== cell.key) continue;
+    if (!previewKinds.includes(hint.kind)) previewKinds.push(hint.kind);
+    if (hint.kind === 'network-pending-placement') {
+      networkPendingPlacementOwner = hint.owner === 'black' || hint.owner === 'white' ? hint.owner : null;
+    }
   }
   if (overlay.previewCellKeys.includes(cell.key) && !previewKinds.includes('overlay-preview')) {
     previewKinds.push('overlay-preview');
@@ -149,6 +155,7 @@ function withOverlayInteraction(
     hovered: overlay.hoveredCellKey === cell.key,
     keyboardCursor: overlay.keyboardCursorKey === cell.key,
     previewKinds,
+    networkPendingPlacementOwner,
     selected: cell.interaction.selected || overlay.selectedCellKeys.includes(cell.key),
     directionHints,
     directionHintIds,
@@ -213,6 +220,7 @@ function signatureForInteraction(cell: UnsignedBoardCellVisualState): string {
     interaction.hovered,
     interaction.keyboardCursor,
     interaction.previewKinds,
+    interaction.networkPendingPlacementOwner,
     interaction.selected,
     interaction.selectionKinds,
     interaction.directionHints
@@ -230,6 +238,7 @@ function signatureForHintPaint(cell: UnsignedBoardCellVisualState): string {
     interaction.hovered,
     interaction.keyboardCursor,
     interaction.previewKinds,
+    interaction.networkPendingPlacementOwner,
     interaction.selected,
     interaction.selectionKinds,
     interaction.directionHints
@@ -386,6 +395,7 @@ export function materializeBoardViewport(options: {
           hovered: false,
           keyboardCursor: false,
           previewKinds: [],
+          networkPendingPlacementOwner: null,
           selected: false,
           selectionKinds: [],
           directionHints: [],

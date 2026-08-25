@@ -2102,6 +2102,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 appendPresentationFrameForAcceptedPublish,
                 saveRoom: () => this.saveRoom(),
                 broadcastSnapshot: (meta: MatchWorkerSnapshotPayloadMeta | null | undefined) => this.broadcastSnapshot(meta),
+                deferSnapshotBroadcast: (broadcastPromise: Promise<unknown>, meta: Record<string, unknown>) => {
+                    void broadcastPromise.catch((error: unknown) => {
+                        console.error('[MatchWorker] deferred snapshot broadcast failed', {
+                            roomId: meta.roomId || null,
+                            operationId: meta.operationId || null,
+                            stateVersion: meta.stateVersion || null,
+                            message: error instanceof Error ? error.message : String(error || '')
+                        });
+                    });
+                },
                 jsonResponse
             });
         }

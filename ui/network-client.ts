@@ -993,12 +993,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function submitNetworkSnapshotEnvelope(envelope: any) {
-        if (
-            networkPlacementFeedbackController
-            && typeof networkPlacementFeedbackController.clearForEnvelope === 'function'
-        ) {
-            networkPlacementFeedbackController.clearForEnvelope(envelope);
-        }
         const coordinator = getNetworkIntakeCoordinator();
         if (!coordinator || typeof coordinator.submit !== 'function') {
             return {
@@ -1009,7 +1003,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 skippedReason: 'intake_coordinator_unavailable'
             };
         }
-        return coordinator.submit(envelope);
+        const intakeResult = coordinator.submit(envelope);
+        if (
+            networkPlacementFeedbackController
+            && typeof networkPlacementFeedbackController.acceptForIntake === 'function'
+        ) {
+            networkPlacementFeedbackController.acceptForIntake(envelope, intakeResult);
+        }
+        return intakeResult;
     }
 
     function setNetworkPlacementFeedbackPreviewHints(previewHints: any[], options?: any): boolean {
@@ -1530,10 +1531,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     ? NetworkGameContract.getPendingEffectType(cardStateValue, playerKey, normalizePlayerKey)
                     : null
             ),
-            beginPlacementFeedback: (action: any) => {
+            beginPlacementFeedback: (action: any, playerKey: any) => {
                 const controller = getNetworkPlacementFeedbackController();
                 return controller && typeof controller.beginPlacement === 'function'
-                    ? controller.beginPlacement(action)
+                    ? controller.beginPlacement(action, normalizePlayerKey(playerKey))
                     : null;
             },
             settlePlacementFeedback: (token: any, result: any) => {

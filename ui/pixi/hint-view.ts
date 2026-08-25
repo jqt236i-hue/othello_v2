@@ -323,6 +323,17 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     }
     if (previewKinds.has('network-pending-placement')) {
       drawSurface('#49d7ef', 0.09);
+      const provisionalOwner = interaction.networkPendingPlacementOwner;
+      if (provisionalOwner === 'black' || provisionalOwner === 'white') {
+        drawPixiCircle(foreground, center, center, cellSize * 0.34, {
+          color: provisionalOwner === 'black' ? '#141820' : '#f4f7fb',
+          alpha: provisionalOwner === 'black' ? 0.72 : 0.82
+        }, {
+          color: provisionalOwner === 'black' ? '#667181' : '#ffffff',
+          alpha: 0.88,
+          width: Math.max(1, cellSize * 0.025)
+        });
+      }
       drawInsetOutline(0.10, '#b5f8ff', 0.92, 0.04, 0.13);
       drawInsetOutline(0.18, '#42aecd', 0.58, 0.022, 0.10);
       drawPixiCircle(foreground, center, center, cellSize * 0.27, null, {

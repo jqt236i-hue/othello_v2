@@ -206,6 +206,7 @@ function makeInteraction(overrides: Record<string, any> = {}) {
     hovered: false,
     keyboardCursor: false,
     previewKinds: [],
+    networkPendingPlacementOwner: null,
     selected: false,
     selectionKinds: [],
     directionHints: [],
@@ -370,6 +371,7 @@ function materializedCell(raw: any): any {
       raw.interaction.hovered,
       raw.interaction.keyboardCursor,
       raw.interaction.previewKinds,
+      raw.interaction.networkPendingPlacementOwner,
       raw.interaction.selected,
       raw.interaction.selectionKinds,
       raw.interaction.directionHints
@@ -758,6 +760,25 @@ describe('Pixi static retained views', () => {
       hintInputSyncCount: 1,
       interactionLocked: true
     });
+  });
+
+  test('renders the network pending placement as an owner-colored provisional stone', () => {
+    const fixture = createFakeRuntime();
+    const hintView = HintView.createPixiHintView(fixture.runtime);
+    const cell = materializedCell(makeCell('2,3', {
+      interaction: {
+        previewKinds: ['network-pending-placement'],
+        networkPendingPlacementOwner: 'black'
+      }
+    }));
+
+    expect(hintView.update(cell, viewContext())).toBe(true);
+    const foreground = hintView.root.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-hint-foreground'
+    )) as FakeGraphics;
+    expect(foreground.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#141820' }) })
+    ]));
   });
 
   test('keeps selectable-stone surface tint behind the stone while retaining foreground cues', () => {

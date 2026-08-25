@@ -1676,6 +1676,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 isTabooLegal: false,
                 isRandomSpawnPreview: false,
                 isNetworkPendingPlacementPreview: false,
+                networkPendingPlacementOwner: null,
                 isSelectedTargetHighlighted: false,
                 isSuperAttractionPathPreview: false,
                 isSuperAttractionPreviewDestination: false,
@@ -2104,7 +2105,14 @@ function createBoardPresentationOverlayState(renderProjection: any, cellState: a
         const addPreview = (kind: string, active: boolean) => {
             if (!active) return;
             previewCellKeys.add(cellKey);
-            previewHints.push({ cellKey, kind });
+            previewHints.push({
+                cellKey,
+                kind,
+                owner: kind === 'network-pending-placement'
+                    && (cell.networkPendingPlacementOwner === 'black' || cell.networkPendingPlacementOwner === 'white')
+                    ? cell.networkPendingPlacementOwner
+                    : null
+            });
         };
         addPreview('random-spawn', cell.isRandomSpawnPreview === true);
         addPreview('network-pending-placement', cell.isNetworkPendingPlacementPreview === true);
@@ -2424,6 +2432,14 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
                 cell.classList.toggle('effect-target-highlight-placement', transientHighlightClass === 'effect-target-highlight-placement');
                 cell.classList.toggle('random-spawn-preview', shouldShowRandomSpawnPreview);
                 cell.classList.toggle('network-pending-placement-preview', shouldShowNetworkPendingPlacementPreview);
+                cell.classList.toggle(
+                    'network-pending-placement-black',
+                    shouldShowNetworkPendingPlacementPreview && state.networkPendingPlacementOwner === 'black'
+                );
+                cell.classList.toggle(
+                    'network-pending-placement-white',
+                    shouldShowNetworkPendingPlacementPreview && state.networkPendingPlacementOwner === 'white'
+                );
                 cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
                 cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
                 cell.classList.toggle('selectable-friendly', shouldShowSelectable);

@@ -101,6 +101,31 @@ describe('board visual runtime lifecycle ownership', () => {
     expect(destroy).toHaveBeenCalledTimes(1);
   });
 
+  test('preview hint owner-only changes trigger a fresh overlay render', () => {
+    const renderBoard = jest.fn();
+    const runtime = createBoardInputRuntime({
+      getVisualRuntime: () => ({ controller: { getMode: () => 'idle' } }),
+      renderBoard,
+      getRenderStateSource: () => ({ resolvePair: jest.fn() }),
+      resolveBoardElement: () => null,
+      handleCellClick: jest.fn()
+    });
+
+    expect(runtime.setPreviewHints([
+      { cellKey: '2,3', kind: 'network-pending-placement', owner: 'black' }
+    ])).toBe(true);
+    expect(runtime.setPreviewHints([
+      { cellKey: '2,3', kind: 'network-pending-placement', owner: 'white' }
+    ])).toBe(true);
+    expect(runtime.setPreviewHints([
+      { cellKey: '2,3', kind: 'network-pending-placement', owner: 'white' }
+    ])).toBe(false);
+    expect(runtime.getFrameInputs().previewHints).toEqual([
+      { cellKey: '2,3', kind: 'network-pending-placement', owner: 'white' }
+    ]);
+    expect(renderBoard).toHaveBeenCalledTimes(2);
+  });
+
   test('backend reset retains an injected controller and page destroy releases subscriptions', () => {
     const unsubscribe = jest.fn();
     const beforeControllerReplace = jest.fn();

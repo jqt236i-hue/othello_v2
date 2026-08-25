@@ -103,6 +103,7 @@ export function createBoardInputRuntime(dependencies: BoardInputRuntimeDependenc
           hint && right[index]
           && hint.cellKey === right[index].cellKey
           && hint.kind === right[index].kind
+          && (hint.owner || null) === (right[index].owner || null)
       ));
   }
 

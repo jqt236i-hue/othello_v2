@@ -310,6 +310,7 @@ Those hints are not accepted pending state.
 - that bridge state is expected to be replaced by newer authoritative snapshot state or explicit local cleanup; it must not be treated as accepted pending outcome
 - authoritative pending instances may carry opaque `pendingEffectId` values; final target-selection publish must bind to that specific pending instance when present
 - browser preview may help the player choose a target, but once authority accepts the publish, preview state must not write gameplay state back over the authoritative snapshot
+- normal-placement publish feedback may render an owner-colored provisional stone, but it remains a presentation-only hint. It may hand off to confirmed presentation only after the matching room, session, and `operationId` envelope has passed canonical intake; a raw response or stream envelope is not a settlement signal
 
 ### 6.4 Snapshot, presentation journal, and visual timeline
 
@@ -593,6 +594,7 @@ Changes here must be treated as contract changes because they affect canonical s
 - buffered SSE replay is an optimization, not the canonical source of truth
 - Durable Object replay buffering must survive object re-construction through room-owned persisted state rather than process memory alone
 - `/api/match/state` remains the full authoritative recovery path when replay cannot prove continuity
+- an accepted publish response requires its prepared viewer projections, presentation frame, replay record, and room state to be staged and durably saved first. After that save, SSE writer fanout starts in publish order but individual writer completion is not part of the accepted HTTP response latency; failed or timed-out streams recover through persisted replay or `/api/match/state`
 - worker timeout progression must be authority-scheduled; it must not depend on an unrelated later request arriving before expiry is applied
 - local server may use a different internal scheduler, but the externally visible timeout semantics must stay aligned with worker authority
 

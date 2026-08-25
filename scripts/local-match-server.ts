@@ -2341,6 +2341,16 @@ async function handlePublish(req: any, res: any) {
                 : prepareSnapshotBroadcast(activeRoom, meta);
             broadcastPreparedSnapshot(activeRoom, prepared);
         },
+        deferSnapshotBroadcast: (broadcastPromise: Promise<unknown>, meta: any) => {
+            void broadcastPromise.catch((error: any) => {
+                console.error('[local-match] deferred snapshot broadcast failed', {
+                    roomId: meta && meta.roomId ? meta.roomId : null,
+                    operationId: meta && meta.operationId ? meta.operationId : null,
+                    stateVersion: meta && meta.stateVersion ? meta.stateVersion : null,
+                    message: error && error.message ? String(error.message) : String(error || '')
+                });
+            });
+        },
         jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
 

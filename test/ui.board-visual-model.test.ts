@@ -48,6 +48,7 @@ function createCell(key: string, hole = false) {
       hovered: false,
       keyboardCursor: false,
       previewKinds: [],
+      networkPendingPlacementOwner: null,
       selected: false,
       selectionKinds: [],
       directionHints: [],
@@ -144,6 +145,17 @@ describe('BoardRenderModel sparse projection', () => {
     expect(lockChanged.hintInputSignature).toBe(base.hintInputSignature);
     expect(lockChanged.surfaceSignature).toBe(base.surfaceSignature);
     expect(lockChanged.stoneSignature).toBe(base.stoneSignature);
+
+    const pendingBlack = project(createCell('0,0'), {
+      previewHints: [{ cellKey: '0,0', kind: 'network-pending-placement', owner: 'black' }]
+    });
+    const pendingWhite = project(createCell('0,0'), {
+      previewHints: [{ cellKey: '0,0', kind: 'network-pending-placement', owner: 'white' }]
+    });
+    expect(pendingBlack.interaction.networkPendingPlacementOwner).toBe('black');
+    expect(pendingWhite.interaction.networkPendingPlacementOwner).toBe('white');
+    expect(pendingWhite.hintPaintSignature).not.toBe(pendingBlack.hintPaintSignature);
+    expect(pendingWhite.hintInputSignature).toBe(pendingBlack.hintInputSignature);
 
     const localPendingChanged = project(createCell('0,0'), {
       localPendingHints: [{ id: 'pending:a', cellKey: '0,0', kind: 'selection' }]

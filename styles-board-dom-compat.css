@@ -526,6 +526,30 @@
         0 0 calc(8px * var(--layout-stage-scale)) rgba(73, 215, 239, 0.18);
 }
 
+[data-board-renderer="dom"] .cell.network-pending-placement-preview.network-pending-placement-black::before,
+[data-board-renderer="dom"] .cell.network-pending-placement-preview.network-pending-placement-white::before {
+    content: "";
+    position: absolute;
+    width: 68%;
+    height: 68%;
+    left: 16%;
+    top: 16%;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 8;
+    opacity: 0.82;
+}
+
+[data-board-renderer="dom"] .cell.network-pending-placement-preview.network-pending-placement-black::before {
+    background: radial-gradient(circle at 35% 28%, #59616e 0%, #242a33 34%, #0f1218 78%);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(145, 158, 176, 0.88);
+}
+
+[data-board-renderer="dom"] .cell.network-pending-placement-preview.network-pending-placement-white::before {
+    background: radial-gradient(circle at 35% 28%, #ffffff 0%, #f4f7fb 45%, #cfd7e1 100%);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 255, 255, 0.96);
+}
+
 body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-emphasis {
     animation: timeStopLegalGlow 1100ms ease-in-out infinite;
 }

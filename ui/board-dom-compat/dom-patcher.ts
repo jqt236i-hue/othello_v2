@@ -227,6 +227,9 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
     }
     if (state.isNetworkPendingPlacementPreview) {
         cell.classList.add('network-pending-placement-preview');
+        if (state.networkPendingPlacementOwner === 'black' || state.networkPendingPlacementOwner === 'white') {
+            cell.classList.add(`network-pending-placement-${state.networkPendingPlacementOwner}`);
+        }
     }
     if (canShowSelectableFriendlyForState(state)) {
         cell.classList.add('selectable-friendly');

@@ -206,7 +206,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(payload.playbackEvents).toBeUndefined();
   });
 
-  test('通常配置は送信直後にローカルの保留リングを出し、同じ操作の確定応答で消す', async () => {
+  test('通常配置は送信直後に自分色の仮石を出し、同じ操作の検証済み確定応答で消す', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -241,7 +241,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
     expect(result).toMatchObject({ ok: true, skippedLocalExecution: true });
     expect(setBoardPresentationPreviewHints).toHaveBeenCalledWith([
-      { cellKey: '2,3', kind: 'network-pending-placement' }
+      { cellKey: '2,3', kind: 'network-pending-placement', owner: 'black' }
     ], undefined);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(resolvePublish).toEqual(expect.any(Function));

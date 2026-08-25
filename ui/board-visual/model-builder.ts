@@ -972,6 +972,7 @@ function buildBoardRenderModel(
                 hovered: false,
                 keyboardCursor: false,
                 previewKinds: [],
+                networkPendingPlacementOwner: null,
                 selected: false,
                 selectionKinds: [
                     ...(legacy.isSelectableFriendly === true ? ['friendly'] : []),
@@ -1035,6 +1036,7 @@ function createEmptyDomCompatibilityCellState(): any {
         isTabooLegal: false,
         isRandomSpawnPreview: false,
         isNetworkPendingPlacementPreview: false,
+        networkPendingPlacementOwner: null,
         isSelectedTargetHighlighted: false,
         isSuperAttractionPathPreview: false,
         isSuperAttractionPreviewDestination: false,
@@ -1088,6 +1090,10 @@ function createDomCompatibilityCellState(cell: any): any {
         isTabooLegal: interaction.tabooLegal === true,
         isRandomSpawnPreview: previews.has('random-spawn'),
         isNetworkPendingPlacementPreview: previews.has('network-pending-placement'),
+        networkPendingPlacementOwner: interaction.networkPendingPlacementOwner === 'black'
+            || interaction.networkPendingPlacementOwner === 'white'
+            ? interaction.networkPendingPlacementOwner
+            : null,
         isSelectedTargetHighlighted: interaction.selected === true || previews.has('selected-target'),
         isSuperAttractionPathPreview: previews.has('super-attraction-path'),
         isSuperAttractionPreviewDestination: previews.has('super-attraction-destination'),

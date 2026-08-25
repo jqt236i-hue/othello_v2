@@ -7,13 +7,19 @@ type HarnessOptions = {
   failSaveAt?: number;
   failSend?: boolean;
   streamCount?: number;
+  deferBroadcast?: boolean;
+  pendingSend?: boolean;
 };
 
 function createHarness(options: HarnessOptions = {}) {
   const events: string[] = [];
   const persistedRooms: any[] = [];
   const sent: any[] = [];
+  const pendingSendResolvers: Array<() => void> = [];
+  const deferredBroadcasts: Promise<unknown>[] = [];
+  const deferredBroadcastErrors: unknown[] = [];
   let saveCount = 0;
+  let eventSeq = 0;
   const room: any = {
     roomId: 'PERSIST',
     stateVersion: 4,
@@ -74,7 +80,8 @@ function createHarness(options: HarnessOptions = {}) {
     getStreams: () => streams,
     nextSseEventId: () => {
       events.push('prepare-sse');
-      return 'PERSIST_1';
+      eventSeq += 1;
+      return `PERSIST_${eventSeq}`;
     },
     rememberBufferedSseEvent: (record) => {
       events.push('remember-sse');
@@ -82,9 +89,12 @@ function createHarness(options: HarnessOptions = {}) {
     },
     saveRoom,
     sendSse: async (streamId, eventName, payload, sendOptions) => {
-      events.push(`send:${streamId}`);
-      if (options.failSend) throw new Error('sse_send_failed');
+      events.push(`send:${streamId}:${sendOptions && sendOptions.eventId}`);
       sent.push({ streamId, eventName, payload, sendOptions });
+      if (options.pendingSend) {
+        await new Promise<void>((resolve) => pendingSendResolvers.push(resolve));
+      }
+      if (options.failSend) throw new Error('sse_send_failed');
     },
     buildSnapshotPayload: (_room, meta: any, viewer) => {
       const artifacts = meta && meta.__publishViewerArtifacts;
@@ -184,6 +194,14 @@ function createHarness(options: HarnessOptions = {}) {
     ),
     saveRoom,
     broadcastSnapshot: (meta: any) => broadcastController.broadcastSnapshot(meta),
+    ...(options.deferBroadcast ? {
+      deferSnapshotBroadcast: (promise: Promise<unknown>) => {
+        const observed = promise.catch((error) => {
+          deferredBroadcastErrors.push(error);
+        });
+        deferredBroadcasts.push(observed);
+      }
+    } : {}),
     jsonResponse: (status: number, payload: any) => ({ status, payload })
   });
 
@@ -206,7 +224,10 @@ function createHarness(options: HarnessOptions = {}) {
     sent,
     controller,
     publishBody,
-    getSaveCount: () => saveCount
+    getSaveCount: () => saveCount,
+    pendingSendResolvers,
+    deferredBroadcasts,
+    deferredBroadcastErrors
   };
 }
 
@@ -223,7 +244,7 @@ describe('match worker accepted publish persistence characterization', () => {
       'prepare-sse',
       'remember-sse',
       'save:1',
-      'send:stream-0'
+      'send:stream-0:PERSIST_1'
     ]);
     expect(harness.persistedRooms[0].sseEventBuffer).toHaveLength(2);
     expect(harness.persistedRooms[0].stateVersion).toBe(5);
@@ -277,6 +298,46 @@ describe('match worker accepted publish persistence characterization', () => {
     expect(harness.getSaveCount()).toBe(1);
     expect(harness.sent).toEqual([]);
     expect(harness.persistedRooms[0].sseEventBuffer).toHaveLength(2);
+  });
+
+  test('two accepted publishes respond after save without waiting for the same slow writer and persist ordered replay', async () => {
+    const harness = createHarness({ deferBroadcast: true, pendingSend: true });
+
+    const first = await harness.controller.handlePublish(harness.publishBody);
+    const secondBody = {
+      ...harness.publishBody,
+      seatKey: 'white',
+      playerKey: 'white',
+      actor: 'white',
+      seatToken: 'token_white',
+      baseVersion: 5,
+      operationId: 'op_persist_2',
+      action: { type: 'place', playerKey: 'white', row: 2, col: 0 }
+    };
+    const second = await harness.controller.handlePublish(secondBody);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(harness.getSaveCount()).toBe(2);
+    expect(harness.events.filter((event) => event.startsWith('send:'))).toEqual([
+      'send:stream-0:PERSIST_1',
+      'send:stream-0:PERSIST_2'
+    ]);
+    expect(harness.pendingSendResolvers).toHaveLength(2);
+    expect(harness.room.stateVersion).toBe(6);
+    const persisted = harness.persistedRooms[1];
+    expect(persisted.stateVersion).toBe(6);
+    const replay = MatchAuthority.getBufferedSseReplayEvents(
+      persisted.sseEventBuffer,
+      'PERSIST_0',
+      { role: 'seat', seatKey: 'black' }
+    );
+    expect(replay.map((event: any) => event.eventId)).toEqual(['PERSIST_1', 'PERSIST_2']);
+    expect(replay.map((event: any) => event.payload.stateVersion)).toEqual([5, 6]);
+
+    for (const resolve of harness.pendingSendResolvers) resolve();
+    await Promise.all(harness.deferredBroadcasts);
+    expect(harness.deferredBroadcastErrors).toEqual([]);
   });
 
   test('duplicate operation replay does not persist, broadcast, or advance version twice', async () => {

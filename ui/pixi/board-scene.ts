@@ -1623,6 +1623,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         hovered: false,
         keyboardCursor: false,
         previewKinds: Object.freeze([]),
+        networkPendingPlacementOwner: null,
         selected: false,
         selectionKinds: Object.freeze([]),
         directionHints: Object.freeze([]),

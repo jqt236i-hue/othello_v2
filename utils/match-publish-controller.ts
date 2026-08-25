@@ -482,10 +482,24 @@ export function createMatchPublishController(config?: any): any {
     cfg.MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
     cfg.stagePreparedSnapshotBroadcast(preparedSnapshot);
     await cfg.saveRoom();
-    await cfg.broadcastSnapshot({
-      ...meta,
-      __preparedSnapshot: preparedSnapshot
-    });
+    let broadcastPromise: Promise<unknown>;
+    try {
+      broadcastPromise = Promise.resolve(cfg.broadcastSnapshot({
+        ...meta,
+        __preparedSnapshot: preparedSnapshot
+      }));
+    } catch (error) {
+      broadcastPromise = Promise.reject(error);
+    }
+    if (typeof cfg.deferSnapshotBroadcast === 'function') {
+      cfg.deferSnapshotBroadcast(broadcastPromise, {
+        roomId: room.roomId || null,
+        operationId: operationId || null,
+        stateVersion: room.stateVersion
+      });
+    } else {
+      await broadcastPromise;
+    }
     return respond(200, responsePayload);
   }
 

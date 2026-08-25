@@ -45,6 +45,7 @@ export interface BoardCellInteractionState {
   hovered: boolean;
   keyboardCursor: boolean;
   previewKinds: readonly string[];
+  networkPendingPlacementOwner: 'black' | 'white' | null;
   selected: boolean;
   selectionKinds: readonly string[];
   directionHints: readonly BoardCellDirectionHint[];
@@ -154,6 +155,7 @@ export interface BoardPendingHint {
 export interface BoardPreviewHint {
   cellKey: string;
   kind: string;
+  owner?: 'black' | 'white' | null;
 }
 
 export interface BoardPresentationOverlayState {
