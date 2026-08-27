@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-24",
-  "generatedAt": "2026-08-24T14:36:02.783Z",
+  "version": "2026-08-27",
+  "generatedAt": "2026-08-27T12:38:09.905Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -525,6 +525,18 @@
     {
       "path": "assets/images/special-cards/characters/observer_will.png",
       "sha256": "78f6c6a642677a3a64cd5818d8f98dba9488835f3eec651add1ceea9a5892e9e"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_character_only.png",
+      "sha256": "68dcbaa28ce5f4ab0cf499126aab2133e61c5fdc9921018d26a661b7692768d2"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer_will_detail_sheet.png",
+      "sha256": "5905a9ae1d359a2cea1ea81eb40ddf55261679a0ab42f523028b80c3be1a2a16"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer_will_turnaround.png",
+      "sha256": "f40b063eda42132edcfe8ccf6ab5d665ab76ddecf15bbe07560c77479c4dbe88"
     },
     {
       "path": "assets/images/special-cards/characters/theory_incarnation.png",
