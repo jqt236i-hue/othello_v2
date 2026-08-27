@@ -52,7 +52,7 @@
 - [x] Type checking and dependency checks pass; `checkall` passed task-relevant checks and stopped only on the recorded unrelated Observer Will Worker-mirror mismatch.
 - [x] No production or generated file changed.
 - [x] Independent final review is closed with no unresolved material finding.
-- [ ] Final task-owned diff is committed; unrelated status is reported separately.
+- [x] Final task-owned diff is committed; unrelated status is reported separately.
 
 ## Self-review
 
@@ -65,3 +65,4 @@ The plan originally treated the three suite modules as standalone Jest files. It
 - Optional finding: the original clean-status wording conflicted with unrelated Observer Will files created by another task. Accepted and corrected so completion requires the task-owned diff to be committed while unrelated files remain untouched and separately reported.
 - Independent evidence: the reviewer compared the original shared setup and all three moved suites, reran the focused entry with one suite and 44 passing cases, confirmed normal Jest discovery still has one entry, and confirmed the staged paths contain only the intended docs/tests.
 - Recheck disposition: no code recheck was required after the wording-only correction; staged diff checks and documentation inspection remain required before commit.
+- Implementation commit: `30dc568be` (`test: split Pixi board scene suite`).
