@@ -99,7 +99,9 @@ othello_v2/
 
 ## LOCAL DEV SERVER
 
-Keep the local play server running across file edits and rebuilds. `ERR_CONNECTION_REFUSED` means nothing is listening; it is not a page-content failure.
+Keep the local play server running across file edits, rebuilds, agent turns, and task completion. For this section, "running" means the server continues after the current tool call and response have ended; a process that is healthy only while one command session remains active does not count. `ERR_CONNECTION_REFUSED` means nothing is listening; it is not a page-content failure.
+
+This continuity requirement applies while the current Windows and Codex sessions remain active. Surviving an OS restart, sign-out, or Codex application restart requires separately authorized OS-level auto-start configuration; do not claim that this runbook alone provides it.
 
 Canonical local play:
 
@@ -117,18 +119,21 @@ Other local listeners are not substitutes for that play URL:
 Invariants:
 
 1. Leave at most one play server for this repository. Reuse a healthy `npm run serve` on 8000 instead of starting another.
-2. Do not start a play server that exits when a tool call or temporary terminal ends. Prefer an already-running persistent terminal, and leave that process running at task end.
-3. If 8000 is occupied, inspect the owning PID and command line. Reuse it when it is this repository's `serve-with-fallback` / `http-server`. If it belongs to another project or is unknown, do not treat a fallback port such as 8001 as the stable play URL; report the conflict. `serve-with-fallback` may still pick the next free port for a human-started process; agents must not start a second copy that lands there.
-4. Use 5174 only when Vite delivery itself must be confirmed. Do not run `npm run build:vite` while this repository is serving `vite-dist/` on 5174. Stop that Vite serve first, rebuild, then restart Vite only if still needed. Restore `npm run serve` on 8000 as the leftover play server.
-5. Do not stop, replace, or bulk-kill Node processes that do not belong to this repository, including other projects on 5173.
-6. Focused Jest, `test/e2e/`, and visual-regression helpers may start ephemeral servers on OS-assigned ports. Those belong to the test lifecycle and must be torn down by the test. They are not the play server; do not keep them as the leftover 8000 process and do not reuse their random ports as the canonical URL.
-7. Any task that edits, fixes, or implements the playable game has the following mandatory completion gate, regardless of whether the browser was used during the task:
+2. A valid persistent launcher is an already-running user or app terminal that remains attached after the current agent turn, or another independently owned process whose lifetime has been verified. A temporary tool execution session, one-shot shell, test runner, or background child whose parent session will be disposed at response end is not valid, even if it returns a PID or session ID and briefly returns HTTP 200.
+3. When the play server is stopped, start `npm run serve` in a persistent terminal and keep that terminal open. When the available tooling cannot create or attach such a terminal, do not substitute a temporary launch and call it complete; report the task as incomplete and give the user the exact command to run.
+4. Treat a branch or worktree change as a server handoff, not cleanup. When the currently served worktree must be removed or moved, stop its server only after the replacement root is known, then immediately start and verify `npm run serve` from the surviving intended root. Leave the server off only when the user explicitly asks for it to be stopped.
+5. If 8000 is occupied, inspect the owning PID and command line. Reuse it when it is this repository's `serve-with-fallback` / `http-server`. If it belongs to another project or is unknown, do not treat a fallback port such as 8001 as the stable play URL; report the conflict. `serve-with-fallback` may still pick the next free port for a human-started process; agents must not start a second copy that lands there.
+6. Use 5174 only when Vite delivery itself must be confirmed. Do not run `npm run build:vite` while this repository is serving `vite-dist/` on 5174. Stop that Vite serve first, rebuild, then restart Vite only if still needed. Restore `npm run serve` on 8000 as the leftover play server.
+7. Do not stop, replace, or bulk-kill Node processes that do not belong to this repository, including other projects on 5173.
+8. Focused Jest, `test/e2e/`, and visual-regression helpers may start ephemeral servers on OS-assigned ports. Those belong to the test lifecycle and must be torn down by the test. They are not the play server; do not keep them as the leftover 8000 process and do not reuse their random ports as the canonical URL.
+9. Any task that edits, fixes, or implements the playable game has the following mandatory completion gate, regardless of whether the browser was used during the task:
    - After the final game change and the relevant tests, run at least `npm run build:browser` so the local play server can serve the finished changes. Also run any more specific build or generation command required elsewhere in this file. If a game source file changes afterward, rebuild before completing the task.
    - Confirm that this repository's persistent `npm run serve` process is running on `http://127.0.0.1:8000/`. If it is stopped, start it persistently. A server that exists only while a temporary command or test is running does not count.
-   - After the final build, confirm that `http://127.0.0.1:8000/` returns HTTP 200 and that port 8000 belongs to this repository's play server.
+   - After the final build and after every command that could stop, replace, or detach the launcher, perform the last pre-response check: confirm that `http://127.0.0.1:8000/` returns HTTP 200, that port 8000 belongs to this repository's play server, and that its persistent terminal or independently owned process remains attached. A tool session ID alone is not persistence evidence.
    - Leave the play server running after the final response. Do not stop it as cleanup.
    - Do not mark the task complete or send the final response until the build, reflection, and server checks above have passed. If any check cannot be completed, report the task as incomplete and explain the blocker.
    - State the successful final build and the running local play server in the completion report.
+10. The server verification, persistence evidence, leave-running rule, and completion-report rule under item 9 also apply to any task that starts, stops, replaces, hands off, or removes the play server or its serving worktree, even when no game source changed.
 
 When a browser check needs a server, inspect listeners first:
 
