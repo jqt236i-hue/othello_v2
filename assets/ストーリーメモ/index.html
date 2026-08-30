@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Reversi Destiny 白黒の運命のストーリー全体設定と章構成">
+  <title>Reversi Destiny 白黒の運命｜ストーリーメモ</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090a0c;
+      --surface: #111318;
+      --surface-soft: #181b21;
+      --text: #f4f4f1;
+      --muted: #b8bbc2;
+      --faint: #868b95;
+      --line: #30343d;
+      --white-stone: #f2f0e9;
+      --black-stone: #17181b;
+      --gold: #d7b76d;
+      --gold-soft: rgba(215, 183, 109, 0.14);
+      --danger: #dc8b8b;
+      --content: 760px;
+      --sidebar: 260px;
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 28px;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255,255,255,0.06), transparent 28rem),
+        radial-gradient(circle at 88% 24%, rgba(215,183,109,0.055), transparent 30rem),
+        var(--bg);
+      font-family: "Yu Gothic UI", "Yu Gothic", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.9;
+    }
+
+    a { color: inherit; }
+
+    a:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 4px;
+      border-radius: 4px;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, var(--content));
+      gap: 72px;
+      justify-content: center;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      padding: 28px 22px;
+      background: rgba(17, 19, 24, 0.86);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(18px);
+    }
+
+    .sidebar__title {
+      margin: 0 0 18px;
+      color: var(--faint);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .sidebar nav {
+      display: grid;
+      gap: 4px;
+    }
+
+    .sidebar a {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 9px 12px;
+      color: var(--muted);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .sidebar a:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.045);
+      border-left-color: var(--gold);
+    }
+
+    main { min-width: 0; padding-bottom: 100px; }
+
+    .hero {
+      min-height: 74vh;
+      display: grid;
+      align-content: center;
+      padding: 88px 0 72px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-weight: 600;
+      line-height: 1.45;
+      text-wrap: balance;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.7rem, 8vw, 5.8rem);
+      letter-spacing: 0.02em;
+    }
+
+    h1 span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.38em;
+      letter-spacing: 0.18em;
+    }
+
+    .hero__lead {
+      max-width: 35em;
+      margin: 34px 0 0;
+      color: var(--muted);
+      font-size: clamp(1.05rem, 2vw, 1.2rem);
+    }
+
+    .stones {
+      display: flex;
+      gap: 12px;
+      margin-top: 36px;
+    }
+
+    .stone {
+      width: 38px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.32);
+    }
+
+    .stone--white { background: var(--white-stone); }
+    .stone--black { background: var(--black-stone); border: 1px solid #484b52; }
+
+    section {
+      padding: 80px 0 12px;
+      scroll-margin-top: 20px;
+    }
+
+    .section-number {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--gold);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+    }
+
+    h2 {
+      margin: 0 0 32px;
+      font-size: clamp(1.9rem, 5vw, 3rem);
+    }
+
+    h3 {
+      margin: 0 0 18px;
+      font-size: clamp(1.3rem, 3vw, 1.75rem);
+    }
+
+    p { margin: 0 0 1.25em; }
+
+    .lead-card,
+    .chapter,
+    .character,
+    .ending,
+    .term {
+      background: linear-gradient(145deg, rgba(24,27,33,0.96), rgba(15,17,21,0.96));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .lead-card {
+      padding: clamp(28px, 6vw, 48px);
+      border-left: 4px solid var(--gold);
+    }
+
+    .lead-card p:last-child,
+    .chapter p:last-child,
+    .character p:last-child,
+    .ending p:last-child,
+    .term p:last-child { margin-bottom: 0; }
+
+    .theme-lines {
+      margin: 0 0 30px;
+      padding: 0;
+      list-style: none;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: clamp(1.2rem, 3vw, 1.65rem);
+      line-height: 1.8;
+    }
+
+    .theme-lines li::before {
+      content: "—";
+      margin-right: 0.65em;
+      color: var(--gold);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .character,
+    .term,
+    .ending { padding: 28px; }
+
+    .character small,
+    .ending small {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--gold);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .chapters { display: grid; gap: 22px; }
+
+    .chapter {
+      position: relative;
+      padding: clamp(28px, 5vw, 44px);
+      overflow: hidden;
+    }
+
+    .chapter::before {
+      content: attr(data-mark);
+      position: absolute;
+      top: -0.28em;
+      right: 0.1em;
+      color: rgba(255,255,255,0.026);
+      font-family: Georgia, serif;
+      font-size: 9rem;
+      font-weight: 700;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .chapter__label {
+      margin-bottom: 10px;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+    }
+
+    blockquote {
+      margin: 28px 0;
+      padding: 18px 0 18px 24px;
+      color: var(--white-stone);
+      border-left: 2px solid var(--gold);
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.07rem;
+    }
+
+    blockquote p { margin-bottom: 0.55em; }
+    blockquote p:last-child { margin-bottom: 0; }
+
+    .reveal {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      margin-bottom: 18px;
+      padding: 4px 12px;
+      color: var(--gold);
+      background: var(--gold-soft);
+      border: 1px solid rgba(215,183,109,0.35);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .warning {
+      margin-top: 26px;
+      padding: 18px 20px;
+      color: #e8caca;
+      background: rgba(128, 48, 48, 0.16);
+      border: 1px solid rgba(220,139,139,0.35);
+      border-radius: 12px;
+    }
+
+    .ending-grid { display: grid; gap: 16px; }
+
+    .ending--true {
+      border-color: rgba(242,240,233,0.56);
+      box-shadow: inset 0 0 0 1px rgba(242,240,233,0.08);
+    }
+
+    .ending--bad { border-color: rgba(220,139,139,0.45); }
+
+    .core-line {
+      margin: 42px 0 0;
+      padding: 36px;
+      text-align: center;
+      background: linear-gradient(135deg, #eeeeea, #c9c7c0);
+      color: #111216;
+      border-radius: var(--radius);
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: clamp(1.25rem, 3vw, 1.75rem);
+      font-weight: 600;
+      line-height: 1.8;
+    }
+
+    footer {
+      margin-top: 88px;
+      padding-top: 32px;
+      color: var(--faint);
+      border-top: 1px solid var(--line);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 900px) {
+      .page {
+        width: min(100% - 32px, var(--content));
+        display: block;
+      }
+
+      .sidebar {
+        position: relative;
+        top: auto;
+        max-height: none;
+        margin-top: 20px;
+        padding: 14px;
+      }
+
+      .sidebar__title { margin: 4px 8px 8px; }
+
+      .sidebar nav {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .sidebar a {
+        justify-content: center;
+        padding: 8px;
+        text-align: center;
+        border-left: 0;
+        border-bottom: 2px solid transparent;
+      }
+
+      .sidebar a:hover { border-left-color: transparent; border-bottom-color: var(--gold); }
+      .hero { min-height: auto; padding-top: 76px; }
+    }
+
+    @media (max-width: 640px) {
+      body { line-height: 1.82; }
+      .page { width: min(100% - 24px, var(--content)); }
+      .sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+      section { padding-top: 64px; }
+      .character, .term, .ending { padding: 24px; }
+      .core-line { padding: 28px 22px; text-align: left; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+
+    @media print {
+      :root { color-scheme: light; }
+      body { color: #151515; background: #fff; font-size: 11pt; }
+      .page { width: 100%; display: block; }
+      .sidebar { display: none; }
+      main { padding: 0; }
+      .hero { min-height: auto; padding: 24px 0; }
+      section { padding: 30px 0 0; }
+      .lead-card, .chapter, .character, .term, .ending {
+        break-inside: avoid;
+        color: #151515;
+        background: #fff;
+        border-color: #aaa;
+      }
+      .chapter::before { display: none; }
+      .core-line { color: #111; background: #eee; }
+      blockquote { color: #111; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="sidebar" aria-label="ページ内の目次">
+      <p class="sidebar__title">Story index</p>
+      <nav>
+        <a href="#core">物語の核</a>
+        <a href="#characters">登場人物</a>
+        <a href="#world">世界設定</a>
+        <a href="#story">本編</a>
+        <a href="#endings">結末</a>
+        <a href="#last-message">最後の言葉</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero">
+        <p class="eyebrow">Story Memo / Complete Outline</p>
+        <h1>Reversi Destiny<span>白黒の運命</span></h1>
+        <p class="hero__lead">妹を救えなかった兄が、死者の未練が集まる「盤界」で、魂、後悔、意志、そして運命そのものと向き合う物語。</p>
+        <div class="stones" aria-hidden="true">
+          <span class="stone stone--black"></span>
+          <span class="stone stone--white"></span>
+        </div>
+      </header>
+
+      <section id="core">
+        <span class="section-number">01 / CORE</span>
+        <h2>物語の核</h2>
+        <div class="lead-card">
+          <ul class="theme-lines">
+            <li>白と黒</li>
+            <li>勝利と敗北</li>
+            <li>運命と意志</li>
+            <li>終局してもなお残る想い</li>
+          </ul>
+          <p>この物語が問うのは、「結果が変わらなかったなら、そこまでの努力や想いは無意味なのか」ということ。</p>
+          <p>理論の化身は終局だけを見る。主人公は、終局へ至るまでに誰かが打った一手を見る。勝てなかったこと、救えなかったこと、間に合わなかったこと。それでも、誰かが誰かのために選んだ一手は、確かに存在した。</p>
+        </div>
+      </section>
+
+      <section id="characters">
+        <span class="section-number">02 / CHARACTERS</span>
+        <h2>主要人物</h2>
+        <div class="grid">
+          <article class="character">
+            <small>PROTAGONIST</small>
+            <h3>主人公</h3>
+            <p>国内公式戦無敗の若きリバーシプレイヤー。妹・真白を救うため世界大会へ出場するが、決勝で敗北し、真白の最期にも間に合わなかった。数年後、彼女の魂を求めて盤界へ向かう。</p>
+          </article>
+          <article class="character">
+            <small>THE WHITE MEMORY</small>
+            <h3>真白</h3>
+            <p>病弱な主人公の妹。病室から兄の試合を見ることを楽しみにしていた。兄が勝つから見ていたのではなく、兄が盤面に向かう姿そのものを見ていた。</p>
+          </article>
+          <article class="character">
+            <small>THE OBSERVER</small>
+            <h3>盤理の観測者</h3>
+            <p>盤界を記録するために宇宙が生んだ存在。魂に続きを与えたいと願い、主人公を盤界へ呼ぶ。しかし、その美しい願いの裏には本人も知らなかった罪がある。</p>
+          </article>
+          <article class="character">
+            <small>THE EXECUTOR</small>
+            <h3>盤界の執行者</h3>
+            <p>歪んだ盤界を本来の魂収束システムへ戻そうとする裁定者。冷静で厳格だが、怒りではなく責任感で動く。誰かを犠牲にする救済を認めない。</p>
+          </article>
+          <article class="character">
+            <small>THE THEORY</small>
+            <h3>理論の化身</h3>
+            <p>盤界をカード化した元凶。人間の意志を未定義の変数と考え、それを演算可能にすることで、宇宙を最初からすべてが決まった盤面へ作り変えようとする。</p>
+          </article>
+          <article class="character">
+            <small>THE WILL TO ESCAPE</small>
+            <h3>ニーゲル</h3>
+            <p>逃げる意志が特殊石となった存在。臆病で戦えないが、主人公たちを救うため、初めて「誰かを逃がす」という勇気ある逃走を選ぶ。</p>
+          </article>
+          <article class="character">
+            <small>THE UNREACHED WILL</small>
+            <h3>父</h3>
+            <p>主人公が「家族を捨てた」と憎んでいる父。真白の死後は主人公の前から姿を消し、その消息も語られない。盤界での再会によって、初めて真実が明かされる。</p>
+          </article>
+          <article class="character">
+            <small>THE WILL TO LIVE</small>
+            <h3>母</h3>
+            <p>主人公と真白の母。主人公の原点に関わる人物だが、その記憶は序盤では詳しく語られない。主人公が絶望に飲まれかけた時、彼を生へ引き戻す。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="world">
+        <span class="section-number">03 / WORLD</span>
+        <h2>盤界の仕組み</h2>
+        <div class="grid">
+          <article class="term">
+            <h3>盤界</h3>
+            <p>強い未練や後悔を抱えた魂が辿り着く場所。本来は魂に白黒をつけ、未練を収束させる仕組みだったが、理論の化身によって書き換えられた。</p>
+          </article>
+          <article class="term">
+            <h3>カード</h3>
+            <p>願い、後悔、執着、守りたい想いなど、魂の「意志」が形になったもの。盤界では、カードを通して意志が盤面へ働きかける。</p>
+          </article>
+          <article class="term">
+            <h3>布石</h3>
+            <p>カードの意志を盤面へ通すための力。強いカードほど多くの布石を必要とする。魂そのものを布石に変える行為は最大の禁忌。</p>
+          </article>
+          <article class="term">
+            <h3>特殊石</h3>
+            <p>強すぎる願いや歪んだ魂が、石として突然変異した存在。生前の記憶は薄れていても、自分を生んだ核となる意志だけは残っている。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="story">
+        <span class="section-number">04 / STORY</span>
+        <h2>ストーリー全貌</h2>
+        <div class="chapters">
+          <article class="chapter" data-mark="0">
+            <p class="chapter__label">PROLOGUE</p>
+            <h3>世界大会決勝</h3>
+            <p>物語は、世界大会の決勝直前から始まる。</p>
+            <p>実況は主人公を「国内公式戦無敗。世界初挑戦で決勝まで進んだ若き天才」と紹介する。対戦相手は、かつて一度だけ世界大会へ現れ、圧倒的な内容で優勝した「盤上の神」。</p>
+            <p>主人公が大会へ来た理由は、優勝すれば病弱な妹・真白の治療につながる可能性があるからだった。制度の詳しい説明はせず、それが確約ではない最後の望みであることだけを示す。</p>
+            <blockquote>
+              <p>「見たいんだろ。俺が世界で勝つところ」</p>
+              <p>「うん。見てるね」</p>
+            </blockquote>
+            <p>決勝直前、真白の容体が急変する。主人公は帰国するか、決勝に残るか迷う。そして、長く家に寄りつかない父へ最後のメッセージを送る。</p>
+            <blockquote>
+              <p>「息子として、最後に頼む」</p>
+              <p>「真白を一人にしないでくれ」</p>
+            </blockquote>
+            <p>既読はつく。しかし返事はない。真白本人は、弱い声で「勝って。約束したでしょ」と主人公の背中を押す。</p>
+            <p>主人公は決勝に残る。本来なら盤上の神に勝てる実力があったが、真白への心配、帰らなかった迷い、父への怒りが読みを鈍らせる。わずか一手の揺らぎが敗着となり、主人公は敗北する。</p>
+            <p>帰国した主人公を待っていたのは、真白の死だった。父も病院には来なかったと知らされる。</p>
+            <p>自分は勝てず、救えず、最期にも間に合わなかった。父は最後まで家族を見捨てた。主人公の世界は、そこで終わる。</p>
+          </article>
+
+          <article class="chapter" data-mark="1">
+            <p class="chapter__label">CHAPTER 1</p>
+            <h3>終わった人間</h3>
+            <p>数年後。主人公はリバーシを捨て、真白を失った後悔と父への憎しみを抱えたまま生きている。</p>
+            <p>父とは真白の死後、一度も会っていない。父がどこで何をしているのかも、主人公は知ろうとしなかった。ここでは父の生死も死因も明かさない。</p>
+            <p>そんな主人公の前に、盤理の観測者が現れる。観測者は、強い未練を抱えた死者の魂が集まる「盤界」と、そこに真白の魂が存在する可能性を告げる。</p>
+            <blockquote>
+              <p>「そこへ行けば、真白に会えるのか」</p>
+              <p>「可能性は存在する」</p>
+            </blockquote>
+            <p>主人公は、そのわずかな可能性だけを頼りに盤界へ向かう。</p>
+          </article>
+
+          <article class="chapter" data-mark="2">
+            <p class="chapter__label">CHAPTER 2</p>
+            <h3>カード化した死者の世界</h3>
+            <p>盤界は、白と黒の盤面で構成された死者の世界だった。魂の意志はカードとなり、強い未練は特殊石となって盤面に残り続けている。</p>
+            <p>主人公が最初に持つカードは「強い意志」ただ一枚。観測者に戦い方を教わりながら、最初の敵を倒す。</p>
+            <p>直後、二人の前に盤界の執行者が現れる。</p>
+            <blockquote>
+              <p>「見つけたぞ、観測者」</p>
+              <p>「観測の罪、ここで償ってもらおう」</p>
+            </blockquote>
+            <p>執行者は、カード化した盤界を救済ではなく、魂を未練に縛る危険な異常状態だと考えている。主人公たちは追い詰められるが、逃げる意志のニーゲルに救われ、多動村へ逃げ込む。</p>
+          </article>
+
+          <article class="chapter" data-mark="3">
+            <p class="chapter__label">CHAPTER 3</p>
+            <h3>多動村と強い特殊石</h3>
+            <p>多動村には、多動の意志や究極多動神など、さまざまな特殊石が暮らしている。彼らには前世の記憶がほとんどないが、自分の核となった意志だけが残っている。</p>
+            <p>主人公は、盤界を支配する「理論の化身」を倒すには、強い特殊石の力が必要だと知る。村で得た情報を頼りに、近くへ現れた非常に強い特殊石を仲間にしようと向かう。</p>
+            <p>しかし、そこで待っていた怪物は、主人公が二度と会わないと決めた父の変わり果てた姿だった。</p>
+          </article>
+
+          <article class="chapter" data-mark="4">
+            <p class="chapter__label">CHAPTER 4</p>
+            <span class="reveal">父の生死と真相をここで初公開</span>
+            <h3>届かなかった意志</h3>
+            <p>主人公は怒りのまま父と戦う。母の死後、家へ帰らず、真白の見舞いにも来ず、金だけを置いていた父。真白の最期にも来なかった父を、主人公は家族を捨てた人間だと信じている。</p>
+            <p>戦いのあと、怪物はわずかに人の姿を取り戻し、主人公の名前を呼ぶ。</p>
+            <blockquote>
+              <p>「今さら、俺の名前を呼ぶな」</p>
+              <p>「お前を……見てやれなくて、すまなかった」</p>
+            </blockquote>
+            <p>観測者の力によって、父の記憶が映し出される。</p>
+            <p>父は家族を捨てたのではなかった。真白の治療費を稼ぎ、海外治療の可能性を少しでも広げるため、身体を壊すまで働き続けていた。疲労で人間らしさも判断力も削られ、家族へ何も説明できないまま壊れていった。</p>
+            <p>主人公からのメッセージを見た父は、真白のいる病院へ向かっていた。しかし、間に合わなかった。</p>
+            <p>真白の死後も、父は罪悪感から働くことをやめられなかった。主人公の前から姿を消したまま、やがて過労によって命を落とし、未練を抱えて盤界へ辿り着いていた。</p>
+            <p>父もまた、真白を救えなかった。父もまた、間に合わなかった。そして、息子を見てやれなかったことを後悔し続けていた。</p>
+            <p>父の魂は「届かなかった意志」というカードになる。一度だけ、間に合わなかった力を遅れて盤面へ届けるカード。</p>
+            <p>主人公は父を完全には許せない。それでも、父も別の場所で家族を守ろうとしていたことを知る。</p>
+          </article>
+
+          <article class="chapter" data-mark="5">
+            <p class="chapter__label">CHAPTER 5</p>
+            <span class="reveal">主人公とリバーシの原点をここで初公開</span>
+            <h3>母が残した一手</h3>
+            <p>父の真実を知った主人公は、自分を支えていた憎しみまで失う。理論の化身の干渉によって絶望が暴走し、主人公の身体は異形へ変わり始める。</p>
+            <p>彼を止めたのは、盤界に残っていた母の魂だった。</p>
+            <p>ここで初めて、主人公がリバーシを始めた本当の理由が明かされる。幼い主人公へ白と黒の石を握らせたのは母だった。主人公にとってリバーシは才能を証明する道具ではなく、亡くなった母と過ごした時間そのものだった。</p>
+            <blockquote>
+              <p>「負けたあとに、もう一度石を持つことも一手なの」</p>
+              <p>「あなたは、まだ生きているでしょう」</p>
+            </blockquote>
+            <p>母の魂から「生きる意志」のカードが生まれる。主人公は絶望から立ち上がり、再び盤面へ向かう。</p>
+          </article>
+
+          <article class="chapter" data-mark="6">
+            <p class="chapter__label">CHAPTER 6</p>
+            <h3>観測者の罪</h3>
+            <p>執行者は、観測者が隠していた真実を主人公へ語る。</p>
+            <p>観測者は本来、盤界だけを外部から記録する存在だった。しかし未練ある魂を見続けるうちに自我が芽生え、死者へ収束以外の続きを与えたいと願うようになった。</p>
+            <p>その可能性を探すため、観測者は地球まで観測範囲を広げた。だが、宇宙規模の強い観測には代償がある。観測された星の誰かが、未来の余白を失う。</p>
+            <p>その犠牲になったのが、真白だった可能性がある。</p>
+            <blockquote>
+              <p>「願いが美しくても、代償を誰かに押しつけるなら、それは罪だ」</p>
+              <p>「その事実を見ずに、救済を名乗るな」</p>
+            </blockquote>
+            <p>観測者は自分の罪を認める。主人公はすぐには許せない。それでも、魂を救いたいという願いまで嘘だったわけではないと知る。</p>
+          </article>
+
+          <article class="chapter" data-mark="7">
+            <p class="chapter__label">CHAPTER 7</p>
+            <span class="reveal">盤上の神の過去と大会の真相をここで初公開</span>
+            <h3>理論の化身</h3>
+            <p>主人公はついに理論の化身と対面する。その姿と声は、世界大会決勝で戦った盤上の神そのものだった。</p>
+            <p>ここで彼の過去が明かされる。盤上の神は、人間離れした読みで世界を制した元王者だった。しかし進化したAIに勝てなくなり、人間の読みや意志に絶望した。</p>
+            <p>人生も運命も宇宙も、最初から決まった手順にすぎない。そう考えた彼は、死後も盤界に収束されず、反対に盤界を自分の理論で書き換えた。</p>
+            <p>さらに、主人公が世界大会へ立てるよう、支援制度や代表枠の条件を整えたのも彼だったと判明する。主人公の才能を救いたかっただけではない。自分の完成した理論へ、初めて未知の変数を加えられる人間として興味を持っていた。</p>
+            <blockquote>
+              <p>「あなたが世界の盤面に立てる条件を整えた」</p>
+              <p>「打つと決めたのは、あなたです」</p>
+              <p>「事情は知っていました。だからこそ、君は来ると思った」</p>
+            </blockquote>
+            <p>理論の化身は、未練ある魂を布石へ変換し、主人公の巨大な絶望を燃料として、宇宙を「最初からすべてが決まった盤面」へ再構成しようとしていた。</p>
+          </article>
+
+          <article class="chapter" data-mark="8">
+            <p class="chapter__label">FINAL CHAPTER</p>
+            <h3>そこまでの一手</h3>
+            <p>理論の化身は主人公へ告げる。真白が死んだことも、父が間に合わなかったことも、主人公が世界大会で負けたことも、すべて最初から決まっていた。誰も自分の意志で打ってなどいないと。</p>
+            <blockquote>
+              <p>「……そうかもな」</p>
+              <p>「認めるのですか」</p>
+              <p>「認める。最初から決まっていたのかもしれない」</p>
+              <p>「ならば、意志に意味はありません」</p>
+              <p>「そこは違う」</p>
+            </blockquote>
+            <p>主人公が盤界で見てきた意志が、カードとして集まる。</p>
+            <p>誰かを逃がすために走ったニーゲル。間に合わなくても病院へ向かった父。子どもたちへ生きることを願った母。魂に続きを与えようとした観測者。誰かを犠牲にしないため、終わらせようとした執行者。</p>
+            <p>結果だけを見れば、すべて失敗だったのかもしれない。それでも、その一手は確かに存在した。</p>
+            <blockquote>
+              <p>「決まっていたことと、無意味だったことは同じじゃない」</p>
+              <p>「お前は終局だけを見てる」</p>
+              <p>「俺は、そこまでの一手を見てる」</p>
+            </blockquote>
+            <p>主人公は白い石を置く。理論の化身との最後の対局が始まり、その勝敗と主人公の選択によって結末が分岐する。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="endings">
+        <span class="section-number">05 / ENDINGS</span>
+        <h2>エンディング分岐</h2>
+        <div class="ending-grid">
+          <article class="ending">
+            <small>ENDING 1 / 観測者ルート</small>
+            <h3>継承エンド</h3>
+            <p>観測者は自らの罪を認め、その存在を盤界維持の核として捧げる。主人公は新たな管理者となり、未練ある魂へ「消える」以外の可能性を残す。</p>
+            <blockquote>
+              <p>「観測は終わった。終局の先に、意志は残った」</p>
+              <p>「あとは任せる。この盤面の続きを、君が打て」</p>
+            </blockquote>
+          </article>
+
+          <article class="ending">
+            <small>ENDING 2 / 観測者ルート</small>
+            <h3>真白対面エンド</h3>
+            <p>主人公は短い時間だけ真白の魂と再会する。負けたこと、帰らなかったこと、最期に間に合わなかったことを謝る主人公へ、真白は笑って答える。</p>
+            <blockquote>
+              <p>「勝ったから見てたんじゃない」</p>
+              <p>「お兄ちゃんが打ってたから、見てたの」</p>
+            </blockquote>
+            <p>罪悪感は完全には消えない。それでも主人公は、止まっていた人生を再び歩き始める。</p>
+          </article>
+
+          <article class="ending">
+            <small>ENDING 3 / 執行者ルート</small>
+            <h3>収束エンド</h3>
+            <p>主人公は真白に会いたいという未練より、真白の魂を解放することを選ぶ。盤界は本来の仕組みに戻り、真白の魂も静かに収束する。</p>
+            <p>もう会うことも、謝ることもできない。それでも主人公は、自分の未練のために真白を縛らない。</p>
+          </article>
+
+          <article class="ending ending--bad">
+            <small>BAD END / 理論の化身に敗北</small>
+            <h3>白を失った盤面</h3>
+            <p>理論の化身は真白の魂へ無理やり形を与え、怪物へ変換する。それを見た主人公の意志は、理論の化身にも制御できない絶望へ変わる。</p>
+            <p>主人公は観測者も、執行者も、ニーゲルも、多動村も破壊する。真白を奪ったものを消そうとして、真白が生きた意味まで壊してしまう。</p>
+          </article>
+
+          <article class="ending ending--true">
+            <small>TRUE END / 三者協力ルート</small>
+            <h3>誰も知らない一手</h3>
+            <p>観測者は「観測したい」という願いを捨てる。執行者は「例外を認めない」という原則を曲げる。主人公は「真白に会いたい」という未練を手放す。</p>
+            <p>三者は宇宙の因果へ一度だけ例外を作り、真白が病気なく生まれる世界を生み出す。真白は学校へ通い、友達と笑い、普通の人生を歩む。</p>
+            <p>代償として、主人公の存在は世界から消える。彼が真白の兄だった事実も、彼女のために戦った記憶も、誰の中にも残らない。</p>
+            <p>それでも真白は、白い石を見るたび、理由の分からない懐かしさを覚える。誰かがずっと、自分のために戦ってくれていたような気がする。</p>
+            <p>真白が盤面へ置いた白い石は、誰にも知られない主人公の意志を受け継ぐ、新しい一手になる。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="last-message">
+        <span class="section-number">06 / LAST MESSAGE</span>
+        <h2>物語を締める言葉</h2>
+        <div class="core-line">
+          「決まっていたとしても、消えたわけじゃない」<br>
+          「真白が笑ったことだ」
+        </div>
+        <p class="warning">物語上の重要な方針：父の死因、母とリバーシの関係、盤上の神の過去、大会出場の裏側は序盤で説明せず、それぞれの再会・対決場面で初めて明かす。</p>
+      </section>
+
+      <footer>
+        <p>Reversi Destiny 白黒の運命 — Story Memo</p>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>
