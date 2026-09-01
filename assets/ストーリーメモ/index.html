@@ -242,6 +242,23 @@
     .term,
     .ending { padding: 28px; }
 
+    .character--visual {
+      overflow: hidden;
+    }
+
+    .character__portrait {
+      display: block;
+      width: calc(100% + 56px);
+      height: auto;
+      aspect-ratio: 1;
+      margin: -28px -28px 24px;
+      object-fit: contain;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255,255,255,0.07), transparent 62%),
+        #0b0d10;
+      border-bottom: 1px solid var(--line);
+    }
+
     .character small,
     .ending small {
       display: block;
@@ -384,6 +401,10 @@
       .grid { grid-template-columns: 1fr; }
       section { padding-top: 64px; }
       .character, .term, .ending { padding: 24px; }
+      .character__portrait {
+        width: calc(100% + 48px);
+        margin: -24px -24px 22px;
+      }
       .core-line { padding: 28px 22px; text-align: left; }
     }
 
@@ -466,17 +487,20 @@
             <h3>真白</h3>
             <p>病弱な主人公の妹。病室から兄の試合を見ることを楽しみにしていた。兄が勝つから見ていたのではなく、兄が盤面に向かう姿そのものを見ていた。</p>
           </article>
-          <article class="character">
+          <article class="character character--visual">
+            <img class="character__portrait" src="../images/special-cards/characters/observer_will.png" width="512" height="512" loading="lazy" decoding="async" alt="盤面を背負う黒い人外の姿をした盤理の観測者">
             <small>THE OBSERVER</small>
             <h3>盤理の観測者</h3>
             <p>盤界を記録するために宇宙が生んだ存在。魂に続きを与えたいと願い、主人公を盤界へ呼ぶ。本来の責務である盤界の魂の観測を越え、他の世界まで視野を広げれば代償が生じることは知っていたが、その内容から目を背けていた。</p>
           </article>
-          <article class="character">
+          <article class="character character--visual">
+            <img class="character__portrait" src="../images/special-cards/characters/board_executor.png" width="512" height="512" loading="lazy" decoding="async" alt="赤い眼と炎の剣を持つ盤界の執行者">
             <small>THE EXECUTOR</small>
             <h3>盤界の執行者</h3>
             <p>歪んだ盤界を本来の魂収束システムへ戻そうとする裁定者。冷静で厳格だが、怒りではなく責任感で動く。誰かを犠牲にする救済を認めない。</p>
           </article>
-          <article class="character">
+          <article class="character character--visual">
+            <img class="character__portrait" src="../images/special-cards/characters/theory_incarnation.png" width="512" height="512" loading="lazy" decoding="async" alt="両翼と盤面をまとった人外の理論の化身">
             <small>THE THEORY</small>
             <h3>理論の化身</h3>
             <p>盤界をカード化した元凶。人間の意志を未定義の変数と考え、それを演算可能にすることで、宇宙を最初からすべてが決まった盤面へ作り変えようとする。</p>
