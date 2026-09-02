@@ -956,15 +956,15 @@
             <p>黒夜は白い石を置く。観測者と執行者の力を借り、理論の化身との最後の対局が始まる。</p>
             <p>敗北すれば、理論の化身は黒夜の絶望からさらに意志を引き出し、最悪の変貌へ至る。勝利すれば理論の化身の支配は終わり、共闘もそこで解かれる。</p>
             <p>理論の化身を倒すと、その力に支えられていたカード化後の仕組みは維持できなくなる。盤界そのものは残るが、留められていた魂は輪郭を失い、真白を含めた多くの魂が消え始める。</p>
-            <p>理論の化身を倒した時点で一時的な共闘は終わり、大分岐で選んだ道がそれぞれの結末へつながる。</p>
+            <p>理論の化身を倒した時点で一時的な共闘は終わる。大分岐ごとの固有エンドに加え、どちらの道からでも選べる結末が現れる。</p>
             <div class="route-passage" data-route-content="observer" hidden>
               <h4>観測者ルートの結末へ</h4>
               <p>黒夜はこの盤界に残って新しい仕組みを作るか、消えゆく真白の魂を探すかを選ぶ。真白の捜索を優先する選択だけは執行者が認めず、黒夜と執行者の戦いになる。</p>
             </div>
             <div class="route-passage route-passage--executor" data-route-content="executor" hidden>
               <h4>執行者ルートの結末へ</h4>
-              <p>観測者は再び裁定の対象となり、黒夜は執行者の案に従って盤界を元の機械的な収束システムへ戻す。真白を含む残留魂は本来の仕組みに従って収束する。</p>
-              <p>黒夜は地球への帰還を望むが、盤界や宇宙の魂収束システムは本来人間が知ってはならない。盤界の記憶を綺麗に切り離せず、家族に関する記憶まで大きく欠落する可能性を説明されたうえで、黒夜は執行の権能による消去を承諾して地球へ戻る。</p>
+              <p>黒夜は、盤界に残って新しい仕組みを作るか、執行者の裁定を最後まで受け入れるかを選ぶ。</p>
+              <p>裁定を受け入れた場合、観測者は再び裁定の対象となり、盤界は元の機械的な収束システムへ戻る。黒夜は家族に関する記憶まで大きく欠落する可能性を承諾し、執行の権能による消去を受けて地球へ戻る。</p>
             </div>
             <p>どちらの大分岐を選んでいても、条件を満たした時だけ、それまで選んだ答えを越える第三の道が現れる。黒夜が過去の書き換えを提案し、三者全員が、それまで握り続けてきたものを手放す道である。</p>
           </article>
@@ -974,12 +974,12 @@
       <section id="endings">
         <span class="section-number">05 / ENDINGS</span>
         <h2>エンディング分岐</h2>
-        <p class="route-empty" data-route-empty>中盤の大分岐を選ぶと、そのルートで到達できる固有エンドが表示されます。</p>
+        <p class="route-empty" data-route-empty>中盤の大分岐を選ぶと、そのルートから到達できるエンドが表示されます。</p>
         <div class="ending-grid">
-          <article class="ending" data-route-content="observer" hidden>
-            <small>ENDING 1 / 観測者ルート</small>
+          <article class="ending" data-route-content="observer executor" hidden>
+            <small>ENDING 1 / 両ルート共通</small>
             <h3>終局の先へ</h3>
-            <p>大分岐で観測者を選び、最後に「この盤界に残る」と決めた場合の結末。理論の化身の消滅により、カード化した盤界へ留められていた魂は維持できなくなる。真白を含む多くの魂が消えていく中、執行者は盤界を本来の機械的な収束システムへ戻そうとする。</p>
+            <p>大分岐で観測者と執行者のどちらを選んでいても、最後に「この盤界に残る」と決めると到達できる結末。理論の化身の消滅により、カード化した盤界へ留められていた魂は維持できなくなる。真白を含む多くの魂が消えていく中、執行者は盤界を本来の機械的な収束システムへ戻そうとする。</p>
             <p>しかし黒夜は、魂を永遠に留めることも、未練を機械的に収束させることも選ばない。</p>
             <blockquote>
               <p>「この盤界に残る」</p>
@@ -1077,7 +1077,7 @@
           button.setAttribute("aria-pressed", String(button.dataset.routeChoice === route));
         });
         contents.forEach((content) => {
-          content.hidden = content.dataset.routeContent !== route;
+          content.hidden = !content.dataset.routeContent.split(/\s+/).includes(route);
         });
         emptyNotes.forEach((note) => { note.hidden = true; });
         statuses.forEach((status) => {
