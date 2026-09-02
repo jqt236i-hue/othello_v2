@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Reversi Destiny｜ストーリー構成図</title>
+  <style>
+    :root {
+      --bg: #08090b;
+      --surface: #111318;
+      --surface-strong: #171a20;
+      --line: #343943;
+      --line-soft: #242831;
+      --text: #f3f1eb;
+      --muted: #a9adb5;
+      --gold: #d9b85f;
+      --gold-soft: rgba(217, 184, 95, 0.12);
+      --white: #eef1f4;
+      --black: #16181c;
+      --red: #d06a70;
+      --red-soft: rgba(208, 106, 112, 0.11);
+      --blue: #7aa4c8;
+      --blue-soft: rgba(122, 164, 200, 0.11);
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 14% -4%, rgba(217, 184, 95, 0.09), transparent 28rem),
+        radial-gradient(circle at 90% 36%, rgba(122, 164, 200, 0.06), transparent 30rem),
+        var(--bg);
+      font-family: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      line-height: 1.7;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page-shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 64px 0 80px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 42px clamp(24px, 5vw, 58px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(23, 26, 32, 0.98), rgba(12, 14, 17, 0.98));
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: -84px;
+      right: -48px;
+      width: 260px;
+      height: 260px;
+      border: 1px solid rgba(217, 184, 95, 0.18);
+      border-radius: 50%;
+      box-shadow:
+        inset 0 0 0 34px rgba(255, 255, 255, 0.02),
+        inset 0 0 0 68px rgba(0, 0, 0, 0.17);
+    }
+
+    .eyebrow,
+    .phase-label,
+    .route-label {
+      margin: 0;
+      color: var(--gold);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin-bottom: 14px;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: clamp(2rem, 5vw, 4.2rem);
+      font-weight: 600;
+      line-height: 1.18;
+      letter-spacing: 0.03em;
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 22px;
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .legend-mark {
+      width: 12px;
+      height: 12px;
+      border: 1px solid var(--gold);
+      border-radius: 50%;
+      background: var(--gold-soft);
+    }
+
+    .legend-mark.branch {
+      border-radius: 3px;
+      transform: rotate(45deg);
+      background: var(--surface-strong);
+    }
+
+    .legend-mark.end {
+      border-color: var(--white);
+      background: var(--white);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin: 72px 0 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .section-heading h2 {
+      margin-bottom: 0;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 600;
+    }
+
+    .section-heading p {
+      max-width: 420px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+
+    .timeline {
+      position: relative;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 20px;
+      bottom: 24px;
+      left: 25px;
+      width: 2px;
+      background: linear-gradient(var(--gold), var(--line) 26%, var(--line) 82%, var(--gold));
+    }
+
+    .story-step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr);
+      gap: 18px;
+      padding-bottom: 22px;
+    }
+
+    .step-marker {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: 52px;
+      height: 52px;
+      place-items: center;
+      border: 1px solid var(--gold);
+      border-radius: 50%;
+      color: var(--gold);
+      background: var(--bg);
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      font-weight: 700;
+      box-shadow: 0 0 0 6px var(--bg);
+    }
+
+    .step-card {
+      padding: 22px 24px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(23, 26, 32, 0.94), rgba(14, 16, 20, 0.94));
+    }
+
+    .step-card h3 {
+      margin: 4px 0 8px;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .step-card > p:last-child {
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .beats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .beats li {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #d4d6da;
+      background: rgba(255, 255, 255, 0.025);
+      font-size: 0.8rem;
+    }
+
+    .memory-chain {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .memory-item {
+      position: relative;
+      min-height: 92px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.18);
+      font-size: 0.83rem;
+    }
+
+    .memory-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .memory-item:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -16px;
+      color: var(--gold);
+      transform: translate(50%, -50%);
+    }
+
+    .battle-map {
+      padding: clamp(24px, 5vw, 48px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(17, 19, 24, 0.78);
+      box-shadow: var(--shadow);
+    }
+
+    .battle-node {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 24px;
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      text-align: center;
+      background: linear-gradient(180deg, var(--gold-soft), rgba(0, 0, 0, 0.14));
+    }
+
+    .battle-node h3 {
+      margin-bottom: 5px;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .battle-node p {
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .connector-down {
+      width: 2px;
+      height: 34px;
+      margin: 0 auto;
+      background: var(--gold);
+    }
+
+    .decision {
+      width: fit-content;
+      margin: 0 auto;
+      padding: 9px 18px;
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+      color: var(--gold);
+      background: var(--bg);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .outcome-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.5fr);
+      gap: 24px;
+      margin-top: 34px;
+    }
+
+    .outcome-column {
+      position: relative;
+      padding-top: 36px;
+    }
+
+    .outcome-column::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 26px;
+      background: var(--line);
+    }
+
+    .outcome-label {
+      width: fit-content;
+      margin: 0 auto 12px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .outcome-label.lose {
+      color: #f0b1b5;
+      background: var(--red-soft);
+    }
+
+    .outcome-label.win {
+      color: var(--gold);
+      background: var(--gold-soft);
+    }
+
+    .ending-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 178px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-strong);
+    }
+
+    .ending-card::after {
+      content: "";
+      position: absolute;
+      right: -34px;
+      bottom: -48px;
+      width: 128px;
+      height: 128px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 50%;
+    }
+
+    .ending-card h3 {
+      margin: 5px 0 8px;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.22rem;
+      font-weight: 600;
+    }
+
+    .ending-card p:last-child {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .ending-card.bad {
+      min-height: 100%;
+      border-color: rgba(208, 106, 112, 0.45);
+      background: linear-gradient(160deg, var(--red-soft), var(--surface-strong));
+    }
+
+    .ending-card.bad .route-label {
+      color: #f0b1b5;
+    }
+
+    .win-path {
+      padding: 22px;
+      border: 1px solid rgba(217, 184, 95, 0.35);
+      border-radius: var(--radius);
+      background: linear-gradient(160deg, rgba(217, 184, 95, 0.06), rgba(17, 19, 24, 0.8));
+    }
+
+    .win-summary {
+      margin-bottom: 20px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line-soft);
+      text-align: center;
+    }
+
+    .win-summary strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .win-summary span {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .ending-card.observer {
+      border-color: rgba(217, 184, 95, 0.32);
+    }
+
+    .ending-card.executor {
+      border-color: rgba(122, 164, 200, 0.42);
+      background: linear-gradient(160deg, var(--blue-soft), var(--surface-strong));
+    }
+
+    .ending-card.executor .route-label {
+      color: #a9c9e2;
+    }
+
+    .ending-card.true {
+      border-color: rgba(238, 241, 244, 0.5);
+      background: linear-gradient(145deg, rgba(238, 241, 244, 0.11), rgba(17, 19, 24, 0.94));
+    }
+
+    .ending-card.true .route-label {
+      color: var(--white);
+    }
+
+    .footer-note {
+      margin-top: 34px;
+      padding: 18px 20px;
+      border-left: 2px solid var(--gold);
+      color: var(--muted);
+      background: rgba(217, 184, 95, 0.04);
+      font-size: 0.86rem;
+    }
+
+    .footer-note p {
+      margin-bottom: 0;
+    }
+
+    .footer-note a {
+      color: var(--text);
+      text-underline-offset: 3px;
+    }
+
+    @media (max-width: 800px) {
+      .page-shell {
+        width: min(100% - 24px, 720px);
+        padding: 28px 0 52px;
+      }
+
+      .hero {
+        padding: 30px 22px;
+      }
+
+      .hero::after {
+        opacity: 0.55;
+      }
+
+      .section-heading {
+        display: block;
+        margin-top: 50px;
+      }
+
+      .section-heading p {
+        margin-top: 8px;
+        text-align: left;
+      }
+
+      .memory-chain,
+      .outcome-grid,
+      .route-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .memory-item:not(:last-child)::after {
+        content: "↓";
+        top: auto;
+        right: 50%;
+        bottom: -19px;
+        transform: translate(50%, 50%);
+      }
+
+      .outcome-column {
+        padding-top: 28px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .timeline::before {
+        left: 18px;
+      }
+
+      .story-step {
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 12px;
+      }
+
+      .step-marker {
+        width: 38px;
+        height: 38px;
+        font-size: 0.8rem;
+      }
+
+      .step-card,
+      .ending-card,
+      .win-path {
+        padding: 18px;
+      }
+
+      .battle-map {
+        padding: 20px 14px;
+      }
+
+      .beats {
+        display: grid;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+
+    @media print {
+      :root {
+        color-scheme: light;
+        --bg: #ffffff;
+        --surface: #ffffff;
+        --surface-strong: #f6f6f6;
+        --line: #777777;
+        --line-soft: #b7b7b7;
+        --text: #111111;
+        --muted: #3f3f3f;
+        --gold: #765a00;
+        --gold-soft: rgba(118, 90, 0, 0.08);
+      }
+
+      body {
+        background: #ffffff;
+      }
+
+      .page-shell {
+        width: 100%;
+        padding: 0;
+      }
+
+      .hero,
+      .battle-map {
+        box-shadow: none;
+      }
+
+      .story-step,
+      .ending-card {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="hero">
+      <p class="eyebrow">Reversi Destiny / Story Route Map</p>
+      <h1>白黒の運命<br>ストーリー構成図</h1>
+      <p class="hero-copy">理論の化身との最終対局までは一本道。最終戦の勝敗と、勝利後に黒夜が選ぶ答えによって五つの結末へ分かれる。</p>
+      <div class="legend" aria-label="図の凡例">
+        <span class="legend-item"><span class="legend-mark" aria-hidden="true"></span>共通ルート</span>
+        <span class="legend-item"><span class="legend-mark branch" aria-hidden="true"></span>選択・分岐</span>
+        <span class="legend-item"><span class="legend-mark end" aria-hidden="true"></span>エンディング</span>
+      </div>
+    </header>
+
+    <section aria-labelledby="common-route-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Common Route</p>
+          <h2 id="common-route-title">共通ルート</h2>
+        </div>
+        <p>地球での敗北から盤界へ進み、家族の真相と三者の思想を知るまで。</p>
+      </div>
+
+      <div class="timeline">
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">0</div>
+          <div class="step-card">
+            <p class="phase-label">Prologue / Earth</p>
+            <h3>世界大会決勝</h3>
+            <p>真白の治療につながる可能性を求めて決勝へ残るが、心の揺らぎから盤上の神に敗北。帰国後、真白の死を知る。</p>
+            <ul class="beats">
+              <li>国内公式戦無敗</li>
+              <li>真白との約束</li>
+              <li>父への最後の連絡</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">1</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 1 / Four Years Later</p>
+            <h3>終わった人間</h3>
+            <p>真白の死から4年後、自死を図った黒夜の前に観測者が現れる。黒夜は死者ではなく、生きたまま書き換えられた盤界へ向かう。</p>
+            <ul class="beats">
+              <li>真白の魂が存在する可能性</li>
+              <li>目的は再会と謝罪</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">2</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 2 / First Battle</p>
+            <h3>盤界と最初の対局</h3>
+            <p>ゴブリンとのカードリバーシに勝利した直後、執行者が観測者を裁くために現れる。ニーゲルが二人を救い、多動村へ逃がす。</p>
+            <ul class="beats">
+              <li>最初のカード「強い意志」</li>
+              <li>執行者との初遭遇</li>
+              <li>逃げる意志ニーゲル</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">3</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 3 / Village</p>
+            <h3>多動村と究極多動神</h3>
+            <p>盤界が本来は魂の収束装置であり、理論の化身によってカードと特殊石の世界へ書き換えられたことを知る。</p>
+            <ul class="beats">
+              <li>観測者は可能性を残したい</li>
+              <li>執行者は元へ戻したい</li>
+              <li>理論の化身は魂を利用する</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">4</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 4 / Trial</p>
+            <h3>意志狩りの王</h3>
+            <p>何を狩るために戦うのかを問われ、黒夜は自分の目で倒すべき相手を決めると示す。対局に勝利し、王を仲間にする。</p>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">5</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 5 / Father</p>
+            <h3>骸の虚影</h3>
+            <p>父だと気づかないまま戦い、自ら致命の一手を打つ。その後、消えかけた魂の記憶を観測し、初めて父の真相を知る。</p>
+            <div class="memory-chain" aria-label="父の記憶で明らかになる過程">
+              <div class="memory-item"><strong>かつての家族</strong>母が幼い黒夜へリバーシを教え、父が見守っていた。</div>
+              <div class="memory-item"><strong>母の死と固執</strong>真白まで失う恐怖から、治療へ固執していく。</div>
+              <div class="memory-item"><strong>父の崩壊</strong>過労と焦りで人間性を失い、病院にも間に合わなかった。</div>
+            </div>
+            <ul class="beats">
+              <li>出稼ぎの意志を獲得</li>
+              <li>救済の意志を獲得</li>
+              <li>カードは戦闘用の報酬</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">6</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 6 / Omen</p>
+            <h3>変貌の兆し</h3>
+            <p>父を殺めてから真相を知った絶望により、黒夜の意志が一時的に暴走する。完全な変貌には至らないが、最悪の結末へつながる傷が残る。</p>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">7</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 7 / Observer</p>
+            <h3>観測者の罪</h3>
+            <p>盤界外への観測は、周囲の誰かの未来の余白と生命を削る禁忌だった。記録を開いた結果、真白が犠牲になった可能性が示される。</p>
+            <ul class="beats">
+              <li>観測者は代償の存在だけを知っていた</li>
+              <li>執行者は代償の法則を知っていた</li>
+              <li>真白との因果は確定しない</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="story-step">
+          <div class="step-marker" aria-hidden="true">8</div>
+          <div class="step-card">
+            <p class="phase-label">Chapter 8 / Theory</p>
+            <h3>理論の化身</h3>
+            <p>人外の姿となった理論の化身が、世界大会決勝の盤上の神だったと判明。魂の意志を布石にし、宇宙を演算不能な世界へ書き換える計画が明かされる。</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="ending-map-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Final Chapter / Branches</p>
+          <h2 id="ending-map-title">最終対局と五つの結末</h2>
+        </div>
+        <p>観測者と執行者は一時共闘。理論の化身を倒した後、盤界の未来を黒夜が選ぶ。</p>
+      </div>
+
+      <div class="battle-map">
+        <div class="battle-node">
+          <p class="phase-label">Final Battle</p>
+          <h3>理論の化身との最終対局</h3>
+          <p>黒夜・観測者・執行者が、同じ敵へ最後の一手を向ける。</p>
+        </div>
+        <div class="connector-down" aria-hidden="true"></div>
+        <div class="decision">勝敗分岐</div>
+
+        <div class="outcome-grid">
+          <div class="outcome-column">
+            <p class="outcome-label lose">敗北</p>
+            <article class="ending-card bad">
+              <p class="route-label">Bad End</p>
+              <h3>白を失った盤面</h3>
+              <p>真白の魂を怪物へ歪められ、黒夜が完全に変貌。周囲の存在と書き換えられた盤界そのものを滅ぼす。</p>
+            </article>
+          </div>
+
+          <div class="outcome-column">
+            <p class="outcome-label win">勝利</p>
+            <div class="win-path">
+              <div class="win-summary">
+                <strong>理論の化身を撃破</strong>
+                <span>カード化盤界が不安定化し、真白を含む魂が消え始める</span>
+              </div>
+
+              <div class="route-grid">
+                <article class="ending-card observer">
+                  <p class="route-label">Observer Route 1</p>
+                  <h3>終局の先へ</h3>
+                  <p>黒夜は盤界に残る。観測者は維持核となって消滅し、黒夜が魂を自らの終局へ導く。</p>
+                </article>
+
+                <article class="ending-card observer">
+                  <p class="route-label">Observer Route 2</p>
+                  <h3>真白対面エンド</h3>
+                  <p>執行者を倒して真白を探す。魂らしき反応は見つかるが、黒夜の言葉が届いたかは分からない。</p>
+                </article>
+
+                <article class="ending-card executor">
+                  <p class="route-label">Executor Route</p>
+                  <h3>収束エンド</h3>
+                  <p>真白とは会わず、盤界を元の機械的な収束システムへ戻して魂を解放する。</p>
+                </article>
+
+                <article class="ending-card true">
+                  <p class="route-label">True End / Special Condition</p>
+                  <h3>誰も知らない一手</h3>
+                  <p>三者が代償を払い過去を改変。真白は健康に生まれるが、黒夜は兄だった事実ごと世界から消える。</p>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="footer-note">
+      <p>詳細の正本は<a href="ストーリー全貌.md">ストーリー全貌.md</a>。章構成、出来事の順序、分岐条件、エンディングを変更する場合は、この図も同時に更新する。未採用の構想は含めない。</p>
+    </aside>
+  </main>
+</body>
+</html>
