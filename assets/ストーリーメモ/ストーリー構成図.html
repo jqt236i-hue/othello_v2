@@ -460,6 +460,19 @@
       gap: 14px;
     }
 
+    .major-route-grid {
+      margin-top: 18px;
+    }
+
+    .major-route-grid .ending-card,
+    .battle-entry-grid .ending-card {
+      min-height: 0;
+    }
+
+    .step-card > .decision {
+      margin-top: 22px;
+    }
+
     .ending-card.observer {
       border-color: rgba(217, 184, 95, 0.32);
     }
@@ -620,7 +633,7 @@
     <header class="hero">
       <p class="eyebrow">Reversi Destiny / Story Route Map</p>
       <h1>白黒の運命<br>ストーリー構成図</h1>
-      <p class="hero-copy">理論の化身との最終対局までは一本道。最終戦の勝敗と、勝利後に黒夜が選ぶ答えによって五つの結末へ分かれる。</p>
+      <p class="hero-copy">父の魂を消滅させた後、黒夜は観測者と執行者のどちらについていくかを選ぶ。二つの大きな物語が理論の化身との決戦で交わり、その勝敗と最後の選択によって五つの結末へ分かれる。</p>
       <div class="legend" aria-label="図の凡例">
         <span class="legend-item"><span class="legend-mark" aria-hidden="true"></span>共通ルート</span>
         <span class="legend-item"><span class="legend-mark branch" aria-hidden="true"></span>選択・分岐</span>
@@ -726,7 +739,7 @@
           <div class="step-card">
             <p class="phase-label">Chapter 6 / Omen</p>
             <h3>変貌の兆し</h3>
-            <p>父を殺めてから真相を知った絶望により、黒夜の意志が一時的に暴走する。完全な変貌には至らないが、最悪の結末へつながる傷が残る。</p>
+            <p>父を殺めてから真相を知った絶望により、黒夜の意志が暴走する。観測者だけでは抑えられず、異常を察知した執行者が現れて一時的に協力する。完全な変貌には至らないが、最悪の結末へつながる傷が残る。</p>
           </div>
         </article>
 
@@ -734,13 +747,27 @@
           <div class="step-marker" aria-hidden="true">7</div>
           <div class="step-card">
             <p class="phase-label">Chapter 7 / Observer</p>
-            <h3>観測者の罪</h3>
+            <h3>観測者の罪と大分岐</h3>
             <p>盤界外への観測は、周囲の誰かの未来の余白と生命を削る禁忌だった。記録を開いた結果、真白が犠牲になった可能性が示される。</p>
             <ul class="beats">
               <li>観測者は代償の存在だけを知っていた</li>
               <li>執行者は代償の法則を知っていた</li>
               <li>真白との因果は確定しない</li>
             </ul>
+            <p>観測者は元の盤界の無慈悲な収束を、執行者は不完全でも収束が必要な理由を語る。黒夜は、二人のどちらを信じ、どの道へ進むかを選ぶ。</p>
+            <div class="decision">大分岐：どちらについていくか</div>
+            <div class="route-grid major-route-grid">
+              <article class="ending-card observer">
+                <p class="route-label">Observer Route</p>
+                <h3>観測者を選ぶ</h3>
+                <p>真白の意志を確かめ、自分の罪を償い、現在の盤界で生きる魂に新しい可能性を探す。執行者は反発するが、黒夜の変貌と理論の化身への対処を優先して執行を延期する。</p>
+              </article>
+              <article class="ending-card executor">
+                <p class="route-label">Executor Route</p>
+                <h3>執行者を選ぶ</h3>
+                <p>真白との再会を諦め、収束と観測者への裁定を選ぶ。観測者は隠し持っていたカードで逃亡し、黒夜と執行者が二人で先へ進む。</p>
+              </article>
+            </div>
           </div>
         </article>
 
@@ -749,7 +776,7 @@
           <div class="step-card">
             <p class="phase-label">Chapter 8 / Theory</p>
             <h3>理論の化身</h3>
-            <p>人外の姿となった理論の化身が、世界大会決勝の盤上の神だったと判明。魂の意志を布石にし、宇宙を演算不能な世界へ書き換える計画が明かされる。</p>
+            <p>観測者ルートでは執行者が二人を監視し、執行者ルートでは黒夜と執行者が二人で進む。どちらの道でも、人外の姿となった理論の化身が世界大会決勝の盤上の神だったと判明し、魂の意志を布石にして宇宙を書き換える計画が明かされる。</p>
           </div>
         </article>
       </div>
@@ -761,10 +788,23 @@
           <p class="eyebrow">Final Chapter / Branches</p>
           <h2 id="ending-map-title">最終対局と五つの結末</h2>
         </div>
-        <p>観測者と執行者は一時共闘。理論の化身を倒した後、盤界の未来を黒夜が選ぶ。</p>
+        <p>大分岐によって決戦の始まり方が変わり、最後には三者が同じ敵へ一時的に共闘する。</p>
       </div>
 
       <div class="battle-map">
+        <div class="route-grid battle-entry-grid">
+          <article class="ending-card observer">
+            <p class="route-label">Observer Route</p>
+            <h3>三者で決戦へ</h3>
+            <p>執行者が観測者への裁定を延期したまま、黒夜、観測者、執行者が最初から理論の化身へ挑む。</p>
+          </article>
+          <article class="ending-card executor">
+            <p class="route-label">Executor Route</p>
+            <h3>ピンチに観測者が現れる</h3>
+            <p>黒夜と執行者が敗北寸前まで追い詰められた時、二人を密かに観測していた観測者が現れ、理論の化身を倒すため共闘する。</p>
+          </article>
+        </div>
+        <div class="connector-down" aria-hidden="true"></div>
         <div class="battle-node">
           <p class="phase-label">Final Battle</p>
           <h3>理論の化身との最終対局</h3>
@@ -806,12 +846,12 @@
 
                 <article class="ending-card executor">
                   <p class="route-label">Executor Route</p>
-                  <h3>収束エンド：空白の帰還</h3>
+                  <h3>帰還エンド：空白の帰還</h3>
                   <p>盤界を元の収束システムへ戻した後、黒夜は家族に関する記憶まで失う可能性を承諾し、地球へ帰還する。</p>
                 </article>
 
                 <article class="ending-card true">
-                  <p class="route-label">True End / Special Condition</p>
+                  <p class="route-label">Both Routes / Special Condition</p>
                   <h3>誰も知らない一手</h3>
                   <p>三者が代償を払い過去を改変。真白は健康に生まれるが、黒夜は兄だった事実ごと世界から消える。</p>
                 </article>
