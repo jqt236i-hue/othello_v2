@@ -19,6 +19,8 @@
       --black-stone: #17181b;
       --gold: #d7b76d;
       --gold-soft: rgba(215, 183, 109, 0.14);
+      --executor: #8fb9dc;
+      --executor-soft: rgba(143, 185, 220, 0.12);
       --danger: #dc8b8b;
       --content: 760px;
       --sidebar: 260px;
@@ -341,6 +343,138 @@
 
     .ending-grid { display: grid; gap: 16px; }
 
+    .route-choice {
+      margin-top: 32px;
+      padding: 24px;
+      background: rgba(9, 10, 12, 0.46);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .route-choice__heading {
+      margin-bottom: 6px;
+      color: var(--text);
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.12rem;
+      font-weight: 600;
+    }
+
+    .route-choice__guide {
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .route-choice__buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .route-choice__button {
+      min-height: 112px;
+      padding: 18px;
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .route-choice__button:hover {
+      border-color: rgba(215, 183, 109, 0.72);
+      background: rgba(215, 183, 109, 0.08);
+    }
+
+    .route-choice__button--executor:hover {
+      border-color: rgba(143, 185, 220, 0.78);
+      background: var(--executor-soft);
+    }
+
+    .route-choice__button[aria-pressed="true"] {
+      border-color: var(--gold);
+      background: var(--gold-soft);
+      box-shadow: inset 0 0 0 1px rgba(215, 183, 109, 0.25), 0 10px 28px rgba(0, 0, 0, 0.2);
+    }
+
+    .route-choice__button--executor[aria-pressed="true"] {
+      border-color: var(--executor);
+      background: var(--executor-soft);
+      box-shadow: inset 0 0 0 1px rgba(143, 185, 220, 0.24), 0 10px 28px rgba(0, 0, 0, 0.2);
+    }
+
+    .route-choice__button:focus-visible {
+      outline: 3px solid var(--white-stone);
+      outline-offset: 4px;
+    }
+
+    .route-choice__route {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--gold);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .route-choice__button--executor .route-choice__route { color: var(--executor); }
+
+    .route-choice__title {
+      display: block;
+      margin-bottom: 6px;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .route-choice__summary {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.65;
+    }
+
+    .route-choice__status,
+    .route-empty {
+      margin: 16px 0 0;
+      color: var(--faint);
+      font-size: 0.84rem;
+    }
+
+    .route-story,
+    .route-passage {
+      margin-top: 22px;
+      padding: 20px 22px;
+      background: rgba(215, 183, 109, 0.055);
+      border-left: 3px solid var(--gold);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .route-story--executor,
+    .route-passage--executor {
+      background: rgba(143, 185, 220, 0.06);
+      border-left-color: var(--executor);
+    }
+
+    .route-story h4,
+    .route-passage h4 { margin-top: 0; }
+
+    [data-route-content][hidden] { display: none; }
+
+    [data-route-content]:not([hidden]) {
+      animation: route-reveal 260ms ease-out both;
+    }
+
+    @keyframes route-reveal {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .ending--true {
       border-color: rgba(242,240,233,0.56);
       box-shadow: inset 0 0 0 1px rgba(242,240,233,0.08);
@@ -406,6 +540,7 @@
       .page { width: min(100% - 24px, var(--content)); }
       .sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .grid { grid-template-columns: 1fr; }
+      .route-choice__buttons { grid-template-columns: 1fr; }
       section { padding-top: 64px; }
       .character, .term, .ending { padding: 24px; }
       .character__portrait {
@@ -418,6 +553,7 @@
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       *, *::before, *::after { transition-duration: 0.01ms !important; }
+      [data-route-content]:not([hidden]) { animation: none; }
     }
 
     @media print {
@@ -425,6 +561,8 @@
       body { color: #151515; background: #fff; font-size: 11pt; }
       .page { width: 100%; display: block; }
       .sidebar { display: none; }
+      .route-choice, .route-empty { display: none; }
+      [data-route-content][hidden] { display: block !important; }
       main { padding: 0; }
       .hero { min-height: auto; padding: 24px 0; }
       section { padding: 30px 0 0; }
@@ -722,19 +860,48 @@
             <p>観測者は自分の罪を否定しない。そのうえで、未練を抱えた魂も本人の意志を問われないまま機械的に収束させられてきた元の盤界を語り、ニーゲルや多動村を含む魂が現在の盤界で得た可能性まで一律に消す必要はないと訴える。</p>
             <p>執行者も元の収束システムを完全な救済だとは主張しない。しかし宇宙のエネルギーと魂の循環を維持するには、現時点でそれ以外に持続可能な方法がないと説明する。</p>
             <p>黒夜はここで、二人のどちらを信じ、どの道へ進むかを選ぶ。</p>
-            <h4>観測者を選ぶ</h4>
-            <p>真白の意志を確かめ、自分の罪を償い、現在の盤界で生きる魂に新しい可能性を探す。観測者の罪を許したわけではない。</p>
-            <p>執行者は観測者への執行を続けようとする。黒夜が最初の一撃を止めると変貌が再び揺らぎ、理論の化身による異常も拡大する。執行者は裁定を撤回せず最終決戦まで延期し、二人を監視する。</p>
-            <h4>執行者を選ぶ</h4>
-            <p>真白との再会を諦め、本来の摂理に基づく収束と、観測者の罪を正しく裁く道を選ぶ。</p>
-            <p>執行者が観測者を拘束しようとすると、観測者は隠し持っていたカードと意志の力で逃亡する。執行者は追跡より理論の化身を優先し、黒夜と二人でその支配領域へ向かう。観測者は盤界の内部から二人を密かに観測しながら後を追う。</p>
+            <div class="route-choice" role="group" aria-label="物語中盤の大分岐">
+              <p class="route-choice__heading">どちらについていくか</p>
+              <p class="route-choice__guide">選ぶと、この先のストーリーが選択したルートに切り替わります。選択は後から変更できます。</p>
+              <div class="route-choice__buttons">
+                <button class="route-choice__button" type="button" data-route-choice="observer" aria-pressed="false">
+                  <span class="route-choice__route">Observer Route</span>
+                  <span class="route-choice__title">観測者を選ぶ</span>
+                  <span class="route-choice__summary">真白の意志を確かめ、盤界に生まれた新しい可能性を探す。</span>
+                </button>
+                <button class="route-choice__button route-choice__button--executor" type="button" data-route-choice="executor" aria-pressed="false">
+                  <span class="route-choice__route">Executor Route</span>
+                  <span class="route-choice__title">執行者を選ぶ</span>
+                  <span class="route-choice__summary">真白との再会を諦め、本来の収束と観測者への裁定を選ぶ。</span>
+                </button>
+              </div>
+              <p class="route-choice__status" data-route-status role="status" aria-live="polite">まだルートは選ばれていません。</p>
+            </div>
+            <div class="route-story" data-route-content="observer" hidden>
+              <h4>観測者を選んだ後</h4>
+              <p>黒夜は真白の意志を確かめ、自分の罪を償い、現在の盤界で生きる魂に新しい可能性を探す。観測者の罪を許したわけではない。</p>
+              <p>執行者は観測者への執行を続けようとする。黒夜が最初の一撃を止めると変貌が再び揺らぎ、理論の化身による異常も拡大する。執行者は裁定を撤回せず最終決戦まで延期し、二人を監視する。</p>
+            </div>
+            <div class="route-story route-story--executor" data-route-content="executor" hidden>
+              <h4>執行者を選んだ後</h4>
+              <p>黒夜は真白との再会を諦め、本来の摂理に基づく収束と、観測者の罪を正しく裁く道を選ぶ。</p>
+              <p>執行者が観測者を拘束しようとすると、観測者は隠し持っていたカードと意志の力で逃亡する。執行者は追跡より理論の化身を優先し、黒夜と二人でその支配領域へ向かう。観測者は盤界の内部から二人を密かに観測しながら後を追う。</p>
+            </div>
           </article>
 
           <article class="chapter" data-mark="8">
             <p class="chapter__label">CHAPTER 8</p>
             <span class="reveal">盤上の神の過去と大会の真相をここで初公開</span>
             <h3>理論の化身</h3>
-            <p>観測者ルートでは、黒夜は観測者と進み、執行者が期限付きの休戦のもとで二人を監視する。執行者ルートでは、黒夜は執行者と二人で進み、逃亡した観測者は姿を見せない。それぞれ異なる経路をたどり、黒夜はついに理論の化身と対面する。</p>
+            <div class="route-passage" data-route-content="observer" hidden>
+              <h4>観測者ルート</h4>
+              <p>黒夜は観測者と進み、執行者が期限付きの休戦のもとで二人を監視する。</p>
+            </div>
+            <div class="route-passage route-passage--executor" data-route-content="executor" hidden>
+              <h4>執行者ルート</h4>
+              <p>黒夜は執行者と二人で進み、逃亡した観測者は姿を見せない。</p>
+            </div>
+            <p>それぞれ異なる経路をたどり、黒夜はついに理論の化身と対面する。</p>
             <p>理論の化身は人間だった頃の面影を失い、観測者と同系統の人外の存在へ変わっていた。声も人ならぬ響きへ変質しているため、黒夜は目の前の存在が盤上の神だとは気づかない。</p>
             <p>しかし理論の化身は、生前から現在までの記憶をすべて保持している。地球にいた頃と姿の変わらない黒夜を見た瞬間、世界大会決勝で戦った相手だと見抜く。</p>
             <blockquote>
@@ -761,8 +928,14 @@
             <p class="chapter__label">FINAL CHAPTER</p>
             <h3>そこまでの一手</h3>
             <p>観測者と執行者は、理論の化身を倒した後の盤界については一致していない。それでも今は、魂から意志を奪う支配を終わらせることと、魂の布石化を止めることの利害が一致する。</p>
-            <p>観測者ルートでは、執行者が裁定を延期したまま、三者が最初から一時的に共闘して理論の化身へ挑む。</p>
-            <p>執行者ルートでは、黒夜と執行者の二人が先に理論の化身へ挑む。しかし理論の化身を前に苦戦し、敗北寸前まで追い詰められる。その時、逃亡後も二人と戦況を観測していた観測者が現れる。理論の化身を倒す一点だけは利害が一致するため、執行者は観測者への裁定を取り消さないまま再び一時的な共闘を受け入れる。</p>
+            <div class="route-passage" data-route-content="observer" hidden>
+              <h4>観測者ルートからの決戦</h4>
+              <p>執行者が裁定を延期したまま、三者が最初から一時的に共闘して理論の化身へ挑む。</p>
+            </div>
+            <div class="route-passage route-passage--executor" data-route-content="executor" hidden>
+              <h4>執行者ルートからの決戦</h4>
+              <p>黒夜と執行者の二人が先に理論の化身へ挑む。しかし理論の化身を前に苦戦し、敗北寸前まで追い詰められる。その時、逃亡後も二人と戦況を観測していた観測者が現れる。理論の化身を倒す一点だけは利害が一致するため、執行者は観測者への裁定を取り消さないまま再び一時的な共闘を受け入れる。</p>
+            </div>
             <p>どちらの大分岐を選んだ場合も、最後には黒夜、観測者、執行者が同じ敵へ最後の一手を向ける。</p>
             <p>理論の化身は黒夜へ告げる。真白を救えなかったことも、父が間に合わなかったことも、黒夜が世界大会で負けたことも、その意志は何一つ終局を変えなかった。結果へ影響を与えない意志は、演算を破る変数ですらなく、意味もないのだと。</p>
             <blockquote>
@@ -784,10 +957,15 @@
             <p>敗北すれば、理論の化身は黒夜の絶望からさらに意志を引き出し、最悪の変貌へ至る。勝利すれば理論の化身の支配は終わり、共闘もそこで解かれる。</p>
             <p>理論の化身を倒すと、その力に支えられていたカード化後の仕組みは維持できなくなる。盤界そのものは残るが、留められていた魂は輪郭を失い、真白を含めた多くの魂が消え始める。</p>
             <p>理論の化身を倒した時点で一時的な共闘は終わり、大分岐で選んだ道がそれぞれの結末へつながる。</p>
-            <p>観測者ルートでは、この盤界に残って新しい仕組みを作るか、消えゆく真白の魂を探すかを選ぶ。真白の捜索を優先する選択だけは執行者が認めず、黒夜と執行者の戦いになる。</p>
-            <p>執行者ルートでは、観測者は再び裁定の対象となり、黒夜は執行者の案に従って盤界を元の機械的な収束システムへ戻す。</p>
-            <p>執行者の案を受け入れた場合、真白を含む盤界の残留魂は本来の仕組みに従って収束する。黒夜は地球への帰還を望むが、盤界や宇宙の魂収束システムは、本来人間が知ってはならない領域であるため、執行の権能による記憶の消去を求められる。</p>
-            <p>盤界で得た記憶は、真白や父、世界大会、その後の絶望と密接に結びついている。盤界の出来事だけを綺麗に切り離すことはできず、家族に関する記憶まで大きく欠落する可能性を説明されたうえで、黒夜は消去を承諾して地球へ戻る。</p>
+            <div class="route-passage" data-route-content="observer" hidden>
+              <h4>観測者ルートの結末へ</h4>
+              <p>黒夜はこの盤界に残って新しい仕組みを作るか、消えゆく真白の魂を探すかを選ぶ。真白の捜索を優先する選択だけは執行者が認めず、黒夜と執行者の戦いになる。</p>
+            </div>
+            <div class="route-passage route-passage--executor" data-route-content="executor" hidden>
+              <h4>執行者ルートの結末へ</h4>
+              <p>観測者は再び裁定の対象となり、黒夜は執行者の案に従って盤界を元の機械的な収束システムへ戻す。真白を含む残留魂は本来の仕組みに従って収束する。</p>
+              <p>黒夜は地球への帰還を望むが、盤界や宇宙の魂収束システムは本来人間が知ってはならない。盤界の記憶を綺麗に切り離せず、家族に関する記憶まで大きく欠落する可能性を説明されたうえで、黒夜は執行の権能による消去を承諾して地球へ戻る。</p>
+            </div>
             <p>どちらの大分岐を選んでいても、条件を満たした時だけ、それまで選んだ答えを越える第三の道が現れる。黒夜が過去の書き換えを提案し、三者全員が、それまで握り続けてきたものを手放す道である。</p>
           </article>
         </div>
@@ -796,8 +974,9 @@
       <section id="endings">
         <span class="section-number">05 / ENDINGS</span>
         <h2>エンディング分岐</h2>
+        <p class="route-empty" data-route-empty>中盤の大分岐を選ぶと、そのルートで到達できる固有エンドが表示されます。</p>
         <div class="ending-grid">
-          <article class="ending">
+          <article class="ending" data-route-content="observer" hidden>
             <small>ENDING 1 / 観測者ルート</small>
             <h3>終局の先へ</h3>
             <p>大分岐で観測者を選び、最後に「この盤界に残る」と決めた場合の結末。理論の化身の消滅により、カード化した盤界へ留められていた魂は維持できなくなる。真白を含む多くの魂が消えていく中、執行者は盤界を本来の機械的な収束システムへ戻そうとする。</p>
@@ -817,7 +996,7 @@
             <p>そして黒夜は、終われない魂が自分自身で終局へ辿り着くまで導く存在になる。</p>
           </article>
 
-          <article class="ending">
+          <article class="ending" data-route-content="observer" hidden>
             <small>ENDING 2 / 観測者ルート</small>
             <h3>真白対面エンド</h3>
             <p>大分岐で観測者を選んだ黒夜は、収束を止めてでも真白の魂を探す道を選ぶ。立ちはだかる執行者を倒し、観測者は崩れ続ける盤界へ観測の力を広げる。</p>
@@ -834,7 +1013,7 @@
             <p>真白がそこにいた可能性だけは残る。だが黒夜の言葉が届いたのか、真白が何を思ったのかは、最後まで分からない。救いも赦しも確定しないまま、白い輪郭は不安定な盤界の奥へ薄れていく。</p>
           </article>
 
-          <article class="ending">
+          <article class="ending" data-route-content="executor" hidden>
             <small>ENDING 3 / 執行者ルート</small>
             <h3>帰還エンド：空白の帰還</h3>
             <p>大分岐で執行者を選び、理論の化身を倒した後もその裁定を受け入れた場合の結末。黒夜は真白との再会を諦め、盤界は本来の魂収束システムへ戻り、真白を含む残留魂は静かに収束する。観測者も、その罪に対する裁定を受ける。</p>
@@ -885,5 +1064,31 @@
       </footer>
     </main>
   </div>
+  <script>
+    (() => {
+      const routeNames = { observer: "観測者", executor: "執行者" };
+      const buttons = [...document.querySelectorAll("[data-route-choice]")];
+      const contents = [...document.querySelectorAll("[data-route-content]")];
+      const statuses = [...document.querySelectorAll("[data-route-status]")];
+      const emptyNotes = [...document.querySelectorAll("[data-route-empty]")];
+
+      const selectRoute = (route) => {
+        buttons.forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.routeChoice === route));
+        });
+        contents.forEach((content) => {
+          content.hidden = content.dataset.routeContent !== route;
+        });
+        emptyNotes.forEach((note) => { note.hidden = true; });
+        statuses.forEach((status) => {
+          status.textContent = `${routeNames[route]}ルートを表示しています。別のボタンで選択を変更できます。`;
+        });
+      };
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => selectRoute(button.dataset.routeChoice));
+      });
+    })();
+  </script>
 </body>
 </html>

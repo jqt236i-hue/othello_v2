@@ -460,13 +460,151 @@
       gap: 14px;
     }
 
-    .major-route-grid {
+    .route-choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
       margin-top: 18px;
     }
 
-    .major-route-grid .ending-card,
+    .route-choice-card {
+      min-height: 154px;
+      padding: 22px;
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      background: var(--surface-strong);
+      border: 1px solid rgba(217, 184, 95, 0.32);
+      border-radius: var(--radius);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .route-choice-card.executor {
+      border-color: rgba(122, 164, 200, 0.42);
+      background: linear-gradient(160deg, var(--blue-soft), var(--surface-strong));
+    }
+
+    .route-choice-card:hover,
+    .route-choice-card[aria-pressed="true"] {
+      border-color: var(--gold);
+      background: linear-gradient(160deg, rgba(217, 184, 95, 0.16), var(--surface-strong));
+      box-shadow: inset 0 0 0 1px rgba(217, 184, 95, 0.22), 0 12px 28px rgba(0, 0, 0, 0.18);
+    }
+
+    .route-choice-card.executor:hover,
+    .route-choice-card.executor[aria-pressed="true"] {
+      border-color: var(--blue);
+      background: linear-gradient(160deg, rgba(122, 164, 200, 0.2), var(--surface-strong));
+      box-shadow: inset 0 0 0 1px rgba(122, 164, 200, 0.22), 0 12px 28px rgba(0, 0, 0, 0.18);
+    }
+
+    .route-choice-card:focus-visible {
+      outline: 3px solid var(--white);
+      outline-offset: 4px;
+    }
+
+    .route-choice-card .route-label,
+    .route-choice-card__title,
+    .route-choice-card__copy {
+      display: block;
+    }
+
+    .route-choice-card.executor .route-label { color: #a9c9e2; }
+
+    .route-choice-card__title {
+      margin: 5px 0 8px;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.22rem;
+      font-weight: 600;
+    }
+
+    .route-choice-card__copy {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.7;
+    }
+
+    .route-choice-status,
+    .route-empty {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      text-align: center;
+    }
+
+    .route-unfold {
+      margin-top: 18px;
+      padding: 20px;
+      border: 1px solid rgba(217, 184, 95, 0.38);
+      border-radius: var(--radius);
+      background: rgba(217, 184, 95, 0.05);
+    }
+
+    .route-unfold.executor {
+      border-color: rgba(122, 164, 200, 0.48);
+      background: rgba(122, 164, 200, 0.055);
+    }
+
+    .route-unfold.executor .route-label { color: #a9c9e2; }
+
+    .route-unfold__steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .route-unfold__step {
+      min-height: 112px;
+      padding: 14px;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.18);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 0.82rem;
+    }
+
+    .route-unfold__step strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .route-path-note {
+      margin: 14px 0 0;
+      padding: 12px 14px;
+      color: var(--muted);
+      background: rgba(217, 184, 95, 0.05);
+      border-left: 3px solid var(--gold);
+    }
+
+    .route-path-note.executor {
+      background: rgba(122, 164, 200, 0.055);
+      border-left-color: var(--blue);
+    }
+
+    [data-route-content][hidden],
+    [data-route-region][hidden] { display: none; }
+
+    [data-route-content]:not([hidden]) {
+      animation: route-reveal 260ms ease-out both;
+    }
+
+    @keyframes route-reveal {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .battle-entry-grid .ending-card {
       min-height: 0;
+    }
+
+    .battle-entry-grid {
+      grid-template-columns: minmax(0, 540px);
+      justify-content: center;
     }
 
     .step-card > .decision {
@@ -539,7 +677,9 @@
 
       .memory-chain,
       .outcome-grid,
-      .route-grid {
+      .route-grid,
+      .route-choice-grid,
+      .route-unfold__steps {
         grid-template-columns: 1fr;
       }
 
@@ -591,6 +731,12 @@
       html {
         scroll-behavior: auto;
       }
+
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+      }
+
+      [data-route-content]:not([hidden]) { animation: none; }
     }
 
     @media print {
@@ -620,6 +766,13 @@
       .battle-map {
         box-shadow: none;
       }
+
+      .route-choice-grid,
+      .route-choice-status,
+      .route-empty { display: none; }
+
+      [data-route-content][hidden],
+      [data-route-region][hidden] { display: block !important; }
 
       .story-step,
       .ending-card {
@@ -756,17 +909,34 @@
             </ul>
             <p>観測者は元の盤界の無慈悲な収束を、執行者は不完全でも収束が必要な理由を語る。黒夜は、二人のどちらを信じ、どの道へ進むかを選ぶ。</p>
             <div class="decision">大分岐：どちらについていくか</div>
-            <div class="route-grid major-route-grid">
-              <article class="ending-card observer">
-                <p class="route-label">Observer Route</p>
-                <h3>観測者を選ぶ</h3>
-                <p>真白の意志を確かめ、自分の罪を償い、現在の盤界で生きる魂に新しい可能性を探す。執行者は反発するが、黒夜の変貌と理論の化身への対処を優先して執行を延期する。</p>
-              </article>
-              <article class="ending-card executor">
-                <p class="route-label">Executor Route</p>
-                <h3>執行者を選ぶ</h3>
-                <p>真白との再会を諦め、収束と観測者への裁定を選ぶ。観測者は隠し持っていたカードで逃亡し、黒夜と執行者が二人で先へ進む。</p>
-              </article>
+            <div class="route-choice-grid" role="group" aria-label="物語中盤の大分岐">
+              <button class="route-choice-card observer" type="button" data-route-choice="observer" aria-pressed="false">
+                <span class="route-label">Observer Route</span>
+                <span class="route-choice-card__title">観測者を選ぶ</span>
+                <span class="route-choice-card__copy">真白の意志を確かめ、自分の罪を償い、現在の盤界に新しい可能性を探す。</span>
+              </button>
+              <button class="route-choice-card executor" type="button" data-route-choice="executor" aria-pressed="false">
+                <span class="route-label">Executor Route</span>
+                <span class="route-choice-card__title">執行者を選ぶ</span>
+                <span class="route-choice-card__copy">真白との再会を諦め、収束と観測者への裁定を選ぶ。</span>
+              </button>
+            </div>
+            <p class="route-choice-status" data-route-status role="status" aria-live="polite">ボタンを押すと、選択したルートの流れが展開されます。</p>
+            <div class="route-unfold observer" data-route-content="observer" hidden>
+              <p class="route-label">Observer Route / Story Flow</p>
+              <div class="route-unfold__steps">
+                <div class="route-unfold__step"><strong>執行を止める</strong>黒夜が観測者への最初の一撃を止め、変貌の兆しが再び揺らぐ。</div>
+                <div class="route-unfold__step"><strong>期限付きの休戦</strong>執行者は裁定を撤回せず、理論の化身を倒すまで延期して二人を監視する。</div>
+                <div class="route-unfold__step"><strong>三者で決戦へ</strong>黒夜、観測者、執行者が最初から理論の化身へ挑む。</div>
+              </div>
+            </div>
+            <div class="route-unfold executor" data-route-content="executor" hidden>
+              <p class="route-label">Executor Route / Story Flow</p>
+              <div class="route-unfold__steps">
+                <div class="route-unfold__step"><strong>観測者が逃亡</strong>拘束される前に、隠し持っていたカードと意志の力で逃げる。</div>
+                <div class="route-unfold__step"><strong>二人で進む</strong>執行者は追跡より理論の化身を優先し、黒夜と支配領域へ向かう。</div>
+                <div class="route-unfold__step"><strong>密かに後を追う</strong>観測者は盤界内から二人を観測し、介入の機会を待つ。</div>
+              </div>
             </div>
           </div>
         </article>
@@ -776,7 +946,9 @@
           <div class="step-card">
             <p class="phase-label">Chapter 8 / Theory</p>
             <h3>理論の化身</h3>
-            <p>観測者ルートでは執行者が二人を監視し、執行者ルートでは黒夜と執行者が二人で進む。どちらの道でも、人外の姿となった理論の化身が世界大会決勝の盤上の神だったと判明し、魂の意志を布石にして宇宙を書き換える計画が明かされる。</p>
+            <p class="route-path-note" data-route-content="observer" hidden>観測者ルート：執行者が二人を監視しながら、三者で支配領域へ進む。</p>
+            <p class="route-path-note executor" data-route-content="executor" hidden>執行者ルート：黒夜と執行者が二人で進み、逃亡した観測者は姿を見せない。</p>
+            <p>人外の姿となった理論の化身が世界大会決勝の盤上の神だったと判明し、魂の意志を布石にして宇宙を書き換える計画が明かされる。</p>
           </div>
         </article>
       </div>
@@ -792,13 +964,13 @@
       </div>
 
       <div class="battle-map">
-        <div class="route-grid battle-entry-grid">
-          <article class="ending-card observer">
+        <div class="route-grid battle-entry-grid" data-route-region hidden>
+          <article class="ending-card observer" data-route-content="observer" hidden>
             <p class="route-label">Observer Route</p>
             <h3>三者で決戦へ</h3>
             <p>執行者が観測者への裁定を延期したまま、黒夜、観測者、執行者が最初から理論の化身へ挑む。</p>
           </article>
-          <article class="ending-card executor">
+          <article class="ending-card executor" data-route-content="executor" hidden>
             <p class="route-label">Executor Route</p>
             <h3>ピンチに観測者が現れる</h3>
             <p>黒夜と執行者が敗北寸前まで追い詰められた時、二人を密かに観測していた観測者が現れ、理論の化身を倒すため共闘する。</p>
@@ -831,20 +1003,21 @@
                 <span>カード化盤界が不安定化し、真白を含む魂が消え始める</span>
               </div>
 
+              <p class="route-empty" data-route-empty>中盤の大分岐を選ぶと、そのルートで到達できる固有エンドが表示されます。</p>
               <div class="route-grid">
-                <article class="ending-card observer">
+                <article class="ending-card observer" data-route-content="observer" hidden>
                   <p class="route-label">Observer Route 1</p>
                   <h3>終局の先へ</h3>
                   <p>黒夜は盤界に残る。観測者は維持核となって消滅し、黒夜が魂を自らの終局へ導く。</p>
                 </article>
 
-                <article class="ending-card observer">
+                <article class="ending-card observer" data-route-content="observer" hidden>
                   <p class="route-label">Observer Route 2</p>
                   <h3>真白対面エンド</h3>
                   <p>執行者を倒して真白を探す。魂らしき反応は見つかるが、黒夜の言葉が届いたかは分からない。</p>
                 </article>
 
-                <article class="ending-card executor">
+                <article class="ending-card executor" data-route-content="executor" hidden>
                   <p class="route-label">Executor Route</p>
                   <h3>帰還エンド：空白の帰還</h3>
                   <p>盤界を元の収束システムへ戻した後、黒夜は家族に関する記憶まで失う可能性を承諾し、地球へ帰還する。</p>
@@ -866,5 +1039,33 @@
       <p>詳細の正本は<a href="ストーリー全貌.md">ストーリー全貌.md</a>。章構成、出来事の順序、分岐条件、エンディングを変更する場合は、この図も同時に更新する。未採用の構想は含めない。</p>
     </aside>
   </main>
+  <script>
+    (() => {
+      const routeNames = { observer: "観測者", executor: "執行者" };
+      const buttons = [...document.querySelectorAll("[data-route-choice]")];
+      const contents = [...document.querySelectorAll("[data-route-content]")];
+      const regions = [...document.querySelectorAll("[data-route-region]")];
+      const statuses = [...document.querySelectorAll("[data-route-status]")];
+      const emptyNotes = [...document.querySelectorAll("[data-route-empty]")];
+
+      const selectRoute = (route) => {
+        buttons.forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.routeChoice === route));
+        });
+        contents.forEach((content) => {
+          content.hidden = content.dataset.routeContent !== route;
+        });
+        regions.forEach((region) => { region.hidden = false; });
+        emptyNotes.forEach((note) => { note.hidden = true; });
+        statuses.forEach((status) => {
+          status.textContent = `${routeNames[route]}ルートを表示しています。別のボタンで選択を変更できます。`;
+        });
+      };
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => selectRoute(button.dataset.routeChoice));
+      });
+    })();
+  </script>
 </body>
 </html>
