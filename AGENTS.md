@@ -2,14 +2,14 @@
 
 カードリバーシは、ブラウザ UI・headless game logic・network Worker・selfplay/CPU training を同じ repo で扱う JavaScript/TypeScript 中心のゲームです。
 
-このファイルはリポジトリ全体の作業方針と参照先を定めます。着手時に依頼の範囲と既存差分を確認し、対象パスに適用される `AGENTS.md` / `AGENTS.override.md` と、変更に関係する正本を読んでください。参照資料の全読や、無関係な検証の一括実行は不要です。
+このファイルは全体に適用する制約と参照先を定めます。対象パスに適用される `AGENTS.md` / `AGENTS.override.md` を確認し、仕様・内部契約は変更に関係する箇所だけ参照してください。索引は読み込み一覧や実行順序ではありません。
 
 ## WORKING PRINCIPLES
 
-- ユーザーの目的を満たすため、調査方法、編集順序、検証範囲、計画書やサブエージェントの利用は、依頼内容と変更のリスクに応じて判断する。
-- 仕様と責務境界を理解し、原因を持つ層で一貫した変更を行う。既存 helper を活用し、重複実装や将来のためだけの抽象化を増やさない。
-- 実装依頼は適切な検証まで進める。調査・説明・レビューのみの依頼では、製品変更やデプロイを行わない。
-- 通常の実装判断や検証のために確認を繰り返さない。根拠から解決できない製品仕様の選択や、依頼を大きく超える変更が必要な場合に確認する。
+- 実装依頼は、要求された挙動の実装、影響に応じた検証、今回の変更に起因する不具合の修正まで進める。プレイ可能なゲームの変更は、下記の通常配信への反映までを完了に含む。
+- 依頼の範囲内の調査・編集・ローカル検証・修正後の再検証は、その都度の承認を求めず進める。資料と実装から解決できない製品仕様の選択や、大きな範囲拡張は確認する。待っている間も独立して進められる作業は続ける。
+- 調査・説明・レビューだけの依頼は、その結果の提示を完了とする。製品変更やデプロイは含めない。
+- 調査方法や編集順序は任せる。計画書は、大きな変更や引き継ぎで判断・進捗を残す必要がある場合に [docs/AGENTS.md](docs/AGENTS.md) に沿って作る。
 - プレイヤー向けの説明・報告では画面や仕様書の日本語表示名を優先する。
 
 ## SOURCE OF TRUTH
@@ -20,27 +20,19 @@
 | カード・ターン・演出・音の詳細 | [正本/AGENTS.md](正本/AGENTS.md) から該当資料へ |
 | 内部構造、authority、runtime 境界 | [docs/architecture-contracts.md](docs/architecture-contracts.md) |
 | カード・通信の調査先と検証の候補 | [docs/game-maintenance-reference.md](docs/game-maintenance-reference.md) |
-| リポジトリ全体の作業方針 | このファイル |
-| ディレクトリ固有の知識・制約 | 対象パスに適用される nested `AGENTS.md` / `AGENTS.override.md` |
 | 人間向けの運用判断材料 | [docs/HUMAN-DEV-GUIDE.md](docs/HUMAN-DEV-GUIDE.md)（エージェントは編集しない） |
 
-ゲーム仕様・UI 表示仕様は `01-rulebook.md` を一次情報とし、詳細は `正本/AGENTS.md` から辿る。資料と実装が食い違う場合は、関連仕様と変更履歴を確認し、実装が存在することだけを正しさの根拠にしない。意図された挙動を変える場合は一次情報と該当する詳細仕様を更新し、明確な仕様に反する不具合では実装を直す。内部変更だけならカード仕様や演出資料を書き換える必要はない。
+資料と実装が食い違う場合は、関連仕様と変更履歴から意図を判断する。仕様変更は一次情報と該当する詳細仕様に反映し、明確な仕様違反は実装を直す。内部変更だけならカード仕様や演出資料の更新は不要。
 
 ## WHERE TO LOOK
 
 | 対象 | 主な入口 |
 | --- | --- |
 | Browser boot | `index.html`, `entry-browser.js`, `browser-vite/main.ts`, `browser-vite/pixi-runtime-loader.ts`, `ui/bootstrap.ts` |
-| Board visual | `ui/board-visual/controller.ts`, `ui/pixi/board-backend.ts`, `ui/board-dom-compat/` |
-| Card rules | `cards/catalog.json`, `src/types/card.ts`, `game/cards/`, `game/logic/cards.ts`, `game/logic/card-resolution/` |
-| Turn / pending | `game/turn/turn_pipeline.ts`, `game/turn-manager.ts`, `game/card-effects/` |
-| CPU | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/`（`cpu/` は compatibility/read-only） |
-| Network client | `ui/network-client.ts`, `ui/network/` |
-| Network authority | `workers/match-worker.ts`, `scripts/local-match-server.ts`, `utils/match-authority.ts`, `utils/match-command-runtime.ts` |
-| Shared contracts | `shared/board/`, `shared/player-encoding.ts`, `utils/owner-helpers.ts`, `constants/` |
+| カード・ターン・描画・通信・関連テスト | [保守参照](docs/game-maintenance-reference.md) の該当項目 |
+| CPU / training | `game/ai/`, `training/`, `src/engine/`。`cpu/` は compatibility/read-only、root `scripts/run-selfplay-*.js` は CLI entry |
+| 共有処理 | `shared/`, `constants/`, `utils/` |
 | Build / mirror | `package.json`, `scripts/prepare-worker-assets.ts`, `scripts/build-module-registry.ts` |
-| Tests | `test/`, `test/e2e/`, `tests/visual-regression/`, `game/ai/__tests__/`, `scripts/__tests__/` |
-| Training | `training/scripts/`, `training/python/`, `src/engine/selfplay-runner.ts`（root `scripts/run-selfplay-*.js` は CLI entry） |
 
 パスは調査の入口であり、実際の import と呼び出し元で所有者を確認する。`.ts` / `.js` の組がある場合は通常 `.ts` が正本。JS の例外は [docs/typescript-migration-js-allowlist.md](docs/typescript-migration-js-allowlist.md) を参照する。
 
@@ -61,13 +53,10 @@
 ## WORK RULES
 
 - root source を変更し、影響する生成物は既存スクリプトで更新する。`dist/`、`worker-public/`、生成 catalog、`public/module-registry.js` を正本として編集しない。
-- 不具合は期待結果と実際の差を根拠で示し、修正後にその差が解消したことを確認する。再現回数、レビュー担当数、全体レビューの反復を一律の完了条件にしない。
-- テストを通すためだけに失敗を削除・skip・弱体化しない。未確認の挙動を確認済みと報告しない。
-- 実ブラウザで確認した場合は、URL、Vite/classic、Pixi/DOM compatibility、操作範囲、エラーや画面・公開 diagnostics の証拠を必要な範囲で報告する。HTTP 200 はゲーム操作の成功とは別の確認。
-- 大きな変更や引き継ぎが必要な作業では、次の担当が判断と進捗を追える計画を [docs/AGENTS.md](docs/AGENTS.md) に沿って残す。小さな変更に形式的な計画書は不要。
+- 仕様と責務境界に沿い、原因を持つ層と既存 helper で直す。テストを通すためだけに失敗を削除・skip・弱体化しない。
 - 長時間の selfplay・訓練、本番デプロイ、課金を伴う操作はユーザーの依頼に含まれる場合に行う。秘密情報は出力・文書・コミットに含めない。
 
-検証は変更の影響に合わせて選ぶ。複数の区分にまたがる場合は、関係する検証を組み合わせる。
+検証は期待する挙動と変更の影響から選ぶ。必要な検証が通り、未解決の懸念がなければ完了へ進む。新たな変更・失敗・懸念がある場合に再検証や範囲拡大を行う。検証・再現・レビューの回数を一律の完了条件にしない。
 
 | 変更の対象 | 検証の選び方 |
 | --- | --- |
@@ -77,7 +66,9 @@
 | 描画・入力・演出 | 関連テストに加え、変更した操作や表示を必要な実ブラウザ確認で確かめる。 |
 | 生成物・Worker mirror | 正本から生成し、対応する生成・同期チェックを行う。 |
 
-既存の検証で十分なら重複テストを追加しない。検証が失敗した場合は今回の変更との関係を調べ、既存の問題と判断した根拠、または切り分けできていない範囲を報告する。
+既存テストで十分なら追加は不要。失敗は今回の変更との関係を切り分け、依頼外の問題は根拠と影響を報告する。切り分けできないものや未確認の挙動は、そのまま明示する。
+
+実ブラウザで確認した場合は、URL、Vite/classic、Pixi/DOM compatibility、操作と結果を必要な証拠とともに報告する。HTTP 200 とゲーム操作の成功は別の確認。
 
 ## LOCAL DEV SERVER
 
@@ -93,16 +84,15 @@
 
 ## GIT HYGIENE
 
-- 作業開始時と完了前に `git status --short` と関連差分を確認する。既存の変更は別タスクの作業かもしれないので保護する。
-- 無関係な変更があっても、今回の変更を安全に分離できるなら進める。同じ箇所の所有権が不明で上書きが避けられない場合に限り、具体的な衝突を示して確認する。
+- 作業開始時と完了前に `git status --short` と関連差分を確認し、既存の変更を保護する。今回分を分離できるなら進め、所有権が不明な変更の上書きを避けられない場合だけ、具体的な衝突を示して確認する。
 - ブランチ・タグ・worktree の作成はユーザーが依頼した場合に行う。並行作業では共有仕様と生成物の競合にも注意する。
 - ステージ・コミットの対象は今回の変更だけに限定する。無関係な変更の巻き戻し、未追跡ファイルの削除、破壊的な Git 操作を整理目的で行わない。
 
 ## COMMIT POLICY
 
-依頼された実装・修正・文書更新が検証済みのまとまった差分になったら、今回の変更だけをコミットする。コミットメッセージは短く具体的にする。調査・説明・レビューのみではコミットしない。
+依頼された実装・修正・文書更新が検証済みになったら、今回の変更だけを短く具体的なメッセージでコミットする。調査・説明・レビューのみではコミットしない。
 
-完了報告では変更内容、実施した検証と結果、コミット、未検証の範囲・残る問題を示す。手順の実行と要求された挙動の確認を区別し、未解決の不具合や分離できない変更がある場合は理由と未完了部分を報告する。別タスクの変更が残っている場合も明示する。
+完了報告は、変更内容、検証した挙動と結果、コミット、未検証・未完了の範囲を簡潔に示す。別タスクの変更が残る場合も明示する。
 
 ## COMMANDS
 
