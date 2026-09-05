@@ -577,8 +577,26 @@ function buildMonitorSnapshot(runDir: any, options: any) {
         status = 'running';
     }
 
+    const supervisorPath = path.join(runDir, 'supervisor.json');
+    let supervisor = null;
+    if (fs.existsSync(supervisorPath)) {
+        try {
+            supervisor = JSON.parse(fs.readFileSync(supervisorPath, 'utf8'));
+            const active = ['running', 'preflight', 'interrupted'].includes(supervisor.status);
+            if (active) {
+                const fresh = Date.now() - Date.parse(supervisor.updatedAt) < 60000;
+                let alive = false;
+                try { process.kill(Number(supervisor.pid), 0); alive = true; } catch { /* exited */ }
+                status = fresh && alive ? 'running' : 'interrupted';
+            } else {
+                status = supervisor.status;
+            }
+        } catch { status = 'unknown'; }
+    }
+
     return {
         runDir,
+        supervisor,
         runTag: path.basename(runDir),
         status,
         updatedAt: formatIsoTimestamp(latestUpdatedMs),
