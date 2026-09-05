@@ -1,4 +1,0 @@
-interface:
-  display_name: "Card Reversi Bug Hunt"
-  short_description: "実機バグ探索と確定修正を、独立サブエージェント最終レビューまで実施"
-  default_prompt: "$card-reversi-bug-hunt を使い、実ブラウザでバグを探索・再現・証拠化して確定バグだけを修正し、独立サブエージェントへ全差分レビューを委託して確認範囲内の回帰・副作用を調べ、追加修正後は全体レビューを再委託してください。"

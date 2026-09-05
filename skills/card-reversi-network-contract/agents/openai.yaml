@@ -1,4 +1,0 @@
-interface:
-  display_name: "カードリバーシ：ネットワーク契約"
-  short_description: "対戦の権威性・再接続・演出順序・実行環境間の整合を保護"
-  default_prompt: "Use $card-reversi-network-contract to diagnose, review, implement, verify, or deploy this Card Reversi network request within the user's authorized scope."
