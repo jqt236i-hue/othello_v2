@@ -1,4 +1,5 @@
-export const PRESENTATION_ENVELOPE_VERSION = 2 as const;
+import { packPlaybackEvents, unpackPlaybackEvents } from './playback-event-codec';
+export const PRESENTATION_ENVELOPE_VERSION = 3 as const;
 
 export interface EnvelopeSnapshotRefV2 {
   readonly kind: 'envelope-snapshot';
@@ -157,10 +158,9 @@ function normalizeReference(value: unknown): EnvelopeSnapshotRefV2 | null {
   };
 }
 
-export function normalizePresentationEnvelopeCapability(value: unknown): 2 | null {
-  return normalizeInteger(value) === PRESENTATION_ENVELOPE_VERSION
-    ? PRESENTATION_ENVELOPE_VERSION
-    : null;
+export function normalizePresentationEnvelopeCapability(value: unknown): 2 | 3 | null {
+  const version = normalizeInteger(value);
+  return version === 2 || version === 3 ? version : null;
 }
 
 export function compactNetworkPresentationEnvelope(
@@ -168,13 +168,14 @@ export function compactNetworkPresentationEnvelope(
   capabilityValue: unknown
 ): Record<string, unknown> {
   const payload = asRecord(payloadValue) || {};
-  if (normalizePresentationEnvelopeCapability(capabilityValue) !== PRESENTATION_ENVELOPE_VERSION) {
+  const capability = normalizePresentationEnvelopeCapability(capabilityValue);
+  if (capability === null) {
     return payload;
   }
 
   const compacted: Record<string, unknown> = {
     ...payload,
-    presentationEnvelopeVersion: PRESENTATION_ENVELOPE_VERSION
+    presentationEnvelopeVersion: capability
   };
   const frames = Array.isArray(payload.presentationFrames) ? payload.presentationFrames : [];
   const validFrames = frames.length > 0 && frames.every(isValidPresentationFrame);
@@ -198,6 +199,15 @@ export function compactNetworkPresentationEnvelope(
     changedFrames[index] = compactFrame;
   }
   if (changedFrames) compacted.presentationFrames = changedFrames;
+  if (capability === 3 && validFrames) {
+    compacted.presentationFrames = (compacted.presentationFrames as Record<string, unknown>[]).map(frame => {
+      const packed = packPlaybackEvents(frame.playbackEvents as unknown[]);
+      if (!packed || JSON.stringify(packed).length + 32 >= JSON.stringify(frame.playbackEvents).length) return frame;
+      const next: Record<string, unknown> = { ...frame, playbackEventsPacked: packed };
+      delete next.playbackEvents;
+      return next;
+    });
+  }
   return compacted;
 }
 
@@ -206,20 +216,38 @@ function failure(reason: string, frameIndex: number | null = null): Presentation
 }
 
 export function resolveNetworkPresentationEnvelope(payloadValue: unknown): PresentationEnvelopeResolveResult {
-  const payload = asRecord(payloadValue);
+  let payload = asRecord(payloadValue);
   if (!payload) return failure('presentation_envelope_payload_required');
   const hasVersion = hasOwn(payload, 'presentationEnvelopeVersion');
   const rawVersion = hasVersion ? normalizeInteger(payload.presentationEnvelopeVersion) : null;
-  const frames = Array.isArray(payload.presentationFrames) ? payload.presentationFrames : [];
+  let frames = Array.isArray(payload.presentationFrames) ? payload.presentationFrames : [];
+  const hasPackedEvents = frames.some(frame => !!asRecord(frame) && hasOwn(frame, 'playbackEventsPacked'));
+  if (hasPackedEvents) {
+    if (rawVersion !== 3) return failure('presentation_envelope_packed_events_requires_v3');
+    const expanded: unknown[] = [];
+    for (let i = 0; i < frames.length; i++) {
+      const frame = asRecord(frames[i]);
+      if (!frame) return failure('presentation_envelope_frame_invalid', i);
+      if (!hasOwn(frame, 'playbackEventsPacked')) { expanded.push(frame); continue; }
+      if (hasOwn(frame, 'playbackEvents')) return failure('presentation_envelope_playback_ambiguous', i);
+      try {
+        const next: Record<string, unknown> = { ...frame, playbackEvents: unpackPlaybackEvents(frame.playbackEventsPacked) };
+        delete next.playbackEventsPacked;
+        expanded.push(next);
+      } catch (_) { return failure('presentation_envelope_packed_events_invalid', i); }
+    }
+    frames = expanded;
+    payload = { ...payload, presentationFrames: expanded };
+  }
   const hasReference = frames.some((value) => {
     const frame = asRecord(value);
     return !!(frame && hasOwn(frame, 'snapshotAfterRef'));
   });
 
-  if (hasVersion && rawVersion !== 1 && rawVersion !== PRESENTATION_ENVELOPE_VERSION) {
+  if (hasVersion && rawVersion !== 1 && rawVersion !== 2 && rawVersion !== 3) {
     return failure('presentation_envelope_version_unsupported');
   }
-  if (rawVersion !== PRESENTATION_ENVELOPE_VERSION) {
+  if (rawVersion !== 2 && rawVersion !== 3) {
     return hasReference
       ? failure('presentation_envelope_reference_requires_v2')
       : { ok: true, payload, resolvedReferenceCount: 0 };
@@ -266,4 +294,3 @@ export function isFrameSnapshotReferenceCompatible(
   const frame = asRecord(frameValue);
   return !!(envelope && frame && canReferenceEnvelopeSnapshot(envelope, frame, snapshotAfterValue));
 }
-

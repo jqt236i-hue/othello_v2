@@ -34,6 +34,20 @@ function snapshot(version: number, label: string) {
 }
 
 describe('NetworkVisualStateStore clone inventory and readonly rendering', () => {
+  test('adopts a privately prepared immutable snapshot but keeps mutable reads isolated', () => {
+    const { freezeOwnedData } = require('../shared/immutable-data');
+    const store = Store.createNetworkVisualStateStore();
+    const value = freezeOwnedData(snapshot(3, 'prepared'));
+    store.setCanonicalSnapshot(value);
+    expect(store.peekRenderSnapshot()).toBe(value);
+    const mutable = store.getCanonicalSnapshot();
+    mutable.cardState.hands.black[0] = 'changed';
+    expect(store.peekRenderSnapshot().cardState.hands.black).toEqual(['prepared']);
+    const shallow = Object.freeze(snapshot(4, 'untrusted'));
+    store.setCanonicalSnapshot(shallow);
+    shallow.cardState.hands.black[0] = 'changed';
+    expect(store.peekRenderSnapshot().cardState.hands.black).toEqual(['untrusted']);
+  });
   test('deep-freezes production-owned snapshots before exposing a zero-copy peek', () => {
     const store = Store.createNetworkVisualStateStore();
     const source = snapshot(3, 'owned');

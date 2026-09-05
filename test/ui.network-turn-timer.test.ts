@@ -133,4 +133,18 @@ describe('NetworkTurnTimerController', () => {
     expect(stateObj.serverTimeOffsetMs).toBe(0);
     expect(stateObj.turnTimerSyncRequestedDeadline).toBeNull();
   });
+
+  test('notifies once per tick while retaining the final ten-second cadence', () => {
+    const listener = jest.fn(); controller.setTurnTimerListener(listener);
+    controller.updateTurnTimerFromPayload({ serverTime: 1000, turnTimer: {
+      limitSeconds: 120, active: true, turnSeatKey: 'black', turnStartedAt: 1000, turnDeadlineAt: 21000
+    } });
+    listener.mockClear(); jest.advanceTimersByTime(1000);
+    expect(listener).toHaveBeenCalledTimes(1);
+    controller.updateTurnTimerFromPayload({ serverTime: 2000, turnTimer: {
+      limitSeconds: 120, active: true, turnSeatKey: 'black', turnStartedAt: 1000, turnDeadlineAt: 10000
+    } });
+    listener.mockClear(); jest.advanceTimersByTime(1000);
+    expect(listener).toHaveBeenCalledTimes(4);
+  });
 });

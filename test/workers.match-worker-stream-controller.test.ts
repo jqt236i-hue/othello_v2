@@ -109,6 +109,25 @@ function createController(options?: {
 }
 
 describe('match worker stream controller', () => {
+  test('reuses encoding only for matching projected payload, event identity and capability', async () => {
+    const ctx = createController();
+    const encode = jest.spyOn(TextEncoder.prototype, 'encode');
+    const stream = ctx.streams.get('stream1'); stream.presentationEnvelopeVersion = 2;
+    ctx.streams.set('stream2', { ...stream });
+    const payload = { snapshot: { privateToViewer: 'black' }, presentationFrames: [] };
+    const options = { eventId: 'same', encodedPayloadCache: new Map() };
+    try {
+      await ctx.controller.sendSse('stream1', 'snapshot', payload, options);
+      await ctx.controller.sendSse('stream2', 'snapshot', payload, options);
+      expect(encode).toHaveBeenCalledTimes(1);
+      expect(ctx.getWritten()[0]).toBe(ctx.getWritten()[1]);
+      await ctx.controller.sendSse('stream2', 'snapshot', { ...payload }, options);
+      ctx.streams.get('stream2').presentationEnvelopeVersion = 3;
+      await ctx.controller.sendSse('stream2', 'snapshot', payload, options);
+      await ctx.controller.sendSse('stream1', 'snapshot', payload, { ...options, eventId: 'next' });
+      expect(encode).toHaveBeenCalledTimes(4);
+    } finally { encode.mockRestore(); }
+  });
   test('broadcastHeartbeat buffers, saves, and writes one heartbeat to active streams', async () => {
     const ctx = createController();
 

@@ -131,7 +131,6 @@ function createNetworkTurnTimerController(config?: any): any {
     state.turnTimerTickHandle = scheduleTimeout(function () {
       state.turnTimerTickHandle = 0;
       const nextInfo = getTurnTimerInfo();
-      emitTurnTimerChanged();
       if (nextInfo.active && nextInfo.remainingMs !== null && nextInfo.remainingMs <= 0) {
         maybeSyncLatestStateAfterTimeout(nextInfo);
       }

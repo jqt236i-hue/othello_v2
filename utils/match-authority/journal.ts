@@ -1,4 +1,5 @@
 import deepClone from '../deepClone';
+import { freezeOwnedData } from '../../shared/immutable-data';
 import type {
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
@@ -86,7 +87,7 @@ export function createMatchAuthorityJournalApi(deps: MatchAuthorityJournalDeps) 
             record.payload = deepClone(opts.payload || {});
         }
 
-        return record;
+        return freezeOwnedData(record);
     }
 
     function appendBufferedSseEvent(

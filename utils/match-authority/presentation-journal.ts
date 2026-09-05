@@ -1,4 +1,5 @@
 import deepClone from '../deepClone';
+import { freezeOwnedData } from '../../shared/immutable-data';
 import type {
     MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityPresentationFramePayload,
@@ -38,7 +39,7 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
             playbackEvents,
             playbackDigest: deps.resolvePlaybackDigest(playbackEvents, source.playbackDigest),
             effectLogs: deps.normalizeEffectLogMessages(source.effectLogs),
-            playbackDiagnostics: source.playbackDiagnostics || null
+            playbackDiagnostics: source.playbackDiagnostics ? deepClone(source.playbackDiagnostics) : null
         };
     }
 
@@ -101,6 +102,7 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
             createdAt: Number.isFinite(Number(input.createdAt)) ? Number(input.createdAt) : Date.now()
         };
 
+        freezeOwnedData(entry);
         journal.push(entry);
         if (journal.length > deps.presentationJournalLimit) {
             const removeCount = journal.length - deps.presentationJournalLimit;

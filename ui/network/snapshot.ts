@@ -6,6 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 
 'use strict';
+const ImmutableSnapshotData = require('../../shared/immutable-data');
 
 function createNetworkSnapshotController(config: any): any {
     const cfg = (config && typeof config === 'object') ? config : {};
@@ -621,6 +622,7 @@ function createNetworkSnapshotController(config: any): any {
         if (Number.isFinite(Number(stateVersion))) {
             envelope.stateVersion = Math.trunc(Number(stateVersion));
         }
+        if (ImmutableSnapshotData.isOwnedImmutable(source)) ImmutableSnapshotData.freezeOwnedData(envelope);
         return envelope;
     }
 
@@ -947,6 +949,9 @@ function createNetworkSnapshotController(config: any): any {
             return false;
         }
 
+        // This prepared clone is privately owned; runtime state still receives
+        // independent mutable copies, while the canonical store can adopt it.
+        ImmutableSnapshotData.freezeOwnedData(preparedSnapshot.snapshot);
         const applyContext = applyAuthoritativeSnapshotState(preparedSnapshot.snapshot, effectiveOptions, nextVersion, snapshotMeta);
         finalizeSnapshotPresentation(nextVersion, effectiveOptions, applyContext);
         if (presentationFrames.length > 0) {

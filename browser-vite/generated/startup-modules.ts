@@ -422,6 +422,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/game-result-event": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/game-result-event.js"),
   "shared/game-term-glossary": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/game-term-glossary.js"),
   "shared/glicko2-rating": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/glicko2-rating.js"),
+  "shared/immutable-data": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/immutable-data.js"),
   "shared/leaderboard-score": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/leaderboard-score.js"),
   "shared/manifest-stone-registry": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/manifest-stone-registry.js"),
   "shared/match-entry-payload": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/match-entry-payload.js"),
@@ -436,6 +437,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/observation-gacha-catalog.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/observation-gacha-catalog.generated.js"),
   "shared/othello-core": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/othello-core.js"),
   "shared/playback-digest": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-digest.js"),
+  "shared/playback-event-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-event-codec.js"),
   "shared/playback-event-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-event-contract.js"),
   "shared/playback-event-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-event-helpers.js"),
   "shared/playback-planner": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-planner.js"),
@@ -721,6 +723,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-command-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-command-runtime.js"),
   "utils/match-join-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-join-controller.js"),
   "utils/match-leave-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-leave-controller.js"),
+  "utils/match-public-frame-cache": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-public-frame-cache.js"),
   "utils/match-publish-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-publish-controller.js"),
   "utils/match-rematch-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-rematch-controller.js"),
   "utils/match-room-deck": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-room-deck.js"),
@@ -1153,6 +1156,7 @@ installBootModuleMetadata({
     "shared/game-result-event",
     "shared/game-term-glossary",
     "shared/glicko2-rating",
+    "shared/immutable-data",
     "shared/leaderboard-score",
     "shared/manifest-stone-registry",
     "shared/match-entry-payload",
@@ -1167,6 +1171,7 @@ installBootModuleMetadata({
     "shared/observation-gacha-catalog.generated",
     "shared/othello-core",
     "shared/playback-digest",
+    "shared/playback-event-codec",
     "shared/playback-event-contract",
     "shared/playback-event-helpers",
     "shared/playback-planner",
@@ -1462,6 +1467,7 @@ installBootModuleMetadata({
     "utils/match-command-runtime",
     "utils/match-join-controller",
     "utils/match-leave-controller",
+    "utils/match-public-frame-cache",
     "utils/match-publish-controller",
     "utils/match-rematch-controller",
     "utils/match-room-deck",
@@ -1554,4 +1560,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 726;
+export const startupModuleCount = 729;

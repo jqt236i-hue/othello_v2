@@ -114,7 +114,7 @@ function openSse(
 describe('local match server presentation envelope delivery', () => {
   afterEach(() => resetRoomsForTests());
 
-  test('compacts V2 live and buffered snapshot delivery while legacy replay remains full', async () => {
+  test.each([2, 3])('compacts V%i HTTP, live and buffered delivery while legacy replay remains full', async (version) => {
     const server = createLocalMatchServer();
     const port = await listen(server);
     const opened: Array<{ close: () => void }> = [];
@@ -133,16 +133,17 @@ describe('local match server presentation envelope delivery', () => {
 
       const streamPath = `/api/match/stream?roomId=${encodeURIComponent(roomId)}`
         + `&seatKey=black&seatToken=${encodeURIComponent(created.data.seatToken)}`;
-      const live = await openSse(port, `${streamPath}&presentationEnvelopeVersion=2`);
+      const live = await openSse(port, `${streamPath}&presentationEnvelopeVersion=${version}`);
       opened.push(live);
       const initialSnapshot = await live.nextEvent();
       const initialChat = await live.nextEvent();
       expect(initialSnapshot.event).toBe('snapshot');
-      expect(initialSnapshot.data.presentationEnvelopeVersion).toBe(2);
+      expect(initialSnapshot.data.presentationEnvelopeVersion).toBe(version);
       expect(initialChat.event).toBe('chat');
 
       const move = Core.getLegalMoves(created.data.snapshot.gameState, 1)[0];
       const body = {
+        presentationEnvelopeVersion: version,
         roomId,
         seatKey: 'black',
         playerKey: 'black',
@@ -163,23 +164,25 @@ describe('local match server presentation envelope delivery', () => {
       };
       const publish = await requestJson(port, 'POST', '/api/match/publish', body);
       expect(publish.status).toBe(200);
+      expect(publish.data.presentationEnvelopeVersion).toBe(version);
+      expect(resolveNetworkPresentationEnvelope(publish.data).ok).toBe(true);
 
       const liveSnapshot = await live.nextEvent();
       expect(liveSnapshot.event).toBe('snapshot');
-      expect(liveSnapshot.data.presentationEnvelopeVersion).toBe(2);
+      expect(liveSnapshot.data.presentationEnvelopeVersion).toBe(version);
       expect(liveSnapshot.data).not.toHaveProperty('playbackEvents');
       expect(liveSnapshot.data.presentationFrames[0]).toHaveProperty('snapshotAfterRef');
       expect(resolveNetworkPresentationEnvelope(liveSnapshot.data).ok).toBe(true);
       live.close();
 
-      const replayV2 = await openSse(port, `${streamPath}&presentationEnvelopeVersion=2`, {
+      const replayV2 = await openSse(port, `${streamPath}&presentationEnvelopeVersion=${version}`, {
         'Last-Event-ID': heartbeatId
       });
       opened.push(replayV2);
       const replayV2Snapshot = await replayV2.nextEvent();
       expect(replayV2Snapshot.event).toBe('snapshot');
       expect(replayV2Snapshot.id).toBe(liveSnapshot.id);
-      expect(replayV2Snapshot.data.presentationEnvelopeVersion).toBe(2);
+      expect(replayV2Snapshot.data.presentationEnvelopeVersion).toBe(version);
       expect(replayV2Snapshot.data).not.toHaveProperty('playbackEvents');
       expect(replayV2Snapshot.data.presentationFrames[0]).toHaveProperty('snapshotAfterRef');
       expect(resolveNetworkPresentationEnvelope(replayV2Snapshot.data).ok).toBe(true);
@@ -200,4 +203,3 @@ describe('local match server presentation envelope delivery', () => {
     }
   });
 });
-

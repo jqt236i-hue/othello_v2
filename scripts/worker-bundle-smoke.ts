@@ -525,11 +525,33 @@ async function main(): Promise<void> {
         );
         assertTrue(state.ok && state.data && state.data.ok === true, `state failed status=${state.status}`);
 
+        // Exercise real local Durable Object transactions, not only the
+        // bundled in-memory adapter, including negotiated delivery and retry.
+        const core = require(path.join(ROOT, 'dist/game/logic/core.js'));
+        const move = core.getLegalMoves(state.data.snapshot.gameState, 1)[0];
+        assertTrue(move, 'created room has no legal black move');
+        const turnIndex = state.data.snapshot.cardState.turnIndex;
+        const command = {
+            roomId: black.roomId, seatKey: 'black', playerKey: 'black', seatToken: black.seatToken,
+            baseVersion: state.data.stateVersion, operationId: 'bundle_transaction_place',
+            presentationEnvelopeVersion: 3, actionType: 'place', actor: 'black', turnIndex,
+            params: { row: move.row, col: move.col },
+            action: { type: 'place', playerKey: 'black', row: move.row, col: move.col, turnIndex }
+        };
+        const placed = await requestJson(baseUrl, 'POST', '/api/match/publish', command);
+        assertTrue(placed.ok && placed.data.ok === true && placed.data.presentationEnvelopeVersion === 3,
+            `transactional publish failed status=${placed.status}`);
+        const resolver = require(path.join(ROOT, 'dist/shared/network-presentation-envelope.js'));
+        assertTrue(resolver.resolveNetworkPresentationEnvelope(placed.data).ok, 'V3 publish cannot be reconstructed');
+        const retried = await requestJson(baseUrl, 'POST', '/api/match/publish', command);
+        assertTrue(retried.ok && retried.data.stateVersion === placed.data.stateVersion,
+            'transactional retry changed the accepted version');
+
         await leaveRoom(baseUrl, black.roomId, 'white', white.seatToken);
         await leaveRoom(baseUrl, black.roomId, 'black', black.seatToken);
         white = null;
         black = null;
-        console.log('[worker-bundle-smoke] create/join/state/leave passed');
+        console.log('[worker-bundle-smoke] create/join/state/V3 place/idempotent retry/leave passed');
     } finally {
         if (white && black) {
             await requestJson(baseUrl, 'POST', '/api/match/leave', {

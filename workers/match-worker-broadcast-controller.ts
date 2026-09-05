@@ -116,13 +116,14 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
         }
         const streamEntries = Array.from(cfg.getStreams().entries());
         if (streamEntries.length === 0) return;
+        const encodedPayloadCache = new Map<unknown, Map<string, Uint8Array>>();
         await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
             const viewer = normalizeStreamViewer(streamInfo);
             const payloadKey = getPayloadKeyForViewer(viewer);
             const payload = preparedSnapshot.payloadByViewer[payloadKey]
                 ? preparedSnapshot.payloadByViewer[payloadKey]
                 : preparedSnapshot.fallbackPayload;
-            return cfg.sendSse(streamId, 'snapshot', payload, { eventId: preparedSnapshot.eventId });
+            return cfg.sendSse(streamId, 'snapshot', payload, { eventId: preparedSnapshot.eventId, encodedPayloadCache });
         }));
     }
 

@@ -107,7 +107,7 @@ describe('NetworkTransportController', () => {
       expect(JSON.parse(call[1].body)).toEqual({
         operationId: 'op1',
         baseVersion: 7,
-        presentationEnvelopeVersion: 2
+        presentationEnvelopeVersion: 3
       });
     }
     expect(res).toEqual({

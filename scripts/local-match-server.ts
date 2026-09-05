@@ -252,7 +252,10 @@ function buildPresentationFramesForViewer(room: any, viewer: any, options: any) 
     if (Array.isArray(options && options.presentationFrames)) return options.presentationFrames;
     const presentationFrameEntry = options && options.presentationFrameEntry;
     if (presentationFrameEntry && typeof presentationFrameEntry === 'object') {
-        return [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewer, room)];
+        return require('../utils/match-public-frame-cache').getPublishPresentationFrames(
+            options, viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator',
+            () => [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewer, room)]
+        );
     }
     return [];
 }

@@ -55,6 +55,8 @@ import {
 } from './match-worker-contract';
 import { createMatchWorkerApiController } from './match-worker-api';
 import { createMatchWorkerBroadcastController } from './match-worker-broadcast-controller';
+import { createMatchRoomStorage } from './match-room-storage';
+import { getPublishPresentationFrames } from '../utils/match-public-frame-cache';
 import { createMatchWorkerChatController } from './match-worker-chat-controller';
 import { createMatchWorkerLeaderboardHelpers } from './match-worker-leaderboard';
 import { buildMatchWorkerLeaderboardProof } from './match-worker-leaderboard-proof';
@@ -1153,7 +1155,9 @@ function buildPresentationFramesForViewer(
     if (Array.isArray(options.presentationFrames)) return options.presentationFrames;
     const presentationFrameEntry = options.presentationFrameEntry;
     if (presentationFrameEntry && typeof presentationFrameEntry === 'object') {
-        return [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewerValue, room)];
+        const viewer = asRecord(viewerValue);
+        const key = viewer.role === 'seat' && (viewer.seatKey === 'black' || viewer.seatKey === 'white') ? viewer.seatKey : 'spectator';
+        return getPublishPresentationFrames(options, key, () => [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewerValue, room)]);
     }
     return [];
 }
@@ -1821,6 +1825,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     timeoutController: ReturnType<typeof createMatchWorkerTimeoutController> | null;
     publishController: ReturnType<typeof createMatchWorkerPublishController> | null;
     gameRuntime: MatchWorkerGameRuntime;
+    roomStorage: ReturnType<typeof createMatchRoomStorage>;
 
     constructor(
         state: DurableObjectStateLike,
@@ -1828,6 +1833,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         gameRuntime?: MatchWorkerGameRuntime | null
     ) {
         this.state = state;
+        this.roomStorage = createMatchRoomStorage(state.storage, ROOM_STORAGE_KEY);
         this.env = env && typeof env === 'object' ? env : null;
         this.room = null;
         this.roomLoaded = false;
@@ -2277,7 +2283,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
-        this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
+        this.room = await this.roomStorage.load();
         let boardContractMigrated = false;
         if (this.room && this.room.snapshot && typeof this.room.snapshot === 'object') {
             const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(this.room.snapshot, {
@@ -2320,7 +2326,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 throw new Error(`snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
             }
         }
-        await this.state.storage.put(ROOM_STORAGE_KEY, deepClone(this.room));
+        try {
+            await this.roomStorage.save(this.room);
+        } catch (error) {
+            // A rejected persistence transaction must not leave an accepted
+            // operation visible from this instance's speculative room cache.
+            this.room = null;
+            this.roomLoaded = false;
+            this.sseEventBuffer = [];
+            throw error;
+        }
     }
 
     async removeLobbyEntryForRoom(roomIdValue: unknown): Promise<void> {
@@ -2345,6 +2360,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         } else {
             await this.state.storage.delete(ROOM_STORAGE_KEY);
         }
+        this.roomStorage.reset();
         if (!options || options.syncLobby !== false) {
             await this.removeLobbyEntryForRoom(removedRoomId);
         }

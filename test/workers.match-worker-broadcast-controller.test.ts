@@ -113,19 +113,19 @@ describe('match worker broadcast controller', () => {
         streamId: 'black-stream',
         eventName: 'snapshot',
         payload: { ok: true, viewer: { role: 'seat', seatKey: 'black' }, operationId: 'op_1' },
-        options: { eventId: 'SSE1_2_1' }
+          options: { eventId: 'SSE1_2_1', encodedPayloadCache: expect.any(Map) }
       },
       {
         streamId: 'white-stream',
         eventName: 'snapshot',
         payload: { ok: true, viewer: { role: 'seat', seatKey: 'white' }, operationId: 'op_1' },
-        options: { eventId: 'SSE1_2_1' }
+          options: { eventId: 'SSE1_2_1', encodedPayloadCache: expect.any(Map) }
       },
       {
         streamId: 'fallback-stream',
         eventName: 'snapshot',
         payload: { ok: true, viewer: { role: 'spectator', spectatorId: '' }, operationId: 'op_1' },
-        options: { eventId: 'SSE1_2_1' }
+          options: { eventId: 'SSE1_2_1', encodedPayloadCache: expect.any(Map) }
       }
     ]);
   });

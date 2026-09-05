@@ -80,11 +80,12 @@ function fullEnvelope(projection: 'black' | 'white' | 'spectator' = 'black'): an
 }
 
 describe('network presentation envelope V2', () => {
-  test('normalizes only explicit version 2 capability and leaves legacy payload identity unchanged', () => {
-    expect(normalizePresentationEnvelopeCapability(2)).toBe(PRESENTATION_ENVELOPE_VERSION);
-    expect(normalizePresentationEnvelopeCapability('2')).toBe(PRESENTATION_ENVELOPE_VERSION);
+  test('negotiates V2 and V3 independently and leaves legacy payload identity unchanged', () => {
+    expect(normalizePresentationEnvelopeCapability(2)).toBe(2);
+    expect(normalizePresentationEnvelopeCapability('2')).toBe(2);
     expect(normalizePresentationEnvelopeCapability(1)).toBeNull();
-    expect(normalizePresentationEnvelopeCapability(3)).toBeNull();
+    expect(normalizePresentationEnvelopeCapability(3)).toBe(PRESENTATION_ENVELOPE_VERSION);
+    expect(normalizePresentationEnvelopeCapability(4)).toBeNull();
 
     const legacy = fullEnvelope();
     expect(compactNetworkPresentationEnvelope(legacy, undefined)).toBe(legacy);
@@ -218,4 +219,3 @@ describe('network presentation envelope V2', () => {
     expect(compactBytes).toBeLessThan(legacyBytes * 0.7);
   });
 });
-

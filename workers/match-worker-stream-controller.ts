@@ -135,12 +135,24 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
         const timeoutMs = Number.isFinite(Number(opts.timeoutMs))
             ? Math.max(0, Math.trunc(Number(opts.timeoutMs)))
             : cfg.writeTimeoutMs;
-        const wirePayload = String(eventName || '').trim().toLowerCase() === 'snapshot'
-            ? compactNetworkPresentationEnvelope(payload, stream.presentationEnvelopeVersion)
-            : payload;
-        const chunk = cfg.sseChunk(eventName, wirePayload, eventId);
+        // Cache belongs to a single fanout, keyed by the viewer-projected
+        // payload identity AND wire capability, event kind and event id.
+        const cache = opts.encodedPayloadCache instanceof Map
+            ? opts.encodedPayloadCache as Map<unknown, Map<string, Uint8Array>> : null;
+        const cacheKey = JSON.stringify([eventName, eventId, stream.presentationEnvelopeVersion]);
+        let encoded = cache && cache.get(payload)?.get(cacheKey);
+        if (!encoded) {
+            const wirePayload = String(eventName || '').trim().toLowerCase() === 'snapshot'
+                ? compactNetworkPresentationEnvelope(payload, stream.presentationEnvelopeVersion) : payload;
+            encoded = cfg.encoder.encode(cfg.sseChunk(eventName, wirePayload, eventId));
+            if (cache) {
+                let entries = cache.get(payload);
+                if (!entries) { entries = new Map(); cache.set(payload, entries); }
+                entries.set(cacheKey, encoded);
+            }
+        }
         try {
-            const writePromise = stream.writer.write(cfg.encoder.encode(chunk));
+            const writePromise = stream.writer.write(encoded);
             if (timeoutMs > 0) {
                 let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
                 try {

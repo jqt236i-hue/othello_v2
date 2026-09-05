@@ -1,5 +1,7 @@
 'use strict';
 
+const ImmutableData = require('../../shared/immutable-data');
+
 function cloneData(value: any): any {
   if (value === null || typeof value === 'undefined') return value;
   try {
@@ -123,7 +125,9 @@ function createNetworkVisualStateStore(options?: any): any {
 
   function setCanonicalSnapshot(snapshot: any, meta?: any): void {
     if (!snapshot || typeof snapshot !== 'object') return;
-    canonicalSnapshot = cloneOwnedSnapshot(snapshot, 'setCanonicalSnapshot');
+    canonicalSnapshot = !opts.cloneData && !opts.freezeOwnedSnapshot && ImmutableData.isOwnedImmutable(snapshot)
+      ? snapshot
+      : cloneOwnedSnapshot(snapshot, 'setCanonicalSnapshot');
     canonicalVersion = readSnapshotVersion(canonicalSnapshot, meta && meta.stateVersion);
   }
 

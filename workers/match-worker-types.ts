@@ -25,8 +25,7 @@ export interface DurableObjectNamespaceLike {
     get(id: unknown): { fetch(request: Request): Response | Promise<Response> };
 }
 
-export interface DurableObjectStateLike {
-    storage: {
+export interface DurableObjectStorageLike {
         get(key: string): Promise<unknown> | unknown;
         put(key: string, value: unknown): Promise<void> | void;
         delete(key: string): Promise<boolean | void> | boolean | void;
@@ -34,7 +33,11 @@ export interface DurableObjectStateLike {
         getAlarm?(): Promise<number | Date | null> | number | Date | null;
         setAlarm?(value: number | Date): Promise<void> | void;
         deleteAlarm?(): Promise<void> | void;
-    };
+        transaction?(callback: (txn: DurableObjectStorageLike) => Promise<void>): Promise<void>;
+}
+
+export interface DurableObjectStateLike {
+    storage: DurableObjectStorageLike;
 }
 
 export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
@@ -48,7 +51,7 @@ export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
 export interface MatchWorkerSseStreamInfo {
     writer: WritableStreamDefaultWriter<Uint8Array>;
     viewer: MatchAuthorityViewer;
-    presentationEnvelopeVersion: 2 | null;
+    presentationEnvelopeVersion: 2 | 3 | null;
 }
 
 export interface MatchWorkerPublicSeatState {

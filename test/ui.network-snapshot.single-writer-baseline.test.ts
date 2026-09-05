@@ -709,7 +709,11 @@ describe('applySnapshot single-writer baseline', () => {
     })).toBe(true);
 
     expect(cloneReasons.filter((reason) => reason === 'setBaseVisualSnapshot')).toHaveLength(1);
-    expect(cloneReasons.filter((reason) => reason === 'setCanonicalSnapshot')).toHaveLength(2);
+    // The privately prepared immutable snapshots are adopted. The initial
+    // visual base still owns its separate copy and never jumps ahead.
+    expect(cloneReasons.filter((reason) => reason === 'setCanonicalSnapshot')).toHaveLength(0);
+    expect(visualStateStore.getCanonicalSnapshot().stateVersion).toBe(12);
+    expect(visualStateStore.peekRenderSnapshot().stateVersion).toBe(10);
   });
 
   test('force:true なら stale version でも適用される', () => {
