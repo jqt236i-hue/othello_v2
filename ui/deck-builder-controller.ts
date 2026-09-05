@@ -794,18 +794,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             }
         }
 
-        function readNetworkSeatKey() {
-            try {
-                const networkClient = resolveNetworkMatchClientForDeckBuilder('getSeatKey');
-                if (networkClient && typeof networkClient.getSeatKey === 'function') {
-                    const seatKey = String(networkClient.getSeatKey() || '').trim().toLowerCase();
-                    if (seatKey === 'white') return 'white';
-                }
-            } catch (e: any) { /* ignore */ }
-            return 'black';
-        }
-
-        type NetworkMatchClientMethod = 'getRoomDeck' | 'getRoomBoardConfig' | 'getSeatKey' | 'updateDeckSelection';
+        type NetworkMatchClientMethod = 'getRoomDeck' | 'getRoomBoardConfig' | 'updateDeckSelection';
 
         function resolveNetworkMatchClientForDeckBuilder(requiredMethod?: NetworkMatchClientMethod) {
             const candidateRoots = [
@@ -838,43 +827,12 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             return null;
         }
 
-        function resolveRoomDeckInitOptions(roomDeck: any) {
-            if (!roomDeck || typeof roomDeck !== 'object') return null;
-
-            const deckCodeByPlayer = (roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object')
-                ? roomDeck.deckCodeByPlayer
-                : null;
-            if (deckCodeByPlayer && (roomDeck.mode === 'perPlayer' || deckCodeByPlayer.black || deckCodeByPlayer.white)) {
-                const initialDeckSpecByPlayer = {} as any;
-                const blackDeckSpec = decodeDeckSpecOrNull(deckCodeByPlayer.black);
-                const whiteDeckSpec = decodeDeckSpecOrNull(deckCodeByPlayer.white);
-                if (blackDeckSpec) initialDeckSpecByPlayer.black = blackDeckSpec;
-                if (whiteDeckSpec) initialDeckSpecByPlayer.white = whiteDeckSpec;
-                return Object.keys(initialDeckSpecByPlayer).length > 0
-                    ? { initialDeckSpecByPlayer }
-                    : {};
-            }
-
-            if (!roomDeck.deckCode) {
-                return {};
-            }
-
-            const deckSpec = decodeDeckSpecOrNull(roomDeck.deckCode);
-            return deckSpec ? { initialDeckSpec: deckSpec } : {};
+        function resolveRoomDeckInitOptions(_roomDeck: any) {
+            return {};
         }
 
-        function readRoomDeckSpec(roomDeck: any) {
-            if (!roomDeck || typeof roomDeck !== 'object') return null;
-
-            const deckCodeByPlayer = (roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object')
-                ? roomDeck.deckCodeByPlayer
-                : null;
-            if (deckCodeByPlayer && (roomDeck.mode === 'perPlayer' || deckCodeByPlayer.black || deckCodeByPlayer.white)) {
-                const seatKey = readNetworkSeatKey();
-                return decodeDeckSpecOrNull(deckCodeByPlayer[seatKey]) || null;
-            }
-
-            return roomDeck.deckCode ? (decodeDeckSpecOrNull(roomDeck.deckCode) || null) : null;
+        function readRoomDeckSpec(_roomDeck: any) {
+            return null;
         }
 
         function getRoomDeckChoice() {

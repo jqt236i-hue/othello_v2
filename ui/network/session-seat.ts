@@ -110,7 +110,6 @@ function createNetworkSessionSeatController(config: any): any {
     const source = (value && typeof value === 'object') ? value : null;
     if (!source) return null;
 
-    const deckCode = String(source.deckCode || '').trim();
     const parseDeckSize = (candidate: any) => {
       if (candidate === null || typeof candidate === 'undefined' || candidate === '') return null;
       return Number.isFinite(Number(candidate))
@@ -118,36 +117,25 @@ function createNetworkSessionSeatController(config: any): any {
         : null;
     };
     const deckSize = parseDeckSize(source.deckSize);
-    const deckCodeByPlayerSource = (source.deckCodeByPlayer && typeof source.deckCodeByPlayer === 'object')
-      ? source.deckCodeByPlayer
-      : null;
     const deckSizeByPlayerSource = (source.deckSizeByPlayer && typeof source.deckSizeByPlayer === 'object')
       ? source.deckSizeByPlayer
       : null;
-    const deckCodeByPlayer = {
-      black: deckCodeByPlayerSource ? String(deckCodeByPlayerSource.black || '').trim() : '',
-      white: deckCodeByPlayerSource ? String(deckCodeByPlayerSource.white || '').trim() : ''
-    };
     const deckSizeByPlayer = {
       black: parseDeckSize(deckSizeByPlayerSource && deckSizeByPlayerSource.black),
       white: parseDeckSize(deckSizeByPlayerSource && deckSizeByPlayerSource.white)
     };
     const hasPerPlayerDeck = !!(
-      deckCodeByPlayer.black ||
-      deckCodeByPlayer.white ||
       deckSizeByPlayer.black !== null ||
       deckSizeByPlayer.white !== null
     );
     const mode = String(source.mode || (hasPerPlayerDeck ? 'perPlayer' : 'shared')).trim() || 'shared';
     const roomSource = String(source.source || 'room').trim() || 'room';
 
-    if (!deckCode && deckSize === null && !hasPerPlayerDeck) return null;
+    if (deckSize === null && !hasPerPlayerDeck) return null;
 
     return {
       mode,
-      deckCode,
       deckSize,
-      deckCodeByPlayer,
       deckSizeByPlayer,
       source: roomSource
     };

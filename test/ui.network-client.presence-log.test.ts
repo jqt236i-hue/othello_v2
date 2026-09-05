@@ -392,7 +392,7 @@ describe('NetworkMatchClient presence log', () => {
     });
   });
 
-  test('選択中の deckCode を room へ同期して roomDeck を更新する', async () => {
+  test('選択中の deckCode を room へ同期しても公開 roomDeck にはサイズだけを保持する', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -411,7 +411,14 @@ describe('NetworkMatchClient presence log', () => {
       seatToken: 'seat-token',
       deckCode: 'D1C1:chest_01*3'
     }));
-    expect(client.getRoomDeck().deckCodeByPlayer.black).toBe('D1C1:chest_01*3');
+    expect(client.getRoomDeck()).toEqual({
+      mode: 'perPlayer',
+      deckSize: null,
+      deckSizeByPlayer: { black: 30, white: null },
+      source: 'room'
+    });
+    expect(client.getRoomDeck()).not.toHaveProperty('deckCode');
+    expect(client.getRoomDeck()).not.toHaveProperty('deckCodeByPlayer');
   });
 
   test('chatイベントを受信してチャットリスナーへ渡す', async () => {

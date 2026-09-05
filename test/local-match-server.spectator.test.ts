@@ -74,6 +74,12 @@ describe('local match server spectator API', () => {
           black: ['meteor_will'],
           white: ['guard_will']
         };
+        room.snapshot.cardState.decks = {
+          black: ['spectator-black-private-2', 'spectator-black-private-1'],
+          white: ['spectator-white-private-1']
+        };
+        room.snapshot.cardState.deck = ['spectator-legacy-private-1'];
+        room.snapshot.cardState.prngState = { seed: 3100, calls: 5 };
       });
 
       const spectate = await requestJson(port, 'POST', '/api/match/spectate', {
@@ -98,6 +104,14 @@ describe('local match server spectator API', () => {
       }));
       expect(spectate.data.snapshot.cardState.hands.black).toEqual(['meteor_will']);
       expect(spectate.data.snapshot.cardState.hands.white).toEqual(['guard_will']);
+      expect(spectate.data.snapshot.cardState.decks).toBeUndefined();
+      expect(spectate.data.snapshot.cardState.deck).toBeUndefined();
+      expect(spectate.data.snapshot.cardState.prngState).toBeUndefined();
+      expect(spectate.data.snapshot.cardState.deckRemainingByPlayer).toEqual({ black: 2, white: 1 });
+      expect(JSON.stringify(spectate.data)).not.toContain('spectator-black-private');
+      expect(JSON.stringify(spectate.data)).not.toContain('spectator-white-private');
+      expect(JSON.stringify(spectate.data)).not.toContain('spectator-legacy-private');
+      expect(JSON.stringify(spectate.data)).not.toContain('3100');
     } finally {
       await closeServer(server);
     }

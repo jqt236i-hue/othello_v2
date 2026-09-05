@@ -70,16 +70,13 @@ export interface MatchRoomDeckSnapshotSizeFacts {
 
 export interface MatchRoomDeckPublicShared {
     mode: 'shared';
-    deckCode: string;
     deckSize: number | null;
     source: string;
 }
 
 export interface MatchRoomDeckPublicPerPlayer {
     mode: 'perPlayer';
-    deckCode: string;
     deckSize: number | null;
-    deckCodeByPlayer: MatchRoomDeckSeatMap<string>;
     deckSizeByPlayer: MatchRoomDeckSeatMap<number | null>;
     source: string;
 }
@@ -184,6 +181,45 @@ export function normalizeRoomDeckSize(value: unknown): number | null {
     return Number.isFinite(Number(value))
         ? Math.max(0, Math.trunc(Number(value)))
         : null;
+}
+
+/**
+ * Applies the public room-deck envelope to values that may have come from an
+ * older replay buffer or a generic response builder.  Unlike
+ * `projectPublicRoomDeck`, this accepts a malformed legacy value so the final
+ * public-payload boundary can still remove card sources without changing the
+ * local compatibility mode label.
+ */
+export function sanitizePublicRoomDeck(value: unknown): Record<string, unknown> | null {
+    if (!isObjectRecord(value)) return null;
+
+    const mode = typeof value.mode === 'string' && value.mode
+        ? value.mode
+        : 'shared';
+    const deckSize = normalizeRoomDeckSize(value.deckSize);
+    const source = typeof value.source === 'string' && value.source
+        ? value.source
+        : 'room';
+
+    if (mode === 'perPlayer') {
+        const rawDeckSizeByPlayer = isObjectRecord(value.deckSizeByPlayer)
+            ? value.deckSizeByPlayer
+            : {};
+        const deckSizeByPlayer = {
+            black: normalizeRoomDeckSize(rawDeckSizeByPlayer.black),
+            white: normalizeRoomDeckSize(rawDeckSizeByPlayer.white)
+        };
+        return {
+            mode,
+            deckSize: deckSize !== null
+                ? deckSize
+                : (deckSizeByPlayer.black === deckSizeByPlayer.white ? deckSizeByPlayer.black : null),
+            deckSizeByPlayer,
+            source
+        };
+    }
+
+    return { mode, deckSize, source };
 }
 
 export function cloneRoomDeckCardIdsByPlayer(
@@ -352,10 +388,6 @@ export function projectPublicRoomDeck(
         : snapshotSizes.initialDeckSize;
 
     if (metadata && metadata.mode === 'perPlayer') {
-        const deckCodeByPlayer = {
-            black: metadata.deckCodeByPlayer.black,
-            white: metadata.deckCodeByPlayer.white
-        };
         const deckSizeByPlayer = {
             black: metadata.deckSizeByPlayer.black !== null
                 ? metadata.deckSizeByPlayer.black
@@ -364,17 +396,12 @@ export function projectPublicRoomDeck(
                 ? metadata.deckSizeByPlayer.white
                 : snapshotDeckSizes.white
         };
-        const sharedDeckCode = deckCodeByPlayer.black && deckCodeByPlayer.black === deckCodeByPlayer.white
-            ? deckCodeByPlayer.black
-            : '';
-        const sharedDeckSize = sharedDeckCode && deckSizeByPlayer.black === deckSizeByPlayer.white
+        const sharedDeckSize = deckSizeByPlayer.black === deckSizeByPlayer.white
             ? deckSizeByPlayer.black
             : null;
         return {
             mode: 'perPlayer',
-            deckCode: sharedDeckCode,
             deckSize: sharedDeckSize,
-            deckCodeByPlayer,
             deckSizeByPlayer,
             source: metadata.source
         };
@@ -383,7 +410,6 @@ export function projectPublicRoomDeck(
     if (!metadata && snapshotDeckSize === null) return null;
     return {
         mode: 'shared',
-        deckCode: metadata ? metadata.deckCode : '',
         deckSize: metadata && metadata.deckSize !== null ? metadata.deckSize : snapshotDeckSize,
         source: metadata ? metadata.source : 'room'
     };

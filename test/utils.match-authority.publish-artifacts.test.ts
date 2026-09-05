@@ -14,6 +14,12 @@ function createRoom() {
           black: ['black-visible'],
           white: ['white-hidden']
         },
+        decks: {
+          black: ['black-deck-private-2', 'black-deck-private-1'],
+          white: ['white-deck-private-1']
+        },
+        deck: ['legacy-deck-private-1'],
+        prngState: { seed: 2401, calls: 18 },
         markers: [{
           id: 1,
           kind: 'specialStone',
@@ -88,10 +94,21 @@ describe('match authority publish viewer artifacts', () => {
     expect(artifacts.projectedSnapshots.spectator.cardState.markers).toHaveLength(0);
     expect(artifacts.projectedSnapshots.black.cardState.presentationEvents).toEqual([]);
     expect(artifacts.projectedSnapshots.black.cardState._presentationEventsPersist).toEqual([]);
+    for (const viewerKey of ['black', 'white', 'spectator']) {
+      const cardState = artifacts.projectedSnapshots[viewerKey].cardState;
+      expect(cardState.decks).toBeUndefined();
+      expect(cardState.deck).toBeUndefined();
+      expect(cardState.prngState).toBeUndefined();
+      expect(cardState.deckRemainingByPlayer).toEqual({ black: 2, white: 1 });
+      expect(JSON.stringify(cardState)).not.toContain('deck-private');
+      expect(JSON.stringify(cardState)).not.toContain('2401');
+    }
 
     artifacts.projectedSnapshots.black.cardState.hands.black[0] = 'mutated';
     expect(artifacts.projectedSnapshots.white.cardState.hands.black[0]).not.toBe('mutated');
     expect(room.snapshot.cardState.hands.black).toEqual(['black-visible']);
+    expect(room.snapshot.cardState.decks.black).toEqual(['black-deck-private-2', 'black-deck-private-1']);
+    expect(room.snapshot.cardState.prngState).toEqual({ seed: 2401, calls: 18 });
   });
 
   test('cleanup after artifact construction preserves canonical and projected hashes', () => {

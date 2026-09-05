@@ -772,7 +772,7 @@ describe('deck builder controller', () => {
     expect(new URLSearchParams(window.location.search).get('deck')).toBe(deckCode);
   });
 
-  test('room deck はローカル choice を残したまま実対局用の初期デッキを上書きする', () => {
+  test('公開 room deck の legacy deckCode はローカル初期化に使わない', () => {
     const localDeck = createThirtyCardDeck(0);
     const roomDeck = createThirtyCardDeck(10);
 
@@ -795,15 +795,17 @@ describe('deck builder controller', () => {
           source: 'preset',
           deckCode: localDeck.deckCode
         });
-      expect(controller.buildCardInitOptions()).toMatchObject({
-        initialDeckSpec: roomDeck.deckSpec,
+      const initialOptions = controller.buildCardInitOptions();
+      expect(initialOptions).toMatchObject({
         boardConfig: expect.objectContaining({
           rows: 8,
           cols: 8,
           standard8x8: true
         })
       });
-      expect(controller.readActiveDeckSpec()).toEqual(roomDeck.deckSpec);
+      expect(initialOptions).not.toHaveProperty('initialDeckSpec');
+      expect(initialOptions).not.toHaveProperty('initialDeckSpecByPlayer');
+      expect(controller.readActiveDeckSpec()).toBeNull();
     } finally {
       delete window.NetworkMatchClient;
     }
@@ -952,7 +954,7 @@ describe('deck builder controller', () => {
     }
   });
 
-  test('network room deck が player別なら黒白それぞれの初期デッキを返す', () => {
+  test('network room deck の player別 legacy deckCode も初期デッキを復元しない', () => {
     const blackDeck = createThirtyCardDeck(0);
     const whiteDeck = createThirtyCardDeck(10);
 
@@ -977,18 +979,17 @@ describe('deck builder controller', () => {
     try {
       const controller = createController();
 
-      expect(controller.buildCardInitOptions()).toMatchObject({
-        initialDeckSpecByPlayer: {
-          black: blackDeck.deckSpec,
-          white: whiteDeck.deckSpec
-        },
+      const initialOptions = controller.buildCardInitOptions();
+      expect(initialOptions).toMatchObject({
         boardConfig: expect.objectContaining({
           rows: 8,
           cols: 8,
           standard8x8: true
         })
       });
-      expect(controller.readActiveDeckSpec()).toEqual(blackDeck.deckSpec);
+      expect(initialOptions).not.toHaveProperty('initialDeckSpec');
+      expect(initialOptions).not.toHaveProperty('initialDeckSpecByPlayer');
+      expect(controller.readActiveDeckSpec()).toBeNull();
     } finally {
       delete window.NetworkMatchClient;
     }
@@ -996,7 +997,6 @@ describe('deck builder controller', () => {
 
   test('network room deck が player別 custom でも実対局の重複サマリーは表示しない', () => {
     const DeckSpecHelpers = require('../shared/deck-spec.js');
-    const DeckCodecModule = require('../shared/deck-codec.js');
     const whiteDeck = createThirtyCardDeck(10);
     const emptyDeckCode = `D1C${DeckSpecHelpers.getCatalogVersion()}:`;
 
@@ -1022,7 +1022,7 @@ describe('deck builder controller', () => {
       controller.open();
 
       expect(document.querySelector('.deck-builder-effective-summary')).toBeNull();
-      expect(controller.readActiveDeckSpec()).toEqual(DeckCodecModule.decodeDeckCode(emptyDeckCode));
+      expect(controller.readActiveDeckSpec()).toBeNull();
     } finally {
       delete window.NetworkMatchClient;
     }

@@ -631,7 +631,7 @@ Command execution creates the current command's `chargeDeltaEvents` during share
 
 Absent values use `null`; an explicit empty card-ID array and a valid empty deck spec remain distinct 0-card inputs once they cross the normalized boundary. Public projection receives only public metadata and snapshot deck-size facts, never private deck specs or card-ID sources. Invalid normalized DTOs are programmer errors and throw `TypeError` rather than becoming success-shaped absence.
 
-Local has one bounded malformed-compatibility exception: `projectLegacyUnknownModeRoomDeck()` preserves the historical projection of a non-empty raw mode that is not exactly `shared` or `perPlayer`, including padded spellings. Empty mode and both exact supported modes must delegate to the shared projection. Worker continues its historical raw-mode trim/inference. This exception is outside the normalized contract and must not be widened to mutation, initial options, or another public projection path.
+Local has one bounded malformed-compatibility exception: `projectLegacyUnknownModeRoomDeck()` preserves the historical mode label of a non-empty raw mode that is not exactly `shared` or `perPlayer`, including padded spellings, while applying the same card-source redaction. Empty mode and both exact supported modes must delegate to the shared projection. Worker continues its historical raw-mode trim/inference. This exception is outside the normalized contract and must not be widened to mutation, initial options, or another public projection path.
 
 ### 8.5 Publish / stream / resync precedence
 

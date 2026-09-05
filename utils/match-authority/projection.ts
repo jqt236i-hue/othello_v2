@@ -54,6 +54,37 @@ function asRecord(value: unknown): RecordValue {
     return value && typeof value === 'object' ? value as RecordValue : {};
 }
 
+function normalizePublicDeckRemaining(value: unknown): number | null {
+    if (!Number.isFinite(Number(value))) return null;
+    return Math.max(0, Math.trunc(Number(value)));
+}
+
+function projectDeckRemainingByPlayer(
+    cardState: RecordValue,
+    playerKeys: readonly PlayerKey[]
+): Record<PlayerKey, number> | null {
+    const decks = asRecord(cardState.decks);
+    const legacyDeck = Array.isArray(cardState.deck) ? cardState.deck : null;
+    const existingCounts = asRecord(cardState.deckRemainingByPlayer);
+    const hasDeckSource = playerKeys.some((playerKey) => Array.isArray(decks[playerKey]))
+        || legacyDeck !== null
+        || playerKeys.some((playerKey) => normalizePublicDeckRemaining(existingCounts[playerKey]) !== null);
+    if (!hasDeckSource) return null;
+
+    const legacyCount = legacyDeck ? legacyDeck.length : null;
+    const countForPlayer = (playerKey: PlayerKey): number => {
+        if (Array.isArray(decks[playerKey])) return decks[playerKey].length;
+        const existingCount = normalizePublicDeckRemaining(existingCounts[playerKey]);
+        if (existingCount !== null) return existingCount;
+        return legacyCount === null ? 0 : legacyCount;
+    };
+
+    return {
+        black: countForPlayer('black'),
+        white: countForPlayer('white')
+    };
+}
+
 export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjectionDeps) {
     function getFateWillControllerKey(snapshot: unknown, turnOwnerKey: PlayerKey | null | undefined): PlayerKey | null {
         const snapshotRecord = asRecord(snapshot);
@@ -282,6 +313,18 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
             }
         }
 
+        const deckRemainingByPlayer = projectDeckRemainingByPlayer(cardState, deps.playerKeys);
+        if (deckRemainingByPlayer) {
+            cardState.deckRemainingByPlayer = deckRemainingByPlayer;
+        } else {
+            delete cardState.deckRemainingByPlayer;
+        }
+
+        delete cardState.decks;
+        delete cardState.deck;
+        delete cardState.prngState;
+        delete asRecord(shot).prngState;
+        delete asRecord(shot.gameState).prngState;
         delete cardState._nextCardCopySeq;
         delete cardState._handCopyIdsByPlayer;
         delete cardState._deckCopyIdsByPlayer;

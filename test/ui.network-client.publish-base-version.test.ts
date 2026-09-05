@@ -1322,12 +1322,7 @@ describe('NetworkMatchClient queued publish', () => {
     });
     expect(client.getRoomDeck()).toEqual({
       mode: 'perPlayer',
-      deckCode: '',
       deckSize: null,
-      deckCodeByPlayer: {
-        black: 'D1C1:test_card*3',
-        white: ''
-      },
       deckSizeByPlayer: {
         black: 30,
         white: 30
@@ -1404,12 +1399,7 @@ describe('NetworkMatchClient queued publish', () => {
     });
     expect(client.getRoomDeck()).toEqual({
       mode: 'perPlayer',
-      deckCode: '',
       deckSize: null,
-      deckCodeByPlayer: {
-        black: 'D1C1:black_card*3',
-        white: 'D1C1:white_card*3'
-      },
       deckSizeByPlayer: {
         black: 30,
         white: 30

@@ -370,6 +370,7 @@ describe('room-deck normalized transform ownership', () => {
   test('the pure core exports the complete normalized transform surface with no runtime dependency', () => {
     const expectedExports = [
       'normalizeRoomDeckSize',
+      'sanitizePublicRoomDeck',
       'cloneRoomDeckCardIdsByPlayer',
       'cloneRoomDeckSpecByPlayer',
       'createAllCardsRoomDeckMetadata',

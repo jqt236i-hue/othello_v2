@@ -159,13 +159,12 @@ describe('match-room-deck pure contract', () => {
     });
   });
 
-  test('projects shared and per-player public metadata using the existing fallback rules', () => {
+  test('projects only deck-size facts and never deck-code card sources', () => {
     expect(projectPublicRoomDeck(null, {
       initialDeckSizeByPlayer: { black: null, white: 12 },
       initialDeckSize: 30
     })).toEqual({
       mode: 'shared',
-      deckCode: '',
       deckSize: 30,
       source: 'room'
     });
@@ -179,9 +178,7 @@ describe('match-room-deck pure contract', () => {
       initialDeckSize: null
     })).toEqual({
       mode: 'perPlayer',
-      deckCode: 'SAME',
       deckSize: 5,
-      deckCodeByPlayer: { black: 'SAME', white: 'SAME' },
       deckSizeByPlayer: { black: 5, white: 5 },
       source: 'custom-source'
     });
@@ -192,7 +189,6 @@ describe('match-room-deck pure contract', () => {
       initialDeckSizeByPlayer: { black: 4, white: 3 },
       initialDeckSize: 30
     })).toMatchObject({
-      deckCode: '',
       deckSize: null,
       deckSizeByPlayer: { black: 4, white: 3 }
     });
@@ -212,7 +208,7 @@ describe('match-room-deck pure contract', () => {
     }, {
       initialDeckSizeByPlayer: { black: null, white: null },
       initialDeckSize: null
-    })).toEqual({ mode: 'shared', deckCode: '', deckSize: null, source: 'room' });
+    })).toEqual({ mode: 'shared', deckSize: null, source: 'room' });
   });
 
   test('throws for structurally invalid normalized DTOs instead of returning absence', () => {

@@ -251,6 +251,17 @@ describe('local match server leave contract', () => {
                 ok: true,
                 roomId,
                 stateVersion: 2,
+                roomDeck: {
+                  mode: 'perPlayer',
+                  deckCode: 'D1C1:local-replay-secret*3',
+                  deckCodeByPlayer: {
+                    black: 'D1C1:local-replay-secret*3',
+                    white: 'D1C1:local-replay-other*3'
+                  },
+                  deckSize: null,
+                  deckSizeByPlayer: { black: 2, white: 1 },
+                  source: 'room'
+                },
                 playbackEvents: [{ type: 'observer_bubble', phase: 2, targets: [{ player: 'black', text: 'resume' }] }],
                 effectLogs: ['白がカードを使用: 交換'],
                 snapshot: {
@@ -269,6 +280,12 @@ describe('local match server leave contract', () => {
                   },
                   cardState: {
                     hands: { black: ['b1'], white: ['__hidden_hand__:white:0'] },
+                    decks: {
+                      black: ['local-replay-black-private-2', 'local-replay-black-private-1'],
+                      white: ['local-replay-white-private-1']
+                    },
+                    deck: ['local-replay-legacy-private-1'],
+                    prngState: { seed: 7301, calls: 7 },
                     charge: { black: 0, white: 0 },
                     pendingEffectByPlayer: { black: null, white: null },
                     hasUsedCardThisTurnByPlayer: { black: false, white: false },
@@ -322,6 +339,14 @@ describe('local match server leave contract', () => {
       expect(stream.firstChunk).toContain(`id: ${roomId}_2_2`);
       expect(stream.firstChunk).toContain('"observer_bubble"');
       expect(stream.firstChunk).toContain('"__hidden_hand__:white:0"');
+      expect(stream.firstChunk).toContain('"deckRemainingByPlayer":{"black":2,"white":1}');
+      expect(stream.firstChunk).not.toContain('local-replay-black-private');
+      expect(stream.firstChunk).not.toContain('local-replay-white-private');
+      expect(stream.firstChunk).not.toContain('local-replay-legacy-private');
+      expect(stream.firstChunk).not.toContain('7301');
+      expect(stream.firstChunk).not.toContain('D1C1:local-replay-secret');
+      expect(stream.firstChunk).not.toContain('"deckCode"');
+      expect(stream.firstChunk).not.toContain('"deckCodeByPlayer"');
       expect(stream.firstChunk).not.toContain('"type":"history"');
     } finally {
       try {

@@ -148,6 +148,87 @@ describe('match authority presentation journal', () => {
     expect(response.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([1]);
   });
 
+  test('redacts deck order and PRNG state from persisted presentation snapshots before replaying them', () => {
+    const createLegacyPrivateSnapshot = (stateVersion: number) => ({
+      stateVersion,
+      gameState: { currentPlayer: 1, prngState: { seed: 701, calls: stateVersion } },
+      prngState: { seed: 702, calls: stateVersion },
+      cardState: {
+        hands: { black: ['black-hand-card'], white: ['white-hand-card'] },
+        decks: {
+          black: ['journal-black-private-2', 'journal-black-private-1'],
+          white: ['journal-white-private-1']
+        },
+        deck: ['journal-legacy-private-1'],
+        _deckCopyIdsByPlayer: { black: [9101, 9102], white: [9201] },
+        prngState: { seed: 703, calls: stateVersion }
+      }
+    });
+    const room = createRoom() as any;
+    const initialSnapshot = createLegacyPrivateSnapshot(1);
+    room.snapshot = createLegacyPrivateSnapshot(2);
+    room.stateVersion = 2;
+    room.updatedAt = 2000;
+    room.initialSnapshotByViewer = {
+      black: initialSnapshot,
+      white: initialSnapshot,
+      spectator: initialSnapshot
+    };
+    const entry = MatchAuthority.appendPresentationFrame(room, {
+      stateVersionFrom: 1,
+      stateVersionTo: 2,
+      operationId: 'op_legacy_private_frame',
+      actorSeatKey: 'black',
+      actionType: 'place',
+      payloadByViewer: {
+        black: { playbackEvents: [], effectLogs: [] },
+        white: { playbackEvents: [], effectLogs: [] },
+        spectator: { playbackEvents: [], effectLogs: [] }
+      },
+      snapshotAfterByViewer: {
+        black: createLegacyPrivateSnapshot(2),
+        white: createLegacyPrivateSnapshot(2),
+        spectator: createLegacyPrivateSnapshot(2)
+      },
+      createdAt: 2000
+    });
+
+    const blackFrame = MatchAuthority.toPublicPresentationFrame(entry, { role: 'seat', seatKey: 'black' }, room);
+    const spectatorResponse = MatchAuthority.buildPresentationJournalResponse(room, {
+      afterVisualSeq: 0,
+      viewer: { role: 'spectator', spectatorId: 'spec_legacy' },
+      serverTime: 2500
+    }) as any;
+    const publicSnapshots = [
+      blackFrame.snapshotAfter,
+      spectatorResponse.baseSnapshot,
+      spectatorResponse.presentationFrames[0].snapshotAfter
+    ];
+
+    for (const snapshot of publicSnapshots) {
+      expect(snapshot.cardState.decks).toBeUndefined();
+      expect(snapshot.cardState.deck).toBeUndefined();
+      expect(snapshot.cardState._deckCopyIdsByPlayer).toBeUndefined();
+      expect(snapshot.cardState.prngState).toBeUndefined();
+      expect(snapshot.gameState.prngState).toBeUndefined();
+      expect(snapshot.prngState).toBeUndefined();
+      expect(snapshot.cardState.deckRemainingByPlayer).toEqual({ black: 2, white: 1 });
+      expect(JSON.stringify(snapshot)).not.toContain('journal-private');
+      expect(JSON.stringify(snapshot)).not.toContain('703');
+      expect(JSON.stringify(snapshot)).not.toContain('9101');
+    }
+    expect(blackFrame.snapshotAfter.cardState.hands.white[0]).toMatch(/^__hidden_hand__/);
+    expect(spectatorResponse.baseSnapshot.cardState.hands).toEqual({
+      black: ['black-hand-card'],
+      white: ['white-hand-card']
+    });
+    expect(room.initialSnapshotByViewer.black.cardState.decks.black).toEqual([
+      'journal-black-private-2',
+      'journal-black-private-1'
+    ]);
+    expect(room.presentationJournal[0].snapshotAfterByViewer.black.cardState.prngState).toEqual({ seed: 703, calls: 2 });
+  });
+
   test('appendPresentationFrame caps retained frames to keep room storage bounded', () => {
     const room = createRoom();
 

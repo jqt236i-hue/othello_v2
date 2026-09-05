@@ -308,6 +308,12 @@ describe('match authority publish response payload', () => {
       playerKey: 'white',
       serverTime: 321
     }));
+    expect(payload.roomDeck).toEqual({
+      mode: 'shared',
+      deckSize: 30,
+      source: 'room'
+    });
+    expect(JSON.stringify(payload)).not.toContain('deckCode');
     expect(payload.playbackDigest).toBe(PlaybackDigest.computePlaybackDigest([
       { type: 'observer_bubble', phase: 1 }
     ]));

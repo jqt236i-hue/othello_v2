@@ -96,6 +96,8 @@ function runRoomDeckScenario(action) {
     "",
     "  const room = rooms.get(createPayload.roomId);",
     "  await room.loadRoom();",
+    "  const internalStateCardState = room.room && room.room.snapshot ? room.room.snapshot.cardState : null;",
+    "  const internalRoomDeck = room.room ? room.room.roomDeck : null;",
     "",
     "  let deckUpdatePayload = null;",
     "  let deckUpdateStatus = null;",
@@ -173,6 +175,8 @@ function runRoomDeckScenario(action) {
     "    deckUpdatePayload,",
     "    publishStatus,",
     "    publishPayload,",
+    "    internalStateCardState,",
+    "    internalRoomDeck,",
     "    internalPublishCardState,",
     "    blackDeckCode,",
     "    whiteDeckCode,",
@@ -240,6 +244,9 @@ function runDefaultRoomDeckScenario() {
     "",
     "  const stateResponse = await worker.fetch(new Request(`https://worker/api/match/state?roomId=${encodeURIComponent(createPayload.roomId)}&seatKey=black&seatToken=${encodeURIComponent(createPayload.seatToken || '')}`), env);",
     "  const statePayload = await stateResponse.json();",
+    "  const room = rooms.get(createPayload.roomId);",
+    "  await room.loadRoom();",
+    "  const internalCardState = room.room && room.room.snapshot ? room.room.snapshot.cardState : null;",
     "",
     `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
     "    createStatus: createResponse.status,",
@@ -247,7 +254,8 @@ function runDefaultRoomDeckScenario() {
     "    joinStatus: joinResponse.status,",
     "    joinPayload,",
     "    stateStatus: stateResponse.status,",
-    "    statePayload",
+    "    statePayload,",
+    "    internalCardState",
     "  }));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
@@ -310,6 +318,9 @@ function runAllCardsDeckScenario() {
     "",
     "  const stateResponse = await worker.fetch(new Request(`https://worker/api/match/state?roomId=${encodeURIComponent(createPayload.roomId)}&seatKey=black&seatToken=${encodeURIComponent(createPayload.seatToken || '')}`), env);",
     "  const statePayload = await stateResponse.json();",
+    "  const room = rooms.get(createPayload.roomId);",
+    "  await room.loadRoom();",
+    "  const internalCardState = room.room && room.room.snapshot ? room.room.snapshot.cardState : null;",
     "",
     `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({`,
     "    createStatus: createResponse.status,",
@@ -318,6 +329,7 @@ function runAllCardsDeckScenario() {
     "    joinPayload,",
     "    stateStatus: stateResponse.status,",
     "    statePayload,",
+    "    internalCardState,",
     "    allCardsDeckIds",
     "  }));",
     "})().catch((error) => {",
@@ -353,31 +365,51 @@ function sortedCards(cards) {
   return cards.slice().sort((left, right) => String(left).localeCompare(String(right), 'en'));
 }
 
+function expectPublicCardStateDeckRedaction(publicCardState, internalCardState) {
+  expect(publicCardState.decks).toBeUndefined();
+  expect(publicCardState.deck).toBeUndefined();
+  expect(publicCardState.prngState).toBeUndefined();
+  expect(publicCardState.deckRemainingByPlayer).toEqual({
+    black: internalCardState.decks.black.length,
+    white: internalCardState.decks.white.length
+  });
+}
+
+function expectPublicRoomDeckRedaction(roomDeck, deckCodes) {
+  expect(roomDeck).not.toHaveProperty('deckCode');
+  expect(roomDeck).not.toHaveProperty('deckCodeByPlayer');
+  for (const deckCode of deckCodes) {
+    expect(JSON.stringify(roomDeck)).not.toContain(deckCode);
+  }
+}
+
 describe('match worker room deck', () => {
   test('両者デフォルト時は同じ30種を共有しつつ山札順だけ黒白で別になる', () => {
     const result = runDefaultRoomDeckScenario();
-    const cardState = result.statePayload.snapshot.cardState;
-    const blackCards = listPlayerCards(cardState, 'black');
-    const whiteCards = listPlayerCards(cardState, 'white');
+    const publicCardState = result.statePayload.snapshot.cardState;
+    const internalCardState = result.internalCardState;
+    const blackCards = listPlayerCards(internalCardState, 'black');
+    const whiteCards = listPlayerCards(internalCardState, 'white');
 
     expect(result.createStatus).toBe(200);
     expect(result.joinStatus).toBe(200);
     expect(result.stateStatus).toBe(200);
     expect(result.createPayload.roomDeck).toMatchObject({
       mode: 'shared',
-      deckCode: '',
       deckSize: DeckSpecHelpers.getDefaultDeckSize()
     });
     expect(result.joinPayload.roomDeck).toMatchObject({
       mode: 'shared',
-      deckCode: '',
       deckSize: DeckSpecHelpers.getDefaultDeckSize()
     });
     expect(result.statePayload.roomDeck).toMatchObject({
       mode: 'shared',
-      deckCode: '',
       deckSize: DeckSpecHelpers.getDefaultDeckSize()
     });
+    expectPublicRoomDeckRedaction(result.createPayload.roomDeck, []);
+    expectPublicRoomDeckRedaction(result.joinPayload.roomDeck, []);
+    expectPublicRoomDeckRedaction(result.statePayload.roomDeck, []);
+    expectPublicCardStateDeckRedaction(publicCardState, internalCardState);
     expect(blackCards).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
     expect(whiteCards).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
     expect(new Set(blackCards).size).toBe(DeckSpecHelpers.getDefaultDeckSize());
@@ -388,7 +420,8 @@ describe('match worker room deck', () => {
 
   test('両者全カードデッキ設定は黒白両方へLv9全カードデッキを強制する', () => {
     const result = runAllCardsDeckScenario();
-    const cardState = result.statePayload.snapshot.cardState;
+    const publicCardState = result.statePayload.snapshot.cardState;
+    const internalCardState = result.internalCardState;
 
     expect(result.createStatus).toBe(200);
     expect(result.joinStatus).toBe(200);
@@ -396,7 +429,6 @@ describe('match worker room deck', () => {
     expect(result.createPayload.roomDeck).toMatchObject({
       mode: 'shared',
       source: 'allCards',
-      deckCode: '',
       deckSize: result.allCardsDeckIds.length
     });
     expect(result.joinPayload.roomDeck).toMatchObject({
@@ -409,18 +441,23 @@ describe('match worker room deck', () => {
       source: 'allCards',
       deckSize: result.allCardsDeckIds.length
     });
-    expect(cardState.initialDeckSizeByPlayer.black).toBe(result.allCardsDeckIds.length);
-    expect(cardState.initialDeckSizeByPlayer.white).toBe(result.allCardsDeckIds.length);
-    expect(sortedCards(listPlayerCards(cardState, 'black'))).toEqual(sortedCards(result.allCardsDeckIds));
-    expect(sortedCards(listPlayerCards(cardState, 'white'))).toEqual(sortedCards(result.allCardsDeckIds));
-    expect(listPlayerCards(cardState, 'black')).toContain('observer_will_01');
-    expect(listPlayerCards(cardState, 'black')).toContain('board_executor_01');
-    expect(listPlayerCards(cardState, 'black')).toContain('theory_incarnation_01');
+    expectPublicRoomDeckRedaction(result.createPayload.roomDeck, []);
+    expectPublicRoomDeckRedaction(result.joinPayload.roomDeck, []);
+    expectPublicRoomDeckRedaction(result.statePayload.roomDeck, []);
+    expectPublicCardStateDeckRedaction(publicCardState, internalCardState);
+    expect(internalCardState.initialDeckSizeByPlayer.black).toBe(result.allCardsDeckIds.length);
+    expect(internalCardState.initialDeckSizeByPlayer.white).toBe(result.allCardsDeckIds.length);
+    expect(sortedCards(listPlayerCards(internalCardState, 'black'))).toEqual(sortedCards(result.allCardsDeckIds));
+    expect(sortedCards(listPlayerCards(internalCardState, 'white'))).toEqual(sortedCards(result.allCardsDeckIds));
+    expect(listPlayerCards(internalCardState, 'black')).toContain('observer_will_01');
+    expect(listPlayerCards(internalCardState, 'black')).toContain('board_executor_01');
+    expect(listPlayerCards(internalCardState, 'black')).toContain('theory_incarnation_01');
   });
 
   test('公開 create/join/state が黒白別の roomDeck を返す', () => {
     const result = runRoomDeckScenario('state');
-    const cardState = result.statePayload.snapshot.cardState;
+    const publicCardState = result.statePayload.snapshot.cardState;
+    const internalCardState = result.internalStateCardState;
 
     expect(result.createStatus).toBe(200);
     expect(result.joinStatus).toBe(200);
@@ -434,8 +471,6 @@ describe('match worker room deck', () => {
       standard8x8: false
     });
     expect(result.createPayload.roomDeck.mode).toBe('perPlayer');
-    expect(result.createPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
-    expect(result.createPayload.roomDeck.deckCodeByPlayer.white).toBe('');
     expect(result.joinPayload.networkDebugEnabled).toBe(false);
     expect(result.joinPayload.roomBoardConfig).toMatchObject({
       rows: 10,
@@ -443,8 +478,6 @@ describe('match worker room deck', () => {
       shape: 'circle',
       standard8x8: false
     });
-    expect(result.joinPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
-    expect(result.joinPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
     expect(result.statePayload.networkDebugEnabled).toBe(false);
     expect(result.statePayload.roomBoardConfig).toMatchObject({
       rows: 10,
@@ -452,25 +485,28 @@ describe('match worker room deck', () => {
       shape: 'circle',
       standard8x8: false
     });
-    expect(result.statePayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
-    expect(result.statePayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
+    expectPublicRoomDeckRedaction(result.createPayload.roomDeck, [result.blackDeckCode, result.whiteDeckCode]);
+    expectPublicRoomDeckRedaction(result.joinPayload.roomDeck, [result.blackDeckCode, result.whiteDeckCode]);
+    expectPublicRoomDeckRedaction(result.statePayload.roomDeck, [result.blackDeckCode, result.whiteDeckCode]);
     expect(result.statePayload.snapshot.gameState.board).toHaveLength(10);
     expect(result.statePayload.snapshot.gameState.board[0]).toHaveLength(10);
     expect(result.statePayload.snapshot.gameState.boardConfig).toMatchObject({ shape: 'circle' });
-    expect(result.statePayload.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);
-    expect(result.statePayload.snapshot.cardState.initialDeckSizeByPlayer.white).toBe(30);
-    expect(countPlayerCopies(cardState, 'black', result.blackMarkerId)).toBe(3);
-    expect(countPlayerCopies(cardState, 'white', result.blackMarkerId)).toBe(0);
-    expect(countPlayerCopies(cardState, 'white', result.whiteMarkerId)).toBe(3);
-    expect(countPlayerCopies(cardState, 'black', result.whiteMarkerId)).toBe(0);
+    expectPublicCardStateDeckRedaction(publicCardState, internalCardState);
+    expect(internalCardState.initialDeckSizeByPlayer.black).toBe(30);
+    expect(internalCardState.initialDeckSizeByPlayer.white).toBe(30);
+    expect(countPlayerCopies(internalCardState, 'black', result.blackMarkerId)).toBe(3);
+    expect(countPlayerCopies(internalCardState, 'white', result.blackMarkerId)).toBe(0);
+    expect(countPlayerCopies(internalCardState, 'white', result.whiteMarkerId)).toBe(3);
+    expect(countPlayerCopies(internalCardState, 'black', result.whiteMarkerId)).toBe(0);
+    expect(result.internalRoomDeck.deckCodeByPlayer).toEqual({ black: result.blackDeckCode, white: result.whiteDeckCode });
   });
 
   test('reset_game 後も黒白別 roomDeck と各30枚デッキを維持する', () => {
     const result = runRoomDeckScenario('reset');
     const blackCardState = result.publishPayload.snapshot.cardState;
     const internalBlackCardState = result.internalPublishCardState;
-    const blackTotalCards = blackCardState.decks.black.length + blackCardState.hands.black.length;
-    const whiteTotalCards = blackCardState.decks.white.length + blackCardState.hands.white.length;
+    const blackTotalCards = internalBlackCardState.decks.black.length + internalBlackCardState.hands.black.length;
+    const whiteTotalCards = internalBlackCardState.decks.white.length + internalBlackCardState.hands.white.length;
 
     expect(result.publishStatus).toBe(200);
     expect(result.publishPayload.ok).toBe(true);
@@ -480,13 +516,13 @@ describe('match worker room deck', () => {
       shape: 'circle',
       standard8x8: false
     });
-    expect(result.publishPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
-    expect(result.publishPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
+    expectPublicRoomDeckRedaction(result.publishPayload.roomDeck, [result.blackDeckCode, result.whiteDeckCode]);
     expect(result.publishPayload.snapshot.gameState.board).toHaveLength(10);
     expect(result.publishPayload.snapshot.gameState.board[0]).toHaveLength(10);
     expect(result.publishPayload.snapshot.gameState.boardConfig).toMatchObject({ shape: 'circle' });
     expect(result.publishPayload.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);
     expect(result.publishPayload.snapshot.cardState.initialDeckSizeByPlayer.white).toBe(30);
+    expectPublicCardStateDeckRedaction(blackCardState, internalBlackCardState);
     expect(blackTotalCards).toBe(30);
     expect(whiteTotalCards).toBe(30);
     expect(internalBlackCardState).toBeTruthy();
@@ -502,14 +538,13 @@ describe('match worker room deck', () => {
 
     expect(result.deckUpdateStatus).toBe(200);
     expect(result.deckUpdatePayload.ok).toBe(true);
-    expect(result.deckUpdatePayload.roomDeck.deckCodeByPlayer.black).toBe(result.updatedBlackDeckCode);
-    expect(result.deckUpdatePayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
+    expectPublicRoomDeckRedaction(result.deckUpdatePayload.roomDeck, [result.updatedBlackDeckCode, result.whiteDeckCode]);
     expect(result.publishStatus).toBe(200);
     expect(result.publishPayload.ok).toBe(true);
-    expect(result.publishPayload.roomDeck.deckCodeByPlayer.black).toBe(result.updatedBlackDeckCode);
-    expect(result.publishPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
+    expectPublicRoomDeckRedaction(result.publishPayload.roomDeck, [result.updatedBlackDeckCode, result.whiteDeckCode]);
     expect(publicCardState.initialDeckSizeByPlayer.black).toBe(30);
     expect(publicCardState.initialDeckSizeByPlayer.white).toBe(30);
+    expectPublicCardStateDeckRedaction(publicCardState, internalCardState);
     expect(countPlayerCopies(internalCardState, 'black', result.updatedBlackMarkerId)).toBe(3);
     expect(countPlayerCopies(internalCardState, 'black', result.blackMarkerId)).toBe(0);
     expect(countPlayerCopies(internalCardState, 'white', result.whiteMarkerId)).toBe(3);

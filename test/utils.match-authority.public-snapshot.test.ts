@@ -332,6 +332,134 @@ describe('match authority public snapshot trap visibility', () => {
     expect(projected.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
   });
 
+  test('redacts deck card sources and PRNG state for seats and spectators while retaining only remaining counts', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.decks = {
+      black: ['black-private-3', 'black-private-2', 'black-private-1'],
+      white: ['white-private-2', 'white-private-1']
+    };
+    snapshot.cardState.deck = ['legacy-private-2', 'legacy-private-1'];
+    snapshot.cardState.prngState = { seed: 90210, calls: 47 };
+    const room = {
+      stateVersion: 7,
+      updatedAt: 700,
+      snapshot
+    } as any;
+
+    const views = [
+      MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+      MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+      MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: 'spectator-1' })
+    ];
+
+    for (const view of views) {
+      expect(view.cardState.decks).toBeUndefined();
+      expect(view.cardState.deck).toBeUndefined();
+      expect(view.cardState.prngState).toBeUndefined();
+      expect(view.cardState.deckRemainingByPlayer).toEqual({ black: 3, white: 2 });
+      expect(JSON.stringify(view)).not.toContain('black-private');
+      expect(JSON.stringify(view)).not.toContain('white-private');
+      expect(JSON.stringify(view)).not.toContain('legacy-private');
+      expect(JSON.stringify(view)).not.toContain('90210');
+    }
+
+    expect(views[0].cardState.hands.black).toEqual(['b1']);
+    expect(views[0].cardState.hands.white[0]).toMatch(/^__hidden_hand__/);
+    expect(views[2].cardState.hands).toEqual({ black: ['b1'], white: ['w1'] });
+    expect(snapshot.cardState.decks.white).toEqual(['white-private-2', 'white-private-1']);
+    expect(snapshot.cardState.deck).toEqual(['legacy-private-2', 'legacy-private-1']);
+    expect(snapshot.cardState.prngState).toEqual({ seed: 90210, calls: 47 });
+
+    const differentPrivateState = JSON.parse(JSON.stringify(snapshot));
+    differentPrivateState.cardState.decks.black.reverse();
+    differentPrivateState.cardState.decks.white.reverse();
+    differentPrivateState.cardState.prngState = { seed: 1, calls: 999 };
+    expect(MatchAuthority.buildPublicSnapshot(room, 'black')._meta.projectedSnapshotHash)
+      .toBe(MatchAuthority.buildPublicSnapshot({ ...room, snapshot: differentPrivateState }, 'black')._meta.projectedSnapshotHash);
+  });
+
+  test('reprojects persisted replay payloads before state recovery or SSE resend', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.decks = {
+      black: ['replay-black-private-2', 'replay-black-private-1'],
+      white: ['replay-white-private-1']
+    };
+    snapshot.cardState.deck = ['replay-legacy-private-1'];
+    snapshot.cardState.prngState = { seed: 6789, calls: 12 };
+    const roomDeck = {
+      mode: 'perPlayer',
+      deckCode: 'D1C1:replay_black*3',
+      deckCodeByPlayer: { black: 'D1C1:replay_black*3', white: 'D1C1:replay_white*3' },
+      deckSize: null,
+      deckSizeByPlayer: { black: 2, white: 1 },
+      source: 'room'
+    };
+    const buffer = MatchAuthority.appendBufferedSseEvent([], {
+      eventId: 'REPLAY_1',
+      eventName: 'heartbeat',
+      payload: { ok: true }
+    });
+    const buffered = MatchAuthority.appendBufferedSseEvent(buffer, {
+      eventId: 'REPLAY_2',
+      eventName: 'snapshot',
+      payloadByViewer: {
+        black: {
+          ok: true,
+          stateVersion: 7,
+          snapshot,
+          roomDeck,
+          initialDeckCardIdsByPlayer: { black: ['replay-top-level-private'], white: ['replay-top-level-private'] },
+          initialDeckSpecByPlayer: { black: { cards: [{ id: 'replay-top-level-private', count: 1 }] } }
+        },
+        white: {
+          ok: true,
+          stateVersion: 7,
+          snapshot,
+          roomDeck,
+          initialDeckCardIdsByPlayer: { black: ['replay-top-level-private'], white: ['replay-top-level-private'] },
+          initialDeckSpecByPlayer: { black: { cards: [{ id: 'replay-top-level-private', count: 1 }] } }
+        },
+        spectator: {
+          ok: true,
+          stateVersion: 7,
+          snapshot,
+          roomDeck,
+          initialDeckCardIdsByPlayer: { black: ['replay-top-level-private'], white: ['replay-top-level-private'] },
+          initialDeckSpecByPlayer: { black: { cards: [{ id: 'replay-top-level-private', count: 1 }] } }
+        }
+      }
+    });
+
+    const replay = MatchAuthority.getBufferedSseReplayEvents(
+      buffered,
+      'REPLAY_1',
+      { role: 'seat', seatKey: 'black' }
+    );
+    const replayPayload = replay![0].payload as any;
+    const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
+      buffered,
+      7,
+      { role: 'seat', seatKey: 'black' }
+    ) as any;
+
+    for (const payload of [replayPayload, recoveredPayload]) {
+      expect(payload.snapshot.cardState.decks).toBeUndefined();
+      expect(payload.snapshot.cardState.deck).toBeUndefined();
+      expect(payload.snapshot.cardState.prngState).toBeUndefined();
+      expect(payload.snapshot.cardState.deckRemainingByPlayer).toEqual({ black: 2, white: 1 });
+      expect(payload.roomDeck).not.toHaveProperty('deckCode');
+      expect(payload.roomDeck).not.toHaveProperty('deckCodeByPlayer');
+      expect(payload).not.toHaveProperty('initialDeckCardIdsByPlayer');
+      expect(payload).not.toHaveProperty('initialDeckSpecByPlayer');
+      expect(JSON.stringify(payload)).not.toContain('replay-private');
+      expect(JSON.stringify(payload)).not.toContain('replay-top-level-private');
+      expect(JSON.stringify(payload)).not.toContain('6789');
+      expect(JSON.stringify(payload)).not.toContain('D1C1:replay');
+    }
+    expect(snapshot.cardState.decks.black).toEqual(['replay-black-private-2', 'replay-black-private-1']);
+    expect(snapshot.cardState.prngState).toEqual({ seed: 6789, calls: 12 });
+  });
+
   test('projectSnapshotForViewer reconnect sanitizes malformed hidden tokens instead of leaking raw token ids', () => {
     const snapshot = createSnapshot();
     snapshot.cardState.hands.white = ['__hidden_hand__:white:99', 'w2'];

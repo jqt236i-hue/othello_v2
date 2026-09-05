@@ -321,7 +321,6 @@ describe('local match server publish contract', () => {
         rejectedReason: 'VERSION_BEHIND',
         roomDeck: expect.objectContaining({
           mode: 'shared',
-          deckCode: '',
           deckSize: 30,
           source: 'room'
         }),
@@ -1359,7 +1358,6 @@ describe('local match server publish contract', () => {
         idempotentReplay: true,
         roomDeck: expect.objectContaining({
           mode: 'shared',
-          deckCode: '',
           deckSize: 30,
           source: 'room'
         }),

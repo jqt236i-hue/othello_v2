@@ -101,6 +101,24 @@ function sortedCards(cards) {
   return cards.slice().sort((left, right) => String(left).localeCompare(String(right), 'en'));
 }
 
+function expectPublicCardStateDeckRedaction(publicCardState, internalCardState) {
+  expect(publicCardState.decks).toBeUndefined();
+  expect(publicCardState.deck).toBeUndefined();
+  expect(publicCardState.prngState).toBeUndefined();
+  expect(publicCardState.deckRemainingByPlayer).toEqual({
+    black: internalCardState.decks.black.length,
+    white: internalCardState.decks.white.length
+  });
+}
+
+function expectPublicRoomDeckRedaction(roomDeck, deckCodes = []) {
+  expect(roomDeck).not.toHaveProperty('deckCode');
+  expect(roomDeck).not.toHaveProperty('deckCodeByPlayer');
+  for (const deckCode of deckCodes) {
+    expect(JSON.stringify(roomDeck)).not.toContain(deckCode);
+  }
+}
+
 describe('local match server room deck', () => {
   afterEach(() => {
     resetRoomsForTests();
@@ -126,7 +144,6 @@ describe('local match server room deck', () => {
       expect(joined.status).toBe(200);
       expect(joined.data.roomDeck).toMatchObject({
         mode: 'shared',
-        deckCode: '',
         deckSize: DeckSpecHelpers.getDefaultDeckSize()
       });
 
@@ -144,9 +161,12 @@ describe('local match server room deck', () => {
       expect(state.status).toBe(200);
       expect(state.data.roomDeck).toMatchObject({
         mode: 'shared',
-        deckCode: '',
         deckSize: DeckSpecHelpers.getDefaultDeckSize()
       });
+      expectPublicRoomDeckRedaction(created.data.roomDeck);
+      expectPublicRoomDeckRedaction(joined.data.roomDeck);
+      expectPublicRoomDeckRedaction(state.data.roomDeck);
+      expectPublicCardStateDeckRedaction(state.data.snapshot.cardState, internalCardState);
 
       const blackCards = listPlayerCards(internalCardState, 'black');
       const whiteCards = listPlayerCards(internalCardState, 'white');
@@ -188,13 +208,11 @@ describe('local match server room deck', () => {
       expect(created.data.roomDeck).toMatchObject({
         mode: 'shared',
         source: 'allCards',
-        deckCode: '',
         deckSize: expectedAllCardsDeck.length
       });
       expect(joined.data.roomDeck).toMatchObject({
         mode: 'shared',
         source: 'allCards',
-        deckCode: '',
         deckSize: expectedAllCardsDeck.length
       });
 
@@ -215,6 +233,10 @@ describe('local match server room deck', () => {
         source: 'allCards',
         deckSize: expectedAllCardsDeck.length
       });
+      expectPublicRoomDeckRedaction(created.data.roomDeck);
+      expectPublicRoomDeckRedaction(joined.data.roomDeck);
+      expectPublicRoomDeckRedaction(state.data.roomDeck);
+      expectPublicCardStateDeckRedaction(state.data.snapshot.cardState, internalCardState);
       expect(internalCardState.initialDeckSizeByPlayer.black).toBe(expectedAllCardsDeck.length);
       expect(internalCardState.initialDeckSizeByPlayer.white).toBe(expectedAllCardsDeck.length);
       expect(sortedCards(listPlayerCards(internalCardState, 'black'))).toEqual(sortedCards(expectedAllCardsDeck));
@@ -300,14 +322,16 @@ describe('local match server room deck', () => {
         shape: 'circle',
         standard8x8: false
       });
-      expect(state.data.roomDeck.deckCodeByPlayer.black).toBe(deckInfo.blackDeckCode);
-      expect(state.data.roomDeck.deckCodeByPlayer.white).toBe(deckInfo.whiteDeckCode);
+      expectPublicRoomDeckRedaction(created.data.roomDeck, [deckInfo.blackDeckCode, deckInfo.whiteDeckCode]);
+      expectPublicRoomDeckRedaction(joined.data.roomDeck, [deckInfo.blackDeckCode, deckInfo.whiteDeckCode]);
+      expectPublicRoomDeckRedaction(state.data.roomDeck, [deckInfo.blackDeckCode, deckInfo.whiteDeckCode]);
       expect(state.data.stateVersion).toBe(2);
       expect(Array.isArray(state.data.snapshot.gameState.board)).toBe(true);
       expect(state.data.snapshot.gameState.board).toHaveLength(10);
       expect(state.data.snapshot.gameState.board[0]).toHaveLength(10);
       expect(state.data.snapshot.gameState.boardConfig).toMatchObject({ shape: 'circle' });
       expect(internalCardState).toBeTruthy();
+      expectPublicCardStateDeckRedaction(state.data.snapshot.cardState, internalCardState);
       expect(internalCardState.initialDeckSizeByPlayer.black).toBe(30);
       expect(internalCardState.initialDeckSizeByPlayer.white).toBe(30);
       expect(countPlayerCopies(internalCardState, 'black', deckInfo.blackMarkerId)).toBe(3);
@@ -349,8 +373,7 @@ describe('local match server room deck', () => {
 
       expect(updated.status).toBe(200);
       expect(updated.data.ok).toBe(true);
-      expect(updated.data.roomDeck.deckCodeByPlayer.black).toBe(deckInfo.updatedBlackDeckCode);
-      expect(updated.data.roomDeck.deckCodeByPlayer.white).toBe(deckInfo.whiteDeckCode);
+      expectPublicRoomDeckRedaction(updated.data.roomDeck, [deckInfo.updatedBlackDeckCode, deckInfo.whiteDeckCode]);
 
       const patched = patchRoomSnapshotForTests(roomId, (room) => {
         room.stateVersion = 5;
@@ -393,10 +416,10 @@ describe('local match server room deck', () => {
       expect(captured).toBe(true);
       expect(reset.status).toBe(200);
       expect(reset.data.ok).toBe(true);
-      expect(reset.data.roomDeck.deckCodeByPlayer.black).toBe(deckInfo.updatedBlackDeckCode);
-      expect(reset.data.roomDeck.deckCodeByPlayer.white).toBe(deckInfo.whiteDeckCode);
+      expectPublicRoomDeckRedaction(reset.data.roomDeck, [deckInfo.updatedBlackDeckCode, deckInfo.whiteDeckCode]);
       expect(reset.data.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);
       expect(reset.data.snapshot.cardState.initialDeckSizeByPlayer.white).toBe(30);
+      expectPublicCardStateDeckRedaction(reset.data.snapshot.cardState, internalCardState);
       expect(countPlayerCopies(internalCardState, 'black', deckInfo.updatedBlackMarkerId)).toBe(3);
       expect(countPlayerCopies(internalCardState, 'black', deckInfo.blackMarkerId)).toBe(0);
       expect(countPlayerCopies(internalCardState, 'white', deckInfo.whiteMarkerId)).toBe(3);

@@ -643,25 +643,17 @@ const MODE_OTHELLO = 'othello';
         return true;
     }
 
-    function formatSeatDeckText(seatLabel: any, deckCode: any, deckSize: any) {
-        if (deckCode) {
-            const customSize = Number.isFinite(Number(deckSize)) ? Number(deckSize) : 30;
-            return `${seatLabel}カスタム ${customSize}枚`;
-        }
+    function formatSeatDeckText(seatLabel: any, deckSize: any) {
         if (Number.isFinite(Number(deckSize))) {
-            return `${seatLabel}デフォルト ${Number(deckSize)}枚`;
+            return `${seatLabel} ${Number(deckSize)}枚`;
         }
-        return `${seatLabel}デフォルトデッキ`;
+        return `${seatLabel} デッキ`;
     }
 
     function hasCustomRoomDeck(roomDeck: any) {
         if (!roomDeck || typeof roomDeck !== 'object') return false;
         if (String(roomDeck.source || '').trim() === 'allCards') return true;
-        if (roomDeck.deckCode) return true;
-        const byPlayer = roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object'
-            ? roomDeck.deckCodeByPlayer
-            : null;
-        return !!(byPlayer && (byPlayer.black || byPlayer.white));
+        return roomDeck.mode === 'perPlayer';
     }
 
     function formatRoomDeckText(roomDeck: any) {
@@ -675,22 +667,15 @@ const MODE_OTHELLO = 'othello';
                 : '部屋デッキ: 両者全カードデッキ';
         }
         if (roomDeck.mode === 'perPlayer') {
-            const deckCodeByPlayer = (roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object')
-                ? roomDeck.deckCodeByPlayer
-                : {};
             const deckSizeByPlayer = (roomDeck.deckSizeByPlayer && typeof roomDeck.deckSizeByPlayer === 'object')
                 ? roomDeck.deckSizeByPlayer
                 : {};
-            return `部屋デッキ: ${formatSeatDeckText('黒', deckCodeByPlayer.black, deckSizeByPlayer.black)} / ${formatSeatDeckText('白', deckCodeByPlayer.white, deckSizeByPlayer.white)}`;
-        }
-        if (roomDeck.deckCode) {
-            const deckSize = Number.isFinite(Number(roomDeck.deckSize)) ? Number(roomDeck.deckSize) : 30;
-            return `部屋デッキ: カスタム ${deckSize}枚`;
+            return `部屋デッキ: ${formatSeatDeckText('黒', deckSizeByPlayer.black)} / ${formatSeatDeckText('白', deckSizeByPlayer.white)}`;
         }
         if (Number.isFinite(Number(roomDeck.deckSize))) {
-            return `部屋デッキ: デフォルト ${Number(roomDeck.deckSize)}枚`;
+            return `部屋デッキ: ${Number(roomDeck.deckSize)}枚`;
         }
-        return '部屋デッキ: デフォルトデッキ';
+        return '部屋デッキ';
     }
 
     function renderNetworkDeckInfo(roomState?: any, pendingBoardConfig?: any) {

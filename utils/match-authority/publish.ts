@@ -18,6 +18,7 @@ import type {
     MatchAuthoritySeatPlayerIds,
     MatchAuthoritySnapshotPayloadFromRoomOptions
 } from '../match-authority-types';
+import { sanitizePublicRoomDeck } from '../match-room-deck';
 
 type RecordValue = Record<string, any>;
 
@@ -358,7 +359,9 @@ export function createMatchAuthorityPublishApi(deps: MatchAuthorityPublishApiDep
         if (publicSeatMetadata && hasSeatNames) payload.seatNames = publicSeatMetadata.seatNames;
         if (publicSeatMetadata && hasSeatHandSkins) payload.seatHandSkins = publicSeatMetadata.seatHandSkins;
         if (publicSeatMetadata && hasSeatPlayerIds) payload.seatPlayerIds = publicSeatMetadata.seatPlayerIds;
-        if (Object.prototype.hasOwnProperty.call(opts, 'roomDeck')) payload.roomDeck = opts.roomDeck;
+        if (Object.prototype.hasOwnProperty.call(opts, 'roomDeck')) {
+            payload.roomDeck = sanitizePublicRoomDeck(opts.roomDeck);
+        }
         if (Object.prototype.hasOwnProperty.call(opts, 'roomBoardConfig')) payload.roomBoardConfig = opts.roomBoardConfig;
         if (Object.prototype.hasOwnProperty.call(opts, 'networkDebugEnabled')) payload.networkDebugEnabled = opts.networkDebugEnabled === true;
         if (Object.prototype.hasOwnProperty.call(opts, 'networkAutoEnabled')) payload.networkAutoEnabled = opts.networkAutoEnabled === true;

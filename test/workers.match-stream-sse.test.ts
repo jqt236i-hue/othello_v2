@@ -51,7 +51,7 @@ function runStreamScenario() {
     "        consecutivePasses: 0,",
     "        turnNumber: 0",
     "      },",
-    "      cardState: {}",
+    "      cardState: { hands: { black: ['black-hand'], white: ['white-hand'] }, decks: { black: ['stream-black-private-2', 'stream-black-private-1'], white: ['stream-white-private-1'] }, deck: ['stream-legacy-private-1'], prngState: { seed: 4242, calls: 9 } }",
     "    }",
     "  });",
     "  const createPayload = await createResponse.json();",
@@ -138,6 +138,32 @@ function runResumeScenario() {
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
     "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
+function runLegacyPrivateReplayScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const state = { storage: { get: async () => null, put: async () => {}, delete: async () => {} } };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  const privateSnapshot = { stateVersion: 2, gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 }, cardState: { hands: { black: ['black-hand'], white: ['white-hand'] }, decks: { black: ['replay-black-private-2', 'replay-black-private-1'], white: ['replay-white-private-1'] }, deck: ['replay-legacy-private-1'], prngState: { seed: 5150, calls: 14 }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 } };",
+    "  durableObject.roomLoaded = true;",
+    "  durableObject.room = { roomId: 'SSE_PRIVATE', seed: 1, stateVersion: 2, snapshot: privateSnapshot, updatedAt: Date.now(), seats: { black: true, white: true }, seatTokens: { black: 'token_black', white: 'token_white' }, seatNames: { black: 'black', white: 'white' }, roomDeck: null, networkDebugEnabled: false, turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'white', turnStartedAt: null, turnDeadlineAt: null }, lastAcceptedOperationBySeat: { black: null, white: null }, eventSeq: 2, chatMessages: [], chatSeq: 0 };",
+    "  durableObject.sseEventBuffer = [",
+    "    { id: 'SSE_PRIVATE_1', event: 'heartbeat', payload: { ok: true } },",
+    "    { id: 'SSE_PRIVATE_2', event: 'snapshot', payloadByViewer: { black: { ok: true, roomId: 'SSE_PRIVATE', stateVersion: 2, roomDeck: { mode: 'perPlayer', deckCode: 'D1C1:replay_secret*3', deckCodeByPlayer: { black: 'D1C1:replay_secret*3', white: 'D1C1:replay_other*3' }, deckSize: null, deckSizeByPlayer: { black: 2, white: 1 }, source: 'room' }, snapshot: privateSnapshot, baseSnapshot: privateSnapshot, presentationCursor: { visualSeq: 1, stateVersion: 2 }, presentationFrames: [{ visualSeq: 1, stateVersionFrom: 1, stateVersionTo: 2, createdAt: 1, payloadByViewer: { black: { playbackEvents: [], effectLogs: [] }, spectator: { playbackEvents: [], effectLogs: [] } }, snapshotAfterByViewer: { black: privateSnapshot, spectator: privateSnapshot } }] } } }",
+    "  ];",
+    "  const response = await durableObject.handleStream(new Request('https://room/api/match/stream?seatKey=black&seatToken=token_black', { headers: { 'Last-Event-ID': 'SSE_PRIVATE_1' } }));",
+    "  const reader = response.body.getReader();",
+    "  const result = await Promise.race([reader.read(), new Promise((_, reject) => setTimeout(() => reject(new Error('STREAM_READ_TIMEOUT')), 1000))]);",
+    "  const firstChunk = Buffer.from(result && result.value ? result.value : []).toString('utf8');",
+    "  try { await reader.cancel(); } catch (e) { /* ignore */ }",
+    "  process.stdout.write(JSON.stringify({ status: response.status, firstChunk }));",
+    "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
   ].join('\n');
 
   return runScenario(runner);
@@ -453,7 +479,7 @@ function runRematchPresenceBufferScenario() {
     "    seed: 1,",
     "    snapshot: {",
     "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 0 },",
-    "      cardState: {}",
+    "      cardState: { hands: { black: ['black-hand'], white: ['white-hand'] }, decks: { black: ['stream-black-private-2', 'stream-black-private-1'], white: ['stream-white-private-1'] }, deck: ['stream-legacy-private-1'], prngState: { seed: 4242, calls: 9 }, initialDeckSizeByPlayer: { black: 2, white: 1 }, initialDeckSize: 2 }",
     "    }",
     "  });",
     "  const createPayload = await createResponse.json();",
@@ -490,7 +516,8 @@ describe('match worker stream SSE', () => {
     const result = runStreamScenario();
 
     expect(result.status).toBe(200);
-    expect(result.createRoomDeck).toEqual(expect.objectContaining({ mode: 'shared', deckCode: 'D1C1:test_card*3', deckSize: 30 }));
+    expect(result.createRoomDeck).toEqual(expect.objectContaining({ mode: 'shared', deckSize: 30 }));
+    expect(result.createRoomDeck).not.toHaveProperty('deckCode');
     expect(typeof result.firstChunk).toBe('string');
     expect(result.firstChunk).toContain('event: snapshot');
     expect(result.firstChunk).toContain('id: ');
@@ -499,6 +526,12 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');
     expect(result.firstChunk).toContain('"seatHandSkins":{"black":"gacha__n__陽気な手","white":""}');
     expect(result.firstChunk).toContain('"effectLogs":[]');
+    expect(result.firstChunk).toContain('"deckRemainingByPlayer":{"black":2,"white":1}');
+    expect(result.firstChunk).not.toContain('stream-black-private');
+    expect(result.firstChunk).not.toContain('stream-white-private');
+    expect(result.firstChunk).not.toContain('stream-legacy-private');
+    expect(result.firstChunk).not.toContain('4242');
+    expect(result.firstChunk).not.toContain('D1C1:test_card*3');
   });
 
   test('Last-Event-ID 付き再接続では buffered snapshot を replay する', () => {
@@ -513,6 +546,22 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('"effectLogs":["白がカードを使用: 交換"]');
     expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
     expect(result.firstChunk).not.toContain('"type":"history"');
+  });
+
+  test('保存済みの旧 replay payload も山札・乱数・deckCode を再送しない', () => {
+    const result = runLegacyPrivateReplayScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.firstChunk).toContain('event: snapshot');
+    expect(result.firstChunk).toContain('id: SSE_PRIVATE_2');
+    expect(result.firstChunk).toContain('"deckRemainingByPlayer":{"black":2,"white":1}');
+    expect(result.firstChunk).not.toContain('replay-black-private');
+    expect(result.firstChunk).not.toContain('replay-white-private');
+    expect(result.firstChunk).not.toContain('replay-legacy-private');
+    expect(result.firstChunk).not.toContain('5150');
+    expect(result.firstChunk).not.toContain('D1C1:replay_secret');
+    expect(result.firstChunk).not.toContain('"deckCode"');
+    expect(result.firstChunk).not.toContain('"deckCodeByPlayer"');
   });
 
   test('lastEventId query 付き再接続では buffered snapshot を replay する', () => {

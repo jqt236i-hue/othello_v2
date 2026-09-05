@@ -72,6 +72,7 @@ import { createMatchAuthorityPublishApi } from './match-authority/publish';
 import { createMatchAuthorityOperationsApi } from './match-authority/operations';
 import { createMatchAuthorityPendingSelectionApi } from './match-authority/pending-selection';
 import { createMatchAuthorityBoardContractApi } from './match-authority/board-contract';
+import { sanitizePublicRoomDeck } from './match-room-deck';
 
 import deepClone from './deepClone';
 
@@ -177,6 +178,14 @@ const NETWORK_TURN_LIMIT_MIN_SECONDS = NetworkContract.NETWORK_TURN_LIMIT_MIN_SE
 const NETWORK_TURN_LIMIT_MAX_SECONDS = NetworkContract.NETWORK_TURN_LIMIT_MAX_SECONDS;
 const NETWORK_TURN_LIMIT_MS = NetworkContract.NETWORK_TURN_LIMIT_MS;
 const normalizeNetworkTurnLimitSeconds = NetworkContract.normalizeNetworkTurnLimitSeconds;
+const PRIVATE_PUBLIC_PAYLOAD_DECK_FIELDS = Object.freeze([
+    'deckCode',
+    'deckCodeByPlayer',
+    'deckSpec',
+    'initialDeckCardIdsByPlayer',
+    'initialDeckSpec',
+    'initialDeckSpecByPlayer'
+]);
 const SSE_HEARTBEAT_INTERVAL_MS = 10000;
 const MAX_SPECTATORS = 4;
 const NETWORK_SPECTATOR_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
@@ -322,7 +331,11 @@ function getBufferedSseReplayEvents(
     lastEventIdValue: unknown,
     viewerSeatKey: unknown
 ): MatchAuthorityBufferedSseReplayEvent[] | null {
-    return matchAuthorityJournal.getBufferedSseReplayEvents(bufferValue, lastEventIdValue, viewerSeatKey);
+    const events = matchAuthorityJournal.getBufferedSseReplayEvents(bufferValue, lastEventIdValue, viewerSeatKey);
+    if (!events) return null;
+    return events.map((event) => Object.assign({}, event, {
+        payload: sanitizeBufferedPublicPayload(event.payload, viewerSeatKey)
+    }));
 }
 
 function getBufferedSnapshotPayloadForStateVersion(
@@ -330,7 +343,234 @@ function getBufferedSnapshotPayloadForStateVersion(
     stateVersionValue: unknown,
     viewerSeatKey: unknown
 ): unknown | null {
-    return matchAuthorityJournal.getBufferedSnapshotPayloadForStateVersion(bufferValue, stateVersionValue, viewerSeatKey);
+    const payload = matchAuthorityJournal.getBufferedSnapshotPayloadForStateVersion(
+        bufferValue,
+        stateVersionValue,
+        viewerSeatKey
+    );
+    return payload ? sanitizeBufferedPublicPayload(payload, viewerSeatKey) : null;
+}
+
+function getBufferedPayloadStateVersion(payload: Record<string, unknown>, snapshot: Record<string, unknown>): number {
+    const candidates = [payload.stateVersion, snapshot.stateVersion, asRecord(snapshot._meta).version];
+    for (const candidate of candidates) {
+        if (Number.isFinite(Number(candidate))) return Math.max(0, Math.trunc(Number(candidate)));
+    }
+    return 0;
+}
+
+function sanitizeBufferedPublicRoomDeck(value: unknown): unknown {
+    return sanitizePublicRoomDeck(value);
+}
+
+function hasOwnField(value: unknown, fieldName: string): boolean {
+    return !!value
+        && typeof value === 'object'
+        && Object.prototype.hasOwnProperty.call(value, fieldName);
+}
+
+function snapshotContainsPrivateDeckOrRandomState(snapshotValue: unknown): boolean {
+    const snapshot = asRecord(snapshotValue);
+    const cardState = asRecord(snapshot.cardState);
+    const gameState = asRecord(snapshot.gameState);
+    return hasOwnField(cardState, 'decks')
+        || hasOwnField(cardState, 'deck')
+        || hasOwnField(cardState, '_deckCopyIdsByPlayer')
+        || hasOwnField(cardState, 'prngState')
+        || hasOwnField(snapshot, 'prngState')
+        || hasOwnField(gameState, 'prngState');
+}
+
+function normalizeViewerForPublicSnapshot(viewerValue: unknown): MatchAuthorityViewer | null {
+    const viewer = normalizeViewerIdentity(viewerValue);
+    if (viewer) return viewer;
+    return getPayloadKeyForViewer(viewerValue) === 'spectator'
+        ? { role: 'spectator', spectatorId: '' }
+        : null;
+}
+
+function getHistoricalSnapshotStateVersion(
+    snapshotValue: unknown,
+    fallbackValue: unknown,
+    roomValue?: MatchAuthorityRoomState | null | undefined
+): number {
+    const snapshot = asRecord(snapshotValue);
+    const room = asRecord(roomValue);
+    const candidates = [snapshot.stateVersion, asRecord(snapshot._meta).version, fallbackValue, room.stateVersion];
+    for (const candidate of candidates) {
+        if (Number.isFinite(Number(candidate))) return Math.max(0, Math.trunc(Number(candidate)));
+    }
+    return 0;
+}
+
+function getHistoricalSnapshotUpdatedAt(
+    snapshotValue: unknown,
+    fallbackValue: unknown,
+    roomValue?: MatchAuthorityRoomState | null | undefined
+): number {
+    const snapshot = asRecord(snapshotValue);
+    const room = asRecord(roomValue);
+    const candidates = [snapshot.updatedAt, fallbackValue, room.updatedAt];
+    for (const candidate of candidates) {
+        if (Number.isFinite(Number(candidate))) return Number(candidate);
+    }
+    return Date.now();
+}
+
+function sanitizeHistoricalPublicSnapshot(
+    snapshotValue: unknown,
+    viewerValue: unknown,
+    options?: {
+        stateVersion?: unknown;
+        updatedAt?: unknown;
+        room?: MatchAuthorityRoomState | null | undefined;
+    }
+): unknown {
+    if (!snapshotContainsPrivateDeckOrRandomState(snapshotValue)) return snapshotValue;
+
+    const room = asRecord(options && options.room);
+    const snapshot = asRecord(snapshotValue);
+    const syntheticRoom = Object.assign({}, room, {
+        snapshot,
+        stateVersion: getHistoricalSnapshotStateVersion(snapshot, options && options.stateVersion, options && options.room),
+        updatedAt: getHistoricalSnapshotUpdatedAt(snapshot, options && options.updatedAt, options && options.room)
+    }) as MatchAuthorityRoomState;
+    return buildPublicSnapshotForViewer(syntheticRoom, normalizeViewerForPublicSnapshot(viewerValue));
+}
+
+function sanitizePublicPresentationFrame(
+    frameValue: unknown,
+    viewerValue: unknown,
+    roomValue?: MatchAuthorityRoomState | null | undefined
+): MatchAuthorityPresentationFramePublic {
+    if (!frameValue || typeof frameValue !== 'object' || Array.isArray(frameValue)) {
+        return frameValue as MatchAuthorityPresentationFramePublic;
+    }
+
+    const frame = deepClone(frameValue) as Record<string, unknown>;
+    if (hasOwnField(frame, 'payloadByViewer') || hasOwnField(frame, 'snapshotAfterByViewer')) {
+        return sanitizePublicPresentationFrame(
+            matchAuthorityPresentationJournal.toPublicPresentationFrame(frame, viewerValue, roomValue),
+            viewerValue,
+            roomValue
+        );
+    }
+
+    const snapshotAfter = sanitizeHistoricalPublicSnapshot(frame.snapshotAfter, viewerValue, {
+        stateVersion: frame.stateVersionTo,
+        updatedAt: frame.createdAt,
+        room: roomValue
+    });
+    if (snapshotAfter === frame.snapshotAfter) return frame as MatchAuthorityPresentationFramePublic;
+
+    frame.snapshotAfter = snapshotAfter;
+    frame.projectedSnapshotHash = asRecord(asRecord(snapshotAfter)._meta).projectedSnapshotHash || null;
+    return frame as MatchAuthorityPresentationFramePublic;
+}
+
+function sanitizePublicPresentationJournalResponse(
+    responseValue: unknown,
+    viewerValue: unknown,
+    roomValue?: MatchAuthorityRoomState | null | undefined
+): Record<string, unknown> {
+    if (!responseValue || typeof responseValue !== 'object' || Array.isArray(responseValue)) {
+        return responseValue as Record<string, unknown>;
+    }
+
+    const response = deepClone(responseValue) as Record<string, unknown>;
+    const presentationCursor = asRecord(response.presentationCursor);
+    const baseSnapshot = sanitizeHistoricalPublicSnapshot(response.baseSnapshot, viewerValue, {
+        stateVersion: presentationCursor.stateVersion,
+        updatedAt: response.serverTime,
+        room: roomValue
+    });
+    if (baseSnapshot !== response.baseSnapshot) response.baseSnapshot = baseSnapshot;
+
+    const snapshot = sanitizeHistoricalPublicSnapshot(response.snapshot, viewerValue, {
+        stateVersion: presentationCursor.stateVersion,
+        updatedAt: response.serverTime,
+        room: roomValue
+    });
+    if (snapshot !== response.snapshot) response.snapshot = snapshot;
+
+    if (Array.isArray(response.presentationFrames)) {
+        response.presentationFrames = response.presentationFrames.map((frame) => (
+            sanitizePublicPresentationFrame(frame, viewerValue, roomValue)
+        ));
+    }
+    return response;
+}
+
+function sanitizeBufferedPublicPayload(payloadValue: unknown, viewerValue: unknown): unknown {
+    const payload = deepClone(payloadValue || {});
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+
+    const projectedPayload = payload as Record<string, unknown>;
+    const hasTopLevelDeckSource = PRIVATE_PUBLIC_PAYLOAD_DECK_FIELDS.some((fieldName) => (
+        hasOwnField(projectedPayload, fieldName)
+    ));
+    const hasAuthoritativeHash = hasOwnField(projectedPayload, 'authoritativeStateHash');
+    const roomDeck = asRecord(projectedPayload.roomDeck);
+    const hasRoomDeckSource = hasOwnField(roomDeck, 'deckCode')
+        || hasOwnField(roomDeck, 'deckCodeByPlayer');
+    const snapshot = asRecord(projectedPayload.snapshot);
+    const hasPrivateSnapshotState = snapshotContainsPrivateDeckOrRandomState(snapshot);
+    const hasPrivateBaseSnapshotState = snapshotContainsPrivateDeckOrRandomState(projectedPayload.baseSnapshot);
+    const hasRawPresentationFrame = Array.isArray(projectedPayload.presentationFrames)
+        && projectedPayload.presentationFrames.some((frame) => (
+            hasOwnField(asRecord(frame), 'payloadByViewer')
+            || hasOwnField(asRecord(frame), 'snapshotAfterByViewer')
+        ));
+    const hasPrivatePresentationFrameState = Array.isArray(projectedPayload.presentationFrames)
+        && projectedPayload.presentationFrames.some((frame) => (
+            snapshotContainsPrivateDeckOrRandomState(asRecord(frame).snapshotAfter)
+            || Object.values(asRecord(asRecord(frame).snapshotAfterByViewer))
+                .some((snapshotAfter) => snapshotContainsPrivateDeckOrRandomState(snapshotAfter))
+        ));
+
+    if (!hasTopLevelDeckSource
+        && !hasAuthoritativeHash
+        && !hasRoomDeckSource
+        && !hasPrivateSnapshotState
+        && !hasPrivateBaseSnapshotState
+        && !hasRawPresentationFrame
+        && !hasPrivatePresentationFrameState) {
+        return projectedPayload;
+    }
+
+    if (hasTopLevelDeckSource) {
+        for (const fieldName of PRIVATE_PUBLIC_PAYLOAD_DECK_FIELDS) {
+            delete projectedPayload[fieldName];
+        }
+    }
+    if (hasAuthoritativeHash) delete projectedPayload.authoritativeStateHash;
+    if (hasRoomDeckSource) {
+        projectedPayload.roomDeck = sanitizeBufferedPublicRoomDeck(projectedPayload.roomDeck);
+    }
+    if (hasPrivateSnapshotState) {
+        const publicSnapshot = sanitizeHistoricalPublicSnapshot(snapshot, viewerValue, {
+            stateVersion: getBufferedPayloadStateVersion(projectedPayload, snapshot),
+            updatedAt: projectedPayload.serverTime
+        });
+        projectedPayload.snapshot = publicSnapshot;
+        if (Object.prototype.hasOwnProperty.call(projectedPayload, 'projectedSnapshotHash')) {
+            projectedPayload.projectedSnapshotHash = asRecord(asRecord(publicSnapshot)._meta).projectedSnapshotHash || null;
+        }
+    }
+
+    if (hasPrivateBaseSnapshotState) {
+        projectedPayload.baseSnapshot = sanitizeHistoricalPublicSnapshot(projectedPayload.baseSnapshot, viewerValue, {
+            stateVersion: asRecord(projectedPayload.presentationCursor).stateVersion,
+            updatedAt: projectedPayload.serverTime
+        });
+    }
+    if ((hasRawPresentationFrame || hasPrivatePresentationFrameState)
+        && Array.isArray(projectedPayload.presentationFrames)) {
+        projectedPayload.presentationFrames = projectedPayload.presentationFrames.map((frame) => (
+            sanitizePublicPresentationFrame(frame, viewerValue)
+        ));
+    }
+    return projectedPayload;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -1144,7 +1384,9 @@ function getPresentationFramesAfter(
     afterVisualSeq: unknown,
     viewerValue: unknown
 ): MatchAuthorityPresentationFramePublic[] {
-    return matchAuthorityPresentationJournal.getPresentationFramesAfter(roomValue, afterVisualSeq, viewerValue);
+    return matchAuthorityPresentationJournal
+        .getPresentationFramesAfter(roomValue, afterVisualSeq, viewerValue)
+        .map((frame) => sanitizePublicPresentationFrame(frame, viewerValue, roomValue));
 }
 
 function findPresentationFrameEntryForOperation(
@@ -1173,7 +1415,11 @@ function buildPresentationJournalResponse(
     roomValue: MatchAuthorityRoomState | null | undefined,
     options?: Record<string, unknown> | null
 ): Record<string, unknown> {
-    return matchAuthorityPresentationJournal.buildPresentationJournalResponse(roomValue, options);
+    return sanitizePublicPresentationJournalResponse(
+        matchAuthorityPresentationJournal.buildPresentationJournalResponse(roomValue, options),
+        asRecord(options).viewer,
+        roomValue
+    );
 }
 
 function toPublicPresentationFrame(
@@ -1181,7 +1427,11 @@ function toPublicPresentationFrame(
     viewerValue: unknown,
     roomValue?: MatchAuthorityRoomState | null | undefined
 ): MatchAuthorityPresentationFramePublic {
-    return matchAuthorityPresentationJournal.toPublicPresentationFrame(entryValue, viewerValue, roomValue);
+    return sanitizePublicPresentationFrame(
+        matchAuthorityPresentationJournal.toPublicPresentationFrame(entryValue, viewerValue, roomValue),
+        viewerValue,
+        roomValue
+    );
 }
 
 const matchAuthority = assertMatchAuthorityPublicApi({

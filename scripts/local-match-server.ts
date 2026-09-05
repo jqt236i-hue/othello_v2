@@ -904,7 +904,6 @@ function projectLegacyUnknownModeRoomDeck(metadata: any, snapshotSizes: any) {
     const metadataDeckSize = normalizeRoomDeckSize(metadata.deckSize);
     return {
         mode: rawMode,
-        deckCode: metadata.deckCode ? String(metadata.deckCode).trim() : '',
         deckSize: metadataDeckSize !== null ? metadataDeckSize : snapshotDeckSize,
         source: metadata.source ? String(metadata.source) : 'room'
     };
