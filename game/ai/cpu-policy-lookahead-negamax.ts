@@ -70,8 +70,9 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
     const applyMoveToBoard = typeof deps?.applyMoveToBoard === 'function' ? deps.applyMoveToBoard : ((board: any) => board);
 
     function createNegamax(input: CpuPolicyLookaheadNegamaxInput) {
+        let stopped = false;
         function storeTransposition(key: string, value: number): number {
-            if (!key || !Number.isFinite(value)) return value;
+            if (stopped || (typeof input.shouldStop === 'function' && input.shouldStop()) || !key || !Number.isFinite(value)) return value;
             if (input.transposition.size >= input.transpositionLimit) input.transposition.clear();
             input.transposition.set(key, value);
             return value;
@@ -86,15 +87,26 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
             passed: boolean,
             consumedMap: CpuPolicyBonusConsumedMap
         ): number {
+            if (stopped || (typeof input.shouldStop === 'function' && input.shouldStop())) {
+                stopped = true;
+                return evaluateBoardForLookahead(boardNode, currentPlayer);
+            }
             if (input.deadlineMs !== null && input.readNowMs() >= input.deadlineMs) {
+                stopped = true;
                 input.markTimeHit();
                 return evaluateBoardForLookahead(boardNode, currentPlayer);
             }
             if (input.readVisited() >= input.nodeBudget) {
+                stopped = true;
                 input.markBudgetHit();
                 return evaluateBoardForLookahead(boardNode, currentPlayer);
             }
             input.incrementVisited();
+            const originalAlpha = alpha;
+            // This cache stores exact values only; cutoffs and failed-low bounds must be re-searched.
+            const storeExact = (key: string, score: number): number => (
+                score > originalAlpha && score < beta ? storeTransposition(key, score) : score
+            );
 
             if (depthLeft <= 0) {
                 return evaluateBoardForLookahead(boardNode, currentPlayer);
@@ -115,7 +127,7 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
                     return storeTransposition(transpositionKey, terminalScore);
                 }
                 const passedScore: number = -negamax(boardNode, -currentPlayer, depthLeft - 1, -beta, -alpha, true, consumedMap);
-                return storeTransposition(transpositionKey, passedScore);
+                return storeExact(transpositionKey, passedScore);
             }
 
             const ordered = buildSearchMoveOrder(legal, {
@@ -135,13 +147,14 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
                     ? consumeBonusCell(consumedMap, Number(move.row), Number(move.col))
                     : consumedMap;
                 const nextBoard = applyMoveToBoard(boardNode, move, currentPlayer);
-                const child = -negamax(nextBoard, -currentPlayer, depthLeft - 1, -beta, -alpha, false, nextConsumed);
+                // Parent score = immediate - child, so both child bounds include immediate.
+                const child = -negamax(nextBoard, -currentPlayer, depthLeft - 1, immediate - beta, immediate - alpha, false, nextConsumed);
                 const score = immediate + child;
                 if (score > best) best = score;
                 if (score > alpha) alpha = score;
-                if (alpha >= beta || (typeof input.shouldStop === 'function' && input.shouldStop())) break;
+                if (alpha >= beta || stopped || (typeof input.shouldStop === 'function' && input.shouldStop())) break;
             }
-            return storeTransposition(transpositionKey, best);
+            return storeExact(transpositionKey, best);
         }
 
         return {

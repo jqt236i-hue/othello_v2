@@ -74,10 +74,11 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
         return [5, 7, 9, 11, 13, depth];
     }
 
-    function searchRootAtDepth(depthToUse: number, rootMoves: CpuPolicyMove[], input: CpuPolicyLookaheadRootSearchInput): { move: CpuPolicyMove | null; score: number } {
+    function searchRootAtDepth(depthToUse: number, rootMoves: CpuPolicyMove[], input: CpuPolicyLookaheadRootSearchInput): { move: CpuPolicyMove | null; score: number; completed: boolean } {
         let localBestMove: CpuPolicyMove | null = null;
         let localBestScore = Number.NEGATIVE_INFINITY;
         for (const move of rootMoves) {
+            if (input.shouldStop()) return { move: localBestMove, score: localBestScore, completed: false };
             const immediate = getMoveChargeGain(move, input.boardBonusByCell, input.baseConsumedMap) * 85;
             const bonusAtCell = getBoardBonusAtCell(input.boardBonusByCell, input.baseConsumedMap, Number(move.row), Number(move.col));
             const nextConsumed = bonusAtCell > 0
@@ -93,6 +94,8 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
                 false,
                 nextConsumed
             );
+            // A budget-limited child is a partial estimate, not a comparable search result.
+            if (input.shouldStop()) return { move: localBestMove, score: localBestScore, completed: false };
             const prior = input.priorFn ? (normalizePriorScore(input.priorFn(move)) * input.priorWeight) : 0;
             const total = ((childScore + immediate) * input.searchWeight) + prior;
             if (total > localBestScore) {
@@ -107,16 +110,16 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
                     localBestMove = move;
                 }
             }
-            if (input.shouldStop()) break;
         }
         return {
             move: localBestMove,
-            score: localBestScore
+            score: localBestScore,
+            completed: true
         };
     }
 
     function runLookaheadRootSearch(input: CpuPolicyLookaheadRootSearchInput): { bestMove: CpuPolicyMove | null; bestScore: number; rootMoves: CpuPolicyMove[] } {
-        let bestMove: CpuPolicyMove | null = null;
+        let bestMove: CpuPolicyMove | null = input.orderedRootBase[0] || null;
         let bestScore = Number.NEGATIVE_INFINITY;
         let rootMoves = input.orderedRootBase;
 
@@ -128,7 +131,7 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
                 if (seen.has(depthStep)) continue;
                 seen.add(depthStep);
                 const out = searchRootAtDepth(depthStep, rootMoves, input);
-                if (out.move) {
+                if (out.completed && out.move) {
                     bestMove = out.move;
                     bestScore = out.score;
                     rootMoves = reorderRootMoves(rootMoves, out.move);
@@ -137,8 +140,10 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
             }
         } else {
             const out = searchRootAtDepth(input.depth, rootMoves, input);
-            bestMove = out.move;
-            bestScore = out.score;
+            if (out.completed) {
+                bestMove = out.move;
+                bestScore = out.score;
+            }
         }
 
         return { bestMove, bestScore, rootMoves };

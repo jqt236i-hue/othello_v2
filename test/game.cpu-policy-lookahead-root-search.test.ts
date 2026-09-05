@@ -1,6 +1,32 @@
 import { createCpuPolicyLookaheadRootSearch } from '../game/ai/cpu-policy-lookahead-root-search';
 
 describe('cpu-policy lookahead root search module', () => {
+  test.each([4, 5, 6])('keeps the fully compared move when a deeper iteration stops at call %i', (stopAt) => {
+    let calls = 0;
+    const helpers = createCpuPolicyLookaheadRootSearch({
+      applyMoveToBoard: (_board: any, move: any) => ({ id: move.id })
+    });
+    const moves = [
+      { id: 'a', row: 2, col: 2 },
+      { id: 'b', row: 3, col: 3 },
+      { id: 'c', row: 4, col: 4 }
+    ] as any;
+    const out = helpers.runLookaheadRootSearch({
+      orderedRootBase: moves, depth: 8, endgameMode: false, board: [] as any,
+      playerValue: 1, boardBonusByCell: null, baseConsumedMap: {},
+      priorFn: null, priorWeight: 0, searchWeight: 1,
+      negamax: (board: any, _player, depth) => {
+        calls += 1;
+        if (depth === 3) return board.id === 'b' ? -100 : -50;
+        return board.id === 'b' ? -10 : -1000;
+      },
+      shouldStop: () => calls >= stopAt
+    });
+    expect(out.bestMove.id).toBe('b');
+    expect(out.bestScore).toBe(100);
+    expect(calls).toBe(stopAt);
+  });
+
   test('single-depth search uses row/col tie-break on equal totals', () => {
     const afterById = new Map<string, any>([
       ['a', { id: 'after-a' }],
