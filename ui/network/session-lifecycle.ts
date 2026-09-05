@@ -699,6 +699,25 @@ function createNetworkSessionLifecycleController(config: any): any {
       return { ok: false, reason: 'ROOM_MISMATCH' };
     }
 
+    const responseStateVersion = toIntegerOrNull(res.data.stateVersion);
+    const responseSnapshotVersion = res.data.snapshot && typeof cfg.getSnapshotStateVersion === 'function'
+      ? toIntegerOrNull(cfg.getSnapshotStateVersion(res.data.snapshot))
+      : null;
+    const currentStateVersion = toIntegerOrNull(state.appliedStateVersion) ?? getCanonicalStateVersion(state);
+    if (currentStateVersion !== null && (
+      (responseStateVersion !== null && responseStateVersion < currentStateVersion)
+      || (responseSnapshotVersion !== null && responseSnapshotVersion < currentStateVersion)
+    )) {
+      if (typeof cfg.recordNetworkTelemetry === 'function') {
+        cfg.recordNetworkTelemetry('state_sync_stale_response_ignored', {
+          responseStateVersion,
+          responseSnapshotVersion,
+          currentStateVersion
+        });
+      }
+      return { ok: false, stale: true, reason: 'STALE_STATE_SYNC' };
+    }
+
     const visualSeqBeforeStateSync = getStoredVisualSeq(null, state);
     const visualVersionBeforeStateSync = getStoredVisualVersion(null, state);
     const localProjectedSnapshotHashBefore = typeof cfg.getKnownProjectedSnapshotHash === 'function'
@@ -712,7 +731,6 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (typeof cfg.applyPayloadSessionState === 'function') {
       cfg.applyPayloadSessionState(res.data);
     }
-    const responseStateVersion = toIntegerOrNull(res.data.stateVersion);
     if (responseStateVersion !== null) {
       state.stateVersion = responseStateVersion;
     }

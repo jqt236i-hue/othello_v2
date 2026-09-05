@@ -861,6 +861,47 @@ describe('NetworkSessionLifecycleController', () => {
   });
 
   describe('syncLatestState - エラーハンドリング', () => {
+    test.each([
+      ['state_sync', 'black', false],
+      ['heartbeat_recovery', 'white', false],
+      ['state_sync', 'spectator', false],
+      ['heartbeat_recovery', 'black', true]
+    ])('ignores delayed older %s responses for %s (exact rebase: %s)', async (source, viewer, exactRebase) => {
+      Object.assign(stateObj, {
+        roomId: 'ABC',
+        seatKey: viewer === 'spectator' ? null : viewer,
+        viewerRole: viewer === 'spectator' ? 'spectator' : 'seat',
+        stateVersion: 10,
+        appliedStateVersion: 10,
+        lastVisualSeq: 9,
+        lastVisualVersion: 10
+      });
+      let resolveRequest;
+      mockConfig.requestJson.mockImplementation(() => new Promise((resolve) => { resolveRequest = resolve; }));
+      const syncPromise = controller.syncLatestState({
+        source,
+        syncVisualCursorForSnapshotNoPlayback: exactRebase
+      });
+
+      stateObj.stateVersion = 11;
+      stateObj.appliedStateVersion = 11;
+      resolveRequest(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        stateVersion: 10,
+        snapshot: { stateVersion: 10 },
+        presentationCursor: { visualSeq: 9, stateVersion: 10 }
+      }));
+
+      await expect(syncPromise).resolves.toMatchObject({ ok: false, stale: true, reason: 'STALE_STATE_SYNC' });
+      expect(stateObj.stateVersion).toBe(11);
+      expect(stateObj.appliedStateVersion).toBe(11);
+      expect(mockConfig.applyPayloadSessionState).not.toHaveBeenCalled();
+      expect(mockConfig.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+      expect(mockConfig.syncVisualCursorForSnapshotNoPlayback).not.toHaveBeenCalled();
+      expect(mockConfig.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
+    });
+
     test('旧sessionのstate応答を別roomへ適用しない', async () => {
       stateObj.roomId = 'OLD';
       stateObj.seatKey = 'black';

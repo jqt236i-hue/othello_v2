@@ -259,6 +259,61 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(stateFetchCount).toBe(0);
   });
 
+  test('a delayed state response cannot roll back a newer stream snapshot or the next publish base', async () => {
+    const originalFetch = global.fetch;
+    let resolveStateRequest;
+    global.fetch = jest.fn((url, init = {}) => {
+      if (new URL(String(url)).pathname === '/api/match/state') {
+        return new Promise((resolve) => { resolveStateRequest = resolve; });
+      }
+      return originalFetch(url, init);
+    });
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    const syncPromise = client.syncLatestState();
+    await flushNetworkPresentation();
+    expect(resolveStateRequest).toBeDefined();
+
+    const newerSnapshot = createSnapshot(2, { turnNumber: 2 });
+    newerSnapshot.gameState.board[2][3] = -1;
+    eventSources[0].listeners.snapshot({
+      lastEventId: 'ABC_2_1',
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        stateVersion: 2,
+        operationId: 'op-newer-stream',
+        snapshot: newerSnapshot,
+        presentationCursor: { visualSeq: 1, stateVersion: 2 },
+        presentationFrames: [{
+          ...createPresentationFrame([], 'op-newer-stream'),
+          snapshotAfter: newerSnapshot
+        }]
+      })
+    });
+    await flushNetworkPresentation();
+    expect(client.getStateVersion()).toBe(2);
+    expect(global.gameState.board[2][3]).toBe(-1);
+
+    resolveStateRequest(jsonResponse(200, {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 1,
+      snapshot: createSnapshot(1),
+      presentationCursor: { visualSeq: 0, stateVersion: 1 }
+    }));
+    await expect(syncPromise).resolves.toMatchObject({ ok: false, stale: true, reason: 'STALE_STATE_SYNC' });
+    expect(client.getStateVersion()).toBe(2);
+    expect(global.gameState.turnNumber).toBe(2);
+    expect(global.gameState.board[2][3]).toBe(-1);
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({ visualSeq: 1, visualVersion: 2 });
+
+    await client.publishSnapshot({ playerKey: 'white', action: createPlaceAction('white', 2) });
+    expect(publishBodies).toHaveLength(1);
+    expect(publishBodies[0].baseVersion).toBe(2);
+  });
+
   test('stream error後に再接続し、stream event が来なければ fallback で state API を再同期する', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
