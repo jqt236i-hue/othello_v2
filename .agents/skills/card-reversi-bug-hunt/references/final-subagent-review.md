@@ -12,7 +12,7 @@
 2. task開始時のbaseline commit。既に今回task関連commitがある場合は、baselineから現在HEADまでの固定rangeをcommit IDで記録する。
 3. 開始時と現在のGit可視なdirty files。修正へ進めるのは、staged、unstaged、non-ignored untrackedの全dirty stateが今回の依頼に関連し、その全体をレビュー対象にできる場合だけとする。一つでも無関係、所有者不明、別taskの変更があれば製品コードを編集しない。
 4. 実行したfocused test、build、browser/network checkと結果。初回失敗、retry、未実行checkも含める。
-5. 期待結果の根拠となる`01-rulebook.md`、関連`正本/*.md`、`docs/architecture-contracts.md`、適用される`AGENTS.md`。
+5. 期待結果の根拠となる`01-rulebook.md`、関連`正本/*.md`、`docs/architecture-contracts.md`、適用される`AGENTS.md` / `AGENTS.override.md`。
 6. 変更したsource、test、docs、生成物、mirror、現在のstaged/unstaged/untracked全体。raw patchやfile本文をbriefへ貼らず、レビュアーが共有checkoutから直接読む。新しいcommitを最終レビュー前に作る許可を意味しない。
 7. `scripts/workspace_fingerprint.py` schema version 1の出力。helperはSHA-256とbinary-safeなtag/payload length-prefix recordsを使い、HEAD、porcelain-v1 `-z` status、staged/unstaged binary diff、全non-ignored untracked path/mode/contentまたはsymlink targetをcanonical順で集約する。各実行内で連続2 snapshotが一致しない場合は失敗する。
 8. baseline commit、今回task関連commitの固定range、exact helper command、exact helper JSON、dirty state全体を唯一の固定review scopeとする。独自の連結や別方式のreview bundle fingerprintは作らない。untracked fileはGit diffに現れないため、briefにはpath、kind、byte length、content hashだけを記録し、本文は転記しない。レビュアーが共有checkout上のファイルを直接全文読み、新規追加としてレビューする。
@@ -50,7 +50,7 @@ python -X utf8 "<skill path>\scripts\workspace_fingerprint.py" --repo "<reposito
 - 仕様が明確な確定問題だけをfindingとし、仕様判断や主観的改善を混ぜない
 
 必ず行うこと:
-1. rootから対象までのAGENTS.md、関連する仕様正本とarchitecture contractを読む
+1. rootから対象までのAGENTS.md / AGENTS.override.md、関連する仕様正本とarchitecture contractを読む
 2. baseline commit、今回task関連commitの固定range、現在のdirty stateをすべて確認する
 3. 変更したsymbolのcaller/consumerと、関係するbrowser/headless/network/Worker/generated経路を追う
 4. 元の再現、隣接正常系、関連する境界・失敗・回復経路、実行済みcheckの十分性を評価する

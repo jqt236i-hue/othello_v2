@@ -85,11 +85,11 @@ Severity（プレイヤーへの影響）と Confidence（バグである確実�
 
 - 確定判定とは別に、ユーザーの依頼が製品コードの修正まで明示的に許可していることを確認する。調査・検証・レビュー依頼では修正しない。
 - 一件ずつ、rootのsource of truthへ最小かつ一貫した修正を行う。原因修正に必要でないリファクタ、見た目改善、仕様変更を混ぜない。
-- 編集対象の近くにある `AGENTS.md`、既存helper、authority boundary、teardown/recovery契約を先に確認する。
+- 編集対象の近くにある `AGENTS.md` / `AGENTS.override.md`、既存helper、authority boundary、teardown/recovery契約を先に確認する。
 - ゲーム層をheadlessに保ち、UIをauthorityにせず、`events[]`の順序とSingle Visual Writerを守る。
 - 既存のfocused coverageが証明できるなら重複テストを増やさない。Level 2/3の回帰で不足している場合は、修正前に失敗を示すか、修正と同時にregression coverageを追加する。
 - テストを通すためにskip、削除、期待値の弱体化をしない。期待値変更が必要になった時点で仕様判断待ちへ戻す。
-- player-visibleなroot変更ではfocused check後に `npm run build:browser` を行う。network contractではparity checkと必要なmirror生成をroot規約に従って選ぶ。
+- player-visibleなroot変更ではfocused check後に `npm run build:vite` を行う。これは `build:browser` を含み、通常のVite配信とrootの起動文書を更新する。network contractではparity checkと必要なmirror生成をroot規約に従って選ぶ。
 - 同じ実機手順を再実行し、隣接する正常系を少なくとも一つ確認する。ブラウザではURL、lane、backend、network mode、操作、console/page error、スクリーンショットまたはpublic diagnosticsを記録する。
 - 修正途中でゲートを満たさないと判明した場合は、追加の製品変更を止め、作業ツリーの所有権を守ったうえで未確定または仕様判断待ちとして報告する。
 - focused verificationが通っても、次の独立サブエージェント全体レビューが終わる前にcommitや完了報告をしない。

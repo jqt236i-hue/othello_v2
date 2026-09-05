@@ -107,8 +107,8 @@ Canonical local play:
 
 - Command: `npm run serve` (`scripts/serve-with-fallback.ts`)
 - URL: `http://127.0.0.1:8000/`
-- Role: static root server for classic `index.html` and Vite `index.vite.html`
-- Rebuilds write files in place. Do not stop this server for `npm run build:ts`, `npm run build:browser`, tests, or source edits. Reload the browser after a browser-facing rebuild.
+- Role: static root server for the default Vite `index.html` and the classic rollback `index.classic.html`
+- Rebuilds write files in place. Do not stop this server for `npm run build:ts`, `npm run build:browser`, `npm run build:vite`, tests, or source edits. Reload the browser after a browser-facing rebuild.
 
 Other local listeners are not substitutes for that play URL:
 
@@ -127,7 +127,7 @@ Invariants:
 7. Do not stop, replace, or bulk-kill Node processes that do not belong to this repository, including other projects on 5173.
 8. Focused Jest, `test/e2e/`, and visual-regression helpers may start ephemeral servers on OS-assigned ports. Those belong to the test lifecycle and must be torn down by the test. They are not the play server; do not keep them as the leftover 8000 process and do not reuse their random ports as the canonical URL.
 9. Any task that edits, fixes, or implements the playable game has the following mandatory completion gate, regardless of whether the browser was used during the task:
-   - After the final game change and the relevant tests, run at least `npm run build:browser` so the local play server can serve the finished changes. Also run any more specific build or generation command required elsewhere in this file. If a game source file changes afterward, rebuild before completing the task.
+   - After the final game change and the relevant tests, run at least `npm run build:vite` so the local play server can serve the finished default Vite delivery. This includes `npm run build:browser`; also run any more specific build or generation command required elsewhere in this file. If a game source file changes afterward, rebuild before completing the task.
    - Confirm that this repository's persistent `npm run serve` process is running on `http://127.0.0.1:8000/`. If it is stopped, start it persistently. A server that exists only while a temporary command or test is running does not count.
    - After the final build and after every command that could stop, replace, or detach the launcher, perform the last pre-response check: confirm that `http://127.0.0.1:8000/` returns HTTP 200, that port 8000 belongs to this repository's play server, and that its persistent terminal or independently owned process remains attached. A tool session ID alone is not persistence evidence.
    - Leave the play server running after the final response. Do not stop it as cleanup.
@@ -170,7 +170,7 @@ Get-NetTCPConnection -State Listen |
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- ブラウザ表示に影響する root ソース変更（カード説明文、UI ラベル、タグ定義、表示テキスト、アイコン名など）では、focused test の後に `npm run build:browser` を実行し、完了報告に記載する。`npm run build:ts` だけでは `public/module-registry.js` と browser 用 bundle / cachebuster が更新されない。Do not stop `npm run serve` on 8000 to run that rebuild.
+- ブラウザ表示に影響する root ソース変更（カード説明文、UI ラベル、タグ定義、表示テキスト、アイコン名など）では、focused test の後に `npm run build:vite` を実行し、完了報告に記載する。これは `npm run build:browser` を含み、通常のVite配信、root `index.html`、browser用bundleを更新する。`npm run build:ts` だけでなく `npm run build:browser` だけでも通常のVite配信は更新されない。Do not stop `npm run serve` on 8000 to run that rebuild.
 - Local browser confirmation follows LOCAL DEV SERVER. Keep `http://127.0.0.1:8000/` listening; do not start a second play server or a server that dies with a temporary terminal.
 - Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; verification is required, but adding new tests is not the default outcome.
 - Use this verification scale before deciding whether to add tests:
@@ -273,9 +273,9 @@ Get-NetTCPConnection -State Listen |
 npm run typecheck
 npm run build:ts
 npm run checkall
-npm run build:browser    # public/module-registry.js と index.html のキャッシュバスターを再生成。Worker 経路の worker:prepare のような自動連結はないので、ブラウザ表示に影響する root ソース変更後はテスト通過後に手動で実行する。Do not stop npm run serve to run this.
+npm run build:browser    # classic rollback用の module registry を再生成。通常のVite配信だけを更新する用途では不十分。
 npm run serve            # local static play server on 8000; keep running across edits
-npm run build:vite
+npm run build:vite       # build:browser を含み、通常のVite配信、root index.html、hashed bundleを更新。ブラウザ表示に影響する root ソース変更後はテスト通過後に実行する。Do not stop npm run serve to run this.
 npm run test:jest
 npm run test:network:parity
 npm run test:visual       # Visual / browser verification; run the smallest relevant scenario

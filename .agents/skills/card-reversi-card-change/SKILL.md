@@ -13,7 +13,7 @@ Carry one card request through every affected authority without creating a secon
 2. Keep diagnose, review, and plan work read-only. Do not edit, generate, commit, or deploy unless the user authorized implementation or deployment.
 3. Treat deployment as separate authority. Deploy only when explicitly requested.
 4. Run `git status --short`. Classify every existing change as related, unrelated, generated/mirror, or unknown. Preserve unrelated work and stop on overlapping unknown edits.
-5. Read the root `AGENTS.md` and every closest nested `AGENTS.md` for files that may change.
+5. Read the root `AGENTS.md` and every applicable nested `AGENTS.md` / `AGENTS.override.md` for files that may change.
 6. Confirm the real source owner from the closest guidance, facade imports, runtime imports, and `docs/typescript-migration-js-allowlist.md`. Prefer `.ts` when it owns behavior, but do not assume every root TypeScript or JSON file is canonical.
 7. Stop when same-topic authorities conflict or when a requested behavior is not decided. Do not rewrite the specification to make a bug disappear.
 
@@ -44,7 +44,7 @@ Use `--allow-path <explained-prefix>` only for an intentional compatibility or h
 Inspect:
 
 - content and asset-path matches, including Japanese artwork filenames;
-- matched aliases, source role, generated/mirror classification, and governing `AGENTS.md`;
+- matched aliases, source role, generated/mirror classification, and governing `AGENTS.md` / `AGENTS.override.md`;
 - the coverage summary for catalog, specification, `CardType`, rules, pending, CPU, presentation, network, tests, assets, and generated surfaces;
 - the board-kernel coverage and current relevant `package.json` scripts when the effect reads or mutates topology, holes, expansion cells, legal moves, flips, or counts;
 - unreadable canonical candidates, catalog integrity issues, unclassified hits, and dirty-tree entries.
@@ -76,7 +76,7 @@ Search manually with `rg` when an effect uses a semantic alias, marker, event, p
 | Special card/stone or progression contract | `shared/special-card-registry.ts`, `shared/special-stone-registry.ts`, `shared/manifest-stone-registry.ts`, `game/logic/cards-internal/progression.ts` | Update registries and upgrade/progression links without duplicating effect logic. |
 | Network-visible result, pending state, projection, or randomness | shared action/authority helpers, Worker/local adapters, client intake/reconciliation | Invoke `$card-reversi-network-contract` when available and follow it through Worker, local server, browser, headless, projection, journal, and mirror parity. |
 
-Treat listed paths as discovery anchors, not permission to recreate a removed module. If an anchor moved, use `rg`, the facade wiring, the closest `AGENTS.md`, and current tests to find the owner.
+Treat listed paths as discovery anchors, not permission to recreate a removed module. If an anchor moved, use `rg`, the facade wiring, the closest `AGENTS.md` / `AGENTS.override.md`, and current tests to find the owner.
 
 ## Preserve the card invariants
 
@@ -131,7 +131,7 @@ Verify current script definitions in `package.json`; do not trust a stale comman
 | Pending or multi-stage selection | Include registry, pending state/stage, selection flow, pending coordinator, CPU pending, and turn-outcome tests; add `npm run check:window`; include network parity when publish/reconnect is involved. |
 | CPU or all-card taxonomy | Include the card-specific CPU tests and relevant all-card gates such as `test/game.cpu-policy-card-profiles.test.ts`, `test/game.cpu-policy-core.test.ts`, and `test/cpu.decision.refactor.test.ts`. |
 | Animation, sound, or board playback | Run focused feedback/pipeline/board/Pixi tests first. Add `npm run match:pixijs-board-playback-check`, fallback/cross-platform smoke, or visual/E2E checks in proportion to risk. |
-| Browser-visible root source | After focused tests pass, run `npm run build:browser` and inspect registry/cachebuster/generated diffs. |
+| Browser-visible root source | After focused tests pass, run `npm run build:vite`. It includes `build:browser` and refreshes the default Vite entry and hashed browser assets; inspect the generated delivery diffs. |
 | Network authority or projection | Follow `$card-reversi-network-contract`; run focused authority/client tests and the required match/network parity bundles. |
 | Worker-served mirror | Run `npm run worker:prepare`, then `npm run check:worker-mirror`; do not run prepare immediately before `worker:dev` or `worker:deploy`. |
 
@@ -139,8 +139,8 @@ Report an initial failure even if a retry passes. Do not delete, skip, weaken, o
 
 ## Finish
 
-1. Rerun the inventory with every old ID, type, Japanese name, event, pending type, sound key, and asset name through `--expect-absent`.
-2. Require zero unexplained active old-term hits and zero unreadable canonical candidates. List each intentional compatibility/history remainder with file, reason, and protecting test.
+1. Only for a rename or removal, rerun the inventory with each ID, type, Japanese name, event, pending type, sound key, or asset name that the compatibility decision retires through `--expect-absent`. For add, ordinary changes, enable, and disable, do not apply an absence gate to still-supported identifiers.
+2. For a retirement gate, require zero unexplained active retired-term hits and zero unreadable canonical candidates. For other lifecycle changes, inspect the matched paths and preserve intentional compatibility references. List each intentional compatibility/history remainder with file, reason, and protecting test.
 3. Run `git status --short` and inspect only the task-owned diff. Confirm every generated or mirrored file came from its owning script.
 4. Stop without landing when specification intent, saved/network compatibility, deterministic authority, Worker/local parity, or required verification remains unresolved.
 5. For an authorized implementation, commit only the isolated verified task-owned files according to repository policy. Never commit for a read-only request.

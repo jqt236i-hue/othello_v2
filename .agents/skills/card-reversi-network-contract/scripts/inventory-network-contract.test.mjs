@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -37,12 +38,41 @@ function runInventory(args, repoArgument = repoRoot) {
   return JSON.parse(result.stdout);
 }
 
+function createDeletedNetworkFixture(t) {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'card-reversi-network-inventory-'));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true, maxRetries: 3 }));
+
+  const runGit = (args) => {
+    const result = spawnSync('git', ['-C', fixtureRoot, ...args], {
+      encoding: 'utf8',
+      windowsHide: true
+    });
+    assert.equal(result.status, 0, result.stderr);
+  };
+
+  mkdirSync(join(fixtureRoot, 'ui', 'network'), { recursive: true });
+  writeFileSync(join(fixtureRoot, 'package.json'), JSON.stringify({ name: 'card-reversi', scripts: {} }));
+  writeFileSync(join(fixtureRoot, 'AGENTS.md'), 'Fixture root instructions\n');
+  writeFileSync(join(fixtureRoot, 'ui', 'network', 'AGENTS.override.md'), 'Fixture network override instructions\n');
+  const deletedPath = join(fixtureRoot, 'ui', 'network', 'session-retired.ts');
+  writeFileSync(deletedPath, 'export const retiredSession = true;\n');
+
+  runGit(['init', '--quiet']);
+  runGit(['config', 'user.name', 'Skill fixture']);
+  runGit(['config', 'user.email', 'skill-fixture@example.invalid']);
+  runGit(['add', '.']);
+  runGit(['commit', '--quiet', '-m', 'fixture']);
+  rmSync(deletedPath);
+
+  return fixtureRoot;
+}
+
 test('discovers the canonical intake and session surfaces with current anchors', () => {
   const result = runInventory(['--surface', 'intake', '--surface', 'session']);
   const files = new Set(result.hits.map((hit) => hit.file));
   const packageScripts = new Set(result.packageScripts.map((entry) => entry.name));
 
-  assert.equal(result.schemaVersion, 2);
+  assert.equal(result.schemaVersion, 3);
   assert.equal(result.repoRoot, repoRoot);
   assert.ok(files.has('ui/network/intake-envelope.ts'));
   assert.ok(files.has('ui/network/intake-coordinator.ts'));
@@ -50,11 +80,25 @@ test('discovers the canonical intake and session surfaces with current anchors',
   assert.ok(files.has('ui/network/stream-session.ts'));
   assert.deepEqual(result.missingAnchors, []);
   assert.ok(packageScripts.has('test:network:parity'));
+  assert.ok(packageScripts.has('build:vite'));
   assert.ok(packageScripts.has('check:board-kernel-boundary'));
   assert.ok(packageScripts.has('worker:bundle:smoke'));
   assert.ok(packageScripts.has('match:pixi-runtime-fallback-check'));
   assert.ok(result.governingAgentFiles.includes('ui/network/AGENTS.md'));
   assert.deepEqual(result.skippedCanonical, []);
+});
+
+test('reports deleted tracked files without treating them as unreadable and finds override instructions', (t) => {
+  const fixtureRoot = createDeletedNetworkFixture(t);
+  const result = runInventory(['--surface', 'session'], fixtureRoot);
+
+  assert.deepEqual(result.skippedCanonical, []);
+  assert.deepEqual(result.deletedWorkingTreeFiles, [{
+    file: 'ui/network/session-retired.ts',
+    category: 'network-client',
+    reason: 'missing-from-working-tree'
+  }]);
+  assert.ok(result.governingAgentFiles.includes('ui/network/AGENTS.override.md'));
 });
 
 test('maps AUTO and timeout authority instead of treating browser preference as authority', () => {
@@ -109,12 +153,13 @@ test('all includes current room lifecycle and runtime ownership anchors', () => 
     'utils/match-rematch-controller.ts',
     'utils/match-room-preferences-controller.ts',
     'utils/match-state-controller.ts',
-    'utils/match-runtime-core.ts',
     'utils/match-runtime-ports.ts',
     'workers/match-worker-api.ts'
   ]) {
     assert.ok(files.has(file), `missing all-surface owner: ${file}`);
   }
+  assert.ok(!result.anchorStatus.some((entry) => entry.path === 'utils/match-runtime-core.ts'));
+  assert.deepEqual(result.missingAnchors, []);
 });
 
 test('worker runtime and delivery include deployment entry and configuration', () => {

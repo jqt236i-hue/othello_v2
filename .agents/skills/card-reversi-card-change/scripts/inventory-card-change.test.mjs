@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -59,13 +60,47 @@ function runInventory(args, repoArgument = repoRoot) {
   return JSON.parse(result.stdout);
 }
 
+function createDeletedCardFixture(t) {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'card-reversi-card-inventory-'));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true, maxRetries: 3 }));
+
+  const runGit = (args) => {
+    const result = spawnSync('git', ['-C', fixtureRoot, ...args], {
+      encoding: 'utf8',
+      windowsHide: true
+    });
+    assert.equal(result.status, 0, result.stderr);
+  };
+
+  mkdirSync(join(fixtureRoot, 'cards'), { recursive: true });
+  mkdirSync(join(fixtureRoot, 'game'), { recursive: true });
+  writeFileSync(join(fixtureRoot, 'package.json'), JSON.stringify({ name: 'card-reversi', scripts: {} }));
+  writeFileSync(
+    join(fixtureRoot, 'cards', 'catalog.json'),
+    JSON.stringify({ cards: [{ id: 'fixture-card', type: 'FIXTURE_CARD', name_ja: 'フィクスチャ' }] })
+  );
+  writeFileSync(join(fixtureRoot, 'AGENTS.md'), 'Fixture root instructions\n');
+  writeFileSync(join(fixtureRoot, 'game', 'AGENTS.override.md'), 'Fixture game override instructions\n');
+  const deletedPath = join(fixtureRoot, 'game', 'retired.ts');
+  writeFileSync(deletedPath, 'export const fixtureCard = "FIXTURE_CARD";\n');
+
+  runGit(['init', '--quiet']);
+  runGit(['config', 'user.name', 'Skill fixture']);
+  runGit(['config', 'user.email', 'skill-fixture@example.invalid']);
+  runGit(['add', '.']);
+  runGit(['commit', '--quiet', '-m', 'fixture']);
+  rmSync(deletedPath);
+
+  return fixtureRoot;
+}
+
 test('matches an existing card and separates canonical catalog data from generated projections', () => {
   const card = catalog.cards[0];
   const result = runInventory(['--mode', 'change', '--card', card.type]);
   const categoryByFile = new Map(result.hits.map((hit) => [hit.file, hit.category]));
 
   const packageScripts = new Set(result.packageScripts.map((entry) => entry.name));
-  assert.equal(result.schemaVersion, 3);
+  assert.equal(result.schemaVersion, 4);
   assert.equal(result.repoRoot, repoRoot);
   assert.equal(result.card.id, card.id);
   assert.equal(result.catalogMatchKind, 'exact');
@@ -81,9 +116,23 @@ test('matches an existing card and separates canonical catalog data from generat
   assert.ok(catalogHit.matchedTerms.includes(card.type));
   assert.ok(catalogHit.matchKinds.includes('content'));
   assert.ok(packageScripts.has('generate:catalog'));
+  assert.ok(packageScripts.has('build:vite'));
   assert.ok(packageScripts.has('check:board-kernel-boundary'));
   assert.deepEqual(result.catalogIssues, []);
   assert.deepEqual(result.skippedCanonical, []);
+});
+
+test('reports deleted tracked files without treating them as unreadable and finds override instructions', (t) => {
+  const fixtureRoot = createDeletedCardFixture(t);
+  const result = runInventory(['--mode', 'audit', '--card', 'FIXTURE_CARD'], fixtureRoot);
+
+  assert.deepEqual(result.skippedCanonical, []);
+  assert.deepEqual(result.deletedWorkingTreeFiles, [{
+    file: 'game/retired.ts',
+    category: 'headless-rules',
+    reason: 'missing-from-working-tree'
+  }]);
+  assert.ok(result.governingAgentFiles.includes('game/AGENTS.override.md'));
 });
 
 test('allows a new identity only in add or audit mode', () => {

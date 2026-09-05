@@ -8,6 +8,7 @@ const TEXT_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json', '.md', '.html', '.css',
   '.scss', '.yaml', '.yml', '.py', '.ps1', '.bat', '.txt', '.toml'
 ]);
+const INSTRUCTION_FILENAMES = ['AGENTS.md', 'AGENTS.override.md'];
 
 const SURFACES = {
   command: {
@@ -291,7 +292,7 @@ const SURFACES = {
       /^ui\/network-client\.ts$/u,
       /^utils\/match-authority\.ts$/u,
       /^utils\/match-(join|leave|rematch|room-preferences|state)-controller\.ts$/u,
-      /^utils\/match-runtime-(core|ports)\.ts$/u,
+      /^utils\/match-runtime-ports\.ts$/u,
       /^workers\/match-worker-api\.ts$/u
     ],
     anchors: [
@@ -302,7 +303,6 @@ const SURFACES = {
       'utils/match-rematch-controller.ts',
       'utils/match-room-preferences-controller.ts',
       'utils/match-state-controller.ts',
-      'utils/match-runtime-core.ts',
       'utils/match-runtime-ports.ts',
       'workers/match-worker-api.ts'
     ]
@@ -542,7 +542,13 @@ function classify(file, contents = '') {
   const path = file.replaceAll('\\', '/');
   if (isGeneratedOrMirror(path, contents)) return 'generated-or-mirror';
   if (path.startsWith('docs/archive/')) return 'historical-docs';
-  if (path === 'AGENTS.md' || path.endsWith('/AGENTS.md') || path === 'docs/architecture-contracts.md') return 'contract-docs';
+  if (
+    path === 'AGENTS.md'
+    || path === 'AGENTS.override.md'
+    || path.endsWith('/AGENTS.md')
+    || path.endsWith('/AGENTS.override.md')
+    || path === 'docs/architecture-contracts.md'
+  ) return 'contract-docs';
   if (path.startsWith('test/') || path.startsWith('tests/') || path.includes('/__tests__/')) return 'tests';
   if (path.startsWith('shared/')) return 'shared-contracts';
   if (path.startsWith('utils/match-')) return 'authority-core';
@@ -571,13 +577,27 @@ function matchedSurfaces(path, selectedSurfaces) {
 }
 
 function collectInventory(repoRoot, files, selectedSurfaces, terms) {
-  const candidateSet = new Set(files.map((file) => file.replaceAll('\\', '/')));
+  const candidateSet = new Set(
+    files
+      .filter((file) => existsSync(resolve(repoRoot, file)))
+      .map((file) => file.replaceAll('\\', '/'))
+  );
   const termRecords = terms.map((term) => ({ original: term, normalized: normalize(term) }));
   const hits = [];
   const skipped = [];
+  const deletedWorkingTreeFiles = [];
 
   for (const rawFile of files) {
     const file = rawFile.replaceAll('\\', '/');
+    const filePath = resolve(repoRoot, file);
+    if (!existsSync(filePath)) {
+      deletedWorkingTreeFiles.push({
+        file,
+        category: classify(file),
+        reason: 'missing-from-working-tree'
+      });
+      continue;
+    }
     const normalizedFile = normalizePath(file);
     const surfaces = matchedSurfaces(file, selectedSurfaces);
     const pathMatchedTerms = termRecords
@@ -592,7 +612,7 @@ function collectInventory(repoRoot, files, selectedSurfaces, terms) {
 
     if (shouldRead) {
       try {
-        contents = readFileSync(resolve(repoRoot, file), 'utf8');
+        contents = readFileSync(filePath, 'utf8');
       } catch (error) {
         skipped.push({
           file,
@@ -638,7 +658,11 @@ function collectInventory(repoRoot, files, selectedSurfaces, terms) {
     });
   }
 
-  return { hits, skipped };
+  return {
+    hits,
+    skipped,
+    deletedWorkingTreeFiles: deletedWorkingTreeFiles.sort((left, right) => left.file.localeCompare(right.file, 'en'))
+  };
 }
 
 function readWorkingTreeStatus(repoRoot) {
@@ -649,12 +673,17 @@ function readWorkingTreeStatus(repoRoot) {
 
 function findGoverningAgentFiles(repoRoot, files) {
   const found = new Set();
-  if (existsSync(resolve(repoRoot, 'AGENTS.md'))) found.add('AGENTS.md');
+  const addGuides = (directory) => {
+    for (const guideName of INSTRUCTION_FILENAMES) {
+      const guidePath = directory === '.' ? guideName : `${directory}/${guideName}`;
+      if (existsSync(resolve(repoRoot, guidePath))) found.add(guidePath);
+    }
+  };
+  addGuides('.');
   for (const rawFile of files) {
     let current = dirname(rawFile.replaceAll('\\', '/')).replaceAll('\\', '/');
     while (current && current !== '.') {
-      const candidate = `${current}/AGENTS.md`;
-      if (existsSync(resolve(repoRoot, candidate))) found.add(candidate);
+      addGuides(current);
       const parent = dirname(current).replaceAll('\\', '/');
       if (!parent || parent === current || parent === '.') break;
       current = parent;
@@ -724,6 +753,9 @@ function printHuman(result) {
   if (result.skippedCanonical.length > 0) {
     console.log(`\nFailure: ${result.skippedCanonical.length} selected canonical candidate file(s) could not be read.`);
   }
+  if (result.deletedWorkingTreeFiles.length > 0) {
+    console.log(`\nNotice: ${result.deletedWorkingTreeFiles.length} tracked candidate file(s) are deleted from the working tree; inspect the deletion through Git status and diff.`);
+  }
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -736,7 +768,7 @@ const skippedCanonical = inventory.skipped.filter(
   (entry) => !['generated-or-mirror', 'historical-docs'].includes(entry.category)
 );
 const result = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   repoRoot,
   packageName: packageJson.name,
   surfaces: options.surfaces,
@@ -749,8 +781,12 @@ const result = {
   anchorStatus,
   missingAnchors: anchorStatus.filter((entry) => !entry.exists),
   packageScripts: selectPackageScripts(packageJson),
-  governingAgentFiles: findGoverningAgentFiles(repoRoot, inventory.hits.map((hit) => hit.file)),
+  governingAgentFiles: findGoverningAgentFiles(
+    repoRoot,
+    [...inventory.hits, ...inventory.deletedWorkingTreeFiles].map((entry) => entry.file)
+  ),
   workingTreeStatus: readWorkingTreeStatus(repoRoot),
+  deletedWorkingTreeFiles: inventory.deletedWorkingTreeFiles,
   skipped: inventory.skipped,
   skippedCanonical
 };

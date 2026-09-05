@@ -9,6 +9,7 @@ const TEXT_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json', '.md', '.html', '.css',
   '.scss', '.yaml', '.yml', '.py', '.ps1', '.bat', '.txt', '.toml'
 ]);
+const INSTRUCTION_FILENAMES = ['AGENTS.md', 'AGENTS.override.md'];
 
 const ADD_MODE_GUIDE_DIRECTORIES = [
   'cards',
@@ -42,6 +43,7 @@ const RELEVANT_PACKAGE_SCRIPTS = [
   'test:match:parity',
   'test:network:parity',
   'build:browser',
+  'build:vite',
   'match:pixijs-board-playback-check',
   'match:pixi-runtime-fallback-check',
   'match:cross-platform-smoke:vite',
@@ -285,6 +287,12 @@ function classify(file, contents = '') {
   const path = file.replaceAll('\\', '/');
   if (isGeneratedOrMirror(path, contents)) return 'generated-or-mirror';
   if (path.startsWith('docs/archive/')) return 'historical-docs';
+  if (
+    path === 'AGENTS.md'
+    || path === 'AGENTS.override.md'
+    || path.endsWith('/AGENTS.md')
+    || path.endsWith('/AGENTS.override.md')
+  ) return 'contract-docs';
   if (path === '01-rulebook.md' || path.startsWith('正本/')) return 'player-spec';
   if (path.startsWith('test/') || path.startsWith('tests/') || path.includes('/__tests__/')) return 'tests';
   if (path === 'cards/catalog.json') return 'canonical-catalog';
@@ -345,11 +353,25 @@ function collectHits(repoRoot, files, terms) {
   const termRecords = terms
     .map((term) => ({ original: String(term).trim(), normalized: normalize(term) }))
     .filter((term) => term.normalized);
-  const candidateSet = new Set(files.map((file) => file.replaceAll('\\', '/')));
+  const candidateSet = new Set(
+    files
+      .filter((file) => existsSync(resolve(repoRoot, file)))
+      .map((file) => file.replaceAll('\\', '/'))
+  );
   const hits = [];
   const skipped = [];
+  const deletedWorkingTreeFiles = [];
 
   for (const file of files) {
+    const filePath = resolve(repoRoot, file);
+    if (!existsSync(filePath)) {
+      deletedWorkingTreeFiles.push({
+        file: file.replaceAll('\\', '/'),
+        category: classify(file),
+        reason: 'missing-from-working-tree'
+      });
+      continue;
+    }
     const normalizedFile = normalizePath(file);
     const pathMatchedTerms = termRecords
       .filter((term) => normalizedFile.includes(term.normalized.replaceAll('\\', '/')))
@@ -362,7 +384,7 @@ function collectHits(repoRoot, files, terms) {
 
     if (TEXT_EXTENSIONS.has(extension)) {
       try {
-        contents = readFileSync(resolve(repoRoot, file), 'utf8');
+        contents = readFileSync(filePath, 'utf8');
       } catch (error) {
         const category = classify(file);
         skipped.push({
@@ -410,7 +432,8 @@ function collectHits(repoRoot, files, terms) {
 
   return {
     hits: hits.sort((left, right) => left.file.localeCompare(right.file, 'en')),
-    skipped
+    skipped,
+    deletedWorkingTreeFiles: deletedWorkingTreeFiles.sort((left, right) => left.file.localeCompare(right.file, 'en'))
   };
 }
 
@@ -425,7 +448,13 @@ function readWorkingTreeStatus(repoRoot) {
 
 function findGoverningAgentFiles(repoRoot, files, seedDirectories = []) {
   const found = new Set();
-  if (existsSync(resolve(repoRoot, 'AGENTS.md'))) found.add('AGENTS.md');
+  const addGuides = (directory) => {
+    for (const guideName of INSTRUCTION_FILENAMES) {
+      const guidePath = directory === '.' ? guideName : `${directory}/${guideName}`;
+      if (existsSync(resolve(repoRoot, guidePath))) found.add(guidePath);
+    }
+  };
+  addGuides('.');
   const candidateFiles = [
     ...files,
     ...seedDirectories.map((directory) => `${directory}/__inventory__`)
@@ -433,8 +462,7 @@ function findGoverningAgentFiles(repoRoot, files, seedDirectories = []) {
   for (const rawFile of candidateFiles) {
     let current = dirname(rawFile.replaceAll('\\', '/')).replaceAll('\\', '/');
     while (current && current !== '.') {
-      const candidate = `${current}/AGENTS.md`;
-      if (existsSync(resolve(repoRoot, candidate))) found.add(candidate);
+      addGuides(current);
       const parent = dirname(current).replaceAll('\\', '/');
       if (!parent || parent === current || parent === '.') break;
       current = parent;
@@ -530,6 +558,9 @@ function printHuman(result) {
   if (result.skippedCanonical.length > 0) {
     console.log(`\nFailure: ${result.skippedCanonical.length} canonical candidate file(s) could not be read.`);
   }
+  if (result.deletedWorkingTreeFiles.length > 0) {
+    console.log(`\nNotice: ${result.deletedWorkingTreeFiles.length} tracked candidate file(s) are deleted from the working tree; inspect the deletion through Git status and diff.`);
+  }
   if (result.catalogIssues.length > 0) {
     console.log(`\nFailure: catalog integrity issues: ${result.catalogIssues.join(' | ')}`);
   }
@@ -570,9 +601,10 @@ if (options.mode === 'enable' && card && card.enabled !== false) warnings.push('
 if (options.mode === 'disable' && card && card.enabled === false) warnings.push('the matched card is already disabled');
 if (inventory.hits.some((hit) => hit.category === 'other')) warnings.push('one or more matches are unclassified; inspect them manually');
 if (inventory.skipped.length > skippedCanonical.length) warnings.push('generated, mirror, or historical candidate files were unreadable');
+if (inventory.deletedWorkingTreeFiles.length > 0) warnings.push('one or more tracked candidate files are deleted from the working tree; inspect their Git diff');
 
 const result = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   repoRoot,
   packageName: packageJson.name,
   mode: options.mode,
@@ -599,12 +631,13 @@ const result = {
   packageScripts: selectPackageScripts(packageJson),
   governingAgentFiles: findGoverningAgentFiles(
     repoRoot,
-    inventory.hits.map((hit) => hit.file),
+    [...inventory.hits, ...inventory.deletedWorkingTreeFiles].map((entry) => entry.file),
     options.mode === 'add' ? ADD_MODE_GUIDE_DIRECTORIES : []
   ),
   workingTreeStatus: readWorkingTreeStatus(repoRoot),
   catalogIssues,
   absenceViolations,
+  deletedWorkingTreeFiles: inventory.deletedWorkingTreeFiles,
   skipped: inventory.skipped,
   skippedCanonical,
   warnings

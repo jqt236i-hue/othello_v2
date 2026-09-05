@@ -42,17 +42,16 @@ def run_git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedP
         stderr=subprocess.PIPE,
         check=False,
     )
-    if result.stderr:
-        digest = hashlib.sha256(result.stderr).hexdigest()
-        raise FingerprintError(
-            "git command emitted stderr "
-            f"(command={args[0] if args else '<none>'}, returncode={result.returncode}, "
-            f"bytes={len(result.stderr)}, sha256={digest})"
-        )
     if check and result.returncode != 0:
+        stderr_details = ""
+        if result.stderr:
+            stderr_details = (
+                f", stderrBytes={len(result.stderr)}, "
+                f"stderrSha256={hashlib.sha256(result.stderr).hexdigest()}"
+            )
         raise FingerprintError(
-            f"git command failed without stderr (command={args[0] if args else '<none>'}, "
-            f"returncode={result.returncode})"
+            f"git command failed (command={args[0] if args else '<none>'}, "
+            f"returncode={result.returncode}{stderr_details})"
         )
     return result
 

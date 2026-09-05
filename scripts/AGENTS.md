@@ -19,7 +19,7 @@ Build, codegen, checks, local servers, worker sync, and selfplay/training orches
 - Python training commands expect repo-root `.venv\Scripts\python.exe`; `training/python/setup.ps1` installs Torch separately from `requirements.txt`.
 - Lane promotion and root deployment are separate: `promote-policy-model` writes lane-local artifacts; `deploy-lane-model-to-root` copies a lane champion to root `data/models/`; run `npm run worker:prepare` after root deploy.
 - `data/` can contain large model/run artifacts. Do not add or commit model outputs unless explicitly requested.
-- `serve-with-fallback.ts` prefers 8000 then walks sequential ports. Agents must reuse an existing 8000 listener and must not start a second copy. Do not stop the play server to run `build:browser`. Do not run `build:vite` while this repository is serving `vite-dist/` on 5174.
+- `serve-with-fallback.ts` prefers 8000 then walks sequential ports. Agents must reuse an existing 8000 listener and must not start a second copy. Do not stop the play server to run `build:vite`. Do not run `build:vite` while this repository is serving `vite-dist/` on 5174.
 
 ## Verification
 

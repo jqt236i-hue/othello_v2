@@ -13,7 +13,7 @@ Trace every network change from authenticated action to canonical state, project
 2. Keep diagnose, review, and plan work read-only. Do not generate browser/Worker artifacts, commit, or deploy.
 3. Implement only when the user authorized a change. Deploy only when explicitly requested and after the required bundle and smoke gates pass.
 4. Run `git status --short`. Preserve unrelated work, identify generated/mirror changes, and stop on overlapping unknown edits.
-5. Read root `AGENTS.md` and every closest nested guide. Usually include `workers/AGENTS.md`, `ui/network/AGENTS.md`, and the applicable `utils/`, `shared/`, `scripts/`, `game/card-effects/`, `game/turn/`, `ui/`, and `test/` guides.
+5. Read root `AGENTS.md` and every applicable nested `AGENTS.md` / `AGENTS.override.md`. Usually include the guides under `workers/`, `ui/network/`, and the applicable `utils/`, `shared/`, `scripts/`, `game/card-effects/`, `game/turn/`, `ui/`, and `test/` paths.
 6. Read `docs/architecture-contracts.md` selectively: §6.3–6.4 for pending and state lanes, §7.2 for publish/intake, §7.3 for writer/settlement, §8 for authority/projection/delivery, and §11 for root/mirror ownership.
 7. Read `01-rulebook.md` and the owning `正本` only when player-visible behavior, timing, card outcomes, projection wording, sounds, or animations change.
 8. Confirm current owners through facade wiring, imports, `rg`, closest guidance, and tests. Treat paths below as discovery anchors; never recreate a stale path merely because this Skill names it.
@@ -37,7 +37,7 @@ Select every affected surface: command, publish, intake/snapshot, session/reconn
 Inspect:
 
 - current ownership anchors and any missing anchor that requires rediscovery;
-- matched source, tests, generated/mirror files, aliases, and governing `AGENTS.md`;
+- matched source, tests, generated/mirror files, aliases, and governing `AGENTS.md` / `AGENTS.override.md`;
 - actual `package.json` commands rather than remembered command names;
 - unreadable canonical candidates and dirty-tree entries.
 
@@ -170,7 +170,7 @@ Read the current commands from `package.json`. Run focused tests explicitly beca
 | Projection, identity, or spectator | Focus public snapshot, identity, visibility, local spectator, Worker spectator, seat leave/revocation, and projection tests for black, white, and spectator; include both parity bundles when gameplay projection changes. |
 | Board contract, topology, expansion, or holes | Focus `test/utils.match-authority.board-contract.test.ts`, `test/board.runtime-parity.test.ts`, shared board-kernel/topology/expansion tests, snapshot-canonical/apply/reconnect tests, Worker/local publish projection, and board render-model tests. Run `npm run check:board-kernel-boundary`, then both parity bundles when gameplay projection changes. |
 | Pending/network-visible card | Focus pending registry/coordinator/bridge, deferred publish, authority pending ID/target validation, CPU/AUTO pending, projection, and reconnect; invoke `$card-reversi-card-change` for the card layers. |
-| Browser behavior or board settlement | Run focused source tests, then `npm run build:browser`; add Pixi playback/fallback/cross-platform or the smallest two-client browser scenario in proportion to risk. |
+| Browser behavior or board settlement | Run focused source tests, then `npm run build:vite`, which includes `build:browser` and refreshes the default Vite delivery; add Pixi playback/fallback/cross-platform or the smallest two-client browser scenario in proportion to risk. |
 | Generated network markers | Run `npm run check:generated-network-surface` only for its limited generated marker/SSE-journal surface; do not treat it as preload or executable bundle validation. |
 | Worker preload or authority bundle | Run focused tests → `npm run typecheck`/`npm run build:ts` → `npm run worker:prepare` → `npm run check:worker-mirror` → `npm run worker:bundle:smoke`. The prepare step owns preload validation. |
 | Deployment explicitly requested | Run `npm run worker:deploy`, which already prepares and bundle-smokes before Wrangler. Verify create/join/authenticated state/stream/publish/recovery/leave for the requested scenario and ensure both seats/room are cleaned up without logging tokens. |
@@ -179,7 +179,7 @@ Do not run `worker:prepare` immediately before `worker:dev` or `worker:deploy`; 
 
 ## Stop conditions
 
-Stop without landing or deploying when:
+Stop an implementation without landing when:
 
 - Worker and local behavior still differ;
 - black/white/spectator projection or secret exclusion is not proved;
@@ -191,8 +191,9 @@ Stop without landing or deploying when:
 - timeout/AUTO would use browser state as authority;
 - required focused, parity, mirror, or bundle-smoke verification fails;
 - generated/mirror output overlaps another task;
-- player-visible specification and intended behavior conflict;
-- deployment was not explicitly authorized.
+- player-visible specification and intended behavior conflict.
+
+Stop the deployment step when deployment was not explicitly authorized. This does not block a separately authorized local implementation from being verified and committed.
 
 ## Finish
 
