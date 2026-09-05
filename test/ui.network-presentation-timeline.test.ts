@@ -100,6 +100,24 @@ function frame(visualSeq: number, from: number, to: number, type?: string) {
 }
 
 describe('NetworkPresentationTimeline', () => {
+  test('does not dispatch a placement after the session is disposed during its hand approach', async () => {
+    let finishApproach: (events: any[]) => void = () => {};
+    const preparePlayback = jest.fn(() => new Promise<any[]>((resolve) => { finishApproach = resolve; }));
+    const timeline = Timeline.createNetworkPresentationTimeline({ initialVisualVersion: 1, preparePlayback });
+    const next = frame(1, 1, 2);
+    timeline.enqueueFrames([next]);
+    const dispatchNetworkPlaybackEvents = jest.fn(async () => ({ started: true }));
+    const draining = timeline.drainPlayableFrames({ dispatchNetworkPlaybackEvents });
+    await Promise.resolve();
+    expect(preparePlayback).toHaveBeenCalledTimes(1);
+    const disposing = timeline.dispose('leave-during-approach');
+    finishApproach(next.playbackEvents);
+    await draining;
+    await expect(disposing).resolves.toBe(true);
+    expect(dispatchNetworkPlaybackEvents).not.toHaveBeenCalled();
+    expect(timeline.getDiagnostics().disposed).toBe(true);
+  });
+
   test('plays contiguous frames in visualSeq order and commits after playback', async () => {
     const played: string[] = [];
     const committed: number[] = [];

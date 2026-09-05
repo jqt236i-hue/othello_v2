@@ -1718,13 +1718,18 @@ function animateStrongWillApply(row: any, col: any) {
  */
 function playHandAnimation(player: any, row: any, col: any, onComplete: any, visualOptions: any) {
     return _enqueueHandLayerAnimation(() => new Promise<void>((resolveQueue) => {
+        const preserveInputLock = visualOptions?.preserveInputLock === true;
+        const placementApproval = visualOptions?.waitForPlacement;
+        const signal = visualOptions?.signal;
         const syncCardAnimating = (locked: any) => {
+            if (preserveInputLock) return;
             _setCardAnimatingState(locked);
         };
         const refreshCardUi = () => {
             _requestCardUiSyncForAnimationUtils('animation-utils:play-hand-animation');
         };
         const unlockProcessing = () => {
+            if (preserveInputLock) return;
             _setProcessingState(false);
         };
         const releaseQueue = () => {
@@ -1738,7 +1743,11 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             releaseQueue();
         };
 
-        _setProcessingState(true);
+        if (!preserveInputLock) _setProcessingState(true);
+        if (signal?.aborted) {
+            completeImmediately();
+            return;
+        }
 
         const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
         const cellRect = _resolveBoardCellClientRectForAnimationUtils(row, col);
@@ -1754,8 +1763,14 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         }
 
         if (_isHandAnimationDisabled('place')) {
-            _playStonePlaceSoundSafe();
-            completeImmediately();
+            if (placementApproval) {
+                Promise.resolve(placementApproval).then((accepted) => {
+                    if (accepted && !signal?.aborted) _playStonePlaceSoundSafe();
+                }).finally(completeImmediately);
+            } else {
+                _playStonePlaceSoundSafe();
+                completeImmediately();
+            }
             return;
         }
 
@@ -1845,6 +1860,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         const cleanup = () => {
             if (cleanupStarted) return;
             cleanupStarted = true;
+            signal?.removeEventListener('abort', cleanup);
             clearCleanupFallback();
             completeMove();
             _setHandWrapperPresentationActive(wrapperEl, false);
@@ -1865,6 +1881,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         // without waiting for the retreat. Its playback scope may therefore be cleared
         // while the hand is still leaving; keep this visual cleanup watchdog unscoped.
         clearCleanupFallback = _installAnimationResolveFallback(cleanup, HAND_PLACE_CLEANUP_FALLBACK_MS);
+        signal?.addEventListener('abort', cleanup, { once: true });
 
         (async () => {
             // 1. Approach
@@ -1883,6 +1900,14 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 fill: 'forwards'
             }, sc);
             if (!_isHandWrapperPresentationActive(wrapperEl)) return;
+
+            // Start travelling at input time, but never drop a stone or play its
+            // sound before the matching authoritative placement is ready.
+            if (placementApproval) {
+                clearCleanupFallback();
+                if (await placementApproval !== true || signal?.aborted || cleanupStarted) return;
+                clearCleanupFallback = _installAnimationResolveFallback(cleanup, HAND_PLACE_CLEANUP_FALLBACK_MS);
+            }
 
             // 2. Place (Bobbing effect)
             const bobOffset = (player === BLACK) ? 10 : -10;

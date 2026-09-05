@@ -1038,7 +1038,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 roomId: normalizeRoomId(state.roomId),
                 sessionEpoch: getNetworkSessionEpoch()
             }),
-            setPreviewHints: setNetworkPlacementFeedbackPreviewHints
+            setPreviewHints: setNetworkPlacementFeedbackPreviewHints,
+            playPlacementHand: typeof root.playHandAnimation === 'function'
+                ? (owner: any, row: any, col: any, options: any) => new Promise<void>((resolve) => {
+                    Promise.resolve(root.playHandAnimation(owner === 'black' ? 1 : -1, row, col, resolve, options))
+                        .then(resolve, resolve);
+                })
+                : undefined
         });
         return networkPlacementFeedbackController;
     }
@@ -1307,6 +1313,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     async function disposeNetworkPresentationTimeline(reason?: any) {
+        clearNetworkPlacementFeedback();
         clearNetworkPresentationRetryTimer();
         clearNetworkPresentationRecoverySurface();
         networkPresentationRetryAttempt = 0;
@@ -1342,6 +1349,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             initialVisualVersion,
             visualStateStore: getNetworkVisualStateStore(),
             visualSettlementTracker: getNetworkVisualSettlementTracker(),
+            preparePlayback: (frame: any) => networkPlacementFeedbackController
+                ? networkPlacementFeedbackController.preparePlayback(frame)
+                : frame.playbackEvents,
             onFrameCommitted: (frame: any, meta: any) => observeNetworkTimelineFrameCommitted(frame, meta),
             onSettlementPaused: (paused: any) => scheduleNetworkPresentationSettlementRetry(paused)
         });

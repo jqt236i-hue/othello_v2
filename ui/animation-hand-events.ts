@@ -74,6 +74,7 @@ function handleCaptureToHandEvent(ev: any) {
 }
 
 function handlePlaceHandAnimationEvent(ev: any, deps: AnimationHandEventDeps) {
+    if (ev?.meta?.localPlacementHandComplete === true) return Promise.resolve();
     const target = getPrimaryTarget(ev);
     const descriptor = deps.resolvePlaceHandDescriptor(target);
     if (!descriptor || !deps.shouldPlayPlaceHandAnimation(target)) {

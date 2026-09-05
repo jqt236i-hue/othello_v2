@@ -125,13 +125,16 @@ function createNetworkPresentationTimeline(config?: any): any {
   }
 
   async function dispatchFrame(frame: any, dispatcher: any): Promise<any> {
-    const playbackEvents = Array.isArray(frame && frame.playbackEvents) ? frame.playbackEvents : [];
     if (!dispatcher || typeof dispatcher.dispatchNetworkPlaybackEvents !== 'function') {
       throw createTimelineError('network_playback_dispatcher_unavailable', {
         code: 'NETWORK_PLAYBACK_DISPATCHER_UNAVAILABLE',
         safeDispatchRetry: true
       });
     }
+    const playbackEvents = typeof cfg.preparePlayback === 'function'
+      ? await cfg.preparePlayback(frame)
+      : (Array.isArray(frame && frame.playbackEvents) ? frame.playbackEvents : []);
+    if (disposed || disposeRequested) throw new Error('network_presentation_timeline_disposed');
     let result: any = null;
     try {
       result = await dispatcher.dispatchNetworkPlaybackEvents(playbackEvents, {

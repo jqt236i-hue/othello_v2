@@ -503,6 +503,8 @@ The existing private Pixi ticker remains the only active-playback animation cloc
 
 ### 7.4 Hand animation context
 
+Local network placement may start only the hand approach before confirmation. `ui/network/placement-feedback.ts` binds that approach to the publish operation and session, and the presentation timeline joins its contact only for the matching authoritative hand target. The local playback copy marks the completed hand event without changing the canonical journal or event order. Rejection and session disposal cancel the approach. This preview never owns board writes or releases the move executor's input lock; stone release and sound require authoritative approval.
+
 Hand-layer animation must keep visual resolution and motion playback as separate responsibilities.
 
 - `ui/hand-skin/catalog.ts` is the canonical UI-side source for known / owned hand skin definitions resolved from the observation cosmetic catalog.

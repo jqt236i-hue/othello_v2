@@ -432,6 +432,35 @@ describe('animation-utils hand fallback', () => {
     expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
   });
 
+  test.each([true, false])('network hand approaches immediately, holds input ownership, and releases only on approval=%s', async (accepted) => {
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = jest.fn(() => ({ addEventListener: jest.fn(), finished: Promise.resolve() }));
+    const mod = require('../ui/animation-utils.js');
+    let approve: (value: boolean) => void = () => {};
+    const waitForPlacement = new Promise<boolean>((resolve) => { approve = resolve; });
+    const done = jest.fn();
+    const abort = new AbortController();
+    global.isProcessing = true;
+    const run = mod.playHandAnimation(global.BLACK, 0, 0, done, {
+      waitForPlacement, signal: abort.signal, preserveInputLock: true
+    });
+    // Flush the queued hand start and the completed approach, while the network
+    // approval remains deliberately unresolved.
+    for (let i = 0; i < 12; i += 1) await Promise.resolve();
+    expect(wrapper.animate).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('heldStone').style.display).toBe('block');
+    expect(done).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playStoneClack).not.toHaveBeenCalled();
+    expect(global.isCardAnimating).toBe(false);
+    approve(accepted);
+    if (!accepted) abort.abort();
+    await run;
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(accepted ? 1 : 0);
+    expect(global.isProcessing).toBe(true);
+    expect(document.getElementById('heldStone').style.display).toBe('none');
+  });
+
   test('playDrawCardHandAnimation preloads the drawn card background before hand reveal', async () => {
     const imageSrcs = [];
     installCardBackgroundPreloadFixture(imageSrcs, {

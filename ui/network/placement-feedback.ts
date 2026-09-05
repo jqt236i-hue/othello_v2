@@ -40,6 +40,15 @@ function createNetworkPlacementFeedbackController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   let nextToken = 0;
   let activeFeedback: any = null;
+  let placementHand: any = null;
+
+  function cancelPlacementHand(): void {
+    if (!placementHand) return;
+    const hand = placementHand;
+    placementHand = null;
+    hand.approve(false);
+    hand.abort.abort();
+  }
 
   function setPreviewHints(previewHints: any[], options?: any): boolean {
     if (typeof cfg.setPreviewHints !== 'function') return false;
@@ -48,7 +57,9 @@ function createNetworkPlacementFeedbackController(config?: any): any {
   }
 
   function clear(options?: any): boolean {
-    if (!activeFeedback) return false;
+    const hadHand = !!placementHand;
+    cancelPlacementHand();
+    if (!activeFeedback) return hadHand;
     activeFeedback = null;
     setPreviewHints([], options);
     return true;
@@ -63,6 +74,7 @@ function createNetworkPlacementFeedbackController(config?: any): any {
     if (typeof cfg.setPreviewHints !== 'function') return null;
 
     const token = `network-placement:${++nextToken}`;
+    cancelPlacementHand();
     activeFeedback = {
       token,
       cellKey: `${row},${col}`,
@@ -71,6 +83,22 @@ function createNetworkPlacementFeedbackController(config?: any): any {
       operationId: null,
       owner
     };
+    if (owner && typeof cfg.playPlacementHand === 'function') {
+      let approve: (accepted: boolean) => void = () => {};
+      const accepted = new Promise<boolean>((resolve) => { approve = resolve; });
+      const abort = new AbortController();
+      const hand = { ...activeFeedback, approve, abort, contact: null as any };
+      placementHand = hand;
+      try {
+        hand.contact = Promise.resolve(cfg.playPlacementHand(owner, row, col, {
+          waitForPlacement: accepted,
+          signal: abort.signal,
+          preserveInputLock: true
+        })).catch(() => { if (placementHand === hand) cancelPlacementHand(); });
+      } catch (_error) {
+        cancelPlacementHand();
+      }
+    }
     setPreviewHints([{
       cellKey: activeFeedback.cellKey,
       kind: 'network-pending-placement',
@@ -98,6 +126,7 @@ function createNetworkPlacementFeedbackController(config?: any): any {
       return false;
     }
     activeFeedback = { ...activeFeedback, operationId };
+    if (placementHand?.token === activeFeedback.token) placementHand.operationId = operationId;
     return true;
   }
 
@@ -117,10 +146,42 @@ function createNetworkPlacementFeedbackController(config?: any): any {
       || intakeResult.duplicateOperation === true
     );
     if (!accepted || intakeResult.skippedReason === 'room_mismatch') return false;
-    return clear({ deferRender: true });
+    // Intake can precede playback. Keep the approaching hand until its exact
+    // authoritative frame is dispatched; only the waiting cell hint ends here.
+    activeFeedback = null;
+    setPreviewHints([], { deferRender: true });
+    return true;
+  }
+
+  async function preparePlayback(frame: any): Promise<any[]> {
+    const events = Array.isArray(frame?.playbackEvents) ? frame.playbackEvents : [];
+    const hand = placementHand;
+    if (!hand || !hand.operationId || String(frame?.operationId || '') !== hand.operationId
+      || !isSameSession(hand, readSessionIdentity(cfg))) return events;
+    const index = events.findIndex((event: any) => {
+      if (event?.type !== 'place_hand_animation') return false;
+      const target = event.targets?.[0];
+      return target && `${Number(target.r ?? target.row)},${Number(target.col)}` === hand.cellKey
+        && normalizeOwner(target.player ?? target.owner) === hand.owner;
+    });
+    if (index < 0) {
+      cancelPlacementHand();
+      return events;
+    }
+    hand.approve(true);
+    await hand.contact;
+    if (placementHand !== hand || !isSameSession(hand, readSessionIdentity(cfg))) return events;
+    // Retain event order and DTOs in the canonical journal. This local copy
+    // records that exactly this hand approach has already reached contact.
+    // Keep the completed record until the next placement/session boundary so a
+    // safe dispatcher retry cannot play the same approach and sound twice.
+    return events.map((event: any, eventIndex: number) => eventIndex === index
+      ? { ...event, meta: { ...event.meta, localPlacementHandComplete: true } }
+      : event);
   }
 
   function settlePlacement(token: any, result?: any): boolean {
+    if (placementHand?.token === String(token || '') && result?.ok !== true) cancelPlacementHand();
     if (!activeFeedback || String(token || '') !== activeFeedback.token) return false;
     // Accepted publish responses have already passed submitNetworkSnapshotEnvelope.
     // The verified intake callback owns the visual handoff; a raw success result
@@ -138,6 +199,7 @@ function createNetworkPlacementFeedbackController(config?: any): any {
     bindOperation,
     acceptForIntake,
     settlePlacement,
+    preparePlayback,
     clear,
     getActiveFeedback
   };
