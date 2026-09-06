@@ -30,6 +30,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "constants/ui-element-cache": () => require("../../dist/browser-vite-bridge-src/startup/modules/constants/ui-element-cache.js"),
   "game-events": () => require("../../dist/browser-vite-bridge-src/startup/modules/game-events.js"),
   "game/ai/commentary-data": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/commentary-data.js"),
+  "game/ai/cpu-candidate-probe": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-candidate-probe.js"),
   "game/ai/cpu-candidate-scoring": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-candidate-scoring.js"),
   "game/ai/cpu-card-quiescence": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-card-quiescence.js"),
   "game/ai/cpu-commentary-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-commentary-runtime.js"),
@@ -764,6 +765,7 @@ installBootModuleMetadata({
     "constants/ui-element-cache",
     "game-events",
     "game/ai/commentary-data",
+    "game/ai/cpu-candidate-probe",
     "game/ai/cpu-candidate-scoring",
     "game/ai/cpu-card-quiescence",
     "game/ai/cpu-commentary-runtime",
@@ -1560,4 +1562,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 729;
+export const startupModuleCount = 730;

@@ -83,6 +83,7 @@ describe('ui level match script args', () => {
         const intervalCalls = [];
         const isolatedApplyBenchmarkModeAfterInit = (0, eval)(`(${applyBenchmarkModeAfterInit.toString()})`);
         const root = {
+            __BENCH_ULTRA_FAST_MODE: true,
             setTimeout: jest.fn((fn, ms) => {
                 timeoutCalls.push(ms);
                 return 1;

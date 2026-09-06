@@ -1,3 +1,4 @@
+import * as CandidateProbe from './ai/cpu-candidate-probe';
 declare const __non_webpack_require__: NodeRequire | undefined;
 declare const AISystem: any;
 declare const CardLogic: any;
@@ -1648,6 +1649,24 @@ const CpuDecisionOnnxMove = (CpuDecisionOnnxMoveModule && typeof CpuDecisionOnnx
     : null;
 
 async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
+    if (CandidateProbe.active(playerKey, 'value') && canUseStandardBoardCpuPolicy(getCurrentCpuBoard(), 'candidate-value', playerKey, level)) {
+        const context = buildOnnxContext(playerKey, level, candidateMoves.length, getHandCardIdsForPlayer(playerKey), null, candidateMoves);
+        // Board-only one-ply heuristic, as in the existing ONNX reranker. Public resources remain constant.
+        let best = null, bestScore = -Infinity;
+        for (const move of candidateMoves) {
+            const nextBoard = simulatePendingPlacementBoard(getCurrentCpuBoard(), playerKey === 'black' ? BLACK : WHITE, move);
+            if (!nextBoard) continue;
+            const value = CandidateProbe.predict('value', { ...context, board: getDenseBoardMatrix(nextBoard) });
+            if (value && value[0] > bestScore) { best = move; bestScore = value[0]; }
+        }
+        if (best) { CandidateProbe.used('value'); return best; }
+    }
+    if (CandidateProbe.active(playerKey, 'place') && canUseStandardBoardCpuPolicy(getCurrentCpuBoard(), 'candidate-place', playerKey, level)) {
+        const context = buildOnnxContext(playerKey, level, candidateMoves.length, getHandCardIdsForPlayer(playerKey), null, candidateMoves);
+        context.board = getDenseBoardMatrix(getCurrentCpuBoard());
+        const selected = CandidateProbe.chooseCell('place', context, candidateMoves);
+        if (selected) return selected;
+    }
     return CpuDecisionOnnxMove && typeof CpuDecisionOnnxMove.selectMoveFromOnnxPolicyAsync === 'function'
         ? CpuDecisionOnnxMove.selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level)
         : null;
@@ -2770,6 +2789,16 @@ function selectCardDecision(
     performanceScope?: CpuTurnPerformanceScope | null,
     prepared?: any
 ): any {
+    if (CandidateProbe.active(playerKey, 'card')) {
+        const level = resolveCpuCardPolicyLevelForPlayer(playerKey);
+        if (canUseStandardBoardCpuPolicy(getCurrentCpuBoard(), 'candidate-card', playerKey, level)) {
+            const usability = getTargetAwareCardUsabilityAnalysis(playerKey);
+            const context = buildOnnxContext(playerKey, level, resolveCurrentLegalMovesCountForPlayer(playerKey), getHandCardIdsForPlayer(playerKey), usability.usableCardIds);
+            context.board = getDenseBoardMatrix(getCurrentCpuBoard());
+            const selected = CandidateProbe.chooseCard(context);
+            if (selected) return { choice: selected.cardId ? { cardId: selected.cardId, cardDef: CardLogic.getCardDef(selected.cardId) } : null, prepared: null };
+        }
+    }
     if (CpuDecisionCardChoice && typeof CpuDecisionCardChoice.selectCardDecision === 'function') {
         return CpuDecisionCardChoice.selectCardDecision(playerKey, performanceScope, prepared);
     }
@@ -3189,6 +3218,24 @@ async function rerankOnnxPendingTargetChoice(runtime: any, selectedTarget: any, 
 }
 
 async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
+    const level = resolveCpuCardPolicyLevelForPlayer(playerKey);
+    if ((CandidateProbe.active(playerKey, 'target') || CandidateProbe.active(playerKey, 'value')) &&
+        canUseStandardBoardCpuPolicy(getCurrentCpuBoard(), 'candidate-target', playerKey, level)) {
+        const context = buildOnnxContext(playerKey, level, resolveCurrentLegalMovesCountForPlayer(playerKey), getHandCardIdsForPlayer(playerKey), null, targets);
+        context.board = getDenseBoardMatrix(getCurrentCpuBoard()); context.pendingType = pendingType;
+        if (CandidateProbe.active(playerKey, 'value') && ['FREE_PLACEMENT', 'LAST_RESORT', 'DESTROY_ONE_STONE'].includes(pendingType)) {
+            let best = null, bestScore = -Infinity;
+            for (const target of targets) {
+                const board = simulateBoardForPendingTarget(playerKey, pendingType, target);
+                if (!board) continue;
+                const value = CandidateProbe.predict('value', { ...context, board: getDenseBoardMatrix(board) });
+                if (value && value[0] > bestScore) { bestScore = value[0]; best = target; }
+            }
+            if (best) { CandidateProbe.used('value'); return best; }
+        }
+        const selected = CandidateProbe.chooseCell('target', context, targets);
+        if (selected) return selected;
+    }
     return CpuPolicyPendingTargetsRequired.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending, {
         cpuDecisionPendingOnnx: CpuDecisionPendingOnnx
     });

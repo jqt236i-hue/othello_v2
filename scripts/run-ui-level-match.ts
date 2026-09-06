@@ -183,7 +183,7 @@ function applyBenchmarkModeAfterInit(root: any) {
     const target = (root && typeof root === 'object') ? root : globalThis;
     const shortTimerCapMs = 16;
     // Keep playback abort/watchdog timers at real durations while compressing short visual delays.
-    const criticalTimerThresholdMs = target.__BENCH_ULTRA_FAST_MODE === true ? Number.POSITIVE_INFINITY : 100;
+    const criticalTimerThresholdMs = 100;
     try { target.ANIMATION_RETRY_DELAY_MS = 0; } catch (e) { /* ignore */ }
     try {
         if (target.__BENCH_TIMEOUT_PATCHED__ !== true) {
@@ -348,6 +348,10 @@ async function runMatch(args: any) {
     const pageErrors: string[] = [];
     const networkErrors: NetworkDiagnostic[] = [];
     let stage = 'launch';
+    let progressTimer: ReturnType<typeof setInterval> | null = null;
+    if (typeof args.onProgress === 'function') {
+        progressTimer = setInterval(() => args.onProgress({ stage }), 10000);
+    }
     page.on('console', (msg: any) => {
         pushBounded(consoleMessages, {
             type: msg.type(),
@@ -387,8 +391,9 @@ async function runMatch(args: any) {
         page.setDefaultNavigationTimeout(args.timeoutMs);
 
         stage = 'goto';
-        const query = buildMatchQuery(args);
-        await page.goto(`http://127.0.0.1:${port}/${query}`);
+        const baseQuery = buildMatchQuery(args);
+        const query = args.candidateProbe ? `${baseQuery}${baseQuery ? '&' : '?'}noanim=1&eagerCpuPolicy=1` : baseQuery;
+        await page.goto(`http://127.0.0.1:${port}/${args.candidateProbe?.classic ? 'index.classic.html' : ''}${query}`);
         stage = 'wait-selectors';
         await page.waitForSelector('#smartBlack', { state: 'attached' });
         await page.waitForSelector('#smartWhite', { state: 'attached' });
@@ -401,7 +406,14 @@ async function runMatch(args: any) {
 
         // Benchmark mode: reduce animation waits so headless matches finish reliably.
         stage = 'configure-benchmark-mode';
-        await page.evaluate(applyBenchmarkModeAfterInit);
+        if (!args.candidateProbe) await page.evaluate(applyBenchmarkModeAfterInit);
+        if (args.candidateProbe) {
+            await page.evaluate((probe: any) => {
+                (window as any).require('game/auto').setIntervalMs(200);
+                const api = (window as any).require('game/ai/cpu-candidate-probe');
+                api.configure(probe.bundle, probe.color, probe.heads);
+            }, args.candidateProbe);
+        }
 
         stage = 'select-levels';
         await page.evaluate((levels: any) => {
@@ -463,6 +475,12 @@ async function runMatch(args: any) {
             }, {
                 timeout: args.onnxWaitMs
             });
+        } else if (args.candidateProbe) {
+            stage = 'wait-current-othello-model';
+            await page.waitForFunction(() => {
+                try { return (window as any).require('game/ai/othello-onnx-runtime').getStatus().loaded === true; }
+                catch { return false; }
+            }, null, { timeout: 60000 });
         } else {
             try {
                 await page.waitForFunction(() => {
@@ -482,7 +500,7 @@ async function runMatch(args: any) {
                     const runtime = resolveRuntime();
                     const status = runtime ? runtime.getStatus() : null;
                     return !!(status && status.loaded === true);
-                }, { timeout: args.onnxWaitMs });
+                }, null, { timeout: args.onnxWaitMs });
             } catch (e) {
                 // Best-effort only when not explicitly required.
             }
@@ -508,7 +526,21 @@ async function runMatch(args: any) {
             stage = 'reset-default';
             await page.click('#resetBtn').catch(() => {});
         }
+        if (args.candidateProbe) {
+            stage = 'wait-initial-deal';
+            // resetGame starts the initial deal asynchronously; snapshot only after the first turn starts.
+            await page.waitForFunction(() => {
+                const root = window as any;
+                const card = root.require('card-system').getCardState();
+                return card?.turnCountByPlayer?.black >= 1 && !root.isProcessing && !root.isCardAnimating &&
+                    !root.require('ui/playback-state-manager').isPlaybackRunning();
+            }, null, { timeout: 30000 });
+        }
         stage = 'enable-auto';
+        const initialState = await page.evaluate(() => {
+            const root = window as any;
+            return JSON.stringify({ game: root.gameState, card: root.cardState });
+        });
         await page.click('#autoToggleBtn');
         stage = 'wait-auto';
         await page.waitForFunction(() => {
@@ -518,6 +550,20 @@ async function runMatch(args: any) {
         }, { timeout: 5000 });
 
         stage = 'wait-game-finish';
+        if (typeof args.onProgress === 'function') {
+            if (progressTimer) clearInterval(progressTimer);
+            progressTimer = setInterval(() => {
+                void page.evaluate(() => ({
+                    turn: (window as any).gameState?.turnNumber,
+                    auto: (window as any).AUTO_MODE_ACTIVE,
+                    processing: (window as any).isProcessing,
+                    animating: (window as any).isCardAnimating,
+                    playback: (window as any).require('ui/playback-state-manager').isPlaybackRunning(),
+                    pending: (window as any).require('card-system').getCardState()?.pendingEffectByPlayer,
+                    candidate: (window as any).require('game/ai/cpu-candidate-probe').getStatus()
+                })).then(args.onProgress).catch(() => undefined);
+            }, 10000);
+        }
         await page.waitForFunction(() => {
             const state = window.gameState;
             if (!state) return false;
@@ -571,7 +617,11 @@ async function runMatch(args: any) {
             const table = (window.CpuPolicyTableRuntime && typeof window.CpuPolicyTableRuntime.getStatus === 'function')
                 ? window.CpuPolicyTableRuntime.getStatus()
                 : null;
-            return { onnx, table };
+            let candidate = null;
+            try { candidate = (window as any).require('game/ai/cpu-candidate-probe').getStatus(); } catch { /* ordinary match */ }
+            let othello = null;
+            try { othello = (window as any).require('game/ai/othello-onnx-runtime').getStatus(); } catch { /* unavailable */ }
+            return { onnx, table, candidate, othello };
         });
 
         return {
@@ -580,6 +630,9 @@ async function runMatch(args: any) {
             startedAt: new Date(startedAt).toISOString(),
             finishedAt: new Date().toISOString(),
             matchDurationMs: Date.now() - startedAt,
+            url: page.url(),
+            boardRenderer: await page.evaluate(() => document.querySelector('[data-board-renderer]')?.getAttribute('data-board-renderer') || null),
+            initialState,
             result,
             runtimeStatus,
             consoleMessages,
@@ -642,6 +695,7 @@ async function runMatch(args: any) {
         const baseMessage = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
         throw new Error(`[stage:${stage}] ${baseMessage} snapshot=${JSON.stringify(snapshot)}`);
     } finally {
+        if (progressTimer) clearInterval(progressTimer);
         await page.close().catch(() => {});
         await browser.close().catch(() => {});
         await new Promise(resolve => server.close(resolve));
