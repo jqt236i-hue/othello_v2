@@ -6,6 +6,8 @@ import {
     type CpuTurnPerformanceScope
 } from './cpu-turn-performance';
 
+import { avoidTacticalBlunder } from './ai/cpu-tactical-safety';
+
 type CpuTurnMovePhaseConfig = {
     blackValue: any;
     countOwnedBasicCornersSafe: (state: any, playerKey: any) => any;
@@ -705,6 +707,11 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                 return { status: 'retry' };
             }
+        }
+        if (level >= 6 && !othelloMode) {
+            const safety = avoidTacticalBlunder({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey,
+                level, selected: move, candidates: candidateMoves });
+            if (safety.changed) { move = safety.selected; cfg.debugCpuTrace('[CPU] tactical placement safeguard', safety); }
         }
         if (cfg.isCpuDebugLogAvailable()) {
             cfg.emitCpuDebugLog(`[AI] Move selected`, 'info', {

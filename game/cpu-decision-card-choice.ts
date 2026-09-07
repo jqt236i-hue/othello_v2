@@ -3,6 +3,7 @@ import {
     type CpuTurnPerformanceScope
 } from './cpu-turn-performance';
 import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
+import { shouldHoldTacticallyUnsafeCard } from './ai/cpu-tactical-safety';
 
 type CpuDecisionCardChoiceConfig = {
     buildCardQuiescenceSnapshot: (playerKey: any, level: any, legalMoves: any, context: any) => any;
@@ -337,13 +338,18 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         const prepared: any = resolvedPreparedInput && typeof resolvedPreparedInput === 'object'
             ? resolvedPreparedInput
             : {};
-        const choice = performanceScope
+        let choice = performanceScope
             ? measureCpuTurnSync(
                 performanceScope,
                 'card-context-base',
                 () => selectCardToUseImpl(playerKey, performanceScope, prepared)
             )
             : selectCardToUseImpl(playerKey, null, prepared);
+        if (choice && prepared.level >= 6) {
+            const safety = shouldHoldTacticallyUnsafeCard({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey,
+                level: prepared.level, cardId: choice.cardId, forceUseCard: prepared.decisionContext?.forceUseCard });
+            if (safety.hold) { cfg.cpuDebugLog('[CPU] tactical card hold', safety); choice = null; }
+        }
         return { choice: choice || null, prepared };
     }
 

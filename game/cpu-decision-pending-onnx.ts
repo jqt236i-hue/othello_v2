@@ -1,4 +1,5 @@
 import { filterCompletableMovementTargets } from './ai/cpu-movement-target-feasibility';
+import { avoidTacticalBlunder } from './ai/cpu-tactical-safety';
 
 type CpuDecisionPendingOnnxConfig = {
     getGameState?: () => any;
@@ -217,8 +218,11 @@ export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfi
     }
 
     async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
-        const selected = await choosePendingTargetWithPolicyAsyncImpl(playerKey, pendingType, targets, pending);
+        let selected = await choosePendingTargetWithPolicyAsyncImpl(playerKey, pendingType, targets, pending);
         if (!selected || !(cfg.getCpuSmartnessLevel(playerKey) >= 6) || !cfg.getGameState || !cfg.getCardState) return selected;
+        const safety = avoidTacticalBlunder({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey,
+            level: cfg.getCpuSmartnessLevel(playerKey), selected, candidates: targets, pendingType });
+        if (safety.changed) { cfg.cpuDebugLog('[CPU] tactical target safeguard', safety); selected = safety.selected; }
         if (pendingType !== 'SUPER_BUOYANCY_WILL' && pendingType !== 'SUPER_GRAVITY_WILL') return selected;
         try {
             const checked = filterCompletableMovementTargets({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey, pendingType, targets, selected });

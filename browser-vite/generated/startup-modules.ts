@@ -79,6 +79,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-policy-search-key": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-search-key.js"),
   "game/ai/cpu-policy-search-order": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-search-order.js"),
   "game/ai/cpu-policy-time-bomb-targets": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-time-bomb-targets.js"),
+  "game/ai/cpu-tactical-safety": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-tactical-safety.js"),
   "game/ai/endgame-solver": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/endgame-solver.js"),
   "game/ai/fixed-commentary-engine": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/fixed-commentary-engine.js"),
   "game/ai/gumbel-mcts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/gumbel-mcts.js"),
@@ -828,6 +829,7 @@ installBootModuleMetadata({
     "game/ai/cpu-policy-search-key",
     "game/ai/cpu-policy-search-order",
     "game/ai/cpu-policy-time-bomb-targets",
+    "game/ai/cpu-tactical-safety",
     "game/ai/endgame-solver",
     "game/ai/fixed-commentary-engine",
     "game/ai/gumbel-mcts",
@@ -1590,4 +1592,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 744;
+export const startupModuleCount = 745;
