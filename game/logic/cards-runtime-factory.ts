@@ -4307,7 +4307,12 @@ const {
         const hasExplicitRandom = hasRandomSource || hasRandom || hasDirectRandomArgument;
         const randomCandidate = hasRandomSource
             ? sourceOptions.randomSource
-            : (hasRandom ? sourceOptions.random : prngOrOpts);
+            // Keep a method's receiver: a seeded PRNG updates its draw counter on
+            // `this`. Extracting random() advances its closure but loses the count,
+            // making subsequent snapshots impossible to replay.
+            : (hasRandom && typeof sourceOptions.random === 'function'
+                ? sourceOptions
+                : (hasRandom ? sourceOptions.random : prngOrOpts));
         const fallbackCandidate = (hasRandom ? sourceOptions.random : null)
             || (hasRandomSource ? sourceOptions.randomSource : null)
             || defaultOptions.random

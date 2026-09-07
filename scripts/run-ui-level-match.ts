@@ -536,6 +536,7 @@ async function runMatch(args: any) {
                     !root.require('ui/playback-state-manager').isPlaybackRunning();
             }, null, { timeout: 30000 });
         }
+        if (typeof args.setupPage === 'function') await args.setupPage(page);
         stage = 'enable-auto';
         const initialState = await page.evaluate(() => {
             const root = window as any;
@@ -633,6 +634,7 @@ async function runMatch(args: any) {
             url: page.url(),
             boardRenderer: await page.evaluate(() => document.querySelector('[data-board-renderer]')?.getAttribute('data-board-renderer') || null),
             initialState,
+            audit: typeof args.collectPage === 'function' ? await args.collectPage(page) : undefined,
             result,
             runtimeStatus,
             consoleMessages,
