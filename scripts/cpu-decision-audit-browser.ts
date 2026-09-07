@@ -12,7 +12,7 @@ export function installCpuDecisionAudit(options: { maxRecords: number }) {
     });
     const records: any[] = [];
     const decisions: any[] = [];
-    const snapshot = () => clone({ gameState: root.gameState, cardState: cardSystem.getCardState(),
+    const snapshot = () => clone({ gameState: root.gameState, cardState: root.cardState,
         prngState: cardSystem.getGamePrng().getState() });
     const resultState = (result: any, rng: any) => clone({ gameState: result.gameState,
         cardState: result.cardState, prngState: rng.getState(), ok: result.ok,

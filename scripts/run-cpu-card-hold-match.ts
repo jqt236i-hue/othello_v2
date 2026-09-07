@@ -6,6 +6,7 @@ import { patchPendingPlanRegistry, installPendingPlanExperiment } from './cpu-pe
 import { installMovementExperiment } from './cpu-movement-experiment';
 import { installMovementBoardExperiment } from './cpu-movement-board-experiment';
 import { installMovementFeasibleExperiment } from './cpu-movement-feasible-experiment';
+import { installTargetPlacementExperiment } from './cpu-target-placement-experiment';
 
 // Disposable browser experiment only. No served file or production policy is changed.
 export function patchCardDecisionRegistry(source: string): string {
@@ -63,8 +64,8 @@ async function main() {
     const margin = Number(get('--margin', '100'));
     const candidate = get('--candidate', 'card-hold');
     const level = Number(get('--level', '6'));
-    if (!['card-hold', 'pending-plan', 'movement-value', 'movement-board', 'movement-feasible'].includes(candidate) || ![6, 7, 8, 9].includes(level)) throw new Error('Invalid candidate or CPU level');
-    const movement = candidate.startsWith('movement-');
+    if (!['card-hold', 'pending-plan', 'movement-value', 'movement-board', 'movement-feasible', 'target-placement'].includes(candidate) || ![6, 7, 8, 9].includes(level)) throw new Error('Invalid candidate or CPU level');
+    const movement = candidate.startsWith('movement-') || candidate === 'target-placement';
     if (!output || !Number.isSafeInteger(seed) || !Number.isSafeInteger(pairs) || pairs < 1 || pairs > 12 || !Number.isFinite(margin) || margin < 0 || margin > 200) throw new Error('Invalid bounded match options');
     const out = path.resolve(output);
     fs.mkdirSync(out, { recursive: true });
@@ -77,8 +78,8 @@ async function main() {
     const registry = fs.readFileSync('public/module-registry.js', 'utf8');
     const patched = movement ? registry : candidate === 'pending-plan' ? patchPendingPlanRegistry(registry) : patchCardDecisionRegistry(registry);
     fs.writeFileSync(path.join(out, 'configuration.json'), JSON.stringify({ seed, pairs, margin, candidate, level,
-        hypothesis: candidate === 'movement-feasible' ? 'Only when baseline movement deterministically fails to complete, rerun the existing selector over deterministically completed alternatives; canonical full target pipeline, at most 64 targets.' : candidate === 'movement-board' ? 'Canonical movement effects plus up to four following placements per target, using the existing shape-aware board evaluation with card-aware legal moves; at most 16 targets.' : candidate === 'movement-value' ? 'Simulate super buoyancy/gravity with canonical card effects and evaluate resulting own-turn boards using the frozen value model, capped at 16 targets.' : candidate === 'pending-plan' ? 'Apply existing tactical placement correction only while a card placement effect is pending; preserve original ONNX choice otherwise.' : 'Retain cards with existing score less than minUseScore + margin; preserve placement and search.',
-        candidateSourceHash: hash(candidate === 'movement-feasible' ? 'scripts/cpu-movement-feasible-experiment.ts' : candidate === 'movement-board' ? 'scripts/cpu-movement-board-experiment.ts' : candidate === 'movement-value' ? 'scripts/cpu-movement-experiment.ts' : 'scripts/cpu-pending-plan-experiment.ts'),
+        hypothesis: candidate === 'target-placement' ? 'Canonical target plus following placement, 32 target probes then four targets by four placements, existing board evaluation; deterministic effects only. Following placement is advisory, opponent cards are not searched.' : candidate === 'movement-feasible' ? 'Only when baseline movement deterministically fails to complete, rerun the existing selector over deterministically completed alternatives; canonical full target pipeline, at most 64 targets.' : candidate === 'movement-board' ? 'Canonical movement effects plus up to four following placements per target, using the existing shape-aware board evaluation with card-aware legal moves; at most 16 targets.' : candidate === 'movement-value' ? 'Simulate super buoyancy/gravity with canonical card effects and evaluate resulting own-turn boards using the frozen value model, capped at 16 targets.' : candidate === 'pending-plan' ? 'Apply existing tactical placement correction only while a card placement effect is pending; preserve original ONNX choice otherwise.' : 'Retain cards with existing score less than minUseScore + margin; preserve placement and search.',
+        candidateSourceHash: hash(candidate === 'target-placement' ? 'scripts/cpu-target-placement-experiment.ts' : candidate === 'movement-feasible' ? 'scripts/cpu-movement-feasible-experiment.ts' : candidate === 'movement-board' ? 'scripts/cpu-movement-board-experiment.ts' : candidate === 'movement-value' ? 'scripts/cpu-movement-experiment.ts' : 'scripts/cpu-pending-plan-experiment.ts'),
         matchRunnerHash: hash('scripts/run-ui-level-match.ts'),
         registryHash: hash('public/module-registry.js'), sourceHash: hash('scripts/run-cpu-card-hold-match.ts'),
         baselineFiles: manifest.files, promotionAllowed: false }, null, 2), { flag: 'wx' });
@@ -98,7 +99,7 @@ async function main() {
                             await route.fulfill({ status: 200, contentType: 'application/javascript', body: patched });
                         });
                     },
-                    setupPage: movement ? (page: any) => page.evaluate(candidate === 'movement-feasible' ? installMovementFeasibleExperiment : candidate === 'movement-board' ? installMovementBoardExperiment : installMovementExperiment, { color }) : undefined,
+                    setupPage: movement ? (page: any) => page.evaluate(candidate === 'target-placement' ? installTargetPlacementExperiment : candidate === 'movement-feasible' ? installMovementFeasibleExperiment : candidate === 'movement-board' ? installMovementBoardExperiment : installMovementExperiment, { color }) : undefined,
                     collectPage: (page: any) => page.evaluate(() => (window as any).__cardHoldEvents),
                     onProgress: (progress: any) => fs.writeFileSync(path.join(out, 'progress.json'), JSON.stringify({ pair, color, completed: games.length, progress })) });
                 const valid = isCpuExperimentGameValid({ ...result, color }, intercepted, unchanged(), movement);

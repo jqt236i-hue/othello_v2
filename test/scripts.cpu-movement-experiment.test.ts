@@ -16,7 +16,7 @@ describe('full-effect movement candidate', () => {
         const before = JSON.stringify({ cs, gs, rng: rng.getState() });
         const policy = { choosePendingTargetWithPolicyAsync: async () => ({ row: 5, col: 7 }) };
         const evaluate = jest.fn(async (context: any) => context.board.flat().reduce((a: number, b: number) => a + b, 0));
-        const root: any = { gameState: gs, require: (name: string) => {
+        const root: any = { gameState: gs, cardState: cs, require: (name: string) => {
             if (name === 'game/ai/cpu-policy-pending-targets') return policy;
             if (name === 'card-system') return { getCardState: () => cs, getGamePrng: () => rng };
             if (name === 'game/ai/othello-onnx-runtime') return { evaluatePosition: evaluate };

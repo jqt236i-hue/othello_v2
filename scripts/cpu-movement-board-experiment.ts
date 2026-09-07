@@ -32,7 +32,7 @@ export function installMovementBoardExperiment(options: { color: string }) {
         return core.isGameOver(gs) ? evaluator.evaluateTerminalBoardForLookahead(board, sign) : evaluator.evaluateBoardForLookahead(board, sign);
     };
     const clone = (v: any) => JSON.parse(JSON.stringify(v));
-    const snapshot = () => JSON.stringify({ gameState: root.gameState, cardState: system.getCardState(), rng: system.getGamePrng().getState() });
+    const snapshot = () => JSON.stringify({ gameState: root.gameState, cardState: root.cardState, rng: system.getGamePrng().getState() });
     root.__cardHoldEvents = [];
     const original = policy.choosePendingTargetWithPolicyAsync;
     policy.choosePendingTargetWithPolicyAsync = async function(player: string, type: string, targets: any[], ...rest: any[]) {
@@ -42,7 +42,7 @@ export function installMovementBoardExperiment(options: { color: string }) {
         if (player !== options.color || !method || !baseline || targets.length <= 1) return baseline;
         const started = performance.now();
         const before = snapshot();
-        const view = authority.projectSnapshotForViewer({ gameState: clone(root.gameState), cardState: clone(system.getCardState()) }, player);
+        const view = authority.projectSnapshotForViewer({ gameState: clone(root.gameState), cardState: clone(root.cardState) }, player);
         for (const key of ['_defaultRandomSource', '_boardOpsRandomSource', '_currentActionMeta', 'presentationEvents', '_presentationEventsPersist', 'chargeDeltaEvents']) delete view.cardState[key];
         const sign = player === 'black' ? 1 : -1;
         const same = (a: any, b: any) => a.row === b.row && a.col === b.col;

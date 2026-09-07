@@ -7,7 +7,7 @@ export function installMovementFeasibleExperiment(options: { color: string }) {
     const pipeline = req('game/turn/turn_pipeline');
     const prng = req('game/schema/prng');
     const clone = (v: any) => JSON.parse(JSON.stringify(v));
-    const snapshot = () => JSON.stringify({ gameState: root.gameState, cardState: system.getCardState(), rng: system.getGamePrng().getState() });
+    const snapshot = () => JSON.stringify({ gameState: root.gameState, cardState: root.cardState, rng: system.getGamePrng().getState() });
     root.__cardHoldEvents = [];
     const original = policy.choosePendingTargetWithPolicyAsync;
     policy.choosePendingTargetWithPolicyAsync = async function(player: string, type: string, targets: any[], ...rest: any[]) {
@@ -16,7 +16,7 @@ export function installMovementFeasibleExperiment(options: { color: string }) {
             const field = type === 'SUPER_BUOYANCY_WILL' ? 'superBuoyancyTarget' : type === 'SUPER_GRAVITY_WILL' ? 'superGravityTarget' : null;
             if (player !== options.color || !field || !baseline || targets.length <= 1) return baseline;
             const started = performance.now(), before = snapshot();
-            const view = authority.projectSnapshotForViewer({ gameState: clone(root.gameState), cardState: clone(system.getCardState()) }, player);
+            const view = authority.projectSnapshotForViewer({ gameState: clone(root.gameState), cardState: clone(root.cardState) }, player);
             for (const key of ['_defaultRandomSource', '_boardOpsRandomSource', '_currentActionMeta', 'presentationEvents', '_presentationEventsPersist', 'chargeDeltaEvents']) delete view.cardState[key];
             const evaluated: any[] = [];
             const same = (a: any, b: any) => a.row === b.row && a.col === b.col;

@@ -541,7 +541,7 @@ async function runMatch(args: any) {
             // resetGame starts the initial deal asynchronously; snapshot only after the first turn starts.
             await page.waitForFunction(() => {
                 const root = window as any;
-                const card = root.require('card-system').getCardState();
+                const card = root.cardState;
                 return card?.turnCountByPlayer?.black >= 1 && !root.isProcessing && !root.isCardAnimating &&
                     !root.require('ui/playback-state-manager').isPlaybackRunning();
             }, null, { timeout: 30000 });
@@ -570,7 +570,7 @@ async function runMatch(args: any) {
                     processing: (window as any).isProcessing,
                     animating: (window as any).isCardAnimating,
                     playback: (window as any).require('ui/playback-state-manager').isPlaybackRunning(),
-                    pending: (window as any).require('card-system').getCardState()?.pendingEffectByPlayer,
+                    pending: (window as any).cardState?.pendingEffectByPlayer,
                     candidate: (window as any).require('game/ai/cpu-candidate-probe').getStatus()
                 })).then(args.onProgress).catch(() => undefined);
             }, 10000);

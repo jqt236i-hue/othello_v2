@@ -20,7 +20,7 @@ test('avoids repeated super gravity failure against an inviolable stone while pr
     const baseline = { row: 2, col: 0 };
     expect(apply(baseline).cardState.pendingEffectByPlayer.black).not.toBeNull();
     const policy = { choosePendingTargetWithPolicyAsync: async (_p: any, _t: any, targets: any[]) => targets.find(t => t.row === 2 && t.col === 0) || targets[0] };
-    const root: any = { gameState: gs, require: (name: string) => name === 'game/ai/cpu-policy-pending-targets' ? policy : name === 'card-system'
+    const root: any = { gameState: gs, cardState: cs, require: (name: string) => name === 'game/ai/cpu-policy-pending-targets' ? policy : name === 'card-system'
         ? { getCardState: () => cs, getGamePrng: () => rng } : require('../' + name) };
     const before = JSON.stringify({ cs, gs, rng: rng.getState() });
     feasibleVm.runInNewContext(`(${FeasibleExperiment.installMovementFeasibleExperiment.toString()})({color:'black'})`,
