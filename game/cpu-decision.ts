@@ -2250,6 +2250,8 @@ const CpuDecisionPendingScore = (CpuDecisionPendingScoreModule && typeof CpuDeci
 
 const CpuDecisionPendingOnnx = (CpuDecisionPendingOnnxModule && typeof CpuDecisionPendingOnnxModule.createCpuDecisionPendingOnnx === 'function')
     ? CpuDecisionPendingOnnxModule.createCpuDecisionPendingOnnx({
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getHandCardIdsForPlayer,
         buildOnnxContext,
         resolveCurrentLegalMovesCountForPlayer,

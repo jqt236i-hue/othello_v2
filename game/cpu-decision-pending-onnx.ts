@@ -1,4 +1,8 @@
+import { filterCompletableMovementTargets } from './ai/cpu-movement-target-feasibility';
+
 type CpuDecisionPendingOnnxConfig = {
+    getGameState?: () => any;
+    getCardState?: () => any;
     getHandCardIdsForPlayer: (playerKey: any) => any[];
     buildOnnxContext: (playerKey: any, level: any, legalMovesCount: any, handCardIds: any, usableCardIds: any, candidateMoves?: any) => any;
     resolveCurrentLegalMovesCountForPlayer: (playerKey: any) => any;
@@ -138,7 +142,7 @@ export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfi
         };
     }
 
-    async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
+    async function choosePendingTargetWithPolicyAsyncImpl(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
         const fallback = cfg.choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
         if (!Array.isArray(targets) || targets.length <= 0) return null;
         if (directionAwarePendingTypes.has(String(pendingType || ''))) {
@@ -209,6 +213,23 @@ export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfi
         } catch (e) {
             cfg.warn('[CPU] policy-onnx pending runtime failed, fallback to default policy', e);
             return fallback || targets[0];
+        }
+    }
+
+    async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
+        const selected = await choosePendingTargetWithPolicyAsyncImpl(playerKey, pendingType, targets, pending);
+        if (!selected || !(cfg.getCpuSmartnessLevel(playerKey) >= 6) || !cfg.getGameState || !cfg.getCardState) return selected;
+        if (pendingType !== 'SUPER_BUOYANCY_WILL' && pendingType !== 'SUPER_GRAVITY_WILL') return selected;
+        try {
+            const checked = filterCompletableMovementTargets({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey, pendingType, targets, selected });
+            if (checked.targets === targets) return selected;
+            const replacement = await choosePendingTargetWithPolicyAsyncImpl(playerKey, pendingType, checked.targets, pending);
+            if (!replacement || !checked.targets.some(target => target.row === replacement.row && target.col === replacement.col)) return selected;
+            cfg.cpuDebugLog('[CPU] completing movement target selected', pendingType, checked.inspected);
+            return replacement;
+        } catch (error) {
+            cfg.warn('[CPU] movement feasibility evaluation failed; retaining selection', error);
+            return selected;
         }
     }
 

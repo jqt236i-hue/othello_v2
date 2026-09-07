@@ -6,6 +6,8 @@ function createPendingOnnx(overrides = {}) {
   const cpuTimeout = { kind: 'cpu-timeout' };
   const pendingTimeout = { kind: 'pending-timeout' };
   return createCpuDecisionPendingOnnx({
+    getGameState: overrides.getGameState,
+    getCardState: overrides.getCardState,
     getHandCardIdsForPlayer: () => ['card_a'],
     buildOnnxContext: (_playerKey, _level, legalMovesCount, handCardIds, usableCardIds, candidateMoves) => ({
       legalMovesCount,
@@ -30,7 +32,7 @@ function createPendingOnnx(overrides = {}) {
     choosePendingTargetWithPolicy: overrides.choosePendingTargetWithPolicy || ((_playerKey, _pendingType, targets) => targets[0]),
     isSameMoveByCoord: (a, b) => !!a && !!b && a.row === b.row && a.col === b.col,
     scorePendingTargetByType: overrides.scorePendingTargetByType || ((_playerKey, _pendingType, target) => target.score || 0),
-    getCpuSmartnessLevel: () => 6,
+    getCpuSmartnessLevel: overrides.getCpuSmartnessLevel || (() => 6),
     resolvePolicyOnnxRuntime: overrides.resolvePolicyOnnxRuntime || (() => ({
       choosePendingTarget: async (targets) => targets[1],
       evaluatePosition: async (context) => (context.candidateMoves[0].row === 1 ? 10 : 0)
@@ -46,6 +48,34 @@ function createPendingOnnx(overrides = {}) {
 }
 
 describe('cpu decision pending onnx module', () => {
+  test.each([5, 6])('movement completion safeguard is restricted to level 6+: %i', async (level) => {
+    const Cards = require('../game/logic/cards');
+    const Core = require('../game/logic/core');
+    const Prng = require('../game/schema/prng');
+    const Pipeline = require('../game/turn/turn_pipeline');
+    require('../game/logic/presentation').setPresentationRuntime({ emitPresentationEvent: require('../game/logic/board_ops').emitPresentationEvent });
+    const rng = Prng.createPRNG(111), cs = Cards.createCardState(rng), gs = Core.createGameState();
+    gs.board[2][0] = -1; gs.board[5][0] = 1; gs.board[2][7] = -1;
+    cs.markers.push({ id: 1, markerId: '1', row: 5, col: 0, kind: 'manifestStone', owner: 'black', createdSeq: 1,
+      data: { type: 'OBSERVER_WILL', remainingOwnerTurns: 1, inviolable: true } });
+    cs.hasUsedCardThisTurnByPlayer.black = true;
+    cs.pendingEffectByPlayer.black = { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget' };
+    const selected = { row: 2, col: 0 };
+    const module = createPendingOnnx({ getGameState: () => gs, getCardState: () => cs,
+      getCpuSmartnessLevel: () => level, resolvePolicyOnnxRuntime: () => null,
+      choosePendingTargetWithPolicy: (_p, _t, targets) => targets.find(t => t.row === 2 && t.col === 0) || targets[0] });
+    const before = JSON.stringify({ cs, gs, rng: rng.getState() });
+    const result = await module.choosePendingTargetWithPolicyAsync('black', 'SUPER_GRAVITY_WILL', Cards.getSuperGravityTargets(cs, gs), cs.pendingEffectByPlayer.black);
+    expect(JSON.stringify({ cs, gs, rng: rng.getState() })).toBe(before);
+    if (level < 6) expect(result).toEqual(selected);
+    else {
+      expect(result).not.toEqual(selected);
+      const applied = Pipeline.applyTurnSafe(JSON.parse(JSON.stringify(cs)), JSON.parse(JSON.stringify(gs)), 'black',
+        { type: 'place', superGravityTarget: result }, Prng.createPRNG(19074000), { skipTurnStart: true });
+      expect(applied.cardState.pendingEffectByPlayer.black).toBeNull();
+    }
+  });
+
   test('buildPendingTargetOnnxContext adds pending type to ONNX context', () => {
     const pendingOnnx = createPendingOnnx();
 

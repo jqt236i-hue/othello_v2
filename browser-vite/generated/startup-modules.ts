@@ -35,6 +35,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-card-quiescence": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-card-quiescence.js"),
   "game/ai/cpu-commentary-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-commentary-runtime.js"),
   "game/ai/cpu-lv6-lookahead-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv6-lookahead-profile.js"),
+  "game/ai/cpu-movement-target-feasibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-movement-target-feasibility.js"),
   "game/ai/cpu-policy-board-counts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-counts.js"),
   "game/ai/cpu-policy-board-features": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-features.js"),
   "game/ai/cpu-policy-board-marker-primitives": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-marker-primitives.js"),
@@ -770,6 +771,7 @@ installBootModuleMetadata({
     "game/ai/cpu-card-quiescence",
     "game/ai/cpu-commentary-runtime",
     "game/ai/cpu-lv6-lookahead-profile",
+    "game/ai/cpu-movement-target-feasibility",
     "game/ai/cpu-policy-board-counts",
     "game/ai/cpu-policy-board-features",
     "game/ai/cpu-policy-board-marker-primitives",
@@ -1562,4 +1564,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 730;
+export const startupModuleCount = 731;

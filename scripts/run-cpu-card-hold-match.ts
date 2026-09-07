@@ -2,6 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import Runner = require('./run-ui-level-match');
+import { patchPendingPlanRegistry, installPendingPlanExperiment } from './cpu-pending-plan-experiment';
+import { installMovementExperiment } from './cpu-movement-experiment';
+import { installMovementBoardExperiment } from './cpu-movement-board-experiment';
+import { installMovementFeasibleExperiment } from './cpu-movement-feasible-experiment';
 
 // Disposable browser experiment only. No served file or production policy is changed.
 export function patchCardDecisionRegistry(source: string): string {
@@ -39,8 +43,15 @@ export function summarizeGames(games: any[]) {
     const draws = games.filter(g => g.result.winner === 'draw').length;
     const losses = games.length - wins - draws;
     return { games: games.length, wins, losses, draws,
-        interventions: games.reduce((n, g) => n + g.audit.filter((e: any) => e.held).length, 0),
-        valid: games.every(g => g.valid), promotionAllowed: false };
+        interventions: games.reduce((n, g) => n + g.audit.filter((e: any) => e.held || e.changed).length, 0),
+        valid: games.length > 0 && games.every(g => g.valid), promotionAllowed: false };
+}
+
+export function isCpuExperimentGameValid(result: any, intercepted: number, baselineUnchanged: boolean, allowNoEvents: boolean): boolean {
+    return intercepted === 1 && Array.isArray(result.audit) && (allowNoEvents || result.audit.length > 0) && baselineUnchanged &&
+        result.audit.every((event: any) => !event.error && event.liveUnchanged !== false && (!(event.held || event.changed) || event.player === result.color)) &&
+        result.runtimeStatus.othello?.loaded === true && result.pageErrors.length === 0 &&
+        !result.consoleMessages.some((m: any) => /WATCHDOG fired|runtime failed|Error in runCpuTurn|Movement simulation|Movement value model/.test(m.text));
 }
 
 async function main() {
@@ -50,6 +61,10 @@ async function main() {
     const seed = Number(get('--seed', '19072000'));
     const pairs = Number(get('--pairs', '4'));
     const margin = Number(get('--margin', '100'));
+    const candidate = get('--candidate', 'card-hold');
+    const level = Number(get('--level', '6'));
+    if (!['card-hold', 'pending-plan', 'movement-value', 'movement-board', 'movement-feasible'].includes(candidate) || ![6, 7, 8, 9].includes(level)) throw new Error('Invalid candidate or CPU level');
+    const movement = candidate.startsWith('movement-');
     if (!output || !Number.isSafeInteger(seed) || !Number.isSafeInteger(pairs) || pairs < 1 || pairs > 12 || !Number.isFinite(margin) || margin < 0 || margin > 200) throw new Error('Invalid bounded match options');
     const out = path.resolve(output);
     fs.mkdirSync(out, { recursive: true });
@@ -60,9 +75,11 @@ async function main() {
     const unchanged = () => manifest.files.every((f: any) => hash(f.source) === f.sha256);
     if (!unchanged()) throw new Error('Baseline model changed');
     const registry = fs.readFileSync('public/module-registry.js', 'utf8');
-    const patched = patchCardDecisionRegistry(registry);
-    fs.writeFileSync(path.join(out, 'configuration.json'), JSON.stringify({ seed, pairs, margin,
-        hypothesis: 'Retain cards with existing score less than minUseScore + margin; preserve placement and search.',
+    const patched = movement ? registry : candidate === 'pending-plan' ? patchPendingPlanRegistry(registry) : patchCardDecisionRegistry(registry);
+    fs.writeFileSync(path.join(out, 'configuration.json'), JSON.stringify({ seed, pairs, margin, candidate, level,
+        hypothesis: candidate === 'movement-feasible' ? 'Only when baseline movement deterministically fails to complete, rerun the existing selector over deterministically completed alternatives; canonical full target pipeline, at most 64 targets.' : candidate === 'movement-board' ? 'Canonical movement effects plus up to four following placements per target, using the existing shape-aware board evaluation with card-aware legal moves; at most 16 targets.' : candidate === 'movement-value' ? 'Simulate super buoyancy/gravity with canonical card effects and evaluate resulting own-turn boards using the frozen value model, capped at 16 targets.' : candidate === 'pending-plan' ? 'Apply existing tactical placement correction only while a card placement effect is pending; preserve original ONNX choice otherwise.' : 'Retain cards with existing score less than minUseScore + margin; preserve placement and search.',
+        candidateSourceHash: hash(candidate === 'movement-feasible' ? 'scripts/cpu-movement-feasible-experiment.ts' : candidate === 'movement-board' ? 'scripts/cpu-movement-board-experiment.ts' : candidate === 'movement-value' ? 'scripts/cpu-movement-experiment.ts' : 'scripts/cpu-pending-plan-experiment.ts'),
+        matchRunnerHash: hash('scripts/run-ui-level-match.ts'),
         registryHash: hash('public/module-registry.js'), sourceHash: hash('scripts/run-cpu-card-hold-match.ts'),
         baselineFiles: manifest.files, promotionAllowed: false }, null, 2), { flag: 'wx' });
     const games: any[] = [];
@@ -71,21 +88,20 @@ async function main() {
             for (const color of ['black', 'white']) {
                 let intercepted = 0;
                 console.log(`[match] pair=${pair + 1}/${pairs} candidate=${color} seed=${seed + pair}`);
-                const result = await Runner.runMatch({ black: 6, white: 6, seed: seed + pair, timeoutMs: 300000,
+                const result = await Runner.runMatch({ black: level, white: level, seed: seed + pair, timeoutMs: 300000,
                     headless: true, onnxWaitMs: 30000,
                     candidateProbe: { bundle: { schema: 'candidate_probe.v1', heads: {} }, color, heads: [], classic: true },
                     beforeNavigate: async (page: any) => {
-                        await page.addInitScript(installCardHoldExperiment, { color, margin });
+                        if (!movement) await page.addInitScript(candidate === 'pending-plan' ? installPendingPlanExperiment : installCardHoldExperiment, { color, margin });
                         await page.route('**/public/module-registry.js*', async (route: any) => {
                             intercepted++;
                             await route.fulfill({ status: 200, contentType: 'application/javascript', body: patched });
                         });
                     },
+                    setupPage: movement ? (page: any) => page.evaluate(candidate === 'movement-feasible' ? installMovementFeasibleExperiment : candidate === 'movement-board' ? installMovementBoardExperiment : installMovementExperiment, { color }) : undefined,
                     collectPage: (page: any) => page.evaluate(() => (window as any).__cardHoldEvents),
                     onProgress: (progress: any) => fs.writeFileSync(path.join(out, 'progress.json'), JSON.stringify({ pair, color, completed: games.length, progress })) });
-                const valid = intercepted === 1 && result.audit?.length > 0 && unchanged() &&
-                    result.runtimeStatus.othello?.loaded === true && result.pageErrors.length === 0 &&
-                    !result.consoleMessages.some((m: any) => /WATCHDOG fired|runtime failed/.test(m.text));
+                const valid = isCpuExperimentGameValid({ ...result, color }, intercepted, unchanged(), movement);
                 const game = { color, valid, intercepted, ...result };
                 fs.writeFileSync(path.join(out, `game-${seed + pair}-${color}.json`), JSON.stringify(game), { flag: 'wx' });
                 games.push(game);
@@ -96,7 +112,7 @@ async function main() {
         }
         fs.writeFileSync(reportPath, JSON.stringify({ complete: true, baselineUnchanged: unchanged(), ...summarizeGames(games) }, null, 2));
     } catch (error) {
-        fs.writeFileSync(path.join(out, 'failure.json'), JSON.stringify({ error: String(error), ...summarizeGames(games) }, null, 2));
+        fs.writeFileSync(path.join(out, 'failure.json'), JSON.stringify({ error: String(error), ...summarizeGames(games), complete: false, valid: false }, null, 2));
         throw error;
     }
 }

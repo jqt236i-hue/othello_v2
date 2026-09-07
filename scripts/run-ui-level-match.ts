@@ -6,6 +6,14 @@ import * as http from 'http';
 import type { AddressInfo } from 'net';
 import * as path from 'path';
 import { chromium } from 'playwright';
+import CpuOpponentProfiles = require('../shared/cpu-opponent-profiles');
+
+function resolveMatchProfileId(level: number): string {
+    if (!Number.isInteger(level) || level < 1 || level > 9) throw new Error('Unsupported CPU display level');
+    const profile = CpuOpponentProfiles.getCpuOpponentProfile(level);
+    if (profile.level !== level) throw new Error('CPU profile level mismatch');
+    return profile.id;
+}
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -417,6 +425,7 @@ async function runMatch(args: any) {
         }
 
         stage = 'select-levels';
+        const expectedProfiles = { black: resolveMatchProfileId(args.black), white: resolveMatchProfileId(args.white) };
         await page.evaluate((levels: any) => {
             const b = document.getElementById('smartBlack') as HTMLSelectElement | null;
             const w = document.getElementById('smartWhite') as HTMLSelectElement | null;
@@ -424,20 +433,20 @@ async function runMatch(args: any) {
             if (w) w.value = String(levels.white);
             if (b) b.dispatchEvent(new Event('change'));
             if (w) w.dispatchEvent(new Event('change'));
-        }, { black: args.black, white: args.white });
+        }, expectedProfiles);
 
         stage = 'verify-levels';
         const selectedLevels = await page.evaluate(() => {
             const b = document.getElementById('smartBlack') as HTMLSelectElement | null;
             const w = document.getElementById('smartWhite') as HTMLSelectElement | null;
             return {
-                black: b ? Number(b.value) : null,
-                white: w ? Number(w.value) : null
+                black: b ? b.value : null,
+                white: w ? w.value : null
             };
         });
-        if (selectedLevels.black !== args.black || selectedLevels.white !== args.white) {
+        if (selectedLevels.black !== expectedProfiles.black || selectedLevels.white !== expectedProfiles.white) {
             throw new Error(
-                `cpu level select mismatch: expected black=${args.black},white=${args.white} got black=${selectedLevels.black},white=${selectedLevels.white}`
+                `cpu level select mismatch: expected black=${expectedProfiles.black},white=${expectedProfiles.white} got black=${selectedLevels.black},white=${selectedLevels.white}`
             );
         }
 
@@ -628,6 +637,7 @@ async function runMatch(args: any) {
 
         return {
             levels: { black: args.black, white: args.white },
+            profiles: selectedLevels,
             seed: args.seed,
             startedAt: new Date(startedAt).toISOString(),
             finishedAt: new Date().toISOString(),
@@ -727,6 +737,7 @@ if (require.main === module) {
 }
 
 export = {
+    resolveMatchProfileId,
     parseArgs,
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,

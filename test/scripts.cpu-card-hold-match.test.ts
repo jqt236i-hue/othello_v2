@@ -1,7 +1,15 @@
-const { patchCardDecisionRegistry, installCardHoldExperiment, summarizeGames } = require('../scripts/run-cpu-card-hold-match');
+const { patchCardDecisionRegistry, installCardHoldExperiment, summarizeGames, isCpuExperimentGameValid } = require('../scripts/run-cpu-card-hold-match');
 const vm = require('vm');
 
 describe('disposable card hold comparison', () => {
+    test('rejects CPU exceptions even if the browser recovered and finished the game', () => {
+        const result = { color: 'black', audit: [], runtimeStatus: { othello: { loaded: true } }, pageErrors: [], consoleMessages: [] };
+        expect(isCpuExperimentGameValid(result, 1, true, true)).toBe(true);
+        expect(isCpuExperimentGameValid({ ...result, consoleMessages: [{ text: '[AI] Error in runCpuTurn for black' }] }, 1, true, true)).toBe(false);
+        expect(isCpuExperimentGameValid({ ...result, audit: [{ player: 'white', changed: true }] }, 1, true, true)).toBe(false);
+        expect(isCpuExperimentGameValid({ ...result, audit: [{ error: 'failure' }] }, 1, true, true)).toBe(false);
+        expect(isCpuExperimentGameValid(result, 1, false, true)).toBe(false);
+    });
     test('refuses missing or ambiguous interception points', () => {
         const needle = 'return { choice: choice || null, prepared };';
         expect(() => patchCardDecisionRegistry('')).toThrow();

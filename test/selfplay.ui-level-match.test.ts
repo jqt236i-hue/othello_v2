@@ -1,4 +1,5 @@
 const {
+    resolveMatchProfileId,
     parseArgs,
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,
@@ -8,6 +9,10 @@ const {
 } = require('../scripts/run-ui-level-match');
 
 describe('ui level match script args', () => {
+    test('selects display levels 6 through 9 through their actual profile IDs', () => {
+        expect([6, 7, 8, 9].map(resolveMatchProfileId)).toEqual(['6', '7-board-executor', '8-theory-incarnation', '9-ending-ash']);
+        expect(() => resolveMatchProfileId(10)).toThrow();
+    });
     test('parseArgs accepts seed and levels', () => {
         const args = parseArgs([
             '--black', '6',
