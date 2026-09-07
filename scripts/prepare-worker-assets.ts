@@ -220,6 +220,12 @@ const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'game/logic/random-source.js'
 ]);
 
+const EXCLUDED_MIRROR_DIRECTORY_PREFIXES = Object.freeze([
+    // Authoring references; the playable character art is stored alongside this
+    // directory and remains deployable.
+    'assets/images/special-cards/characters/observer_will_reference/'
+]);
+
 function normalizeRelativePath(relativePath: string) {
     return String(relativePath || '').split(path.sep).join('/');
 }
@@ -228,6 +234,7 @@ function shouldMirrorRelativePath(relativePath: string) {
     const normalized = normalizeRelativePath(relativePath);
     if (!normalized) return false;
     if (EXCLUDED_MIRROR_RELATIVE_PATHS.has(normalized)) return false;
+    if (EXCLUDED_MIRROR_DIRECTORY_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return false;
 
     const baseName = path.posix.basename(normalized);
     if (baseName === 'AGENTS.md') return false;
