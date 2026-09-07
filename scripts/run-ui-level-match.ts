@@ -391,6 +391,7 @@ async function runMatch(args: any) {
         page.setDefaultNavigationTimeout(args.timeoutMs);
 
         stage = 'goto';
+        if (typeof args.beforeNavigate === 'function') await args.beforeNavigate(page);
         const baseQuery = buildMatchQuery(args);
         const query = args.candidateProbe ? `${baseQuery}${baseQuery ? '&' : '?'}noanim=1&eagerCpuPolicy=1` : baseQuery;
         await page.goto(`http://127.0.0.1:${port}/${args.candidateProbe?.classic ? 'index.classic.html' : ''}${query}`);
