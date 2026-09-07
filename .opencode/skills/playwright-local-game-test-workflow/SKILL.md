@@ -6,105 +6,60 @@ argument-hint: '何をローカル実機確認したいか。single-player か r
 
 # Playwright Local Game Test Workflow
 
-このスキルは、ローカルサーバー上のゲームを AI エージェントに **Playwright で直接ブラウザ操作させる** 時の手順です。Playwright と言われたら、既存の Node script や一時 runner を回すだけで済ませず、agent 自身が page を開いて board や UI を操作し、必要なら chrome-devtools を補助で併用します。
+このスキルは、このリポジトリのゲームをブラウザで操作し、通常起動・入力・
+カード効果・ターン進行・表示を確認するときの補助手順です。ゲーム仕様の正本や
+ルート `AGENTS.md` を置き換えません。文書だけの変更や純粋関数の検証には適用しません。
 
-## When to Use
+## 準備
 
-- 「Playwright で確認して」「実ブラウザで再現して」のように、agent 自身のブラウザ操作が期待されている時
-- `npm run serve` で起動したローカルサーバー上のゲームをブラウザで開いて、board、手札、ボタン、overlay、log を目で確認したい時
-- script 実行だけでは足りず、クリック経路・hover・入力・待機・スクリーンショットまで agent にやらせたい時
-- あなたの PC 上で visible な新規 Chrome / browser window または新規 tab が実際に開いたことまで確認したい時
-- 通常のローカルサーバー URL で開き、必要になった時だけ UI 上の DEBUG ボタンを押して state 観察や debug helper を使いたい時
-- fix 後に single-player または room 対戦のローカル再確認を headed ブラウザでやりたい時
-- console / network / trace も取りたいが、主役はあくまで Playwright の直接操作であるべき時
+- ルート `AGENTS.md` と、対象に関係する下位 `AGENTS.md` を読みます。
+- 仕様は `01-rulebook.md`、実装境界は `docs/architecture-contracts.md`、
+  調査・検証候補は `docs/game-maintenance-reference.md` を参照します。
+  これらのパスと以下のパスはリポジトリルート基準です。
+- 使用可能なブラウザ操作ツールとAPIを確認します。Playwright、画面表示、
+  新規ウィンドウが明示指定されていればそれに従います。それ以外は既存の適切な
+  タブ・セッションを再利用し、依頼を検証できるサポート済みの手段を選びます。
+- 必要なブラウザ機能がなければ、その検証が未実施であると伝え、独立してできる
+  コード・テスト・参照の確認を続けます。存在しないツールやスキルを必須にしません。
 
-## Do Not Use
+## ローカルサーバー
 
-- 純粋な unit / jest だけで十分な時は、この skill ではなく近い test を直接使う
-- 同室 2 ブラウザの network 特有 bug を終局まで追うのが主目的なら `network-selfmatch-bug-hunt-workflow`
-- 演出再生順や visual playback 契約の修正が主目的なら `animation-visual-playback-workflow`
-- 指示文の整理だけが目的なら `prompt-refinement-workflow`
+通常プレイ用URLは `http://127.0.0.1:8000/` です。応答中のサーバーがこの
+リポジトリのものか確認し、適切なら再利用します。停止中に起動が必要な場合だけ
+ルート規則に従って `npm run serve` を使います。既存の8000番を避けるための
+二重起動や別ポートへの自動回避を行いません。別プロジェクトのプロセスは停止せず、
+衝突を報告します。`build:vite` と5174番の配信に関するルート制約を守ります。
 
-## Read First
+## 操作と観察
 
-- `01-rulebook.md`
-- `.github/copilot-instructions.md`
-- `AGENTS.md`
-- `test/e2e/e2e-runtime-helpers.js`
-- `test/e2e/cpu.e2e.test.ts`
-- `test/e2e/card_effects.e2e.test.ts`
-- `scripts/browser-boot-smoke.js`
-- room 対戦なら `network-selfmatch-bug-hunt-workflow`
+1. 確認する初期状態、操作、期待結果を対象仕様から定めます。通常起動を調べる
+   ときは通常URLから入り、必要な設定はUIで操作します。`?debug=1` はデバッグ
+   経路そのもの、または必要なテスト専用フックを調べる場合に限定します。
+2. 選択したツールで許可されたUI操作を使います。別のAPIの `page.evaluate`
+   などを推測して呼ばず、ツールが禁止する内部状態の読み書きで代用しません。
+3. 操作後は対象の状態変化や演出終了を待ち、固定の長い待機だけを判定根拠に
+   しません。セットアップで直接設定した状態と、UI操作で確かめた結果を区別します。
+4. ロジック上の成立だけでなく、変更した表示・入力について実描画を確認します。
+   canvasの見た目をDOMの存在だけで合格にせず、必要な場面のスクリーンショットや
+   実際の操作結果で確認します。画面表示が明示指定されている場合はその条件を守り、
+   ヘッドレス実行だけで満たしたことにしません。
+5. 変更に関連する中断、リセット、連打、入力ロック解除、対象消失も確認します。
+   既存テストが十分なら重複テストを増やさず、不足する再現ケースだけ追加します。
 
-## Primary Files
+## 検証候補
 
-- `package.json`
-- `scripts/serve-with-fallback.ts`, `scripts/serve-with-fallback.js`
-- `scripts/local-match-server.ts`, `scripts/local-match-server.ts / .js shim`
-- `index.html`（エントリポイント。**`file:///` で開かず、`npm run serve` 経由で配信する**）
-- `ui/bootstrap.ts / .js compatibility shim`
-- `test/e2e/e2e-runtime-helpers.js`
-- `test/e2e/cpu.e2e.test.ts`
-- `test/e2e/card_effects.e2e.test.ts`
-- `test/e2e/multi_turn_progression.e2e.test.ts`
-- `scripts/browser-boot-smoke.js`
-- 参考用の一時 runner 群: `tmp/playwright-network-verify/*`, `tmp/check-globals.js`, `tmp/deep-board-check.js`
+- `test/e2e/e2e-runtime-helpers.js`：Jest/Playwrightテストのサーバーとページの後始末。
+- `test/e2e/board-dom-compat.multi-turn-progression.e2e.test.ts`：複数ターン。
+- `test/e2e/board-dom-compat.reset-click.e2e.test.ts`：リセット操作。
+- `test/e2e/card_effects.e2e.test.ts`：カード効果のブラウザ統合。
+- `tests/visual-regression/`：既存の画像差分検証。
 
-## Common Traps
+自動テストでは既存ヘルパーを使い、手動に近い操作確認とは実施範囲を分けて報告します。
+全テストや新しい可視ブラウザを毎回必須にせず、依頼と変更リスクから範囲を選びます。
 
-- Playwright 指定なのに `npm test` や `node tmp/*.js` だけ実行して、自分でブラウザを開かないこと
-- Playwright が使えない時に headless script や Jest / smoke script へ黙って fallback すること
-- visible な新規 Chrome / browser window / tab を開かず、既存の見えない session や既存 tab だけを再利用して済ませること
-- `file:///` で `index.html` を直接開いてしまい、`npm run serve` を起動せずに実機確認した気になること
-- headless 実行だけで見た目崩れを確認した気になること
-- 通常 URL で開く前提なのに、最初から `?debug=1` 付き URL で開いてしまい、通常起動 + DEBUG ボタン押下の経路を確認しないこと
-- DEBUG ボタンを押す前に `window.DebugActions` を探して「ない」と判断すること
-- `window.gameState` / `window.cardState` / DOM 初期化完了前に board を触ること
-- UI 経路の確認が必要なのに `page.evaluate()` で内部関数直呼びだけして終えること
-- animation を見たいのに `noanim=1` を混ぜること
-- chrome-devtools を主役にして、Playwright の click / fill / wait をやらないこと
-- room 対戦なのに local static server だけ起動して `match:server` を立て忘れること
+## 完了
 
-## Procedure
-
-1. まず scope を `single-player` / `room 対戦`、`state-only` / `UI 含む`、`card なし baseline` / `card 使用あり` に分類する。
-2. **`npm run serve` を必ず起動する。** `file:///` で `index.html` を直接開くのは禁止。ブラウザは必ず HTTP 経由で開く。既定では app URL を `http://127.0.0.1:8000/` とみなし、port scan や `--port 0` で変わったら実際の URL を記録する。host は `localhost` より `127.0.0.1` を優先する。**この workflow では最初から `?debug=1` 付き URL を開かず、通常 URL で起動した後に UI 上の `DEBUG: OFF` ボタンをクリックして debug mode を ON にする。** room 対戦や network 経路も見るなら別ターミナルで `npm run match:server` も起動する。
-3. **Playwright と言われたら、まず Playwright ツールで visible な実ブラウザを直接開く。** あなたの PC 上で新規 Chrome / browser window または新規 tab が実際に開いたことを確認する。既存の script / runner は参考や補助に留め、ブラウザ駆動そのものを代行させない。UI / animation を見る時は headed を既定にし、headless はこの workflow では使わない。
-4. Playwright session が他タスクに使用中で新規 visible browser を開けない、または browser tool が既存見えない session 再利用に流れそうなら、**headless script や chrome-devtools 単独へ fallback せず、その場で失敗として報告する。** 必要なら「Playwright browser is already in use」などの競合状況をそのまま記録する。
-5. page 読み込み後は、少なくとも `window.gameState` に 8x8 board があり、`window.cardState` が object で、必要な操作入口（例: `window.passCurrentTurn`, `window.isGameOver`, `window.NetworkMatchClient`）が揃うまで待つ。`test/e2e/cpu.e2e.test.ts` の `waitForFunction` パターンを基準にする。
-6. 操作は Playwright の `click`, `fill`, `type`, `hover`, `select`, `evaluate`, `waitForFunction`, `locator` を主経路にする。内部関数直呼びは、debug hand 充填や state 採取など UI 外の補助セットアップに限定する。
-7. single-player ではまず baseline を取り、必要になった時だけ `DEBUG: OFF` ボタンをクリックして debug mode を開き、board と手札の操作性を確認する。カード検証では `test/e2e/card_effects.e2e.test.ts` のように、DEBUG ON 後に `window.DebugActions`, `window.CardLogic`, `window.useSelectedCard` の有無を待ってから進める。
-8. room 対戦では 2 page 以上を Playwright で自分で開き、同じ room に join させる。主目的が network divergence の切り分けなら `network-selfmatch-bug-hunt-workflow` に切り替える。
-9. 各 action の後で、overlay close、playback idle、turn 収束、log 反映、必要なら最終 result 表示まで待つ。クリック直後の一瞬の state を見て成功扱いしない。
-10. chrome-devtools は **補助** としてだけ使う。console message、network request、performance trace、詳細 screenshot が必要な時に併用し、実際のゲーム操作は最後まで Playwright で続ける。chrome-devtools だけでブラウザ検証を完結させない。
-11. 失敗時は URL、browser 種別、visible window / tab が開いたかどうか、実行した action、console / network 証跡、最終 screenshot、必要なら `window.gameState` / `window.cardState` の抜粋を残す。
-12. code を直した後は、同じ Playwright 実機確認を同条件でやり直し、必要に応じて近い e2e / jest / visual check へ接続する。
-
-## Validation Bundle
-
-- `npm run serve` で local UI が開ける
-- room 対戦を含むなら `npm run match:server` も起動できる
-- あなたの PC 上で visible な新規 Chrome / browser window または新規 tab が実際に開いた
-- 通常 URL で page を開いた後、必要なら DEBUG ボタン押下後の page で、`window.gameState` と `window.cardState` が準備完了になる
-- agent が `file:///` でなく `http://` 経由でページを開いていることを確認した
-- agent が script 実行だけで終わらず、Playwright で実際に browser tab / page を開いて操作している
-- UI を見る時は headed 実行であり、headless に逃げていない
-- 必要時に console / network / screenshot / trace が採取できている
-- code を触ったなら、近い確認として必要に応じて次へ接続する
-  - `test/e2e/cpu.e2e.test.ts`
-  - `test/e2e/card_effects.e2e.test.ts`
-  - `test/e2e/multi_turn_progression.e2e.test.ts`
-  - `tests/visual-regression/run-visual-check.js`
-  - `npm run match:check`
-
-## Completion Checklist
-
-- Playwright 指定時に、agent 自身が直接 browser を開いて操作した
-- visible な新規 Chrome / browser window または新規 tab が実際に開いた
-- `file:///` ではなく `http://` 経由でページを開いた
-- local server / match server の要否を最初に固定した
-- 通常 URL で開いたこと、DEBUG ボタンを押したかどうか、headed / headless 方針、card 使用有無を記録した
-- UI 経路確認と state 補助確認を混同せず、どこで `evaluate` を使ったか説明できる
-- chrome-devtools を使った場合も、主操作は Playwright のままで、単独 fallback していない
-- 失敗時の screenshot / state / console / network 証跡を残した
-- code を触った場合は実行した test / check、`01-rulebook.md` 更新有無、`worker-public/` 同期有無を報告した
+確認したURL・操作・結果と、未確認の重要な範囲を簡潔に報告します。失敗・未実施を
+成功扱いせず、必要なら再現条件と証拠を残します。この作業が作ったテスト資源だけ
+片付け、既存タブやプロセスを無断で閉じません。通常プレイ用サーバーはルート規則に
+従って維持します。

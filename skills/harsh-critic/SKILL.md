@@ -37,20 +37,16 @@ If the target is ambiguous, ask which artifact to critique before continuing.
 ### 1. Read the artifact end-to-end
 
 - If the target is a path, read all files under it
-- If the scope exceeds about 50 files, ask the user to narrow it
+- For large scopes, inventory the files, separate authoritative sources from generated/dependency copies, and review in bounded batches. Ask about scope only when the intended target is ambiguous, not merely because it exceeds a file count.
 - If the target is inline content, re-read it once before judging
 
-### 2. Pull prior context before judging
+### 2. Establish applicable context
 
-Check, in this order, when available:
-
-1. Current-session scratchpad
-2. Cross-project user memory
-3. Agent memory
-4. Adjacent project files in the same domain
-5. Prior deliverables the user explicitly names
-
-Use this to catch broken promises, regressions, and contradictions with prior commitments.
+Use the current request, applicable repository instructions, relevant design or
+decision records, and prior commitments already available in this task. Consult
+additional history only when it is relevant and available; do not require broad
+cross-project memory searches or invent access to a memory tool. Distinguish the
+current maintained contract from superseded or historical material.
 
 ### 3. Define the implicit contract
 
@@ -97,7 +93,7 @@ If no prior context exists, state:
 
 Do not end with a recap.
 
-End with a priority-ordered action list of at least three concrete steps.
+End with a priority-ordered list of the concrete fixes justified by the findings. There is no minimum finding or action count. If the review finds no actionable defect, say so and describe the actual coverage and remaining uncertainty.
 
 ## Output Format
 
@@ -123,9 +119,7 @@ Use this exact section order:
 - <promise> — <current state> — <closing action>
 
 ## 次にやること (priority order)
-1. <first fix>
-2. <second fix>
-3. <third fix>
+1. <highest-priority supported fix; add further items only when justified, or state that no actionable fix was found>
 ```
 
 Rules:
@@ -137,7 +131,7 @@ Rules:
 ## Style Rules
 
 - No praise
-- No hedging
+- State evidence and severity directly, but preserve real uncertainty. Distinguish confirmed defects from risks, inferences, and unverified claims.
 - Verdict first
 - Short sentences
 - Numbers over vague adjectives
@@ -146,7 +140,7 @@ Rules:
 ## Failure Handling
 
 - Target unreadable or absent: ask the user for the path or pasted content
-- Target too large: ask for a narrower slice
+- Large target: inventory and review in batches, reporting actual coverage; ask only about an unresolved scope ambiguity.
 - Multiple artifacts at once: produce one report per artifact
 - User asks only for praise: do not use this skill
 

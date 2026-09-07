@@ -6,9 +6,9 @@ Selfplay / teacher CPU / CNN-MCTS 学習パイプラインの正本ディレク�
 
 | Task | Start here | Notes |
 | --- | --- | --- |
-| TS / JS CLI エントリ (`run-selfplay-*`, `preflight-*`, `monitor-*`, `export-*`, `benchmark-*`) | `scripts/*.ts` | CLI wrappers; root `scripts/*.js` は dist 経由の薄い shim。 |
-| 自己対戦エンジン本体 (実体) | `../src/engine/selfplay-runner.ts` (root `src/engine/`) | 訓練の TS オーケストレーション本体はここ。`scripts/*.ts` は CLI のみ。 |
-| Python トレーナー (CNN/MCTS/deepCFR) | `python/` | `Teacher_CPU_Spec_Template.md` を雛形に、`CPU_Training_Implementation_Runbook.md` で運用。サブ AGENTS.md は `python/AGENTS.md`。 |
+| TS / JS CLI エントリ (`run-selfplay-*`, `preflight-*`, `monitor-*`, `export-*`, `benchmark-*`) | `scripts/*.ts` | CLI と学習サイクルの順序・再開・昇格を扱うオーケストレーション。root `scripts/*.js` は dist 経由の薄い shim。 |
+| 自己対戦エンジン本体 (実体) | `../src/engine/selfplay-runner.ts` (root `src/engine/`) | 対局実行・自己対戦のエンジン本体。学習サイクルのオーケストレーションは `training/scripts/`（リポジトリルート基準）。 |
+| Python トレーナー (CNN/MCTS/deepCFR) | `python/` | `../docs/Teacher_CPU_Spec_Template.md` を雛形に、`../docs/CPU_Training_Implementation_Runbook.md` で運用。サブ AGENTS.md は `python/AGENTS.md`。 |
 | 訓練テスト | `tests/` | Jest スイートの一部 (`testMatch` がこのディレクトリを含む)。`game/ai/__tests__/`、`scripts/__tests__/` と並列。 |
 | 補助 runbook / 計画 | `docs/` | ストレージクリーンアップ、teacher CPU 仕様、再現性ガイドなど。Active 表示のない日付入りファイルは歴史資料。 |
 | 共有 TS 補助 | `shared/`, `engine/`, `constants/`, `game/`, `data/`, `src/` | 小さな TS 補助。`src/` は root `src/engine/` への 1 行 shim のみ。 |
@@ -25,8 +25,8 @@ Selfplay / teacher CPU / CNN-MCTS 学習パイプラインの正本ディレク�
 
 ## Verification
 
-- 訓練ジョブを実行する前に `preflight-selfplay-training.ts` または `preflight-deepcfr-training.ts` 相当の事前チェックを走らせる。
-- 自己対戦ランの再現性は `docs/CPU_Training_Implementation_Runbook.md` と `docs/teacher-cpu-card-usage-buckets.md` に従う。
+- 訓練ジョブを実行する前に `scripts/preflight-selfplay-training.ts` または `scripts/preflight-deepcfr-training.ts` 相当の事前チェックを走らせる。
+- 自己対戦ランの再現性は `../docs/CPU_Training_Implementation_Runbook.md` と `docs/teacher-cpu-card-usage-buckets.md` に従う。
 - Python トレーナー側は `python/AGENTS.md` を併読。
 - 訓練スクリプトの TS 変更は `npm run typecheck` + `npm run build:ts` を通す。`npm run checkall` の `check-ts-migration-safety` が新規 `.ts` の `@ts-nocheck` を弾く。
 - ベンチ・監査スクリプトの追加は `--smoke` 相当の軽量サンプルで先に動作確認する。

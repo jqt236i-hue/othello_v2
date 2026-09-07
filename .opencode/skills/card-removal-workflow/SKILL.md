@@ -31,6 +31,7 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 ## Primary Files
 
 - `cards/catalog.json`
+- `cards/catalog.ts`
 - `cards/catalog.js`
 - `cards/catalog.generated.js`
 - `shared-constants.ts`
@@ -54,12 +55,12 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 
 1. まず、そのカードを「無効化」で足りるのか「完全削除」なのかを固定する。完全削除なら `cardId`, `type`, 表示名の 3 軸を追う前提で始める。
 2. 外から見える仕様やカード一覧が変わるなら、関連実装より先に `01-rulebook.md` を更新する。
-3. `cards/catalog.json` を正本として対象カードを削除し、`npm run generate:catalog` で `cards/catalog.js` と `cards/catalog.generated.js` を再生成する。
+3. `cards/catalog.json` を正本として対象カードを削除し、`npm run generate:catalog` で `cards/catalog.ts`、`cards/catalog.js`、`cards/catalog.generated.js` を再生成する。
 4. `game/` 側の card effect, pending selection, turn progression, CPU 判断, presentation hook にそのカード専用分岐や `type` 判定が残っていないかを消す。
 5. `shared/deck-spec.ts`, `ui/handlers/rules-help.ts`, `docs/`, `test/` を含め、`cardId`, `type`, 表示名で残り参照を全文検索し、削除または別カードへ置換する。
 6. 削除によって generated / mirror / surface の公開面が変わるなら、root を直したあとでだけ `npm run worker:prepare` を実行して `worker-public/` をそろえる。
 7. 削除後に関連 deck / rules help / card surface / effect test を回し、削除カード前提の fixture や期待値を修正する。
-8. 最後に、同じ 3 軸検索をもう一度行い、意図した historical docs や audit メモを除いて実参照が残っていないことを確認する。
+8. 最後に、同じ 3 軸検索をもう一度行い、意図した historical docs、audit メモ、旧セーブ／デッキのmigrationや拒否テストを区別し、現行プレイ経路に不要な参照が残っていないことを確認する。互換処理に必要な旧IDを、検索結果をゼロにするためだけに削除したり無関係なカードへ置換したりしない。
 
 ## Validation Bundle
 
@@ -71,7 +72,7 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 
 ## Completion Checklist
 
-- `cards/catalog.json`, `cards/catalog.js`, `cards/catalog.generated.js` がそろっている
+- `cards/catalog.json`, `cards/catalog.ts`, `cards/catalog.js`, `cards/catalog.generated.js` がそろっている
 - logic, pending target, CPU, presentation の削除波及を確認している
 - `shared/deck-spec.ts`, `ui/handlers/rules-help.ts`, `docs/`, `test/` の残り参照を確認している
 - root 正本を更新してから必要な mirror 同期だけを行っている

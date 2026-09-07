@@ -9,7 +9,7 @@ Playwright-backed browser integration tests running under Jest. Read `../AGENTS.
 | Local static server helper | `e2e-runtime-helpers.js` | Serves repo root files directly; owns startup/teardown helpers. |
 | CPU browser probes | `cpu*.e2e.test.ts` | Browser globals and CPU integration checks. |
 | Card / effect flows | `card_effects.e2e.test.ts`, `special_effects.e2e.test.ts`, `destroy-card-will-hunter-king.e2e.test.ts` | Use when behavior needs real browser/runtime wiring. |
-| Turn / reset flows | `multi_turn_progression.e2e.test.ts`, `reset_click.e2e.test.ts` | End-to-end turn progression and UI-reset behavior. |
+| Turn / reset flows | `board-dom-compat.multi-turn-progression.e2e.test.ts`, `board-dom-compat.reset-click.e2e.test.ts` | End-to-end turn progression and UI-reset behavior. |
 
 ## CONVENTIONS
 

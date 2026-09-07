@@ -10,7 +10,7 @@ Build, codegen, checks, local servers, worker sync, and selfplay/training orches
 | Worker/public mirror | `prepare-worker-assets.ts` | Copies root assets/modules to `worker-public/`, regenerates asset manifest and gacha catalogs, verifies mirror. |
 | Local servers/network smoke | `serve-with-fallback.ts`, `local-match-server.ts`, `match-network-smoke.ts` | Play server is `npm run serve` on 8000; keep it running per root `AGENTS.md` LOCAL DEV SERVER. Match-server contracts stay aligned with Worker behavior. |
 | Catalog / manifest generation | `generate-catalog.ts`, `generate-observation-gacha-catalog.ts`, `generate-asset-manifest.ts` | Generated outputs are not hand-edit targets. |
-| Selfplay/training orchestration | `../training/scripts/run-selfplay-training-cycle.ts`, `../training/scripts/run-selfplay-training-profile.ts`, `../training/scripts/load-training-profile.ts`, `promote-policy-model.ts`, `deploy-lane-model-to-root.ts` | Root `run-selfplay-*.js` entries dispatch to built training scripts; profile/gate/promotion contracts are in `docs/architecture-contracts.md` §5.2. |
+| Selfplay/training orchestration | `../training/scripts/run-selfplay-training-cycle.ts`, `../training/scripts/run-selfplay-training-profile.ts`, `../training/scripts/load-training-profile.ts`, `../training/scripts/promote-policy-model.ts`, `deploy-lane-model-to-root.ts` | Root `run-selfplay-*.js` entries dispatch to built training scripts; profile/gate/promotion contracts are in `docs/architecture-contracts.md` §5.2. |
 
 ## Gotchas
 
