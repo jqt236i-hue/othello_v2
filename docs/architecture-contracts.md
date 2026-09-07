@@ -73,6 +73,8 @@ Client-authored state is never canonical.
 
 CPU logic is read-only with respect to gameplay state orchestration and must not directly manipulate DOM, sound, or timers.
 
+CPU card-score rules live under `game/ai/card-scoring/` with their historical arithmetic order owned by `cpu-policy-card-score-rules.ts`.
+
 The main decision path should live in `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, and `game/ai/*`.
 Adjacent `.js` files are compatibility wrappers/projections unless the TypeScript migration allowlist explicitly says otherwise.
 
@@ -166,6 +168,8 @@ A runtime module that captures another runtime global during module evaluation m
 
 ### 5.3 Lv6 CPU training/runtime profile contract
 
+Training scalar defaults and flag aliases are owned by `training/scripts/training-cycle-option-schema.ts`; cross-option validation stays in the cycle parser.
+
 The Lv6 CPU training/runtime path spans `constants/`, `scripts/`, `ui/`, and `game/`, but the stable contract is:
 
 - `constants/cpu-lv6-shared-profile.ts` is the canonical source for shared browser Lv6 defaults and shared teacher defaults; the adjacent `.js` file is a compatibility wrapper/projection.
@@ -225,6 +229,8 @@ Lane promotion and root deployment are separate phases:
 ### 5.4 Card / turn runtime static-composition contract
 
 `game/logic/cards.ts` is the stable compatibility facade for the public `CardLogic` surface. It constructs that facade once from `getDefaultCardRuntimeServices()` and `createCardLogicRuntime()`; it does not own a second rule body or perform runtime discovery. `game/logic/cards-runtime-factory.ts` owns the canonical implementation factory, `game/logic/card-runtime-composer.ts` owns the default static service graph, and `game/logic/card-runtime-contracts.ts` owns its required capability schema. The factory must not import the composer or facade, and canonical leaf modules must not import or cache the whole facade.
+
+`game/logic/card-logic-api.ts` types the usage/cost/type entry contracts. Historical usage signatures are decoded by `cards-internal/card-usage-arguments.ts` before the existing usage stage. `cards-internal/domain-accessors.ts` owns per-runtime lazy domain instances through narrow dependencies; these caches must not retain invocation state or the whole facade.
 
 The composed card service graph is grouped by state/deck/hand, target/legality, board/topology, marker/protection, pending, and resolution capabilities. The root and each group are shallow-frozen after validation. Imported modules themselves are not deep-frozen. Match state, room state, action data, events, pending instances, and PRNG instances are invocation-owned values and must never be stored in the static graph. Turn construction follows the same rule through `game/turn/turn-runtime-services.ts`: the phase manifest and narrow ports are validated before an action starts, while state and random-source references remain per invocation.
 
@@ -379,6 +385,7 @@ The canonical network flow is:
 Stable browser-side ownership for that flow is:
 
 - `ui/network-client.ts` owns the client facade source; the adjacent `.js` file is the compatibility shell exposed to classic callers
+- `ui/network/client-state.ts` constructs session, connection, publishing, authority, presentation, and diagnostics storage. The flat facade is a compatibility view over those same fields, not a copied state. Reconnect and stream controllers receive bounded views; standalone legacy callers may still supply `getState`.
 - `ui/network/session-lifecycle.ts` owns create / join / leave / latest-state lifecycle orchestration
 - `ui/network/session-seat.ts` owns session activation, reset, and seat-bound session state
 - `ui/network/snapshot.ts` owns authoritative snapshot apply and presentation reconciliation
@@ -488,6 +495,8 @@ Deferred playback handoff uses a typed return value propagated from `ui/animatio
 For local playback, the presentation drain executes received finalizers in order after writer settlement and releases its outer claim last. For strict network playback, the strict settlement handle is the only execution owner. Strict success executes the registered finalizer only after committed-frame application succeeds. Strict cancellation does not require a committed apply: it records the settlement error, cancels or aborts the writer, then performs the registered abort-finalization. A failed playback must throw rather than manufacture a no-op success result.
 
 #### 7.3.4 Pixi invalidation and render cadence
+
+Pixi viewport masks and trajectory-view pooling own their resource lifecycle in `ui/pixi/viewport-masks.ts` and `ui/pixi/source-trajectory-pool.ts`, while scene orchestration and visual-writer ownership remain unchanged.
 
 The board render model keeps its aggregate visual signature for controller hashing and compatibility diagnostics, while the Pixi backend uses separate surface, stone, and interaction signatures plus matching context revisions. A view rebuilds only when its own semantic or appearance dependencies change. Identical canvas width, height, and resolution are an idempotent resize no-op; mount, DPR or viewport change, context restoration, and backend replacement invalidate the cached geometry.
 
@@ -817,6 +826,8 @@ The following are known structural risks and should be treated as debt, not as d
 - legacy global escape hatches still exist for compatibility and debugging
 
 The Worker/local command-execution cluster is no longer part of this debt: canonical prepare/apply/pending validation/presentation/turn-start/finalization is shared by `utils/match-command-runtime.ts`. Normalized room-deck metadata construction, selection patching, initial-option projection, and supported public projection are likewise shared by `utils/match-room-deck.ts`. Runtime-specific deck decode and raw compatibility adapters remain intentionally separate. This does not claim that duplicated network constants, route handling, room lifecycle, payload decoration, or other runtime module-resolution patterns have been unified.
+
+Publish-response assembly is shared by `utils/match-publish-payload.ts`. The already initialized authority module, projection, and rated metadata decoration remain injected ports; importing the builder must not initialize authority ahead of Worker catalog preload. The local server decorates acknowledgements while the Worker keeps them minimal; the explicit `decorateAcknowledgement` port preserves that existing wire difference.
 
 These debts should be reduced over time, but they are not automatically public extension points.
 

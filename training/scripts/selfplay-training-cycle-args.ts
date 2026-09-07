@@ -1,3 +1,4 @@
+import { createTrainingCycleScalarDefaults, applyTrainingCycleScalarOption } from './training-cycle-option-schema';
 declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
 
@@ -162,113 +163,22 @@ function createSelfplayTrainingCycleDefaults(env = undefined) {
     const cwd = runtimeEnv.cwd || process.cwd();
     const defaultJobs = Number.isFinite(runtimeEnv.defaultJobs) ? Math.max(1, Math.floor(runtimeEnv.defaultJobs)) : defaultSelfplayJobs();
     return {
-        iterations: 1,
-        maxHours: 100,
-        trainGames: 20000,
-        evalGames: 2000,
+        ...createTrainingCycleScalarDefaults(),
         selfplayJobs: defaultJobs,
-        selfplayResumeChunkSize: 1000,
         adoptionJobs: defaultJobs,
         onnxGateJobs: defaultJobs,
-        seed: 1,
-        seedStride: 1000,
-        evalSeedOffset: 100000,
-        maxPlies: 220,
-        allowCardUsage: true,
-        cardUsageRate: 0.2,
         selfplayBlackDeckCode: null,
         selfplayWhiteDeckCode: DEFAULT_SELFPLAY_WHITE_DECK_CODE,
-        selfplayGenerateHardcases: true,
-        selfplayPolicyMixRate: 1,
-        selfplayPolicyModelPoolSize: 4,
         selfplayPolicyPoolSampling: 'recency',
-        selfplayPolicyPoolRecencyDecay: 2.5,
-        selfplayPolicyCurrentAnchorRate: 0.35,
-        selfplayCardUsageRateJitter: 0,
         selfplayCardUsageRateScheduleSpec: null,
         selfplayCardUsageRateSchedule: [],
-        selfplayTacticalWeightMin: 1,
-        selfplayTacticalWeightMax: 1,
-        selfplayTacticalDepthOpening: 4,
-        selfplayTacticalDepthMid: 6,
-        selfplayTacticalDepthEnd: 8,
-        selfplayTacticalBeamWidth: 12,
-        selfplayTeacherCommitteeWeightMin: 28,
-        selfplayTeacherCommitteeWeightMax: 28,
-        selfplayTeacherCommitteeConsensusBonusMin: 320,
-        selfplayTeacherCommitteeConsensusBonusMax: 320,
-        selfplayPolicyScoreWeightMin: 1,
-        selfplayPolicyScoreWeightMax: 1,
-        selfplayHeuristicWeightMin: 1,
-        selfplayHeuristicWeightMax: 1,
         pythonPath: path.resolve(cwd, '.venv', 'Scripts', 'python.exe'),
-        onnxEpochs: 9999,
-        onnxBatchSize: 2048,
-        onnxLr: 0.001,
         onnxValueLr: null,
-        onnxHiddenSize: 256,
         onnxValueHiddenSize: null,
         onnxDevice: 'auto',
-        onnxLogIntervalSteps: 0,
-        onnxValSplit: 0.1,
         onnxValSplitMode: 'grouped-game',
-        onnxEarlyStopPatience: 8,
-        onnxEarlyStopMinDelta: 0.0005,
-        onnxEarlyStopMinEpochs: 8,
         onnxEarlyStopMonitor: 'val_loss',
-        onnxEarlyStopSmoothingWindow: 1,
-        onnxLrPlateauPatience: 0,
-        onnxLrPlateauFactor: 0.6,
         onnxLrPlateauMinLr: 1e-5,
-        onnxResumeOptimizer: false,
-        onnxCardNoActionWeight: 0.7,
-        onnxCardClassBalancePower: 0.25,
-        onnxWinnerSampleBoost: 0.35,
-        onnxLoserSampleWeight: 0.8,
-        onnxDrawSampleWeight: 1.0,
-        onnxCornerEmergencySampleBoost: 0.0,
-        onnxNegativeFutureDiscSampleBoost: 0.0,
-        onnxNegativeFutureDiscThreshold: -1.0,
-        onnxTacticalMissSampleBoost: 0.0,
-        onnxTacticalMissThreshold: 0.08,
-        onnxHandPressureSampleBoost: 0.0,
-        onnxPendingTargetSampleBoost: 0.0,
-        onnxCornerBalanceSampleBoost: 0.0,
-        onnxEdgeBalanceSampleBoost: 0.0,
-        onnxEconomyBalanceSampleBoost: 0.0,
-        onnxValueTargetCornerWeight: 0.0,
-        onnxValueTargetEdgeWeight: 0.0,
-        onnxValueTargetEconomyWeight: 0.0,
-        onnxValueTargetCornerEmergencyWeight: 0.0,
-        trainTargetHeadEnabled: false,
-        trainValueHeadEnabled: true,
-        trainCardEvery: 0,
-        trainTargetEvery: 1,
-        trainValueEvery: 1,
-        minVisits: 12,
-        shapeImmediate: 0.4,
-        quickGames: 500,
-        finalGames: 2000,
-        threshold: 0.05,
-        adoptionSeedCount: 1,
-        adoptionSeedStride: 1000,
-        adoptionFinalSeedOffset: 500000,
-        adoptionConfidenceLevel: 0.95,
-        adoptionMinLowerBound: -1,
-        adoptionMinSeedUplift: -1,
-        adoptionMinSeedPassCount: 0,
-        qualityGateEnabled: false,
-        qualityGateGames: 1000,
-        qualityGateSeedCount: 1,
-        qualityGateSeedStride: 1000,
-        qualityGateSeedOffset: 250000,
-        qualityGateThreshold: 0,
-        qualityGateConfidenceLevel: 0.95,
-        qualityGateMinLowerBound: -1,
-        qualityGateMinSeedUplift: -1,
-        qualityGateMinSeedPassCount: 0,
-        qualityGateStrengthFirst: false,
-        quickAdoptionSeedOffset: 0,
         quickAdoptionThreshold: null,
         quickAdoptionSeedCount: null,
         quickAdoptionSeedStride: null,
@@ -283,69 +193,9 @@ function createSelfplayTrainingCycleDefaults(env = undefined) {
         finalAdoptionMinLowerBound: null,
         finalAdoptionMinSeedUplift: null,
         finalAdoptionMinSeedPassCount: null,
-        adoptionTacticalWeight: 0.25,
-        adoptionTacticalDepthOpening: 4,
-        adoptionTacticalDepthMid: 6,
-        adoptionTacticalDepthEnd: 8,
-        adoptionTacticalBeamWidth: 12,
-        adoptionPolicyScoreWeight: 2.0,
-        adoptionHeuristicWeight: 0.85,
-        adoptionWhitePriority: 1.0,
-        adoptionQualityWeightCorner: 0.22,
-        adoptionQualityWeightEdge: 0.10,
-        adoptionQualityWeightCornerRecovery: 0.18,
-        adoptionQualityWeightCornerRecapture: 0.14,
-        adoptionQualityWeightEdgeRecovery: 0.12,
-        adoptionQualityWeightCornerHold: 0.16,
-        adoptionQualityWeightCornerHoldTurns: 0.10,
-        adoptionQualityWeightEdgeHold: 0.09,
-        adoptionQualityWeightEdgeChain: 0.12,
-        adoptionQualityWeightFinalCornerShare: 0.24,
-        adoptionQualityWeightFinalEdgeShare: 0.06,
-        adoptionQualityWeightFinalLongestEdgeRunShare: 0.08,
-        adoptionQualityWeightCornerDonationAvoidance: 0.14,
-        adoptionQualityWeightOpponentSafeEdgeAvoidance: 0.12,
-        adoptionQualityWeightOwnSafeEdge: 0.12,
-        adoptionQualityWeightOwnEdgeGapAvoidance: 0.10,
-        adoptionQualityWeightOpponentEdgeCut: 0.08,
-        adoptionQualityWeightBonus: 0.01,
-        adoptionQualityWeightCardImmediate: 0,
-        adoptionQualityWeightCardFuture: 0,
-        adoptionQualityWeightPlaceDelta: 0.015,
-        adoptionUseGuideBaseline: false,
-        adoptionUseAnchorBaseline: false,
-        onnxGateEnabled: false,
-        onnxGateGames: 8,
-        onnxGateSeedCount: 1,
-        onnxGateSeedStride: 1000,
-        onnxGateSeedOffset: 700000,
-        onnxGateThreshold: 0.5,
-        onnxGateMinSeedScore: 0,
-        onnxGateMinSeedPassCount: 0,
-        onnxGateMaxAverageLatencyMs: 0,
-        onnxGateMaxP95LatencyMs: 0,
-        onnxGateMaxMaxLatencyMs: 0,
-        onnxGateTimeoutMs: 180000,
-        onnxGateBlackLevel: 6,
-        onnxGateWhiteLevel: 6,
         onnxGateCandidateColorMode: 'white',
         promotionMode: 'strict',
-        onnxPrimaryMaxQuickRegression: 0.05,
-        onnxPrimaryRequireQuickRegression: false,
-        onnxPrimaryRequireQuickNonRegression: false,
-        onnxPrimaryMinQuickCoreDelta: 0.0,
-        onnxPrimaryMinQuickWhiteDelta: 0.0,
-        onnxPrimaryMinQuickQualityDelta: -0.01,
-        onnxPrimaryMinQuickUplift: 0.0,
-        onnxPrimaryMinQuickLowerBound: -1.0,
-        onnxPrimaryMinOnnxGateAvg: 0.0,
-        onnxPrimaryMinOnnxGateMinSeed: 0.0,
-        gateFinalIterationOnly: false,
-        promoteOnPass: true,
-        deployPromotedToRoot: false,
         deployPromotedRootModelsDir: path.resolve(cwd, 'data', 'models'),
-        deployPromotedMinStates: 0,
-        deployPromotedForce: false,
         selfplayUsePromotedModelOnly: true,
         selfplayCandidateAdmission: 'promoted-only',
         bootstrapPolicyModelPath: null,
@@ -362,10 +212,7 @@ function createSelfplayTrainingCycleDefaults(env = undefined) {
         runsDir: path.resolve(cwd, 'data', 'runs'),
         modelsDir: path.resolve(cwd, 'data', 'models'),
         summaryOut: null,
-        reuseExistingArtifacts: false,
         restartFromStep: null,
-        verbose: false,
-        help: false
     };
 }
 
@@ -374,124 +221,26 @@ function parseSelfplayTrainingCycleArgs(argv) {
 
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
-        if (a === '--help' || a === '-h') { args.help = true; continue; }
-        if (a === '--iterations' || a === '-n') { args.iterations = Number(argv[++i]); continue; }
-        if (a === '--max-hours') { args.maxHours = Number(argv[++i]); continue; }
-        if (a === '--train-games') { args.trainGames = Number(argv[++i]); continue; }
-        if (a === '--eval-games') { args.evalGames = Number(argv[++i]); continue; }
+        const scalarIndex = applyTrainingCycleScalarOption(args, argv, i);
+        if (scalarIndex !== null) { i = scalarIndex; continue; }
         if (a === '--selfplay-jobs') { args.selfplayJobs = Number(argv[++i]); continue; }
-        if (a === '--selfplay-resume-chunk-size') { args.selfplayResumeChunkSize = Number(argv[++i]); continue; }
         if (a === '--adoption-jobs') { args.adoptionJobs = Number(argv[++i]); continue; }
         if (a === '--onnx-gate-jobs') { args.onnxGateJobs = Number(argv[++i]); continue; }
-        if (a === '--seed' || a === '-s') { args.seed = Number(argv[++i]); continue; }
-        if (a === '--seed-stride') { args.seedStride = Number(argv[++i]); continue; }
-        if (a === '--eval-seed-offset') { args.evalSeedOffset = Number(argv[++i]); continue; }
-        if (a === '--max-plies') { args.maxPlies = Number(argv[++i]); continue; }
-        if (a === '--with-cards') { args.allowCardUsage = true; continue; }
-        if (a === '--no-cards') { args.allowCardUsage = false; continue; }
-        if (a === '--selfplay-hardcases') { args.selfplayGenerateHardcases = true; continue; }
-        if (a === '--no-selfplay-hardcases') { args.selfplayGenerateHardcases = false; continue; }
-        if (a === '--card-usage-rate') { args.cardUsageRate = Number(argv[++i]); continue; }
         if (a === '--selfplay-black-deck-code') { args.selfplayBlackDeckCode = String(argv[++i] || '').trim() || null; continue; }
         if (a === '--selfplay-white-deck-code') { args.selfplayWhiteDeckCode = String(argv[++i] || '').trim() || null; continue; }
         if (a === '--no-selfplay-white-deck-code') { args.selfplayWhiteDeckCode = null; continue; }
-        if (a === '--selfplay-policy-mix-rate') { args.selfplayPolicyMixRate = Number(argv[++i]); continue; }
-        if (a === '--selfplay-policy-model-pool-size') { args.selfplayPolicyModelPoolSize = Number(argv[++i]); continue; }
         if (a === '--selfplay-policy-pool-sampling') { args.selfplayPolicyPoolSampling = String(argv[++i] || '').trim().toLowerCase(); continue; }
-        if (a === '--selfplay-policy-pool-recency-decay') { args.selfplayPolicyPoolRecencyDecay = Number(argv[++i]); continue; }
-        if (a === '--selfplay-policy-current-anchor-rate') { args.selfplayPolicyCurrentAnchorRate = Number(argv[++i]); continue; }
-        if (a === '--selfplay-card-usage-rate-jitter') { args.selfplayCardUsageRateJitter = Number(argv[++i]); continue; }
         if (a === '--selfplay-card-usage-rate-schedule') {
             args.selfplayCardUsageRateScheduleSpec = String(argv[++i] || '').trim();
             continue;
         }
-        if (a === '--selfplay-tactical-weight-min') { args.selfplayTacticalWeightMin = Number(argv[++i]); continue; }
-        if (a === '--selfplay-tactical-weight-max') { args.selfplayTacticalWeightMax = Number(argv[++i]); continue; }
-        if (a === '--selfplay-tactical-depth-opening') { args.selfplayTacticalDepthOpening = Number(argv[++i]); continue; }
-        if (a === '--selfplay-tactical-depth-mid') { args.selfplayTacticalDepthMid = Number(argv[++i]); continue; }
-        if (a === '--selfplay-tactical-depth-end') { args.selfplayTacticalDepthEnd = Number(argv[++i]); continue; }
-        if (a === '--selfplay-tactical-beam-width') { args.selfplayTacticalBeamWidth = Number(argv[++i]); continue; }
-        if (a === '--selfplay-teacher-committee-weight-min') { args.selfplayTeacherCommitteeWeightMin = Number(argv[++i]); continue; }
-        if (a === '--selfplay-teacher-committee-weight-max') { args.selfplayTeacherCommitteeWeightMax = Number(argv[++i]); continue; }
-        if (a === '--selfplay-teacher-committee-consensus-bonus-min') { args.selfplayTeacherCommitteeConsensusBonusMin = Number(argv[++i]); continue; }
-        if (a === '--selfplay-teacher-committee-consensus-bonus-max') { args.selfplayTeacherCommitteeConsensusBonusMax = Number(argv[++i]); continue; }
-        if (a === '--selfplay-policy-score-weight-min') { args.selfplayPolicyScoreWeightMin = Number(argv[++i]); continue; }
-        if (a === '--selfplay-policy-score-weight-max') { args.selfplayPolicyScoreWeightMax = Number(argv[++i]); continue; }
-        if (a === '--selfplay-heuristic-weight-min') { args.selfplayHeuristicWeightMin = Number(argv[++i]); continue; }
-        if (a === '--selfplay-heuristic-weight-max') { args.selfplayHeuristicWeightMax = Number(argv[++i]); continue; }
         if (a === '--python') { args.pythonPath = path.resolve(process.cwd(), argv[++i]); continue; }
-        if (a === '--onnx-epochs') { args.onnxEpochs = Number(argv[++i]); continue; }
-        if (a === '--onnx-batch-size') { args.onnxBatchSize = Number(argv[++i]); continue; }
-        if (a === '--onnx-lr') { args.onnxLr = Number(argv[++i]); continue; }
         if (a === '--onnx-value-lr') { args.onnxValueLr = Number(argv[++i]); continue; }
-        if (a === '--onnx-hidden-size') { args.onnxHiddenSize = Number(argv[++i]); continue; }
         if (a === '--onnx-value-hidden-size') { args.onnxValueHiddenSize = Number(argv[++i]); continue; }
         if (a === '--onnx-device') { args.onnxDevice = String(argv[++i] || '').trim().toLowerCase() || 'auto'; continue; }
-        if (a === '--onnx-log-interval-steps') { args.onnxLogIntervalSteps = Number(argv[++i]); continue; }
-        if (a === '--onnx-val-split') { args.onnxValSplit = Number(argv[++i]); continue; }
         if (a === '--onnx-val-split-mode') { args.onnxValSplitMode = String(argv[++i] || '').trim().toLowerCase(); continue; }
-        if (a === '--onnx-early-stop-patience') { args.onnxEarlyStopPatience = Number(argv[++i]); continue; }
-        if (a === '--onnx-early-stop-min-delta') { args.onnxEarlyStopMinDelta = Number(argv[++i]); continue; }
-        if (a === '--onnx-early-stop-min-epochs') { args.onnxEarlyStopMinEpochs = Number(argv[++i]); continue; }
         if (a === '--onnx-early-stop-monitor') { args.onnxEarlyStopMonitor = String(argv[++i] || '').trim().toLowerCase(); continue; }
-        if (a === '--onnx-early-stop-smoothing-window') { args.onnxEarlyStopSmoothingWindow = Number(argv[++i]); continue; }
-        if (a === '--onnx-lr-plateau-patience') { args.onnxLrPlateauPatience = Number(argv[++i]); continue; }
-        if (a === '--onnx-lr-plateau-factor') { args.onnxLrPlateauFactor = Number(argv[++i]); continue; }
         if (a === '--onnx-lr-plateau-min-lr') { args.onnxLrPlateauMinLr = Number(argv[++i]); continue; }
-        if (a === '--onnx-resume-optimizer') { args.onnxResumeOptimizer = true; continue; }
-        if (a === '--no-onnx-resume-optimizer') { args.onnxResumeOptimizer = false; continue; }
-        if (a === '--onnx-card-no-action-weight') { args.onnxCardNoActionWeight = Number(argv[++i]); continue; }
-        if (a === '--onnx-card-class-balance-power') { args.onnxCardClassBalancePower = Number(argv[++i]); continue; }
-        if (a === '--onnx-winner-sample-boost') { args.onnxWinnerSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-loser-sample-weight') { args.onnxLoserSampleWeight = Number(argv[++i]); continue; }
-        if (a === '--onnx-draw-sample-weight') { args.onnxDrawSampleWeight = Number(argv[++i]); continue; }
-        if (a === '--onnx-corner-emergency-sample-boost') { args.onnxCornerEmergencySampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-negative-future-disc-sample-boost') { args.onnxNegativeFutureDiscSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-negative-future-disc-threshold') { args.onnxNegativeFutureDiscThreshold = Number(argv[++i]); continue; }
-        if (a === '--onnx-tactical-miss-sample-boost') { args.onnxTacticalMissSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-tactical-miss-threshold') { args.onnxTacticalMissThreshold = Number(argv[++i]); continue; }
-        if (a === '--onnx-hand-pressure-sample-boost') { args.onnxHandPressureSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-pending-target-sample-boost') { args.onnxPendingTargetSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-corner-balance-sample-boost') { args.onnxCornerBalanceSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-edge-balance-sample-boost') { args.onnxEdgeBalanceSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-economy-balance-sample-boost') { args.onnxEconomyBalanceSampleBoost = Number(argv[++i]); continue; }
-        if (a === '--onnx-value-target-corner-weight') { args.onnxValueTargetCornerWeight = Number(argv[++i]); continue; }
-        if (a === '--onnx-value-target-edge-weight') { args.onnxValueTargetEdgeWeight = Number(argv[++i]); continue; }
-        if (a === '--onnx-value-target-economy-weight') { args.onnxValueTargetEconomyWeight = Number(argv[++i]); continue; }
-        if (a === '--onnx-value-target-corner-emergency-weight') { args.onnxValueTargetCornerEmergencyWeight = Number(argv[++i]); continue; }
-        if (a === '--train-target-head') { args.trainTargetHeadEnabled = true; continue; }
-        if (a === '--no-train-target-head') { args.trainTargetHeadEnabled = false; continue; }
-        if (a === '--train-value-head') { args.trainValueHeadEnabled = true; continue; }
-        if (a === '--no-train-value-head') { args.trainValueHeadEnabled = false; continue; }
-        if (a === '--train-card-every') { args.trainCardEvery = Number(argv[++i]); continue; }
-        if (a === '--train-target-every') { args.trainTargetEvery = Number(argv[++i]); continue; }
-        if (a === '--train-value-every') { args.trainValueEvery = Number(argv[++i]); continue; }
-        if (a === '--min-visits') { args.minVisits = Number(argv[++i]); continue; }
-        if (a === '--shape-immediate') { args.shapeImmediate = Number(argv[++i]); continue; }
-        if (a === '--quick-games') { args.quickGames = Number(argv[++i]); continue; }
-        if (a === '--final-games') { args.finalGames = Number(argv[++i]); continue; }
-        if (a === '--threshold') { args.threshold = Number(argv[++i]); continue; }
-        if (a === '--adoption-seed-count') { args.adoptionSeedCount = Number(argv[++i]); continue; }
-        if (a === '--adoption-seed-stride') { args.adoptionSeedStride = Number(argv[++i]); continue; }
-        if (a === '--adoption-final-seed-offset') { args.adoptionFinalSeedOffset = Number(argv[++i]); continue; }
-        if (a === '--adoption-confidence-level') { args.adoptionConfidenceLevel = Number(argv[++i]); continue; }
-        if (a === '--adoption-min-lower-bound') { args.adoptionMinLowerBound = Number(argv[++i]); continue; }
-        if (a === '--adoption-min-seed-uplift') { args.adoptionMinSeedUplift = Number(argv[++i]); continue; }
-        if (a === '--adoption-min-seed-pass-count') { args.adoptionMinSeedPassCount = Number(argv[++i]); continue; }
-        if (a === '--quality-gate') { args.qualityGateEnabled = true; continue; }
-        if (a === '--no-quality-gate') { args.qualityGateEnabled = false; continue; }
-        if (a === '--quality-gate-games') { args.qualityGateGames = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-seed-count') { args.qualityGateSeedCount = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-seed-stride') { args.qualityGateSeedStride = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-seed-offset') { args.qualityGateSeedOffset = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-threshold') { args.qualityGateThreshold = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-confidence-level') { args.qualityGateConfidenceLevel = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-min-lower-bound') { args.qualityGateMinLowerBound = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-min-seed-uplift') { args.qualityGateMinSeedUplift = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-min-seed-pass-count') { args.qualityGateMinSeedPassCount = Number(argv[++i]); continue; }
-        if (a === '--quality-gate-strength-first') { args.qualityGateStrengthFirst = true; continue; }
-        if (a === '--no-quality-gate-strength-first') { args.qualityGateStrengthFirst = false; continue; }
-        if (a === '--quick-adoption-seed-offset') { args.quickAdoptionSeedOffset = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-threshold') { args.quickAdoptionThreshold = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-seed-count') { args.quickAdoptionSeedCount = Number(argv[++i]); continue; }
         if (a === '--quick-adoption-seed-stride') { args.quickAdoptionSeedStride = Number(argv[++i]); continue; }
@@ -506,78 +255,9 @@ function parseSelfplayTrainingCycleArgs(argv) {
         if (a === '--final-adoption-min-lower-bound') { args.finalAdoptionMinLowerBound = Number(argv[++i]); continue; }
         if (a === '--final-adoption-min-seed-uplift') { args.finalAdoptionMinSeedUplift = Number(argv[++i]); continue; }
         if (a === '--final-adoption-min-seed-pass-count') { args.finalAdoptionMinSeedPassCount = Number(argv[++i]); continue; }
-        if (a === '--adoption-tactical-weight') { args.adoptionTacticalWeight = Number(argv[++i]); continue; }
-        if (a === '--adoption-tactical-depth-opening') { args.adoptionTacticalDepthOpening = Number(argv[++i]); continue; }
-        if (a === '--adoption-tactical-depth-mid') { args.adoptionTacticalDepthMid = Number(argv[++i]); continue; }
-        if (a === '--adoption-tactical-depth-end') { args.adoptionTacticalDepthEnd = Number(argv[++i]); continue; }
-        if (a === '--adoption-tactical-beam-width') { args.adoptionTacticalBeamWidth = Number(argv[++i]); continue; }
-        if (a === '--adoption-policy-score-weight') { args.adoptionPolicyScoreWeight = Number(argv[++i]); continue; }
-        if (a === '--adoption-heuristic-weight') { args.adoptionHeuristicWeight = Number(argv[++i]); continue; }
-        if (a === '--adoption-white-priority') { args.adoptionWhitePriority = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-corner') { args.adoptionQualityWeightCorner = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-edge') { args.adoptionQualityWeightEdge = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-corner-recovery') { args.adoptionQualityWeightCornerRecovery = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-corner-recapture') { args.adoptionQualityWeightCornerRecapture = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-edge-recovery') { args.adoptionQualityWeightEdgeRecovery = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-corner-hold') { args.adoptionQualityWeightCornerHold = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-corner-hold-turns') { args.adoptionQualityWeightCornerHoldTurns = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-edge-hold') { args.adoptionQualityWeightEdgeHold = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-edge-chain') { args.adoptionQualityWeightEdgeChain = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-final-corner-share') { args.adoptionQualityWeightFinalCornerShare = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-final-edge-share') { args.adoptionQualityWeightFinalEdgeShare = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-final-longest-edge-run-share') { args.adoptionQualityWeightFinalLongestEdgeRunShare = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-corner-donation-avoidance') { args.adoptionQualityWeightCornerDonationAvoidance = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-opponent-safe-edge-avoidance') { args.adoptionQualityWeightOpponentSafeEdgeAvoidance = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-own-safe-edge') { args.adoptionQualityWeightOwnSafeEdge = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-own-edge-gap-avoidance') { args.adoptionQualityWeightOwnEdgeGapAvoidance = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-opponent-edge-cut') { args.adoptionQualityWeightOpponentEdgeCut = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-bonus') { args.adoptionQualityWeightBonus = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-card-immediate') { args.adoptionQualityWeightCardImmediate = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-card-future') { args.adoptionQualityWeightCardFuture = Number(argv[++i]); continue; }
-        if (a === '--adoption-quality-weight-place-delta') { args.adoptionQualityWeightPlaceDelta = Number(argv[++i]); continue; }
-        if (a === '--adoption-use-guide-baseline') { args.adoptionUseGuideBaseline = true; continue; }
-        if (a === '--no-adoption-use-guide-baseline') { args.adoptionUseGuideBaseline = false; continue; }
-        if (a === '--adoption-use-anchor-baseline') { args.adoptionUseAnchorBaseline = true; continue; }
-        if (a === '--no-adoption-use-anchor-baseline') { args.adoptionUseAnchorBaseline = false; continue; }
-        if (a === '--onnx-gate') { args.onnxGateEnabled = true; continue; }
-        if (a === '--no-onnx-gate') { args.onnxGateEnabled = false; continue; }
-        if (a === '--onnx-gate-games') { args.onnxGateGames = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-seed-count') { args.onnxGateSeedCount = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-seed-stride') { args.onnxGateSeedStride = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-seed-offset') { args.onnxGateSeedOffset = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-threshold') { args.onnxGateThreshold = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-min-seed-score') { args.onnxGateMinSeedScore = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-min-seed-pass-count') { args.onnxGateMinSeedPassCount = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-max-average-latency-ms') { args.onnxGateMaxAverageLatencyMs = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-max-p95-latency-ms') { args.onnxGateMaxP95LatencyMs = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-max-max-latency-ms') { args.onnxGateMaxMaxLatencyMs = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-timeout-ms') { args.onnxGateTimeoutMs = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-black-level') { args.onnxGateBlackLevel = Number(argv[++i]); continue; }
-        if (a === '--onnx-gate-white-level') { args.onnxGateWhiteLevel = Number(argv[++i]); continue; }
         if (a === '--onnx-gate-candidate-color-mode') { args.onnxGateCandidateColorMode = String(argv[++i] || '').trim().toLowerCase(); continue; }
         if (a === '--promotion-mode') { args.promotionMode = String(argv[++i] || '').trim().toLowerCase(); continue; }
-        if (a === '--onnx-primary-max-quick-regression') { args.onnxPrimaryMaxQuickRegression = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-require-quick-regression') { args.onnxPrimaryRequireQuickRegression = true; continue; }
-        if (a === '--no-onnx-primary-require-quick-regression') { args.onnxPrimaryRequireQuickRegression = false; continue; }
-        if (a === '--onnx-primary-require-quick-non-regression') { args.onnxPrimaryRequireQuickNonRegression = true; continue; }
-        if (a === '--no-onnx-primary-require-quick-non-regression') { args.onnxPrimaryRequireQuickNonRegression = false; continue; }
-        if (a === '--onnx-primary-min-quick-core-delta') { args.onnxPrimaryMinQuickCoreDelta = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-min-quick-white-delta') { args.onnxPrimaryMinQuickWhiteDelta = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-min-quick-quality-delta') { args.onnxPrimaryMinQuickQualityDelta = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-min-quick-uplift') { args.onnxPrimaryMinQuickUplift = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-min-quick-lower-bound') { args.onnxPrimaryMinQuickLowerBound = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-min-onnx-gate-avg') { args.onnxPrimaryMinOnnxGateAvg = Number(argv[++i]); continue; }
-        if (a === '--onnx-primary-min-onnx-gate-min-seed') { args.onnxPrimaryMinOnnxGateMinSeed = Number(argv[++i]); continue; }
-        if (a === '--gate-final-iteration-only') { args.gateFinalIterationOnly = true; continue; }
-        if (a === '--no-gate-final-iteration-only') { args.gateFinalIterationOnly = false; continue; }
-        if (a === '--promote') { args.promoteOnPass = true; continue; }
-        if (a === '--no-promote') { args.promoteOnPass = false; continue; }
-        if (a === '--deploy-promoted-to-root') { args.deployPromotedToRoot = true; continue; }
-        if (a === '--no-deploy-promoted-to-root') { args.deployPromotedToRoot = false; continue; }
         if (a === '--deploy-promoted-root-models-dir') { args.deployPromotedRootModelsDir = path.resolve(process.cwd(), argv[++i]); continue; }
-        if (a === '--deploy-promoted-min-states') { args.deployPromotedMinStates = Number(argv[++i]); continue; }
-        if (a === '--deploy-promoted-force') { args.deployPromotedForce = true; continue; }
-        if (a === '--no-deploy-promoted-force') { args.deployPromotedForce = false; continue; }
         if (a === '--selfplay-use-promoted-model-only') {
             args.selfplayUsePromotedModelOnly = true;
             args.selfplayCandidateAdmission = 'promoted-only';
@@ -619,9 +299,7 @@ function parseSelfplayTrainingCycleArgs(argv) {
         if (a === '--runs-dir') { args.runsDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--models-dir') { args.modelsDir = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--summary-out') { args.summaryOut = path.resolve(process.cwd(), argv[++i]); continue; }
-        if (a === '--reuse-existing-artifacts') { args.reuseExistingArtifacts = true; continue; }
         if (a === '--restart-from-step') { args.restartFromStep = String(argv[++i] || '').trim(); continue; }
-        if (a === '--verbose') { args.verbose = true; continue; }
     }
 
     if (args.help) return args;

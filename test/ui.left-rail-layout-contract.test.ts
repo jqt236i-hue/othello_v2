@@ -17,7 +17,7 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*clip-path:\s*polygon\(/);
     expect(layoutCss).toMatch(/#leftActionButtons[\s\S]*flex-direction:\s*column/);
     expect(layoutCss).toMatch(/#leftActionButtons::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(83,\s*214,\s*209/);
-    expect(layoutCss).toMatch(/#leftActionButtons::after[\s\S]*rgba\(83,\s*214,\s*209,\s*0\.58\)/);
+    expect(layoutCss).toMatch(/#leftActionButtons::after[\s\S]*linear-gradient\(180deg,\s*transparent,\s*rgba\(185,\s*154,\s*87,\s*0\.42\),\s*rgba\(92,\s*122,\s*94,\s*0\.28\),\s*transparent\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*min-width:\s*calc\(88px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*--left-action-tone:/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+\.left-action-btn[\s\S]*linear-gradient\(90deg,\s*var\(--left-action-tone\)/);

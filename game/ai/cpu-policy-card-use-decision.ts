@@ -1,3 +1,7 @@
+import { applyCpuCardScoreRules } from './cpu-policy-card-score-rules';
+import type { createCpuPolicyDecisionContext } from './cpu-policy-decision-context';
+import type { createCpuPolicyCardTypeFlags } from './cpu-policy-card-type-flags';
+import type { createCpuPolicyCardUseState } from './cpu-policy-card-use-state';
 import type {
     CpuPolicyCardContext,
     CpuPolicyCardCostResolver,
@@ -7,9 +11,10 @@ import type {
 } from './cpu-policy-core-types';
 
 type CpuPolicyCardUseDecisionDeps = {
-    buildCardDecisionContext: (context?: CpuPolicyCardContext) => any;
-    getCpuPolicyCardTypeFlags: (cardType: unknown) => any;
-    buildCpuPolicyCardUseState: (context: CpuPolicyCardContext | null | undefined, cardId: CpuPolicyCardId, getCardDef: CpuPolicyCardDefinitionResolver) => any;
+    buildCardDecisionContext: ReturnType<typeof createCpuPolicyDecisionContext>['buildCardDecisionContext'];
+    // The built-in flag resolver leaves this legacy optional hook absent.
+    getCpuPolicyCardTypeFlags: (cardType: unknown) => ReturnType<ReturnType<typeof createCpuPolicyCardTypeFlags>['getCpuPolicyCardTypeFlags']> & { isHyperactiveInheritWill?: boolean };
+    buildCpuPolicyCardUseState: ReturnType<typeof createCpuPolicyCardUseState>['buildCpuPolicyCardUseState'];
     buildBlockedCardUseDecision: (cardId: CpuPolicyCardId, cardDef: unknown, cardType: string, cardCost: number, context: CpuPolicyCardContext, reason: string) => CpuPolicyCardScore;
     getForcedHandDestroyReason: (cardId: CpuPolicyCardId, cardType: string, context: CpuPolicyCardContext, usableCardIdSet: ReadonlySet<string>) => string | null | undefined;
     cardTypeBaseScoreBonus?: Readonly<Record<string, number>>;
@@ -494,759 +499,133 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (ctx.handSize >= 4) score += Number(style.handPressureBias || 0);
         }
 
-        if (isRecoveryCard) {
-            score -= 18;
-            if (!cornerEmergency && !ctx.forceUseCard) score -= 75;
-            if (cornerEmergency) score += 65;
-        }
-
-        if (isHoldCard) {
-            if (hasCornerMoveNow) score += 110;
-            if (!hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 20;
-        }
-
-        if (hasCornerMoveNow && !isHoldCard && !ctx.forceUseCard) {
-            score -= 28;
-            // When corner is available, strongly discourage off-plan card usage.
-            if (!isCornerTimingCard) score -= 52;
-            if (isSwingCard || isHighVarianceCard) score -= 34;
-            if (ctx.discDiff >= 0 && remainingCharge <= (ctx.reserveChargeFloor + 4)) score -= 24;
-        }
-        if (hasCornerMoveNow && !ctx.forceUseCard) {
-            score -= 160;
-            if (whiteLv6Mode && !criticalLowDiscEmergency) {
-                score -= 120;
-            }
-            if (isHoldCard || isGuardWill || isGuardianGod || isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isRegenWill) {
-                score -= 220;
-            }
-        }
-        if (
-            !ctx.forceUseCard &&
-            whiteLv6Mode &&
-            !cornerEmergency &&
-            remainingCharge <= Math.max(6, ctx.reserveChargeFloor + 1) &&
-            !criticalLowDiscEmergency &&
-            !isRecoveryCard &&
-            !isWhiteCornerSwingKeepCard
-        ) {
-            score -= 180;
-            if (isHoldCard || isGuardWill || isGuardianGod || isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isRegenWill) {
-                score -= 120;
-            }
-        }
-
-        if (!hasCornerMoveNow && hasEdgeMoveNow && isHoldCard) {
-            score += 8;
-        }
-
-        if (isChargeRampCard && !isWorkWill) {
-            if (recoveryCostGap > 0) score += Math.min(40, recoveryCostGap * 2);
-            if (highBonusMoveAvailable) score += 18;
-            if (highBonusMoveAvailable && ctx.ownCharge >= 18) score += 22;
-            if (ctx.discDiff >= 8 && !cornerEmergency && !ctx.forceUseCard) score -= 34;
-            if (hasCornerMoveNow && !ctx.forceUseCard) score -= 46;
-            if (ctx.discDiff <= -10 && cornerEmergency) score += 20;
-            if (ctx.handSize >= 4 && ctx.ownCharge <= 16) score += 8;
-        }
-
-        if (isChargeSwingCard) {
-            score -= 10;
-            if (cornerEmergency && recoveryCostGap > 0) score += 34;
-            if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 26;
-            if (hasCornerMoveNow && !ctx.forceUseCard) score -= 22;
-            if (ctx.handSize >= 4) score += 10;
-        }
-
-        // Charge ROI cards should be evaluated by
-        // expected immediate gain from currently available legal moves.
-        if (isGoldStone || isRainbowStone || isSilverStone) {
-            const multiplier = isRainbowStone ? 6 : (isGoldStone ? 4 : 3);
-            const net = getFlipMultiplierExtraProfit(maxLegalFlips, multiplier, cardCost);
-            const minProfitableFlips = Math.floor(cardCost / Math.max(1, multiplier - 1)) + 1;
-            score -= 12;
-            score += net * 6;
-            if (maxLegalFlips < minProfitableFlips && !ctx.forceUseCard) {
-                score -= isRainbowStone ? 280 : 320;
-                if (whiteLv6Mode) score -= 140;
-                if (setupBudgetTight) score -= 72;
-            }
-            if (maxLegalFlips <= 1) score -= 180;
-            else if (maxLegalFlips < minProfitableFlips) {
-                score -= 90;
-                if (whiteLv6Mode && setupBudgetTight) score -= 48;
-            }
-            if (net > 0) score += isRainbowStone ? 148 : 112;
-            if (hasCornerMoveNow) score += 22;
-            if (cornerEmergency && net <= 0) score -= 55;
-            if (endgamePhase && net <= 0) score -= 55;
-            if (criticalLowDiscEmergency && net > 0) score += 48;
-        }
-
-        if (isCrystalStone) {
-            const net = getNumberCellExtraProfit(maxLegalBoardBonus, cardCost);
-            score -= 18;
-            score += net * 7;
-            if (maxLegalBoardBonus <= 0 && !ctx.forceUseCard) {
-                score -= 360;
-                if (whiteLv6Mode) score -= 160;
-                if (setupBudgetTight) score -= 72;
-            } else if (maxLegalBoardBonus === 1) {
-                score -= 180;
-                if (whiteLv6Mode && setupBudgetTight) score -= 48;
-            } else if (maxLegalBoardBonus === 2) {
-                score -= 260;
-                if (whiteLv6Mode) score -= 60;
-                if (cornerEmergency) score -= 48;
-                if (openingPhase) score -= 24;
-            } else if (net > 0) {
-                score += 132;
-            } else {
-                score += 72;
-            }
-            if (highBonusMoveAvailable) score += 24;
-            if (cornerEmergency && net <= 0) score -= 55;
-            if (endgamePhase && net <= 0) score -= 45;
-            if (criticalLowDiscEmergency && net > 0) score += 42;
-        }
-
-        if (isTreasureBox) {
-            score += 12;
-            if (ctx.ownCharge <= 8) score += 16;
-            if (ctx.handSize >= 4) score += 8;
-            if (leadStable && hasCornerMoveNow && !ctx.forceUseCard) score -= 6;
-        }
-
-        // FREE_PLACEMENT is strongest when legal mobility is poor and corner access is denied.
-        if (isFreePlacement) {
-            score -= 20;
-            if (ctx.legalMovesCount <= 1) score += 95;
-            if (!hasCornerMoveNow && cornerEmergency) score += 75;
-            if (hasCornerMoveNow && !ctx.forceUseCard) score -= 80;
-            if (ctx.discDiff >= 6 && !ctx.forceUseCard) score -= 55;
-        }
-
-        // SNIPER_WILL is long-horizon: prefer stable deployment (corner/edge) and avoid panic waste.
-        if (isSniperWill) {
-            score -= 30;
-            if (hasCornerMoveNow) score += 90;
-            else if (hasEdgeMoveNow) score += 35;
-            else score -= 95;
-            if (ctx.empties <= 16) score -= 55;
-            if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 45;
-        }
-
-        if (isStrongWindWill) {
-            score -= 12;
-            if (cornerEmergency) score += 54;
-            if (trailingHard) score += 68;
-            else if (trailing) score += 30;
-            if (edgeEmergency) score += 26;
-            if (ctx.legalMovesCount <= 1 && edgeDiff < 0 && hasEdgeMoveNow && !cornerEmergency) score += 18;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 46;
-            if (leadStable && !ctx.forceUseCard) score -= 78;
-            if (endgamePhase && leadStable) score -= 28;
-        }
-
-        if (isSwapWithEnemy || isPositionSwapWill) {
-            score -= isPositionSwapWill ? 16 : 10;
-            if (cornerEmergency) score += isPositionSwapWill ? 62 : 54;
-            if (trailingHard) score += isPositionSwapWill ? 78 : 62;
-            else if (trailing) score += isPositionSwapWill ? 34 : 26;
-            if (edgeEmergency) score += 26;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 42;
-            if (leadStable && !ctx.forceUseCard) score -= isPositionSwapWill ? 86 : 72;
-            if (endgamePhase && leadStable) score -= 30;
-        }
-
-        if (isTemptWill) {
-            score -= 8;
-            if (cornerEmergency) score += 42;
-            if (trailingHard) score += 58;
-            else if (trailing) score += 24;
-            if (edgeEmergency) score += 18;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 38;
-            if (leadStable && !ctx.forceUseCard) score -= 62;
-            if (endgamePhase && leadStable) score -= 26;
-            if (oppSpecialCount <= 0) score -= 180;
-            else if (oppSpecialCount <= 1 && !cornerEmergency) score -= 42;
-        }
-
-        if (isCloneWill) {
-            score -= 42;
-            if (ctx.discDiff >= 6 && ownCorners >= oppCorners && maxLegalFlips >= 3 && !setupBudgetTight) score += 35;
-            if (cornerEmergency && !ctx.forceUseCard) score -= 70;
-            if (ctx.empties <= 14) score -= 45;
-            if (lowFlipMargin && !ctx.forceUseCard) score -= 88;
-            if (lowGainMargin && !cornerEmergency) score -= 42;
-            if (setupBudgetTight) score -= 84;
-            if (ctx.handSize <= 2 && !trailingHard) score -= 46;
-            if (!hasCornerMoveNow && !hasEdgeMoveNow && !cornerEmergency) score -= 30;
-            if (leadStable && !cornerEmergency && !ctx.forceUseCard && lowFlipMargin) score -= 36;
-        }
-
-        if (isThrowChainCard) {
-            score -= 26;
-            if (trailingHard || cornerEmergency) score += 84;
-            else if (trailing) score += 32;
-            if (ctx.legalMovesCount <= 2) score += 18;
-            if (ctx.handSize >= 4) score += 14;
-            if (ctx.ownCharge < 70 && !cornerEmergency && !trailingHard) score -= 120;
-            if (ctx.ownCharge >= 70 && (ctx.discDiff >= 0 || endgamePhase)) score += 46;
-            if (maxLegalGain <= 3 && !cornerEmergency) score -= 34;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 54;
-            if (leadStable && !ctx.forceUseCard) score -= 108;
-            if (endgamePhase) score -= 66;
-        }
-
-        if (isChainWill) {
-            score -= 20;
-            if (trailingHard || cornerEmergency) score += 76;
-            else if (trailing) score += 34;
-            if (ctx.legalMovesCount <= 2) score += 26;
-            if (maxLegalFlips >= 4) score += 18;
-            if (ctx.ownCharge < 70 && !cornerEmergency && !trailingHard) score -= 104;
-            if (ctx.ownCharge >= 70 && (ctx.discDiff >= 0 || endgamePhase)) score += 40;
-            if (maxLegalGain <= 3 && maxLegalFlips <= 3 && !cornerEmergency) score -= 42;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 52;
-            if (leadStable && !ctx.forceUseCard) score -= 96;
-            if (endgamePhase) score -= 58;
-        }
-
-        if (isBoardExpansionWill) {
-            score -= cardType === 'BOARD_EXPANSION_GOD' ? 58 : 42;
-            if (ctx.handSize >= 4) score += 18;
-            if (ctx.ownCharge >= 28) score += 12;
-            if (ctx.legalMovesCount <= 2) score += 14;
-            if (cornerEmergency && ctx.discDiff <= -8) score += 96;
-            if (ctx.discDiff >= 0 && !ctx.forceUseCard) score -= 86;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 30;
-            if (ctx.empties <= 18) score -= cardType === 'BOARD_EXPANSION_GOD' ? 72 : 48;
-        }
-
-        if (isBoardShrinkCard) {
-            score -= cardType === 'BOARD_SHRINK_GOD' ? 82 : 56;
-            if (cornerEmergency) score += cardType === 'BOARD_SHRINK_GOD' ? 126 : 92;
-            if (trailingHard) score += cardType === 'BOARD_SHRINK_GOD' ? 144 : 108;
-            else if (trailing) score += cardType === 'BOARD_SHRINK_GOD' ? 62 : 38;
-            if (edgeEmergency) score += 34;
-            if (leadStable && !ctx.forceUseCard) score -= cardType === 'BOARD_SHRINK_GOD' ? 190 : 150;
-            if (ctx.discDiff >= 0 && !cornerEmergency && !ctx.forceUseCard) score -= 88;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 42;
-            if (endgamePhase && leadStable) score -= 64;
-            if (ctx.ownCharge <= (cardCost + 8) && !ctx.forceUseCard) score -= 76;
-        }
-
-        if (isTrapWill) {
-            score += 8;
-            if (cornerEmergency || ctx.discDiff <= -6) score += 35;
-            if (ctx.discDiff >= 10 && !ctx.forceUseCard) score -= 35;
-            if (hasCornerMoveNow && !ctx.forceUseCard) score -= 18;
-            if (!cornerEmergency && !edgeEmergency && ctx.discDiff >= 0 && !ctx.forceUseCard) score -= 84;
-            if (endgamePhase && !cornerEmergency) score -= 32;
-        }
-
-        if (isHeavenBlessing) {
-            score += 20;
-            if (openingPhase) score += 34;
-            if (midLatePhase && !endgamePhase) score += 12;
-            if (endgamePhase) score -= 150;
-            if (ctx.handSize >= 5) score -= 220;
-            else if (ctx.handSize >= 4) score -= 90;
-            else if (ctx.handSize <= 2) score += 32;
-            if (deckRemaining != null) {
-                if (deckRemaining <= 2) score -= 140;
-                else if (deckRemaining <= 4) score -= 48;
-                else if (deckRemaining >= 8 && ctx.handSize <= 2) score += 18;
-            }
-            if (cornerEmergency && recoveryCostGap > 0) score += 26;
-            if (cardCyclePressure >= 2 && ctx.handSize <= 3) score += 20;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 22;
-            if (keepPriorityInHandCount >= 2) score -= 18;
-        }
-
-        if (isRevealHandWill) {
-            score += 10 + (oppHandSize * 8);
-            if (oppHandSize >= 4) score += 24;
-            else if (oppHandSize <= 1) score -= 110;
-            else if (oppHandSize <= 2 && !cornerEmergency) score -= 28;
-            if (openingPhase) score += 18;
-            if (midLatePhase && !endgamePhase) score += 10;
-            if (cornerEmergency || trailingHard) score += 18;
-            else if (trailing) score += 8;
-            if (leadStable && oppHandSize <= 2 && !ctx.forceUseCard) score -= 24;
-            if (hasCornerMoveNow && !cornerEmergency && oppHandSize <= 2 && !ctx.forceUseCard) score -= 14;
-            if (ctx.handSize >= 4) score += 4;
-            if (endgamePhase) score -= 44;
-        }
-
-        if (isCondemnWill) {
-            score += 8 + (oppHandSize * 14);
-            if (oppHandSize >= 4) score += 38;
-            else if (oppHandSize <= 1) score -= 120;
-            else if (oppHandSize <= 2 && !cornerEmergency) score -= 38;
-            if (cornerEmergency || trailingHard) score += 34;
-            else if (trailing) score += 14;
-            if (leadStable && oppHandSize <= 2 && !ctx.forceUseCard) score -= 34;
-            if (hasCornerMoveNow && !cornerEmergency && oppHandSize <= 2 && !ctx.forceUseCard) score -= 18;
-            if (ctx.handSize >= 4) score += 8;
-            if (endgamePhase && oppHandSize <= 1) score -= 30;
-        }
-
-        if (isExecutionWill) {
-            score += 16 + (oppHandSize * 18);
-            if (oppHandSize >= 4) score += 30;
-            else if (oppHandSize <= 1) score -= 96;
-            else if (oppHandSize <= 2 && !cornerEmergency) score -= 24;
-            if (cornerEmergency || trailingHard) score += 30;
-            else if (trailing) score += 16;
-            if (leadStable && oppHandSize <= 2 && !ctx.forceUseCard) score -= 24;
-            if (hasCornerMoveNow && !cornerEmergency && oppHandSize <= 2 && !ctx.forceUseCard) score -= 12;
-            if (ctx.handSize >= 4) score += 6;
-            if (endgamePhase && oppHandSize <= 1) score -= 20;
-        }
-
-        if (isExtendLifeCard) {
-            score += 16 + (ownSpecialCount * 12);
-            if (ctx.empties >= 22 && ctx.empties <= 42) score += 12;
-            if (midLatePhase) score += 8;
-            if (endgamePhase) score -= 72;
-            if (hasCornerMoveNow) score += 36;
-            else if (hasEdgeMoveNow) score += 16;
-            if (leadStable) score += 18;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 34;
-            if (ownSpecialCount <= 1 && endgamePhase) score -= 28;
-            if (isExtendLifeGod) {
-                score += 28 + (ownSpecialCount * 10);
-                if (midLatePhase) score += 8;
-                if (endgamePhase) score -= 36;
-                if (leadStable) score += 12;
-            }
-        }
-
-        if (isProtectedNextStone || isAfterimageWill || isGhostWill || isPermaProtectNextStone || isGuardWill || isGuardianGod || isRegenWill) {
-            score += 10;
-            if (hasCornerMoveNow) score += 70;
-            else if (hasEdgeMoveNow) score += 26;
-            else if (!ctx.forceUseCard) score -= 62;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 36;
-            if (leadStable && (hasCornerMoveNow || hasEdgeMoveNow)) score += 20;
-            if (endgamePhase && !hasCornerMoveNow && !hasEdgeMoveNow) score -= 42;
-        }
-
-        if (isLightningWill || isFireWill) {
-            score -= 26;
-            if (hasCornerMoveNow) score += 120;
-            else if (hasEdgeMoveNow) score += 36;
-            else score -= 140;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 54;
-            if (trailingHard) score += 42;
-            else if (trailing) score += 16;
-            if (leadStable && !cornerEmergency && !ctx.forceUseCard) score -= 90;
-            if (endgamePhase) score -= 96;
-        }
-
-        if (isHyperactiveWill || isInstantHyperactiveWill) {
-            score -= isInstantHyperactiveWill ? 56 : 34;
-            if (trailingHard || cornerEmergency) score += isInstantHyperactiveWill ? 86 : 58;
-            else if (trailing) score += isInstantHyperactiveWill ? 28 : 20;
-            if (hasCornerMoveNow && !cornerEmergency) score += 16;
-            if (leadStable && !ctx.forceUseCard) score -= isInstantHyperactiveWill ? 132 : 88;
-            if (endgamePhase) score -= isInstantHyperactiveWill ? 90 : 62;
-        }
-
-        if (isTabooReverseWill) {
-            score -= 110;
-            if (hasCornerMoveNow) score += 168;
-            if (cornerEmergency) score += 92;
-            if (trailingHard) score += 78;
-            else if (trailing) score += 30;
-            if (leadStable && !cornerEmergency && !ctx.forceUseCard) score -= 180;
-            if (endgamePhase && ctx.discDiff >= 0) score -= 120;
-            if (ctx.ownCharge <= (cardCost + 6) && !ctx.forceUseCard) score -= 75;
-            if (ctx.legalMovesCount <= 1) score += 32;
-        }
-
-        if (isCrossBomb || isXBomb) {
-            score -= 36;
-            if (trailingHard || cornerEmergency) score += 76;
-            else if (trailing) score += 24;
-            if (edgeEmergency) score += 20;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 36;
-            if (leadStable && !ctx.forceUseCard) score -= 96;
-            if (endgamePhase) score -= 82;
-        }
-
-        if (isUltimateDestroyGod) {
-            score -= 64;
-            if (hasCornerMoveNow) score += 132;
-            else if (hasEdgeMoveNow) score += 44;
-            else score -= 66;
-            if (trailingHard) score += 96;
-            else if (trailing) score += 38;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 24;
-            if (leadStable && !cornerEmergency && !ctx.forceUseCard) score -= 110;
-            if (endgamePhase) score -= 95;
-        }
-
-        if (isUltimateHyperactiveGod) {
-            score -= 96;
-            if (trailingHard) score += 136;
-            else if (trailing) score += 52;
-            if (cornerEmergency) score += 34;
-            if (hasCornerMoveNow && !cornerEmergency) score += 18;
-            if (leadStable && !ctx.forceUseCard) score -= 188;
-            if (endgamePhase) score -= 190;
-            if (ctx.ownCharge <= (cardCost + 10) && !ctx.forceUseCard) score -= 46;
-        }
-
-        if (isDestroyDragonWill) {
-            score -= 10;
-            if (hasCornerMoveNow) score += 110;
-            else if (hasEdgeMoveNow) score += 54;
-            else score -= 58;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 42;
-            if (ctx.discDiff <= -8) score += 34;
-            if (ctx.empties <= 12) score -= 62;
-            if (leadStable && hasCornerMoveNow) score += 28;
-            if (leadStable && !hasCornerMoveNow && !hasEdgeMoveNow) score -= 26;
-        }
-
-        if (isBreedingWill) {
-            score -= 24;
-            if (openingPhase) score += 30;
-            if (midLatePhase && !endgamePhase) score += 18;
-            if (hasCornerMoveNow) score += 42;
-            else if (hasEdgeMoveNow) score += 18;
-            else score -= 28;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 44;
-            if (trailingHard) score += 28;
-            else if (trailing) score += 12;
-            if (leadStable && !ctx.forceUseCard) score -= 42;
-            if (endgamePhase) score -= 104;
-        }
-
-        if (isTeleportWill) {
-            score -= 22;
-            if (cornerEmergency || trailingHard) score += 110;
-            else if (trailing) score += 34;
-            if (oppCorners > ownCorners) score += 42;
-            if (leadStable && oppCorners <= ownCorners && !ctx.forceUseCard) score -= 120;
-            if (endgamePhase) score -= 48;
-            if (hasCornerMoveNow && oppCorners <= ownCorners && !cornerEmergency && !ctx.forceUseCard) score -= 30;
-        }
-
-        if (isCellTeleportWill) {
-            score -= 58;
-            if (cornerEmergency || trailingHard) score += 96;
-            else if (trailing) score += 34;
-            if (leadStable && !ctx.forceUseCard) score -= 112;
-            if (endgamePhase) score -= 62;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 36;
-        }
-
-        if (isHyperactiveInheritWill) {
-            score -= 26;
-            if (openingPhase) score += 24;
-            if (midLatePhase) score += 10;
-            if (endgamePhase) score -= 70;
-            if (trailing) score += 20;
-            if (leadStable && !ctx.forceUseCard) score -= 38;
-            if (hasCornerMoveNow) score += 12;
-        }
-
-        if (isRobotVacuumWill) {
-            score -= 24;
-            if (ctx.empties >= 20 && ctx.empties <= 46) score += 24;
-            if (ctx.empties <= 12) score -= 65;
-            if (hasCornerMoveNow) score += 40;
-            else if (hasEdgeMoveNow) score += 18;
-            if (cornerEmergency && !hasCornerMoveNow) score -= 26;
-            if (trailing) score += 18;
-        }
-
-        if (isEqualityWill) {
-            score -= 10;
-            if (ctx.ownCharge <= 0) {
-                const stealableAmount = getEqualityWillStealableAmount(ctx.ownCharge, ctx.oppCharge);
-                if (stealableAmount > 0) {
-                    score += 76 + (stealableAmount * 7);
-                    if (ctx.handSize >= 3) score += 20;
-                } else if (!ctx.forceUseCard) {
-                    score -= 130;
-                }
-            } else if (!ctx.forceUseCard) {
-                score -= 220;
-            }
-            if (ctx.empties <= 8) score -= 18;
-        }
-
-        if (isReinforcementWill) {
-            score -= 6;
-            if (cornerEmergency || ctx.discDiff <= -8) score += 36;
-            if (ctx.discDiff <= -12) score += 18;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 46;
-            if (ctx.discDiff >= 6 && !cornerEmergency && !ctx.forceUseCard) score -= 60;
-            if (endgamePhase && ctx.discDiff >= 0) score -= 42;
-            if (ctx.legalMovesCount <= 1) score += 18;
-        }
-
-        if (isGluttonousWill) {
-            score -= 42;
-            if (hasCornerMoveNow) score += 78;
-            else if (hasEdgeMoveNow) score += 30;
-            else score -= 48;
-            if (maxLegalFlips < 4 && !ctx.forceUseCard) score -= 260;
-            if (whiteLv6Mode && maxLegalFlips < 4 && !ctx.forceUseCard) score -= 60;
-            if (maxLegalFlips >= 4) score += 108;
-            if (cornerEmergency && !hasCornerMoveNow) score += 40;
-            if (trailingHard) score += 52;
-            else if (trailing) score += 24;
-            if (leadStable && !ctx.forceUseCard) score -= 72;
-            if (endgamePhase) score -= 92;
-            if (keepPriorityInHandCount >= 2) score -= 80;
-            if (highVarianceInHandCount >= 2 || fastRotateInHandCount >= 2) score += 20;
-            if (ctx.handSize <= 2) score -= 46;
-            if (criticalLowDiscEmergency && maxLegalFlips >= 4) score += 52;
-        }
-
-        if (isExtremeHyperactiveWill) {
-            score -= 62;
-            if (openingPhase) score += 20;
-            if (midLatePhase && !endgamePhase) score += 12;
-            if (hasCornerMoveNow) score += 62;
-            else if (hasEdgeMoveNow) score += 24;
-            else score -= 42;
-            if (trailingHard) score += 118;
-            else if (trailing) score += 46;
-            if (cornerEmergency && !hasCornerMoveNow) score += 24;
-            if (leadStable && !ctx.forceUseCard) score -= 140;
-            if (endgamePhase) score -= 168;
-            if (ctx.ownCharge <= (cardCost + 8) && !ctx.forceUseCard) score -= 44;
-        }
-
-        if (isSuperCrushWill) {
-            score -= 42;
-            if (cornerEmergency || trailingHard) score += 96;
-            else if (trailing) score += 34;
-            if (edgeEmergency) score += 26;
-            if (openingPhase && !cornerEmergency && edgeDiff >= -1 && maxLegalFlips <= 2 && maxLegalGain <= 2) score -= 140;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 48;
-            if (leadStable && !ctx.forceUseCard) score -= 108;
-            if (endgamePhase) score -= 78;
-        }
-
-        if (isBlockadeWill) {
-            score += 12;
-            if (mobilityPressureLevel >= 2) score += 54;
-            else if (mobilityPressureLevel >= 1) score += 22;
-            if (cornerEmergency) score += 42;
-            if (edgeEmergency) score += 20;
-            if (leadStable && ctx.legalMovesCount >= 4 && !cornerEmergency) score -= 24;
-            if (openingPhase && ctx.legalMovesCount >= 4 && !cornerEmergency) score -= 18;
-            if (endgamePhase) score += 18;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 20;
-        }
-
-        if (isMeteorWill || isBoardShrinkCard) {
-            score -= cardType === 'BOARD_SHRINK_GOD' ? 86 : (cardType === 'BOARD_SHRINK_WILL' ? 72 : 64);
-            if (cornerEmergency) score += cardType === 'BOARD_SHRINK_GOD' ? 144 : (cardType === 'BOARD_SHRINK_WILL' ? 128 : 120);
-            if (trailingHard) score += cardType === 'BOARD_SHRINK_GOD' ? 176 : (cardType === 'BOARD_SHRINK_WILL' ? 160 : 150);
-            else if (trailing) score += cardType === 'BOARD_SHRINK_GOD' ? 70 : (cardType === 'BOARD_SHRINK_WILL' ? 60 : 54);
-            if (edgeEmergency) score += cardType === 'BOARD_SHRINK_GOD' ? 56 : 42;
-            if (leadStable && !ctx.forceUseCard) score -= cardType === 'BOARD_SHRINK_GOD' ? 220 : (cardType === 'BOARD_SHRINK_WILL' ? 196 : 180);
-            if (ctx.discDiff >= 0 && !cornerEmergency && !ctx.forceUseCard) score -= cardType === 'BOARD_SHRINK_GOD' ? 96 : 72;
-            if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= cardType === 'BOARD_SHRINK_GOD' ? 60 : 42;
-            if (endgamePhase && leadStable) score -= cardType === 'BOARD_SHRINK_GOD' ? 84 : 60;
-            if (ctx.ownCharge <= (cardCost + 6) && !ctx.forceUseCard) score -= cardType === 'BOARD_SHRINK_GOD' ? 90 : 70;
-            if (ctx.meteorBestCornerSwing > 0) score += Math.min(180, ctx.meteorBestCornerSwing * 75);
-            if (ctx.meteorBestDestroyValue > 0) score += Math.min(220, ctx.meteorBestDestroyValue * 0.22);
-            const meteorHasGoodTarget = (
-                ctx.meteorHasCornerPromotion === true ||
-                ctx.meteorHasHighValueDestroy === true ||
-                ctx.meteorBestCornerSwing > 0 ||
-                ctx.meteorBestDestroyValue >= 320
-            );
-            if (!highBonusMoveAvailable && !meteorHasGoodTarget) {
-                if (cornerEmergency && !hasCornerMoveNow && !hasEdgeMoveNow) {
-                    score -= ctx.forceUseCard ? 920 : 220;
-                } else if (!ctx.forceUseCard) {
-                    score -= 90;
-                }
-            }
-        }
-
-        // In stable lead, avoid spending swing/high-variance cards unless emergency.
-        if (!ctx.forceUseCard && leadStable && !cornerEmergency) {
-            if (isSwingCard) score -= 28;
-            if (isHighVarianceCard) score -= 20;
-            if (isChargeSwingCard && hasCornerMoveNow) score -= 26;
-        }
-
-        if (isLossWill) {
-            const specialDiff = oppSpecialCount - ownSpecialCount;
-            const anchorResetDiff = oppAnchorResetWeight - ownAnchorResetWeight;
-            const destroyableHandCount = countLossWillDestroyableHandCards(handCardIds, cardId);
-            score -= 38;
-            score += specialDiff * 52;
-            score += anchorResetDiff * 44;
-            if (!ctx.forceUseCard && destroyableHandCount > 0) {
-                score -= destroyableHandCount * 38;
-                if (destroyableHandCount >= 2) score -= 34;
-                if (destroyableHandCount >= 3) score -= 42;
-                if (destroyableHandCount >= 4) score -= 52;
-            }
-            if (oppSpecialCount <= 0 && ownSpecialCount <= 0) score -= 180;
-            if (oppSpecialCount <= 0) score -= 90;
-            if (specialDiff >= 2) score += 70;
-            if (specialDiff <= -1) score -= 210;
-            if (oppCornerResetCount > 0) score += (oppCornerResetCount * 56);
-            if (ownCornerResetCount > 0) score -= (ownCornerResetCount * 150);
-            if (ownEdgeResetCount > 0) score -= (ownEdgeResetCount * 48);
-            if (cornerEmergency && oppSpecialCount > 0) score += 28;
-            if (!ctx.forceUseCard && !cornerEmergency && ownAnchorResetWeight > 0 && anchorResetDiff <= 0) score -= 180;
-            if (!ctx.forceUseCard && ownCornerResetCount > 0 && oppCornerResetCount < ownCornerResetCount) score -= 220;
-            if (
-                !ctx.forceUseCard &&
-                ownAnchorResetWeight > 0 &&
-                specialDiff <= 2 &&
-                oppAnchorResetWeight <= ownAnchorResetWeight
-            ) {
-                score -= 110;
-            }
-            if (leadStable && specialDiff <= 0) score -= 45;
-            if (endgamePhase && specialDiff <= 1) score -= 30;
-            if (ownGuardCount > 0 && oppGuardCount <= ownGuardCount) score -= 20;
-        }
-        if (isMassFreezeWill) {
-            const targetDiff = massFreezeOpponentTargetCount - massFreezeOwnTargetCount;
-            score -= 24;
-            score += massFreezeOpponentTargetCount * 34;
-            score -= massFreezeOwnTargetCount * 12;
-            if (targetDiff >= 2) score += 42;
-            if (targetDiff <= -1) score -= 70;
-            if (endgamePhase) score -= 20;
-            if (cornerEmergency && massFreezeOpponentTargetCount > 0) score += 18;
-        }
-
-        if (isCorrosionWill) {
-            const specialDiff = oppSpecialCount - ownSpecialCount;
-            score -= 26;
-            score += specialDiff * 34;
-            if (oppSpecialCount <= 0 && ownSpecialCount <= 0) score -= 160;
-            if (oppSpecialCount <= 0) score -= 72;
-            if (specialDiff >= 2) score += 48;
-            if (specialDiff <= -1) score -= 165;
-            if (cornerEmergency && oppSpecialCount > 0) score += 20;
-            if (leadStable && specialDiff <= 0) score -= 34;
-            if (endgamePhase && specialDiff <= 1) score -= 26;
-            if (ownGuardCount > oppGuardCount) score -= 16;
-        }
-
-        if (isRebuildWill) {
-            let keepPriorityCount = 0;
-            let highVarianceInHandCount = 0;
-            for (const handId of handCardIds) {
-                if (!handId || handId === cardId) continue;
-                const handDef = typeof getCardDef === 'function' ? (getCardDef(handId) || null) : null;
-                const handType = handDef && typeof handDef.type === 'string' ? handDef.type : '';
-                if (!handType) continue;
-                if (rebuildKeepPriorityCardTypes.has(handType)) keepPriorityCount += 1;
-                if (highVarianceCardTypes.has(handType) || handType === 'TIME_BOMB') {
-                    highVarianceInHandCount += 1;
-                }
-            }
-
-            const usableCount = usableCardIds.length;
-            const unusableCount = Math.max(0, ctx.handSize - usableCount);
-
-            score -= 95;
-            if (ctx.handSize >= 4) score += 95;
-            if (ctx.handSize >= 5) score += 30;
-            if (unusableCount >= 2) score += 55;
-            if (unusableCount >= 3) score += 30;
-            if (highVarianceInHandCount >= 2) score += 35;
-
-            if (ctx.handSize <= 2) score -= 130;
-            if (keepPriorityCount >= 1) score -= 70;
-            if (keepPriorityCount >= 2) score -= 80;
-            if (cornerEmergency && keepPriorityCount >= 1) score -= 90;
-
-            if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 45;
-            if (ctx.discDiff <= -10 && ctx.handSize >= 4 && keepPriorityCount === 0) score += 24;
-
-            if (deckRemaining !== null) {
-                if (deckRemaining <= 1) score -= 180;
-                else if (deckRemaining <= 2) score -= 95;
-                else if (deckRemaining <= 3) score -= 45;
-                else if (deckRemaining >= 8 && ctx.handSize >= 4) score += 12;
-            }
-        }
-
-        // WORK_WILL is a long-horizon card. Prefer using it only when we can anchor
-        // the next stone on stable cells (corner/edge), and avoid it in emergency.
-        if (isWorkWill) {
-            score -= 30;
-            if (cornerEmergency && !ctx.forceUseCard) score -= 120;
-            if (hasCornerMoveNow) score += 180;
-            else if (hasEdgeMoveNow) score += 40;
-            else score -= 220;
-            if (!hasCornerMoveNow && !hasEdgeMoveNow && !ctx.forceUseCard) score -= 80;
-            if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 90;
-            if (ctx.empties <= 14) score -= 120;
-            if (highBonusMoveAvailable) score += 12;
-            if (highBonusMoveAvailable && ctx.ownCharge >= 20) score += 40;
-            if (whiteLv6Mode && !hasCornerMoveNow && !hasEdgeMoveNow) score -= 55;
-            if (criticalLowDiscEmergency && (hasCornerMoveNow || hasEdgeMoveNow)) score += 64;
-        }
-
-        // TIME_BOMB is a comeback tool. Avoid reckless usage while ahead.
-        if (isTimeBomb) {
-            score -= 15;
-            if (cornerEmergency || ctx.discDiff <= -8) score += 95;
-            if (ctx.discDiff <= -14) score += 40;
-            if (ctx.discDiff >= 8 && !cornerEmergency && !ctx.forceUseCard) score -= 140;
-            if (ctx.discDiff >= 12 && !ctx.forceUseCard) score -= 80;
-            if (hasCornerMoveNow && ctx.discDiff >= 0 && !ctx.forceUseCard) score -= 55;
-            if (ownCorners > oppCorners && !cornerEmergency && !ctx.forceUseCard) score -= 65;
-            if (ctx.empties <= 10 && ctx.discDiff > 0) score -= 45;
-            if (whiteLv6Mode && leadStable && !cornerEmergency) score -= 120;
-        }
-
-        if (isTimeStopGod) {
-            score -= 55;
-            if (cornerEmergency || ctx.discDiff <= -8) score += 105;
-            if (ctx.discDiff <= -14) score += 35;
-            if (ctx.discDiff >= 6 && !cornerEmergency && !ctx.forceUseCard) score -= 150;
-            if (ctx.discDiff >= 10 && !ctx.forceUseCard) score -= 80;
-            if (hasCornerMoveNow && ctx.discDiff >= 0 && !ctx.forceUseCard) score -= 65;
-            if (ownCorners > oppCorners && !cornerEmergency && !ctx.forceUseCard) score -= 80;
-            if (ctx.empties <= 12 && !ctx.forceUseCard) score -= 110;
-            if (ownDiscs <= 6 && !ctx.forceUseCard) score -= 220;
-            if (whiteLv6Mode && leadStable && !cornerEmergency) score -= 160;
-        }
-
-
-        if (whiteLv6Mode && isLastResort && !ctx.forceUseCard) {
-            const desperateLastResortWindow = (
-                cornerEmergency &&
-                (
-                    criticalLowDiscEmergency ||
-                    (lowDiscEmergency && ctx.legalMovesCount <= 1) ||
-                    Number(ctx.discDiff || 0) <= -18
-                )
-            );
-            if (desperateLastResortWindow) {
-                if (ctx.legalMovesCount > 0) score -= 80;
-                if (ctx.legalMovesCount <= 1) score += 48;
-                if (criticalLowDiscEmergency) score += 124;
-            } else {
-                if (ctx.legalMovesCount > 0) score -= 420;
-                if (ctx.legalMovesCount > 0 && ctx.handSize >= 4) score -= 180;
-            }
-            if (ctx.discDiff >= 0) score -= 420;
-            if (leadStable && !cornerEmergency) score -= 110;
-        }
+        score = applyCpuCardScoreRules({
+            isRecoveryCard,
+            cornerEmergency,
+            ctx,
+            isHoldCard,
+            hasCornerMoveNow,
+            isCornerTimingCard,
+            isSwingCard,
+            isHighVarianceCard,
+            remainingCharge,
+            whiteLv6Mode,
+            criticalLowDiscEmergency,
+            isGuardWill,
+            isGuardianGod,
+            isProtectedNextStone,
+            isAfterimageWill,
+            isGhostWill,
+            isPermaProtectNextStone,
+            isRegenWill,
+            isWhiteCornerSwingKeepCard,
+            hasEdgeMoveNow,
+            isChargeRampCard,
+            isWorkWill,
+            recoveryCostGap,
+            highBonusMoveAvailable,
+            isChargeSwingCard,
+            isGoldStone,
+            isRainbowStone,
+            isSilverStone,
+            getFlipMultiplierExtraProfit,
+            maxLegalFlips,
+            cardCost,
+            setupBudgetTight,
+            endgamePhase,
+            isCrystalStone,
+            getNumberCellExtraProfit,
+            maxLegalBoardBonus,
+            openingPhase,
+            isTreasureBox,
+            leadStable,
+            isFreePlacement,
+            isSniperWill,
+            isStrongWindWill,
+            trailingHard,
+            trailing,
+            edgeEmergency,
+            edgeDiff,
+            isSwapWithEnemy,
+            isPositionSwapWill,
+            isTemptWill,
+            oppSpecialCount,
+            isCloneWill,
+            ownCorners,
+            oppCorners,
+            lowFlipMargin,
+            lowGainMargin,
+            isThrowChainCard,
+            maxLegalGain,
+            isChainWill,
+            isBoardExpansionWill,
+            cardType,
+            isBoardShrinkCard,
+            isTrapWill,
+            isHeavenBlessing,
+            midLatePhase,
+            deckRemaining,
+            cardCyclePressure,
+            keepPriorityInHandCount,
+            isRevealHandWill,
+            oppHandSize,
+            isCondemnWill,
+            isExecutionWill,
+            isExtendLifeCard,
+            ownSpecialCount,
+            isExtendLifeGod,
+            isLightningWill,
+            isFireWill,
+            isHyperactiveWill,
+            isInstantHyperactiveWill,
+            isTabooReverseWill,
+            isCrossBomb,
+            isXBomb,
+            isUltimateDestroyGod,
+            isUltimateHyperactiveGod,
+            isDestroyDragonWill,
+            isBreedingWill,
+            isTeleportWill,
+            isCellTeleportWill,
+            isHyperactiveInheritWill,
+            isRobotVacuumWill,
+            isEqualityWill,
+            getEqualityWillStealableAmount,
+            isReinforcementWill,
+            isGluttonousWill,
+            highVarianceInHandCount,
+            fastRotateInHandCount,
+            isExtremeHyperactiveWill,
+            isSuperCrushWill,
+            isBlockadeWill,
+            mobilityPressureLevel,
+            isMeteorWill,
+            isLossWill,
+            oppAnchorResetWeight,
+            ownAnchorResetWeight,
+            countLossWillDestroyableHandCards,
+            handCardIds,
+            cardId,
+            oppCornerResetCount,
+            ownCornerResetCount,
+            ownEdgeResetCount,
+            ownGuardCount,
+            oppGuardCount,
+            isMassFreezeWill,
+            massFreezeOpponentTargetCount,
+            massFreezeOwnTargetCount,
+            isCorrosionWill,
+            isRebuildWill,
+            getCardDef,
+            rebuildKeepPriorityCardTypes,
+            highVarianceCardTypes,
+            usableCardIds,
+            isTimeBomb,
+            isTimeStopGod,
+            ownDiscs,
+            isLastResort,
+            lowDiscEmergency,
+        }, score);
 
         return {
             cardId,

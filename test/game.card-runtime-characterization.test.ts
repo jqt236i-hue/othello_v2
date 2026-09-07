@@ -159,9 +159,9 @@ describe('card runtime Gate B characterization', () => {
       edges: graph.edges.length,
       lookups: graph.lookups.length,
       unresolved: graph.unresolvedEdges.length
-    }).toEqual({ roots: 20, nodes: 194, edges: 855, lookups: 586, unresolved: 32 });
+    }).toEqual({ roots: 20, nodes: 197, edges: 864, lookups: 586, unresolved: 32 });
     expect(crypto.createHash('sha256').update(JSON.stringify(graph)).digest('hex')).toBe(
-      '9b880539da04450c0ad3333c5538b75d31648f4afcc6518df10dd3e4b5e2c188'
+      'aa9cad2abcc89768f63693bb4be7deace9fd6aead9a707d4319a73e84c2eae3e'
     );
     expect(verifyCardRuntimeGraphNegativeFixtures()).toEqual([
       'aliasRequire', 'aliasedComputedGlobal', 'bareGlobalReference', 'castComputedGlobal',

@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`card scores preserve the pre-refactor decision matrix 1`] = `
+{
+  "decisions": 9504,
+  "sha256": "74e3cc875322d050f961132ebdf9c535c2a6128bd3c02313ae6fedcc86f1c134",
+}
+`;

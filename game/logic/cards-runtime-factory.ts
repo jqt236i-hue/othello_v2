@@ -1,3 +1,6 @@
+import type { CardLogicApi } from './card-logic-api';
+import { decodeCardUsageArguments } from './cards-internal/card-usage-arguments';
+import { createCardDomainAccessors } from './cards-internal/domain-accessors';
 /**
  * @file cards.ts
  * @description Core Card Logic (Shared between Browser and Headless)
@@ -11,7 +14,7 @@ import {
 } from './card-runtime-contracts';
 import Core = require('./core');
 
-function createCardLogicRuntime(CardRuntimeServices: CardRuntimeServices): Record<string, unknown> {
+function createCardLogicRuntime(CardRuntimeServices: CardRuntimeServices): CardLogicApi {
 assertCardRuntimeServices(CardRuntimeServices);
 const SharedConstants = CardRuntimeServices.state.sharedConstants;
 const DeckSpecHelpers = CardRuntimeServices.state.deckSpec;
@@ -888,14 +891,64 @@ const {
     }
 
     let CardContextBuildersCache: any = null;
-    let CardDeckSetupCache: any = null;
-    let CardHandAccessCache: any = null;
-    let CardAvailabilityCache: any = null;
-    let CardOfferBuildersCache: any = null;
-    let CardEffectTargetCountsCache: any = null;
-    let CardSalvationEffectCache: any = null;
-    let CardLossEffectCache: any = null;
-    let CardFateEffectCache: any = null;
+    const {
+        getCardDeckSetup,
+        requireCardDeckSetup,
+        getCardHandAccess,
+        requireCardHandAccess,
+        getCardAvailability,
+        requireCardAvailability,
+        getCardOfferBuilders,
+        requireCardOfferBuilders,
+        getCardEffectTargetCounts,
+        requireCardEffectTargetCounts,
+        getCardSalvationEffect,
+        requireCardSalvationEffect,
+        getCardLossEffect,
+        requireCardLossEffect,
+        getCardFateEffect,
+        requireCardFateEffect,
+    } = createCardDomainAccessors({
+        CardDeckSetupModule,
+        DeckSpecHelpers,
+        CardStateManager,
+        ENABLED_CARD_ID_SET,
+        CardHandAccessModule,
+        CardHandManagerModule,
+        defaultPrng,
+        getCardHandManagerContext,
+        CardAvailabilityModule,
+        BLACK,
+        WHITE,
+        createBoardViewForCard,
+        hasStandardLegalMoveForPlayer,
+        getReinforcementWillTargets,
+        CardOfferBuildersModule,
+        CARD_DEFS,
+        HEAVEN_BLESSING_OFFER_COUNT,
+        isInviolableSpecialCardId,
+        CardEffectTargetCountsModule,
+        ensureMarkers,
+        getSpecialMarkers,
+        getBombMarkers,
+        getMarkerRuleClass,
+        requireCardMarkersMethod,
+        isInviolableCell,
+        findManifestMarkerAt,
+        isFrozenCellForCard,
+        hasBoardShapeCellForCard,
+        ensureSalvationDestroyedLedger,
+        CardSalvationEffectModule,
+        readCardPendingEffect,
+        clearCardPendingEffect,
+        resolveRandomBoardSpawnEffectUsage,
+        CardLossEffectModule,
+        emitPresentationEvent,
+        CardLivingWillModule,
+        getLivingWillModuleContext,
+        EMPTY,
+        CardFateEffectModule,
+    });
 
     function getCardContextBuilders() {
         if (CardContextBuildersCache) return CardContextBuildersCache;
@@ -1057,193 +1110,6 @@ const {
             throw new Error('[cards.js] CardContextBuilders not available');
         }
         return cardContextBuilders;
-    }
-
-    function getCardDeckSetup() {
-        if (CardDeckSetupCache) return CardDeckSetupCache;
-        if (!CardDeckSetupModule || typeof CardDeckSetupModule.createCardDeckSetup !== 'function') {
-            return null;
-        }
-        CardDeckSetupCache = CardDeckSetupModule.createCardDeckSetup({
-            DeckSpecHelpers,
-            CardStateManager,
-            enabledCardIdSet: ENABLED_CARD_ID_SET
-        });
-        return CardDeckSetupCache;
-    }
-
-    function requireCardDeckSetup() {
-        const cardDeckSetup = getCardDeckSetup();
-        if (!cardDeckSetup) {
-            throw new Error('[cards.js] CardDeckSetup not available');
-        }
-        return cardDeckSetup;
-    }
-
-    function getCardHandAccess() {
-        if (CardHandAccessCache) return CardHandAccessCache;
-        if (!CardHandAccessModule || typeof CardHandAccessModule.createCardHandAccess !== 'function') {
-            return null;
-        }
-        CardHandAccessCache = CardHandAccessModule.createCardHandAccess({
-            CardHandManagerModule,
-            CardStateManager,
-            defaultPrng,
-            getCardHandManagerContext
-        });
-        return CardHandAccessCache;
-    }
-
-    function requireCardHandAccess() {
-        const cardHandAccess = getCardHandAccess();
-        if (!cardHandAccess) {
-            throw new Error('[cards.js] CardHandAccess not available');
-        }
-        return cardHandAccess;
-    }
-
-    function getCardAvailability() {
-        if (CardAvailabilityCache) return CardAvailabilityCache;
-        if (!CardAvailabilityModule || typeof CardAvailabilityModule.createCardAvailability !== 'function') {
-            return null;
-        }
-        CardAvailabilityCache = CardAvailabilityModule.createCardAvailability({
-            constants: { BLACK, WHITE },
-            createBoardViewForCard,
-            hasStandardLegalMoveForPlayer,
-            getReinforcementWillTargets
-        });
-        return CardAvailabilityCache;
-    }
-
-    function requireCardAvailability() {
-        const cardAvailability = getCardAvailability();
-        if (!cardAvailability) {
-            throw new Error('[cards.js] CardAvailability not available');
-        }
-        return cardAvailability;
-    }
-
-    function getCardOfferBuilders() {
-        if (CardOfferBuildersCache) return CardOfferBuildersCache;
-        if (!CardOfferBuildersModule || typeof CardOfferBuildersModule.createOfferBuilders !== 'function') {
-            return null;
-        }
-        CardOfferBuildersCache = CardOfferBuildersModule.createOfferBuilders({
-            cardDefs: CARD_DEFS,
-            heavenBlessingOfferCount: HEAVEN_BLESSING_OFFER_COUNT,
-            isInviolableSpecialCardId
-        });
-        return CardOfferBuildersCache;
-    }
-
-    function requireCardOfferBuilders() {
-        const cardOfferBuilders = getCardOfferBuilders();
-        if (!cardOfferBuilders) {
-            throw new Error('[cards.js] CardOfferBuilders not available');
-        }
-        return cardOfferBuilders;
-    }
-
-    function getCardEffectTargetCounts() {
-        if (CardEffectTargetCountsCache) return CardEffectTargetCountsCache;
-        if (!CardEffectTargetCountsModule || typeof CardEffectTargetCountsModule.createEffectTargetCounts !== 'function') {
-            return null;
-        }
-        CardEffectTargetCountsCache = CardEffectTargetCountsModule.createEffectTargetCounts({
-            ensureMarkers,
-            getSpecialMarkers,
-            getBombMarkers,
-            getMarkerRuleClass,
-            canLossWillRevertMarker: requireCardMarkersMethod('canLossWillRevertMarker'),
-            isInviolableCell,
-            findManifestMarkerAt,
-            isFrozenCellForCard,
-            hasBoardShapeCellForCard,
-            ensureSalvationDestroyedLedger
-        });
-        return CardEffectTargetCountsCache;
-    }
-
-    function requireCardEffectTargetCounts() {
-        const cardEffectTargetCounts = getCardEffectTargetCounts();
-        if (!cardEffectTargetCounts) {
-            throw new Error('[cards.js] CardEffectTargetCounts not available');
-        }
-        return cardEffectTargetCounts;
-    }
-
-    function getCardSalvationEffect() {
-        if (CardSalvationEffectCache) return CardSalvationEffectCache;
-        if (!CardSalvationEffectModule || typeof CardSalvationEffectModule.createCardSalvationEffect !== 'function') {
-            return null;
-        }
-        CardSalvationEffectCache = CardSalvationEffectModule.createCardSalvationEffect({
-            readCardPendingEffect,
-            ensureSalvationDestroyedLedger,
-            clearCardPendingEffect,
-            resolveRandomBoardSpawnEffectUsage
-        });
-        return CardSalvationEffectCache;
-    }
-
-    function requireCardSalvationEffect() {
-        const cardSalvationEffect = getCardSalvationEffect();
-        if (!cardSalvationEffect) {
-            throw new Error('[cards.js] CardSalvationEffect not available');
-        }
-        return cardSalvationEffect;
-    }
-
-    function getCardLossEffect() {
-        if (CardLossEffectCache) return CardLossEffectCache;
-        if (!CardLossEffectModule || typeof CardLossEffectModule.createCardLossEffect !== 'function') {
-            return null;
-        }
-        CardLossEffectCache = CardLossEffectModule.createCardLossEffect({
-            readCardPendingEffect,
-            clearCardPendingEffect,
-            collectLossWillRemovals: (cardState: any) => requireCardEffectTargetCounts().collectLossWillRemovals(cardState),
-            createBoardViewForCard,
-            emitPresentationEvent,
-            findLivingWillMarkerAt: CardLivingWillModule && typeof CardLivingWillModule.findLivingWillMarkerAt === 'function'
-                ? CardLivingWillModule.findLivingWillMarkerAt
-                : null,
-            restoreFromLivingWillSnapshot: CardLivingWillModule && typeof CardLivingWillModule.restoreFromLivingWillSnapshot === 'function'
-                ? CardLivingWillModule.restoreFromLivingWillSnapshot
-                : null,
-            getLivingWillModuleContext,
-            emptyValue: EMPTY
-        });
-        return CardLossEffectCache;
-    }
-
-    function requireCardLossEffect() {
-        const cardLossEffect = getCardLossEffect();
-        if (!cardLossEffect) {
-            throw new Error('[cards.js] CardLossEffect not available');
-        }
-        return cardLossEffect;
-    }
-
-    function getCardFateEffect() {
-        if (CardFateEffectCache) return CardFateEffectCache;
-        if (!CardFateEffectModule || typeof CardFateEffectModule.createCardFateEffect !== 'function') {
-            return null;
-        }
-        CardFateEffectCache = CardFateEffectModule.createCardFateEffect({
-            readCardPendingEffect,
-            clearCardPendingEffect
-        });
-        return CardFateEffectCache;
-    }
-
-    function requireCardFateEffect() {
-        const cardFateEffect = getCardFateEffect();
-        if (!cardFateEffect) {
-            throw new Error('[cards.js] CardFateEffect not available');
-        }
-        return cardFateEffect;
     }
 
     function getLivingWillModuleContext() {
@@ -2363,20 +2229,9 @@ const {
      * @param {string} cardId
      * @returns {boolean} success
      */
-    function applyCardUsage(cardState: any, playerKey: any, cardId: any) {
+    function applyCardUsage(cardState: any, playerOrGameState: any, cardOrPlayer: any, ...trailing: unknown[]) {
         ensureGeneratedSpawnFlipResolver(cardState);
-        // Backward-compatible signature: (cardState, gameState, playerKey, cardId)
-        // Detect if gameState is provided as 2nd argument.
-        let gameState = null;
-        let handOwnerKey = arguments[3];
-        let opts = arguments[4];
-        if (typeof playerKey === 'object' && playerKey && typeof cardId === 'string') {
-            gameState = playerKey;
-            playerKey = arguments[2];
-            cardId = arguments[3];
-            handOwnerKey = arguments[4];
-            opts = arguments[5];
-        }
+        const { gameState, playerKey, cardId, handOwnerKey, opts } = decodeCardUsageArguments(playerOrGameState, cardOrPlayer, trailing);
 
         if (!CardEffectResolverModule || typeof CardEffectResolverModule.applyCardUsage !== 'function') {
             throw new Error('[cards.js] CardEffectResolver.applyCardUsage not available');
@@ -3882,7 +3737,6 @@ const {
         );
     }
 
-
     /**
      * Resolve regen behavior for a set of flips (after board has been updated to newColor).
      * Delegates to cards/regen.js module.
@@ -3981,7 +3835,6 @@ const {
         if (livingWillFlips.length) livingWillRes.flipped = livingWillFlips;
         return { regenRes, livingWillRes, batches };
     }
-
 
     /**
      * Apply HEAVEN_BLESSING (天の恵み)
@@ -4089,7 +3942,6 @@ const {
         return { applied: false, flips: [], direction: null, score: 0 };
     }
 
-
     function applyChainWillAfterMove(cardState: any, gameState: any, playerKey: any, primaryFlips: any, prng: any) {
         return CardChainModule.applyChainWillAfterMove(cardState, gameState, playerKey, primaryFlips, prng, {
             readCardPendingEffect,
@@ -4108,9 +3960,6 @@ const {
             clearHyperactiveAtPositions
         });
     }
-
-
-
 
     /**
     * Process Bomb countdowns
@@ -4143,7 +3992,6 @@ const {
         });
     }
 
-
     /**
      * Process Dragon effects
      * @param {Object} cardState
@@ -4174,7 +4022,6 @@ const {
         );
     }
 
-
     /**
      * Process a single DRAGON anchor immediately (placement-turn immediate fire).
      * Does NOT decrement remainingOwnerTurns (only owner turn starts decrement).
@@ -4204,7 +4051,6 @@ const {
         return DragonEffectsModule.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
     }
 
-
     /**
      * Process ULTIMATE_DESTROY_GOD effects at owner turn start.
      * Delegates to cards/udg.js module.
@@ -4222,7 +4068,6 @@ const {
             moveCoexistingSpecialMarkers
         });
     }
-
 
     /**
      * Immediate placement-turn activation for UDG anchor.
@@ -4704,7 +4549,6 @@ const {
         return CardFlipsModule.getFlipsWithContext(state, row, col, player, context);
     }
 
-
     function clearHyperactiveAtPositions(cardState: any, positions: any) {
         // Compatibility hook for older effect modules. Canonical ownership-change
         // cleanup is atomic inside BoardOps.changeAt; this hook must not infer that
@@ -4725,7 +4569,6 @@ const {
         });
     }
 
-
     function processHyperactiveMoves(cardState: any, gameState: any, prng: any) {
         if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.processHyperactiveMoves !== 'function') {
             throw new Error('[cards.js] CardTimingProcessor.processHyperactiveMoves not available');
@@ -4741,7 +4584,6 @@ const {
             destroyAt
         });
     }
-
 
     function processHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
         const randomSource = resolveDeterministicRandomSource(prng, defaultPrng, 'CardLogic.processHyperactiveMoveAtAnchor');
@@ -4868,7 +4710,6 @@ const {
         );
     }
 
-
     function processBreedingEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
         return CardBreedingModule.processBreedingEffects(cardState, gameState, playerKey, prng, {
             defaultPrng: defaultPrng,
@@ -4881,7 +4722,6 @@ const {
             destroyAt
         });
     }
-
 
     /**
      * Process a single BREEDING anchor immediately (placement-turn immediate spawn).
@@ -4913,7 +4753,6 @@ const {
         });
     }
 
-
     /**
      * Apply DESTROY_ONE_STONE
      * Delegates to effects/destroy_one_stone.js module.
@@ -4926,7 +4765,6 @@ const {
     function applyDestroyEffect(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return isDestroyResolved(applyDestroyEffectDetailed(cardState, gameState, playerKey, row, col));
     }
-
 
     /**
      * Apply SWAP_WITH_ENEMY
@@ -4972,7 +4810,6 @@ const {
             clearCardPendingEffect
         });
     }
-
 
     /**
      * Get context for core logic
@@ -5067,7 +4904,6 @@ const {
     function getSelectableTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getSelectableTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
-
 
 const cardsApi: any = {
         // Constants

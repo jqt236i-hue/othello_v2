@@ -1,3 +1,4 @@
+import { createMatchPublishPayloadBuilder } from '../utils/match-publish-payload';
 declare const __non_webpack_require__: NodeRequire | undefined;
 import type { MatchRoomDeckSelectionSuccess } from '../utils/match-room-deck';
 
@@ -493,53 +494,19 @@ function persistTurnStartPrngState(cardState: any, prng: any) {
     cardState.prngState = prng.getState();
 }
 
-function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
-    const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
-    const presentationCursor = buildPresentationCursor(room);
-    if (MatchAuthority.shouldUseAckOnlyPublishResponse(room, options)) {
-        return withPublicRatedMatchMetadata(MatchAuthority.buildPublishAckPayloadFromRoom(room, {
-            ok: true,
-            stateVersion: room && Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : null,
-            presentationCursor,
-            serverTime,
-            idempotentReplay: options.idempotentReplay === true,
-            publishMeta: options.publishMeta || null
-        }), room);
-    }
-    const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
-    const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
-        ? options.snapshot
-        : toPublicSnapshot(room, viewerSeatKey);
-    const payloadOptions: any = {
-        ok: options.ok === true,
-        snapshot,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled,
-        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
-        effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
-        presentationCursor,
-        presentationFrames: buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
-        serverTime,
-        idempotentReplay: options.idempotentReplay === true,
-        publishMeta: options.publishMeta || null
-    };
-    if (Object.prototype.hasOwnProperty.call(options, 'rejectedReason')) {
-        payloadOptions.rejectedReason = options.rejectedReason || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(options, 'errorMessage')) {
-        payloadOptions.errorMessage = options.errorMessage || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
-        payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
-    }
-    if (Object.prototype.hasOwnProperty.call(options, 'autoPassNotice')) {
-        payloadOptions.autoPassNotice = options.autoPassNotice || null;
-    }
-    return withPublicRatedMatchMetadata(MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions), room);
-}
+const buildPublishPayload = createMatchPublishPayloadBuilder({
+    authority: MatchAuthority,
+    buildPresentationCursor,
+    toPublicSnapshot,
+    toPublicRoomDeck,
+    toPublicRoomBoardConfig,
+    toPublicNetworkDebugEnabled,
+    toPublicNetworkAutoEnabled,
+    toPublicTurnTimer,
+    buildPresentationFrames: (room, viewerSeatKey, options) => buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
+    decoratePayload: withPublicRatedMatchMetadata,
+    decorateAcknowledgement: true
+});
 
 function createLocalMatchCommandCapabilities() {
     return {

@@ -1,3 +1,4 @@
+import { createNetworkClientState } from './network/client-state';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -357,85 +358,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     const initialResultPresentationState = createInitialResultPresentationState();
-    const state = {
-        active: false,
-        roomId: '',
-        viewerRole: 'seat',
-        spectatorId: '',
-        spectatorToken: '',
-        spectatorName: '',
-        seatKey: 'black',
-        seatToken: '',
-        roomSeats: { black: false, white: false },
-        seatNames: { black: '', white: '' },
-        seatHandSkins: { black: '', white: '' },
-        roomDeck: null,
-        roomBoardConfig: null,
-        ratedMatch: null as any,
-        networkDebugEnabled: false,
-        networkAutoEnabled: false,
+    const networkState = createNetworkClientState({
         serverUrl: deriveInitialServerUrl(),
-        stateVersion: null as any,
-        eventSource: null as any,
-        lastStreamActivityAt: 0,
-        lastStreamEventId: '',
-        streamWatchdogTimerId: 0,
-        statusWriter: null as any,
-        roomStateListener: null as any,
-        chatListener: null as any,
-        rematchRequestListener: null as any,
-        chatHistory: [] as any[],
-        publishChain: Promise.resolve() as any,
-        publishTracker: {
-            nextSequence: 0,
-            operations: []
-        },
-        lastResultVersionShown: initialResultPresentationState.lastResultVersionShown,
-        resultShownForUnversioned: initialResultPresentationState.resultShownForUnversioned,
-        reconnectTimerId: null,
-        reconnectAttempt: 0,
-        turnTimer: {
-            limitSeconds: TURN_TIMER_DEFAULT_LIMIT,
-            active: false,
-            turnSeatKey: 'black',
-            turnStartedAt: null as any,
-            turnDeadlineAt: null as any
-        },
-        turnTimerListener: null as any,
-        turnTimerTickHandle: 0,
-        turnTimerSyncRequestedDeadline: null as any,
-        serverTimeOffsetMs: 0,
-        heartbeatResyncInFlight: false,
-        reconnectRecoveryTimerId: null as any,
-        reconnectRecoveryPending: false,
-        appliedStateVersion: null as any,
-        lastVisualSeq: 0,
-        lastVisualVersion: null as any,
-        pendingForceSyncPlaybackVersion: null as any,
-        pendingForceSyncPlaybackSource: '',
-        pendingForceSyncPlaybackSignature: '',
-        lastStateSyncRecoveredPlaybackSignature: '',
-        authoritativeMatchState: {
-            authoritativeTurnIndex: null as any,
-            stateVersion: null as any,
-            authority: null as any,
-            projectedForSeat: null as any,
-            turnStartReconciled: false,
-            projectedSnapshotHash: null as any,
-            lastAppliedProjectedSnapshotHash: null as any
-        },
-        localPresentationState: {
-            preservedQueues: null,
-            lastPlaybackEvents: [],
-            busy: false,
-            playbackSuppressed: false
-        },
-        networkTelemetry: {
-            counts: {} as any,
-            recentEvents: [] as any[]
-        },
-        lastAutoPassNoticeSignature: ''
-    };
+        turnLimitSeconds: TURN_TIMER_DEFAULT_LIMIT,
+        resultState: initialResultPresentationState
+    });
+    const state = networkState.state;
     let networkPresenceToastController: any = null;
     let networkDiagnosticsController: any = null;
 
@@ -1570,7 +1498,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const mod = resolveNetworkReconnectControllerModule();
         if (!mod || typeof mod.createNetworkReconnectController !== 'function') return null;
         networkReconnectController = mod.createNetworkReconnectController({
-            getState: () => state,
+            state: networkState.reconnection,
             isActive,
             scheduleTimeout,
             clearScheduledTimeout,
@@ -1688,7 +1616,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const mod = resolveNetworkStreamSessionModule();
         if (!mod || typeof mod.createNetworkStreamSessionController !== 'function') return null;
         networkStreamSessionController = mod.createNetworkStreamSessionController({
-            getState: () => state,
+            state: networkState.stream,
             getSessionEpoch: () => getNetworkSessionEpoch(),
             withTrailingSlashRemoved,
             closeExistingStream: () => closeStream(),

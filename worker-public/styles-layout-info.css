@@ -335,9 +335,6 @@
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 226, 143, 0.18);
     background:
         linear-gradient(90deg, rgba(242, 201, 95, 0.10), transparent 22%, transparent 78%, rgba(110, 255, 200, 0.08));
-    box-shadow:
-        inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28),
-        inset calc(-1px * var(--layout-stage-scale)) 0 0 rgba(107, 239, 190, 0.16);
     pointer-events: none;
 }
 
@@ -382,7 +379,6 @@
     letter-spacing: 0;
     border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.34);
     border-left: calc(4px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.72);
-    border-radius: calc(4px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(242, 201, 95, 0.18), rgba(0, 0, 0, 0.20) 42%, rgba(0, 0, 0, 0.08));
     box-shadow:
@@ -469,7 +465,6 @@
     top: calc(5px * var(--layout-stage-scale));
     bottom: calc(5px * var(--layout-stage-scale));
     width: calc(1px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, transparent, rgba(242, 201, 95, 0.76), transparent);
     box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(242, 201, 95, 0.24);
     transform: translateX(-50%);
     pointer-events: none;
@@ -864,7 +859,6 @@
     font-weight: 700;
     line-height: 1.25;
     letter-spacing: 0;
-    border-left: calc(3px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.72);
     border-radius: calc(4px * var(--layout-stage-scale));
     background: rgba(0, 0, 0, 0.26);
     overflow: hidden;
@@ -885,8 +879,6 @@
     --left-hud-accent: #f2c95f;
     --manifest-effect-accent-secondary: #7ed7ff;
     --manifest-effect-border-width: calc(2px * var(--layout-stage-scale));
-    --manifest-effect-frame-glow: rgba(126, 215, 255, 0.34);
-    --manifest-effect-line-glow: rgba(242, 201, 95, 0.38);
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
     top: calc(
@@ -988,7 +980,6 @@
     padding: max(calc(6px * var(--layout-stage-scale)), 6px) max(calc(8px * var(--layout-stage-scale)), 8px);
     border-bottom: var(--layout-size-border-thin) solid rgba(126, 215, 255, 0.22);
     border-left: max(calc(3px * var(--layout-stage-scale)), 3px) solid var(--manifest-effect-accent-secondary);
-    border-radius: calc(5px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(242, 201, 95, 0.26), rgba(126, 215, 255, 0.14) 42%, rgba(0, 0, 0, 0.18)),
         linear-gradient(180deg, rgba(255, 242, 184, 0.10), rgba(255, 242, 184, 0.02));
@@ -1006,7 +997,6 @@
     width: max(calc(10px * var(--layout-stage-scale)), 10px);
     height: max(calc(10px * var(--layout-stage-scale)), 10px);
     flex: 0 0 auto;
-    background: linear-gradient(135deg, rgba(255, 242, 184, 0.95), rgba(160, 111, 30, 0.95));
     box-shadow:
         0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 215, 100, 0.46),
         0 0 calc(14px * var(--layout-stage-scale)) var(--manifest-effect-frame-glow);
@@ -1069,7 +1059,6 @@
     font-weight: 800;
     line-height: 1.36;
     min-height: 1.2em;
-    border-radius: calc(4px * var(--layout-stage-scale));
     border-left: max(calc(3px * var(--layout-stage-scale)), 3px) solid var(--manifest-effect-accent-secondary);
     background:
         linear-gradient(90deg, rgba(126, 215, 255, 0.10), transparent 18%, rgba(242, 201, 95, 0.08) 52%, transparent 100%),
@@ -1098,9 +1087,7 @@
 }
 
 .manifest-effect-line--empty {
-    color: rgba(222, 214, 184, 0.58);
     font-weight: 700;
-    border-left-color: rgba(242, 201, 95, 0.28);
     background: linear-gradient(90deg, rgba(242, 201, 95, 0.035), rgba(0, 0, 0, 0.18) 34%, transparent 100%);
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72);
     box-shadow: inset 0 0 0 var(--layout-size-border-thin) rgba(255, 235, 168, 0.018);
@@ -1114,8 +1101,6 @@
 .manifest-effect-line--dynamic {
     color: var(--left-hud-text-value);
     font-weight: 900;
-    background:
-        linear-gradient(90deg, rgba(242, 201, 95, 0.26), rgba(0, 0, 0, 0.30));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.34);
 }
 
@@ -2230,9 +2215,7 @@
 /* Observation gacha modal: targeted visual refresh without changing game behavior. */
 #gachaModal {
     width: min(640px, calc(100vw - 32px));
-    max-height: min(88dvh, 720px);
     overflow: hidden;
-    border-color: rgba(103, 222, 213, 0.42);
     background:
         radial-gradient(80% 54% at 86% 0%, rgba(242, 201, 95, 0.15), transparent 48%),
         radial-gradient(82% 64% at 10% 2%, rgba(83, 214, 209, 0.20), transparent 46%),
@@ -2264,8 +2247,6 @@
 }
 
 #gachaModalHeader {
-    padding: calc(16px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale));
-    border-bottom-color: rgba(103, 222, 213, 0.24);
     background:
         linear-gradient(90deg, rgba(83, 214, 209, 0.15), rgba(242, 201, 95, 0.08), transparent 74%),
         rgba(0, 10, 13, 0.34);
@@ -2281,10 +2262,7 @@
 
 #gachaBalanceSummary {
     width: fit-content;
-    padding: calc(5px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-    gap: calc(6px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(242, 201, 95, 0.28);
-    border-radius: calc(6px * var(--layout-stage-scale));
     background:
         radial-gradient(circle at 14% 36%, rgba(242, 201, 95, 0.18), transparent 34%),
         rgba(2, 12, 15, 0.56);
@@ -2303,16 +2281,12 @@
 
 #gachaModalBody {
     gap: calc(12px * var(--layout-stage-scale));
-    padding: calc(15px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
     overflow: auto;
 }
 
 #gachaStatusText {
-    padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.14);
-    border-radius: calc(6px * var(--layout-stage-scale));
     background: rgba(3, 13, 15, 0.44);
-    color: rgba(223, 255, 251, 0.86);
 }
 
 #gachaStatusText.is-error {
@@ -2383,9 +2357,7 @@
 }
 
 #gachaDetailsPanel {
-    gap: calc(10px * var(--layout-stage-scale));
     padding: calc(12px * var(--layout-stage-scale));
-    border-color: rgba(103, 222, 213, 0.20);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.012)),
         rgba(2, 10, 13, 0.58);
@@ -2396,8 +2368,6 @@
 
 .gacha-details-copy {
     max-width: 68ch;
-    color: rgba(244, 234, 216, 0.86);
-    line-height: 1.55;
     text-wrap: pretty;
 }
 
@@ -2406,16 +2376,10 @@
     font-weight: 800;
 }
 
-.gacha-rate-list {
-    gap: calc(5px * var(--layout-stage-scale));
-}
-
 .gacha-rate-row {
-    min-height: calc(34px * var(--layout-stage-scale));
     grid-template-columns: minmax(calc(52px * var(--layout-stage-scale)), auto) 1fr auto;
     padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 255, 255, 0.045);
-    border-radius: calc(6px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(242, 201, 95, 0.08), transparent 40%),
         rgba(0, 0, 0, 0.20);
@@ -2431,13 +2395,11 @@
 }
 
 .gacha-rate-rarity {
-    font-size: calc(14px * var(--layout-stage-scale));
     letter-spacing: 0.02em;
 }
 
 .gacha-rate-probability,
 .gacha-rate-count {
-    color: rgba(255, 245, 214, 0.92);
     font-variant-numeric: tabular-nums;
 }
 
@@ -2447,8 +2409,6 @@
 
 #gachaResults {
     gap: calc(10px * var(--layout-stage-scale));
-    max-height: min(42dvh, calc(350px * var(--layout-stage-scale)));
-    padding: calc(3px * var(--layout-stage-scale));
     scrollbar-width: thin;
     scrollbar-color: rgba(242, 201, 95, 0.38) rgba(0, 0, 0, 0.20);
 }
@@ -2456,13 +2416,11 @@
 .gacha-results-empty {
     display: grid;
     place-items: center;
-    min-height: calc(58px * var(--layout-stage-scale));
     padding: calc(14px * var(--layout-stage-scale));
     border-color: rgba(103, 222, 213, 0.20);
     background:
         linear-gradient(90deg, transparent, rgba(83, 214, 209, 0.055), transparent),
         rgba(0, 0, 0, 0.14);
-    color: rgba(244, 234, 216, 0.72);
 }
 
 .gacha-results-empty::before {
@@ -2821,7 +2779,6 @@
 }
 
 .gacha-recommend-badge {
-    position: absolute;
     left: calc(18px * var(--layout-stage-scale));
     top: calc(-14px * var(--layout-stage-scale));
     z-index: 2;
@@ -2848,7 +2805,6 @@
     display: block;
     color: #fffaf0;
     font-size: calc(25px * var(--layout-stage-scale));
-    font-weight: 900;
     line-height: 1.1;
     text-shadow:
         0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.86),
@@ -3041,7 +2997,6 @@
     display: flex;
     flex-direction: column;
     gap: calc(9px * var(--layout-stage-scale));
-    min-height: 0;
 }
 
 .gacha-results-heading {

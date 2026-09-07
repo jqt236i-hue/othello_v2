@@ -1,3 +1,4 @@
+import { createMatchPublishPayloadBuilder } from '../utils/match-publish-payload';
 import { WORKER_RUNTIME_GLOBAL_KEYS } from './match-worker-runtime-preload.js';
 import type {
     DurableObjectStateLike,
@@ -12,11 +13,9 @@ import type {
     MatchWorkerRatingStore,
     MatchWorkerPlaybackAdapter,
     MatchWorkerPlaybackAssembly,
-    MatchWorkerPlaybackDiagnostics,
     MatchWorkerPreparedSnapshotBroadcast,
     MatchWorkerPrng,
     MatchWorkerPublicSnapshot,
-    MatchWorkerPublishPayloadOptions,
     MatchWorkerPresencePayloadMeta,
     MatchWorkerPublicSeatState,
     MatchWorkerRoomState,
@@ -589,54 +588,19 @@ function asWorkerSnapshot(value: unknown): MatchWorkerPublicSnapshot {
 }
 
 
-function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown, options: MatchWorkerPublishPayloadOptions = {}) {
-    const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
-    const presentationCursor = buildPresentationCursor(room);
-    if (MatchAuthority.shouldUseAckOnlyPublishResponse(room, options)) {
-        return MatchAuthority.buildPublishAckPayloadFromRoom(room, {
-            ok: true,
-            stateVersion: room && Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : null,
-            presentationCursor,
-            serverTime,
-            idempotentReplay: options.idempotentReplay === true,
-            publishMeta: options.publishMeta || null
-        });
-    }
-    const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
-    const networkAutoEnabled = toPublicNetworkAutoEnabled(room);
-    const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
-        ? options.snapshot
-        : toPublicSnapshot(room, viewerSeatKey);
-    const payloadOptions: MatchWorkerPublishPayloadOptions = {
-        ok: options.ok === true,
-        snapshot,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled,
-        networkAutoEnabled,
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
-        effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
-        presentationCursor,
-        presentationFrames: buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
-        serverTime,
-        idempotentReplay: options.idempotentReplay === true,
-        publishMeta: options.publishMeta || null
-    };
-    if (Object.prototype.hasOwnProperty.call(options, 'rejectedReason')) {
-        payloadOptions.rejectedReason = options.rejectedReason || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(options, 'errorMessage')) {
-        payloadOptions.errorMessage = options.errorMessage || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
-        payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled) as MatchWorkerPlaybackDiagnostics | null;
-    }
-    if (Object.prototype.hasOwnProperty.call(options, 'autoPassNotice')) {
-        payloadOptions.autoPassNotice = options.autoPassNotice || null;
-    }
-    return withPublicRatedMatchMetadata(MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions), room);
-}
+const buildPublishPayload = createMatchPublishPayloadBuilder<MatchWorkerRoomState | null | undefined>({
+    authority: MatchAuthority,
+    buildPresentationCursor,
+    toPublicSnapshot,
+    toPublicRoomDeck,
+    toPublicRoomBoardConfig,
+    toPublicNetworkDebugEnabled,
+    toPublicNetworkAutoEnabled,
+    toPublicTurnTimer,
+    buildPresentationFrames: (room, viewerSeatKey, options) => buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
+    decoratePayload: withPublicRatedMatchMetadata,
+    decorateAcknowledgement: false
+});
 
 
 type MatchWorkerCommandCapabilityResolution =

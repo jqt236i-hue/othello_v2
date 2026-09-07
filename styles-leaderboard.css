@@ -1,6 +1,5 @@
 #leaderboardOverlay.is-open {
     align-items: flex-start;
-    padding: 29px 0 0;
     z-index: calc(var(--z-modal-maintenance) + 10);
 }
 
@@ -13,7 +12,6 @@
 }
 
 #leaderboardModal {
-    --layout-stage-scale: 1;
     --leaderboard-border: rgba(233, 199, 117, 0.42);
     --leaderboard-line: rgba(92, 220, 217, 0.22);
     --leaderboard-cyan: #71ece7;
@@ -49,16 +47,10 @@
     border: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.16);
     border-radius: calc(12px * var(--layout-stage-scale));
     pointer-events: none;
-    opacity: 0.7;
 }
 
 #leaderboardModalHeader {
-    padding:
-        calc(24px * var(--layout-stage-scale))
-        calc(28px * var(--layout-stage-scale))
-        calc(10px * var(--layout-stage-scale));
     justify-content: center;
-    min-height: calc(106px * var(--layout-stage-scale));
     border-bottom-color: rgba(233, 199, 117, 0.14);
     background:
         linear-gradient(180deg, rgba(255, 233, 182, 0.035), transparent 64%),
@@ -75,7 +67,6 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: calc(6px * var(--layout-stage-scale));
     position: relative;
 }
 
@@ -103,7 +94,6 @@
 .leaderboard-title-main {
     color: #f8e5bd;
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(46px * var(--layout-stage-scale));
     font-weight: 900;
     line-height: 1;
     letter-spacing: 0;
@@ -113,19 +103,12 @@
 }
 
 .leaderboard-title-sub {
-    color: rgba(232, 226, 214, 0.82);
-    font-size: calc(18px * var(--layout-stage-scale));
     line-height: 1.2;
     letter-spacing: 0;
 }
 
 #leaderboardCloseBtn {
     position: absolute;
-    top: calc(26px * var(--layout-stage-scale));
-    right: calc(28px * var(--layout-stage-scale));
-    width: calc(54px * var(--layout-stage-scale));
-    min-width: calc(54px * var(--layout-stage-scale));
-    height: calc(54px * var(--layout-stage-scale));
     border-radius: 50%;
     border-color: rgba(233, 199, 117, 0.42);
     background:
@@ -142,10 +125,6 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
-    padding:
-        calc(10px * var(--layout-stage-scale))
-        calc(40px * var(--layout-stage-scale))
-        calc(8px * var(--layout-stage-scale));
 }
 
 #leaderboardReferenceShell {
@@ -158,25 +137,11 @@
         auto
         minmax(calc(350px * var(--layout-stage-scale)), 1fr)
         auto;
-    gap: calc(11px * var(--layout-stage-scale));
     height: 100%;
-}
-
-#leaderboardSummary {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: calc(14px * var(--layout-stage-scale));
 }
 
 .leaderboard-summary-card {
     position: relative;
-    min-height: calc(106px * var(--layout-stage-scale));
-    padding:
-        calc(16px * var(--layout-stage-scale))
-        calc(18px * var(--layout-stage-scale))
-        calc(16px * var(--layout-stage-scale))
-        calc(114px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(102, 220, 215, 0.28);
     border-radius: calc(10px * var(--layout-stage-scale));
     background:
         linear-gradient(135deg, rgba(94, 228, 222, 0.14), transparent 42%),
@@ -194,31 +159,15 @@
 .leaderboard-summary-card::before {
     content: "";
     position: absolute;
-    left: calc(26px * var(--layout-stage-scale));
     top: 50%;
-    width: calc(58px * var(--layout-stage-scale));
-    height: calc(58px * var(--layout-stage-scale));
-    border: calc(2px * var(--layout-stage-scale)) solid rgba(240, 198, 107, 0.26);
-    border-radius: 50%;
     transform: translateY(-50%);
-    background:
-        radial-gradient(circle at 50% 50%, rgba(240, 198, 107, 0.20), transparent 38%),
-        rgba(2, 10, 13, 0.78);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 245, 214, 0.06),
-        0 0 calc(14px * var(--layout-stage-scale)) rgba(240, 198, 107, 0.08);
 }
 
 .leaderboard-summary-card::after {
-    position: absolute;
-    left: calc(43px * var(--layout-stage-scale));
-    top: 50%;
-    width: calc(24px * var(--layout-stage-scale));
     color: rgba(240, 198, 107, 0.78);
     font-size: calc(26px * var(--layout-stage-scale));
     line-height: 1;
     text-align: center;
-    transform: translateY(-50%);
 }
 
 .leaderboard-summary-card:nth-child(1)::after {
@@ -234,30 +183,19 @@
 }
 
 .leaderboard-summary-label {
-    color: rgba(237, 228, 205, 0.82);
-    font-size: calc(17px * var(--layout-stage-scale));
     line-height: 1.2;
 }
 
 .leaderboard-summary-value {
     color: var(--leaderboard-gold-strong);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(42px * var(--layout-stage-scale));
     font-weight: 900;
     line-height: 1;
     letter-spacing: 0;
 }
 
-#leaderboardFilterTabs {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: calc(12px * var(--layout-stage-scale));
-    margin-top: calc(4px * var(--layout-stage-scale));
-}
-
 .leaderboard-filter-tab {
     grid-column: span 2;
-    min-height: calc(62px * var(--layout-stage-scale));
     min-width: 0;
     padding-inline: calc(10px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.26);
@@ -267,7 +205,6 @@
         rgba(4, 13, 17, 0.74);
     color: rgba(244, 236, 219, 0.86);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(21px * var(--layout-stage-scale));
     font-weight: 800;
     letter-spacing: 0;
     white-space: nowrap;
@@ -279,7 +216,6 @@
 .leaderboard-filter-tab.is-compact {
     grid-column: span 1;
     padding-inline: calc(6px * var(--layout-stage-scale));
-    font-size: calc(18px * var(--layout-stage-scale));
 }
 
 .leaderboard-filter-tab:hover,
@@ -291,7 +227,6 @@
 .leaderboard-filter-tab.is-active,
 .leaderboard-filter-tab[aria-pressed="true"] {
     color: #ecfff9;
-    border-color: rgba(108, 235, 232, 0.52);
     background:
         radial-gradient(110% 90% at 18% 0%, rgba(94, 228, 222, 0.34), transparent 54%),
         linear-gradient(180deg, rgba(16, 75, 82, 0.96), rgba(7, 23, 27, 0.98));
@@ -303,16 +238,13 @@
 #leaderboardNameRow {
     display: grid;
     grid-template-columns: minmax(calc(300px * var(--layout-stage-scale)), 1fr) auto;
-    gap: calc(26px * var(--layout-stage-scale));
     align-items: stretch;
 }
 
 #leaderboardNameField {
     display: grid;
     grid-template-columns: calc(122px * var(--layout-stage-scale)) minmax(0, 1fr);
-    min-height: calc(58px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.26);
-    border-radius: calc(10px * var(--layout-stage-scale));
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
         rgba(4, 13, 17, 0.72);
@@ -324,7 +256,6 @@
     align-items: center;
     justify-content: center;
     color: rgba(243, 234, 215, 0.90);
-    font-size: calc(19px * var(--layout-stage-scale));
     border-right: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.12);
     background: linear-gradient(90deg, rgba(240, 198, 107, 0.10), transparent 82%);
 }
@@ -336,7 +267,6 @@
     background: transparent;
     box-shadow: none;
     color: #f8ecd0;
-    font-size: calc(22px * var(--layout-stage-scale));
     padding: 0 calc(18px * var(--layout-stage-scale));
 }
 
@@ -347,13 +277,6 @@
 
 #leaderboardActionButtons {
     display: grid;
-    grid-template-columns:
-        calc(144px * var(--layout-stage-scale))
-        calc(144px * var(--layout-stage-scale))
-        calc(144px * var(--layout-stage-scale))
-        calc(54px * var(--layout-stage-scale));
-    gap: calc(14px * var(--layout-stage-scale));
-    grid-auto-rows: calc(58px * var(--layout-stage-scale));
     align-items: stretch;
 }
 
@@ -382,10 +305,7 @@
 #leaderboardActionButtons .leaderboard-cpu-level-control > button {
     min-width: 0;
     width: 100%;
-    min-height: calc(58px * var(--layout-stage-scale));
-    border-radius: calc(10px * var(--layout-stage-scale));
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(20px * var(--layout-stage-scale));
 }
 
 #leaderboardReloadBtn,
@@ -479,10 +399,6 @@
 }
 
 #leaderboardInfoBtn {
-    min-width: calc(54px * var(--layout-stage-scale));
-    width: calc(54px * var(--layout-stage-scale));
-    min-height: calc(54px * var(--layout-stage-scale));
-    height: calc(54px * var(--layout-stage-scale));
     align-self: center;
     padding: 0;
     font-size: calc(18px * var(--layout-stage-scale));
@@ -525,19 +441,9 @@
 
 #leaderboardPodium {
     display: grid;
-    grid-template-columns: minmax(0, 0.93fr) minmax(0, 1.13fr) minmax(0, 0.93fr);
-    gap: calc(20px * var(--layout-stage-scale));
-    align-items: end;
-    padding: calc(2px * var(--layout-stage-scale)) calc(44px * var(--layout-stage-scale)) 0;
 }
 
 .leaderboard-podium-card {
-    position: relative;
-    min-height: calc(218px * var(--layout-stage-scale));
-    padding:
-        calc(50px * var(--layout-stage-scale))
-        calc(16px * var(--layout-stage-scale))
-        calc(16px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(199, 214, 226, 0.18);
     border-radius: calc(6px * var(--layout-stage-scale));
     background:
@@ -548,7 +454,6 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: calc(7px * var(--layout-stage-scale));
     text-align: center;
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.03),
@@ -556,7 +461,6 @@
 }
 
 .leaderboard-podium-card.is-rank-1 {
-    min-height: calc(242px * var(--layout-stage-scale));
     border-color: rgba(240, 198, 107, 0.38);
     background:
         radial-gradient(120% 100% at 50% 0%, rgba(255, 214, 128, 0.14), transparent 52%),
@@ -580,13 +484,10 @@
 
 .leaderboard-podium-badge {
     position: absolute;
-    top: calc(-20px * var(--layout-stage-scale));
     left: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: calc(78px * var(--layout-stage-scale));
-    height: calc(78px * var(--layout-stage-scale));
     border-radius: 50%;
     border: calc(2px * var(--layout-stage-scale)) solid rgba(255, 255, 255, 0.22);
     background:
@@ -594,9 +495,7 @@
         linear-gradient(180deg, rgba(37, 53, 64, 0.98), rgba(10, 16, 20, 0.98));
     color: #f7f0e0;
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(34px * var(--layout-stage-scale));
     font-weight: 900;
-    line-height: 1;
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.08),
         0 calc(8px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.30);
@@ -604,9 +503,6 @@
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge {
-    top: calc(-24px * var(--layout-stage-scale));
-    width: calc(96px * var(--layout-stage-scale));
-    height: calc(96px * var(--layout-stage-scale));
     border-color: rgba(255, 225, 148, 0.52);
     background:
         radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.28), transparent 30%),
@@ -615,14 +511,8 @@
 }
 
 .leaderboard-podium-name {
-    margin-top: calc(12px * var(--layout-stage-scale));
     color: #f4efe1;
-    font-size: calc(24px * var(--layout-stage-scale));
     line-height: 1.1;
-}
-
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-name {
-    margin-top: calc(24px * var(--layout-stage-scale));
 }
 
 .leaderboard-podium-score {
@@ -631,14 +521,6 @@
     font-size: calc(39px * var(--layout-stage-scale));
     font-weight: 900;
     line-height: 1;
-}
-
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-score {
-    font-size: calc(44px * var(--layout-stage-scale));
-}
-
-.leaderboard-podium-mode {
-    min-height: calc(28px * var(--layout-stage-scale));
 }
 
 #leaderboardTable {
@@ -659,18 +541,15 @@
     grid-template-columns: calc(170px * var(--layout-stage-scale)) minmax(0, 1fr) calc(190px * var(--layout-stage-scale)) calc(210px * var(--layout-stage-scale));
     gap: calc(18px * var(--layout-stage-scale));
     align-items: center;
-    padding: calc(8px * var(--layout-stage-scale)) calc(28px * var(--layout-stage-scale));
     border-bottom: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.10);
     color: rgba(242, 232, 209, 0.74);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(18px * var(--layout-stage-scale));
 }
 
 #leaderboardListViewport {
     min-height: 0;
     flex: 1 1 auto;
     overflow: auto;
-    padding: 0 calc(10px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
 }
 
 #leaderboardList {
@@ -689,8 +568,6 @@
     grid-template-columns: calc(170px * var(--layout-stage-scale)) minmax(0, 1fr) calc(190px * var(--layout-stage-scale)) calc(210px * var(--layout-stage-scale));
     gap: calc(18px * var(--layout-stage-scale));
     align-items: center;
-    min-height: calc(40px * var(--layout-stage-scale));
-    padding: calc(2px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
     border: 0;
     border-bottom: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.16);
     border-radius: 0;
@@ -721,7 +598,6 @@
 .leaderboard-rank-wrap {
     display: flex;
     align-items: center;
-    gap: calc(8px * var(--layout-stage-scale));
 }
 
 .leaderboard-self-marker {
@@ -734,19 +610,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: calc(48px * var(--layout-stage-scale));
-    height: calc(34px * var(--layout-stage-scale));
-    padding: 0 calc(14px * var(--layout-stage-scale));
     border-radius: calc(999px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(233, 199, 117, 0.20);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
         rgba(10, 15, 20, 0.82);
     color: #f5e3b8;
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(20px * var(--layout-stage-scale));
     font-weight: 900;
-    line-height: 1;
 }
 
 .leaderboard-name {
@@ -755,7 +625,6 @@
     gap: calc(8px * var(--layout-stage-scale));
     min-width: 0;
     color: #f1ece0;
-    font-size: calc(22px * var(--layout-stage-scale));
     line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -787,7 +656,6 @@
 .leaderboard-score {
     color: var(--leaderboard-gold-strong);
     font-family: var(--selected-app-font-accent-family);
-    font-size: calc(26px * var(--layout-stage-scale));
     font-weight: 900;
     line-height: 1;
     text-align: right;
@@ -799,7 +667,6 @@
     justify-content: flex-end;
     gap: calc(8px * var(--layout-stage-scale));
     color: rgba(242, 235, 220, 0.84);
-    font-size: calc(19px * var(--layout-stage-scale));
     white-space: nowrap;
 }
 
@@ -807,16 +674,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: calc(18px * var(--layout-stage-scale));
-    height: calc(18px * var(--layout-stage-scale));
     color: rgba(243, 213, 146, 0.82);
     font-size: calc(14px * var(--layout-stage-scale));
     line-height: 1;
     content: "▣";
-}
-
-.leaderboard-mode-chip[data-mode="network"]::before {
-    content: "⚔";
 }
 
 .leaderboard-mode-chip.is-placeholder::before {
@@ -1230,7 +1091,6 @@
 }
 
 #leaderboardModalHeader {
-    min-height: calc(76px * var(--layout-stage-scale));
     padding:
         calc(14px * var(--layout-stage-scale))
         calc(24px * var(--layout-stage-scale))
@@ -1293,29 +1153,10 @@
 }
 
 #leaderboardReferenceShell {
-    grid-template-rows:
-        auto
-        auto
-        auto
-        0
-        auto
-        minmax(calc(152px * var(--layout-stage-scale)), auto)
-        minmax(calc(312px * var(--layout-stage-scale)), 1fr);
     gap: calc(8px * var(--layout-stage-scale));
 }
 
-#leaderboardSummary {
-    gap: calc(15px * var(--layout-stage-scale));
-    margin-top: calc(16px * var(--layout-stage-scale));
-}
-
 .leaderboard-summary-card {
-    min-height: calc(100px * var(--layout-stage-scale));
-    padding:
-        calc(16px * var(--layout-stage-scale))
-        calc(18px * var(--layout-stage-scale))
-        calc(14px * var(--layout-stage-scale))
-        calc(96px * var(--layout-stage-scale));
     border: 0;
     border-radius: 0;
     background: var(--leaderboard-asset-top-panel) center / 100% 100% no-repeat;
@@ -1323,9 +1164,6 @@
 }
 
 .leaderboard-summary-card::before {
-    left: calc(21px * var(--layout-stage-scale));
-    width: calc(60px * var(--layout-stage-scale));
-    height: calc(60px * var(--layout-stage-scale));
     border: 0;
     background: var(--leaderboard-asset-crown-gold) center / contain no-repeat;
     box-shadow: none;
@@ -1340,21 +1178,11 @@
 }
 
 .leaderboard-summary-label {
-    font-size: calc(14px * var(--layout-stage-scale));
     color: rgba(244, 220, 181, 0.92);
-    transform: translateY(calc(3px * var(--layout-stage-scale)));
 }
 
 .leaderboard-summary-value {
-    font-size: calc(34px * var(--layout-stage-scale));
     color: #ffd579;
-    transform: translateY(calc(2px * var(--layout-stage-scale)));
-}
-
-#leaderboardFilterTabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: calc(10px * var(--layout-stage-scale));
-    margin-top: calc(26px * var(--layout-stage-scale));
 }
 
 .leaderboard-filter-tab {
@@ -1378,7 +1206,6 @@
 #leaderboardNameRow {
     grid-template-columns: calc(388px * var(--layout-stage-scale)) auto;
     gap: calc(28px * var(--layout-stage-scale));
-    margin-top: calc(28px * var(--layout-stage-scale));
 }
 
 #leaderboardNameField {
@@ -1436,21 +1263,13 @@
 }
 
 #leaderboardPodium {
-    gap: calc(16px * var(--layout-stage-scale));
-    padding: calc(16px * var(--layout-stage-scale)) calc(17px * var(--layout-stage-scale)) 0;
     margin-top: 0;
     align-items: end;
 }
 
 .leaderboard-podium-card {
-    min-height: calc(184px * var(--layout-stage-scale));
-    padding:
-        calc(78px * var(--layout-stage-scale))
-        calc(12px * var(--layout-stage-scale))
-        calc(9px * var(--layout-stage-scale));
     border: 0;
     border-radius: 0;
-    gap: calc(4px * var(--layout-stage-scale));
     background: var(--leaderboard-asset-podium-silver) center / 100% 100% no-repeat;
     box-shadow: none;
     position: relative;
@@ -1458,8 +1277,6 @@
 }
 
 .leaderboard-podium-card.is-rank-1 {
-    min-height: calc(202px * var(--layout-stage-scale));
-    padding-top: calc(96px * var(--layout-stage-scale));
     background: var(--leaderboard-asset-podium-gold) center / 100% 100% no-repeat;
 }
 
@@ -1472,9 +1289,6 @@
 }
 
 .leaderboard-podium-badge {
-    top: calc(-19px * var(--layout-stage-scale));
-    width: calc(78px * var(--layout-stage-scale));
-    height: calc(78px * var(--layout-stage-scale));
     border: 0;
     background: var(--leaderboard-asset-medal-silver) center / contain no-repeat;
     color: #f9f2df;
@@ -1485,13 +1299,8 @@
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge {
-    top: calc(-34px * var(--layout-stage-scale));
-    width: calc(102px * var(--layout-stage-scale));
-    height: calc(102px * var(--layout-stage-scale));
     border: 0;
-    background: var(--leaderboard-asset-medal-gold) center / contain no-repeat;
     color: #fff2bd;
-    font-size: calc(33px * var(--layout-stage-scale));
     box-shadow: none;
 }
 
@@ -1501,32 +1310,18 @@
 }
 
 .leaderboard-podium-name {
-    margin-top: calc(8px * var(--layout-stage-scale));
-    font-size: calc(20px * var(--layout-stage-scale));
     color: #f6efe1;
     max-width: 92%;
     position: relative;
     z-index: 2;
 }
 
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-name {
-    margin-top: calc(10px * var(--layout-stage-scale));
-}
-
 .leaderboard-podium-score,
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-score {
-    font-size: calc(34px * var(--layout-stage-scale));
     color: #ffd579;
 }
 
-.leaderboard-podium-mode {
-    min-height: calc(18px * var(--layout-stage-scale));
-}
-
 #leaderboardTable {
-    height: calc(478px * var(--layout-stage-scale));
-    min-height: calc(478px * var(--layout-stage-scale));
-    margin-top: calc(4px * var(--layout-stage-scale));
     border: 0;
     border-radius: 0;
     background:
@@ -1610,10 +1405,8 @@
 }
 
 .leaderboard-row {
-    min-height: calc(44px * var(--layout-stage-scale));
     padding: calc(1px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
     background: transparent;
-    border-bottom-color: rgba(194, 124, 45, 0.24);
     box-shadow: none;
 }
 
@@ -1638,8 +1431,6 @@
 }
 
 .leaderboard-rank-badge {
-    min-width: calc(44px * var(--layout-stage-scale));
-    height: calc(25px * var(--layout-stage-scale));
     padding: 0 calc(9px * var(--layout-stage-scale));
     font-size: calc(18px * var(--layout-stage-scale));
     color: #ffd579;
@@ -1698,7 +1489,6 @@
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::before {
-    inset: calc(11px * var(--layout-stage-scale));
     border-radius: 50%;
     border: calc(3px * var(--layout-stage-scale)) solid rgba(255, 225, 117, 0.92);
     background:
@@ -1727,26 +1517,14 @@
 }
 
 .leaderboard-summary-card::before {
-    left: calc(24px * var(--layout-stage-scale));
-    width: calc(50px * var(--layout-stage-scale));
-    height: calc(50px * var(--layout-stage-scale));
     border: calc(2px * var(--layout-stage-scale)) solid rgba(228, 170, 85, 0.74);
     border-radius: 50%;
-    background:
-        radial-gradient(circle at 50% 48%, rgba(233, 178, 86, 0.18), transparent 46%),
-        rgba(3, 13, 15, 0.82) !important;
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 240, 190, 0.10),
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(234, 180, 94, 0.16);
 }
 
 .leaderboard-summary-card::after {
     content: "" !important;
     position: absolute;
-    left: calc(34px * var(--layout-stage-scale));
     top: 50%;
-    width: calc(30px * var(--layout-stage-scale));
-    height: calc(30px * var(--layout-stage-scale));
     transform: translateY(-50%);
     background: var(--leaderboard-asset-crown-gold) center / contain no-repeat;
 }
@@ -1757,10 +1535,6 @@
 
 #leaderboardTableHeader,
 .leaderboard-row {
-    background-image:
-        linear-gradient(90deg, transparent calc(93px * var(--layout-stage-scale)), rgba(190, 126, 54, 0.17) calc(93px * var(--layout-stage-scale)) calc(94px * var(--layout-stage-scale)), transparent calc(94px * var(--layout-stage-scale))),
-        linear-gradient(90deg, transparent calc(425px * var(--layout-stage-scale)), rgba(190, 126, 54, 0.13) calc(425px * var(--layout-stage-scale)) calc(426px * var(--layout-stage-scale)), transparent calc(426px * var(--layout-stage-scale))),
-        linear-gradient(90deg, transparent calc(560px * var(--layout-stage-scale)), rgba(190, 126, 54, 0.13) calc(560px * var(--layout-stage-scale)) calc(561px * var(--layout-stage-scale)), transparent calc(561px * var(--layout-stage-scale)));
     background-repeat: no-repeat;
 }
 
@@ -1785,8 +1559,6 @@
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge,
 .leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge,
 .leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge {
-    color: transparent !important;
-    -webkit-text-fill-color: transparent;
     background-clip: border-box;
     -webkit-background-clip: border-box;
 }
@@ -1796,16 +1568,10 @@
 .leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge::after {
     position: absolute;
     inset: 0;
-    z-index: 2;
     display: grid;
     place-items: center;
-    color: #fff0bd;
-    -webkit-text-fill-color: #fff0bd;
     font: inherit;
     line-height: 1;
-    text-shadow:
-        0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.88),
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 216, 118, 0.38);
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::after {
@@ -1822,35 +1588,8 @@
 
 /* Final reference tightening: keep the generated ornamental assets, but tune
    the live DOM text/grid to the ranking reference image. */
-#leaderboardReferenceShell {
-    grid-template-rows:
-        auto
-        auto
-        auto
-        0
-        auto
-        minmax(calc(174px * var(--layout-stage-scale)), auto)
-        minmax(calc(312px * var(--layout-stage-scale)), 1fr);
-}
-
-#leaderboardSummary {
-    gap: calc(14px * var(--layout-stage-scale));
-    margin-top: calc(15px * var(--layout-stage-scale));
-}
 
 .leaderboard-summary-card {
-    min-height: calc(108px * var(--layout-stage-scale));
-    padding:
-        calc(20px * var(--layout-stage-scale))
-        calc(18px * var(--layout-stage-scale))
-        calc(14px * var(--layout-stage-scale))
-        calc(104px * var(--layout-stage-scale));
-    background:
-        linear-gradient(135deg, rgba(244, 185, 78, 0.88) 0 calc(1px * var(--layout-stage-scale)), transparent calc(1px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)), rgba(244, 185, 78, 0.62) calc(12px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)), transparent calc(13px * var(--layout-stage-scale))) top left / calc(34px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale)) no-repeat,
-        linear-gradient(225deg, rgba(244, 185, 78, 0.88) 0 calc(1px * var(--layout-stage-scale)), transparent calc(1px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)), rgba(244, 185, 78, 0.62) calc(12px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)), transparent calc(13px * var(--layout-stage-scale))) top right / calc(34px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale)) no-repeat,
-        linear-gradient(45deg, rgba(244, 185, 78, 0.88) 0 calc(1px * var(--layout-stage-scale)), transparent calc(1px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)), rgba(244, 185, 78, 0.62) calc(12px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)), transparent calc(13px * var(--layout-stage-scale))) bottom left / calc(34px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale)) no-repeat,
-        linear-gradient(315deg, rgba(244, 185, 78, 0.88) 0 calc(1px * var(--layout-stage-scale)), transparent calc(1px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)), rgba(244, 185, 78, 0.62) calc(12px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)), transparent calc(13px * var(--layout-stage-scale))) bottom right / calc(34px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale)) no-repeat,
-        var(--leaderboard-asset-top-panel) center / 100% 100% no-repeat;
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(224, 150, 57, 0.44),
         inset 0 0 0 calc(5px * var(--layout-stage-scale)) rgba(4, 16, 18, 0.34),
@@ -1858,10 +1597,6 @@
 }
 
 .leaderboard-summary-card::before {
-    left: calc(29px * var(--layout-stage-scale));
-    width: calc(54px * var(--layout-stage-scale));
-    height: calc(54px * var(--layout-stage-scale));
-    border-color: rgba(222, 166, 88, 0.82);
     background:
         radial-gradient(circle at 50% 45%, rgba(244, 198, 107, 0.16), transparent 48%),
         linear-gradient(180deg, rgba(11, 37, 39, 0.92), rgba(3, 12, 14, 0.94)) !important;
@@ -1871,9 +1606,6 @@
 }
 
 .leaderboard-summary-card::after {
-    left: calc(38px * var(--layout-stage-scale));
-    width: calc(36px * var(--layout-stage-scale));
-    height: calc(36px * var(--layout-stage-scale));
     filter: drop-shadow(0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72));
 }
 
@@ -1883,9 +1615,6 @@
 
 .leaderboard-summary-card:nth-child(2)::after {
     background-image: var(--leaderboard-asset-rank);
-    left: calc(36px * var(--layout-stage-scale));
-    width: calc(40px * var(--layout-stage-scale));
-    height: calc(40px * var(--layout-stage-scale));
 }
 
 .leaderboard-summary-label {
@@ -1896,32 +1625,13 @@
     transform: translateY(calc(1px * var(--layout-stage-scale)));
 }
 
-#leaderboardPodium {
-    gap: calc(13px * var(--layout-stage-scale));
-    padding: calc(13px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) 0;
-}
-
 .leaderboard-podium-card {
-    min-height: calc(216px * var(--layout-stage-scale));
-    padding-top: calc(100px * var(--layout-stage-scale));
     gap: calc(4px * var(--layout-stage-scale));
 }
 
-.leaderboard-podium-card.is-rank-1 {
-    min-height: calc(238px * var(--layout-stage-scale));
-    padding-top: calc(122px * var(--layout-stage-scale));
-}
-
 .leaderboard-podium-badge {
-    top: calc(-22px * var(--layout-stage-scale));
     width: calc(86px * var(--layout-stage-scale));
     height: calc(86px * var(--layout-stage-scale));
-}
-
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge {
-    top: calc(-43px * var(--layout-stage-scale));
-    width: calc(116px * var(--layout-stage-scale));
-    height: calc(116px * var(--layout-stage-scale));
 }
 
 .leaderboard-podium-name {
@@ -1931,16 +1641,6 @@
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-name {
     margin-top: calc(4px * var(--layout-stage-scale));
-}
-
-.leaderboard-podium-score,
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-score {
-    font-size: calc(33px * var(--layout-stage-scale));
-    line-height: 0.98;
-}
-
-#leaderboardNameRow {
-    margin-top: calc(22px * var(--layout-stage-scale));
 }
 
 #leaderboardTable {
@@ -2017,14 +1717,12 @@
 
 .leaderboard-podium-mode {
     align-self: center;
-    min-height: calc(20px * var(--layout-stage-scale));
     padding:
         calc(1px * var(--layout-stage-scale))
         calc(12px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(224, 151, 61, 0.58);
     border-radius: calc(999px * var(--layout-stage-scale));
     background: rgba(3, 12, 14, 0.64);
-    transform: translateY(calc(-5px * var(--layout-stage-scale)));
     box-shadow:
         inset 0 0 calc(7px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.44),
         0 0 calc(5px * var(--layout-stage-scale)) rgba(228, 150, 45, 0.08);
@@ -2085,10 +1783,6 @@
     top: calc(-25px * var(--layout-stage-scale));
 }
 
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge {
-    top: calc(-46px * var(--layout-stage-scale));
-}
-
 .leaderboard-podium-name {
     transform: translateY(calc(2px * var(--layout-stage-scale)));
 }
@@ -2122,11 +1816,6 @@
 /* Medal rendering pass: keep the rank number as CSS text, but let the
    regenerated medal artwork occupy the full badge area with visible crown and
    laurel detail. */
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge,
-.leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge,
-.leaderboard-podium-card.is-rank-3 .leaderboard-podium-badge {
-    background: none !important;
-}
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::before,
 .leaderboard-podium-card.is-rank-2 .leaderboard-podium-badge::before,
@@ -2159,11 +1848,6 @@
 
 /* Downloaded asset pass: the podium card art already contains the crown,
    wreaths, medal rings, and frame, so only the rank number remains as live CSS. */
-#leaderboardPodium {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr) minmax(0, 1fr);
-    gap: calc(10px * var(--layout-stage-scale));
-    padding: calc(9px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) 0;
-}
 
 .leaderboard-podium-card,
 .leaderboard-podium-card.is-rank-1,
@@ -2172,20 +1856,13 @@
     justify-content: flex-end;
     background-position: center bottom;
     background-size: 100% 100%;
-    background-repeat: no-repeat;
 }
 
 .leaderboard-podium-card {
-    min-height: calc(158px * var(--layout-stage-scale));
     padding:
         calc(73px * var(--layout-stage-scale))
         calc(16px * var(--layout-stage-scale))
         calc(13px * var(--layout-stage-scale));
-}
-
-.leaderboard-podium-card.is-rank-1 {
-    min-height: calc(184px * var(--layout-stage-scale));
-    padding-top: calc(100px * var(--layout-stage-scale));
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge,
@@ -2200,13 +1877,6 @@
     color: transparent !important;
     -webkit-text-fill-color: transparent;
     font-size: calc(33px * var(--layout-stage-scale));
-}
-
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge {
-    top: calc(39px * var(--layout-stage-scale));
-    width: calc(70px * var(--layout-stage-scale));
-    height: calc(70px * var(--layout-stage-scale));
-    font-size: calc(36px * var(--layout-stage-scale));
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-badge::before,
@@ -2229,20 +1899,6 @@
 .leaderboard-podium-name,
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-name {
     margin-top: 0;
-    font-size: calc(19px * var(--layout-stage-scale));
-    line-height: 1.05;
-}
-
-.leaderboard-podium-score,
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-score {
-    font-size: calc(31px * var(--layout-stage-scale));
-    line-height: 0.96;
-}
-
-.leaderboard-podium-mode {
-    min-height: calc(17px * var(--layout-stage-scale));
-    padding: calc(1px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-    font-size: calc(13px * var(--layout-stage-scale));
 }
 
 /* Provided sprite pass: keep the lower ranking table CSS-driven, but use the
@@ -2323,7 +1979,6 @@
 }
 
 #leaderboardPodium {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr) minmax(0, 1fr);
     padding-top: calc(4px * var(--layout-stage-scale));
 }
 
@@ -2435,17 +2090,11 @@
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-name {
-    top: calc(94px * var(--layout-stage-scale));
     font-size: calc(26px * var(--layout-stage-scale));
 }
 
 .leaderboard-podium-card.is-rank-1 .leaderboard-podium-score {
-    top: calc(125px * var(--layout-stage-scale));
     font-size: calc(45px * var(--layout-stage-scale));
-}
-
-.leaderboard-podium-card.is-rank-1 .leaderboard-podium-mode {
-    top: calc(183px * var(--layout-stage-scale));
 }
 
 /* Podium text alignment pass. */

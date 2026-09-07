@@ -1,3 +1,6 @@
+import { createBoardViewportMasks, PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES, type PixiBoardViewportClippedLayerName, type PixiBoardViewportClipRect } from './viewport-masks';
+export { PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES, type PixiBoardViewportClippedLayerName, type PixiBoardViewportClipRect } from './viewport-masks';
+import { createSourceTrajectoryViewPool, type SourceTrajectoryView } from './source-trajectory-pool';
 import { getMaxBoardLocalEffectGutterCells } from '../board-visual/effect-bounds';
 import {
   getBoardViewportMaterializationWindow,
@@ -83,24 +86,6 @@ export const PIXI_BOARD_SCENE_LAYER_ORDER = Object.freeze([
 export const PIXI_BOARD_OBJECT_OVERSCAN_CELLS = 1;
 
 export type PixiBoardSceneLayerName = typeof PIXI_BOARD_SCENE_LAYER_ORDER[number];
-
-export const PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES = Object.freeze([
-  'surface',
-  'cell',
-  'marker',
-  'stone',
-  'hint'
-] as const);
-
-export type PixiBoardViewportClippedLayerName =
-  typeof PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES[number];
-
-export interface PixiBoardViewportClipRect {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
 
 export interface PixiBoardSceneOptions {
   readonly runtime: PixiStaticViewRuntime;
@@ -648,14 +633,6 @@ interface PlaybackEffectRecord {
   paintedThemeRevision: number | null;
 }
 
-interface SourceTrajectoryView {
-  readonly root: any;
-  readonly mask: any;
-  readonly graphics: any;
-  readonly preparedRoot: any;
-  readonly sprite: any | null;
-}
-
 interface PreparedTrajectoryLineRuntime {
   readonly definition: PixiPreparedTrajectoryLineSet;
   readonly graphics: any;
@@ -1155,18 +1132,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   layers.interaction.eventMode = 'none';
   layers.interaction.cursor = 'default';
   layers.interaction.hitArea = null;
-  const viewportMaskRoot = createPixiContainer(runtime, 'pixi-board-viewport-masks');
-  viewportMaskRoot.eventMode = 'none';
-  const mutableViewportMasks = {} as Record<PixiBoardViewportClippedLayerName, any>;
-  for (const name of PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) {
-    const mask = createPixiGraphics(runtime, `pixi-board-viewport-mask:${name}`);
-    mask.eventMode = 'none';
-    mutableViewportMasks[name] = mask;
-    layers[name].mask = mask;
-    addPixiChild(viewportMaskRoot, mask);
-  }
-  const viewportMasks = Object.freeze(mutableViewportMasks);
-  addPixiChild(layers.interaction, viewportMaskRoot);
+  const viewportMaskController = createBoardViewportMasks(runtime, layers);
   if (options.stage) addPixiChild(options.stage, root);
   const staticBoardLayer: PixiStaticBoardLayer = createPixiStaticBoardLayer({
     runtime,
@@ -1254,45 +1220,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     destroy: (view) => destroyPixiDisplayObject(view.root),
     maxRetained: maxRetainedEffects
   });
-  const sourceTrajectoryPool: ObjectPool<SourceTrajectoryView> = createObjectPool({
-    create: () => {
-      const root = createPixiContainer(runtime, 'pixi-source-trajectory');
-      const mask = createPixiGraphics(runtime, 'pixi-source-trajectory-mask');
-      const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-graphics');
-      const preparedRoot = createPixiContainer(runtime, 'pixi-source-trajectory-prepared');
-      const sprite = createPixiSprite(runtime, 'pixi-source-trajectory-sprite');
-      addPixiChild(root, graphics, preparedRoot, sprite);
-      root.eventMode = 'none';
-      return Object.freeze({ root, mask, graphics, preparedRoot, sprite });
-    },
-    reset: (view) => {
-      view.root.mask = null;
-      clearPixiGraphics(view.mask);
-      clearPixiGraphics(view.graphics);
-      removeAndDestroyPixiChildren(view.preparedRoot);
-      if (view.sprite) {
-        view.sprite.texture = runtime.Texture?.EMPTY || null;
-        view.sprite.visible = false;
-        view.sprite.alpha = 1;
-        view.sprite.rotation = 0;
-        setPixiPosition(view.sprite, 0, 0);
-        setPixiScale(view.sprite, 1, 1);
-      }
-      setPixiPosition(view.root, 0, 0);
-      setPixiScale(view.root, 1, 1);
-      view.root.rotation = 0;
-      view.root.alpha = 1;
-      view.root.visible = false;
-      removePixiFromParent(view.root);
-      removePixiFromParent(view.mask);
-    },
-    destroy: (view) => {
-      view.root.mask = null;
-      destroyPixiDisplayObject(view.root);
-      destroyPixiDisplayObject(view.mask);
-    },
-    maxRetained: maxRetainedEffects
-  });
+  const sourceTrajectoryPool = createSourceTrajectoryViewPool(runtime, maxRetainedEffects);
   const active = new Map<string, RetainedCellViews>();
   const activeStones = new Map<string, PixiStoneView>();
   const activeStaticBaseViews = new Map<string, PixiCellView>();
@@ -1324,7 +1252,6 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   let latestApplyContext: PixiBoardSceneApplyContext | null = null;
   let latestSceneOffsetX = 0;
   let latestSceneOffsetY = 0;
-  let viewportClipRect: PixiBoardViewportClipRect | null = null;
   let topologyPatchKeys = new Set<string>();
   let destroyed = false;
   let applyCount = 0;
@@ -1357,70 +1284,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     if (destroyed) throw new Error('PixiBoardScene is destroyed');
   }
 
-  function updateViewportMasks(
-    frame: BoardVisualFrame,
-    sceneOffsetX: number,
-    sceneOffsetY: number,
-    canvasWidth?: number,
-    canvasHeight?: number
-  ): void {
-    const fixedViewportClipRect = Object.freeze({
-      x: sceneOffsetX,
-      y: sceneOffsetY,
-      width: frame.layout.camera.viewportWidth,
-      height: frame.layout.camera.viewportHeight
-    });
-    viewportClipRect = fixedViewportClipRect;
-    const viewportRight = fixedViewportClipRect.x + fixedViewportClipRect.width;
-    const viewportBottom = fixedViewportClipRect.y + fixedViewportClipRect.height;
-    const canvasRight = Number.isFinite(canvasWidth) && (canvasWidth as number) > 0
-      ? canvasWidth as number
-      : viewportRight + sceneOffsetX;
-    const canvasBottom = Number.isFinite(canvasHeight) && (canvasHeight as number) > 0
-      ? canvasHeight as number
-      : viewportBottom + sceneOffsetY;
-    const expansionRects = frame.model.cells.flatMap((cell) => {
-      if (cell.expansionSide === null) return [];
-      const scene = worldToScene(frame.model.topology, frame.layout, cell.row, cell.col);
-      const x = scene.x + sceneOffsetX;
-      const y = scene.y + sceneOffsetY;
-      const right = x + frame.layout.cellSize;
-      const bottom = y + frame.layout.cellSize;
-      const outsideViewport = x < fixedViewportClipRect.x
-        || y < fixedViewportClipRect.y
-        || right > viewportRight
-        || bottom > viewportBottom;
-      const intersectsBoundedCanvas = right > 0
-        && bottom > 0
-        && x < canvasRight
-        && y < canvasBottom;
-      return outsideViewport && intersectsBoundedCanvas
-        ? [{ x, y, width: frame.layout.cellSize, height: frame.layout.cellSize }]
-        : [];
-    });
-    for (const name of PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) {
-      const mask = viewportMasks[name];
-      clearPixiGraphics(mask);
-      drawPixiRect(
-        mask,
-        fixedViewportClipRect.x,
-        fixedViewportClipRect.y,
-        fixedViewportClipRect.width,
-        fixedViewportClipRect.height,
-        { color: '#ffffff', alpha: 1 }
-      );
-      // The original board viewport is immutable. Expansion cells are sparse
-      // attachments painted through the already-bounded canvas gutter, so
-      // union only their actual footprints into the mask instead of moving
-      // the camera or widening the base-board clip over empty frame space.
-      for (const rect of expansionRects) {
-        drawPixiRect(mask, rect.x, rect.y, rect.width, rect.height, {
-          color: '#ffffff',
-          alpha: 1
-        });
-      }
-    }
-  }
+  const updateViewportMasks = viewportMaskController.update;
 
   function textureIdentity(
     context: PixiBoardSceneApplyContext,
@@ -3623,8 +3487,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     boardSurfaceOverlay.visible = false;
     if (boardSurfaceTexture) boardSurfaceTexture.visible = false;
     staticBoardLayer.reset();
-    for (const mask of Object.values(viewportMasks)) clearPixiGraphics(mask);
-    viewportClipRect = null;
+    viewportMaskController.reset();
     layers.interaction.eventMode = 'none';
     layers.interaction.hitArea = null;
     materializationWindow = null;
@@ -3659,7 +3522,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     destroyPixiDisplayObject(boardSurfaceTexture);
     destroyPixiDisplayObject(boardSurfaceOverlay);
     destroyPixiDisplayObject(starPoints);
-    for (const name of PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) layers[name].mask = null;
+    viewportMaskController.destroy();
     removePixiFromParent(root);
     destroyPixiDisplayObject(root);
   }
@@ -3721,7 +3584,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       objectOverscanCells: PIXI_BOARD_OBJECT_OVERSCAN_CELLS,
       effectGutterCells,
       viewportClippedLayerNames: PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES,
-      viewportClipRect,
+      viewportClipRect: viewportMaskController.getClipRect(),
       canvasCount: 0 as const,
       domNodeCount: 0 as const,
       layerOrder: PIXI_BOARD_SCENE_LAYER_ORDER,

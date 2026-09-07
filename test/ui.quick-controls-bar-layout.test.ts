@@ -33,7 +33,7 @@ describe('quick controls bar layout', () => {
     expect(css).toMatch(/\.quick-bgm-track-option:hover[\s\S]*background:[\s\S]*rgba\(217,\s*192,\s*138,\s*0\.28\)/);
     expect(css).not.toMatch(/quick-bgm[\s\S]*#[0-9a-fA-F]{0,4}268d/);
     expect(css).toMatch(/\.quick-volume-control[\s\S]*grid-area:\s*volume/);
-    expect(css).toMatch(/input\[type=range\]\.compact-slider\.quick-volume-slider[\s\S]*background:[\s\S]*linear-gradient\(90deg,\s*rgba\(242,\s*201,\s*95/);
+    expect(css).toMatch(/input\[type=range\]\.compact-slider\.quick-volume-slider[\s\S]*background:[\s\S]*linear-gradient\(90deg,\s*rgba\(185,\s*154,\s*87/);
     expect(css).toMatch(/input\[type=range\]\.compact-slider\.quick-volume-slider::-webkit-slider-thumb[\s\S]*box-shadow:/);
   });
 

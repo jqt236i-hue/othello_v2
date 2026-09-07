@@ -1,15 +1,17 @@
+import type { NetworkStreamState } from './client-state';
 'use strict';
 
 const PresentationEnvelopeContract = require('../../shared/network-presentation-envelope');
 
 function createNetworkStreamSessionController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
-  const getState = typeof cfg.getState === 'function' ? cfg.getState : function () { return null; };
+  // Legacy getState remains an adapter for existing standalone consumers.
+  const getState = cfg.state ? () => cfg.state : (typeof cfg.getState === 'function' ? cfg.getState : () => null);
   const withTrailingSlashRemoved = typeof cfg.withTrailingSlashRemoved === 'function'
     ? cfg.withTrailingSlashRemoved
     : function (url: any) { return String(url || '').replace(/\/+$/, ''); };
 
-  function readState(): any {
+  function readState(): NetworkStreamState {
     const state = getState();
     if (!state || typeof state !== 'object') {
       throw new Error('network_stream_session_state_required');

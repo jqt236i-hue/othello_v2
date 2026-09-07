@@ -1,7 +1,6 @@
 import type {
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityGameState,
-    MatchAuthorityPublishMeta,
     MatchAuthorityPublicSeats,
     MatchAuthoritySeatHandSkins,
     MatchAuthoritySeatNames,
@@ -275,19 +274,7 @@ export interface MatchWorkerPlaybackAssembly {
     [key: string]: unknown;
 }
 
-export interface MatchWorkerPublishPayloadOptions extends Record<string, unknown> {
-    ok?: boolean;
-    serverTime?: unknown;
-    snapshot?: unknown;
-    playbackEvents?: unknown;
-    effectLogs?: unknown;
-    idempotentReplay?: unknown;
-    publishMeta?: Partial<MatchAuthorityPublishMeta> | null;
-    rejectedReason?: unknown;
-    errorMessage?: unknown;
-    playbackDiagnostics?: unknown;
-    autoPassNotice?: unknown;
-}
+export type MatchWorkerPublishPayloadOptions = import('../utils/match-publish-payload').MatchPublishPayloadOptions;
 
 export interface MatchWorkerSnapshotPayloadMeta extends Record<string, unknown> {
     playbackEvents?: unknown;

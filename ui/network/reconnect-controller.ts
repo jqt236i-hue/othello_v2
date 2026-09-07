@@ -1,3 +1,4 @@
+import type { NetworkReconnectState } from './client-state';
 'use strict';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -8,7 +9,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 function createNetworkReconnectController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
-  const getState = typeof cfg.getState === 'function' ? cfg.getState : function () { return null; };
+  // Legacy getState remains an adapter for existing standalone consumers.
+  const getState = cfg.state ? () => cfg.state : (typeof cfg.getState === 'function' ? cfg.getState : () => null);
   const scheduleTimeout = typeof cfg.scheduleTimeout === 'function'
     ? cfg.scheduleTimeout
     : function (fn: any, ms: number) { return setTimeout(fn, ms); };
@@ -16,7 +18,7 @@ function createNetworkReconnectController(config?: any): any {
     ? cfg.clearScheduledTimeout
     : function (id: any) { clearTimeout(id); };
 
-  function readState(): any {
+  function readState(): NetworkReconnectState {
     const state = getState();
     if (!state || typeof state !== 'object') {
       throw new Error('network_reconnect_state_required');
