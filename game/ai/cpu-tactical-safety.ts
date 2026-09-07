@@ -10,7 +10,7 @@ const Tempt = require('../cpu-decision-tempt-value');
 
 type State = { gameState: any; cardState: any };
 type Input = State & { playerKey: 'black' | 'white'; level: number };
-type Assessment = { risk: number; material: number; corners: number; valuable: number; charge: number; witness: any };
+type Assessment = { risk: number; material: number; replyMaterial: number; replyMobility: number; corners: number; valuable: number; charge: number; witness: any };
 export const MAX_SAFETY_STEPS = 96;
 const clone = (v: any) => JSON.parse(JSON.stringify(v));
 const point = (m: any) => ({ row: m.row, col: m.col, ...(m.directionKey ? { directionKey: m.directionKey } : {}) });
@@ -55,13 +55,17 @@ function createProbe(input: Input) {
         const replies = moves(next, -sign);
         if (replies.length > 16) return null;
         let risk = 0, witness = null;
+        let replyMaterial = material(next), replyMobility = moves(next, sign).length;
+        if (replies.length) { replyMaterial = Infinity; replyMobility = Infinity; }
         for (const reply of replies) {
             const r = apply(next, { type: 'place', ...point(reply) }, opponent);
             if (!r || r.cardState.pendingEffectByPlayer?.[opponent]) return null;
             const loss = Math.max(0, corners(r, -sign) - initialOppCorners) * 100 + Math.max(0, initialValue - valuable(r));
             if (loss > risk) { risk = loss; witness = point(reply); }
+            replyMaterial = Math.min(replyMaterial, material(r));
+            replyMobility = Math.min(replyMobility, moves(r, sign).length);
         }
-        return { risk, witness, material: material(after), corners: corners(after, sign), valuable: valuable(after), charge: after.cardState.charge[player], };
+        return { risk, witness, material: material(after), replyMaterial, replyMobility, corners: corners(after, sign), valuable: valuable(after), charge: after.cardState.charge[player], };
     };
     const placements = (s: State) => {
         const legal = moves(s);
@@ -85,7 +89,9 @@ function createProbe(input: Input) {
     return { view, apply, assess, placements, targets, steps: () => Math.min(steps, MAX_SAFETY_STEPS) };
 }
 
-const dominates = (safe: Assessment, bad: Assessment) => safe.risk === 0 && safe.material >= bad.material && safe.corners >= bad.corners && safe.valuable >= bad.valuable && safe.charge >= bad.charge;
+const dominates = (safe: Assessment, bad: Assessment) => safe.risk === 0 && safe.material >= bad.material
+    && safe.replyMaterial >= bad.replyMaterial && (bad.replyMobility === 0 || safe.replyMobility > 0)
+    && safe.corners >= bad.corners && safe.valuable >= bad.valuable && safe.charge >= bad.charge;
 
 export function avoidTacticalBlunder(input: Input & { selected: any; candidates: any[]; pendingType?: string }): any {
     const unchanged = (reason: string, steps = 0) => ({ selected: input.selected, changed: false, reason, steps });

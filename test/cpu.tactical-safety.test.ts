@@ -5,6 +5,7 @@ const PrngSafety = require('../game/schema/prng');
 require('../game/logic/presentation').setPresentationRuntime({emitPresentationEvent:require('../game/logic/board_ops').emitPresentationEvent});
 const placementBoard = [[0,-1,0,0,0,0,-1,-1],[0,0,-1,-1,-1,-1,-1,1],[1,1,1,-1,-1,-1,1,1],[1,1,0,-1,-1,1,0,1],[0,1,1,-1,-1,1,1,0],[0,0,1,1,-1,-1,1,0],[-1,-1,-1,1,1,1,1,1],[0,0,0,1,1,1,1,1]];
 const cardBoard = [[1,1,1,1,1,1,1,0],[1,1,1,1,-1,-1,1,-1],[-1,1,1,1,-1,-1,1,-1],[-1,-1,-1,-1,1,1,1,-1],[-1,-1,-1,1,1,1,1,-1],[-1,-1,1,-1,-1,1,1,-1],[-1,-1,-1,-1,-1,1,-1,-1],[1,-1,-1,-1,-1,-1,-1,-1]];
+const replyTrapBoard = [[1,1,1,1,1,1,0,-1],[1,1,1,-1,1,1,-1,-1],[0,1,1,-1,-1,-1,-1,-1],[1,1,1,1,-1,-1,-1,-1],[1,1,-1,-1,1,1,-1,-1],[1,1,-1,-1,1,-1,-1,-1],[1,1,1,1,1,1,-1,-1],[0,-1,1,1,1,1,1,-1]];
 function setupSafety(board: number[][], flip = false) {
     const rng = PrngSafety.createPRNG(1), cs = CardsSafety.createCardState(rng), gs = CoreSafety.createGameState();
     gs.board = board.map(row => row.map(v => flip ? -v : v)); gs.currentPlayer = flip ? 1 : -1;
@@ -43,6 +44,24 @@ test('unknown/random card and excessive branches do not justify holding',()=>{
     expect(Safety.shouldHoldTacticallyUnsafeCard({...s,cardId:'chest_01'}).hold).toBe(false);
     s.cardState.hands.white=['destroy_01'];
     expect(Safety.shouldHoldTacticallyUnsafeCard({...s,cardId:'destroy_01'}).hold).toBe(false);
+});
+
+test.each([false,true])('rejects a corner-saving replacement that loses ten more discs after the reply (flip=%s)',flip=>{
+    const s=setupSafety(replyTrapBoard,flip), sign=s.gameState.currentPlayer;
+    const candidates=CoreSafety.getLegalMoves(s.gameState,sign);
+    const selected=candidates.find((m:any)=>m.row===0&&m.col===6);
+    const tempting=candidates.find((m:any)=>m.row===7&&m.col===0);
+    const worst=(move:any)=>{
+        const after=CoreSafety.applyMove(s.gameState,move);
+        return Math.min(...CoreSafety.getLegalMoves(after,-sign).map((reply:any)=>{
+            const end=CoreSafety.applyMove(after,reply),count=CoreSafety.countDiscs(end);
+            return sign*(count.black-count.white);
+        }));
+    };
+    expect(worst(selected)).toBe(-9);expect(worst(tempting)).toBe(-19);
+    const result=Safety.avoidTacticalBlunder({...s,selected,candidates});
+    expect(result.changed).toBe(false);expect(result.selected).toEqual(selected);
+    expect(result.reason).toBe('no_dominating_alternative');
 });
 
 test.each([false,true])('does not destroy its own corner when another target and all its placements are safe (flip=%s)',flip=>{
