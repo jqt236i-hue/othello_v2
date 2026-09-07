@@ -14,6 +14,49 @@ function setupSafety(board: number[][], flip = false) {
     cs.hands = {black:[],white:[]};cs.charge[playerKey]=99;cs.lastTurnStartedFor=playerKey;
     return {gameState:gs,cardState:cs,playerKey,level:6,rng};
 }
+
+test('stability counts anchored edge chains, stops at gaps, and distinguishes early/late boards',()=>{
+    const board=Array.from({length:8},()=>Array(8).fill(0));
+    board[0]=[-1,-1,-1,0,-1,0,0,0];board[3][3]=-1;
+    const s=setupSafety(board);
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white')).toMatchObject({stable:3,own:5,late:false,danger:0});
+    s.gameState.board[0][3]=-1;
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').stable).toBe(5);
+    s.cardState.markers=[{kind:'specialStone',row:3,col:3,owner:'white',data:{type:'PERMA_PROTECTED',sourceCardId:'perma_01'}}];
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').stable).toBe(6);
+    expect(Safety.tacticalPositionFeatures(setupSafety(cardBoard).gameState,s.cardState,'white').late).toBe(true);
+});
+
+test('few exposed stones are risky but three protected stones are not treated as immediate destruction targets',()=>{
+    const board=Array.from({length:8},()=>Array(8).fill(0));board[3][3]=-1;board[3][4]=-1;board[4][3]=-1;
+    const s=setupSafety(board);
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').danger).toBe(1);
+    s.cardState.markers=[[3,3],[3,4],[4,3]].map(([row,col])=>({kind:'specialStone',row,col,owner:'white',data:{type:'GUARD',remainingOwnerTurns:2,sourceCardId:'guard_01'}}));
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').danger).toBe(0);
+    s.cardState.markers=[];s.gameState.board[4][3]=0;
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').danger).toBe(2);
+});
+
+test('stability follows an expanded board boundary',()=>{
+    const board=Array.from({length:8},()=>Array(8).fill(0));board[0][7]=-1;
+    const s=setupSafety(board);
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').stable).toBe(1);
+    s.gameState.boardExpansion.cells=[{side:'right',row:0,col:8,owner:1}];
+    expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').stable).toBe(0);
+});
+
+test.each([false,true])('midgame gives up one transient stone to retain three more stable stones (flip=%s)',flip=>{
+    const s=setupSafety([[0,1,1,1,0,1,0,0],[0,-1,-1,-1,1,1,1,0],[-1,-1,-1,-1,0,1,1,0],[-1,-1,-1,-1,1,-1,1,-1],[-1,-1,1,1,-1,-1,1,0],[1,-1,1,-1,-1,-1,1,0],[1,-1,-1,-1,1,-1,-1,0],[1,-1,0,-1,1,-1,-1,-1]],flip),sign=s.gameState.currentPlayer;
+    // The recorded position is black to move; setupSafety defaults to white.
+    s.gameState.board=s.gameState.board.map((row:number[])=>row.map(v=>-v));
+    const candidates=CoreSafety.getLegalMoves(s.gameState,sign),selected=candidates.find((m:any)=>m.row===1&&m.col===0);
+    const result=Safety.avoidTacticalBlunder({...s,selected,candidates});
+    expect(result.changed).toBe(true);expect(result.selected).toMatchObject({row:7,col:2});
+    const before=CoreSafety.applyMove(s.gameState,selected),after=CoreSafety.applyMove(s.gameState,result.selected);
+    const original=Safety.tacticalPositionFeatures(before,s.cardState,s.playerKey),alternative=Safety.tacticalPositionFeatures(after,s.cardState,s.playerKey);
+    expect(original).toMatchObject({late:false,own:30,stable:7});
+    expect(alternative).toMatchObject({late:false,own:29,stable:10});
+});
 test.each([false,true])('avoids a witnessed corner giveaway without mutating state or RNG (flip=%s)',flip=>{
     const s=setupSafety(placementBoard,flip), candidates=CoreSafety.getLegalMoves(s.gameState,s.gameState.currentPlayer);
     const selected=candidates.find((m:any)=>m.row===1&&m.col===1),before=JSON.stringify(s);

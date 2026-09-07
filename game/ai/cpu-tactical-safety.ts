@@ -10,10 +10,42 @@ const Tempt = require('../cpu-decision-tempt-value');
 
 type State = { gameState: any; cardState: any };
 type Input = State & { playerKey: 'black' | 'white'; level: number };
-type Assessment = { risk: number; material: number; replyMaterial: number; replyMobility: number; corners: number; valuable: number; charge: number; witness: any };
+type Assessment = { risk: number; material: number; replyMaterial: number; replyMobility: number; corners: number; stable: number; replyStable: number; danger: number; late: boolean; valuable: number; charge: number; witness: any };
 export const MAX_SAFETY_STEPS = 96;
 const clone = (v: any) => JSON.parse(JSON.stringify(v));
 const point = (m: any) => ({ row: m.row, col: m.col, ...(m.directionKey ? { directionKey: m.directionKey } : {}) });
+
+/** Conservative lower bound on stability against ordinary flips, on the current board shape.
+ * Card destruction/movement and future board-shape changes are separate threats. */
+export function tacticalPositionFeatures(gameState: any, cardState: any, playerKey: string) {
+    const b = Board.createBoardContext(gameState, cardState), sign = playerKey === 'black' ? 1 : -1;
+    const cells = Board.collectBoardCoordinates(b).filter((c: any) => Board.hasPlayableCell(b, c.row, c.col));
+    const owners = new Map(cells.map((c:any) => [`${c.row},${c.col}`,Board.getCellValue(b,c.row,c.col)]));
+    const stable = new Set<string>(), axes = [[1,0],[0,1],[1,1],[1,-1]];
+    const context = Cards.getCardContext(cardState);
+    for (const c of context.permaProtectedStones || []) {
+        const key = `${c.row},${c.col}`;
+        if (owners.get(key) === sign) stable.add(key);
+    }
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const c of cells) {
+            const key = `${c.row},${c.col}`;
+            if (stable.has(key) || owners.get(key) !== sign) continue;
+            if (axes.every(([dr,dc]) => [-1,1].some(d => {
+                const r = c.row+d*dr, col = c.col+d*dc;
+                const neighbor = `${r},${col}`;
+                return !owners.has(neighbor) || stable.has(neighbor);
+            }))) { stable.add(key); changed = true; }
+        }
+    }
+    const counts = Core.countDiscs(gameState,cardState), own = playerKey === 'black' ? counts.black : counts.white;
+    const vulnerable = own > 0 && own <= 3 ? Cards.getDestroyTargets(cardState,gameState)
+        .filter((c:any) => Board.getCellValue(b,c.row,c.col) === sign).length : 0;
+    return { stable:stable.size, own, danger:own === 0 ? 4 : own <= 3 && vulnerable > 0 ? (4-own)*vulnerable/own : 0,
+        late:Array.from(owners.values()).filter(v => v === 0).length <= Math.max(4,Math.floor(cells.length/8)) };
+}
 
 /** Public-information, deterministic placement-reply checks. Unknown branches never justify a veto. */
 function createProbe(input: Input) {
@@ -43,6 +75,12 @@ function createProbe(input: Input) {
         return Board.getCornerCells(b).filter((c: any) => Board.getCellValue(b, c.row, c.col) === value).length;
     };
     const material = (s: State) => { const c = Core.countDiscs(s.gameState, s.cardState); return player === 'black' ? c.black - c.white : c.white - c.black; };
+    const featureCache = new WeakMap<object, ReturnType<typeof tacticalPositionFeatures>>();
+    const features = (s: State) => {
+        if (!featureCache.has(s)) featureCache.set(s,tacticalPositionFeatures(s.gameState,s.cardState,player));
+        return featureCache.get(s)!;
+    };
+    const initialStable = features(view).stable;
     const initialOppCorners = corners(view, -sign), initialValue = valuable(view);
     const assess = (after: State | null): Assessment | null => {
         if (!after || after.cardState.pendingEffectByPlayer?.[player] || after.gameState.currentPlayer !== -sign) return null;
@@ -54,18 +92,24 @@ function createProbe(input: Input) {
         if (rng.getState().calls || next.gameState.currentPlayer !== -sign || next.cardState.pendingEffectByPlayer?.[opponent]) return null;
         const replies = moves(next, -sign);
         if (replies.length > 16) return null;
-        let risk = 0, witness = null;
+        let risk = Math.max(features(after).danger,features(next).danger)*100
+            + Math.max(0,initialStable-features(next).stable)*10, witness = null;
         let replyMaterial = material(next), replyMobility = moves(next, sign).length;
+        let replyStable = features(next).stable, danger = Math.max(features(after).danger,features(next).danger);
         if (replies.length) { replyMaterial = Infinity; replyMobility = Infinity; }
         for (const reply of replies) {
             const r = apply(next, { type: 'place', ...point(reply) }, opponent);
             if (!r || r.cardState.pendingEffectByPlayer?.[opponent]) return null;
-            const loss = Math.max(0, corners(r, -sign) - initialOppCorners) * 100 + Math.max(0, initialValue - valuable(r));
+            const loss = Math.max(0, corners(r, -sign) - initialOppCorners) * 100 + Math.max(0, initialValue - valuable(r))
+                + Math.max(0,initialStable-features(r).stable)*10 + features(r).danger*100;
             if (loss > risk) { risk = loss; witness = point(reply); }
             replyMaterial = Math.min(replyMaterial, material(r));
             replyMobility = Math.min(replyMobility, moves(r, sign).length);
+            replyStable = Math.min(replyStable,features(r).stable);
+            danger = Math.max(danger,features(r).danger);
         }
-        return { risk, witness, material: material(after), replyMaterial, replyMobility, corners: corners(after, sign), valuable: valuable(after), charge: after.cardState.charge[player], };
+        return { risk, witness, material: material(after), replyMaterial, replyMobility, stable:features(after).stable, replyStable, danger,
+            late:features(view).late, corners: corners(after, sign), valuable: valuable(after), charge: after.cardState.charge[player], };
     };
     const placements = (s: State) => {
         const legal = moves(s);
@@ -89,8 +133,10 @@ function createProbe(input: Input) {
     return { view, apply, assess, placements, targets, steps: () => Math.min(steps, MAX_SAFETY_STEPS) };
 }
 
-const dominates = (safe: Assessment, bad: Assessment) => safe.risk === 0 && safe.material >= bad.material
-    && safe.replyMaterial >= bad.replyMaterial && (bad.replyMobility === 0 || safe.replyMobility > 0)
+const dominates = (safe: Assessment, bad: Assessment) => safe.risk === 0
+    && (!bad.late || (safe.material >= bad.material && safe.replyMaterial >= bad.replyMaterial))
+    && safe.stable >= bad.stable && safe.replyStable >= bad.replyStable && safe.danger <= bad.danger
+    && (bad.replyMobility === 0 || safe.replyMobility > 0)
     && safe.corners >= bad.corners && safe.valuable >= bad.valuable && safe.charge >= bad.charge;
 
 export function avoidTacticalBlunder(input: Input & { selected: any; candidates: any[]; pendingType?: string }): any {
