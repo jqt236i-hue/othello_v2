@@ -12,6 +12,40 @@ function resolveGlobalRuntimeValue(name: string) {
 }
 
 describe('cpu-turn-handler helpers', () => {
+  test.each(['black', null])('CPU waits for canonical turn start (%s) before selecting a pending target', async (lastTurnStartedFor) => {
+    const waitMs = jest.fn(() => new Promise(() => {}));
+    const selectTarget = jest.fn(async () => true);
+    const processing = jest.fn();
+    mod.setTimers({ waitMs });
+    global.BLACK = 1; global.WHITE = -1;
+    global.gameState = { currentPlayer: -1, turnNumber: 32 };
+    global.cardState = {
+      lastTurnStartedFor,
+      hasUsedCardThisTurnByPlayer: { black: true, white: false },
+      pendingEffectByPlayer: { black: null, white: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' } }
+    };
+    global.cpuSelectDestroyWithPolicy = selectTarget;
+    mod.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
+      readProcessing: () => false,
+      readAnimationBusy: () => true,
+      setProcessing: processing
+    });
+    const before = JSON.stringify(global.cardState);
+    await mod.runCpuTurn('white');
+    expect(waitMs).toHaveBeenCalledTimes(1);
+    expect(selectTarget).not.toHaveBeenCalled();
+    expect(processing).not.toHaveBeenCalledWith(true);
+    expect(JSON.stringify(global.cardState)).toBe(before);
+    // Once the start phase has committed, the CPU enters its normal animation/decision path.
+    mod.resetCpuTurnHandlerState();
+    global.cardState.lastTurnStartedFor = 'white';
+    await mod.runCpuTurn('white');
+    expect(processing).toHaveBeenCalledWith(true);
+    expect(waitMs).toHaveBeenCalledTimes(2);
+  });
+
   afterEach(() => {
     // restore timers
     mod.setTimers(null);

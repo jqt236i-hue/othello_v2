@@ -2165,6 +2165,15 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
         return;
     }
 
+    // Handoff publishes currentPlayer before its awaited presentation and turn-start work.
+    // Wait for the canonical draw/effects/reset so decisions cannot use the previous turn's state.
+    const turnCardState = resolveRuntimeValue('cardState') || ((typeof cardState !== 'undefined') ? cardState : null);
+    if (!isOthelloModeForCpuTurnHandler() && turnCardState
+        && turnCardState.lastTurnStartedFor !== undefined && turnCardState.lastTurnStartedFor !== playerKey) {
+        scheduleRunCpuTurn(playerKey, inheritedResumeOptions, getAnimationRetryDelayMs());
+        return;
+    }
+
     setCpuProcessing(true);
 
     if (isUiAnimationBusy()) {

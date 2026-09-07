@@ -706,6 +706,10 @@ async function runMatch(args: any) {
             snapshot = { snapshotError: snapshotErr && snapshotErr.message ? snapshotErr.message : String(snapshotErr) };
         }
         const baseMessage = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
+        if (typeof args.onFailure === 'function') {
+            try { await args.onFailure(page, { stage, message: baseMessage, snapshot }); }
+            catch (captureError) { console.warn('[level-match] Failure capture failed:', String(captureError)); }
+        }
         throw new Error(`[stage:${stage}] ${baseMessage} snapshot=${JSON.stringify(snapshot)}`);
     } finally {
         if (progressTimer) clearInterval(progressTimer);

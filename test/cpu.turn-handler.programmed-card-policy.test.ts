@@ -273,7 +273,8 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
             pendingEffectByPlayer: { white: null, black: null },
             hasUsedCardThisTurnByPlayer: { white: false, black: false },
             hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
-            lastTurnStartedFor: 'black',
+            // Handoff has completed white's start phase before CPU placement begins.
+            lastTurnStartedFor: 'white',
             markers: [
                 {
                     kind: 'manifestStone',

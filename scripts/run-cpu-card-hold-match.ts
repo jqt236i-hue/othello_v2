@@ -104,6 +104,11 @@ async function main() {
                     },
                     setupPage: movement ? (page: any) => page.evaluate(candidate === 'joint-turn' ? installJointTurnExperiment : candidate === 'target-placement' ? installTargetPlacementExperiment : candidate === 'movement-feasible' ? installMovementFeasibleExperiment : candidate === 'movement-board' ? installMovementBoardExperiment : installMovementExperiment, { color }) : undefined,
                     collectPage: (page: any) => page.evaluate(() => (window as any).__cardHoldEvents),
+                    onFailure: async (page: any, failure: any) => {
+                        const state = await page.evaluate(() => ({ gameState: (window as any).gameState, cardState: (window as any).cardState,
+                            audit: (window as any).__cardHoldEvents, prngState: (window as any).require('card-system').getGamePrng().getState() }));
+                        fs.writeFileSync(path.join(out, `failed-game-${seed + pair}-${color}.json`), JSON.stringify({ color, failure, state, valid: false, promotionAllowed: false }), { flag: 'wx' });
+                    },
                     onProgress: (progress: any) => fs.writeFileSync(path.join(out, 'progress.json'), JSON.stringify({ pair, color, completed: games.length, progress })) });
                 const valid = isCpuExperimentGameValid({ ...result, color }, intercepted, unchanged(), movement);
                 const game = { color, valid, intercepted, ...result };

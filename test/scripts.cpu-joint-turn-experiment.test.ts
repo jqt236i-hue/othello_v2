@@ -12,10 +12,18 @@ test('joint experiment patches the actual card and final placement paths exactly
     expect(()=>Joint.patchJointTurnRegistry('')).toThrow();
 });
 
-test.each([[false,false],[true,false],[false,true]])('joint plan execution: stale=%s discounted=%s', async (stale, discounted) => {
+test.each([[false,false,false],[true,false,false],[false,true,false],[false,false,true]])('joint plan execution: stale=%s discounted=%s temptation=%s', async (stale, discounted, temptation) => {
     const rng=JointPrng.createPRNG(123),cs=JointCards.createCardState(rng),gs=JointCore.createGameState();
-    const cardId='guard_01';
+    const cardId=temptation?'tempt_01':'guard_01';
+    if(temptation){
+        // Both stones are legal card targets, but the live CPU only considers source costs >= 16.
+        cs.markers=[
+            {id:1,markerId:'1',kind:'specialStone',row:3,col:3,owner:'white',createdSeq:1,data:{type:'REGEN',sourceCardId:'regen_01',remainingOwnerTurns:3}},
+            {id:2,markerId:'2',kind:'specialStone',row:4,col:4,owner:'white',createdSeq:2,data:{type:'PERMA_PROTECTED',sourceCardId:'perma_01'}}
+        ];
+    }
     cs.hands.black=[cardId];cs.charge.black=99;JointCards.ensureCardCopyState(cs);
+    if(temptation)expect(JointCards.getTemptWillTargets(cs,gs,'black')).toEqual(expect.arrayContaining([{row:3,col:3},{row:4,col:4}]));
     if(discounted)cs.cardCostOverridesByCopyId[cs._handCopyIdsByPlayer.black[0]]={cost:0};
     const policy={choosePendingTargetWithPolicyAsync:async (_p:any,_t:any,targets:any[])=>targets[0]};
     const isolatedPipeline={...JointPipeline};
@@ -27,6 +35,9 @@ test.each([[false,false],[true,false],[false,true]])('joint plan execution: stal
     const event=root.__cardHoldEvents[0];
     expect(event.planned).toBe(true);
     expect(event.steps).toBeLessThanOrEqual(53);
+    if(temptation){
+        expect(event.actions[1]).toMatchObject({temptTarget:{row:4,col:4}});
+    }
     if(stale){
         root.gameState.turnNumber++;
         expect(root.__jointTakeMove([{row:2,col:3}],'black')).toBeNull();
@@ -35,6 +46,10 @@ test.each([[false,false],[true,false],[false,true]])('joint plan execution: stal
         return;
     }
     for(const action of event.actions){
+        if(temptation&&action.temptTarget){
+            const target=await policy.choosePendingTargetWithPolicyAsync('black','TEMPT_WILL',[{row:4,col:4}]);
+            expect(target).toEqual({row:4,col:4});
+        }
         if(Number.isInteger(action.row)){
             const moves=JointCore.getLegalMoves(root.gameState,1,{...JointCards.getCardContext(root.cardState),cardState:root.cardState});
             expect(root.__jointTakeMove(moves,'black')).toMatchObject({row:action.row,col:action.col});

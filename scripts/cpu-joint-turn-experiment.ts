@@ -136,7 +136,13 @@ export function installJointTurnExperiment(options: { color: string }) {
                 if(!pending)selected=evaluateMoves(used.state,[used.step]);
                 else if(entry?.target&&entry?.action&&entry.turnOutcome==='continue_turn'&&pending.stage==='selectTarget'){
                     const args=[used.state.cardState,used.state.gameState];if(entry.target.argsKey!=='board')args.push(player);if(entry.target.argsKey==='player_pending')args.push(pending);
-                    const targets=cards[entry.target.method](...args).slice(0,32), branches:any[]=[];
+                    let targets=cards[entry.target.method](...args);
+                    if(pending.type==='TEMPT_WILL'){
+                        const filter=req('game/cpu-decision-tempt-value');
+                        targets=filter.filterHighValueTemptTargetsForCpu(player,targets,{cardLogic:cards,cardState:used.state.cardState,minSourceCost:filter.CPU_TEMPT_MIN_SOURCE_COST});
+                    }
+                    targets=targets.slice(0,32);
+                    const branches:any[]=[];
                     for(const t of targets){
                         const target:any={row:t.row,col:t.col};if(t.directionKey)target.directionKey=t.directionKey;
                         const result=apply(used.state,{type:'place',[entry.action.field]:target});
@@ -155,7 +161,7 @@ export function installJointTurnExperiment(options: { color: string }) {
                 }
             }
             if(canonical({gs:root.gameState,cs:root.cardState,rng:system.getGamePrng().getState()})!==before)throw Error('Joint planning changed live state');
-            const event:any={player,kind:'joint-plan',cardId:choice.cardId,changed:false,planned:!!selected,steps,extraMs:performance.now()-start,liveUnchanged:true,skipped:skipped||(!selected?'no_complete_plan':null),executed:0,completed:false};
+            const event:any={player,kind:'joint-plan',cardId:choice.cardId,turnStartOwner:root.cardState.lastTurnStartedFor,changed:false,planned:!!selected,steps,extraMs:performance.now()-start,liveUnchanged:true,skipped:skipped||(!selected?'no_complete_plan':null),executed:0,completed:false};
             root.__cardHoldEvents.push(event);
             if(!selected)return {choice,prepared};
             event.actions=selected.queue.map((q:any)=>q.action);event.value=selected.value;
