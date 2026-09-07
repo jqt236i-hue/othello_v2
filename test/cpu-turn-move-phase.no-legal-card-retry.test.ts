@@ -48,6 +48,39 @@ function createConfig(overrides: Record<string, any> = {}) {
 }
 
 describe('cpu turn move phase no-legal card retry', () => {
+  test.each(['black', 'white'])('passes through the canonical pipeline with a fresh Theory placement pending (%s)', async playerKey => {
+    const Cards = require('../game/logic/cards');
+    const Core = require('../game/logic/core');
+    const Pipeline = require('../game/turn/turn_pipeline');
+    const rng = require('../game/schema/prng').createPRNG(1);
+    const cs = Cards.createCardState(rng), gs = Core.createGameState();
+    const sign = playerKey === 'black' ? 1 : -1;
+    gs.board = Array.from({length:8}, () => Array(8).fill(-sign));
+    gs.board[0][0] = 0; gs.currentPlayer = sign;
+    cs.hands = {black:[],white:[]}; cs.lastTurnStartedFor = playerKey;
+    cs.hasUsedCardThisTurnByPlayer[playerKey] = true;
+    cs.pendingEffectByPlayer[playerKey] = {type:'THEORY_INCARNATION',cardId:'theory_incarnation_01',stage:null};
+    const passFn = jest.fn((_player, options) => Pipeline.applyTurnSafe(cs,gs,playerKey,
+      {type:'pass', ...(options.autoNoActionPass ? {autoNoActionPass:true} : {})},rng));
+    const {config,scheduleRunCpuTurn} = createConfig({
+      getCardState: () => cs, getGameState: () => gs,
+      getCurrentPlayerKeySafe: () => playerKey,
+      resolveCpuCardLogic: () => Cards,
+      resolveGenerateMovesForPlayer: () => () => Core.getLegalMoves(gs,sign,Cards.getCardContext(cs)),
+      resolveProcessPassTurn: () => passFn
+    });
+    const result = await createCpuTurnMovePhase(config as any).runCpuTurnMovePhase({
+      playerKey,autoMode:true,level:8,selfColor:sign,selfName:playerKey,othelloMode:false,
+      pending:null,analysisSeed:{cardUsability:{usableCardIds:[]}},turnStartMs:Date.now()
+    });
+    expect(result).toEqual({status:'pass'});
+    const applied = passFn.mock.results[0].value;
+    expect(applied.ok).toBe(true);
+    expect(applied.gameState.currentPlayer).toBe(-sign);
+    expect(applied.cardState.pendingEffectByPlayer[playerKey]).toBeFalsy();
+    expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
+  });
+
   test('derives placement once and skips card derivation/availability rescan for a usable-zero seed', async () => {
     const getCardUsabilityAnalysis = jest.fn(() => ({ usableCardIds: ['unexpected'] }));
     const { config } = createConfig({ getCardUsabilityAnalysis });

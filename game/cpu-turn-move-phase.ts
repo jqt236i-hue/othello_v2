@@ -333,7 +333,13 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         snapshotMoment: 'turn-start'
                     });
                 }
-                const hasPendingAction = !!pending;
+                // Card retries can leave a placement pending even when they return false.
+                // The turn-entry snapshot is no longer authoritative at the pass boundary.
+                const latestCardState = cfg.getCardState();
+                const latestPending = latestCardState?.pendingEffectByPlayer
+                    ? latestCardState.pendingEffectByPlayer[playerKey]
+                    : pending;
+                const hasPendingAction = !!latestPending;
                 const passOptions = (stillUsableCard || hasPendingAction)
                     ? { autoMode }
                     : { autoMode, autoNoActionPass: true };
