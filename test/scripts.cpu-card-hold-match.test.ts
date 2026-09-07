@@ -9,6 +9,9 @@ describe('disposable card hold comparison', () => {
         expect(isCpuExperimentGameValid({ ...result, audit: [{ player: 'white', changed: true }] }, 1, true, true)).toBe(false);
         expect(isCpuExperimentGameValid({ ...result, audit: [{ error: 'failure' }] }, 1, true, true)).toBe(false);
         expect(isCpuExperimentGameValid(result, 1, false, true)).toBe(false);
+        const partial = {kind:'joint-plan',player:'black',planned:true,actions:[{}, {}, {}],executed:1,completed:false};
+        expect(isCpuExperimentGameValid({...result,audit:[partial]},1,true,true)).toBe(false);
+        expect(isCpuExperimentGameValid({...result,audit:[{...partial,executed:3,completed:true}]},1,true,true)).toBe(true);
     });
     test('refuses missing or ambiguous interception points', () => {
         const needle = 'return { choice: choice || null, prepared };';
