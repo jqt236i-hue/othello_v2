@@ -29,13 +29,17 @@
   },
   {
     "source": "../images/special-stones/CROSS_BOMB-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/CROSS_BOMB.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/CROSS_BOMB-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/CROSS_BOMB.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/DESTROY_DRAGON-black.png",
@@ -81,13 +85,17 @@
   },
   {
     "source": "../images/special-stones/fire-will-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/fire-will.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/fire-will-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/fire-will.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/GHOST_WILL-black.png",
@@ -119,18 +127,24 @@
   },
   {
     "source": "../images/special-stones/gold_stone.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/gold_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/grass-will-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/grass-will.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/grass-will-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/grass-will.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/HYPERACTIVE_WILL-black.png",
@@ -176,13 +190,17 @@
   },
   {
     "source": "../images/special-stones/perma_protect_next_stone-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/perma_protect_next_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/perma_protect_next_stone-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/perma_protect_next_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/PROLIFERATION_WILL-black.png",
@@ -200,33 +218,45 @@
   },
   {
     "source": "../images/special-stones/protected_next_stone.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/protected_next_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/rainbow_stone.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/rainbow_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/rakurai-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/rakurai.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/rakurai-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/rakurai.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/regen_stone-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/regen_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/regen_stone-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/regen_stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/ROBOT_VACUUM_WILL-black.png",
@@ -258,18 +288,24 @@
   },
   {
     "source": "../images/special-stones/SHINRA_BANSHO_GOD-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/SHINRA_BANSHO_GOD.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/SHINRA_BANSHO_GOD-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/SHINRA_BANSHO_GOD.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/silver.stone.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/silver.stone.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/sna-black.png",
@@ -315,13 +351,17 @@
   },
   {
     "source": "../images/special-stones/TIME_BOMB-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/TIME_BOMB.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/TIME_BOMB-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/TIME_BOMB.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/TIME_STOP_DEITY-black.png",
@@ -423,13 +463,17 @@
   },
   {
     "source": "../images/special-stones/water-will-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/water-will.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/water-will-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/water-will.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/WILL_HUNTER_KING-black.png",
@@ -461,23 +505,31 @@
   },
   {
     "source": "../images/special-stones/X_BOMB-black.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/X_BOMB.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/X_BOMB-white.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/X_BOMB.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/ZAN-BLACK.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/ZAN.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/ZAN-WHITE.png",
-    "outputs": [],
-    "status": "no_character_source; see README"
+    "outputs": [
+      "三面図/ZAN.png"
+    ],
+    "status": "generated_symbol_or_material_no_anthropomorphism"
   },
   {
     "source": "../images/special-stones/ZOMBIE-black.png",

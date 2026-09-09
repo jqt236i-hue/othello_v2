@@ -18,6 +18,15 @@
     "sha256": "B319C1484D8B1BBC101068CADB98578366C9DF31A9A0F3934E1D2B9706C3D333"
   },
   {
+    "file": "三面図/CROSS_BOMB.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 915062,
+    "sha256": "982DE4456B54A8C7532D005E7E8D7CCA77D6310A744767EF81FA0FEE73DB981F"
+  },
+  {
     "file": "三面図/DESTROY_DRAGON.png",
     "width": 1774,
     "height": 887,
@@ -43,6 +52,15 @@
     "alpha": 255,
     "bytes": 1418762,
     "sha256": "4097DB28FC66D63914AE164753F7A03B615DEB4E702B494B22C532E72D4D5764"
+  },
+  {
+    "file": "三面図/fire-will.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1150119,
+    "sha256": "8A94E3F093A81F818D8A766DC1093BCEEDD76269C671256D4B3A631EB70E8CF6"
   },
   {
     "file": "三面図/GHOST_WILL-black.png",
@@ -72,6 +90,24 @@
     "sha256": "BF764DC6A070C817A614E76A855D6990E52C2E1651067418CCE4D831FB408291"
   },
   {
+    "file": "三面図/gold_stone.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1200996,
+    "sha256": "5B4293E61F022B2648421A852DB90A13B2EF39750E23AB8548C34BD4C15C6EE4"
+  },
+  {
+    "file": "三面図/grass-will.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1327066,
+    "sha256": "EFF7EF74B28CD1B77A511630F4474FD8521A112A2DFE5357D57448679E403F35"
+  },
+  {
     "file": "三面図/HYPERACTIVE_WILL.png",
     "width": 1774,
     "height": 887,
@@ -99,6 +135,15 @@
     "sha256": "67B3178A78DC6DC9C2DCEEA5ACBAF849D41C212CA06888DFE5772E5EE7302046"
   },
   {
+    "file": "三面図/perma_protect_next_stone.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 905426,
+    "sha256": "DFB40D6FC234142CF27C45A1562167554C3367127A24612F5BA33C1326519394"
+  },
+  {
     "file": "三面図/PROLIFERATION_WILL.png",
     "width": 1983,
     "height": 793,
@@ -106,6 +151,42 @@
     "alpha": 255,
     "bytes": 971691,
     "sha256": "5447F45245F782BF8D597AC746ADBDBE41520C61088CCA9A80C3CA2A4FE99B66"
+  },
+  {
+    "file": "三面図/protected_next_stone.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1098474,
+    "sha256": "A7C2AFBA69EFA101D0ED75890B71E9854F07CBD70CDF565CA78C2C4483483406"
+  },
+  {
+    "file": "三面図/rainbow_stone.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1290772,
+    "sha256": "5EAB76295BE14754C4553265E2C66A4087B1FABE9AF568834F31067A064FBA94"
+  },
+  {
+    "file": "三面図/rakurai.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1211428,
+    "sha256": "90D21DB5512F658984F4D1483142065F7893805CF66AD4EA005B2DE7A0DDBCF3"
+  },
+  {
+    "file": "三面図/regen_stone.png",
+    "width": 1942,
+    "height": 809,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 687589,
+    "sha256": "F4A673BD5D9DB2612C2F4409A683F70AC904BF3199F5C096A29B7CC5046AD229"
   },
   {
     "file": "三面図/ROBOT_VACUUM_WILL.png",
@@ -124,6 +205,24 @@
     "alpha": 255,
     "bytes": 1418044,
     "sha256": "398B6A50F980EE5A2E35563B69492D1CFC16E6BACFA34C9E96918294FDFE5DF3"
+  },
+  {
+    "file": "三面図/SHINRA_BANSHO_GOD.png",
+    "width": 1536,
+    "height": 1024,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 2081543,
+    "sha256": "9A686807405C306003E14365345798443CD9F2021242B6C76F8366BC441E3E19"
+  },
+  {
+    "file": "三面図/silver.stone.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1183118,
+    "sha256": "B485381CA01422CE6382BA3563C8A966E6257339C6A469957BAABA7ADAAAA4EE"
   },
   {
     "file": "三面図/sna.png",
@@ -151,6 +250,15 @@
     "alpha": 255,
     "bytes": 1951742,
     "sha256": "611E42F1D445E1DABCF992174CA3DAC4B398DF00789CDC5BB457C3F00F0880FE"
+  },
+  {
+    "file": "三面図/TIME_BOMB.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 626152,
+    "sha256": "ACFF15531EE0C10A894D5EEF7FDBA4AADA545AA3ADB448B241D9361FB9F45C3B"
   },
   {
     "file": "三面図/TIME_STOP_DEITY.png",
@@ -216,6 +324,15 @@
     "sha256": "0AE04B89CB40484CD5688E5AA854F947B7D19182E0F1CD0E368C449E3912A8F2"
   },
   {
+    "file": "三面図/water-will.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1220401,
+    "sha256": "7D961ABC7DC0E2DE32422C42529828369BE9299B4E965DB5C1DFC9643A93BC2D"
+  },
+  {
     "file": "三面図/WILL_HUNTER_KING-black.png",
     "width": 1774,
     "height": 887,
@@ -241,6 +358,24 @@
     "alpha": 255,
     "bytes": 812842,
     "sha256": "67AAF3A2A9AC159932DE11801810B6BF318EB206B7B193462D80E12BAB9C1BEE"
+  },
+  {
+    "file": "三面図/X_BOMB.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 781991,
+    "sha256": "999D78CDBD779ECA102D9F50E06102CF8536C90786980AC874146505B60AA02D"
+  },
+  {
+    "file": "三面図/ZAN.png",
+    "width": 1774,
+    "height": 887,
+    "pixelFormat": "Format24bppRgb",
+    "alpha": 255,
+    "bytes": 1137076,
+    "sha256": "4BCCFA18E293D563F6B30502663F5DF0A2CC5BB13D9EE2E97AF0824145057046"
   },
   {
     "file": "三面図/ZOMBIE.png",
