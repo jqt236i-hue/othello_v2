@@ -2,7 +2,6 @@ import Core = require('../logic/core');
 import Pipeline = require('../turn/turn_pipeline');
 import Phases = require('../turn/turn_pipeline_phases');
 import BoardOps = require('../logic/board_ops');
-import Authority = require('../../utils/match-authority');
 import DeckSpec = require('../../shared/deck-spec');
 import Presentation = require('../../shared/presentation-queue');
 import Registry = require('../logic/cards-internal/pending-selection-registry');
@@ -29,20 +28,6 @@ export function cloneLv10<T>(value: T): T {
 function clearTransientState(cardState: any): void {
     Presentation.clearPresentationQueues(cardState);
     for (const key of ['_defaultRandomSource', '_boardOpsRandomSource', '_currentActionMeta', 'prngState']) delete cardState[key];
-}
-
-/** This is the only ingress from a real match. No actual deck order or game RNG
- * crosses into the advisor. The existing viewer projection owns reveal rules. */
-export function observeLv10Position(state: Lv10Position, player: Lv10Player): Lv10Observation {
-    if (player !== 'black' && player !== 'white') throw new Error('Invalid Lv10 viewer');
-    const view = Authority.projectSnapshotForViewer({ gameState: state.gameState, cardState: state.cardState }, player);
-    clearTransientState(view.cardState);
-    const observation: Lv10Observation = {
-        schema: 'cpu_lv10_observation.v1', player,
-        gameState: view.gameState, cardState: view.cardState
-    };
-    if (JSON.stringify(observation).length > LV10_POSITION_LIMITS.maxSerializedChars) throw new Error('Lv10 observation exceeds budget');
-    return observation;
 }
 
 /** Public deck recipes are priors, never the private live deck. A sampled world
@@ -108,7 +93,12 @@ export function sampleLv10Position(
 }
 
 export function currentLv10Player(state: Lv10Position): Lv10Player {
-    return state.gameState.currentPlayer === 1 ? 'black' : 'white';
+    return state.gameState.currentPlayer === 1 || state.gameState.currentPlayer === 'black' ? 'black' : 'white';
+}
+
+export function lv10DecisionPlayer(state: Lv10Position): Lv10Player {
+    const owner = currentLv10Player(state);
+    return state.cardState.fateWillControllerByTurnOwner?.[owner] || owner;
 }
 
 export function lv10PlacementMoves(state: Lv10Position, player = currentLv10Player(state)): any[] {
@@ -161,7 +151,8 @@ export function enumerateLv10Actions(
                 }
             });
         }
-        if (!pending && !subPlacement && options.allowDestroy === true && !cs.hasDestroyedCardThisTurnByPlayer?.[player]) {
+        if (!pending && !subPlacement && options.allowDestroy === true && gs.turnNumber >= (options.cardUnlockTurn ?? 6)
+            && !cs.hasDestroyedCardThisTurnByPlayer?.[player]) {
             for (const id of new Set<string>(cs.hands[player])) actions.push({ type: 'destroy_hand_card', destroyCardId: id });
         }
     }

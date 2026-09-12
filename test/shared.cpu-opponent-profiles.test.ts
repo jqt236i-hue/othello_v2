@@ -7,6 +7,19 @@ const EXPECTED_LV7_THEORY_INCARNATION_DECK_CODE = 'D1C1:ghost_01.perma_01.tempt_
 const EXPECTED_LV8_ENDING_ASH_DECK_CODE = 'D1C1:swap_01*2.position_swap_01*2.perma_01*3.strong_wind_01.super_buoyancy_01.buoyancy_01.super_gravity_01.super_attraction_01.gravity_01.tempt_01.regen_01.destroy_01*3.udr_01.will_hunter_king_01.observer_will_01.guard_01*2.stone_salvation_god_01.board_expand_01*2.board_shrink_01.meteor_01.support_troops_01.meteor_god_01';
 
 describe('cpu opponent profiles', () => {
+  test('Lv10 has its own decision path and inherits every Lv9 game condition on both colors', () => {
+    expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(10)).toBe(10);
+    expect(CpuOpponentProfiles.getCpuOpponentProfileId(10)).toBe('10-observed-dark-dragon');
+    const nine = CpuOpponentProfiles.getCpuOpponentProfile(9), ten = CpuOpponentProfiles.getCpuOpponentProfile(10);
+    expect(ten.initialChargeByPlayer).toBe(nine.initialChargeByPlayer);
+    for (const player of ['black', 'white']) {
+      const { profileId: _nine, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
+      const { profileId: _ten, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
+      expect(b).toEqual(a);
+      expect(b.deckCardIds).toHaveLength(93);
+      expect(b).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
+    }
+  });
   test('defines the visible CPU opponent menu from one source', () => {
     expect(CpuOpponentProfiles.getCpuOpponentMenuOptions()).toEqual([
       { value: '1', label: 'Lv1: 盤喰いの小鬼' },
@@ -17,7 +30,8 @@ describe('cpu opponent profiles', () => {
       { value: '6', label: 'Lv6: 盤理の観測者' },
       { value: '7-board-executor', label: 'Lv7: 盤界の執行者' },
       { value: '8-theory-incarnation', label: 'Lv8: 理論の化身' },
-      { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' }
+      { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' },
+      { value: '10-observed-dark-dragon', label: 'Lv10: 観測ダークドラゴン' }
     ]);
   });
 

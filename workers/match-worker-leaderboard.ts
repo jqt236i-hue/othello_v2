@@ -226,7 +226,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         if (value === null || value === undefined || String(value).trim() === '') return null;
         if (!Number.isFinite(Number(value))) return null;
         const level = Math.trunc(Number(value));
-        return Math.max(1, Math.min(9, level));
+        return Math.max(1, Math.min(10, level));
     }
 
     function normalizeListCpuLevel(value: unknown): number | null {

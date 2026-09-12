@@ -164,4 +164,15 @@ describe('setupAutoToggle playback-state gating', () => {
     expect(button.textContent).toBe('AUTO: OFF');
     expect(global.addLog).toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
   });
+
+  test('an idle white turn reaches the game-side auto controller for FATE ownership checks', () => {
+    playbackStateMock.getPlaybackActive.mockReturnValue(false);
+    global.window.gameState = {currentPlayer:-1,turnNumber:11};
+    global.window.cardState = {presentationEvents:[],_presentationEventsPersist:[],fateWillControllerByTurnOwner:{white:'black'}};
+    global.window.processAutoBlackTurn = global.processAutoBlackTurn;
+    const autoModule = require('../ui/handlers/auto.js');
+    autoModule.setupAutoToggle(document.getElementById('autoToggleBtn'));
+    document.getElementById('autoToggleBtn').click();
+    expect(global.processAutoBlackTurn).toHaveBeenCalled();
+  });
 });

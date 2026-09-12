@@ -138,9 +138,6 @@ function _uiAutoTick(): void {
     const state = (typeof window !== 'undefined' && (window as any).gameState)
       ? (window as any).gameState
       : ((typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null);
-    const blackValue = (typeof window !== 'undefined' && (window as any).BLACK !== undefined)
-      ? (window as any).BLACK
-      : ((typeof globalThis !== 'undefined' && (globalThis as any).BLACK !== undefined) ? (globalThis as any).BLACK : 1);
     const turnNum = state ? state.turnNumber : null;
     const winBusy = (typeof window !== 'undefined') && (
       _isPlaybackActiveForAuto() ||
@@ -169,7 +166,9 @@ function _uiAutoTick(): void {
       return;
     }
 
-    if (state && state.currentPlayer === blackValue) {
+    // The game-side entry resolves the effective controller (including FATE),
+    // so a controlled white turn must also reach it while the UI is idle.
+    if (state) {
       if (!(window as any).isProcessing && !(window as any).isCardAnimating && !winBusy && !hasPendingPresentation) {
         const processAutoBlackTurnFn = (typeof window !== 'undefined' && typeof (window as any).processAutoBlackTurn === 'function')
           ? (window as any).processAutoBlackTurn

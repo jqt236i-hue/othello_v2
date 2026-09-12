@@ -162,7 +162,7 @@ function resolveCpuDecisionLevelValue(value: any): number | null {
         if (CpuOpponentProfiles && typeof CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection === 'function') {
             const selection = CpuOpponentProfiles.resolveCpuOpponentRuntimeSelection(value);
             if (selection && Number.isFinite(Number(selection.decisionLevel))) {
-                return Math.max(1, Math.min(6, Math.floor(Number(selection.decisionLevel))));
+                return Number(selection.decisionLevel) === 10 ? 10 : Math.max(1, Math.min(6, Math.floor(Number(selection.decisionLevel))));
             }
         }
     } catch (e) { /* ignore and fall back to numeric values */ }
@@ -2042,6 +2042,26 @@ function buildFallbackCardUsabilityAnalysis(playerKey: any, usableCardIds: any, 
     });
 }
 
+/** Applies an Lv10 recommendation through the same canonical adapters used by
+ * existing CPU card/target actions. It does not call the shared Lv6 policy. */
+async function applyCpuAdvisedSelection(playerKey: any, action: any, performanceScope?: CpuTurnPerformanceScope | null): Promise<any> {
+    if (action?.type === 'use_card') {
+        const cardDef = resolveCardLogicForCpuDecision()?.getCardDef(action.useCardId);
+        if (!cardDef || !CpuDecisionCardPipeline) return { ok: false, reason: 'card_runtime_unavailable' };
+        return CpuDecisionCardPipeline.runCpuCardUseViaPipeline(playerKey, action.useCardId, cardDef,
+            performanceScope, action.useCardHandIndex);
+    }
+    if (action?.type === 'destroy_hand_card') {
+        return CpuDecisionCardPipeline?.runCpuHandDestroyViaPipeline(playerKey, action.destroyCardId)
+            || { ok: false, reason: 'card_runtime_unavailable' };
+    }
+    const pending = readCpuPendingEffect(playerKey);
+    if (action?.type === 'place' && pending?.stage === 'selectTarget') {
+        return runCpuPendingSelectionViaPipeline(playerKey, action, pending.type);
+    }
+    return { ok: false, reason: 'unsupported_advised_selection' };
+}
+
 function getTargetAwareCardUsabilityAnalysis(playerKey: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
@@ -3572,6 +3592,7 @@ if (typeof module !== 'undefined' && module.exports) {
         shouldBuildCardQuiescenceSnapshot,
         selectHandCardToDestroy,
         applyHandCardDestroy,
+        applyCpuAdvisedSelection,
         selectCardToUse,
         applyCardChoice,
         prepareCpuCandidateScoringRequest,

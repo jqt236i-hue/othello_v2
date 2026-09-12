@@ -550,7 +550,7 @@ function saveScoreLeaderboard(payload: any) {
 
 function clampCpuLevel(value: any) {
     const level = toFiniteInteger(value, 1);
-    return Math.max(1, Math.min(9, level));
+    return Math.max(1, Math.min(10, level));
 }
 
 function resolveCpuLevelForViewer(viewerKey: any) {

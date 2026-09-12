@@ -63,7 +63,8 @@ describe('smart cpu level shortcut', () => {
     expect(menu).not.toBeNull();
     expect(menu?.hidden).toBe(false);
     expect(shortcut.getAttribute('aria-expanded')).toBe('true');
-    expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(9);
+    expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(10);
+    expect(menu?.querySelector('[data-cpu-level="10-observed-dark-dragon"]')?.textContent).toContain('観測ダークドラゴン');
     expect(menu?.querySelectorAll('.cpu-config-tab')).toHaveLength(2);
     expect(menu?.querySelector('[data-cpu-config-tab="cpu"]')?.getAttribute('aria-selected')).toBe('true');
     expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv1 / 通常 8×8');

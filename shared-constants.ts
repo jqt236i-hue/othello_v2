@@ -14,11 +14,7 @@
  */
 
 // ===== BOARD STATE CONSTANTS =====
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+import GeneratedCardCatalog = require('./cards/catalog');
 
 
 export const BLACK = 1;
@@ -108,7 +104,7 @@ function readRuntimeCatalogCards(): any[] | null {
 
 function readGeneratedCatalogCards(): any[] | null {
     try {
-        const mod = _require('./cards/catalog');
+        const mod = GeneratedCardCatalog;
         const catalog = mod && (mod as any).default ? (mod as any).default : mod;
         return catalog && Array.isArray(catalog.cards) ? normalizeCatalogCards(catalog.cards) : null;
     } catch (e) {

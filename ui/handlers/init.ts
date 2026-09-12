@@ -293,6 +293,9 @@ async function initializeUI(): Promise<void> {
     : (typeof window !== 'undefined' && (window as Window & { InitNetwork?: { initNetworkAndDebug: () => Promise<void> } }).InitNetwork ? (window as Window & { InitNetwork?: { initNetworkAndDebug: () => Promise<void> } }).InitNetwork : {}) as { initNetworkAndDebug?: () => Promise<void> };
 
   const refs = (typeof getInitDomElements === 'function') ? getInitDomElements() : {} as InitDomElements;
+  const initialOptions = requireInitHandlerModuleOrNull('../bootstrap/init-events')
+    || (typeof window !== 'undefined' ? (window as any).InitEvents : null);
+  initialOptions?.prepareInitialGameOptions?.(refs);
   const debugAllowed = (typeof window !== 'undefined' && (window as Window & { DEBUG_MODE_ALLOWED?: boolean }).DEBUG_MODE_ALLOWED === true)
     || /[?&]debug=1/.test((typeof location !== 'undefined' && location.search) ? location.search : '')
     || /[?&]debug=true/i.test((typeof location !== 'undefined' && location.search) ? location.search : '')

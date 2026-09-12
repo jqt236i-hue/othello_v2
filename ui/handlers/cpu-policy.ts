@@ -1,5 +1,7 @@
 'use strict';
 
+import CpuOpponentProfiles = require('../../shared/cpu-opponent-profiles');
+
 declare var _require: any;
 declare var loadLvMaxModels: any;
 declare var CpuPolicy: any;
@@ -676,6 +678,13 @@ async function initLvMaxModels(): Promise<void> {
 }
 
 async function loadCpuPolicy(): Promise<void> {
+  const selected = typeof document !== 'undefined'
+    ? (document.getElementById('smartWhite') as HTMLSelectElement | null)?.value : undefined;
+  const profile = selected || (typeof cpuSmartness !== 'undefined' ? cpuSmartness?.white : undefined);
+  if (CpuOpponentProfiles.getCpuOpponentDecisionLevel(profile) === 10) {
+    if (typeof addLog === 'function') addLog('観測ダークドラゴンは学習モデルの読み込みが不要です');
+    return;
+  }
   await _loadLazyRuntimeGroup('cpu');
   if (typeof (CpuPolicy as any) === 'undefined' || !(CpuPolicy as any).loadPolicyForLevel) {
     if (_isDebugEnabled()) console.warn('CpuPolicy.loadPolicyForLevel not available');

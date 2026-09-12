@@ -1,6 +1,7 @@
+import { observeLv10Position } from '../game/ai/cpu-lv10-observation';
 import Core = require('../game/logic/core');
 import { searchLv10, evaluateLv10Position, LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
-import { observeLv10Position, sampleLv10Position, cloneLv10, applyLv10Action } from '../game/ai/cpu-lv10-position';
+import { sampleLv10Position, cloneLv10, applyLv10Action } from '../game/ai/cpu-lv10-position';
 
 const Cards: any = require('../game/logic/cards');
 const Prng: any = require('../game/schema/prng');
@@ -64,5 +65,26 @@ describe('bounded canonical Lv10 development search', () => {
         expect(Math.abs(evaluateLv10Position(state,'black'))).toBeLessThan(100000);
         state.gameState.consecutivePasses=2;
         expect(searchLv10({...observation,gameState:state.gameState}).stopped).toBe('terminal');
+    });
+
+    test('many continuations of a free-placement card do not remove other card choices from reply search', () => {
+        const gameState=Core.createGameState(),cardState=Cards.createCardState(Prng.createPRNG(13));
+        gameState.turnNumber=6;
+        cardState.hands={black:['destroy_01','perma_01','breeding_01','udr_01','gold_stone'],white:[]};
+        cardState.charge={black:99,white:99};
+        Cards.ensureCardCopyState(cardState);
+        const result=searchLv10(observeLv10Position({gameState,cardState},'black'));
+        const comparedCards=new Set(result.candidates!.filter(c=>c.action.type==='use_card'&&c.replies.length).map(c=>c.action.useCardId));
+        expect(comparedCards.size).toBeGreaterThanOrEqual(2);
+    });
+
+    test.each(['POISONED','SCORCHED'])('an own %s stone is a liability that grows as destruction approaches', type => {
+        const state=sampleLv10Position(initialObservation(),42), normal=evaluateLv10Position(state,'black');
+        state.cardState.markers=[{id:100,kind:'specialStone',owner:'black',row:3,col:4,data:{type,remainingTurns:5}}];
+        const delayed=evaluateLv10Position(state,'black');
+        state.cardState.markers[0].data.remainingTurns=1;
+        const imminent=evaluateLv10Position(state,'black');
+        expect(delayed).toBeLessThan(normal);
+        expect(imminent).toBeLessThan(delayed);
     });
 });

@@ -71,7 +71,8 @@ const startBrowserApp = createStartViteBrowserApp({
     ) {
       candidateScoringInjected = root.UIBootstrap.configureCpuCandidateScoring({
         scoreCandidatesInWorker: cpuWorkerBridge.scoreCandidatesInWorker,
-        searchCardQuiescenceInWorker: cpuWorkerBridge.searchCardQuiescenceInWorker
+        searchCardQuiescenceInWorker: cpuWorkerBridge.searchCardQuiescenceInWorker,
+        adviseLv10InWorker: cpuWorkerBridge.adviseLv10InWorker
       }) === true;
     }
     root.__CARD_REVERSI_BROWSER_CAPABILITIES__ = Object.freeze(Object.assign(

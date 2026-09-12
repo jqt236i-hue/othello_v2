@@ -11,12 +11,16 @@ import {
   type CpuCardQuiescenceResponse
 } from '../../game/ai/cpu-card-quiescence';
 
+import { parseLv10AdvisorRequest, parseLv10AdvisorResult, type Lv10AdvisorRequest } from '../../game/ai/cpu-lv10-advisor-contract';
+import type { Lv10SearchResult } from '../../game/ai/cpu-lv10-search';
+
 export const CPU_WORKER_PROTOCOL_VERSION = 1 as const;
 
 export const CPU_WORKER_OPERATIONS = Object.freeze({
   PING: 'worker.ping',
   SCORE_CANDIDATES: 'cpu.score-candidates',
   CARD_QUIESCENCE: 'cpu.card-quiescence',
+  LV10_ADVISE: 'cpu.lv10-advise',
   ONNX_CREATE_SESSION: 'onnx.create-session',
   ONNX_RUN_SESSION: 'onnx.run-session',
   ONNX_RELEASE_SESSION: 'onnx.release-session'
@@ -74,6 +78,7 @@ export type CpuWorkerRequest = CpuWorkerRequestIdentity & {
     CpuWorkerPingPayload |
     CpuCandidateScoringPayload |
     CpuCardQuiescencePayload |
+    Lv10AdvisorRequest |
     OnnxCreateSessionPayload |
     OnnxRunSessionPayload |
     OnnxReleaseSessionPayload;
@@ -118,6 +123,7 @@ export type CpuWorkerResult =
   CpuWorkerPingResult |
   CpuCandidateScoringResponse |
   CpuCardQuiescenceResponse |
+  Lv10SearchResult |
   OnnxCreateSessionResult |
   OnnxRunSessionResult |
   OnnxReleaseSessionResult;
@@ -356,6 +362,8 @@ export function parseCpuWorkerRequest(value: unknown): CpuWorkerRequest {
     payload = parseCandidateScoringPayload(value.payload, identity);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) {
     payload = parseCardQuiescencePayload(value.payload, identity);
+  } else if (identity.operation === CPU_WORKER_OPERATIONS.LV10_ADVISE) {
+    payload = parseLv10AdvisorRequest(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
     payload = parseCreateSessionPayload(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) {
@@ -450,6 +458,7 @@ function parseResponseResult(operation: CpuWorkerOperation, value: unknown): Cpu
   if (operation === CPU_WORKER_OPERATIONS.PING) return parsePingResult(value);
   if (operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) return parseCandidateScoringResult(value);
   if (operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) return parseCardQuiescenceResult(value);
+  if (operation === CPU_WORKER_OPERATIONS.LV10_ADVISE) return parseLv10AdvisorResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) return parseCreateSessionResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) return parseRunSessionResult(value);
   return parseReleaseSessionResult(value);

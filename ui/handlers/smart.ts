@@ -24,6 +24,7 @@ interface SmartOption {
 const CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles');
 const CpuOpponentStartupOptions = _require('../../shared/cpu-opponent-startup-options');
 const SharedBoardUtils = _require('../../shared/shared-board-utils');
+const CpuProfileSelection = _require('../cpu-profile-selection');
 const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
 const localCpuProfileValues: Record<string, string> = { black: '1', white: '1' };
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
@@ -390,7 +391,7 @@ function getCpuLevelMenuItemClasses(profileValue: unknown): string[] {
   const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
   const level = Number(profile && profile.level);
   const classes = ['cpu-level-menu-item'];
-  if (Number.isFinite(level)) classes.push(`cpu-level-tier-${Math.max(1, Math.min(9, Math.floor(level)))}`);
+  if (Number.isFinite(level)) classes.push(`cpu-level-tier-${Math.max(1, Math.min(10, Math.floor(level)))}`);
   if (profile && profile.id === '7-board-executor') classes.push('cpu-level-profile-board-executor');
   if (profile && profile.id === '8-theory-incarnation') classes.push('cpu-level-profile-theory');
   if (profile && profile.id === '9-ending-ash') classes.push('cpu-level-profile-ending-ash');
@@ -646,6 +647,7 @@ function maybeResetOpeningCpuGameForProfileChange(playerKey: 'black' | 'white', 
 }
 
 function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTMLSelectElement | null): void {
+  const storedProfiles=CpuProfileSelection.readStoredCpuProfiles();
   if (smartBlack) {
     CPU_LEVEL_OPTIONS.forEach(opt => {
       const el = document.createElement('option');
@@ -653,9 +655,9 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       el.textContent = opt.t;
       smartBlack.appendChild(el);
     });
-    localCpuLevels.black = clampCpuLevel(localCpuLevels.black || 1);
+    localCpuLevels.black = clampCpuLevel(storedProfiles.black || localCpuLevels.black || 1);
     syncRuntimeCpuLevel('black', localCpuLevels.black);
-    smartBlack.value = String(localCpuLevels.black);
+    smartBlack.value = storedProfiles.black || String(localCpuLevels.black);
     localCpuProfileValues.black = smartBlack.value;
     smartBlack.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
@@ -664,13 +666,14 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       localCpuLevels.black = newLevel;
       syncRuntimeCpuLevel('black', newLevel);
       target.value = selectedValue || String(newLevel);
+      CpuProfileSelection.writeStoredCpuProfile('black',target.value);
       console.log(`[CPU Level] Black changed to level ${localCpuLevels.black}`);
       if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();
       }
       maybeResetOpeningCpuGameForProfileChange('black', selectedValue);
       // Reload policy if MCCFR is available
-      if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
+      if (newLevel !== 10 && typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
         try {
           mccfrPolicy = await CpuPolicy.loadPolicyForLevel(localCpuLevels.black);
           if (typeof addLog === 'function') {
@@ -690,9 +693,9 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       el.textContent = opt.t;
       smartWhite.appendChild(el);
     });
-    localCpuLevels.white = clampCpuLevel(localCpuLevels.white || 1);
+    localCpuLevels.white = clampCpuLevel(storedProfiles.white || localCpuLevels.white || 1);
     syncRuntimeCpuLevel('white', localCpuLevels.white);
-    smartWhite.value = String(localCpuLevels.white);
+    smartWhite.value = storedProfiles.white || String(localCpuLevels.white);
     localCpuProfileValues.white = smartWhite.value;
     bindCpuLevelShortcut(smartWhite);
     smartWhite.addEventListener('change', async (e) => {
@@ -702,6 +705,7 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       localCpuLevels.white = newLevel;
       syncRuntimeCpuLevel('white', newLevel);
       target.value = selectedValue || String(newLevel);
+      CpuProfileSelection.writeStoredCpuProfile('white',target.value);
       const menu = getCpuLevelMenu();
       if (menu) {
         syncCpuLevelMenuSelection(menu, target.value || newLevel);
@@ -713,7 +717,7 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       }
       maybeResetOpeningCpuGameForProfileChange('white', selectedValue);
       // Reload policy for new level
-      if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
+      if (newLevel !== 10 && typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
         try {
           mccfrPolicy = await CpuPolicy.loadPolicyForLevel(localCpuLevels.white);
           if (typeof addLog === 'function') {

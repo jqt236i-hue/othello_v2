@@ -1157,7 +1157,7 @@ function applyCpuCharacterLevelScale(charImg: any, level: any): void {
 
     const levelNumber = Number(level);
     const normalizedLevel = Number.isFinite(levelNumber)
-        ? Math.min(9, Math.max(1, Math.round(levelNumber)))
+        ? Math.min(10, Math.max(1, Math.round(levelNumber)))
         : 1;
     const CPU_BASE_VISUAL_SCALE = 0.88;
     const CPU_LEVEL_VISUAL_SCALE_STEP = 0.07;

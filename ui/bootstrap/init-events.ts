@@ -421,16 +421,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
     });
   }
 
-  if (typeof setupDeckBuilderControls === 'function') {
-    setupDeckBuilderControls({
-      openBtn: refs.deckBuilderOpenBtn, controlSummary: refs.deckBuilderControlSummary,
-      overlay: refs.deckBuilderOverlay,
-      boardSizeOpenBtn: refs.boardSizeOpenBtn, boardSizeControlSummary: refs.boardSizeControlSummary,
-      boardSizeEditor: refs.boardSizeEditor, boardShapeSelect: refs.boardShapeSelect, boardSizeRowsInput: refs.boardSizeRowsInput,
-      boardSizeColsInput: refs.boardSizeColsInput, boardSizeCloseBtn: refs.boardSizeCloseBtn,
-      boardSizeEditorNote: refs.boardSizeEditorNote
-    });
-  }
+  prepareInitialGameOptions(refs);
 
   if (typeof setupSmartSelects === 'function') setupSmartSelects(refs.smartBlack, refs.smartWhite);
   if (typeof setupSoundControls === 'function') setupSoundControls(refs.muteBtn, refs.seTypeSelect, refs.seVolSlider);
@@ -488,7 +479,22 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   setupMobileCommandSurface({ root });
 }
 
+/** Install the existing deck/profile option provider before the first reset.
+ * The deck controls cache their controller, so the later event pass is safe. */
+function prepareInitialGameOptions(refs: InitDomElements): void {
+  if (typeof setupDeckBuilderControls !== 'function') return;
+  setupDeckBuilderControls({
+    openBtn: refs.deckBuilderOpenBtn, controlSummary: refs.deckBuilderControlSummary,
+    overlay: refs.deckBuilderOverlay,
+    boardSizeOpenBtn: refs.boardSizeOpenBtn, boardSizeControlSummary: refs.boardSizeControlSummary,
+    boardSizeEditor: refs.boardSizeEditor, boardShapeSelect: refs.boardShapeSelect, boardSizeRowsInput: refs.boardSizeRowsInput,
+    boardSizeColsInput: refs.boardSizeColsInput, boardSizeCloseBtn: refs.boardSizeCloseBtn,
+    boardSizeEditorNote: refs.boardSizeEditorNote
+  });
+}
+
 export = {
+  prepareInitialGameOptions,
   attachInitEventListeners,
   setupBattleLogToggle
 };

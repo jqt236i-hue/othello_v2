@@ -162,7 +162,7 @@ function normalizeEntry(entry: any): any {
   const rank = Number.isFinite(Number(entry.rank)) ? Math.max(1, Math.trunc(Number(entry.rank))) : null;
   const updatedAt = Number.isFinite(Number(entry.updatedAt)) ? Number(entry.updatedAt) : 0;
   const mode = entry.mode === 'network' ? 'network' : 'cpu';
-  const cpuLevel = Number.isFinite(Number(entry.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(entry.cpuLevel)))) : null;
+  const cpuLevel = Number.isFinite(Number(entry.cpuLevel)) ? Math.max(1, Math.min(10, Math.trunc(Number(entry.cpuLevel)))) : null;
   const recordSource = entry.recordSource === 'legacy'
     ? 'legacy'
     : entry.recordSource === 'verified'
@@ -266,7 +266,7 @@ async function fetchLeaderboard(options?: any): Promise<any> {
     ? 'shortestTurns'
     : 'score';
   const cpuLevel = mode === 'cpu' && Number.isFinite(Number(opts.cpuLevel))
-    ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel))))
+    ? Math.max(1, Math.min(10, Math.trunc(Number(opts.cpuLevel))))
     : null;
   const era = LEADERBOARD_FETCH_ERAS.has(String(opts.era || ''))
     ? String(opts.era)

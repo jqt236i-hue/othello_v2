@@ -144,6 +144,17 @@ describe('ui cpu-policy handler', () => {
     }));
   });
 
+  test('manual policy loading does not replace a legacy policy when Lv10 is selected', async () => {
+    const originalPolicy={level:6};
+    global.cpuSmartness.white='10-observed-dark-dragon';
+    global.mccfrPolicy=originalPolicy;
+    global.CpuPolicy={loadPolicyForLevel:jest.fn()};
+    await handlers.loadCpuPolicy();
+    expect(global.CpuPolicy.loadPolicyForLevel).not.toHaveBeenCalled();
+    expect(global.mccfrPolicy).toBe(originalPolicy);
+    expect(global.addLog).toHaveBeenCalledWith('観測ダークドラゴンは学習モデルの読み込みが不要です');
+  });
+
   test('initPolicyOnnxModel loads auxiliary target and value models when available', async () => {
     const configure = jest.fn();
     const loadFromUrl = jest.fn(async () => true);

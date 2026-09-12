@@ -51,6 +51,17 @@ function createController(overrides?: Record<string, unknown>) {
 }
 
 describe('cpu decision card pipeline controller', () => {
+  test('a planned card copy index reaches canonical validation without changing legacy payloads', () => {
+    const ctx = createController({ adapter: { runTurnWithAdapter: jest.fn(() => ({ ok: false })) } });
+    ctx.controller.runCpuCardUseViaPipeline('white', 'perma_01', { cost: 5 }, null, 2);
+    expect(ctx.createAction).toHaveBeenLastCalledWith('use_card', 'white', {
+      useCardId: 'perma_01', useCardOwnerKey: 'white', useCardHandIndex: 2
+    });
+    ctx.controller.runCpuCardUseViaPipeline('white', 'perma_01', { cost: 5 });
+    expect(ctx.createAction).toHaveBeenLastCalledWith('use_card', 'white', {
+      useCardId: 'perma_01', useCardOwnerKey: 'white'
+    });
+  });
   test('runCpuCardUseViaPipeline normalizes card_use_animation playback targets using resolved card meta', () => {
     const nextCardState = { turnIndex: 6, lastUsedCardByPlayer: { white: 'resolved_card', black: null } } as any;
     const nextGameState = { currentPlayer: 1 } as any;

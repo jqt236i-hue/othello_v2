@@ -55,7 +55,8 @@ export function createCpuDecisionCardPipeline(config: CpuDecisionCardPipelineCon
         playerKey: any,
         cardId: any,
         cardDef: any,
-        performanceScope?: CpuTurnPerformanceScope | null
+        performanceScope?: CpuTurnPerformanceScope | null,
+        useCardHandIndex?: number
     ): any {
         const adapter = cfg.resolveTurnPipelineAdapter();
         const pipeline = cfg.resolveTurnPipeline();
@@ -65,7 +66,8 @@ export function createCpuDecisionCardPipeline(config: CpuDecisionCardPipelineCon
         const gameState = cfg.getGameState();
         const actionPayload = {
             useCardId: cardId,
-            useCardOwnerKey: playerKey
+            useCardOwnerKey: playerKey,
+            ...(Number.isInteger(useCardHandIndex) ? { useCardHandIndex } : {})
         };
         const action = cfg.createAction('use_card', playerKey, actionPayload);
 

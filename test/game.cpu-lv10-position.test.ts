@@ -1,7 +1,8 @@
+import { observeLv10Position } from '../game/ai/cpu-lv10-observation';
 import Core = require('../game/logic/core');
 import Board = require('../shared/shared-board-utils');
 import {
-    applyLv10Action, cloneLv10, enumerateLv10Actions, observeLv10Position,
+    applyLv10Action, cloneLv10, enumerateLv10Actions,
     sampleLv10Position, startLv10Turn
 } from '../game/ai/cpu-lv10-position';
 
@@ -133,5 +134,39 @@ describe('Lv10 public information and canonical transitions', () => {
         const before = cloneLv10(state);
         expect(enumerateLv10Actions(state).length).toBeGreaterThan(0);
         expect(state).toEqual(before);
+    });
+
+    test('two-stage position swap preserves the pending choice until its second target', () => {
+        const state = fixture();
+        state.cardState.hands.black = ['position_swap_01'];
+        Cards.ensureCardCopyState(state.cardState);
+        let position = sampleLv10Position(observeLv10Position(state, 'black'), 42);
+        const actions: any[] = [];
+        for (let step = 0; step < 3; step++) {
+            const action = step === 0 ? enumerateLv10Actions(position).find(a => a.useCardId === 'position_swap_01')!
+                : enumerateLv10Actions(position)[0];
+            expect(action).toBeDefined();
+            actions.push(action);
+            const next = applyLv10Action(position, action);
+            if (!next.ok) throw new Error(next.reason);
+            position = next.state;
+            if (step < 2) expect(position.cardState.pendingEffectByPlayer.black?.stage).toBe('selectTarget');
+        }
+        expect(position.cardState.pendingEffectByPlayer.black).toBeNull();
+        expect(position.gameState.currentPlayer).toBe(1);
+        expect(actions[1]).not.toEqual(actions[2]);
+    });
+
+    test('FATE controller receives the legitimately exposed victim hand, without a private future deck', () => {
+        const state = fixture();
+        state.cardState.fateWillControllerByTurnOwner.black = 'white';
+        const view = observeLv10Position(state, 'white');
+        expect(view.cardState.hands.black).toEqual(state.cardState.hands.black);
+        expect(view.cardState.decks).toBeUndefined();
+        const sampled = sampleLv10Position(view, 9);
+        const action = enumerateLv10Actions(sampled).find(a => a.useCardId === 'destroy_01')!;
+        expect(action.useCardOwnerKey).toBe('black');
+        const next = applyLv10Action(sampled, action);
+        expect(next.ok).toBe(true);
     });
 });

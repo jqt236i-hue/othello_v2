@@ -78,7 +78,7 @@ function readCpuSmartnessValueFromSelect(id: string): number | string {
     const raw = String(el && el.value || '').trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(9, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(10, Math.floor(n))) : raw;
 }
 
 function createInjectedTimerService(timersImpl: any) {
@@ -134,6 +134,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     let cpuCandidateScoringRuntime: {
         scoreCandidatesInWorker?: Function;
         searchCardQuiescenceInWorker?: Function;
+        adviseLv10InWorker?: Function;
     } = {};
 
     function configureCpuCandidateScoring(runtime: any): boolean {
@@ -145,7 +146,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             : null;
         cpuCandidateScoringRuntime = {
             ...(scorer ? { scoreCandidatesInWorker: scorer } : {}),
-            ...(quiescenceSearcher ? { searchCardQuiescenceInWorker: quiescenceSearcher } : {})
+            ...(quiescenceSearcher ? { searchCardQuiescenceInWorker: quiescenceSearcher } : {}),
+            ...(typeof runtime?.adviseLv10InWorker === 'function' ? { adviseLv10InWorker: runtime.adviseLv10InWorker } : {})
         };
         return !!scorer || !!quiescenceSearcher;
     }
@@ -1702,6 +1704,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     isCpuCandidateScoringAvailable: () => (
                         typeof cpuCandidateScoringRuntime.scoreCandidatesInWorker === 'function'
                     ),
+                    adviseLv10InWorker: (request: any) => {
+                        const advisor = cpuCandidateScoringRuntime.adviseLv10InWorker;
+                        if (typeof advisor !== 'function') return Promise.reject(new Error('Lv10 Worker unavailable'));
+                        return advisor(request);
+                    },
                     isCpuCardQuiescenceAvailable: () => (
                         typeof cpuCandidateScoringRuntime.searchCardQuiescenceInWorker === 'function'
                     )

@@ -95,4 +95,17 @@ describe('cpu turn handler FATE_WILL turn ownership', () => {
     expect(global.processPassTurn).toHaveBeenCalledWith('black', { autoMode: false, autoNoActionPass: true });
     expect(global.isProcessing).toBe(true);
   });
+
+  test('auto black can play a white turn controlled through FATE without changing the action owner', async () => {
+    global.cardState.fateWillControllerByTurnOwner.white = 'black';
+    await cpuHandler.processAutoBlackTurn();
+    expect(global.generateMovesForPlayer).toHaveBeenCalledWith(-1, null, [], []);
+    expect(global.processPassTurn).toHaveBeenCalledWith('white', { autoMode: true, autoNoActionPass: true });
+  });
+
+  test('auto black leaves an ordinary white turn to the white CPU', async () => {
+    await cpuHandler.processAutoBlackTurn();
+    expect(global.generateMovesForPlayer).not.toHaveBeenCalled();
+    expect(global.processPassTurn).not.toHaveBeenCalled();
+  });
 });

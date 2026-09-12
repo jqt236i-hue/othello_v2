@@ -1,0 +1,176 @@
+#!/usr/bin/env node
+import fs = require('node:fs');
+import path = require('node:path');
+import crypto = require('node:crypto');
+import zlib = require('node:zlib');
+import os = require('node:os');
+import { LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
+import { runLv10BrowserMatch } from './run-cpu-lv10-browser-match';
+
+type Color = 'black' | 'white';
+type Condition = { pair: number; seed: number };
+type GameScore = { pair: number; color: Color; score: number };
+export const LV10_EVALUATION_PROTOCOL = Object.freeze({
+    finalPairs: 200, finalGames: 400, minimumScore: .60, minimumLower95: .50,
+    confidence: 'paired percentile bootstrap, 20000 resamples, two-sided 95%',
+    bootstrapSamples: 20000, bootstrapSeed: 10100493,
+    concurrency: 2, timeoutMs: 1200000, noAcceptedActionTimeoutMs:60000, minimumFreeMemoryBytes: 2 * 1024 ** 3,
+    failurePolicy: 'Keep every trace and error. Any failed or unfinished game makes evaluation incomplete and ineligible for acceptance. No automatic retry or exclusion.'
+});
+const hash = (value: Buffer | string) => crypto.createHash('sha256').update(value).digest('hex');
+
+export function makeLv10Conditions(label: string, pairs: number): Condition[] {
+    if (!label.trim() || !Number.isInteger(pairs) || pairs < 1 || pairs > 200) throw new Error('Invalid condition declaration');
+    const conditions = Array.from({ length:pairs }, (_,i) => ({ pair:i+1,
+        seed:1000000000 + crypto.createHash('sha256').update(`lv10-condition-v1/${label}/${i+1}`).digest().readUInt32LE(0) % 2000000000 }));
+    if (new Set(conditions.map(c => c.seed)).size !== pairs) throw new Error('Condition seed collision');
+    return conditions;
+}
+
+export function summarizeLv10Pairs(conditions: Condition[], games: GameScore[]) {
+    if (games.length !== conditions.length*2) throw new Error('Incomplete paired evaluation');
+    const lookup = new Map<string,GameScore>();
+    for (const game of games) {
+        const key = `${game.pair}-${game.color}`;
+        if (!['black','white'].includes(game.color) || ![0,.5,1].includes(game.score) || lookup.has(key)) throw new Error('Invalid or duplicate game');
+        lookup.set(key,game);
+    }
+    const pairs = conditions.map(condition => {
+        const black=lookup.get(`${condition.pair}-black`), white=lookup.get(`${condition.pair}-white`);
+        if (!black || !white) throw new Error('Missing color in pair');
+        return (black.score+white.score)/2;
+    });
+    let rng=LV10_EVALUATION_PROTOCOL.bootstrapSeed;
+    const random = () => { rng ^= rng << 13; rng ^= rng >>> 17; rng ^= rng << 5; return (rng>>>0)/4294967296; };
+    const samples = Array.from({length:LV10_EVALUATION_PROTOCOL.bootstrapSamples}, () => {
+        let sum=0;
+        for (let i=0;i<pairs.length;i++) sum+=pairs[Math.floor(random()*pairs.length)];
+        return sum/pairs.length;
+    }).sort((a,b)=>a-b);
+    const confidence95=[samples[Math.floor(samples.length*.025)],samples[Math.ceil(samples.length*.975)-1]];
+    const tally = (items:GameScore[]) => ({ games:items.length,wins:items.filter(g=>g.score===1).length,
+        draws:items.filter(g=>g.score===.5).length,losses:items.filter(g=>g.score===0).length,
+        score:items.reduce((sum,g)=>sum+g.score,0)/items.length });
+    const total=tally(games);
+    return { ...total, confidence95, pairScores:pairs,
+        black:tally(games.filter(g=>g.color==='black')),white:tally(games.filter(g=>g.color==='white')),
+        meetsFinalGate:conditions.length===200 && total.score>=.60 && confidence95[0]>.50 };
+}
+
+function runtimeFiles(): string[] {
+    const files: string[]=[];
+    const walk=(directory:string) => {
+        for(const entry of fs.readdirSync(directory,{withFileTypes:true})) {
+            const full=path.join(directory,entry.name);
+            if(entry.isDirectory()) walk(full); else if(entry.isFile()) files.push(full.replace(/\\/g,'/'));
+        }
+    };
+    // Browser code, canonical rules bundled in its Workers, optional runtime
+    // payloads, and the measurement/oracle host are all part of this lock.
+    for(const directory of ['vite-dist','public','dist/scripts']) walk(directory);
+    for(const file of ['index.html','index.vite.html','package-lock.json']) files.push(file);
+    return files.sort();
+}
+
+function checkRuntime(manifest:any): void {
+    for(const file of manifest.runtime) if(hash(fs.readFileSync(file.path))!==file.sha256) throw new Error(`Runtime changed since declaration: ${file.path}`);
+}
+
+export function prepareLv10Evaluation(directory:string, mode:'development'|'final', label:string, count?:number, replayDirectory?:string) {
+    const out=path.resolve(directory), manifestPath=path.join(out,'manifest.json');
+    if (fs.existsSync(manifestPath)) throw new Error('Evaluation already declared');
+    const replayBytes=replayDirectory?fs.readFileSync(path.join(replayDirectory,'manifest.json')):null;
+    const replay=replayBytes?JSON.parse(replayBytes.toString()):null;
+    if(replay && (mode!=='development'||replay.mode!=='development')) throw new Error('Only development conditions can be explicitly replayed here');
+    const pairs=mode==='final'?200:(replay?.conditions.length??count??8);
+    if (mode==='final' && count!==undefined && count!==200) throw new Error('Final evaluation requires exactly 200 pairs');
+    const conditions:Condition[]=replay?.conditions || makeLv10Conditions(label,pairs);
+    const ledgerPath=path.resolve('data/cpu-lv10/issued-conditions.json');
+    const ledger=fs.existsSync(ledgerPath)?JSON.parse(fs.readFileSync(ledgerPath,'utf8')):[];
+    const used=new Set<number>(ledger.flatMap((entry:any)=>entry.seeds));
+    if(!replay && conditions.some(c=>used.has(c.seed))) throw new Error('Conditions were previously issued; choose a fresh label');
+    const baseline=fs.readFileSync('data/cpu-lv10/baseline-v1/manifest.json');
+    const manifest={ schema:'cpu-lv10-evaluation.v1',mode,label,createdAt:new Date().toISOString(),
+        conditions,protocol:LV10_EVALUATION_PROTOCOL,search:LV10_SEARCH_CONFIG,
+        replays:replayBytes?{directory:path.resolve(replayDirectory!),manifestSha256:hash(replayBytes),developmentOnly:true}:null,
+        baselineSha256:hash(baseline),
+        initialCondition:'Standard opening; seed controls initial deals, number cells and canonical PRNG. Deck/perks are identical Lv9 conditions on both colors. Each seed is played with the algorithms swapped.',
+        schedule:conditions.flatMap(c=>(c.pair%2?['black','white']:['white','black']).map(color=>({...c,color}))),
+        environment:{node:process.version,cpu:os.cpus()[0]?.model,logicalCpus:os.cpus().length,totalMemory:os.totalmem(),freeMemoryAtDeclaration:os.freemem()},
+        runtime:runtimeFiles().map(file=>({path:file,sha256:hash(fs.readFileSync(file))})) };
+    fs.mkdirSync(out,{recursive:true});
+    fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2),{flag:'wx'});
+    ledger.push({label,mode,directory:out,createdAt:manifest.createdAt,seeds:conditions.map(c=>c.seed)});
+    fs.writeFileSync(ledgerPath,JSON.stringify(ledger,null,2));
+    return {directory:out,pairs,games:pairs*2,manifestSha256:hash(fs.readFileSync(manifestPath))};
+}
+
+export function collectLv10Evaluation(directory:string) {
+    const out=path.resolve(directory),manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));
+    const games:GameScore[]=[], errors:any[]=[],pending:any[]=[],details:any[]=[];
+    const initialByPair=new Map<number,string>();
+    for(const scheduled of manifest.schedule) {
+        const prefix=path.join(out,`game-${scheduled.seed}-${scheduled.color}`);
+        if(fs.existsSync(`${prefix}.error.json`)) {errors.push({...scheduled,error:JSON.parse(fs.readFileSync(`${prefix}.error.json`,'utf8'))});continue;}
+        if(!fs.existsSync(`${prefix}.summary.json`)) {pending.push(scheduled);continue;}
+        const summary=JSON.parse(fs.readFileSync(`${prefix}.summary.json`,'utf8'));
+        const bytes=fs.readFileSync(`${prefix}.json.gz`),trace=JSON.parse(zlib.gunzipSync(bytes).toString());
+        const audit=trace.audit;
+        if(hash(bytes)!==summary.traceSha256 || !audit.gameOver || audit.oracleVerificationErrors?.length
+            || audit.frozenOpponent?.baselineSha256!==manifest.baselineSha256) throw new Error(`Invalid trace: ${prefix}`);
+        const decisions=audit.lv10.history || audit.lv10.recent;
+        if(audit.lv10.history && (!audit.lv10.historyComplete || audit.lv10.history.length!==audit.lv10.totals.decisions)) {
+            throw new Error(`Incomplete decision timing history: ${prefix}`);
+        }
+        if(audit.lv10.totals.decisions<1 || decisions.some((decision:any)=>decision.search
+            && (decision.search.version!==manifest.search.version || decision.search.transitions>manifest.search.maxTransitions))) {
+            throw new Error(`Browser search differs from the declared candidate: ${prefix}`);
+        }
+        const initialHash=hash(trace.initialState);
+        if(initialByPair.has(scheduled.pair)&&initialByPair.get(scheduled.pair)!==initialHash) throw new Error(`Initial conditions differ within pair ${scheduled.pair}`);
+        initialByPair.set(scheduled.pair,initialHash);
+        const own=audit.counts[scheduled.color], other=audit.counts[scheduled.color==='black'?'white':'black'];
+        const score=own===other ? .5 : own>other ? 1 : 0;
+        games.push({...scheduled,score});
+        details.push({...scheduled,counts:audit.counts,initialStateSha256:initialHash,traceSha256:hash(bytes),
+            rejections:summary.rejections,pageErrors:summary.pageErrors,lv10:summary.lv10,durationMs:summary.durationMs});
+    }
+    const valid=errors.length===0&&pending.length===0;
+    return {schema:'cpu-lv10-evaluation-report.v1',mode:manifest.mode,label:manifest.label,
+        valid,completed:games.length,expected:manifest.schedule.length,errors,pending,details,
+        result:valid?summarizeLv10Pairs(manifest.conditions,games):null};
+}
+
+export async function runLv10Evaluation(directory:string) {
+    const out=path.resolve(directory),manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));
+    const pending=manifest.schedule.filter((game:any)=>!fs.existsSync(path.join(out,`game-${game.seed}-${game.color}.summary.json`)));
+    if(collectLv10Evaluation(out).errors.length) throw new Error('Existing failed games require investigation; automatic retries are disabled');
+    let cursor=0, failure:unknown=null;
+    const work=async () => {
+        while(cursor<pending.length&&!failure) {
+            const game=pending[cursor++];
+            try {
+                if(os.freemem()<manifest.protocol.minimumFreeMemoryBytes) throw new Error('Free memory below declared launch threshold');
+                checkRuntime(manifest);
+                const result=await runLv10BrowserMatch({...game,out,timeoutMs:manifest.protocol.timeoutMs});
+                console.log(JSON.stringify({pair:game.pair,color:game.color,score:result.score,counts:result.counts,durationMs:result.durationMs}));
+            } catch(error) {failure=error;}
+            const report=collectLv10Evaluation(out);
+            fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));
+        }
+    };
+    await Promise.all(Array.from({length:manifest.protocol.concurrency},()=>work()));
+    if(failure)throw failure;
+    return collectLv10Evaluation(out);
+}
+
+if(require.main===module) {
+    const [command,directory,mode,label,count]=process.argv.slice(2);
+    Promise.resolve().then(()=>{
+        if(command==='prepare' && ['development','final'].includes(mode)) return prepareLv10Evaluation(directory,mode as any,label,count?Number(count):undefined);
+        if(command==='prepare-replay')return prepareLv10Evaluation(directory,'development',label,undefined,mode);
+        if(command==='run')return runLv10Evaluation(directory);
+        if(command==='summarize')return collectLv10Evaluation(directory);
+        throw new Error('Usage: prepare <directory> <development|final> <label> [pairs], prepare-replay <directory> <source-development-directory> <label>, run <directory>, summarize <directory>');
+    }).then(result=>console.log(JSON.stringify(result)),error=>{console.error(error);process.exitCode=1;});
+}

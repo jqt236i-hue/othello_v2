@@ -1,0 +1,53 @@
+import { observeLv10Position } from '../game/ai/cpu-lv10-observation';
+import Core = require('../game/logic/core');
+
+import { searchLv10 } from '../game/ai/cpu-lv10-search';
+import { parseLv10AdvisorRequest } from '../game/ai/cpu-lv10-advisor-contract';
+import { runLv10Turn } from '../game/cpu-lv10-turn';
+import { executeLv10WorkerMessage } from '../browser-vite/cpu-worker/lv10-worker-entry';
+import { CPU_WORKER_OPERATIONS, CPU_WORKER_PROTOCOL_VERSION } from '../browser-vite/cpu-worker/protocol';
+
+const Cards: any = require('../game/logic/cards');
+function fixture() {
+    return { gameState: Core.createGameState(), cardState: Cards.createCardState() };
+}
+
+test('Lv10 Worker uses the canonical advisor and does not load a legacy model', async () => {
+    const state = fixture();
+    // A real terminal state keeps the Worker integration test quick.
+    state.gameState.consecutivePasses = 2;
+    const payload = { observation: observeLv10Position(state, 'black') };
+    expect(parseLv10AdvisorRequest(payload)).toBe(payload);
+    const response = executeLv10WorkerMessage({ protocolVersion: CPU_WORKER_PROTOCOL_VERSION,
+        requestId: 'lv10-test-1', kind: 'request', operation: CPU_WORKER_OPERATIONS.LV10_ADVISE,
+        decisionEpoch: 1, stateVersion: null, turnNumber: 0, payload });
+    expect(response).toMatchObject({ ok: true, result: { stopped: 'terminal', action: null } });
+});
+
+test('private live deck and RNG are refused by the advisor transport', () => {
+    const observation = observeLv10Position(fixture(), 'black');
+    observation.cardState.decks = { black: ['gold_stone'], white: [] };
+    expect(() => parseLv10AdvisorRequest({ observation })).toThrow('Private state');
+});
+
+test('a stale asynchronous recommendation cannot mutate a reset match', async () => {
+    const state = fixture(), apply = jest.fn();
+    const result = await runLv10Turn('black', { getState: () => state, getPublicRecipes: () => undefined,
+        advise: async request => {
+            const result = searchLv10(request.observation, { maxTransitions: 1 });
+            state.gameState.turnNumber++;
+            return result;
+        }, isCurrent: () => true, apply });
+    expect(result.outcome).toBe('stale');
+    expect(apply).not.toHaveBeenCalled();
+});
+
+test('Worker failure returns a legal emergency move, without invoking shared Lv6 policy', async () => {
+    const state = fixture(), apply = jest.fn(async () => ({ ok: true }));
+    const before = JSON.stringify(state);
+    const result = await runLv10Turn('black', { getState: () => state, getPublicRecipes: () => undefined,
+        advise: async () => { throw new Error('simulated Worker timeout'); }, isCurrent: () => true, apply });
+    expect(result).toMatchObject({ source: 'fallback', outcome: 'applied', error: 'simulated Worker timeout' });
+    expect(Core.getLegalMoves(state.gameState, 1)).toEqual(expect.arrayContaining([expect.objectContaining({ row: result.action!.row, col: result.action!.col })]));
+    expect(JSON.stringify(state)).toBe(before);
+});

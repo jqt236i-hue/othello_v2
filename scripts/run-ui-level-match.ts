@@ -9,7 +9,7 @@ import { chromium } from 'playwright';
 import CpuOpponentProfiles = require('../shared/cpu-opponent-profiles');
 
 function resolveMatchProfileId(level: number): string {
-    if (!Number.isInteger(level) || level < 1 || level > 9) throw new Error('Unsupported CPU display level');
+    if (!Number.isInteger(level) || level < 1 || level > 10) throw new Error('Unsupported CPU display level');
     const profile = CpuOpponentProfiles.getCpuOpponentProfile(level);
     if (profile.level !== level) throw new Error('CPU profile level mismatch');
     return profile.id;
@@ -349,7 +349,7 @@ async function runMatch(args: any) {
         throw new Error('local server did not expose a TCP port');
     }
     const port = address.port;
-    const browser = await chromium.launch({ headless: args.headless });
+    const browser = await chromium.launch({ headless: args.headless, ...(args.chromiumLaunchOptions || {}) });
     const page = await browser.newPage();
     await page.addInitScript(applyBenchmarkModeBeforeInit);
     const consoleMessages: DiagnosticMessage[] = [];

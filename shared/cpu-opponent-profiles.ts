@@ -34,6 +34,15 @@ const CPU_OPPONENT_PROFILE_ALIASES: Record<string, string> = {
     '8-ending-ash': '9-ending-ash'
 };
 
+// Lv9 and Lv10 share game conditions; only their decision policy differs.
+const ENDING_ASH_GAME_CONDITIONS = Object.freeze({
+    deckProfile: 'lv9-ending-ash-all-enabled' as const,
+    initialCharge: 99,
+    initialChargeByPlayer: Object.freeze({ black: 99, white: 99 }),
+    chargeGainMultiplier: 2,
+    cardUseUnlockTurnNumber: 6
+});
+
 const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
     {
         id: '1',
@@ -117,11 +126,16 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         name: '終焉の冥灰',
         menuLabel: 'Lv9: 終焉の冥灰',
         portraitSrc: 'assets/images/special-cards/characters/終焉の冥灰.png',
-        deckProfile: 'lv9-ending-ash-all-enabled',
-        initialCharge: 99,
-        initialChargeByPlayer: { black: 99, white: 99 },
-        chargeGainMultiplier: 2,
-        cardUseUnlockTurnNumber: 6
+        ...ENDING_ASH_GAME_CONDITIONS
+    },
+    {
+        id: '10-observed-dark-dragon',
+        level: 10,
+        decisionLevel: 10,
+        name: '観測ダークドラゴン',
+        menuLabel: 'Lv10: 観測ダークドラゴン',
+        portraitSrc: 'assets/images/special-stones/ultimate_reverse_dragon-black.png',
+        ...ENDING_ASH_GAME_CONDITIONS
     }
 ];
 
@@ -142,7 +156,7 @@ CPU_OPPONENT_PROFILES.forEach((profile) => {
 function clampCpuLevel(value: unknown): number {
     const n = Number(value);
     if (!Number.isFinite(n)) return 1;
-    return Math.max(1, Math.min(9, Math.floor(n)));
+    return Math.max(1, Math.min(10, Math.floor(n)));
 }
 
 function getCpuOpponentProfiles(): CpuOpponentProfile[] {

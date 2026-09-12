@@ -275,7 +275,7 @@ function createLeaderboardController(context: any) {
     function normalizeLeaderboardCpuLevel(value: any): number | null {
         if (value === null || value === undefined || String(value).trim() === '') return null;
         if (!Number.isFinite(Number(value))) return null;
-        return Math.max(1, Math.min(9, Math.trunc(Number(value))));
+        return Math.max(1, Math.min(10, Math.trunc(Number(value))));
     }
 
     function getLeaderboardCpuLevelLabel(level: any): string {
@@ -519,7 +519,7 @@ function createLeaderboardController(context: any) {
             levelMenu.setAttribute('aria-hidden', 'true');
             const levelDefs: Array<{ level: number | null; label: string }> = [
                 { level: null, label: '全Lv' },
-                ...Array.from({ length: 9 }, (_item, index) => {
+                ...Array.from({ length: 10 }, (_item, index) => {
                     const level = index + 1;
                     return { level, label: getLeaderboardCpuLevelLabel(level) };
                 })

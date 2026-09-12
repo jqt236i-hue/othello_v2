@@ -14,6 +14,16 @@ function createHelpers() {
 }
 
 describe('match worker leaderboard helpers', () => {
+  test('Lv10 records survive storage and remain distinct from Lv9', () => {
+    const helpers = createHelpers();
+    const result = helpers.applySubmit(helpers.createEmptyStore(), {
+      playerId: 'player_lv10_0001', playerName: 'テスト', score: 7200, mode: 'cpu', cpuLevel: 10
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    expect(helpers.listEntries(result.store, 10, 'cpu', 10)[0]).toMatchObject({ cpuLevel: 10, bestScore: 7200 });
+    expect(helpers.listEntries(result.store, 10, 'cpu', 9)).toHaveLength(0);
+  });
   test('総合とモード別で自己ベストを分けて保持する', () => {
     const helpers = createHelpers();
     let store = helpers.createEmptyStore();

@@ -270,12 +270,12 @@ function clampCpuLevel(value: any): number {
   try {
     if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentLevel === 'function') {
       const profileLevel = Number(CpuOpponentProfiles.getCpuOpponentLevel(value));
-      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(9, Math.floor(profileLevel)));
+      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(10, Math.floor(profileLevel)));
     }
   } catch (e) { /* ignore and fall back to numeric level */ }
   const n = Number(value);
   if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.min(9, Math.floor(n)));
+  return Math.max(1, Math.min(10, Math.floor(n)));
 }
 
 function resolveCpuLevel(rootRef: any, ownerKey: any, explicitLevel: any): number {

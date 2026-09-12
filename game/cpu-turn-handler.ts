@@ -6,6 +6,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
 import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
+import { runLv10Turn, type Lv10TurnRecord } from './cpu-lv10-turn';
+import CpuOpponentStartupOptions = require('../shared/cpu-opponent-startup-options');
 import {
     createCpuTurnPerformanceScope,
     measureCpuTurnSync,
@@ -164,6 +166,11 @@ let cpuTurnPerformanceRunSequence = 0;
 let cpuTurnInvocationRunSequence = 0;
 let cpuTurnDecisionEpochSequence = 0;
 let cpuRuntimeIntegrityFailure: unknown = null;
+const lv10RecentDecisions: Lv10TurnRecord[] = [];
+const lv10DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, noAction: 0 };
+function getLv10DecisionDiagnostics() {
+    return { totals: { ...lv10DecisionTotals }, recent: lv10RecentDecisions.slice() };
+}
 function setCpuUIImpl(obj: any): void {
     if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) {
         __uiImpl_cpu = {};
@@ -412,6 +419,13 @@ function resolveCpuRuntimeSelectionForTurn(playerKey: PlayerKey): any {
 function resolveCpuDecisionLevelForTurn(playerKey: PlayerKey): number {
     const profileValue = readCpuProfileValueForTurn(playerKey);
     const selection = resolveCpuRuntimeSelectionForTurn(playerKey);
+    const controller = (resolveRuntimeValue('cardState') || ((typeof cardState !== 'undefined') ? cardState : null))?.fateWillControllerByTurnOwner?.[playerKey];
+    if (controller && controller !== playerKey) {
+        const controllerSelection = resolveCpuRuntimeSelectionForTurn(controller);
+        if (selection?.decisionLevel === 10 || controllerSelection?.decisionLevel === 10) {
+            return controllerSelection?.decisionLevel || 1;
+        }
+    }
     if (selection && Number.isFinite(Number(selection.decisionLevel))) {
         return Math.max(1, Math.floor(Number(selection.decisionLevel)));
     }
@@ -2025,18 +2039,20 @@ async function processAutoBlackTurn(): Promise<void> {
         return;
     }
     if (isHumanVsHumanModeEnabled()) return;
-    // Re-enabled for Auto mode: invoke black run with autoMode flag
+    // Auto operates the black seat, including a white turn legitimately
+    // controlled by that seat through FATE. Actions still name the turn owner.
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
         showCpuResultIfAvailable();
         setCpuProcessing(false);
         return;
     }
-    if (getCurrentPlayerKeySafe() !== 'black') return;
+    const owner = getCurrentPlayerKeySafe();
+    if (!owner || (getFateWillControllerForTurnOwnerSafe(owner, null) || owner) !== 'black') return;
     if (readCpuProcessing() || isUiAnimationBusy()) {
-        scheduleRunCpuTurn('black', { autoMode: true }, getAnimationRetryDelayMs());
+        scheduleRunCpuTurn(owner, { autoMode: true }, getAnimationRetryDelayMs());
         return;
     }
-    return runCpuTurn('black', { autoMode: true });
+    return runCpuTurn(owner, { autoMode: true });
 }
 
 function handleCpuTurnError(
@@ -2186,6 +2202,72 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
     try {
         const level = resolveCpuDecisionLevelForTurn(playerKey);
         performanceScope = createRunPerformanceScope(playerKey, level, options);
+        // Evaluation can ask a frozen browser for the opponent's action. This
+        // DI seam is inactive in normal play and never replaces Lv10 judgment.
+        const comparisonAdvisor = level !== 10 && isCpuFastBenchModeEnabled()
+            && typeof __uiImpl_cpu.adviseComparisonOpponent === 'function'
+            ? __uiImpl_cpu.adviseComparisonOpponent : null;
+        if (level === 10 || comparisonAdvisor) {
+            const generation = CpuTurnScheduler.getCpuRetryGeneration();
+            const expectedTurn = getCurrentTurnNumberSafe();
+            const viewer = (resolveRuntimeValue('cardState') || cardState)?.fateWillControllerByTurnOwner?.[playerKey] || playerKey;
+            await runLv10Turn(viewer, {
+                getState: () => ({ gameState: resolveRuntimeValue('gameState') || gameState, cardState: resolveRuntimeValue('cardState') || cardState }),
+                getPublicRecipes: () => {
+                    const recipes: any = {};
+                    for (const key of ['black', 'white'] as PlayerKey[]) {
+                        const ids = CpuOpponentStartupOptions.getCpuOpponentDeckCardIds(readCpuProfileValueForTurn(key));
+                        if (ids) recipes[key] = ids;
+                    }
+                    return recipes;
+                },
+                advise: (request) => {
+                    if (comparisonAdvisor) return comparisonAdvisor(request);
+                    if (typeof __uiImpl_cpu.adviseLv10InWorker !== 'function') return Promise.reject(new Error('Lv10 Worker unavailable'));
+                    return __uiImpl_cpu.adviseLv10InWorker(request);
+                },
+                isCurrent: () => CpuTurnScheduler.getCpuRetryGeneration() === generation
+                    && getCurrentPlayerKeySafe() === playerKey && getCurrentTurnNumberSafe() === expectedTurn
+                    && resolveCpuDecisionLevelForTurn(playerKey) === level && !isUiAnimationBusy()
+                    && !shouldAbortCpuForHumanMode(playerKey, 'lv10_commit') && !isCpuRuntimeIntegrityBlocked(),
+                apply: async (action) => {
+                    if (action.type === 'pass') {
+                        const pass = resolveProcessPassTurn();
+                        if (!pass) return { ok: false, reason: 'pass_runtime_unavailable' };
+                        return pass(playerKey, { autoMode }, { performanceScope });
+                    }
+                    if (action.type === 'place' && readCpuPendingSelection(playerKey)?.stage !== 'selectTarget'
+                        && Number.isInteger(action.row) && Number.isInteger(action.col)) {
+                        const execute = resolveExecuteMoveFn();
+                        if (!execute) return { ok: false, reason: 'move_runtime_unavailable' };
+                        const generate = resolveGenerateMovesForPlayer();
+                        const moves = generate ? generate(selfColor, readCpuPendingSelection(playerKey), getActiveProtectionSafe(selfColor), getFlipBlockersSafe()) : [];
+                        const move = (moves || []).find((candidate: any) => candidate.row === action.row && candidate.col === action.col);
+                        if (!move) return { ok: false, reason: 'placement_no_longer_legal' };
+                        return execute(move, { performanceScope });
+                    }
+                    const applySelection = resolveCpuDecisionFunction('applyCpuAdvisedSelection');
+                    if (!applySelection) return { ok: false, reason: 'selection_runtime_unavailable' };
+                    return applySelection(playerKey, action, performanceScope);
+                },
+                performanceScope,
+                record: (record) => {
+                    if (comparisonAdvisor) return;
+                    lv10DecisionTotals.decisions++;
+                    if (record.source === 'fallback') lv10DecisionTotals.fallback++;
+                    if (record.outcome === 'rejected') lv10DecisionTotals.rejected++;
+                    if (record.outcome === 'stale') lv10DecisionTotals.stale++;
+                    if (record.outcome === 'no_action') lv10DecisionTotals.noAction++;
+                    lv10RecentDecisions.push(record);
+                    if (lv10RecentDecisions.length > 256) lv10RecentDecisions.shift();
+                }
+            });
+            setCpuProcessing(false);
+            if (getCurrentPlayerKeySafe() === playerKey && !(typeof isGameOver === 'function' && isGameOver(gameState))) {
+                scheduleRunCpuTurn(playerKey, inheritedResumeOptions, getAnimationRetryDelayMs());
+            }
+            return;
+        }
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
         const othelloMode = isOthelloModeForCpuTurnHandler();
@@ -2320,6 +2402,7 @@ export = {
     scheduleRetry,
     getPendingTypeHandlers,
     runCpuTurn,
+    getLv10DecisionDiagnostics,
     resetCpuTurnHandlerState,
     PresentationRuntime: presentationRuntime
 };

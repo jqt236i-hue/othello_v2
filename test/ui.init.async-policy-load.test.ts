@@ -60,6 +60,7 @@ describe('initializeUI async policy loading', () => {
     delete global.initPolicyTableModel;
     delete global.resetGame;
     delete global.setupMatchModeControls;
+    delete global.setupDeckBuilderControls;
     delete global.restoreStoredNetworkSessionOnBoot;
     delete (global as any).location;
     delete global.__uiInitialized;
@@ -84,6 +85,32 @@ describe('initializeUI async policy loading', () => {
     expect(global.initPolicyTableModel).not.toHaveBeenCalled();
     expect(global.resetGame).toHaveBeenCalledTimes(1);
     expect(global.__uiInitialized).toBe(true);
+  });
+
+  test('saved CPU profiles supply the first reset with their real deck and charge options', async () => {
+    dom.reconfigure({ url: 'http://localhost/' });
+    document.body.innerHTML = '<button id="deckBuilderOpenBtn"></button><div id="deckBuilderOverlay"><div id="deckBuilderModal"></div></div><select id="smartBlack"></select><select id="smartWhite"></select>';
+    dom.window.localStorage.setItem('card-reversi.cpu-profiles.v1', JSON.stringify({black:'9-ending-ash',white:'10-observed-dark-dragon'}));
+    (window as any).DeckBuilderControllerModule = require('../ui/deck-builder-controller');
+    const setup = require('../ui/handlers/deck-builder').setupDeckBuilderControls;
+    let controller: any;
+    global.setupDeckBuilderControls = jest.fn(opts => (controller = setup(opts)));
+    const Cards = require('../game/logic/cards');
+    let opening: any;
+    global.resetGame = jest.fn(() => {
+      // Use the real option provider and canonical state creation at the very
+      // first reset, before the select menu has installed any options.
+      expect(controller).toBeTruthy();
+      opening = Cards.createCardState(undefined, controller.buildCardInitOptions());
+    });
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({installGameDI:jest.fn(),getBoardVisualController:()=>readyBoardVisualController()}), {virtual:false});
+    await require('../ui/handlers/init.js').initializeUI();
+    expect(global.resetGame).toHaveBeenCalledTimes(1);
+    expect(opening.charge).toEqual({black:99,white:99});
+    expect(opening.chargeGainMultiplierByPlayer).toEqual({black:2,white:2});
+    expect(opening.decks.black).toHaveLength(93);
+    expect(opening.decks.white).toHaveLength(93);
   });
 
   test('saved network session restore runs after bootstrap reset', async () => {
