@@ -165,7 +165,8 @@
     ],
     "modulePathIgnorePatterns": [
       "<rootDir>/.wrangler/",
-      "<rootDir>/worker-public/"
+      "<rootDir>/worker-public/",
+      "<rootDir>/data/cpu-lv10/baseline-v1/"
     ],
     "moduleFileExtensions": [
       "ts",
