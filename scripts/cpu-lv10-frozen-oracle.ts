@@ -79,8 +79,18 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                 const root = window as any, req = root.require;
                 const handler = req('game/cpu-turn-handler');
                 const pipeline = req('game/turn/turn_pipeline'), apply = pipeline.applyTurnSafe;
+                const coordinator = req('game/turn/pending-coordinator'), clearPending = coordinator.clearPendingEffect;
                 const clone = (value: any) => JSON.parse(JSON.stringify(value));
                 const oracle: any = { blocked: true, active: null, settled: Promise.resolve(), sequence:0, performanceEntries:[] };
+                // Legacy CPU target filters can abandon a pending selection
+                // before they call the canonical pipeline. Capture that real
+                // policy behavior instead of silently losing it at the seam.
+                coordinator.clearPendingEffect = function(cs:any, player:any, options:any) {
+                    if(oracle.active && cs===root.cardState) oracle.active.preparations.push({
+                        kind:'clearPendingEffect',player,options:clone(options || {}),pending:clone(cs.pendingEffectByPlayer?.[player] || null)
+                    });
+                    return clearPending(cs,player,options);
+                };
                 handler.setCpuUIImpl({ readHumanVsHumanMode: () => oracle.blocked,
                     recordCpuTurnStage: (entry:any) => oracle.performanceEntries.push(entry),
                     createCpuTurnPerformanceCorrelationId: () => `frozen-${oracle.sequence}`,
@@ -89,9 +99,12 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     if (!oracle.active || cs !== root.cardState || gs !== root.gameState) return apply(cs,gs,player,action,rng,opts);
                     const realRng = rng || req('card-system').getGamePrng();
                     const rngBefore = realRng.getState();
+                    const before = clone({ gameState:gs,cardState:cs,prngState:rngBefore });
+                    const preparations = oracle.active.preparations.splice(0);
                     const result = apply(cs,gs,player,action,rng,opts);
                     const attempt = { player, action: clone(action), options: clone(opts || {}), ok: result.ok,
-                        rejectedReason: result.rejectedReason, rngBefore, rngAfter: realRng.getState() };
+                        rejectedReason: result.rejectedReason, rngBefore, rngAfter: realRng.getState(),preparations,before,
+                        after:clone({gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState()}) };
                     oracle.active.attempts.push(attempt);
                     if (result.ok) {
                         oracle.blocked = true;
@@ -117,6 +130,19 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     handler.resetCpuTurnHandlerState();
                     root.gameState = clone(snapshot.gameState);
                     root.cardState = clone(snapshot.cardState);
+                    for(const owner of ['black','white']) {
+                        const pending=root.cardState.pendingEffectByPlayer?.[owner];
+                        if(!pending)continue;
+                        root.cardState.pendingEffectByPlayer[owner]=new Proxy(pending,{
+                            set(target,key,value) {
+                                if(oracle.active && JSON.stringify(target[key])!==JSON.stringify(value)) oracle.active.preparations.push({
+                                    kind:'setPendingField',player:owner,pendingType:target.type,pendingEffectId:target.pendingEffectId,
+                                    field:String(key),value:clone(value)
+                                });
+                                target[key]=value;return true;
+                            }
+                        });
+                    }
                     const rng = req('card-system').getGamePrng();
                     rng.restoreState(snapshot.prngState);
                     root.cardState._defaultRandomSource = rng;
@@ -128,7 +154,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     const player = root.gameState.currentPlayer === 1 || root.gameState.currentPlayer === 'black' ? 'black' : 'white';
                     const answer:any = await new Promise((resolve,reject) => {
                         const timer = setTimeout(() => { oracle.blocked=true; oracle.active=null; reject(new Error('Frozen oracle decision timed out')); },15000);
-                        oracle.active = { started:performance.now(), attempts:[], resolve:(value:any) => { clearTimeout(timer); resolve(value); } };
+                        oracle.active = { started:performance.now(), attempts:[], preparations:[], resolve:(value:any) => { clearTimeout(timer); resolve(value); } };
                         oracle.settled = Promise.resolve(handler.runCpuTurn(player,{ autoMode:player==='black' })).catch(error => {
                             clearTimeout(timer); oracle.active=null; oracle.blocked=true; reject(error);
                         });

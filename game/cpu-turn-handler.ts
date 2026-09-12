@@ -2231,6 +2231,9 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                     && resolveCpuDecisionLevelForTurn(playerKey) === level && !isUiAnimationBusy()
                     && !shouldAbortCpuForHumanMode(playerKey, 'lv10_commit') && !isCpuRuntimeIntegrityBlocked(),
                 apply: async (action) => {
+                    if (comparisonAdvisor && typeof __uiImpl_cpu.applyComparisonOpponentPrelude === 'function') {
+                        await __uiImpl_cpu.applyComparisonOpponentPrelude(action);
+                    }
                     if (action.type === 'pass') {
                         const pass = resolveProcessPassTurn();
                         if (!pass) return { ok: false, reason: 'pass_runtime_unavailable' };

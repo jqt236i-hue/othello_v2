@@ -58,6 +58,11 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                     for (const field of ['_defaultRandomSource','_boardOpsRandomSource','_currentActionMeta']) delete snapshot.cardState[field];
                     return req('shared/state-hash').stableStringify(snapshot);
                 };
+                const abortComparison = (reason:string,details:any) => {
+                    root.__lv10MatchAudit.oracleVerificationErrors.push({reason,...details});
+                    void root.__lv10MatchStalled(clone({reason,details,gameState:root.gameState,cardState:root.cardState,
+                        audit:root.__lv10MatchAudit,lv10:root.__lv10CaptureDiagnostics?.()})).catch(()=>undefined);
+                };
                 const pipeline = req('game/turn/turn_pipeline'), original = pipeline.applyTurnSafe;
                 pipeline.applyTurnSafe = function(cs: any, gs: any, player: any, action: any, rng: any, opts: any) {
                     if (cs !== root.cardState || gs !== root.gameState) return original(cs, gs, player, action, rng, opts);
@@ -74,7 +79,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                         root.__lv10ExpectedOracleAction = null;
                         const after = { gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState() };
                         if (comparableState(after) !== comparableState(oracleAnswer.after)) {
-                            root.__lv10MatchAudit.oracleVerificationErrors.push({ reason:'accepted_transition_mismatch',
+                            abortComparison('accepted_transition_mismatch', {
                                 recordIndex:records.length-1,expected:oracleAnswer.after,actual:clone(after) });
                         }
                     }
@@ -99,7 +104,36 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                             root.__lv10MatchAudit.oracleStaleAnswers++;
                             return { ...advisory,action:null };
                         }
+                        root.__lv10ExpectedOracleAction = answer;
+                        root.__lv10ExpectedOracleSnapshot = snapshot;
+                        return advisory;
+                    }, applyComparisonOpponentPrelude: async (action:any) => {
+                      try {
+                        const answer=root.__lv10ExpectedOracleAction,rng=req('card-system').getGamePrng();
+                        const snapshot=root.__lv10ExpectedOracleSnapshot;
+                        if(!answer || JSON.stringify(answer.action)!==JSON.stringify(action)
+                            || comparableState({gameState:root.gameState,cardState:root.cardState,prngState:rng.getState()})!==comparableState(snapshot)) {
+                            throw new Error('Frozen opponent prelude is stale');
+                        }
                         for (const attempt of answer.attempts) {
+                            for(const preparation of attempt.preparations || []) {
+                                const pending=root.cardState.pendingEffectByPlayer?.[preparation.player];
+                                if(preparation.player!==attempt.player)throw new Error('Frozen preparation changes another player');
+                                if(preparation.kind==='clearPendingEffect') {
+                                    if(JSON.stringify(pending || null)!==JSON.stringify(preparation.pending))throw new Error('Frozen pending clear differs');
+                                    req('game/turn/pending-coordinator').clearPendingEffect(root.cardState,preparation.player,preparation.options);
+                                } else if(preparation.kind==='setPendingField' && pending?.type==='BOARD_EXPANSION_GOD'
+                                    && preparation.pendingType===pending.type && preparation.pendingEffectId===pending.pendingEffectId
+                                    && preparation.field==='maxSelections' && preparation.value===1 && !pending.selectedCount) {
+                                    pending.maxSelections=1;
+                                } else throw new Error('Unsupported frozen CPU preparation');
+                                (root.__lv10MatchAudit.oraclePreparations ||= []).push(clone(preparation));
+                            }
+                            const before={gameState:root.gameState,cardState:root.cardState,prngState:rng.getState()};
+                            if(attempt.before && comparableState(before)!==comparableState(attempt.before)) {
+                                root.__lv10MatchAudit.oracleVerificationErrors.push({reason:'pre_action_state_mismatch',attempt,actual:clone(before)});
+                                throw new Error('Frozen opponent changed unrecorded state before its action');
+                            }
                             if (attempt.ok) break;
                             // Preserve the old opponent's rejected attempts and
                             // any RNG consumption; do not silently filter them.
@@ -116,7 +150,10 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                             throw new Error('Frozen opponent RNG diverged');
                         }
                         root.__lv10ExpectedOracleAction = answer;
-                        return advisory;
+                      } catch(error) {
+                        abortComparison('comparison_prelude_failed',{error:String(error),recordIndex:records.length});
+                        throw error;
+                      }
                     } });
                 }
                 root.__cpuTurnPerformance?.beginScenario('lv6-worker-backed-place-8x8', { capture: true });
