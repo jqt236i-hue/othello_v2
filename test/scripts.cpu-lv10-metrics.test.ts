@@ -1,6 +1,15 @@
 import {lv10ComparisonThinkingMs,frozenLv9InvocationTimes} from '../scripts/summarize-cpu-lv10-metrics';
+import {FROZEN_LV9_MODEL_SETTINGS,verifyFrozenLv9ModelStatus} from '../scripts/cpu-lv10-frozen-oracle';
 
-test('thinking metrics merge nested intervals and omit presentation and minimum-think waits',()=>{
+test('a completed game cannot hide a missing or reconfigured frozen Lv9 model',()=>{
+    const status={...FROZEN_LV9_MODEL_SETTINGS,loaded:true,lastError:null};
+    expect(()=>verifyFrozenLv9ModelStatus(status)).not.toThrow();
+    for(const invalid of [{...status,loaded:false},{...status,lastError:'inference failure'},{...status,topK:2}]) {
+        expect(()=>verifyFrozenLv9ModelStatus(invalid)).toThrow('Frozen Lv9 model');
+    }
+});
+
+test('thinking metrics merge nested intervals and omit unrelated stages',()=>{
     expect(lv10ComparisonThinkingMs([
         {stage:'card-policy',startMs:10,endMs:30},{stage:'card-context',startMs:15,endMs:20},
         {stage:'move-candidates',startMs:28,endMs:45},{stage:'tactical-safety',startMs:50,endMs:55},

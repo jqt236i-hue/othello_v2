@@ -10,8 +10,9 @@ function distribution(values: number[]) {
         p95:sorted.length?sorted[Math.ceil(sorted.length*.95)-1]:null,max:sorted.length?sorted[sorted.length-1]:null};
 }
 
-/** Union nested timing intervals; never count presentation or minimum-think
- * waits as search, and never double-count a nested model/scorer interval. */
+/** Union nested thinking intervals without presentation or double-counting.
+ * The comparison runner disables minimum-think waits before initialization;
+ * the original Lv9 records those under move-candidates when they are enabled. */
 export function lv10ComparisonThinkingMs(entries: any[]): number {
     const intervals=entries.filter(e=>String(e.stage).startsWith('card-')
         || e.stage==='move-candidates' || e.stage==='tactical-safety')
@@ -74,8 +75,9 @@ export function summarizeLv10Metrics(directory:string) {
     const totalGameMs=report.details.reduce((sum,g)=>sum+g.durationMs,0);
     return {schema:'cpu-lv10-metrics.v1',result:report.result,lv10,lv10TimingMs:distribution(times),
         lv10WorkerMs:distribution(workerTimes),lv10AccumulatedThinkingPerTurnMs:distribution(turnTimes),lv9TimingMs:distribution(lv9Times),
-        thinkingDefinition:'Per advisor/original invocation; real apply/presentation and minimum-think waits excluded. Lv9 uses the union of card-*, move-candidates, tactical-safety intervals.',
+        thinkingDefinition:'Per advisor/original invocation; real apply/presentation excluded, minimum-think waits disabled by benchmark mode. Lv9 uses the union of card-*, move-candidates, tactical-safety intervals.',
         stopped,actionTypes,frozenAnswers,staleFrozenAnswers,actualRejectedAttempts,totalTraceBytes:traceBytes,
+        frozenTransportRecoveries:report.details.reduce((sum,game)=>sum+game.frozenTransportRecoveries.length,0),
         gameDurationMs:distribution(report.details.map(g=>g.durationMs)),totalGameMs,serial400EstimateHours:totalGameMs/report.details.length*400/3600000,
         validPerformanceGames:perGame.filter(g=>g.performanceCaptureValid).length,rafIntervalsMs:distribution(raf),longTasksMs:distribution(longTasks),perGame,losses};
 }

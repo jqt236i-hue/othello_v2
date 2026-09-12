@@ -6,17 +6,19 @@ import zlib = require('node:zlib');
 import os = require('node:os');
 import { LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
 import { runLv10BrowserMatch } from './run-cpu-lv10-browser-match';
-import { readFrozenLv9GameConditions,FROZEN_LV9_EXECUTION_LIMITS } from './cpu-lv10-frozen-oracle';
+import { readFrozenLv9GameConditions,FROZEN_LV9_EXECUTION_LIMITS,FROZEN_LV9_MODEL_SETTINGS,verifyFrozenLv9ModelStatus } from './cpu-lv10-frozen-oracle';
 
 type Color = 'black' | 'white';
 type Condition = { pair: number; seed: number };
 type GameScore = { pair: number; color: Color; score: number };
+type ValidatedGame = { fingerprint:string; game:GameScore; detail:any; initialHash:string };
+export type Lv10ValidationCache = Map<string,ValidatedGame>;
 export const LV10_EVALUATION_PROTOCOL = Object.freeze({
     finalPairs: 200, finalGames: 400, minimumScore: .60, minimumLower95: .50,
     confidence: 'paired percentile bootstrap, 20000 resamples, two-sided 95%',
     bootstrapSamples: 20000, bootstrapSeed: 10100493,
     concurrency: 2, timeoutMs: 1200000, noAcceptedActionTimeoutMs:60000, minimumFreeMemoryBytes: 2 * 1024 ** 3,
-    frozenOpponent:FROZEN_LV9_EXECUTION_LIMITS,
+    frozenOpponent:{...FROZEN_LV9_EXECUTION_LIMITS,model:FROZEN_LV9_MODEL_SETTINGS},
     failurePolicy: 'Keep every trace and error. Any failed or unfinished game makes evaluation incomplete and ineligible for acceptance. No automatic retry or exclusion.'
 });
 const hash = (value: Buffer | string) => crypto.createHash('sha256').update(value).digest('hex');
@@ -121,15 +123,25 @@ export function prepareLv10Evaluation(directory:string, mode:'development'|'fina
     return {directory:out,pairs,games:pairs*2,concurrency,manifestSha256:hash(fs.readFileSync(manifestPath))};
 }
 
-export function collectLv10Evaluation(directory:string) {
-    const out=path.resolve(directory),manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));
+export function collectLv10Evaluation(directory:string, validatedGames?:Lv10ValidationCache) {
+    const out=path.resolve(directory),manifestBytes=fs.readFileSync(path.join(out,'manifest.json'));
+    const manifest=JSON.parse(manifestBytes.toString()),manifestHash=hash(manifestBytes);
     const games:GameScore[]=[], errors:any[]=[],pending:any[]=[],details:any[]=[];
     const initialByPair=new Map<number,string>();
+    const record=(entry:ValidatedGame) => {
+        if(initialByPair.has(entry.game.pair)&&initialByPair.get(entry.game.pair)!==entry.initialHash)throw new Error(`Initial conditions differ within pair ${entry.game.pair}`);
+        initialByPair.set(entry.game.pair,entry.initialHash);
+        games.push(entry.game);details.push(entry.detail);
+    };
     for(const scheduled of manifest.schedule) {
         const prefix=path.join(out,`game-${scheduled.seed}-${scheduled.color}`);
         if(fs.existsSync(`${prefix}.error.json`)) {errors.push({...scheduled,error:JSON.parse(fs.readFileSync(`${prefix}.error.json`,'utf8'))});continue;}
         if(!fs.existsSync(`${prefix}.summary.json`)) {pending.push(scheduled);continue;}
-        const summary=JSON.parse(fs.readFileSync(`${prefix}.summary.json`,'utf8'));
+        const summaryBytes=fs.readFileSync(`${prefix}.summary.json`),summary=JSON.parse(summaryBytes.toString());
+        const stat=fs.statSync(`${prefix}.json.gz`);
+        const fingerprint=`${manifestHash}/${hash(summaryBytes)}/${stat.size}/${stat.mtimeMs}`;
+        const cached=validatedGames?.get(prefix);
+        if(cached?.fingerprint===fingerprint){record(cached);continue;}
         const bytes=fs.readFileSync(`${prefix}.json.gz`),trace=JSON.parse(zlib.gunzipSync(bytes).toString());
         const audit=trace.audit;
         const gameConditions=manifest.gameConditions || readFrozenLv9GameConditions();
@@ -138,6 +150,8 @@ export function collectLv10Evaluation(directory:string) {
             && record.before.gameState.turnNumber<gameConditions.cardUseUnlockTurnNumber))throw new Error(`Card used before the shared unlock turn: ${prefix}`);
         if(hash(bytes)!==summary.traceSha256 || !audit.gameOver || audit.oracleVerificationErrors?.length
             || audit.frozenOpponent?.baselineSha256!==manifest.baselineSha256) throw new Error(`Invalid trace: ${prefix}`);
+        if(!audit.frozenOpponent.answers?.length)throw new Error(`Missing frozen opponent decisions: ${prefix}`);
+        for(const answer of audit.frozenOpponent.answers)verifyFrozenLv9ModelStatus(answer.model);
         const decisions=audit.lv10.history || audit.lv10.recent;
         if(audit.lv10.history && (!audit.lv10.historyComplete || audit.lv10.history.length!==audit.lv10.totals.decisions)) {
             throw new Error(`Incomplete decision timing history: ${prefix}`);
@@ -147,13 +161,12 @@ export function collectLv10Evaluation(directory:string) {
             throw new Error(`Browser search differs from the declared candidate: ${prefix}`);
         }
         const initialHash=hash(trace.initialState);
-        if(initialByPair.has(scheduled.pair)&&initialByPair.get(scheduled.pair)!==initialHash) throw new Error(`Initial conditions differ within pair ${scheduled.pair}`);
-        initialByPair.set(scheduled.pair,initialHash);
         const own=audit.counts[scheduled.color], other=audit.counts[scheduled.color==='black'?'white':'black'];
         const score=own===other ? .5 : own>other ? 1 : 0;
-        games.push({...scheduled,score});
-        details.push({...scheduled,counts:audit.counts,initialStateSha256:initialHash,traceSha256:hash(bytes),
-            rejections:summary.rejections,pageErrors:summary.pageErrors,lv10:summary.lv10,durationMs:summary.durationMs});
+        const entry={fingerprint,initialHash,game:{...scheduled,score},detail:{...scheduled,counts:audit.counts,initialStateSha256:initialHash,traceSha256:hash(bytes),
+            rejections:summary.rejections,pageErrors:summary.pageErrors,lv10:summary.lv10,durationMs:summary.durationMs,
+            frozenTransportRecoveries:audit.frozenOpponent.answers.flatMap((answer:any)=>answer.transportRecoveries||[])}};
+        validatedGames?.set(prefix,entry);record(entry);
     }
     const valid=errors.length===0&&pending.length===0;
     return {schema:'cpu-lv10-evaluation-report.v1',mode:manifest.mode,label:manifest.label,
@@ -164,7 +177,8 @@ export function collectLv10Evaluation(directory:string) {
 export async function runLv10Evaluation(directory:string) {
     const out=path.resolve(directory),manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));
     const pending=manifest.schedule.filter((game:any)=>!fs.existsSync(path.join(out,`game-${game.seed}-${game.color}.summary.json`)));
-    if(collectLv10Evaluation(out).errors.length) throw new Error('Existing failed games require investigation; automatic retries are disabled');
+    const validationCache:Lv10ValidationCache=new Map();
+    if(collectLv10Evaluation(out,validationCache).errors.length) throw new Error('Existing failed games require investigation; automatic retries are disabled');
     let previousCpu: ReturnType<typeof os.cpus> | null=null;
     const captureResources=() => {
         const cpus=os.cpus();
@@ -193,7 +207,9 @@ export async function runLv10Evaluation(directory:string) {
                 const result=await runLv10BrowserMatch({...game,out,timeoutMs:manifest.protocol.timeoutMs});
                 console.log(JSON.stringify({pair:game.pair,color:game.color,score:result.score,counts:result.counts,durationMs:result.durationMs}));
             } catch(error) {failure=error;}
-            const report=collectLv10Evaluation(out);
+            // Do not repeatedly decompress all earlier games while browser RPCs
+            // are active. Final acceptance below always revalidates every file.
+            const report=collectLv10Evaluation(out,validationCache);
             fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));
         }
     };

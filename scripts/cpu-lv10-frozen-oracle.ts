@@ -7,9 +7,18 @@ import { createDesktopChromiumLaunchOptions } from './browser-performance-enviro
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
 export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000});
+export const FROZEN_LV9_MODEL_SETTINGS=Object.freeze({enabled:true,minLevel:6,useValueRerank:true,policyWeight:.75,
+    topK:8,heuristicRerankWeight:3,whiteSafetyMultiplier:1.45,exactSolveEmpties:10,exactSolveNodeBudget:50000,exactSolveMaxMs:250});
+
+export function verifyFrozenLv9ModelStatus(status:any): void {
+    if(!status?.loaded || status.lastError || Object.entries(FROZEN_LV9_MODEL_SETTINGS).some(([key,value])=>status[key]!==value)) {
+        throw new Error('Frozen Lv9 model is unavailable or differs from its captured browser settings');
+    }
+}
 let verifiedBaseline: string | null = null;
 export type FrozenOracleAnswer = { action: any; attempts: any[]; after: any; thinkingMs: number; performanceEntries: any[]; model: any;
-    turnPlan?: { turnNumber:number; index:number; length:number } };
+    turnPlan?: { turnNumber:number; index:number; length:number };
+    transportRecoveries?: { error:string; time:string; browserEvents:any[] }[] };
 export type FrozenLv9Oracle = {
     advise: (snapshot: any) => Promise<FrozenOracleAnswer>;
     close: () => Promise<void>;
@@ -50,11 +59,20 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
     const ready = new Promise<FrozenLv9Oracle>((resolve,reject) => { readyResolve=resolve; readyReject=reject; });
     const closedSignal = new Error('Frozen oracle deliberately closed');
     let queryQueue: Promise<unknown> = Promise.resolve();
+    let requestSequence = 0;
+    const browserEvents: any[] = [];
     let running: Promise<any>;
     running = Runner.runMatch({ black: 9, white: 9, seed: 91310000, timeoutMs: 480000,
         headless: true, chromiumLaunchOptions: createDesktopChromiumLaunchOptions(), onnxWaitMs: 30000,
         candidateProbe: { bundle: { schema: 'candidate_probe.v1', heads: {} }, color: 'black', heads: [], classic: false },
         beforeNavigate: async (page: Page) => {
+            const recordBrowserEvent = (event: any) => {
+                browserEvents.push({ time:new Date().toISOString(), ...event });
+                if(browserEvents.length>40)browserEvents.shift();
+            };
+            page.on('framenavigated',frame=>{if(frame===page.mainFrame())recordBrowserEvent({kind:'navigation',url:frame.url()});});
+            page.on('crash',()=>recordBrowserEvent({kind:'crash'}));
+            page.on('pageerror',error=>recordBrowserEvent({kind:'pageerror',error:String(error)}));
             await page.route('**/*', async route => {
                 const url = new URL(route.request().url());
                 if (url.hostname !== '127.0.0.1') return route.continue();
@@ -84,7 +102,20 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                 const coordinator = req('game/turn/pending-coordinator'), clearPending = coordinator.clearPendingEffect;
                 const clone = (value: any) => JSON.parse(JSON.stringify(value));
                 const oracle: any = { blocked: true, active: null, settled: Promise.resolve(), sequence:0, performanceEntries:[],
-                    queued:[], expected:null,lastPlan:null };
+                    queued:[], expected:null,lastPlan:null,autoInFlight:false };
+                const stopAuto = () => { if(typeof root.disableAutoMode === 'function')root.disableAutoMode(); };
+                const originalAutoEntry=root.processAutoBlackTurn;
+                if(typeof originalAutoEntry!=='function')throw new Error('Frozen black AUTO entry is unavailable');
+                Object.defineProperty(root,'processAutoBlackTurn',{configurable:true,writable:true,value:async (...args:any[])=>{
+                    // The shared presentation flag can clear before the old
+                    // asynchronous move search settles. Admit one original
+                    // AUTO invocation at a time, without resetting its retries
+                    // or changing its decisions or search budget.
+                    if(oracle.blocked || oracle.autoInFlight)return;
+                    oracle.autoInFlight=true;
+                    try {return await originalAutoEntry.apply(root,args);}
+                    finally {oracle.autoInFlight=false;}
+                }});
                 const comparable = (value:any) => {
                     const state=clone(value);
                     req('shared/presentation-queue').clearPresentationQueues(state.cardState);
@@ -129,6 +160,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     const active=oracle.active;
                     if(active.actionCount>=limits.maxActionsPerTurn) {
                         oracle.blocked=true;oracle.active=null;
+                        stopAuto();
                         active.reject(new Error(`Frozen turn exceeded ${limits.maxActionsPerTurn} recorded actions`));
                         throw new Error('Frozen turn action limit');
                     }
@@ -153,11 +185,12 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                         if(result.gameState.turnNumber!==active.turnNumber || result.gameState.currentPlayer!==active.player
                             || req('game/logic/core').isGameOver(result.gameState)) {
                             oracle.blocked=true;oracle.active=null;active.resolve(active.answers);
+                            stopAuto();
                         }
                     }
                     return result;
                 };
-                oracle.advise = async (snapshot: any) => {
+                oracle.planAnswer = async (snapshot: any) => {
                     if(oracle.queued.length) {
                         if(comparable(snapshot)!==comparable(oracle.expected))throw new Error('Frozen turn continuation state differs');
                         const answer=oracle.queued.shift();oracle.expected=answer.after;return answer;
@@ -185,21 +218,28 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     oracle.performanceEntries=[];
                     const player = root.gameState.currentPlayer === 1 || root.gameState.currentPlayer === 'black' ? 'black' : 'white';
                     const answers:any[] = await new Promise<any[]>((resolve,reject) => {
-                        const timer = setTimeout(() => { oracle.blocked=true; oracle.active=null; reject(new Error(`Frozen oracle turn timed out after ${limits.turnTimeoutMs}ms`)); },limits.turnTimeoutMs);
+                        const timer = setTimeout(() => { oracle.blocked=true; oracle.active=null; stopAuto(); reject(new Error(`Frozen oracle turn timed out after ${limits.turnTimeoutMs}ms`)); },limits.turnTimeoutMs);
                         oracle.active = { started:performance.now(),turnNumber:root.gameState.turnNumber,player:root.gameState.currentPlayer,
                             attempts:[],preparations:[],answers:[],actionCount:0,
                             resolve:(value:any) => {clearTimeout(timer);resolve(value);},
                             reject:(error:any) => {clearTimeout(timer);reject(error);} };
                         oracle.lastPlan=oracle.active;
-                        oracle.settled = Promise.resolve(handler.runCpuTurn(player,{ autoMode:player==='black' })).catch(error => {
-                            clearTimeout(timer); oracle.active=null; oracle.blocked=true; reject(error);
+                        // Let the actual black-seat AUTO entry own the whole
+                        // invocation, including multi-place continuations. Do
+                        // not also launch a competing manual black invocation.
+                        oracle.settled = player==='black' ? Promise.resolve().then(()=>{
+                            if(!root.AUTO_MODE_ACTIVE)root.document.getElementById('autoToggleBtn')?.click();
+                            if(oracle.active && !root.AUTO_MODE_ACTIVE)throw new Error('Frozen black AUTO did not start');
+                        }) : Promise.resolve(handler.runCpuTurn(player,{ autoMode:false }));
+                        oracle.settled = oracle.settled.catch((error:unknown) => {
+                            clearTimeout(timer); oracle.active=null; oracle.blocked=true; stopAuto(); reject(error);
                         });
                     });
                     await oracle.settled;
                     // Scheduled invocations may finish after the first invocation.
                     // Await the normal handoff presentation before another turn.
                     const settleDeadline=performance.now()+limits.presentationTimeoutMs;
-                    while(root.isCardAnimating || req('ui/playback-state-manager').isPlaybackRunning()) {
+                    while(oracle.autoInFlight || root.isProcessing || root.isCardAnimating || req('ui/playback-state-manager').isPlaybackRunning()) {
                         if(performance.now()>settleDeadline)throw new Error('Frozen turn presentation did not settle');
                         await new Promise(resolve=>setTimeout(resolve,10));
                     }
@@ -209,18 +249,50 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     });
                     const answer=answers.shift();oracle.queued=answers;oracle.expected=answer.after;return answer;
                 };
+                // An interrupted browser response must not pop the next action
+                // or run the CPU again. Keep only the latest numbered request.
+                oracle.advise = (request: any) => {
+                    if(oracle.lastRequest?.id===request.id)return oracle.lastRequest.promise;
+                    if(oracle.lastRequest && request.id<=oracle.lastRequest.id)throw new Error('Out-of-order frozen request');
+                    const entry:any={id:request.id};
+                    oracle.lastRequest=entry;
+                    entry.promise=oracle.planAnswer(request.snapshot).then((answer:any)=>{entry.answer=answer;return answer;});
+                    return entry.promise;
+                };
                 root.__frozenLv9Oracle = oracle;
             },FROZEN_LV9_EXECUTION_LIMITS);
             readyResolve({ baselineSha256:BASELINE_SHA256,
                 advise: snapshot => {
                     const query = queryQueue.then(async () => {
-                        try {return await page.evaluate(snapshot => (window as any).__frozenLv9Oracle.advise(snapshot),snapshot);}
+                        const request={id:++requestSequence,snapshot};
+                        try {
+                            try {return await page.evaluate(request => (window as any).__frozenLv9Oracle.advise(request),request);}
+                            catch(error) {
+                                if(!String(error).includes('Execution context was destroyed'))throw error;
+                                try {
+                                    const answer=await page.evaluate(id=>{
+                                        const entry=(window as any).__frozenLv9Oracle?.lastRequest;
+                                        if(entry?.id!==id)throw new Error('Original frozen request context is unavailable');
+                                        return entry.promise;
+                                    },request.id);
+                                    answer.transportRecoveries=[{error:String(error),time:new Date().toISOString(),browserEvents:browserEvents.slice()}];
+                                    return answer;
+                                } catch(recoveryError) {
+                                    (error as any).frozenRecoveryError=String(recoveryError);
+                                    throw error;
+                                }
+                            }
+                        }
                         catch(error) {
                             (error as any).frozenFailure=await page.evaluate(()=>{
                                 const root=window as any;
                                 return JSON.parse(JSON.stringify({plan:root.__frozenLv9Oracle.lastPlan,
-                                    gameState:root.gameState,cardState:root.cardState,prngState:root.require('card-system').getGamePrng().getState()}));
+                                    gameState:root.gameState,cardState:root.cardState,prngState:root.require('card-system').getGamePrng().getState(),
+                                    auto:root.AUTO_MODE_ACTIVE,processing:root.isProcessing,animating:root.isCardAnimating,
+                                    autoInFlight:root.__frozenLv9Oracle.autoInFlight,
+                                    performanceEntries:root.__frozenLv9Oracle.performanceEntries}));
                             }).catch(()=>null);
+                            (error as any).frozenBrowserEvents=browserEvents.slice();
                             throw error;
                         }
                     });

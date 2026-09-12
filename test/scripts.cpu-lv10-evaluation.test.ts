@@ -1,4 +1,43 @@
-import {makeLv10Conditions,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
+import {collectLv10Evaluation,makeLv10Conditions,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
+import {FROZEN_LV9_MODEL_SETTINGS} from '../scripts/cpu-lv10-frozen-oracle';
+import fs = require('node:fs');
+import os = require('node:os');
+import path = require('node:path');
+import crypto = require('node:crypto');
+import zlib = require('node:zlib');
+
+test('progress caching preserves results and rechecks changed traces; final collection reads all files',()=>{
+    const directory=fs.mkdtempSync(path.join(os.tmpdir(),'lv10-validation-test-'));
+    const hash=(bytes:Buffer)=>crypto.createHash('sha256').update(bytes).digest('hex');
+    const initialState=JSON.stringify({game:{turnNumber:0,currentPlayer:1,consecutivePasses:0},card:{
+        charge:{black:99,white:99},chargeGainMultiplierByPlayer:{black:2,white:2},
+        decks:{black:['hard_01'],white:['hard_01']},hands:{black:[],white:[]}}});
+    const conditions=[{pair:1,seed:123}],schedule=conditions.flatMap(c=>['black','white'].map(color=>({...c,color})));
+    try {
+        fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'development',label:'cache-test',conditions,schedule,
+            baselineSha256:'fixture',search:{version:'fixture',maxTransitions:10},gameConditions:{initialCharge:99,
+                chargeGainMultiplier:2,cardUseUnlockTurnNumber:6,deckCardIds:['hard_01']}}));
+        for(const game of schedule) {
+            const prefix=path.join(directory,`game-${game.seed}-${game.color}`);
+            const bytes=zlib.gzipSync(JSON.stringify({initialState,audit:{records:[],gameOver:true,counts:{black:2,white:1},
+                frozenOpponent:{baselineSha256:'fixture',answers:[{model:{...FROZEN_LV9_MODEL_SETTINGS,loaded:true,lastError:null}}]},
+                lv10:{totals:{decisions:1},historyComplete:true,history:[{search:{version:'fixture',transitions:1}}]}}}));
+            fs.writeFileSync(`${prefix}.json.gz`,bytes);
+            fs.writeFileSync(`${prefix}.summary.json`,JSON.stringify({traceSha256:hash(bytes),rejections:[],pageErrors:[],durationMs:1}));
+        }
+        const cache=new Map(),first=collectLv10Evaluation(directory,cache);
+        expect(first.valid).toBe(true);
+        expect(cache.size).toBe(2);
+        expect(collectLv10Evaluation(directory,cache)).toEqual(first);
+        expect(collectLv10Evaluation(directory)).toEqual(first);
+        fs.writeFileSync(path.join(directory,'game-123-black.json.gz'),'corrupted trace');
+        expect(()=>collectLv10Evaluation(directory,cache)).toThrow();
+        expect(()=>collectLv10Evaluation(directory)).toThrow();
+    } finally {
+        if(path.dirname(directory)!==path.resolve(os.tmpdir()) || !path.basename(directory).startsWith('lv10-validation-test-'))throw new Error('Invalid test cleanup path');
+        fs.rmSync(directory,{recursive:true,force:true});
+    }
+});
 
 test('both seats must actually start with the frozen perks and complete deck, independent of deal order',()=>{
     const conditions={initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6,deckCardIds:['hard_01','gold_stone']};

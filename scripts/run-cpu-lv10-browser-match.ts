@@ -38,7 +38,9 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                             firstOracleFailure = error;
                             const audit = await page.evaluate(() => (window as any).__lv10MatchAudit).catch(() => null);
                             fs.writeFileSync(`${prefix}.oracle-failure.json.gz`, zlib.gzipSync(JSON.stringify({
-                                snapshot, error:String(error), frozenFailure:(error as any).frozenFailure, audit, oracleAnswers })));
+                                snapshot, error:String(error), frozenFailure:(error as any).frozenFailure,
+                                frozenBrowserEvents:(error as any).frozenBrowserEvents,
+                                frozenRecoveryError:(error as any).frozenRecoveryError, audit, oracleAnswers })));
                             await page.close();
                         }
                         throw error;
@@ -219,8 +221,10 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
         write('summary', summary);
         return summary;
     } catch (error) {
-        write('error', { ...options, error: String(error), stack: error instanceof Error ? error.stack : null });
-        throw error;
+        const cause=firstOracleFailure || error;
+        write('error', { ...options, error: String(cause), stack: cause instanceof Error ? cause.stack : null,
+            ...(firstOracleFailure ? { subsequentError:String(error) } : {}) });
+        throw cause;
     } finally {
         await oracle?.close();
     }
