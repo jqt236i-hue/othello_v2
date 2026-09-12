@@ -102,6 +102,49 @@ function createGachaRevealAudioSession(options?: any): any {
   let activePullAudioCleanup: ((audioRef?: any) => void) | null = null;
   let primedPullAudio: HTMLAudioElement | null = null;
   let shouldResumeBgmAfterAudio = false;
+  let cueContext: AudioContext | null = null;
+  let cueGain: GainNode | null = null;
+
+  function prepareCues(): void {
+    if (cueContext) return;
+    const Constructor = rootRef && (rootRef.AudioContext || rootRef.webkitAudioContext);
+    if (!Constructor) return;
+    try {
+      cueContext = new Constructor();
+      cueGain = cueContext!.createGain();
+      cueGain.gain.value = resolvePullAudioVolume(resolveSoundEngine(rootRef));
+      cueGain.connect(cueContext!.destination);
+      void cueContext!.resume().catch(() => {});
+      rootRef.addEventListener?.(MASTER_VOLUME_CHANGED_EVENT, updateCueVolume);
+    } catch (_) { cueContext = null; cueGain = null; }
+  }
+
+  function updateCueVolume(): void {
+    if (cueGain) cueGain.gain.value = resolvePullAudioVolume(resolveSoundEngine(rootRef));
+  }
+
+  function cue(kind: string, rarity = 'N', index = 0): void {
+    if (!cueContext || !cueGain || cueContext.state === 'closed') return;
+    const rank = Math.max(0, ['N', 'R', 'SR', 'SSR', 'UR', 'EXR'].indexOf(rarity));
+    const frequencies = kind === 'reveal'
+      ? [130.81, 261.63, 329.63, 392, ...(rank >= 3 ? [523.25, 783.99] : [])]
+      : kind === 'anticipation' ? [196, 293.66, 440] : [523.25 * Math.pow(2, (index % 5) / 12)];
+    const duration = kind === 'reveal' ? 1.45 + rank * .1 : .32;
+    frequencies.forEach((frequency, i) => {
+      try {
+        const oscillator = cueContext!.createOscillator(), envelope = cueContext!.createGain();
+        const at = cueContext!.currentTime + i * .035;
+        oscillator.type = i === 0 && kind === 'reveal' ? 'sine' : 'triangle';
+        oscillator.frequency.setValueAtTime(frequency, at);
+        envelope.gain.setValueAtTime(0, at);
+        envelope.gain.linearRampToValueAtTime(kind === 'reveal' ? .045 : .025, at + .018);
+        envelope.gain.exponentialRampToValueAtTime(.0001, at + duration);
+        oscillator.connect(envelope); envelope.connect(cueGain!);
+        oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
+        oscillator.start(at); oscillator.stop(at + duration + .02);
+      } catch (_) { /* Audio capability must not block an already awarded result. */ }
+    });
+  }
 
   function primeNextPullAudio(): HTMLAudioElement | null {
     if (primedPullAudio) return primedPullAudio;
@@ -205,6 +248,7 @@ function createGachaRevealAudioSession(options?: any): any {
   }
 
   function play(): boolean {
+    prepareCues();
     const engine = resolveSoundEngine(rootRef);
     const audio = consumePrimedPullAudio()
       || preparePullAudioForFastStart(createPullAudioInstance(rootRef, { createAudio: opts.createAudio }), rootRef);
@@ -241,6 +285,11 @@ function createGachaRevealAudioSession(options?: any): any {
   }
 
   function destroy(): void {
+    rootRef?.removeEventListener?.(MASTER_VOLUME_CHANGED_EVENT, updateCueVolume);
+    if (cueContext) {
+      try { void cueContext.close().catch(() => {}); } catch (_) { /* already closed */ }
+      cueContext = null; cueGain = null;
+    }
     const audioRef = activePullAudio;
     if (audioRef && typeof audioRef.pause === 'function') {
       try { audioRef.pause(); } catch (e) { /* ignore */ }
@@ -253,6 +302,7 @@ function createGachaRevealAudioSession(options?: any): any {
 
   return {
     play,
+    cue,
     destroy,
     hasActiveAudio: function () {
       return !!activePullAudio;

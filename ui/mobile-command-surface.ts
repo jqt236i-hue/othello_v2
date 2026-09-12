@@ -515,6 +515,9 @@ function setupMobileCommandSurface(
 
   listen(documentRef, 'keydown', ((event: KeyboardEvent) => {
     if (!isPhonePortrait()) return;
+    // The active observation theatre owns Escape and Tab until its reveal settles.
+    const eventTarget = event.target as HTMLElement | null;
+    if (eventTarget?.closest?.('#gachaRevealStage.is-active')) return;
     if (event.key === 'Escape' && closeTop()) {
       event.preventDefault();
       event.stopPropagation();

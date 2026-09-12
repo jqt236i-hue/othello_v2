@@ -33,6 +33,37 @@ describe('gacha reveal audio session', () => {
     jest.useRealTimers();
   });
 
+  test('synchronized cues follow volume and mute, and release their context on dismissal', () => {
+    const parameters = () => ({ value: 0, setValueAtTime: jest.fn(), linearRampToValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() });
+    const bus = { gain: parameters(), connect: jest.fn() };
+    const oscillator = { frequency: parameters(), connect: jest.fn(), start: jest.fn(), stop: jest.fn(), disconnect: jest.fn() };
+    const context = {
+      state: 'running', currentTime: 0, destination: {},
+      createGain: jest.fn().mockReturnValueOnce(bus).mockImplementation(() => ({ gain: parameters(), connect: jest.fn(), disconnect: jest.fn() })),
+      createOscillator: jest.fn(() => oscillator), resume: jest.fn(() => Promise.resolve()), close: jest.fn(() => Promise.resolve())
+    };
+    const listeners = new Set<() => void>();
+    const root = {
+      AudioContext: jest.fn(() => context),
+      SoundEngine: { volume: .5, masterVolume: .4, isMuted: false },
+      addEventListener: (key, listener) => listeners.add(listener),
+      removeEventListener: (key, listener) => listeners.delete(listener)
+    };
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
+    const session = mod.createGachaRevealAudioSession({ root, createAudio: createAudioStub });
+    session.play(); session.cue('reveal', 'EXR');
+    expect(context.createOscillator).toHaveBeenCalledTimes(6);
+    expect(oscillator.start).toHaveBeenCalled();
+    expect(oscillator.stop).toHaveBeenCalled();
+    expect(bus.gain.value).toBeCloseTo(.2);
+    root.SoundEngine.isMuted = true;
+    listeners.forEach(listener => listener());
+    expect(bus.gain.value).toBe(0);
+    session.destroy();
+    expect(context.close).toHaveBeenCalledTimes(1);
+    expect(listeners.size).toBe(0);
+  });
+
   test('keeps BGM paused after the pull audio ends and resumes it when the reveal is closed', async () => {
     const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();

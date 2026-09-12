@@ -211,6 +211,49 @@ describe('gacha reveal player', () => {
     expect(mod.resolveRevealEffectKey('EXR')).toBe('singularity');
   });
 
+  test('ten pulls reveal sequentially, retain the strongest hero and expose a keyboard exit', async () => {
+    jest.resetModules(); jest.useFakeTimers(); setDom();
+    const mod = require('../ui/gacha-reveal-player.js');
+    const player = mod.createGachaRevealPlayer({ root: window, createAudio: createAudioStub,
+      timings: { introMs: 1, heroMs: 1, gridMs: 1000 } });
+    const pulls = Array.from({ length: 10 }, (_, i) => createPull(`hand-${i}`, i === 7 ? 'EXR' : 'N', `手${i}`));
+    const playing = player.play({ pulls, newlyUnlockedIds: ['hand-7'] });
+    await jest.advanceTimersByTimeAsync(80);
+    const stage = document.getElementById('gachaRevealStage');
+    expect(stage.querySelector('.gacha-reveal-hero-name').textContent).toBe('手7');
+    expect(stage.querySelectorAll('.gacha-reveal-slot.is-revealed')).toHaveLength(1);
+    expect(stage.classList.contains('is-awaiting-dismiss')).toBe(false);
+    await jest.advanceTimersByTimeAsync(1200);
+    expect(stage.querySelectorAll('.gacha-reveal-slot.is-revealed')).toHaveLength(10);
+    expect(stage.classList.contains('is-awaiting-dismiss')).toBe(true);
+    expect(document.getElementById('gachaRevealSkipBtn').getAttribute('aria-label')).toBe('結果一覧へ');
+    stage.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await jest.advanceTimersByTimeAsync(32);
+    expect((await playing).finishedWith).toBe('animated');
+  });
+
+  test('destroy during the introduction cannot resurrect the reveal or leave a dismissal wait', async () => {
+    jest.resetModules(); jest.useFakeTimers(); setDom();
+    const player = require('../ui/gacha-reveal-player.js').createGachaRevealPlayer({ root: window, createAudio: createAudioStub });
+    const playing = player.play({ pulls: [createPull('hand', 'UR', '手')] });
+    await jest.advanceTimersByTimeAsync(30);
+    player.destroy();
+    await jest.advanceTimersByTimeAsync(2500);
+    await playing;
+    expect(player.isActive()).toBe(false);
+    expect(document.getElementById('gachaRevealStage')).toBeNull();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test('reduced motion bypasses the theatre without starting sound', async () => {
+    jest.resetModules(); setDom();
+    window.matchMedia = () => ({ matches: true });
+    const audio = createAudioStub();
+    const player = require('../ui/gacha-reveal-player.js').createGachaRevealPlayer({ root: window, createAudio: () => audio });
+    expect((await player.play({ pulls: [createPull('hand', 'SSR', '手')] })).finishedWith).toBe('instant');
+    expect(audio.play).not.toHaveBeenCalled();
+  });
+
   test('DISABLE_ANIMATIONS uses the instant reveal path', async () => {
     jest.resetModules();
     setDom();

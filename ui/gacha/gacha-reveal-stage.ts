@@ -34,6 +34,11 @@ function createParticleRow(docRef: Document, container: HTMLElement, className: 
   }
 }
 
+function bindPreviewRecovery(image: HTMLImageElement, fallback: HTMLElement): void {
+  image.addEventListener('error', () => { image.hidden = true; fallback.hidden = false; });
+  image.addEventListener('load', () => { image.hidden = false; fallback.hidden = true; });
+}
+
 interface StageRefs {
   stage: HTMLElement;
   skipBtn: HTMLElement | null;
@@ -47,6 +52,8 @@ interface StageRefs {
   heroName: Element | null;
   heroStatus: Element | null;
   grid: Element | null;
+  canvas: HTMLCanvasElement | null;
+  progress: Element | null;
 }
 
 function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRefs | null {
@@ -58,6 +65,19 @@ function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRe
     stage = docRef.createElement('div');
     stage.id = 'gachaRevealStage';
     stage.setAttribute('aria-hidden', 'true');
+    stage.setAttribute('role', 'dialog');
+    stage.setAttribute('aria-modal', 'true');
+    stage.setAttribute('aria-label', '観測ガチャの演出');
+
+    const canvas = docRef.createElement('canvas');
+    canvas.className = 'gacha-reveal-cosmos';
+    canvas.setAttribute('aria-hidden', 'true');
+    stage.appendChild(canvas);
+    const masthead = createStaticElement(docRef, 'div', 'gacha-reveal-masthead');
+    masthead.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-seal', '✦'));
+    masthead.appendChild(createStaticElement(docRef, 'span', '', '観測ガチャ'));
+    masthead.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-edition', 'THE OBSERVATORY'));
+    stage.appendChild(masthead);
 
     const skipBtn = createStaticElement(docRef, 'button', 'btn-small', 'SKIP');
     skipBtn.id = 'gachaRevealSkipBtn';
@@ -72,14 +92,19 @@ function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRe
     viewport.appendChild(backdrop);
 
     const particles = createStaticElement(docRef, 'div', 'gacha-reveal-particles');
-    createParticleRow(docRef, particles, 'gacha-reveal-particle', 10);
+    particles.setAttribute('aria-hidden', 'true');
+    createParticleRow(docRef, particles, 'gacha-reveal-particle', 24);
     viewport.appendChild(particles);
 
     const rings = createStaticElement(docRef, 'div', 'gacha-reveal-rings');
     rings.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-aurora'));
     rings.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-ring gacha-reveal-ring-a'));
     rings.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-ring gacha-reveal-ring-b'));
-    rings.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-core'));
+    rings.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-ring gacha-reveal-ring-c'));
+    const core = createStaticElement(docRef, 'span', 'gacha-reveal-core');
+    core.appendChild(createStaticElement(docRef, 'i', 'gacha-reveal-core-facet'));
+    rings.appendChild(core);
+    rings.setAttribute('aria-hidden', 'true');
     viewport.appendChild(rings);
 
     const impact = createStaticElement(docRef, 'div', 'gacha-reveal-impact');
@@ -89,30 +114,44 @@ function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRe
     viewport.appendChild(impact);
 
     const copy = createStaticElement(docRef, 'div', 'gacha-reveal-copy');
-    copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-label', 'OBSERVATION GACHA'));
+    copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-label', '運命の、その先へ。'));
     copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-headline', '観測が収束しています'));
-    copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-subtitle', '新しい報酬を解析中...'));
+    copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-subtitle', '星の光を集めています'));
+    copy.setAttribute('aria-live', 'polite');
     viewport.appendChild(copy);
 
     const hero = createStaticElement(docRef, 'div', 'gacha-reveal-hero');
-    hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-rarity'));
     const heroImageWrap = createStaticElement(docRef, 'div', 'gacha-reveal-hero-image-wrap');
+    heroImageWrap.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-hero-orbit'));
     const heroImage = docRef.createElement('img');
     heroImage.className = 'gacha-reveal-hero-image';
     heroImage.alt = '';
-    heroImage.loading = 'lazy';
+    heroImage.loading = 'eager';
     heroImage.decoding = 'async';
     heroImage.draggable = false;
     heroImageWrap.appendChild(heroImage);
-    heroImageWrap.appendChild(itemVisuals.createHandFallbackTile(docRef, 'gacha-reveal-hero-fallback'));
+    const heroFallback = itemVisuals.createHandFallbackTile(docRef, 'gacha-reveal-hero-fallback');
+    heroImageWrap.appendChild(heroFallback);
+    bindPreviewRecovery(heroImage, heroFallback);
     hero.appendChild(heroImageWrap);
-    hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-kind'));
-    hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-name'));
-    hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-status'));
+    const heroInfo = createStaticElement(docRef, 'div', 'gacha-reveal-hero-info');
+    heroInfo.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-kind'));
+    heroInfo.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-rarity'));
+    heroInfo.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-name'));
+    heroInfo.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-status'));
+    hero.appendChild(heroInfo);
     viewport.appendChild(hero);
 
     const grid = createStaticElement(docRef, 'div', 'gacha-reveal-grid');
     viewport.appendChild(grid);
+
+    const footer = createStaticElement(docRef, 'div', 'gacha-reveal-footer');
+    footer.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-progress', '光を集めています'));
+    const track = createStaticElement(docRef, 'span', 'gacha-reveal-track');
+    track.appendChild(createStaticElement(docRef, 'i'));
+    footer.appendChild(track);
+    footer.appendChild(createStaticElement(docRef, 'span', 'gacha-reveal-continue', 'タップで結果一覧へ  ›'));
+    stage.appendChild(footer);
 
     overlay.appendChild(stage);
   }
@@ -129,7 +168,9 @@ function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRe
     heroKind: stage.querySelector('.gacha-reveal-hero-kind'),
     heroName: stage.querySelector('.gacha-reveal-hero-name'),
     heroStatus: stage.querySelector('.gacha-reveal-hero-status'),
-    grid: stage.querySelector('.gacha-reveal-grid')
+    grid: stage.querySelector('.gacha-reveal-grid'),
+    canvas: stage.querySelector('.gacha-reveal-cosmos'),
+    progress: stage.querySelector('.gacha-reveal-progress')
   };
 }
 
@@ -139,20 +180,22 @@ function createSlotCard(docRef: Document, pull: any, isNew: boolean, index: numb
   const card = docRef.createElement('div');
   card.className = `gacha-reveal-slot rarity-${rarityId}`;
   card.setAttribute('data-gacha-rarity', rarityId);
+  card.setAttribute('aria-hidden', 'true');
   if (pull && pull.item && pull.item.id === spotlightId) {
     card.classList.add('is-spotlight');
   }
-  card.style.setProperty('--gacha-reveal-delay', `${Math.max(0, index) * 42}ms`);
+  card.style.setProperty('--gacha-slot-index', String(index));
 
   const rarity = createStaticElement(docRef, 'div', 'gacha-reveal-slot-rarity', String((pull && pull.rarity) || ''));
   const visual = createStaticElement(docRef, 'div', 'gacha-reveal-slot-visual');
   const image = docRef.createElement('img');
   image.className = 'gacha-reveal-slot-image';
   image.alt = '';
-  image.loading = 'lazy';
+  image.loading = 'eager';
   image.decoding = 'async';
   image.draggable = false;
   const fallback = itemVisuals.createHandFallbackTile(docRef, 'gacha-reveal-slot-fallback');
+  bindPreviewRecovery(image, fallback);
   itemVisuals.applyItemPreviewState(pull && pull.item ? pull.item : null, image, fallback);
   visual.appendChild(image);
   visual.appendChild(fallback);
@@ -203,6 +246,8 @@ function resetStageVisualState(stage: HTMLElement, isTenPull: boolean): void {
   stage.classList.remove(
     'is-active',
     'is-charging',
+    'is-anticipating',
+    'is-opening',
     'is-hero-visible',
     'is-grid-visible',
     'is-impact-visible',
@@ -221,6 +266,8 @@ function hideStage(stage: HTMLElement): void {
   stage.classList.remove(
     'is-active',
     'is-charging',
+    'is-anticipating',
+    'is-opening',
     'is-hero-visible',
     'is-grid-visible',
     'is-impact-visible',

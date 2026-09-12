@@ -8,8 +8,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const DEFAULT_TIMINGS = Object.freeze({
   introMs: 2000,
-  heroMs: 280,
-  gridMs: 420,
+  heroMs: 1450,
+  gridMs: 1800,
   finishMs: 120
 });
 const RARITY_REVEAL_EFFECTS = Object.freeze({
@@ -127,9 +127,7 @@ function waitForStep(state: any, durationMs: any): Promise<void> {
 }
 
 function describeObservedItem(item: any): string {
-  return String(item && item.kind || '').trim().toLowerCase() === 'placement_sound'
-    ? '配置音を観測しました'
-    : '手の見た目を観測しました';
+  return '手の見た目を観測しました';
 }
 
 function waitForDismiss(state: any): Promise<void> {
@@ -200,6 +198,8 @@ function createGachaRevealPlayer(options?: any): any {
     phase: 'idle',
     isActive: false
   };
+  let scene: any = null;
+  let focusBeforeReveal: HTMLElement | null = null;
 
   if (!refs || !refs.stage || !stageModule) return null;
 
@@ -229,9 +229,14 @@ function createGachaRevealPlayer(options?: any): any {
       state.dismissRequested = true;
     });
     refs.stage.__gachaRevealStageBound = true;
+    refs.stage.addEventListener('keydown', function (event: KeyboardEvent) {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); requestSkip(); }
+      if (event.key === 'Tab') { event.preventDefault(); refs.skipBtn.focus(); }
+    });
   }
 
   async function play(transaction?: any): Promise<any> {
+    if (state.isActive) return { finishedWith: 'busy' };
     const safeTransaction = (transaction && typeof transaction === 'object') ? transaction : {};
     const pulls = Array.isArray(safeTransaction.pulls) ? safeTransaction.pulls.filter((pull: any) => pull && pull.item) : [];
     const newlyUnlockedIdSet = new Set(Array.isArray(safeTransaction.newlyUnlockedIds) ? safeTransaction.newlyUnlockedIds : []);
@@ -256,11 +261,14 @@ function createGachaRevealPlayer(options?: any): any {
     refs.stage.setAttribute('data-reveal-effect', revealEffect);
     refs.stage.classList.remove('is-awaiting-dismiss');
     refs.skipBtn.textContent = 'SKIP';
-    refs.headline.textContent = isTenPull ? '大量観測を開始します' : '観測が収束しています';
+    refs.skipBtn.setAttribute('aria-label', 'ガチャ演出をスキップ');
+    refs.headline.textContent = isTenPull ? '10の運命を観測します' : '観測が収束しています';
     refs.subtitle.textContent = isTenPull
-      ? 'もっとも強い反応を先に解析します'
-      : '強い反応を解析しています';
+      ? '星の向こうに、新しい手が待っている'
+      : '星の光を集めています';
+    if (refs.progress) refs.progress.textContent = '光を集めています';
     stageModule.populateHero(refs, spotlightPull, newlyUnlockedIdSet);
+    refs.hero.setAttribute('aria-hidden', 'true');
     stageModule.populateGrid(refs, pulls, newlyUnlockedIdSet, spotlightPull);
 
     if (isInstantPlayback(rootRef)) {
@@ -276,36 +284,68 @@ function createGachaRevealPlayer(options?: any): any {
     }
 
     stageModule.resetStageVisualState(refs.stage, isTenPull);
+    focusBeforeReveal = docRef?.activeElement as HTMLElement;
+    try {
+      if (refs.canvas && !/jsdom/i.test(rootRef?.navigator?.userAgent || '')) {
+        scene = _require('./gacha/gacha-reveal-scene').createObservationScene(refs.canvas, rootRef);
+        scene?.start(highestRarity);
+      }
+    } catch (_) { /* CSS atmosphere remains available without Canvas. */ }
     const revealStartedAt = Date.now();
     refs.stage.classList.add('is-active');
+    refs.skipBtn.focus();
     refs.stage.classList.add('is-charging');
     if (audioSession && typeof audioSession.play === 'function') {
       audioSession.play();
     }
     await nextFrame(rootRef);
+    await waitForStep(state, Math.max(0, timings.introMs * .45 - (Date.now() - revealStartedAt)));
+    if (state.isActive && !state.skipRequested) {
+      refs.stage.classList.add('is-anticipating');
+      if (refs.progress) refs.progress.textContent = '観測座標を合わせています';
+      audioSession?.cue?.('anticipation', highestRarity);
+    }
+    await waitForStep(state, Math.max(0, timings.introMs * .8 - (Date.now() - revealStartedAt)));
+    if (state.isActive && !state.skipRequested) {
+      refs.stage.classList.add('is-opening');
+      if (refs.progress) refs.progress.textContent = 'まもなく、運命が開く';
+    }
     await waitForStep(state, Math.max(0, timings.introMs - (Date.now() - revealStartedAt)));
 
-    if ((state as any).skipRequested !== true) {
+    if (state.isActive && (state as any).skipRequested !== true) {
       refs.headline.textContent = '観測が収束しました';
       refs.subtitle.textContent = isTenPull
         ? 'もっとも強い反応を観測しました'
         : describeObservedItem(spotlightPull && spotlightPull.item ? spotlightPull.item : null);
       refs.stage.classList.add('is-impact-visible');
       refs.stage.classList.add('is-hero-visible');
+      refs.hero.setAttribute('aria-hidden', 'false');
+      scene?.setPhase('reveal');
+      audioSession?.cue?.('reveal', highestRarity);
+      if (refs.progress) refs.progress.textContent = isTenPull ? 'もっとも強い反応を観測しました' : '観測完了';
       await waitForStep(state, timings.heroMs);
     }
 
-    if ((state as any).skipRequested !== true && isTenPull) {
+    if (state.isActive && (state as any).skipRequested !== true && isTenPull) {
       refs.stage.classList.add('is-grid-visible');
-      await waitForStep(state, timings.gridMs);
+      const slots = Array.from(refs.grid.children) as HTMLElement[];
+      for (let i = 0; i < slots.length && state.isActive && !state.skipRequested; i++) {
+        slots[i].classList.add('is-revealed');
+        slots[i].setAttribute('aria-hidden', 'false');
+        if (refs.progress) refs.progress.textContent = `${i + 1} / ${pulls.length}  観測完了`;
+        audioSession?.cue?.('slot', pulls[i].rarity, i);
+        await waitForStep(state, timings.gridMs / Math.max(1, slots.length));
+      }
     }
 
     const finishedWith = (state as any).skipRequested === true ? 'skipped' : 'animated';
-    if ((state as any).skipRequested !== true) {
+    if (state.isActive && (state as any).skipRequested !== true) {
       state.phase = 'waiting-dismiss';
       refs.stage.classList.add('is-awaiting-dismiss');
       refs.skipBtn.textContent = '一覧へ';
+      refs.skipBtn.setAttribute('aria-label', '結果一覧へ');
       refs.subtitle.textContent = 'タップで結果一覧へ';
+      scene?.setPhase('settled');
       await waitForDismiss(state);
     }
 
@@ -317,10 +357,12 @@ function createGachaRevealPlayer(options?: any): any {
     if (audioSession && typeof audioSession.destroy === 'function') {
       audioSession.destroy();
     }
+    scene?.stop(); scene = null;
     stageModule.hideStage(refs.stage);
     refs.skipBtn.textContent = 'SKIP';
     state.phase = 'idle';
     state.isActive = false;
+    if (focusBeforeReveal?.isConnected) focusBeforeReveal.focus();
     return {
       finishedWith,
       highestRarity,
@@ -329,6 +371,7 @@ function createGachaRevealPlayer(options?: any): any {
   }
 
   function destroy(): void {
+    scene?.stop(); scene = null;
     state.skipRequested = true;
     state.dismissRequested = true;
     state.phase = 'idle';

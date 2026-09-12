@@ -557,6 +557,24 @@ describe('mobile command surface', () => {
     fixture.dom.window.close();
   });
 
+  test('lets the active gacha theatre handle Escape before the mobile panel closes', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({ root: fixture.windowRef, document: fixture.documentRef })!;
+    controller.openDrawer();
+    fixture.documentRef.getElementById('mobile-command-menu-gacha')!.click();
+    const overlay = fixture.documentRef.getElementById('gachaOverlay')!;
+    const stage = fixture.documentRef.createElement('div');
+    stage.id = 'gachaRevealStage'; stage.className = 'is-active';
+    const skip = fixture.documentRef.createElement('button');
+    stage.appendChild(skip); overlay.appendChild(stage);
+    const handleRevealKey = jest.fn((event: KeyboardEvent) => event.stopPropagation());
+    stage.addEventListener('keydown', handleRevealKey);
+    skip.dispatchEvent(new fixture.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(handleRevealKey).toHaveBeenCalledTimes(1);
+    expect(overlay.getAttribute('aria-hidden')).toBe('false');
+    controller.destroy(); fixture.dom.window.close();
+  });
+
   test('does not move focus when a native panel was opened outside the mobile menu', () => {
     const fixture = createFixture();
     const controller = setupMobileCommandSurface({
