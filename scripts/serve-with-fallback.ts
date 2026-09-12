@@ -12,6 +12,7 @@ import _generate_observation_gacha_catalog from './generate-observation-gacha-ca
 const { generateObservationGachaCatalogs } = _generate_observation_gacha_catalog;
 import _sync_browser_script_versions from './sync-browser-script-versions';
 const { syncBrowserScriptVersions } = _sync_browser_script_versions;
+import { runGuardedHttpServer } from './serve-http-server';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -73,7 +74,7 @@ function parseInteger(value: unknown, label: string): number {
 function parseArgs(argv: string[]): ServeArgs {
     const args: ServeArgs = {
         root: '.',
-        host: process.env.HOST ? String(process.env.HOST).trim() : '0.0.0.0',
+        host: String(process.env.HOST || '').trim() || '127.0.0.1',
         preferredPort: parseInteger(process.env.PORT || '8000', '--port'),
         cacheSeconds: -1,
         maxAttempts: 20,
@@ -95,11 +96,11 @@ function parseArgs(argv: string[]): ServeArgs {
             continue;
         }
         if (token === '--host' || token === '-a') {
-            args.host = String(argv[++i] || '').trim() || '0.0.0.0';
+            args.host = String(argv[++i] || '').trim() || '127.0.0.1';
             continue;
         }
         if (token.startsWith('--host=')) {
-            args.host = String(token.slice('--host='.length) || '').trim() || '0.0.0.0';
+            args.host = String(token.slice('--host='.length) || '').trim() || '127.0.0.1';
             continue;
         }
         if (token === '--cache' || token === '-c') {
@@ -135,7 +136,7 @@ function printHelp() {
         '',
         'Options:',
         '      --port <n>         Preferred port (default: 8000 or PORT env)',
-        '      --host <host>      Host to bind (default: 0.0.0.0 or HOST env)',
+        '      --host <host>      Host to bind (default: 127.0.0.1 or HOST env)',
         '      --cache <n>        Cache seconds for http-server (default: -1)',
         '      --max-attempts <n> Number of sequential ports to try before falling back to OS-assigned port',
         '  -h, --help             Show this help'
@@ -164,7 +165,7 @@ function checkPortAvailable(port: number, host: string): Promise<number | null> 
 }
 
 async function chooseServePort(options: Pick<ServeArgs, 'host' | 'preferredPort' | 'maxAttempts'>): Promise<number> {
-    const host = options && options.host ? options.host : '0.0.0.0';
+    const host = options && options.host ? options.host : '127.0.0.1';
     const preferredPort = options && Number.isFinite(options.preferredPort)
         ? Math.max(0, Math.floor(options.preferredPort))
         : 8000;
@@ -195,8 +196,10 @@ function buildHttpServerArgs(entrypoint: string, options: ServeArgs, selectedPor
         entrypoint,
         rootPath,
         '-p', String(selectedPort),
-        '-a', String(options.host || '0.0.0.0'),
-        `-c${String(options.cacheSeconds)}`
+        '-a', String(options.host || '127.0.0.1'),
+        `-c${String(options.cacheSeconds)}`,
+        '-d', 'false',
+        '--no-dotfiles'
     ].concat(Array.isArray(options.passThrough) ? options.passThrough : []);
 }
 
@@ -376,7 +379,8 @@ async function main() {
     const childArgs = buildHttpServerArgs(entrypoint, args, selectedPort);
     console.log(`[serve] root=${path.resolve(process.cwd(), args.root || '.')} host=${args.host} port=${selectedPort}`);
 
-    const child = spawn(process.execPath, childArgs, {
+    // Keep the upstream CLI's flags, but install the request guard before it starts.
+    const child = spawn(process.execPath, [__filename, '--http-server-child', ...childArgs], {
         cwd: process.cwd(),
         env: process.env,
         stdio: 'inherit'
@@ -394,10 +398,14 @@ async function main() {
 }
 
 if (require.main === module) {
-    Promise.resolve(main()).catch((error: any) => {
-        console.error('[serve] failed:', error && error.message ? error.message : error);
-        process.exit(1);
-    });
+    if (process.argv[2] === '--http-server-child') {
+        runGuardedHttpServer(process.argv[3], process.argv.slice(4));
+    } else {
+        Promise.resolve(main()).catch((error: any) => {
+            console.error('[serve] failed:', error && error.message ? error.message : error);
+            process.exit(1);
+        });
+    }
 }
 
 export = {

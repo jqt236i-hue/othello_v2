@@ -27,10 +27,6 @@
       "sha256": "35d3c53304cb0a267fa6e3a3826c3d8985d8ba0349861e4a9368cd2e444a50b2"
     },
     {
-      "path": "assets/images/special-stones/crystal_stone.png",
-      "sha256": "c26aa9ea18d4b190eda1d7a9e37d08d54fe4dad583a9e53c696a21d52c527552"
-    },
-    {
       "path": "assets/images/special-stones/DESTROY_DRAGON-black.png",
       "sha256": "092b79c77e45c0af5d469abe10447b6bae95d8b9a8b698c827fc61bb8c79e3b2"
     },

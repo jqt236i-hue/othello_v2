@@ -19,6 +19,21 @@ function listenOnce(server, options) {
 }
 
 describe('serve-with-fallback', () => {
+    test('parseArgs defaults to loopback and keeps LAN access explicit', () => {
+        const previousHost = process.env.HOST;
+        try {
+            delete process.env.HOST;
+            expect(parseArgs([]).host).toBe('127.0.0.1');
+            expect(parseArgs(['--host=']).host).toBe('127.0.0.1');
+            expect(parseArgs(['--host', '0.0.0.0']).host).toBe('0.0.0.0');
+            process.env.HOST = '0.0.0.0';
+            expect(parseArgs([]).host).toBe('0.0.0.0');
+        } finally {
+            if (previousHost === undefined) delete process.env.HOST;
+            else process.env.HOST = previousHost;
+        }
+    });
+
     test('parseArgs keeps explicit root and port', () => {
         const args = parseArgs(['worker-public', '--port', '9000', '--host', '127.0.0.1']);
         expect(args.root).toBe('worker-public');
