@@ -755,8 +755,36 @@
       "sha256": "82febdb285173ea49c0cfac849c71a012c864100fd1496549d79ab92a69243f4"
     },
     {
+      "path": "assets/images/Gacha/EXR/創世の手.png",
+      "sha256": "0a8bfffbecf82b6bd5c150ef7c6a2818f9f0cc8a0c51753ad0ab3cd55a9147b7"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/原初の竜神の手.png",
+      "sha256": "11dc176ea479bb597e751f1e1b18fa949db686f7a0f55e11a3f071cc412d6bf1"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/因果律の手.png",
+      "sha256": "df371a8f16379cf61cd7a53b36dafe8f5e8231a3e1fd3fc60db405148b74cd72"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/夢幻蝶の手.png",
+      "sha256": "631714f6cf22742b30739f17137f2943765fdca1bc5d4f1cb5514164c65de3c0"
+    },
+    {
       "path": "assets/images/Gacha/EXR/意志.png",
       "sha256": "205459e17231adc708a8eadd35db270b89eb4d858e81c02126b644e8d871f0dd"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/無限星環の手.png",
+      "sha256": "2945cc64c5a4c5689021978e632acddfb743e27c52484647133f97df97c6251f"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/白金皇の手.png",
+      "sha256": "0f2b040c541ddbc9565919b6acfc4f5170821c6a10bd2ee52c344a155c2db9e6"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/終焉の手.png",
+      "sha256": "566174eacf654eb86b52ed15320b3d07762ad3bcbea68ed5bb44d9d2a22ea3d3"
     },
     {
       "path": "assets/images/Gacha/N/人の手.png",
@@ -765,6 +793,22 @@
     {
       "path": "assets/images/Gacha/N/小鬼の手.png",
       "sha256": "9031a18d1c56d551387241114de809c8c861db0cc2890f5573faa5ccc8548d5f"
+    },
+    {
+      "path": "assets/images/Gacha/N/庭師の手袋.png",
+      "sha256": "a5d662a2b6427a0cf35e7886b11c597605ba5147b0a75e906e78dd059b57e701"
+    },
+    {
+      "path": "assets/images/Gacha/N/旅人の革手袋.png",
+      "sha256": "e716b5240c3a0f862993b9d68d0c06099267c3adbb91c28108c34a60df2d82d6"
+    },
+    {
+      "path": "assets/images/Gacha/N/木彫りの手.png",
+      "sha256": "201cfc3317746b90724fd516ac6fd466a29dd7056ddf6374f5461c95645382e1"
+    },
+    {
+      "path": "assets/images/Gacha/N/綿編みの手袋.png",
+      "sha256": "3dea0581135dc6ffabbd282350d7b26b1c15123aef75c05b427f7b4e1f6ce84e"
     },
     {
       "path": "assets/images/Gacha/N/陽気な手.png",
@@ -779,20 +823,128 @@
       "sha256": "c0cab3dcaea8ab5070d1d527a15d902eef900728052a3c6258993a70911b4bd0"
     },
     {
+      "path": "assets/images/Gacha/R/海賊の手袋.png",
+      "sha256": "620c8e10b82b843467d780d0a412749ce32e5d8062b53332d0ba1b5f4d9cfdc8"
+    },
+    {
       "path": "assets/images/Gacha/R/猫の手.png",
       "sha256": "d80a3641f2fbd7c4e7ba29cf711785f3421d68a9ad04b190ae13019656ab0648"
+    },
+    {
+      "path": "assets/images/Gacha/R/白狐の手.png",
+      "sha256": "2a67f45721c5ad09059f5a076bc90518f6beb162aed0db1c13c9dcca105eb09b"
+    },
+    {
+      "path": "assets/images/Gacha/R/真鍮仕掛けの手.png",
+      "sha256": "f593b497b0082f7cdbad6907cdc6ae00a44a8e2213c4ec20f3b6e5d3e5a43798"
+    },
+    {
+      "path": "assets/images/Gacha/R/翡翠細工の手.png",
+      "sha256": "08680cb3800aa318b8532b8b7f474c3b7c2f1b69c44856d44495829e1a633dea"
+    },
+    {
+      "path": "assets/images/Gacha/R/鍛冶師の鉄手甲.png",
+      "sha256": "67f3f4e8d462bfe8b0d61e53f382969c80d38068d977b12ee2dc9c268a6dc6f8"
+    },
+    {
+      "path": "assets/images/Gacha/R/黒豹の手.png",
+      "sha256": "087a6ccf6130e3e4acd3a2597725ced2e7b71571898d0ed1863d002c32dbe743"
+    },
+    {
+      "path": "assets/images/Gacha/SR/月光の手袋.png",
+      "sha256": "8a25970dd0d803c1448bb705a1bfc77f3ff51a84622af3f4aebf8d53605967b2"
+    },
+    {
+      "path": "assets/images/Gacha/SR/森精の手.png",
+      "sha256": "84387631fb676f5b3d91fe35992c6703e8e138fedd54de9f3c23de309f652e05"
+    },
+    {
+      "path": "assets/images/Gacha/SR/水鏡の手.png",
+      "sha256": "eaa4ef0f4839c93dd23463ba8688e2915ac6d58ae134be3d9a557a033c7089fc"
+    },
+    {
+      "path": "assets/images/Gacha/SR/氷晶の手.png",
+      "sha256": "0a8642119abc9469fb7a0fe006e266c14aaac45b3eceeb151a784219a62aeded"
+    },
+    {
+      "path": "assets/images/Gacha/SR/琥珀の手.png",
+      "sha256": "51176ddb8a2e47be19c9d8331e318d34b17b0f1132343afe041e4a6c5778feca"
+    },
+    {
+      "path": "assets/images/Gacha/SR/紅蓮の手甲.png",
+      "sha256": "38fb49ad143f6be9b65766ef170331154220d05996d2da31947fd3159bdcabdf"
+    },
+    {
+      "path": "assets/images/Gacha/SR/紫電の手甲.png",
+      "sha256": "b8342001ac430091d407c5a70adceab4dca83b5a05c167a38eb4d98200d1cafc"
     },
     {
       "path": "assets/images/Gacha/SR/虹の手.png",
       "sha256": "90dddfd19e240138e02776898765032b8c60eace054f06e107f2a7c772641134"
     },
     {
+      "path": "assets/images/Gacha/SSR/星詠みの手袋.png",
+      "sha256": "4640a07e2caa58a3035069bff9eac4068e0125e882022a1193228fe22182db66"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/翠玉王の手甲.png",
+      "sha256": "22e4039d54d3396c09937e4eb97ca5461d4b022422b946e3d39242fa823dc735"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/聖堂騎士の手.png",
+      "sha256": "b845dfa2b4f5feb82b6a85b08ebfd9c94e849b4bba621070e8716614a53c4651"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/蒼竜の手.png",
+      "sha256": "c9a370f8ef2343bc40266285d7ceec6613020a1f823d32e53edf487cd96e90ad"
+    },
+    {
       "path": "assets/images/Gacha/SSR/邪悪な手.png",
       "sha256": "e4ab3d347f56393b78a6ea21e757d1e335d47de620405f2305f56109b42deaa4"
     },
     {
+      "path": "assets/images/Gacha/SSR/銀狼王の手.png",
+      "sha256": "459f179fe669c5a9be0100f44a0188b1496056a830457944df06ccf448793d8c"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/鳳凰の手甲.png",
+      "sha256": "53f8cf11c0bfeea61786e6b91449b75558c0c6fec3bb8db33841b8b6a6eb9fe8"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/黒曜の魔手.png",
+      "sha256": "35563b68b94e1a024c3043f13139c0d464fb9fa3e846b4b98a40831bf8b9a003"
+    },
+    {
       "path": "assets/images/Gacha/UR/ラグドールの手.png",
       "sha256": "f8277f143ac8dbd585d981b7dbe688614bbc7d532cb2a64eda90e693fe0ce229"
+    },
+    {
+      "path": "assets/images/Gacha/UR/万華の手.png",
+      "sha256": "b808308bc52559ca0277bb19d385247e849da67ebf70475703650b5586794d85"
+    },
+    {
+      "path": "assets/images/Gacha/UR/冥王の手.png",
+      "sha256": "f591b265cce97c2158e7edb200eb5d2cc4a00ef8f5f94f9bf6849c92d35a2314"
+    },
+    {
+      "path": "assets/images/Gacha/UR/天使長の手.png",
+      "sha256": "0312149bca23044a8ba35cfb43cd8df5eb216538489d317a7cdf1ba60ce12698"
+    },
+    {
+      "path": "assets/images/Gacha/UR/天照の手.png",
+      "sha256": "d7847557a9c6beaac89c1cedc1f6657e266aaf3ffdddae58094c33c0d810f224"
+    },
+    {
+      "path": "assets/images/Gacha/UR/星河の手.png",
+      "sha256": "c24e38c5ff7be85e6f1c8b671e138b3afeeaef29ea4a6da0cf5d167b5297d394"
+    },
+    {
+      "path": "assets/images/Gacha/UR/時守の手甲.png",
+      "sha256": "a9782fdd1f008dd7ed4db1b03133901936560871e42401d6b0929d05af85b9a0"
+    },
+    {
+      "path": "assets/images/Gacha/UR/虹竜の手.png",
+      "sha256": "6456f49b1ed711d94a9ac1c5bf7b237016e6080010fffa200ee8269d75c08628"
     },
     {
       "path": "assets/audio/sound-effect/archive/web-audio-stone/default-legacy-stone-place.mp3",

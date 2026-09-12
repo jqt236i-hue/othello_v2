@@ -4,6 +4,14 @@ describe('gacha handler', () => {
   let dom;
   let storageModule;
 
+  function humanHandRandomValues() {
+    const items = require('../ui/gacha/catalog-access.js').getObservationCatalogItems({ root: window })
+      .filter((item: any) => item.rarity === 'N');
+    const index = items.findIndex((item: any) => item.id === 'gacha__n__人の手');
+    expect(index).toBeGreaterThanOrEqual(0);
+    return [0.99, (index + 0.5) / items.length];
+  }
+
   function createDeferred() {
     let resolve;
     let reject;
@@ -63,7 +71,7 @@ describe('gacha handler', () => {
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
-    const randomValues = [0.99, 0.5];
+    const randomValues = humanHandRandomValues();
 
     const api = mod.setupGachaControls({
       root: window,
@@ -108,7 +116,7 @@ describe('gacha handler', () => {
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
-    const randomValues = [0.99, 0.5];
+    const randomValues = humanHandRandomValues();
 
     const api = mod.setupGachaControls({
       root: window,
