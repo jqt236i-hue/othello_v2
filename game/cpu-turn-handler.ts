@@ -174,7 +174,7 @@ const lv10RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedA
 // Presentation and extra-action handoffs may release the shared processing flag
 // while an advisory action is still awaiting completion. Keep the Lv10 request
 // exclusive through that completion; a reset cannot release an older request.
-let lv10TurnInFlight = false;
+let advisedTurnInFlight = false;
 function getLv10DecisionDiagnostics() {
     return { totals: { ...lv10DecisionTotals }, recent: lv10RecentDecisions.slice() };
 }
@@ -2178,9 +2178,16 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
         });
     }
 
+    const level = resolveCpuDecisionLevelForTurn(playerKey);
+    // Evaluation can ask a frozen browser for the opponent's action. This
+    // DI seam is inactive in normal play and never replaces Lv10 judgment.
+    const comparisonAdvisor = level !== 10 && isCpuFastBenchModeEnabled()
+        && typeof __uiImpl_cpu.adviseComparisonOpponent === 'function'
+        ? __uiImpl_cpu.adviseComparisonOpponent : null;
+
     // Re-entrancy guard: prevent multiple concurrent runCpuTurn invocations
     // which can happen when processCpuTurn fires during a card-use resume window
-    if (readCpuProcessing() || (lv10TurnInFlight && resolveCpuDecisionLevelForTurn(playerKey) === 10)) {
+    if (readCpuProcessing() || (advisedTurnInFlight && (level === 10 || comparisonAdvisor))) {
         debugCpuTrace('[AI] runCpuTurn deferred: processing already active', {
             playerKey,
             autoMode
@@ -2207,20 +2214,15 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
     }
 
     let performanceScope: CpuTurnPerformanceScope | null = null;
-    let ownsLv10Turn = false;
+    let ownsAdvisedTurn = false;
     try {
-        const level = resolveCpuDecisionLevelForTurn(playerKey);
         performanceScope = createRunPerformanceScope(playerKey, level, options);
-        // Evaluation can ask a frozen browser for the opponent's action. This
-        // DI seam is inactive in normal play and never replaces Lv10 judgment.
-        const comparisonAdvisor = level !== 10 && isCpuFastBenchModeEnabled()
-            && typeof __uiImpl_cpu.adviseComparisonOpponent === 'function'
-            ? __uiImpl_cpu.adviseComparisonOpponent : null;
         if (level === 10 || comparisonAdvisor) {
-            if (level === 10) {
-                lv10TurnInFlight = true;
-                ownsLv10Turn = true;
-            }
+            // A frozen opponent reply is also asynchronous. Keep its next
+            // request behind the previous action's full UI commit, including
+            // repeated placements within the same turn.
+            advisedTurnInFlight = true;
+            ownsAdvisedTurn = true;
             const generation = CpuTurnScheduler.getCpuRetryGeneration();
             const expectedTurn = getCurrentTurnNumberSafe();
             const viewer = (resolveRuntimeValue('cardState') || cardState)?.fateWillControllerByTurnOwner?.[playerKey] || playerKey;
@@ -2407,7 +2409,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
     } catch (error) {
         handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);
     } finally {
-        if (ownsLv10Turn) lv10TurnInFlight = false;
+        if (ownsAdvisedTurn) advisedTurnInFlight = false;
     }
 }
 
