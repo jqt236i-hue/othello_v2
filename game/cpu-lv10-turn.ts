@@ -1,4 +1,4 @@
-import { sampleLv10Position, enumerateLv10Actions, applyLv10Action, type Lv10Action, type Lv10Player } from './ai/cpu-lv10-position';
+import { sampleLv10Position, enumerateLv10Actions, applyLv10Action, lv10CancellationAction, currentLv10Player, type Lv10Action, type Lv10Player } from './ai/cpu-lv10-position';
 import { observeLv10Position } from './ai/cpu-lv10-observation';
 import { parseLv10AdvisorResult, type Lv10AdvisorRequest } from './ai/cpu-lv10-advisor-contract';
 import type { Lv10SearchResult } from './ai/cpu-lv10-search';
@@ -45,8 +45,21 @@ export async function runLv10Turn(player: Lv10Player, deps: Lv10TurnDeps): Promi
         const state = sampleLv10Position(observation, 100901, request.publicRecipes);
         const fallbackStarted = performance.now();
         for (const action of enumerateLv10Actions(state, { allowCards: false }).slice(0, 8)) {
-            if (applyLv10Action(state, action).ok) { record.action = action; break; }
+            const result = applyLv10Action(state, action);
+            if (result.ok && !result.selectionFailed) { record.action = action; break; }
             if (performance.now() - fallbackStarted > 20) break;
+        }
+    }
+    if (!record.action) {
+        const state = sampleLv10Position(observation, 100901, request.publicRecipes);
+        const cancel = lv10CancellationAction(state);
+        if (cancel) {
+            const result = applyLv10Action(state, cancel);
+            if (result.ok && !result.state.cardState.pendingEffectByPlayer[currentLv10Player(state)]) {
+                record.action = cancel;
+                record.source = 'fallback';
+                record.error ||= 'No progressing target found within the advisory budget';
+            }
         }
     }
     record.elapsedMs = performance.now() - started;

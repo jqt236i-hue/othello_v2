@@ -11,7 +11,7 @@ import {
 /** Provisional development budget. Not shipped until the fixed-baseline match
  * and browser responsiveness gates in the Lv10 plan have passed. */
 export const LV10_SEARCH_CONFIG = Object.freeze({
-    version: 'lv10-canonical-beam-dev4', maxTransitions: 1024, maxMs: 1500,
+    version: 'lv10-canonical-beam-dev5', maxTransitions: 1024, maxMs: 1500,
     maxRetainedPlans: 12, continuationBeam: 2, maxActionsPerTurn: 8,
     maxRootCandidates: 6, scenarioSeeds: Object.freeze([100901, 100909]), maxStageCandidates: 12
 });
@@ -139,10 +139,11 @@ export function searchLv10(observation: Lv10Observation, options: Lv10SearchOpti
         if (!available()) return null;
         transitions++;
         const result = applyLv10Action(state, action);
-        if (result.ok) return result.state;
+        if (result.ok && !result.selectionFailed) return result.state;
+        const reason = result.ok ? 'TARGET_SELECTION_NO_EFFECT' : result.reason;
         rejectedCount++;
-        if (rejected.length < 12) rejected.push({ action, reason: result.reason });
-        if (result.reason.startsWith('RUNTIME_UNAVAILABLE')) throw new Error('Lv10 canonical runtime unavailable');
+        if (rejected.length < 12) rejected.push({ action, reason });
+        if (reason.startsWith('RUNTIME_UNAVAILABLE')) throw new Error('Lv10 canonical runtime unavailable');
         return null;
     }
     function start(state: Lv10Position): Lv10Position | null {

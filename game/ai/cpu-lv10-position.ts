@@ -134,7 +134,12 @@ export function enumerateLv10Actions(
             if (entry.target.argsKey !== 'board') args.push(player);
             if (entry.target.argsKey === 'player_pending') args.push(pending);
             const targets: any[] = Cards[entry.target.method](...args);
-            actions = targets.map(target => ({ type: 'place', [entry.action!.field]: cloneLv10(target) }));
+            actions = targets
+                // The public target list can include frozen stones, although
+                // BoardOps refuses to move them. Skip this known impossibility
+                // before spending the short emergency simulation budget.
+                .filter(target => pending.type !== 'STRONG_WIND_WILL' || !Cards.isFrozenCell(cs, target.row, target.col))
+                .map(target => ({ type: 'place', [entry.action!.field]: cloneLv10(target) }));
         }
     } else {
         const moves = lv10PlacementMoves(state, player);
@@ -160,7 +165,15 @@ export function enumerateLv10Actions(
     return actions;
 }
 
-export type Lv10Transition = { ok: true; state: Lv10Position } | { ok: false; reason: string };
+export type Lv10Transition = { ok: true; state: Lv10Position; selectionFailed?: boolean } | { ok: false; reason: string };
+
+/** Existing player cancellation, used only when an advisory selection cannot
+ * make progress. The canonical action owns the normal refund and usage rules. */
+export function lv10CancellationAction(state: Lv10Position): Lv10Action | null {
+    const pending = state.cardState.pendingEffectByPlayer?.[currentLv10Player(state)];
+    return pending?.stage === 'selectTarget' && Registry.getPendingSelectionEntry(pending.type)?.cancellable
+        ? { type: 'cancel_card' } : null;
+}
 
 /** Input is already at a decision boundary. Real game/card state and real RNG
  * are never passed to this function by the browser advisor. */
@@ -169,8 +182,16 @@ export function applyLv10Action(state: Lv10Position, action: Lv10Action): Lv10Tr
     const result = Pipeline.applyTurnSafe(state.cardState, state.gameState, currentLv10Player(state), cloneLv10(action), rng,
         { skipTurnStart: true });
     if (!result.ok) return { ok: false, reason: `${result.rejectedReason || 'rejected'}: ${result.errorMessage || ''}` };
+    const player = currentLv10Player(state), pending = state.cardState.pendingEffectByPlayer?.[player];
+    // An accepted command can report a failed movement (for example a frozen
+    // stone) and leave selection pending. Do not mistake its RNG consumption
+    // for a useful continuation. A real intermediate selection changes pending.
+    const selectionFailed = pending?.stage === 'selectTarget'
+        && JSON.stringify(pending) === JSON.stringify(result.cardState.pendingEffectByPlayer?.[player])
+        && (result.events || []).some((event: any) => event.applied === false);
     clearTransientState(result.cardState);
-    return { ok: true, state: { gameState: result.gameState, cardState: result.cardState, prngState: rng.getState() } };
+    return { ok: true, state: { gameState: result.gameState, cardState: result.cardState, prngState: rng.getState() },
+        ...(selectionFailed ? { selectionFailed: true } : {}) };
 }
 
 /** Real turn-start effects, draws, additional turns and forced passes are

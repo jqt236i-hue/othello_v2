@@ -149,6 +149,7 @@ describe('Lv10 public information and canonical transitions', () => {
             actions.push(action);
             const next = applyLv10Action(position, action);
             if (!next.ok) throw new Error(next.reason);
+            expect(next.selectionFailed).not.toBe(true);
             position = next.state;
             if (step < 2) expect(position.cardState.pendingEffectByPlayer.black?.stage).toBe('selectTarget');
         }

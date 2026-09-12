@@ -168,6 +168,10 @@ let cpuTurnDecisionEpochSequence = 0;
 let cpuRuntimeIntegrityFailure: unknown = null;
 const lv10RecentDecisions: Lv10TurnRecord[] = [];
 const lv10DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, noAction: 0 };
+// Presentation and extra-action handoffs may release the shared processing flag
+// while an advisory action is still awaiting completion. Keep the Lv10 request
+// exclusive through that completion; a reset cannot release an older request.
+let lv10TurnInFlight = false;
 function getLv10DecisionDiagnostics() {
     return { totals: { ...lv10DecisionTotals }, recent: lv10RecentDecisions.slice() };
 }
@@ -2172,7 +2176,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
 
     // Re-entrancy guard: prevent multiple concurrent runCpuTurn invocations
     // which can happen when processCpuTurn fires during a card-use resume window
-    if (readCpuProcessing()) {
+    if (readCpuProcessing() || (lv10TurnInFlight && resolveCpuDecisionLevelForTurn(playerKey) === 10)) {
         debugCpuTrace('[AI] runCpuTurn deferred: processing already active', {
             playerKey,
             autoMode
@@ -2199,6 +2203,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
     }
 
     let performanceScope: CpuTurnPerformanceScope | null = null;
+    let ownsLv10Turn = false;
     try {
         const level = resolveCpuDecisionLevelForTurn(playerKey);
         performanceScope = createRunPerformanceScope(playerKey, level, options);
@@ -2208,6 +2213,10 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
             && typeof __uiImpl_cpu.adviseComparisonOpponent === 'function'
             ? __uiImpl_cpu.adviseComparisonOpponent : null;
         if (level === 10 || comparisonAdvisor) {
+            if (level === 10) {
+                lv10TurnInFlight = true;
+                ownsLv10Turn = true;
+            }
             const generation = CpuTurnScheduler.getCpuRetryGeneration();
             const expectedTurn = getCurrentTurnNumberSafe();
             const viewer = (resolveRuntimeValue('cardState') || cardState)?.fateWillControllerByTurnOwner?.[playerKey] || playerKey;
@@ -2392,6 +2401,8 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
         stopCpuForRuntimeIntegrityIfBlocked();
     } catch (error) {
         handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);
+    } finally {
+        if (ownsLv10Turn) lv10TurnInFlight = false;
     }
 }
 

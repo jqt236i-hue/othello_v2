@@ -17,6 +17,23 @@ function initialObservation() {
 }
 
 describe('bounded canonical Lv10 development search', () => {
+    test('a failed move of a frozen stone is not a way to advance the sampled RNG before choosing another target', () => {
+        // Public projection of development seed2089148261, turn20. Dev4 chose
+        // frozen (1,5), followed by an effective target after consuming RNG.
+        const observation = cloneLv10(require('./fixtures/cpu-lv10-frozen-target.json'));
+        const state = sampleLv10Position(observation, 100901), before = cloneLv10(state);
+        const failed = applyLv10Action(state, { type: 'place', strongWindTarget: { row: 1, col: 5 } });
+        expect(failed).toMatchObject({ ok: true, selectionFailed: true });
+        expect(state).toEqual(before);
+        const result = searchLv10(observation);
+        expect(result.action).toBeTruthy();
+        const selected = applyLv10Action(state, result.action!);
+        expect(selected.ok).toBe(true);
+        if (!selected.ok) throw new Error(selected.reason);
+        expect(selected.selectionFailed).not.toBe(true);
+        expect(selected.state.cardState.pendingEffectByPlayer.black).toBeNull();
+    });
+
     test('finds a legal action reproducibly without changing its public observation', () => {
         const observation = initialObservation(), before = cloneLv10(observation);
         const a = searchLv10(observation, {maxTransitions:96});

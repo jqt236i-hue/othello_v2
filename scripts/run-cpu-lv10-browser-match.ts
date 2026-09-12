@@ -38,7 +38,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                             firstOracleFailure = error;
                             const audit = await page.evaluate(() => (window as any).__lv10MatchAudit).catch(() => null);
                             fs.writeFileSync(`${prefix}.oracle-failure.json.gz`, zlib.gzipSync(JSON.stringify({
-                                snapshot, error:String(error), audit, oracleAnswers })));
+                                snapshot, error:String(error), frozenFailure:(error as any).frozenFailure, audit, oracleAnswers })));
                             await page.close();
                         }
                         throw error;
@@ -55,6 +55,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                 const comparableState = (value: any) => {
                     const snapshot = clone(value);
                     req('shared/presentation-queue').clearPresentationQueues(snapshot.cardState);
+                    snapshot.cardState.chargeDeltaEvents=[];
                     for (const field of ['_defaultRandomSource','_boardOpsRandomSource','_currentActionMeta']) delete snapshot.cardState[field];
                     return req('shared/state-hash').stableStringify(snapshot);
                 };
@@ -66,11 +67,14 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                 const pipeline = req('game/turn/turn_pipeline'), original = pipeline.applyTurnSafe;
                 pipeline.applyTurnSafe = function(cs: any, gs: any, player: any, action: any, rng: any, opts: any) {
                     if (cs !== root.cardState || gs !== root.gameState) return original(cs, gs, player, action, rng, opts);
+                    if (records.length >= 2000) {
+                        abortComparison('trace_action_limit',{limit:2000,nextAction:clone(action)});
+                        throw new Error('Lv10 trace action limit reached');
+                    }
                     const realRng = rng || req('card-system').getGamePrng();
                     const before = clone({ gameState: gs, cardState: cs, prngState: realRng.getState() });
                     const result = original(cs, gs, player, action, rng, opts);
                     if (result.ok) lastAcceptedAt=performance.now();
-                    if (records.length >= 2000) throw new Error('Lv10 trace action limit reached');
                     records.push({ player, action: clone(action), options: clone(opts || {}), before,
                         after: clone({ gameState: result.gameState, cardState: result.cardState, prngState: realRng.getState() }),
                         ok: result.ok, rejectedReason: result.rejectedReason, errorMessage: result.errorMessage });

@@ -2056,7 +2056,7 @@ async function applyCpuAdvisedSelection(playerKey: any, action: any, performance
             || { ok: false, reason: 'card_runtime_unavailable' };
     }
     const pending = readCpuPendingEffect(playerKey);
-    if (action?.type === 'place' && pending?.stage === 'selectTarget') {
+    if (['place', 'cancel_card'].includes(action?.type) && pending?.stage === 'selectTarget') {
         return runCpuPendingSelectionViaPipeline(playerKey, action, pending.type);
     }
     return { ok: false, reason: 'unsupported_advised_selection' };

@@ -51,3 +51,46 @@ test('Worker failure returns a legal emergency move, without invoking shared Lv6
     expect(Core.getLegalMoves(state.gameState, 1)).toEqual(expect.arrayContaining([expect.objectContaining({ row: result.action!.row, col: result.action!.col })]));
     expect(JSON.stringify(state)).toBe(before);
 });
+
+test('emergency target choice skips accepted commands whose movement effect fails', async () => {
+    const { sampleLv10Position, applyLv10Action } = require('../game/ai/cpu-lv10-position');
+    const observation = JSON.parse(JSON.stringify(require('./fixtures/cpu-lv10-frozen-target.json')));
+    observation.cardState.markers.push({ id: 80, kind: 'specialStone', owner: 'black', row: 0, col: 3,
+        data: { type: 'FREEZE', remainingOwnerTurns: 5 } });
+    const state = sampleLv10Position(observation, 100901);
+    expect(applyLv10Action(state, { type: 'place', strongWindTarget: { row: 0, col: 3 } })).toMatchObject({ selectionFailed: true });
+    const applied: any[] = [];
+    const clock = jest.spyOn(performance, 'now').mockReturnValue(0);
+    try {
+        const record = await runLv10Turn('black', { getState: () => state, getPublicRecipes: () => undefined,
+            advise: async () => { throw new Error('simulated Worker timeout'); }, isCurrent: () => true,
+            apply: async action => { const result = applyLv10Action(state, action); applied.push(result); return result; } });
+        expect(record).toMatchObject({ source: 'fallback', outcome: 'applied', action: { type: 'place' } });
+        expect(applied).toHaveLength(1);
+        expect(applied[0].selectionFailed).not.toBe(true);
+        expect(applied[0].state.cardState.pendingEffectByPlayer.black).toBeNull();
+    } finally { clock.mockRestore(); }
+});
+
+test('an unresolvable cancellable selection uses the normal cancellation action', async () => {
+    const { sampleLv10Position, applyLv10Action, lv10CancellationAction } = require('../game/ai/cpu-lv10-position');
+    const observation = JSON.parse(JSON.stringify(require('./fixtures/cpu-lv10-frozen-target.json')));
+    // Strong Wind itself is not cancellable; do not grant it a new rule.
+    expect(lv10CancellationAction(sampleLv10Position(observation, 100901))).toBeNull();
+    observation.cardState.pendingEffectByPlayer.black = { type: 'DESTROY_ONE_STONE', cardId: 'destroy_01', stage: 'selectTarget' };
+    observation.gameState.board.forEach((row: number[], r: number) => row.forEach((cell: number, c: number) => {
+        if (cell) observation.cardState.markers.push({ id: 100+r*8+c, kind: 'specialStone', owner: cell===1?'black':'white', row:r, col:c,
+            data: { type: 'FREEZE', remainingOwnerTurns: 5 } });
+    }));
+    const state = sampleLv10Position(observation, 100901), before = JSON.stringify(state);
+    let elapsed = 0;
+    const clock = jest.spyOn(performance, 'now').mockImplementation(() => elapsed += 25);
+    try {
+        const apply = jest.fn(async action => applyLv10Action(state, action));
+        const record = await runLv10Turn('black', { getState: () => state, getPublicRecipes: () => undefined,
+            advise: async () => { throw new Error('simulated Worker timeout'); }, isCurrent: () => true, apply });
+        expect(record).toMatchObject({ source: 'fallback', outcome: 'applied', action: { type: 'cancel_card' } });
+        expect(apply).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(state)).toBe(before);
+    } finally { clock.mockRestore(); }
+});

@@ -23,6 +23,18 @@ export function lv10ComparisonThinkingMs(entries: any[]): number {
     return total;
 }
 
+export function frozenLv9InvocationTimes(answers:any[]): number[] {
+    if(!answers.some(answer=>answer.turnPlan))return answers.map(answer=>lv10ComparisonThinkingMs(answer.performanceEntries||[]));
+    const invocations=new Map<string,any[]>();
+    for(const entry of answers.flatMap(answer=>answer.performanceEntries||[])) {
+        if(!String(entry.stage).startsWith('card-') && entry.stage!=='move-candidates' && entry.stage!=='tactical-safety')continue;
+        const key=entry.runId==null?`correlation:${entry.correlationId}`:`run:${entry.runId}`;
+        if(!invocations.has(key))invocations.set(key,[]);
+        invocations.get(key)!.push(entry);
+    }
+    return [...invocations.values()].map(lv10ComparisonThinkingMs);
+}
+
 export function summarizeLv10Metrics(directory:string) {
     const out=path.resolve(directory),report=collectLv10Evaluation(out);
     if(!report.valid)throw new Error('Metrics require every declared game and pair to be valid');
@@ -47,7 +59,7 @@ export function summarizeLv10Metrics(directory:string) {
             const key=`${decision.player}/${decision.turnNumber}`;turns.set(key,(turns.get(key)||0)+decision.elapsedMs);
         }
         turnTimes.push(...turns.values());
-        for(const answer of audit.frozenOpponent.answers)lv9Times.push(lv10ComparisonThinkingMs(answer.performanceEntries||[]));
+        lv9Times.push(...frozenLv9InvocationTimes(audit.frozenOpponent.answers));
         frozenAnswers+=audit.frozenOpponent.answers.length;staleFrozenAnswers+=audit.oracleStaleAnswers||0;
         actualRejectedAttempts+=audit.records.filter((r:any)=>!r.ok).length;
         const perf=audit.perf;

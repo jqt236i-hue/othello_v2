@@ -6,7 +6,7 @@ import zlib = require('node:zlib');
 import os = require('node:os');
 import { LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
 import { runLv10BrowserMatch } from './run-cpu-lv10-browser-match';
-import { readFrozenLv9GameConditions } from './cpu-lv10-frozen-oracle';
+import { readFrozenLv9GameConditions,FROZEN_LV9_EXECUTION_LIMITS } from './cpu-lv10-frozen-oracle';
 
 type Color = 'black' | 'white';
 type Condition = { pair: number; seed: number };
@@ -16,6 +16,7 @@ export const LV10_EVALUATION_PROTOCOL = Object.freeze({
     confidence: 'paired percentile bootstrap, 20000 resamples, two-sided 95%',
     bootstrapSamples: 20000, bootstrapSeed: 10100493,
     concurrency: 2, timeoutMs: 1200000, noAcceptedActionTimeoutMs:60000, minimumFreeMemoryBytes: 2 * 1024 ** 3,
+    frozenOpponent:FROZEN_LV9_EXECUTION_LIMITS,
     failurePolicy: 'Keep every trace and error. Any failed or unfinished game makes evaluation incomplete and ineligible for acceptance. No automatic retry or exclusion.'
 });
 const hash = (value: Buffer | string) => crypto.createHash('sha256').update(value).digest('hex');
@@ -89,7 +90,8 @@ function checkRuntime(manifest:any): void {
     for(const file of manifest.runtime) if(hash(fs.readFileSync(file.path))!==file.sha256) throw new Error(`Runtime changed since declaration: ${file.path}`);
 }
 
-export function prepareLv10Evaluation(directory:string, mode:'development'|'final', label:string, count?:number, replayDirectory?:string) {
+export function prepareLv10Evaluation(directory:string, mode:'development'|'final', label:string, count?:number, replayDirectory?:string, concurrency:number=LV10_EVALUATION_PROTOCOL.concurrency) {
+    if(!Number.isInteger(concurrency) || concurrency<1 || concurrency>4)throw new Error('Evaluation concurrency must be between 1 and 4');
     const out=path.resolve(directory), manifestPath=path.join(out,'manifest.json');
     if (fs.existsSync(manifestPath)) throw new Error('Evaluation already declared');
     const replayBytes=replayDirectory?fs.readFileSync(path.join(replayDirectory,'manifest.json')):null;
@@ -104,7 +106,7 @@ export function prepareLv10Evaluation(directory:string, mode:'development'|'fina
     if(!replay && conditions.some(c=>used.has(c.seed))) throw new Error('Conditions were previously issued; choose a fresh label');
     const baseline=fs.readFileSync('data/cpu-lv10/baseline-v1/manifest.json');
     const manifest={ schema:'cpu-lv10-evaluation.v1',mode,label,createdAt:new Date().toISOString(),
-        conditions,protocol:LV10_EVALUATION_PROTOCOL,search:LV10_SEARCH_CONFIG,
+        conditions,protocol:{...LV10_EVALUATION_PROTOCOL,concurrency},search:LV10_SEARCH_CONFIG,
         replays:replayBytes?{directory:path.resolve(replayDirectory!),manifestSha256:hash(replayBytes),developmentOnly:true}:null,
         baselineSha256:hash(baseline),
         gameConditions:readFrozenLv9GameConditions(),
@@ -116,7 +118,7 @@ export function prepareLv10Evaluation(directory:string, mode:'development'|'fina
     fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2),{flag:'wx'});
     ledger.push({label,mode,directory:out,createdAt:manifest.createdAt,seeds:conditions.map(c=>c.seed)});
     fs.writeFileSync(ledgerPath,JSON.stringify(ledger,null,2));
-    return {directory:out,pairs,games:pairs*2,manifestSha256:hash(fs.readFileSync(manifestPath))};
+    return {directory:out,pairs,games:pairs*2,concurrency,manifestSha256:hash(fs.readFileSync(manifestPath))};
 }
 
 export function collectLv10Evaluation(directory:string) {
@@ -163,6 +165,24 @@ export async function runLv10Evaluation(directory:string) {
     const out=path.resolve(directory),manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));
     const pending=manifest.schedule.filter((game:any)=>!fs.existsSync(path.join(out,`game-${game.seed}-${game.color}.summary.json`)));
     if(collectLv10Evaluation(out).errors.length) throw new Error('Existing failed games require investigation; automatic retries are disabled');
+    let previousCpu: ReturnType<typeof os.cpus> | null=null;
+    const captureResources=() => {
+        const cpus=os.cpus();
+        let total=0,idle=0;
+        if(previousCpu) for(let i=0;i<cpus.length;i++) {
+            const before=previousCpu[i]?.times,after=cpus[i].times;
+            if(!before)continue;
+            total+=Object.values(after).reduce((a,b)=>a+b,0)-Object.values(before).reduce((a,b)=>a+b,0);
+            idle+=after.idle-before.idle;
+        }
+        previousCpu=cpus;
+        fs.appendFileSync(path.join(out,'resources.jsonl'),JSON.stringify({time:new Date().toISOString(),
+            freeMemoryBytes:os.freemem(),hostRssBytes:process.memoryUsage().rss,
+            systemCpuBusyFraction:total>0?1-idle/total:null})+'\n');
+    };
+    captureResources();
+    const resourceTimer=setInterval(captureResources,5000);
+    resourceTimer.unref();
     let cursor=0, failure:unknown=null;
     const work=async () => {
         while(cursor<pending.length&&!failure) {
@@ -177,18 +197,19 @@ export async function runLv10Evaluation(directory:string) {
             fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));
         }
     };
-    await Promise.all(Array.from({length:manifest.protocol.concurrency},()=>work()));
+    try { await Promise.all(Array.from({length:manifest.protocol.concurrency},()=>work())); }
+    finally { clearInterval(resourceTimer);captureResources(); }
     if(failure)throw failure;
     return collectLv10Evaluation(out);
 }
 
 if(require.main===module) {
-    const [command,directory,mode,label,count]=process.argv.slice(2);
+    const [command,directory,mode,label,count,parallel]=process.argv.slice(2);
     Promise.resolve().then(()=>{
-        if(command==='prepare' && ['development','final'].includes(mode)) return prepareLv10Evaluation(directory,mode as any,label,count?Number(count):undefined);
-        if(command==='prepare-replay')return prepareLv10Evaluation(directory,'development',label,undefined,mode);
+        if(command==='prepare' && ['development','final'].includes(mode)) return prepareLv10Evaluation(directory,mode as any,label,count?Number(count):undefined,undefined,parallel?Number(parallel):undefined);
+        if(command==='prepare-replay')return prepareLv10Evaluation(directory,'development',label,undefined,mode,count?Number(count):undefined);
         if(command==='run')return runLv10Evaluation(directory);
         if(command==='summarize')return collectLv10Evaluation(directory);
-        throw new Error('Usage: prepare <directory> <development|final> <label> [pairs], prepare-replay <directory> <source-development-directory> <label>, run <directory>, summarize <directory>');
+        throw new Error('Usage: prepare <directory> <development|final> <label> [pairs] [parallel], prepare-replay <directory> <source-development-directory> <label> [parallel], run <directory>, summarize <directory>');
     }).then(result=>console.log(JSON.stringify(result)),error=>{console.error(error);process.exitCode=1;});
 }

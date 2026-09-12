@@ -74,6 +74,20 @@ function createController(overrides?: Record<string, unknown>) {
 }
 
 describe('cpu decision pending pipeline controller', () => {
+  test('a cancellation keeps its canonical action type and completes the ordinary UI handoff', async () => {
+    const ctx = createController({ adapter: { runTurnWithAdapter: jest.fn(() => ({
+      ok: true, nextCardState: { turnIndex: 7, pendingEffectByPlayer: { white: null } },
+      nextGameState: { currentPlayer: -1 }, playbackEvents: []
+    })) } });
+    const result = await ctx.controller.runCpuPendingSelectionViaPipeline('white', { type: 'cancel_card' }, 'STRONG_WIND_WILL');
+    expect(result.ok).toBe(true);
+    expect(ctx.pendingSelectionFlow.createPendingSelectionAction).not.toHaveBeenCalled();
+    expect(ctx.adapter.runTurnWithAdapter).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), 'white',
+      { type: 'cancel_card', turnIndex: 7, deferNetworkPublish: true }, ctx.pipeline);
+    expect(ctx.finalizeCpuPendingSelectionFlow).toHaveBeenCalledWith('white', 'STRONG_WIND_WILL', [],
+      expect.objectContaining({ type: 'cancel_card' }));
+  });
+
   test('resolveTurnPipelineAdapter prefers runtime module when available', () => {
     const runtimeAdapter = { runTurnWithAdapter: jest.fn() };
     const ctx = createController({ runtimeModules: { TurnPipelineUIAdapter: runtimeAdapter } });

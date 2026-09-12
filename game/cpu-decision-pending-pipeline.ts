@@ -80,9 +80,11 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
         const normalizedActionPayload = Object.assign({}, actionPayload || {});
         normalizedActionPayload.deferNetworkPublish = true;
 
-        const action = (pendingSelectionFlow && typeof pendingSelectionFlow.createPendingSelectionAction === 'function')
-            ? pendingSelectionFlow.createPendingSelectionAction(playerKey, pendingType, normalizedActionPayload, { cardState })
-            : cfg.createPlaceAction(playerKey, normalizedActionPayload);
+        const action = normalizedActionPayload.type === 'cancel_card'
+            ? Object.assign({}, normalizedActionPayload, { turnIndex: cardState?.turnIndex })
+            : (pendingSelectionFlow && typeof pendingSelectionFlow.createPendingSelectionAction === 'function')
+                ? pendingSelectionFlow.createPendingSelectionAction(playerKey, pendingType, normalizedActionPayload, { cardState })
+                : cfg.createPlaceAction(playerKey, normalizedActionPayload);
         if (action) {
             action.deferNetworkPublish = true;
         }

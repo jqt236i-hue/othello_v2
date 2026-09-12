@@ -6,8 +6,10 @@ import Runner = require('./run-ui-level-match');
 import { createDesktopChromiumLaunchOptions } from './browser-performance-environment';
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
+export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000});
 let verifiedBaseline: string | null = null;
-export type FrozenOracleAnswer = { action: any; attempts: any[]; after: any; thinkingMs: number; performanceEntries: any[]; model: any };
+export type FrozenOracleAnswer = { action: any; attempts: any[]; after: any; thinkingMs: number; performanceEntries: any[]; model: any;
+    turnPlan?: { turnNumber:number; index:number; length:number } };
 export type FrozenLv9Oracle = {
     advise: (snapshot: any) => Promise<FrozenOracleAnswer>;
     close: () => Promise<void>;
@@ -37,9 +39,9 @@ export function readFrozenLv9GameConditions(directory=path.resolve('data/cpu-lv1
         cardUseUnlockTurnNumber:black.cardUseUnlockTurnNumber,deckCardIds:black.deckCardIds};
 }
 
-/** An action oracle running the untouched, captured Vite deployment. Every
- * query starts at an actual decision boundary and uses the old browser's CPU
- * orchestration, policies, Worker and model. It is not a selfplay teacher. */
+/** Run the captured Vite CPU through a complete turn, including its own retry
+ * counters and selection cleanup. Deliver its recorded actions one at a time
+ * against the matching live state; this is not a selfplay teacher. */
 export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-lv10/baseline-v1')): Promise<FrozenLv9Oracle> {
     verifyBaseline(directory);
     let release!: () => void;
@@ -75,13 +77,40 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
             });
         },
         setupPage: async (page: Page) => {
-            await page.evaluate(() => {
+            await page.evaluate((limits) => {
                 const root = window as any, req = root.require;
                 const handler = req('game/cpu-turn-handler');
                 const pipeline = req('game/turn/turn_pipeline'), apply = pipeline.applyTurnSafe;
                 const coordinator = req('game/turn/pending-coordinator'), clearPending = coordinator.clearPendingEffect;
                 const clone = (value: any) => JSON.parse(JSON.stringify(value));
-                const oracle: any = { blocked: true, active: null, settled: Promise.resolve(), sequence:0, performanceEntries:[] };
+                const oracle: any = { blocked: true, active: null, settled: Promise.resolve(), sequence:0, performanceEntries:[],
+                    queued:[], expected:null,lastPlan:null };
+                const comparable = (value:any) => {
+                    const state=clone(value);
+                    req('shared/presentation-queue').clearPresentationQueues(state.cardState);
+                    // The authoritative hash also excludes this delivered HUD queue.
+                    state.cardState.chargeDeltaEvents=[];
+                    for(const field of ['_defaultRandomSource','_boardOpsRandomSource','_currentActionMeta'])delete state.cardState[field];
+                    return req('shared/state-hash').stableStringify(state);
+                };
+                const watched=new WeakSet<object>();
+                const watchPending=(cs:any) => {
+                    for(const owner of ['black','white']) {
+                        const pending=cs.pendingEffectByPlayer?.[owner];
+                        if(!pending||watched.has(pending))continue;
+                        const proxy:any=new Proxy(pending,{
+                            set(target,key,value) {
+                                if(oracle.active && root.cardState.pendingEffectByPlayer?.[owner]===proxy
+                                    && JSON.stringify(target[key])!==JSON.stringify(value))oracle.active.preparations.push({
+                                    kind:'setPendingField',player:owner,pendingType:target.type,pendingEffectId:target.pendingEffectId,
+                                    field:String(key),value:clone(value)
+                                });
+                                target[key]=value;return true;
+                            }
+                        });
+                        watched.add(proxy);cs.pendingEffectByPlayer[owner]=proxy;
+                    }
+                };
                 // Legacy CPU target filters can abandon a pending selection
                 // before they call the canonical pipeline. Capture that real
                 // policy behavior instead of silently losing it at the seam.
@@ -97,6 +126,13 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     readCpuTurnPerformanceNowMs: () => performance.now() });
                 pipeline.applyTurnSafe = function(cs: any, gs: any, player: any, action: any, rng: any, opts: any) {
                     if (!oracle.active || cs !== root.cardState || gs !== root.gameState) return apply(cs,gs,player,action,rng,opts);
+                    const active=oracle.active;
+                    if(active.actionCount>=limits.maxActionsPerTurn) {
+                        oracle.blocked=true;oracle.active=null;
+                        active.reject(new Error(`Frozen turn exceeded ${limits.maxActionsPerTurn} recorded actions`));
+                        throw new Error('Frozen turn action limit');
+                    }
+                    active.actionCount++;
                     const realRng = rng || req('card-system').getGamePrng();
                     const rngBefore = realRng.getState();
                     const before = clone({ gameState:gs,cardState:cs,prngState:rngBefore });
@@ -105,24 +141,32 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     const attempt = { player, action: clone(action), options: clone(opts || {}), ok: result.ok,
                         rejectedReason: result.rejectedReason, rngBefore, rngAfter: realRng.getState(),preparations,before,
                         after:clone({gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState()}) };
-                    oracle.active.attempts.push(attempt);
+                    active.attempts.push(attempt);
+                    watchPending(result.cardState);
                     if (result.ok) {
-                        oracle.blocked = true;
-                        const active = oracle.active;
-                        oracle.active = null;
-                        active.resolve({ action: clone(action), attempts: active.attempts,
+                        active.answers.push({ action: clone(action), attempts: active.attempts.splice(0),
                             after: clone({ gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState() }),
                             thinkingMs: performance.now()-active.started,
-                            model: req('game/ai/othello-onnx-runtime').getStatus() });
+                            performanceEntries:[],model: req('game/ai/othello-onnx-runtime').getStatus() });
+                        // Do not masquerade as human mode after a target choice:
+                        // the normal pending phase still has to update retries.
+                        if(result.gameState.turnNumber!==active.turnNumber || result.gameState.currentPlayer!==active.player
+                            || req('game/logic/core').isGameOver(result.gameState)) {
+                            oracle.blocked=true;oracle.active=null;active.resolve(active.answers);
+                        }
                     }
                     return result;
                 };
                 oracle.advise = async (snapshot: any) => {
+                    if(oracle.queued.length) {
+                        if(comparable(snapshot)!==comparable(oracle.expected))throw new Error('Frozen turn continuation state differs');
+                        const answer=oracle.queued.shift();oracle.expected=answer.after;return answer;
+                    }
                     await oracle.settled;
                     if (oracle.active) throw new Error('Concurrent frozen oracle query');
                     // Finish any old presentation before replacing the shadow
-                    // position. Its continuation is blocked after one action.
-                    const deadline = performance.now()+5000;
+                    // position. Its continuation is blocked at the turn handoff.
+                    const deadline = performance.now()+limits.presentationTimeoutMs;
                     while (root.isCardAnimating || req('ui/playback-state-manager').isPlaybackRunning()) {
                         if (performance.now()>deadline) throw new Error('Frozen oracle presentation did not settle');
                         await new Promise(resolve => setTimeout(resolve,10));
@@ -130,19 +174,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     handler.resetCpuTurnHandlerState();
                     root.gameState = clone(snapshot.gameState);
                     root.cardState = clone(snapshot.cardState);
-                    for(const owner of ['black','white']) {
-                        const pending=root.cardState.pendingEffectByPlayer?.[owner];
-                        if(!pending)continue;
-                        root.cardState.pendingEffectByPlayer[owner]=new Proxy(pending,{
-                            set(target,key,value) {
-                                if(oracle.active && JSON.stringify(target[key])!==JSON.stringify(value)) oracle.active.preparations.push({
-                                    kind:'setPendingField',player:owner,pendingType:target.type,pendingEffectId:target.pendingEffectId,
-                                    field:String(key),value:clone(value)
-                                });
-                                target[key]=value;return true;
-                            }
-                        });
-                    }
+                    watchPending(root.cardState);
                     const rng = req('card-system').getGamePrng();
                     rng.restoreState(snapshot.prngState);
                     root.cardState._defaultRandomSource = rng;
@@ -152,22 +184,46 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     oracle.sequence++;
                     oracle.performanceEntries=[];
                     const player = root.gameState.currentPlayer === 1 || root.gameState.currentPlayer === 'black' ? 'black' : 'white';
-                    const answer:any = await new Promise((resolve,reject) => {
-                        const timer = setTimeout(() => { oracle.blocked=true; oracle.active=null; reject(new Error('Frozen oracle decision timed out')); },15000);
-                        oracle.active = { started:performance.now(), attempts:[], preparations:[], resolve:(value:any) => { clearTimeout(timer); resolve(value); } };
+                    const answers:any[] = await new Promise<any[]>((resolve,reject) => {
+                        const timer = setTimeout(() => { oracle.blocked=true; oracle.active=null; reject(new Error(`Frozen oracle turn timed out after ${limits.turnTimeoutMs}ms`)); },limits.turnTimeoutMs);
+                        oracle.active = { started:performance.now(),turnNumber:root.gameState.turnNumber,player:root.gameState.currentPlayer,
+                            attempts:[],preparations:[],answers:[],actionCount:0,
+                            resolve:(value:any) => {clearTimeout(timer);resolve(value);},
+                            reject:(error:any) => {clearTimeout(timer);reject(error);} };
+                        oracle.lastPlan=oracle.active;
                         oracle.settled = Promise.resolve(handler.runCpuTurn(player,{ autoMode:player==='black' })).catch(error => {
                             clearTimeout(timer); oracle.active=null; oracle.blocked=true; reject(error);
                         });
                     });
                     await oracle.settled;
-                    answer.performanceEntries = oracle.performanceEntries;
-                    return answer;
+                    // Scheduled invocations may finish after the first invocation.
+                    // Await the normal handoff presentation before another turn.
+                    const settleDeadline=performance.now()+limits.presentationTimeoutMs;
+                    while(root.isCardAnimating || req('ui/playback-state-manager').isPlaybackRunning()) {
+                        if(performance.now()>settleDeadline)throw new Error('Frozen turn presentation did not settle');
+                        await new Promise(resolve=>setTimeout(resolve,10));
+                    }
+                    answers[answers.length-1].performanceEntries=oracle.performanceEntries.slice();
+                    answers.forEach((answer:any,index:number)=>{
+                        answer.turnPlan={turnNumber:snapshot.gameState.turnNumber,index,length:answers.length};
+                    });
+                    const answer=answers.shift();oracle.queued=answers;oracle.expected=answer.after;return answer;
                 };
                 root.__frozenLv9Oracle = oracle;
-            });
+            },FROZEN_LV9_EXECUTION_LIMITS);
             readyResolve({ baselineSha256:BASELINE_SHA256,
                 advise: snapshot => {
-                    const query = queryQueue.then(() => page.evaluate(snapshot => (window as any).__frozenLv9Oracle.advise(snapshot),snapshot));
+                    const query = queryQueue.then(async () => {
+                        try {return await page.evaluate(snapshot => (window as any).__frozenLv9Oracle.advise(snapshot),snapshot);}
+                        catch(error) {
+                            (error as any).frozenFailure=await page.evaluate(()=>{
+                                const root=window as any;
+                                return JSON.parse(JSON.stringify({plan:root.__frozenLv9Oracle.lastPlan,
+                                    gameState:root.gameState,cardState:root.cardState,prngState:root.require('card-system').getGamePrng().getState()}));
+                            }).catch(()=>null);
+                            throw error;
+                        }
+                    });
                     queryQueue = query.then(() => undefined, () => undefined);
                     return query;
                 },
