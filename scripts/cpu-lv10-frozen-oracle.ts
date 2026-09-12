@@ -27,6 +27,16 @@ function verifyBaseline(directory: string): void {
     verifiedBaseline = directory;
 }
 
+export function readFrozenLv9GameConditions(directory=path.resolve('data/cpu-lv10/baseline-v1')) {
+    verifyBaseline(directory);
+    const startup=require(path.join(directory,'repo/dist/shared/cpu-opponent-startup-options.js'));
+    const black=startup.getCpuOpponentStartupOptions('9-ending-ash','black');
+    const white=startup.getCpuOpponentStartupOptions('9-ending-ash','white');
+    if(JSON.stringify(black)!==JSON.stringify(white))throw new Error('Frozen Lv9 game conditions differ by color');
+    return {initialCharge:black.initialCharge,chargeGainMultiplier:black.chargeGainMultiplier,
+        cardUseUnlockTurnNumber:black.cardUseUnlockTurnNumber,deckCardIds:black.deckCardIds};
+}
+
 /** An action oracle running the untouched, captured Vite deployment. Every
  * query starts at an actual decision boundary and uses the old browser's CPU
  * orchestration, policies, Worker and model. It is not a selfplay teacher. */

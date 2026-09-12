@@ -113,6 +113,11 @@
     text-shadow: 0 0 calc(7px * var(--layout-stage-scale)) rgba(224, 198, 122, 0.2);
 }
 
+#cpu-level-label.cpu-level-label-multiline {
+    white-space: pre-line;
+    line-height: 1.2;
+}
+
 #cpu-level-label:hover:not([disabled]),
 #cpu-level-label:focus-visible:not([disabled]) {
     border-color: rgba(183, 174, 119, 0.72);

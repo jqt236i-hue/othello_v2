@@ -377,6 +377,35 @@ describe('result overlay seat perspective', () => {
     expect(document.querySelector('.character-name')?.textContent).toBe('終局を告げる者');
   });
 
+  test.each(['black', 'white'])('Lv10が%s側でもプロフィールIDをレベル別記録と名前へ反映する', (cpuSide) => {
+    delete global.cpuSmartness;
+    const viewer = cpuSide === 'white' ? 'black' : 'white';
+    window.NetworkMatchClient = { getSeatKey: () => viewer };
+    document.body.innerHTML = `
+      <select id="smartBlack"><option value="${cpuSide === 'black' ? '10-observed-dark-dragon' : '1'}" selected>CPU</option></select>
+      <select id="smartWhite"><option value="${cpuSide === 'white' ? '10-observed-dark-dragon' : '1'}" selected>CPU</option></select>
+    `;
+    global.countDiscs.mockReturnValue(viewer === 'black' ? { black: 48, white: 16 } : { black: 16, white: 48 });
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+    expect(mod.resolveCpuLevelForViewer(viewer)).toBe(10);
+    expect(document.querySelector('.character-name')?.textContent).toBe('観測ダークドラゴン');
+    expect((document.querySelector('.character-name') as HTMLElement).style.getPropertyValue('--result-character-image')).toContain('ultimate_reverse_dragon-black.png');
+    expect(document.querySelector('.dialogue-text')?.textContent).toBe('「その一手は、読み切れなかった。」');
+    expect(document.querySelector('.result-score-meta')?.textContent).toContain('CPU Lv10');
+    const saved = JSON.parse(localStorage.getItem('othello_cpu_leaderboard_v5') || '{}');
+    expect(saved.cpu['10'].bestScore).toBeGreaterThan(0);
+    expect(saved.cpu['1']).toBeUndefined();
+  });
+
+  test('既存の上位プロフィールIDも表示レベルで集計する', () => {
+    const mod = require('../ui/result-overlay.js');
+    for (const [profile, level] of [['7-board-executor', 7], ['8-theory-incarnation', 8], ['9-ending-ash', 9]]) {
+      global.cpuSmartness.white = profile;
+      expect(mod.resolveCpuLevelForViewer('black')).toBe(level);
+    }
+  });
+
   test('CPU勝利時は観測石報酬を表示して保存する', () => {
     global.countDiscs.mockReturnValue({ black: 48, white: 16 });
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);

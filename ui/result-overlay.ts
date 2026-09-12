@@ -11,6 +11,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
  */
 
 const LeaderboardScore = _require('../shared/leaderboard-score');
+const ResultOverlayCpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
 const SCORE_CONFIG = LeaderboardScore.SCORE_CONFIG;
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
@@ -548,11 +549,6 @@ function saveScoreLeaderboard(payload: any) {
     }
 }
 
-function clampCpuLevel(value: any) {
-    const level = toFiniteInteger(value, 1);
-    return Math.max(1, Math.min(10, level));
-}
-
 function resolveCpuLevelForViewer(viewerKey: any) {
     const localKey = parseResultPlayerKey(viewerKey) || 'black';
     const enemyKey = localKey === 'white' ? 'black' : 'white';
@@ -574,7 +570,7 @@ function resolveCpuLevelForViewer(viewerKey: any) {
     if (raw === null || typeof raw === 'undefined' || raw === '') {
         raw = source ? (source.white ?? source.black ?? 1) : 1;
     }
-    return clampCpuLevel(raw);
+    return ResultOverlayCpuOpponentProfiles.getCpuOpponentLevel(raw);
 }
 
 function resolveTurnCountForScore() {
@@ -1626,8 +1622,8 @@ function getCornerCaptureTotals() {
  * @returns {HTMLElement} ダイアログコンテナ
  */
 function createMonsterDialogue(counts: any, localOutcomeKey: any) {
-    const levelNames = ['不明', '盤喰いの小鬼', '反転の影', '布石を紡ぐ者', '盤面支配者', '終局を告げる者', '盤理の観測者'];
     const cpuLevel = resolveCpuLevelForViewer(resolveResultViewerKey());
+    const profile = ResultOverlayCpuOpponentProfiles.getCpuOpponentProfile(cpuLevel);
 
     const resolvedLocalOutcomeKey = (localOutcomeKey === 'win' || localOutcomeKey === 'lose' || localOutcomeKey === 'draw')
         ? localOutcomeKey
@@ -1644,7 +1640,13 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     row.className = 'dialogue-row monster';
     const name = document.createElement('div');
     name.className = 'character-name';
-    name.textContent = levelNames[cpuLevel] || (`モンスターLv${cpuLevel}`);
+    name.style.setProperty('--result-character-image', `url("${profile.portraitSrc}")`);
+    const label = document.createElement('span');
+    label.className = 'result-character-label';
+    if (cpuLevel === 10) label.append('観測', document.createElement('br'), 'ダークドラゴン');
+    else label.textContent = profile.name;
+    name.appendChild(label);
+    if (cpuLevel === 10) name.classList.add('has-long-name');
     const text = document.createElement('div');
     text.className = 'dialogue-text';
 
@@ -1701,6 +1703,11 @@ function getMonsterDialogues() {
             win: ['盤理は語る、最善は唯一。', '三十手先まで視えている、抵抗は無意味だ。', '観測の果て、君の手は既に詰んでいる。', '全局面は掌中にある、迷いはない。', '決定済みの未来だ、ただ受け入れよ。'],
             lose: ['ほう…観測を上回るとは。次は修正する。', '一瞬の乱数か、だが再び誤算は許さぬ。', '興味深い偏差だ。次は収束させよう。', '想定外…ならば分岐を削り、必勝へ向かう。', 'わずかな誤差だ。再計算で終わる。'],
             draw: '観測結果は拮抗。次は差を証明しよう。'
+        },
+        10: {
+            win: 'この盤面の行く末は、見えていた。',
+            lose: 'その一手は、読み切れなかった。',
+            draw: 'この均衡、次の対局で崩してみせよう。'
         }
     };
 }
@@ -1727,9 +1734,5 @@ const ResultOverlay = {
     syncQuickResetButtonLabelForResultState
 };
 export = ResultOverlay;
-
-
-
-
 
 

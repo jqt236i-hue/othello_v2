@@ -1,4 +1,16 @@
-import {makeLv10Conditions,summarizeLv10Pairs} from '../scripts/run-cpu-lv10-evaluation';
+import {makeLv10Conditions,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
+
+test('both seats must actually start with the frozen perks and complete deck, independent of deal order',()=>{
+    const conditions={initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6,deckCardIds:['hard_01','gold_stone']};
+    const state={game:{turnNumber:0,currentPlayer:1,consecutivePasses:0},card:{charge:{black:99,white:99},
+        chargeGainMultiplierByPlayer:{black:2,white:2},decks:{black:['hard_01'],white:['gold_stone','hard_01']},hands:{black:['gold_stone'],white:[]}}};
+    expect(()=>verifyLv10StartingConditions(state,conditions)).not.toThrow();
+    expect(()=>verifyLv10StartingConditions({},conditions)).toThrow('Invalid opening');
+    state.card.charge.white=0;
+    expect(()=>verifyLv10StartingConditions(state,conditions)).toThrow('Starting perks/deck');
+    state.card.charge.white=99;state.card.decks.white=['hard_01'];
+    expect(()=>verifyLv10StartingConditions(state,conditions)).toThrow('Starting perks/deck');
+});
 
 test('conditions are reproducible, unique and separated by declaration label',()=>{
     const a=makeLv10Conditions('development-a',200),b=makeLv10Conditions('held-out-b',200);

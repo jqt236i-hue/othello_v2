@@ -625,14 +625,23 @@
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.82);
 }
 
+.result-dialogues .result-character-label {
+    position: relative;
+    z-index: 1;
+}
+
+.result-dialogues .character-name.has-long-name {
+    --result-name-inset: calc(34px * var(--layout-stage-scale));
+}
+
 .result-dialogues .character-name::before {
     content: '';
     position: absolute;
-    inset: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale));
+    inset: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--result-name-inset, calc(22px * var(--layout-stage-scale)));
     border-radius: calc(7px * var(--layout-stage-scale));
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
-        url("assets/images/cpu/level1.png") center 40% / 138% auto no-repeat,
+        var(--result-character-image, url("assets/images/cpu/level1.png")) center 40% / 138% auto no-repeat,
         radial-gradient(circle at 50% 30%, rgba(95, 141, 98, 0.44), rgba(16, 20, 15, 0.96) 66%);
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.1),
@@ -642,7 +651,7 @@
 .result-dialogues .character-name::after {
     content: '';
     position: absolute;
-    inset: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale));
+    inset: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) var(--result-name-inset, calc(22px * var(--layout-stage-scale)));
     border-radius: calc(7px * var(--layout-stage-scale));
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 24%, transparent 64%, rgba(0, 0, 0, 0.2));
     pointer-events: none;

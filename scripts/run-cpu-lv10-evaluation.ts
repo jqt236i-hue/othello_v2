@@ -6,6 +6,7 @@ import zlib = require('node:zlib');
 import os = require('node:os');
 import { LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
 import { runLv10BrowserMatch } from './run-cpu-lv10-browser-match';
+import { readFrozenLv9GameConditions } from './cpu-lv10-frozen-oracle';
 
 type Color = 'black' | 'white';
 type Condition = { pair: number; seed: number };
@@ -18,6 +19,18 @@ export const LV10_EVALUATION_PROTOCOL = Object.freeze({
     failurePolicy: 'Keep every trace and error. Any failed or unfinished game makes evaluation incomplete and ineligible for acceptance. No automatic retry or exclusion.'
 });
 const hash = (value: Buffer | string) => crypto.createHash('sha256').update(value).digest('hex');
+
+export function verifyLv10StartingConditions(initial:any,conditions:ReturnType<typeof readFrozenLv9GameConditions>): void {
+    // run-ui-level-match serializes the opening under game/card, whereas
+    // individual action records use gameState/cardState.
+    const cs=initial?.card,gs=initial?.game;
+    if(!cs||!gs||gs.turnNumber!==0||gs.currentPlayer!==1||gs.consecutivePasses!==0)throw new Error('Invalid opening game state');
+    for(const player of ['black','white']) {
+        const cards=[...(cs.decks?.[player]||[]),...(cs.hands?.[player]||[])].sort();
+        if(cs.charge?.[player]!==conditions.initialCharge || cs.chargeGainMultiplierByPlayer?.[player]!==conditions.chargeGainMultiplier
+            || JSON.stringify(cards)!==JSON.stringify([...conditions.deckCardIds].sort()))throw new Error(`Starting perks/deck differ from frozen Lv9: ${player}`);
+    }
+}
 
 export function makeLv10Conditions(label: string, pairs: number): Condition[] {
     if (!label.trim() || !Number.isInteger(pairs) || pairs < 1 || pairs > 200) throw new Error('Invalid condition declaration');
@@ -94,6 +107,7 @@ export function prepareLv10Evaluation(directory:string, mode:'development'|'fina
         conditions,protocol:LV10_EVALUATION_PROTOCOL,search:LV10_SEARCH_CONFIG,
         replays:replayBytes?{directory:path.resolve(replayDirectory!),manifestSha256:hash(replayBytes),developmentOnly:true}:null,
         baselineSha256:hash(baseline),
+        gameConditions:readFrozenLv9GameConditions(),
         initialCondition:'Standard opening; seed controls initial deals, number cells and canonical PRNG. Deck/perks are identical Lv9 conditions on both colors. Each seed is played with the algorithms swapped.',
         schedule:conditions.flatMap(c=>(c.pair%2?['black','white']:['white','black']).map(color=>({...c,color}))),
         environment:{node:process.version,cpu:os.cpus()[0]?.model,logicalCpus:os.cpus().length,totalMemory:os.totalmem(),freeMemoryAtDeclaration:os.freemem()},
@@ -116,6 +130,10 @@ export function collectLv10Evaluation(directory:string) {
         const summary=JSON.parse(fs.readFileSync(`${prefix}.summary.json`,'utf8'));
         const bytes=fs.readFileSync(`${prefix}.json.gz`),trace=JSON.parse(zlib.gunzipSync(bytes).toString());
         const audit=trace.audit;
+        const gameConditions=manifest.gameConditions || readFrozenLv9GameConditions();
+        verifyLv10StartingConditions(JSON.parse(trace.initialState),gameConditions);
+        if(audit.records.some((record:any)=>record.ok && record.action.type==='use_card'
+            && record.before.gameState.turnNumber<gameConditions.cardUseUnlockTurnNumber))throw new Error(`Card used before the shared unlock turn: ${prefix}`);
         if(hash(bytes)!==summary.traceSha256 || !audit.gameOver || audit.oracleVerificationErrors?.length
             || audit.frozenOpponent?.baselineSha256!==manifest.baselineSha256) throw new Error(`Invalid trace: ${prefix}`);
         const decisions=audit.lv10.history || audit.lv10.recent;

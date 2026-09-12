@@ -177,6 +177,7 @@ function applyCpuLevelLabelInteractivity(levelLabel: any, interactive: boolean, 
     levelLabel.textContent = label;
     if (levelLabel.classList) {
         levelLabel.classList.toggle('is-noninteractive', !interactive);
+        levelLabel.classList.toggle('cpu-level-label-multiline', label.includes('\n'));
     }
     if (typeof levelLabel.setAttribute === 'function') {
         levelLabel.setAttribute('aria-disabled', interactive ? 'false' : 'true');
@@ -1255,7 +1256,7 @@ function updateCpuCharacter(): void {
             if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
         }
         else if (!applyNetworkSeatLabels(levelLabel)) {
-            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level} ${defaultName}`);
+            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level === 10 ? '\n' : ' '}${defaultName}`);
         }
         else {
             applyNetworkSeatLabels(levelLabel);
