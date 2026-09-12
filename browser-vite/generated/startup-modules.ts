@@ -39,6 +39,10 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-candidate-scoring": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-candidate-scoring.js"),
   "game/ai/cpu-card-quiescence": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-card-quiescence.js"),
   "game/ai/cpu-commentary-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-commentary-runtime.js"),
+  "game/ai/cpu-lv10-advisor-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-advisor-contract.js"),
+  "game/ai/cpu-lv10-observation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-observation.js"),
+  "game/ai/cpu-lv10-position": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-position.js"),
+  "game/ai/cpu-lv10-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-search.js"),
   "game/ai/cpu-lv6-lookahead-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv6-lookahead-profile.js"),
   "game/ai/cpu-movement-target-feasibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-movement-target-feasibility.js"),
   "game/ai/cpu-policy-board-counts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-counts.js"),
@@ -193,6 +197,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/cpu-decision-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-decision-runtime.js"),
   "game/cpu-decision-selection-flow": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-decision-selection-flow.js"),
   "game/cpu-decision-tempt-value": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-decision-tempt-value.js"),
+  "game/cpu-lv10-turn": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-lv10-turn.js"),
   "game/cpu-network-command-planner": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-network-command-planner.js"),
   "game/cpu-turn-analysis": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-analysis.js"),
   "game/cpu-turn-card-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-card-phase.js"),
@@ -789,6 +794,10 @@ installBootModuleMetadata({
     "game/ai/cpu-candidate-scoring",
     "game/ai/cpu-card-quiescence",
     "game/ai/cpu-commentary-runtime",
+    "game/ai/cpu-lv10-advisor-contract",
+    "game/ai/cpu-lv10-observation",
+    "game/ai/cpu-lv10-position",
+    "game/ai/cpu-lv10-search",
     "game/ai/cpu-lv6-lookahead-profile",
     "game/ai/cpu-movement-target-feasibility",
     "game/ai/cpu-policy-board-counts",
@@ -943,6 +952,7 @@ installBootModuleMetadata({
     "game/cpu-decision-runtime",
     "game/cpu-decision-selection-flow",
     "game/cpu-decision-tempt-value",
+    "game/cpu-lv10-turn",
     "game/cpu-network-command-planner",
     "game/cpu-turn-analysis",
     "game/cpu-turn-card-phase",
@@ -1531,6 +1541,7 @@ installBootModuleMetadata({
     "ui/gacha/gacha-overlay-controller",
     "ui/gacha/gacha-overlay-view",
     "ui/gacha/gacha-reveal-audio",
+    "ui/gacha/gacha-reveal-scene",
     "ui/gacha/gacha-reveal-stage",
     "ui/gacha/gacha-transaction",
     "ui/hand-skin/controller",
@@ -1560,6 +1571,7 @@ installBootModuleMetadata({
       "ui/gacha/gacha-overlay-controller",
       "ui/gacha/gacha-overlay-view",
       "ui/gacha/gacha-reveal-audio",
+      "ui/gacha/gacha-reveal-scene",
       "ui/gacha/gacha-reveal-stage",
       "ui/gacha/gacha-transaction"
     ],
@@ -1592,4 +1604,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 745;
+export const startupModuleCount = 750;
