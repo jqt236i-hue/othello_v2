@@ -12,6 +12,24 @@ function fixture() {
     return { gameState: Core.createGameState(), cardState: Cards.createCardState() };
 }
 
+test('a rejected action is remembered from public feedback and reconsidered only after a public change',async()=>{
+    const state=fixture(),memory={identity:null as string|null,actions:[] as any[]};
+    const requests:any[]=[];
+    const deps={getState:()=>state,getPublicRecipes:()=>undefined,isCurrent:()=>true,rejectedActions:memory,
+        advise:async(request:any)=>{requests.push(request);return searchLv10(request.observation,{maxTransitions:1,excludedActions:request.excludedActions});},
+        apply:jest.fn(async()=>false)};
+    const first=await runLv10Turn('black',deps);
+    expect(first.outcome).toBe('rejected'); // UI pass/move helpers may return a boolean.
+    expect(memory.actions).toEqual([first.action]);
+    const second=await runLv10Turn('black',deps);
+    expect(requests[1].excludedActions).toEqual([first.action]);
+    expect(second.action).not.toEqual(first.action);
+    expect(second.excludedActions).toEqual([first.action]);
+    state.gameState.turnNumber++;
+    await runLv10Turn('black',deps);
+    expect(requests[2].excludedActions).toEqual([]);
+});
+
 test('Lv10 Worker uses the canonical advisor and does not load a legacy model', async () => {
     const state = fixture();
     // A real terminal state keeps the Worker integration test quick.

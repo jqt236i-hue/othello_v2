@@ -6,7 +6,8 @@ import Runner = require('./run-ui-level-match');
 import { createDesktopChromiumLaunchOptions } from './browser-performance-environment';
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
-export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000});
+export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000,
+    injectMissingPassPrng:true});
 export const FROZEN_LV9_MODEL_SETTINGS=Object.freeze({enabled:true,minLevel:6,useValueRerank:true,policyWeight:.75,
     topK:8,heuristicRerankWeight:3,whiteSafetyMultiplier:1.45,exactSolveEmpties:10,exactSolveNodeBudget:50000,exactSolveMaxMs:250});
 
@@ -169,9 +170,14 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     const rngBefore = realRng.getState();
                     const before = clone({ gameState:gs,cardState:cs,prngState:rngBefore });
                     const preparations = oracle.active.preparations.splice(0);
-                    const result = apply(cs,gs,player,action,rng,opts);
+                    // Apply the same pass-runtime repair as the normal game.
+                    // The frozen CPU still chooses its original action; this
+                    // supplies the live RNG for canonical delayed effects.
+                    const passPrngInjected = limits.injectMissingPassPrng && action.type==='pass' && !rng;
+                    const result = apply(cs,gs,player,action,passPrngInjected ? realRng : rng,opts);
                     const attempt = { player, action: clone(action), options: clone(opts || {}), ok: result.ok,
-                        rejectedReason: result.rejectedReason, rngBefore, rngAfter: realRng.getState(),preparations,before,
+                        rejectedReason: result.rejectedReason, errorMessage: result.errorMessage,
+                        passPrngInjected, rngBefore, rngAfter: realRng.getState(),preparations,before,
                         after:clone({gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState()}) };
                     active.attempts.push(attempt);
                     watchPending(result.cardState);

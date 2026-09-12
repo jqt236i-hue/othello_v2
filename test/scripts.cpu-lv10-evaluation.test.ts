@@ -1,10 +1,27 @@
-import {collectLv10Evaluation,makeLv10Conditions,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
+import {collectLv10Evaluation,makeLv10Conditions,runLv10Evaluation,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
 import {FROZEN_LV9_MODEL_SETTINGS} from '../scripts/cpu-lv10-frozen-oracle';
 import fs = require('node:fs');
 import os = require('node:os');
 import path = require('node:path');
 import crypto = require('node:crypto');
 import zlib = require('node:zlib');
+
+test('a pre-launch failure is recorded against its condition and cannot be automatically retried',async()=>{
+    const directory=fs.mkdtempSync(path.join(os.tmpdir(),'lv10-validation-test-'));
+    try {
+        fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'development',conditions:[{pair:1,seed:123}],
+            schedule:[{pair:1,seed:123,color:'black'},{pair:1,seed:123,color:'white'}],
+            protocol:{concurrency:1,minimumFreeMemoryBytes:Number.MAX_SAFE_INTEGER}}));
+        await expect(runLv10Evaluation(directory)).rejects.toThrow('Free memory');
+        expect(JSON.parse(fs.readFileSync(path.join(directory,'game-123-black.error.json'),'utf8')))
+            .toMatchObject({pair:1,seed:123,color:'black',phase:'evaluation-host'});
+        expect(collectLv10Evaluation(directory)).toMatchObject({valid:false,completed:0,expected:2});
+        await expect(runLv10Evaluation(directory)).rejects.toThrow('automatic retries are disabled');
+    } finally {
+        if(path.dirname(directory)!==path.resolve(os.tmpdir()) || !path.basename(directory).startsWith('lv10-validation-test-'))throw new Error('Invalid test cleanup path');
+        fs.rmSync(directory,{recursive:true,force:true});
+    }
+});
 
 test('progress caching preserves results and rechecks changed traces; final collection reads all files',()=>{
     const directory=fs.mkdtempSync(path.join(os.tmpdir(),'lv10-validation-test-'));
@@ -30,6 +47,10 @@ test('progress caching preserves results and rechecks changed traces; final coll
         expect(cache.size).toBe(2);
         expect(collectLv10Evaluation(directory,cache)).toEqual(first);
         expect(collectLv10Evaluation(directory)).toEqual(first);
+        const summaryPath=path.join(directory,'game-123-black.summary.json'),summaryBytes=fs.readFileSync(summaryPath);
+        fs.writeFileSync(summaryPath,JSON.stringify({...JSON.parse(summaryBytes.toString()),pageErrors:['uncaught exception']}));
+        expect(()=>collectLv10Evaluation(directory,cache)).toThrow('Page exceptions');
+        fs.writeFileSync(summaryPath,summaryBytes);
         fs.writeFileSync(path.join(directory,'game-123-black.json.gz'),'corrupted trace');
         expect(()=>collectLv10Evaluation(directory,cache)).toThrow();
         expect(()=>collectLv10Evaluation(directory)).toThrow();

@@ -6,12 +6,16 @@ import DeckSpec = require('../../shared/deck-spec');
 import Presentation = require('../../shared/presentation-queue');
 import Registry = require('../logic/cards-internal/pending-selection-registry');
 import SubPlacement = require('../turn/sub-placement-continuation');
+import StateHash = require('../../shared/state-hash');
 
 const Cards: any = require('../logic/cards');
 const Prng: any = require('../schema/prng');
 
 export type Lv10Player = 'black' | 'white';
 export type Lv10Action = { type: string; [key: string]: any };
+export function lv10ActionKey(action: Lv10Action): string {
+    return StateHash.stableStringify(action);
+}
 export type Lv10Position = { gameState: any; cardState: any; prngState?: any };
 export type Lv10Observation = {
     schema: 'cpu_lv10_observation.v1';

@@ -6,7 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
 import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
-import { runLv10Turn, type Lv10TurnRecord } from './cpu-lv10-turn';
+import { runLv10Turn, type Lv10TurnRecord, type Lv10TurnDeps } from './cpu-lv10-turn';
 import CpuOpponentStartupOptions = require('../shared/cpu-opponent-startup-options');
 import {
     createCpuTurnPerformanceScope,
@@ -168,6 +168,9 @@ let cpuTurnDecisionEpochSequence = 0;
 let cpuRuntimeIntegrityFailure: unknown = null;
 const lv10RecentDecisions: Lv10TurnRecord[] = [];
 const lv10DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, noAction: 0 };
+const lv10RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedActions']>> = {
+    black: { identity: null, actions: [] }, white: { identity: null, actions: [] }
+};
 // Presentation and extra-action handoffs may release the shared processing flag
 // while an advisory action is still awaiting completion. Keep the Lv10 request
 // exclusive through that completion; a reset cannot release an older request.
@@ -1265,6 +1268,7 @@ function resetPendingSelectRetryState(playerKey: any) {
 }
 
 function resetCpuTurnHandlerState() {
+    for (const memory of Object.values(lv10RejectedActions)) { memory.identity = null; memory.actions = []; }
     return CpuTurnScheduler.resetCpuTurnHandlerState();
 }
 
@@ -2221,6 +2225,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
             const expectedTurn = getCurrentTurnNumberSafe();
             const viewer = (resolveRuntimeValue('cardState') || cardState)?.fateWillControllerByTurnOwner?.[playerKey] || playerKey;
             await runLv10Turn(viewer, {
+                rejectedActions: level === 10 ? lv10RejectedActions[viewer as PlayerKey] : undefined,
                 getState: () => ({ gameState: resolveRuntimeValue('gameState') || gameState, cardState: resolveRuntimeValue('cardState') || cardState }),
                 getPublicRecipes: () => {
                     const recipes: any = {};

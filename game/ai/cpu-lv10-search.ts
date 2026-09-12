@@ -3,7 +3,7 @@ import Board = require('../../shared/shared-board-utils');
 import DeckSpec = require('../../shared/deck-spec');
 import StoneRegistry = require('../../shared/special-stone-registry-static');
 import {
-    applyLv10Action, currentLv10Player, lv10DecisionPlayer, enumerateLv10Actions, lv10PlacementMoves,
+    applyLv10Action, currentLv10Player, lv10DecisionPlayer, enumerateLv10Actions, lv10PlacementMoves, lv10ActionKey,
     sampleLv10Position, startLv10Turn,
     type Lv10Action, type Lv10Observation, type Lv10Player, type Lv10Position
 } from './cpu-lv10-position';
@@ -11,7 +11,7 @@ import {
 /** Provisional development budget. Not shipped until the fixed-baseline match
  * and browser responsiveness gates in the Lv10 plan have passed. */
 export const LV10_SEARCH_CONFIG = Object.freeze({
-    version: 'lv10-canonical-beam-dev5', maxTransitions: 1024, maxMs: 1500,
+    version: 'lv10-canonical-beam-dev6', maxTransitions: 1024, maxMs: 1500,
     maxRetainedPlans: 12, continuationBeam: 2, maxActionsPerTurn: 8,
     maxRootCandidates: 6, scenarioSeeds: Object.freeze([100901, 100909]), maxStageCandidates: 12
 });
@@ -22,7 +22,9 @@ export type Lv10SearchOptions = {
     maxTransitions?: number;
     maxMs?: number;
     publicRecipes?: Partial<Record<Lv10Player, readonly string[]>>;
+    excludedActions?: readonly Lv10Action[];
 };
+
 export type Lv10SearchResult = {
     version: string; action: Lv10Action | null; continuation: Lv10Action[];
     value: number | null; transitions: number; elapsedMs: number | null;
@@ -230,7 +232,9 @@ export function searchLv10(observation: Lv10Observation, options: Lv10SearchOpti
         version:cfg.version,action:null,continuation:[],value:evaluateLv10Position(initial,player),transitions:0,
         elapsedMs:0,stopped:'terminal',rejectedCount:0,rejected:[],evaluatedCandidates:0
     };
-    const rootActions = enumerateLv10Actions(initial, {allowDestroy:(initial.cardState.hands?.[initialOwner]?.length || 0)>=4});
+    const excluded = new Set((options.excludedActions || []).map(lv10ActionKey));
+    const rootActions = enumerateLv10Actions(initial, {allowDestroy:(initial.cardState.hands?.[initialOwner]?.length || 0)>=4})
+        .filter(action => !excluded.has(lv10ActionKey(action)));
     let fallback: Lv10Action | null = null;
     const plans: Plan[] = [], unfinished: Plan[] = [];
     for(const action of rootActions) {

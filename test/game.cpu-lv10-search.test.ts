@@ -17,6 +17,15 @@ function initialObservation() {
 }
 
 describe('bounded canonical Lv10 development search', () => {
+    test('an observed rejection excludes only that root choice',()=>{
+        const observation=initialObservation();
+        const first=searchLv10(observation,{maxTransitions:1});
+        expect(first.action).not.toBeNull();
+        const next=searchLv10(observation,{maxTransitions:4,excludedActions:[first.action!]});
+        expect(next.action).not.toBeNull();
+        expect(next.action).not.toEqual(first.action);
+        expect(next.candidates?.some(candidate=>JSON.stringify(candidate.action)===JSON.stringify(first.action))).toBe(false);
+    });
     test('a failed move of a frozen stone is not a way to advance the sampled RNG before choosing another target', () => {
         // Public projection of development seed2089148261, turn20. Dev4 chose
         // frozen (1,5), followed by an effective target after consuming RNG.

@@ -1007,9 +1007,14 @@ function applyPassViaPipelineImpl(playerKey: string, options?: any) {
             (action as any).turnIndex = cardState.turnIndex;
         }
 
+    // A pass can trigger random turn-end destruction/revival just like a
+    // placement. Supply the live game PRNG before the pipeline clones state.
+    const readPrng = resolvePassHandlerRuntimeFunction('getGamePrng');
+    const candidatePrng = readPrng ? readPrng() : cardState && cardState._defaultRandomSource;
+    const prngArgs = candidatePrng && typeof candidatePrng.random === 'function' ? [candidatePrng] : [];
     // Use applyTurnSafe if available, fallback to applyTurn
     if (typeof turnPipeline.applyTurnSafe === 'function') {
-        const result = turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action);
+        const result = turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, ...prngArgs);
         if (!result.ok) {
             console.error('[PASS-HANDLER] Pass rejected:', result.events);
             // Log rejected event but continue - do NOT record
@@ -1040,7 +1045,7 @@ function applyPassViaPipelineImpl(playerKey: string, options?: any) {
         };
     } else {
         // Fallback to regular applyTurn
-        const res = turnPipeline.applyTurn(cardState, gameState, playerKey, action);
+        const res = turnPipeline.applyTurn(cardState, gameState, playerKey, action, ...prngArgs);
         gameState = res.gameState;
         cardState = res.cardState;
 

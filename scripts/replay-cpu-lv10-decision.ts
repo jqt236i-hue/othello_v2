@@ -28,10 +28,11 @@ export function replayLv10RecordedTransition(record:any): {ok:boolean;recordedOk
     const before=clone(record.before),rng=Prng.createPRNG(1);
     rng.restoreState(before.prngState);
     before.cardState._defaultRandomSource=rng;
-    // The existing pass-handler calls applyTurnSafe without a PRNG argument.
-    // Preserve that call contract as well as the external seeded RNG state.
+    // Old traces predate the missing-pass-PRNG repair. Preserve their original
+    // omitted argument; new traces explicitly record the actual call contract.
+    const prngProvided = record.prngProvided ?? record.action.type!=='pass';
     const result=Pipeline.applyTurnSafe(before.cardState,before.gameState,record.player,clone(record.action),
-        record.action.type==='pass'?undefined:rng,clone(record.options || {}));
+        prngProvided?rng:undefined,clone(record.options || {}));
     const after={gameState:result.gameState,cardState:result.cardState,prngState:rng.getState()};
     return {ok:result.ok,recordedOk:record.ok,exact:result.ok===record.ok && comparable(after)===comparable(record.after),
         afterSha256:sha256(comparable(after)),recordedAfterSha256:sha256(comparable(record.after)),

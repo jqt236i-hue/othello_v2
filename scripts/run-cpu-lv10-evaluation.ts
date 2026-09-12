@@ -138,6 +138,7 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
         if(fs.existsSync(`${prefix}.error.json`)) {errors.push({...scheduled,error:JSON.parse(fs.readFileSync(`${prefix}.error.json`,'utf8'))});continue;}
         if(!fs.existsSync(`${prefix}.summary.json`)) {pending.push(scheduled);continue;}
         const summaryBytes=fs.readFileSync(`${prefix}.summary.json`),summary=JSON.parse(summaryBytes.toString());
+        if(summary.pageErrors?.length)throw new Error(`Page exceptions in completed game: ${prefix}`);
         const stat=fs.statSync(`${prefix}.json.gz`);
         const fingerprint=`${manifestHash}/${hash(summaryBytes)}/${stat.size}/${stat.mtimeMs}`;
         const cached=validatedGames?.get(prefix);
@@ -206,7 +207,15 @@ export async function runLv10Evaluation(directory:string) {
                 checkRuntime(manifest);
                 const result=await runLv10BrowserMatch({...game,out,timeoutMs:manifest.protocol.timeoutMs});
                 console.log(JSON.stringify({pair:game.pair,color:game.color,score:result.score,counts:result.counts,durationMs:result.durationMs}));
-            } catch(error) {failure=error;}
+            } catch(error) {
+                failure ||= error;
+                // Startup, resource, runtime-lock and teardown failures may
+                // happen outside the match recorder. Retain their scheduled
+                // condition as an explicit failure instead of a pending game.
+                const errorPath=path.join(out,`game-${game.seed}-${game.color}.error.json`);
+                if(!fs.existsSync(errorPath))fs.writeFileSync(errorPath,JSON.stringify({...game,phase:'evaluation-host',
+                    time:new Date().toISOString(),error:String(error),stack:error instanceof Error?error.stack:null}));
+            }
             // Do not repeatedly decompress all earlier games while browser RPCs
             // are active. Final acceptance below always revalidates every file.
             const report=collectLv10Evaluation(out,validationCache);

@@ -77,7 +77,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                     const before = clone({ gameState: gs, cardState: cs, prngState: realRng.getState() });
                     const result = original(cs, gs, player, action, rng, opts);
                     if (result.ok) lastAcceptedAt=performance.now();
-                    records.push({ player, action: clone(action), options: clone(opts || {}), before,
+                    records.push({ player, action: clone(action), options: clone(opts || {}), prngProvided: !!rng, before,
                         after: clone({ gameState: result.gameState, cardState: result.cardState, prngState: realRng.getState() }),
                         ok: result.ok, rejectedReason: result.rejectedReason, errorMessage: result.errorMessage });
                     const oracleAnswer = root.__lv10ExpectedOracleAction;
@@ -209,6 +209,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
         fs.writeFileSync(`${prefix}.json.gz`, bytes);
         if (result.audit.oracleVerificationErrors?.length) throw new Error('Frozen opponent parity failed; full trace saved');
         if (!result.audit?.gameOver) throw new Error('Match did not reach canonical termination');
+        if (result.pageErrors?.length) throw new Error('Page exceptions occurred; full trace saved');
         const counts = result.audit.counts;
         const other = options.color === 'black' ? 'white' : 'black';
         const score = counts[options.color] === counts[other] ? .5 : counts[options.color] > counts[other] ? 1 : 0;

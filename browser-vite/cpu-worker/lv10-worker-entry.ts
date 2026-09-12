@@ -10,7 +10,8 @@ export function executeLv10WorkerMessage(raw: unknown): CpuWorkerResponse | null
     try {
         if (identity.operation !== CPU_WORKER_OPERATIONS.LV10_ADVISE) throw new Error('Unsupported Lv10 operation');
         const request = parseLv10AdvisorRequest(payload);
-        const result = searchLv10(request.observation, { publicRecipes: request.publicRecipes, now: () => performance.now() });
+        const result = searchLv10(request.observation, { publicRecipes: request.publicRecipes,
+            excludedActions: request.excludedActions, now: () => performance.now() });
         return { ...identity, kind: 'response', ok: true, result };
     } catch (error) {
         return { ...identity, kind: 'response', ok: false, error: {
