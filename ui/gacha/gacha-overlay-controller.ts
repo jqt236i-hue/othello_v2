@@ -89,7 +89,7 @@ function createGachaOverlayController(options?: any): any {
       view.writeStatus('ガチャ報酬が未登録です', true);
       return snapshot;
     }
-    view.writeStatus('戦闘に勝利すると観測石が入手できます。ガチャで手のスキン、配置音、背景などを解放できます。', false);
+    view.writeStatus('CPU対戦・ネット対戦で観測石が入手できます。ガチャで手の見た目を解放できます。', false);
     return snapshot;
   }
 

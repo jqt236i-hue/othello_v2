@@ -32,7 +32,8 @@ describe('gacha overlay view', () => {
 
     const panel = dom.window.document.getElementById('gachaDetailsPanel');
     expect(panel.querySelector('.gacha-rate-heading').textContent).toContain('排出率');
-    expect(panel.querySelector('.gacha-rate-summary').textContent).toContain('手の見た目');
+    expect(panel.querySelector('.gacha-rate-summary').textContent).toBe('手の見た目 6種');
+    expect(panel.textContent).not.toMatch(/背景|配置音/);
     expect(Array.from(panel.querySelectorAll('.gacha-rate-row')).map((row) => row.getAttribute('data-gacha-rarity'))).toEqual([
       'exr',
       'ur',
@@ -45,7 +46,7 @@ describe('gacha overlay view', () => {
     dom.window.close();
   });
 
-  test('renders hand, background, and placement-sound rewards with the correct visuals', () => {
+  test('renders hands and excludes legacy background and sound results', () => {
     const dom = new JSDOM(`<!DOCTYPE html><body>
       <button id="gachaOpenBtn"></button>
       <div id="gachaOverlay"></div>
@@ -98,20 +99,10 @@ describe('gacha overlay view', () => {
     ], ['gacha__n__placement_sound__type-1-standard']);
 
     const cards = Array.from(dom.window.document.querySelectorAll('.gacha-result-card'));
-    expect(cards).toHaveLength(3);
+    expect(cards).toHaveLength(1);
     expect(cards[0].querySelector('.gacha-result-image')).toBeTruthy();
     expect(cards[0].querySelector('.gacha-result-fallback').hidden).toBe(true);
     expect(cards[0].querySelector('.gacha-result-kind').textContent).toBe('手の見た目');
-
-    expect(cards[1].querySelector('.gacha-result-image').hidden).toBe(false);
-    expect(cards[1].querySelector('.gacha-result-fallback').hidden).toBe(true);
-    expect(cards[1].querySelector('.gacha-result-kind').textContent).toBe('背景');
-
-    expect(cards[2].querySelector('.gacha-result-image').hidden).toBe(true);
-    expect(cards[2].querySelector('.gacha-result-fallback').hidden).toBe(false);
-    expect(cards[2].querySelector('.gacha-item-fallback-icon').textContent).toBe('SOUND');
-    expect(cards[2].querySelector('.gacha-result-kind').textContent).toBe('配置音');
-    expect(cards[2].querySelector('.gacha-result-status').textContent).toBe('NEW');
 
     dom.window.close();
   });

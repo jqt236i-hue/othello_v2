@@ -134,7 +134,7 @@ function getObservationCatalog(options?: any): Catalog {
 
 function getObservationCatalogItems(options?: any): CatalogItem[] {
   const catalog = getObservationCatalog(options);
-  return Array.isArray(catalog && catalog.items) ? catalog.items.filter(Boolean) : [];
+  return Array.isArray(catalog && catalog.items) ? catalog.items.filter((item) => item && item.kind === 'hand_skin') : [];
 }
 
 function getObservationCatalogItemsByKind(kind: string, options?: any): CatalogItem[] {

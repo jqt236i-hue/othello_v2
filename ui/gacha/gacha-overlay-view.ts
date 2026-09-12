@@ -111,12 +111,10 @@ function renderDetails(detailsPanel: HTMLElement | null, catalogItems: any[], he
 
   const intro = docRef.createElement('div');
   intro.className = 'gacha-details-copy';
-  intro.textContent = '観測石100で1回、1000で10連。手の見た目・配置音・背景が排出され、重複時は所持済みとして表示し、観測石の補填はありません。';
+  intro.textContent = '観測石100で1回、1000で10連。手の見た目が排出されます。重複時は所持済みとして表示し、観測石の補填はありません。';
   detailsPanel.appendChild(intro);
 
   const handCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'hand_skin').length;
-  const backgroundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'background_skin').length;
-  const soundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'placement_sound').length;
   const rateHeader = docRef.createElement('div');
   rateHeader.className = 'gacha-rate-header';
   const rateHeading = docRef.createElement('div');
@@ -125,7 +123,7 @@ function renderDetails(detailsPanel: HTMLElement | null, catalogItems: any[], he
   rateHeader.appendChild(rateHeading);
   const kindSummary = docRef.createElement('div');
   kindSummary.className = 'gacha-rate-summary';
-  kindSummary.textContent = `手の見た目 ${handCount}種 / 背景 ${backgroundCount}種 / 配置音 ${soundCount}種`;
+  kindSummary.textContent = `手の見た目 ${handCount}種`;
   rateHeader.appendChild(kindSummary);
   detailsPanel.appendChild(rateHeader);
 
@@ -167,7 +165,7 @@ function createResultCard(docRef: Document, pull: any, newlyUnlockedIdSet: Set<s
   image.loading = 'lazy';
   image.decoding = 'async';
   image.draggable = false;
-  const fallback = itemVisuals.createSoundFallbackTile(docRef, 'gacha-result-fallback');
+  const fallback = itemVisuals.createHandFallbackTile(docRef, 'gacha-result-fallback');
   itemVisuals.applyItemPreviewState(item, image, fallback);
   card.appendChild(image);
   card.appendChild(fallback);
@@ -197,7 +195,7 @@ function renderPullResults(resultsEl: HTMLElement | null, pulls: any[], newlyUnl
   if (!docRef) return;
 
   resultsEl.innerHTML = '';
-  const safePulls = Array.isArray(pulls) ? pulls : [];
+  const safePulls = Array.isArray(pulls) ? pulls.filter((pull) => pull && pull.item && (!pull.item.kind || pull.item.kind === 'hand_skin')) : [];
   if (!safePulls.length) {
     const empty = docRef.createElement('div');
     empty.className = 'gacha-results-empty';

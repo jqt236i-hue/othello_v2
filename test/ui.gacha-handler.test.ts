@@ -63,7 +63,7 @@ describe('gacha handler', () => {
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
-    const randomValues = [0.99, 0.25];
+    const randomValues = [0.99, 0.5];
 
     const api = mod.setupGachaControls({
       root: window,
@@ -108,7 +108,7 @@ describe('gacha handler', () => {
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
-    const randomValues = [0.99, 0.25];
+    const randomValues = [0.99, 0.5];
 
     const api = mod.setupGachaControls({
       root: window,

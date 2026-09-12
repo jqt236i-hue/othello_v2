@@ -104,7 +104,7 @@ function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRe
     heroImage.decoding = 'async';
     heroImage.draggable = false;
     heroImageWrap.appendChild(heroImage);
-    heroImageWrap.appendChild(itemVisuals.createSoundFallbackTile(docRef, 'gacha-reveal-hero-fallback'));
+    heroImageWrap.appendChild(itemVisuals.createHandFallbackTile(docRef, 'gacha-reveal-hero-fallback'));
     hero.appendChild(heroImageWrap);
     hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-kind'));
     hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-name'));
@@ -152,7 +152,7 @@ function createSlotCard(docRef: Document, pull: any, isNew: boolean, index: numb
   image.loading = 'lazy';
   image.decoding = 'async';
   image.draggable = false;
-  const fallback = itemVisuals.createSoundFallbackTile(docRef, 'gacha-reveal-slot-fallback');
+  const fallback = itemVisuals.createHandFallbackTile(docRef, 'gacha-reveal-slot-fallback');
   itemVisuals.applyItemPreviewState(pull && pull.item ? pull.item : null, image, fallback);
   visual.appendChild(image);
   visual.appendChild(fallback);

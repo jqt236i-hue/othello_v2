@@ -176,11 +176,7 @@
         const extensionKind = resolveCatalogItemKindFromExtension(extension);
         const explicitKind = resolveCatalogItemKindFromPathSegments(pathSegments);
         const kind = explicitKind || extensionKind;
-        if (!kind) return null;
-        if (explicitKind === ITEM_KIND_PLACEMENT_SOUND && extensionKind !== ITEM_KIND_PLACEMENT_SOUND) return null;
-        if (explicitKind && explicitKind !== ITEM_KIND_PLACEMENT_SOUND && !isImageCatalogItemKind(kind)) return null;
-        if (explicitKind === ITEM_KIND_BACKGROUND_SKIN && extensionKind !== ITEM_KIND_HAND_SKIN) return null;
-        if (explicitKind === ITEM_KIND_HAND_SKIN && extensionKind !== ITEM_KIND_HAND_SKIN) return null;
+        if (kind !== ITEM_KIND_HAND_SKIN || extensionKind !== ITEM_KIND_HAND_SKIN) return null;
 
         const label = fileName.slice(0, dotIndex).trim();
         if (!label) return null;
@@ -192,7 +188,7 @@
             assetPath: normalizedPath,
             imagePath: isImageCatalogItemKind(kind) ? normalizedPath : '',
             previewImagePath: isImageCatalogItemKind(kind) ? normalizedPath : '',
-            soundPath: kind === ITEM_KIND_PLACEMENT_SOUND ? normalizedPath : ''
+            soundPath: ''
         };
     }
 

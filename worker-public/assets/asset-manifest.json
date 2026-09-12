@@ -743,32 +743,8 @@
       "sha256": "82febdb285173ea49c0cfac849c71a012c864100fd1496549d79ab92a69243f4"
     },
     {
-      "path": "assets/images/Gacha/EXR/background/観測の意志.png",
-      "sha256": "2a0b89f48b12746a2d0c5f6e799804f2c8549a7111792f4c0edfc783af9c2a87"
-    },
-    {
       "path": "assets/images/Gacha/EXR/意志.png",
       "sha256": "205459e17231adc708a8eadd35db270b89eb4d858e81c02126b644e8d871f0dd"
-    },
-    {
-      "path": "assets/images/Gacha/N/background/観測できなかった夜.png",
-      "sha256": "8219b27eb83e360731643269a5df4dd11a118177bab5c3e5ad6353bd3eaf9ba0"
-    },
-    {
-      "path": "assets/images/Gacha/N/type-1-standard.mp3",
-      "sha256": "f6d0ae361d49d6e15b8a2d805a7c47e2b2e793787052524357ba61abd2cf2001"
-    },
-    {
-      "path": "assets/images/Gacha/N/type-3-heavy.mp3",
-      "sha256": "bf577f12117076a14a473b78b759f800c5f807149e2bc6447fdf11cd7f159379"
-    },
-    {
-      "path": "assets/images/Gacha/N/type-4-resonant.mp3",
-      "sha256": "89feec28c10f028ef70094eeb029506139f32c9ed88c3102ddc705b37986dd2f"
-    },
-    {
-      "path": "assets/images/Gacha/N/type-5-soft.mp3",
-      "sha256": "88b1dfdba40b9632c7a869eea60f9954b2b29c54c3eb0086dcc1e4ad65a40986"
     },
     {
       "path": "assets/images/Gacha/N/人の手.png",
@@ -787,14 +763,6 @@
       "sha256": "0c5dcc7fabb46cd6d636846e14ac184d627aa54194fcdf66b1b443fdf1657f12"
     },
     {
-      "path": "assets/images/Gacha/R/background/観測の森.png",
-      "sha256": "d6b48b6049b2c11e06545e44f33953ef7c5c420f14a62dafdaa08571ad499e67"
-    },
-    {
-      "path": "assets/images/Gacha/R/background/観測の部屋.png",
-      "sha256": "526d78fec4ed0c0083e5518e4f78d4575c0bb4a96a29e3339405513c4ad1d9c5"
-    },
-    {
       "path": "assets/images/Gacha/R/支配の手.png",
       "sha256": "c0cab3dcaea8ab5070d1d527a15d902eef900728052a3c6258993a70911b4bd0"
     },
@@ -803,24 +771,12 @@
       "sha256": "d80a3641f2fbd7c4e7ba29cf711785f3421d68a9ad04b190ae13019656ab0648"
     },
     {
-      "path": "assets/images/Gacha/SR/background/宇宙の観測.png",
-      "sha256": "b8b0c06d770ca830ca47a3d4336a803af79c017d1c8df0f92691e8711b566fde"
-    },
-    {
       "path": "assets/images/Gacha/SR/虹の手.png",
       "sha256": "90dddfd19e240138e02776898765032b8c60eace054f06e107f2a7c772641134"
     },
     {
-      "path": "assets/images/Gacha/SSR/background/カードリバーシ.png",
-      "sha256": "02fd3856ba8aedcdb68f14edd0077e28e868faac064a11bddd3668a61687179e"
-    },
-    {
       "path": "assets/images/Gacha/SSR/邪悪な手.png",
       "sha256": "e4ab3d347f56393b78a6ea21e757d1e335d47de620405f2305f56109b42deaa4"
-    },
-    {
-      "path": "assets/images/Gacha/UR/background/最高の観測.png",
-      "sha256": "6be6294d5bc2de3d350e296839194a6676a97ebdb9df760ddf1fa9afd199c795"
     },
     {
       "path": "assets/images/Gacha/UR/ラグドールの手.png",

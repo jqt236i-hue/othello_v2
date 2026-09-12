@@ -48,7 +48,7 @@ function resolveGachaProgressStorageModule(): any {
 function getCatalogItems(options?: any): any[] {
   const opts = (options && typeof options === 'object') ? options : {};
   if (Array.isArray(opts.catalogItems)) {
-    return opts.catalogItems.filter(Boolean);
+    return opts.catalogItems.filter((item: any) => item && (!item.kind || item.kind === 'hand_skin'));
   }
   const catalogAccessModule = opts.catalogAccessModule || resolveObservationCatalogAccessModule();
   if (!catalogAccessModule || typeof catalogAccessModule.getObservationCatalogItems !== 'function') {

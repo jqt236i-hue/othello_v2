@@ -20,9 +20,6 @@ function normalizeItemKind(item: GachaItem | null | undefined): string {
 }
 
 function getItemKindLabel(item: GachaItem | null | undefined): string {
-  const normalizedKind = normalizeItemKind(item);
-  if (normalizedKind === 'placement_sound') return '配置音';
-  if (normalizedKind === 'background_skin') return '背景';
   return '手の見た目';
 }
 
@@ -30,18 +27,18 @@ function getItemPreviewPath(item: GachaItem | null | undefined): string {
   return String(item && (item.previewImagePath || item.imagePath) || '').trim();
 }
 
-function createSoundFallbackTile(docRef: Document, className: string): HTMLElement {
+function createHandFallbackTile(docRef: Document, className: string): HTMLElement {
   const tile = docRef.createElement('div');
   tile.className = `gacha-item-fallback ${className}`.trim();
 
   const icon = docRef.createElement('div');
   icon.className = 'gacha-item-fallback-icon';
-  icon.textContent = 'SOUND';
+  icon.textContent = 'HAND';
   tile.appendChild(icon);
 
   const note = docRef.createElement('div');
   note.className = 'gacha-item-fallback-note';
-  note.textContent = '配置音';
+  note.textContent = '手の見た目';
   tile.appendChild(note);
 
   return tile;
@@ -67,6 +64,6 @@ export = {
   normalizeItemKind,
   getItemKindLabel,
   getItemPreviewPath,
-  createSoundFallbackTile,
+  createHandFallbackTile,
   applyItemPreviewState
 };

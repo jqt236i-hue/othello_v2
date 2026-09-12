@@ -27,20 +27,20 @@ describe('gacha transaction module', () => {
     });
   });
 
-  test('returns a structured success payload when a mixed reward pull resolves', () => {
+  test('returns a structured success payload when a hand pull resolves', () => {
     const mod = require('../ui/gacha/gacha-transaction.js');
     const rollObservationGacha = jest.fn(() => ({
       rarity: 'N',
       item: {
-        id: 'gacha__n__placement_sound__type-1-standard',
-        kind: 'placement_sound',
-        label: 'type-1-standard',
-        assetPath: 'assets/images/Gacha/N/type-1-standard.mp3',
-        soundPath: 'assets/images/Gacha/N/type-1-standard.mp3'
+        id: 'gacha__n__人の手',
+        kind: 'hand_skin',
+        label: '人の手',
+        assetPath: 'assets/images/Gacha/N/人の手.png',
+        imagePath: 'assets/images/Gacha/N/人の手.png'
       }
     }));
     const applyPullResults = jest.fn(() => ({
-      newlyUnlockedIds: ['gacha__n__placement_sound__type-1-standard'],
+      newlyUnlockedIds: ['gacha__n__人の手'],
       alreadyOwnedIds: [],
       state: {
         observationStones: 0
@@ -57,15 +57,15 @@ describe('gacha transaction module', () => {
         spendObservationStones: () => ({ ok: true }),
         applyPullResults
       },
-      catalogItems: [{ id: 'sample-sound', kind: 'placement_sound' }]
+      catalogItems: [{ id: 'sample-hand', kind: 'hand_skin' }]
     });
 
     expect(rollObservationGacha).toHaveBeenCalledTimes(1);
     expect(applyPullResults).toHaveBeenCalledWith({}, [
       expect.objectContaining({
         item: expect.objectContaining({
-          id: 'gacha__n__placement_sound__type-1-standard',
-          kind: 'placement_sound'
+          id: 'gacha__n__人の手',
+          kind: 'hand_skin'
         })
       })
     ]);
@@ -76,18 +76,18 @@ describe('gacha transaction module', () => {
       cost: 100,
       newCount: 1,
       duplicateCount: 0,
-      newlyUnlockedIds: ['gacha__n__placement_sound__type-1-standard']
+      newlyUnlockedIds: ['gacha__n__人の手']
     }));
   });
 
-  test('derives mixed catalog items from loaded asset manifest before generated fallback', () => {
+  test('derives only hands from loaded asset manifest before generated fallback', () => {
     const mod = require('../ui/gacha/gacha-transaction.js');
     const items = mod.getCatalogItems({
       assetManifest: {
         generatedAt: '2026-04-12T00:00:00.000Z',
         files: [
           { path: 'assets/images/Gacha/UR/天空の手.png' },
-          { path: 'assets/images/Gacha/N/type-1-standard.mp3' }
+          { path: 'assets/images/Gacha/N/人の手.mp3' }
         ]
       },
       catalogModule: {
@@ -109,14 +109,6 @@ describe('gacha transaction module', () => {
         rarity: 'UR',
         kind: 'hand_skin',
         imagePath: 'assets/images/Gacha/UR/天空の手.png'
-      }),
-      expect.objectContaining({
-        id: 'gacha__n__placement_sound__type-1-standard',
-        label: 'type-1-standard',
-        rarity: 'N',
-        kind: 'placement_sound',
-        assetPath: 'assets/images/Gacha/N/type-1-standard.mp3',
-        soundPath: 'assets/images/Gacha/N/type-1-standard.mp3'
       })
     ]);
   });

@@ -147,6 +147,10 @@
     }
 
     function rollObservationGacha(items: unknown[], options: unknown): GachaResult | null {
+        items = (Array.isArray(items) ? items : []).filter((item) => {
+            const kind = item && typeof item === 'object' ? (item as Record<string, unknown>).kind : null;
+            return item && (!kind || kind === 'hand_skin');
+        });
         const opts = (options && typeof options === 'object') ? options as Record<string, unknown> : {};
         const summary = summarizeRarityAvailability(items);
         const rarity = rollGachaRarity({

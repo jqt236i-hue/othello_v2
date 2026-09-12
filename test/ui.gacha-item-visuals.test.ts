@@ -1,7 +1,7 @@
 import * as ItemVisualsModule from '../ui/gacha/gacha-item-visuals.js';
 
 describe('gacha item visuals', () => {
-  test('placement sound items hide img previews and show fallback tiles', () => {
+  test('hands without previews show hand fallback tiles', () => {
     const doc = {
       createElement(tagName) {
         return {
@@ -22,19 +22,19 @@ describe('gacha item visuals', () => {
     };
 
     const image = doc.createElement('img');
-    const fallback = ItemVisualsModule.createSoundFallbackTile(doc, 'gacha-result-fallback');
+    const fallback = ItemVisualsModule.createHandFallbackTile(doc, 'gacha-result-fallback');
     ItemVisualsModule.applyItemPreviewState({
-      id: 'gacha__n__placement_sound__type-1-standard',
-      kind: 'placement_sound',
-      label: 'type-1-standard'
+      id: 'gacha__n__人の手',
+      kind: 'hand_skin',
+      label: '人の手'
     }, image, fallback);
 
-    expect(ItemVisualsModule.getItemKindLabel({ kind: 'placement_sound' })).toBe('配置音');
+    expect(ItemVisualsModule.getItemKindLabel({ kind: 'hand_skin' })).toBe('手の見た目');
     expect(image.hidden).toBe(true);
     expect(fallback.hidden).toBe(false);
   });
 
-  test('background items keep image previews and use the background label', () => {
+  test('hands keep image previews and use the hand label', () => {
     const doc = {
       createElement(tagName) {
         return {
@@ -55,17 +55,17 @@ describe('gacha item visuals', () => {
     };
 
     const image = doc.createElement('img');
-    const fallback = ItemVisualsModule.createSoundFallbackTile(doc, 'gacha-result-fallback');
+    const fallback = ItemVisualsModule.createHandFallbackTile(doc, 'gacha-result-fallback');
     ItemVisualsModule.applyItemPreviewState({
-      id: 'gacha__n__background_skin__観測できなかった夜',
-      kind: 'background_skin',
-      label: '観測できなかった夜',
-      imagePath: 'assets/images/Gacha/N/background/観測できなかった夜.png'
+      id: 'gacha__n__小鬼の手',
+      kind: 'hand_skin',
+      label: '小鬼の手',
+      imagePath: 'assets/images/Gacha/N/小鬼の手.png'
     }, image, fallback);
 
-    expect(ItemVisualsModule.getItemKindLabel({ kind: 'background_skin' })).toBe('背景');
+    expect(ItemVisualsModule.getItemKindLabel({ kind: 'hand_skin' })).toBe('手の見た目');
     expect(image.hidden).toBe(false);
-    expect(image.src).toBe('assets/images/Gacha/N/background/観測できなかった夜.png');
+    expect(image.src).toBe('assets/images/Gacha/N/小鬼の手.png');
     expect(fallback.hidden).toBe(true);
   });
 });
