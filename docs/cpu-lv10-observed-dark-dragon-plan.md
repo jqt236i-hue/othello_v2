@@ -442,3 +442,12 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 - 指定された `output/imagegen/observed-dark-dragon-standing-20260913-v1.png` を加工せず `assets/images/cpu/observed-dark-dragon.png` へ追加し、Lv10だけのportraitSrcに設定。1024×1536、2,404,122 bytes、原本/配信用SHA-256はともに `b6950509b4a939ec5eeb6b112ef619f90c93617321056a0c81bb2ae157e1ddda`。既存Lv9までの画像と判断設定は変更しない。
 - 通常URL `http://127.0.0.1:8000/` のVite/Pixiで、黒白ともLv10をUI選択し、再読み込み後の保存と両立ち絵の実画像読み込みを確認。画像の自然寸法と参照先を検証し、ページ例外0。`user-portrait-browser/report.json` と `both-seats.png` を保存して画像を目視確認した。
 - 既に完了した通常白Lv10対局の正本終局状態を結果表示へ再生し、指定立ち絵、CPU Lv10記録、名前と台詞の表示を確認（`user-portrait-result/`）。これは表示確認であり、新たな勝率対局には数えない。
+
+- 正本と画像は `56acd3738`、他作業を除いて生成した配信物は `9f971d535` にコミット。分離生成は初回Git設定不足でasset-file-case検査が失敗したため、専用のGIT_WORK_TREE/GIT_INDEX_FILEと正しいGIT_DIRを指定して再実行し、1,106ファイルの同期検査に成功した。mainは1,115ファイル。既存の素材変更/asset-manifest差分/optional-gacha・leaderboard差分はコミット対象から除外して保持。通常8000の所有者39540/親3204は継続し、トップと指定立ち絵のHTTP 200を確認。
+
+### 2026-09-13: 旧400局の終了と100局評価前の起動処理修正
+
+- 旧評価PID41872/セッション50560はUTC11:42に終了。69局完了、1局失敗、330局未開始。固定コピーから全69記録を再照合した `retired-report.json` はdevelopment/acceptanceEligible=false/valid=false/result=null。新条件へ移すための停止と、以下の起動失敗を区別して残す。
+- seed2059773147・白の失敗は、比較用HTTPサーバー `127.0.0.1:60635` の `/vite-dist/assets/bridge-DPvF8mkq.js` に対する `net::ERR_CONNECTION_FAILED`。pageerror0、gameState未生成、turnNumber/currentPlayer/モデル状態null、occupied0、AUTO falseだった。ゲームの判断や不正手の失敗ではない。発生条件の記録を保存し、OS側の接続失敗原因までは断定しない。
+- `run-ui-level-match.ts` のwait-ui-initは30秒のつもりのオプションをwaitForFunctionの第2引数へ渡していたため、実効制限が既定の1,200,000msになっていた。次は正しい第3引数へ指定して起動失敗を診断する。また固定Lv9では既にブラウザのroute.fulfillで正確な保存ファイルを供給しているので、Lv10評価側にも固定した同一の静的ファイル供給を設け、ローカルTCP接続失敗で必須モジュールの読み込みが落ちる経路を取り除く。コード/モデル/ルール/探索時間は変えず、供給方式とファイル照合を宣言・記録する。未実装のため、100局はまだ開始しない。
+- 起動失敗を注入した実ブラウザ確認、同じ固定コードでの少数対戦、通常配信との判断/モデル/特典/予算一致を確認後、過去1,400条件と開発条件を除外した未使用50条件×先後交換100局を宣言する。合格は75勝以上。過去の失敗を捨てたり、勝った局だけで件数を揃えたりしない。
