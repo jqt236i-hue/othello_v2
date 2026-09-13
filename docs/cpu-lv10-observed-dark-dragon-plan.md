@@ -513,3 +513,5 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 - 再集計は固定コピーで `node dist/scripts/run-cpu-lv10-evaluation.js summarize data/cpu-lv10/evaluations/final-dev7-isolated-100`、性能は `node dist/scripts/summarize-cpu-lv10-metrics.js data/cpu-lv10/evaluations/final-dev7-isolated-100`。実行中に結果を見て候補や条件を変更しない。
 
 - 宣言を `cf511d6be` にコミット後、UTC14:13:10.363に開始。PID51348/親58964/管理セッション94564、cwdは上記固定候補。`process.json` に識別子を保存し、UTC14:14:27のOS照合で同じ作成時刻/コマンドの実プロセスを確認。最初の2局は29〜30ターンへ進み、エラー0。通常8000もHTTP 200。次はこの同じ実行を `monitor-final-evaluation.cjs` で監視し、100局の全照合・集計・採用判定へ進む。途中勝敗は未確認で、ゴールはactiveのまま。
+
+- UTC14:39の中間品質確認は18局完了、Lv10の1,177判断で代替/拒否/古い回答/行動なし0、固定側1,206回答/受理照合1,206件。探索終了は完了603/時間上限573/完了計画なし1。最後の1件はseed2331367875黒・120ターンの超引力対象(-2,2)、26遷移/1502.2msで候補評価完了0だったが、Workerが返した合法な対象は既存処理で受理され、同じターンの次判断へ継続して対局も終局した。`no-completed-plan-observation.json` に記録し、通常の探索完了と混同しない。勝敗は集計せず、固定候補/予算/全100局を変更していない。
