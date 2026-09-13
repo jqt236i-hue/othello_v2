@@ -7,6 +7,7 @@ import os = require('node:os');
 import { LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
 import { runLv10BrowserMatch } from './run-cpu-lv10-browser-match';
 import { readFrozenLv9GameConditions,FROZEN_LV9_EXECUTION_LIMITS,FROZEN_LV9_MODEL_SETTINGS,verifyFrozenLv9ModelStatus } from './cpu-lv10-frozen-oracle';
+import { verifyFrozenTransitionCoverage } from './cpu-lv10-frozen-verification';
 
 type Color = 'black' | 'white';
 type Condition = { pair: number; seed: number };
@@ -153,6 +154,9 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
             || audit.frozenOpponent?.baselineSha256!==manifest.baselineSha256) throw new Error(`Invalid trace: ${prefix}`);
         if(!audit.frozenOpponent.answers?.length)throw new Error(`Missing frozen opponent decisions: ${prefix}`);
         for(const answer of audit.frozenOpponent.answers)verifyFrozenLv9ModelStatus(answer.model);
+        if(manifest.protocol?.frozenOpponent?.verifyAutomaticPasses) {
+            verifyFrozenTransitionCoverage(audit,scheduled.color==='black'?'white':'black');
+        }
         const decisions=audit.lv10.history || audit.lv10.recent;
         if(audit.lv10.history && (!audit.lv10.historyComplete || audit.lv10.history.length!==audit.lv10.totals.decisions)) {
             throw new Error(`Incomplete decision timing history: ${prefix}`);

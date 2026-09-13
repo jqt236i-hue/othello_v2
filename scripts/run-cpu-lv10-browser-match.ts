@@ -4,6 +4,7 @@ import path = require('node:path');
 import zlib = require('node:zlib');
 import crypto = require('node:crypto');
 import Runner = require('./run-ui-level-match');
+import { installFrozenLv9Verification } from './cpu-lv10-frozen-verification';
 import { createDesktopChromiumLaunchOptions } from './browser-performance-environment';
 import { createFrozenLv9Oracle, type FrozenOracleAnswer } from './cpu-lv10-frozen-oracle';
 
@@ -31,6 +32,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                 if (oracle) await page.exposeFunction('__queryFrozenLv9', async (snapshot: any) => {
                     try {
                         const answer = await oracle.advise(snapshot);
+                        answer.oracleAnswerIndex = oracleAnswers.length;
                         oracleAnswers.push(answer);
                         return answer;
                     } catch (error) {
@@ -49,18 +51,12 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                 const goto = page.goto.bind(page);
                 page.goto = (url: string, opts: any) => goto(url + (url.includes('?') ? '&' : '?') + 'perf=1&boardRenderer=pixi', opts);
             },
-            setupPage: (page: any) => page.evaluate(() => {
+            setupPage: async (page: any) => {
+              await page.evaluate(() => {
                 const root = window as any, req = root.require;
                 const clone = (x: any) => JSON.parse(JSON.stringify(x));
                 const records: any[] = [];
                 let lastAcceptedAt=performance.now();
-                const comparableState = (value: any) => {
-                    const snapshot = clone(value);
-                    req('shared/presentation-queue').clearPresentationQueues(snapshot.cardState);
-                    snapshot.cardState.chargeDeltaEvents=[];
-                    for (const field of ['_defaultRandomSource','_boardOpsRandomSource','_currentActionMeta']) delete snapshot.cardState[field];
-                    return req('shared/state-hash').stableStringify(snapshot);
-                };
                 const abortComparison = (reason:string,details:any) => {
                     root.__lv10MatchAudit.oracleVerificationErrors.push({reason,...details});
                     void root.__lv10MatchStalled(clone({reason,details,gameState:root.gameState,cardState:root.cardState,
@@ -80,88 +76,9 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                     records.push({ player, action: clone(action), options: clone(opts || {}), prngProvided: !!rng, before,
                         after: clone({ gameState: result.gameState, cardState: result.cardState, prngState: realRng.getState() }),
                         ok: result.ok, rejectedReason: result.rejectedReason, errorMessage: result.errorMessage });
-                    const oracleAnswer = root.__lv10ExpectedOracleAction;
-                    if (oracleAnswer && result.ok && oracleAnswer.attempts[oracleAnswer.attempts.length-1].player === player) {
-                        root.__lv10ExpectedOracleAction = null;
-                        const after = { gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState() };
-                        if (comparableState(after) !== comparableState(oracleAnswer.after)) {
-                            abortComparison('accepted_transition_mismatch', {
-                                recordIndex:records.length-1,expected:oracleAnswer.after,actual:clone(after) });
-                        }
-                    }
                     return result;
                 };
-                root.__lv10MatchAudit = { records };
-                if (typeof root.__queryFrozenLv9 === 'function') {
-                    root.__lv10MatchAudit.oracleVerificationErrors = [];
-                    root.__lv10MatchAudit.oracleStaleAnswers = 0;
-                    req('game/cpu-turn-handler').setCpuUIImpl({ adviseComparisonOpponent: async () => {
-                        const rng = req('card-system').getGamePrng();
-                        const snapshot = clone({ gameState:root.gameState, cardState:root.cardState, prngState:rng.getState() });
-                        const answer = await root.__queryFrozenLv9(snapshot);
-                        const advisory = { version:'frozen-lv9-baseline-v1', action:answer.action, continuation:[],value:null,
-                            transitions:0,elapsedMs:answer.thinkingMs,stopped:'complete',rejectedCount:0,rejected:[],evaluatedCandidates:1 };
-                        // UI handoff may have completed while this queued query
-                        // was running. Discard that answer before replaying any
-                        // attempt, just as the normal Lv10 driver discards stale
-                        // Worker answers. It is not an RNG parity failure.
-                        const current = { gameState:root.gameState,cardState:root.cardState,prngState:rng.getState() };
-                        if (comparableState(current) !== comparableState(snapshot)) {
-                            root.__lv10MatchAudit.oracleStaleAnswers++;
-                            return { ...advisory,action:null };
-                        }
-                        root.__lv10ExpectedOracleAction = answer;
-                        root.__lv10ExpectedOracleSnapshot = snapshot;
-                        return advisory;
-                    }, applyComparisonOpponentPrelude: async (action:any) => {
-                      try {
-                        const answer=root.__lv10ExpectedOracleAction,rng=req('card-system').getGamePrng();
-                        const snapshot=root.__lv10ExpectedOracleSnapshot;
-                        if(!answer || JSON.stringify(answer.action)!==JSON.stringify(action)
-                            || comparableState({gameState:root.gameState,cardState:root.cardState,prngState:rng.getState()})!==comparableState(snapshot)) {
-                            throw new Error('Frozen opponent prelude is stale');
-                        }
-                        for (const attempt of answer.attempts) {
-                            for(const preparation of attempt.preparations || []) {
-                                const pending=root.cardState.pendingEffectByPlayer?.[preparation.player];
-                                if(preparation.player!==attempt.player)throw new Error('Frozen preparation changes another player');
-                                if(preparation.kind==='clearPendingEffect') {
-                                    if(JSON.stringify(pending || null)!==JSON.stringify(preparation.pending))throw new Error('Frozen pending clear differs');
-                                    req('game/turn/pending-coordinator').clearPendingEffect(root.cardState,preparation.player,preparation.options);
-                                } else if(preparation.kind==='setPendingField' && pending?.type==='BOARD_EXPANSION_GOD'
-                                    && preparation.pendingType===pending.type && preparation.pendingEffectId===pending.pendingEffectId
-                                    && preparation.field==='maxSelections' && preparation.value===1 && !pending.selectedCount) {
-                                    pending.maxSelections=1;
-                                } else throw new Error('Unsupported frozen CPU preparation');
-                                (root.__lv10MatchAudit.oraclePreparations ||= []).push(clone(preparation));
-                            }
-                            const before={gameState:root.gameState,cardState:root.cardState,prngState:rng.getState()};
-                            if(attempt.before && comparableState(before)!==comparableState(attempt.before)) {
-                                root.__lv10MatchAudit.oracleVerificationErrors.push({reason:'pre_action_state_mismatch',attempt,actual:clone(before)});
-                                throw new Error('Frozen opponent changed unrecorded state before its action');
-                            }
-                            if (attempt.ok) break;
-                            // Preserve the old opponent's rejected attempts and
-                            // any RNG consumption; do not silently filter them.
-                            const actual = pipeline.applyTurnSafe(root.cardState,root.gameState,attempt.player,attempt.action,rng,attempt.options);
-                            if (actual.ok || JSON.stringify(rng.getState()) !== JSON.stringify(attempt.rngAfter)) {
-                                root.__lv10MatchAudit.oracleVerificationErrors.push({ reason:'rejected_attempt_mismatch',attempt });
-                                throw new Error('Frozen opponent rejection diverged');
-                            }
-                        }
-                        const accepted = answer.attempts[answer.attempts.length-1];
-                        if (JSON.stringify(rng.getState()) !== JSON.stringify(accepted.rngBefore)) {
-                            root.__lv10MatchAudit.oracleVerificationErrors.push({ reason:'pre_action_rng_mismatch',accepted,
-                                snapshotPrng:snapshot.prngState,actualPrng:rng.getState() });
-                            throw new Error('Frozen opponent RNG diverged');
-                        }
-                        root.__lv10ExpectedOracleAction = answer;
-                      } catch(error) {
-                        abortComparison('comparison_prelude_failed',{error:String(error),recordIndex:records.length});
-                        throw error;
-                      }
-                    } });
-                }
+                root.__lv10MatchAudit = { records, oracleVerificationErrors: [], oracleStaleAnswers: 0 };
                 root.__cpuTurnPerformance?.beginScenario('lv6-worker-backed-place-8x8', { capture: true });
                 const decisionHistory: any[] = [];
                 let decisionCount=0, historyComplete=true;
@@ -183,9 +100,12 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                         cardState:root.cardState,audit:root.__lv10MatchAudit,lv10:root.__lv10CaptureDiagnostics(),
                         auto:root.AUTO_MODE_ACTIVE,processing:root.isProcessing})).catch(()=>undefined);
                 },1000);
-            }),
-            collectPage: (page: any) => page.evaluate(() => {
+              });
+              await page.evaluate(installFrozenLv9Verification, { frozenPlayer: options.color === 'black' ? 'white' : 'black' });
+            },
+            collectPage: (page: any) => page.evaluate(async () => {
                 const root = window as any, req = root.require;
+                await root.__lv10FlushComparison?.();
                 return { ...root.__lv10MatchAudit, perf: root.__cpuTurnPerformance?.endScenario({}),
                     lv10: root.__lv10CaptureDiagnostics(),
                     counts: req('game/logic/core').countDiscs(root.gameState, root.cardState),

@@ -63,6 +63,16 @@ if (typeof require === 'function') {
 const PassHandlerControllerEvents = require('./controller-events');
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
 let passHandlerRuntime: any = null;
+let automaticPassGuard: ((playerKey: string) => boolean) | null = null;
+
+// An external CPU driver can own the complete action sequence, including
+// passes. Explicit processPassTurn calls still use the normal rules/pipeline.
+function setAutomaticPassGuard(guard: ((playerKey: string) => boolean) | null) {
+    automaticPassGuard = typeof guard === 'function' ? guard : null;
+}
+function allowsAutomaticPass(playerKey: string): boolean {
+    return !automaticPassGuard || automaticPassGuard(playerKey) !== false;
+}
 
 function setPassHandlerRuntime(runtime: any) {
     passHandlerRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
@@ -948,6 +958,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
     const opts = options || {};
     const currentPlayer = gameState.currentPlayer;
     const playerKey = normalizePlayerKey(currentPlayer, 'black');
+    if (!allowsAutomaticPass(playerKey)) return false;
     const pending = readPendingForPassHandler(playerKey);
 
     // Pending selections and free-placement continuations are still available actions.
@@ -1248,9 +1259,17 @@ async function finalizePassTurnHandoff(
 }
 
 async function handleDoublePlaceNoSecondMove(move: any, passedPlayer: any) {
+    if (!allowsAutomaticPass(normalizePlayerKey(passedPlayer, 'black'))) {
+        setPassHandlerProcessing(false);
+        return;
+    }
     const playerName = getPlayerName(passedPlayer);
     scheduleWithDelay(DOUBLE_PLACE_PASS_DELAY_MS, async () => {
         if (isPassBlockedByCardRuntimeIntegrity()) {
+            setPassHandlerProcessing(false);
+            return;
+        }
+        if (!allowsAutomaticPass(normalizePlayerKey(passedPlayer, 'black'))) {
             setPassHandlerProcessing(false);
             return;
         }
@@ -1268,6 +1287,10 @@ async function handleDoublePlaceNoSecondMove(move: any, passedPlayer: any) {
 }
 
 async function handleBlackPassWhenNoMoves() {
+    if (!allowsAutomaticPass('black')) {
+        setPassHandlerProcessing(false);
+        return;
+    }
     const safeBlackPassDelay = (typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000;
     const safeBlackName = (typeof BLACK !== 'undefined' && typeof getPlayerName === 'function') ? getPlayerName(BLACK) : '黒';
     const expectedPlayer = gameState ? gameState.currentPlayer : null;
@@ -1280,6 +1303,10 @@ async function handleBlackPassWhenNoMoves() {
         }
         const currentGameState = resolvePassHandlerGameState();
         const currentPlayerKey = normalizePlayerKeyOptional(currentGameState ? currentGameState.currentPlayer : null);
+        if (currentPlayerKey && !allowsAutomaticPass(currentPlayerKey)) {
+            setPassHandlerProcessing(false);
+            return;
+        }
         const currentTurnNumber = (currentGameState && Number.isFinite(currentGameState.turnNumber)) ? currentGameState.turnNumber : null;
         if (
             (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) ||
@@ -1366,5 +1393,6 @@ export = {
     hasUsableCardFor,
     ensureCurrentPlayerCanActOrPass,
     setPassHandlerTimerService,
-    setPassHandlerRuntime
+    setPassHandlerRuntime,
+    setAutomaticPassGuard
 };

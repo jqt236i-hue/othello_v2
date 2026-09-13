@@ -531,6 +531,47 @@ describe('pass-handler flows', () => {
         }
     });
 
+    test.each(['black', 'white'])('external %s CPU owns automatic passes but explicit passes remain available', async player => {
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        (global as any).gameState.currentPlayer = player === 'black' ? 1 : -1;
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        ph.setAutomaticPassGuard((key: string) => key !== player);
+        expect(ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true })).toBe(false);
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+        (global as any).isGameOver.mockReturnValue(true);
+        await ph.processPassTurn(player, { autoMode: true, autoNoActionPass: true });
+        expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+        expect((global as any).TurnPipeline.applyTurnSafe.mock.calls[0][3]).toMatchObject({ type: 'pass', autoNoActionPass: true });
+    });
+
+    test('an already scheduled black pass respects the external driver guard before applying', async () => {
+        jest.useFakeTimers();
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        injectPassHandlerFakeTimerService(ph);
+        try {
+            expect(ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true })).toBe(true);
+            ph.setAutomaticPassGuard(() => false);
+            await jest.runOnlyPendingTimersAsync();
+            expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+            expect((global as any).isProcessing).toBe(false);
+        } finally { jest.clearAllTimers(); jest.useRealTimers(); }
+    });
+
+    test('an external driver also owns the no-second-placement pass', async () => {
+        (global as any).TurnPipeline = makeTurnPipeline();
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        ph.setAutomaticPassGuard(() => false);
+        await ph.handleDoublePlaceNoSecondMove({}, 1);
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
+        expect((global as any).isProcessing).toBe(false);
+    });
+
     test('ensureCurrentPlayerCanActOrPass は使用可能カードがあれば人間ターンを自動パスしない', () => {
         delete require.cache[modPath];
         (global as any).TurnPipeline = makeTurnPipeline();

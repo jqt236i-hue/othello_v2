@@ -42,7 +42,7 @@ export function summarizeLv10Metrics(directory:string) {
     const lv10={decisions:0,fallback:0,rejected:0,stale:0,noAction:0};
     const times:number[]=[],workerTimes:number[]=[],lv9Times:number[]=[],turnTimes:number[]=[],raf:number[]=[],longTasks:number[]=[];
     const stopped:Record<string,number>={},actionTypes:Record<string,number>={};
-    let traceBytes=0,frozenAnswers=0,staleFrozenAnswers=0,actualRejectedAttempts=0,frozenPassPrngRepairs=0;
+    let traceBytes=0,frozenAnswers=0,staleFrozenAnswers=0,actualRejectedAttempts=0,frozenPassPrngRepairs=0,verifiedAutomaticPasses=0;
     const perGame:any[]=[],losses:any[]=[];
     for(const game of report.details) {
         const tracePath=path.join(out,`game-${game.seed}-${game.color}.json.gz`),bytes=fs.readFileSync(tracePath);
@@ -62,6 +62,7 @@ export function summarizeLv10Metrics(directory:string) {
         turnTimes.push(...turns.values());
         lv9Times.push(...frozenLv9InvocationTimes(audit.frozenOpponent.answers));
         frozenAnswers+=audit.frozenOpponent.answers.length;staleFrozenAnswers+=audit.oracleStaleAnswers||0;
+        verifiedAutomaticPasses+=(audit.oracleActionVerifications||[]).filter((item:any)=>item.delivery==='automatic-pass').length;
         frozenPassPrngRepairs+=audit.frozenOpponent.answers.flatMap((answer:any)=>answer.attempts)
             .filter((attempt:any)=>attempt.passPrngInjected).length;
         actualRejectedAttempts+=audit.records.filter((r:any)=>!r.ok).length;
@@ -78,7 +79,7 @@ export function summarizeLv10Metrics(directory:string) {
     return {schema:'cpu-lv10-metrics.v1',result:report.result,lv10,lv10TimingMs:distribution(times),
         lv10WorkerMs:distribution(workerTimes),lv10AccumulatedThinkingPerTurnMs:distribution(turnTimes),lv9TimingMs:distribution(lv9Times),
         thinkingDefinition:'Per advisor/original invocation; real apply/presentation excluded, minimum-think waits disabled by benchmark mode. Lv9 uses the union of card-*, move-candidates, tactical-safety intervals.',
-        stopped,actionTypes,frozenAnswers,staleFrozenAnswers,actualRejectedAttempts,frozenPassPrngRepairs,totalTraceBytes:traceBytes,
+        stopped,actionTypes,frozenAnswers,staleFrozenAnswers,actualRejectedAttempts,frozenPassPrngRepairs,verifiedAutomaticPasses,totalTraceBytes:traceBytes,
         frozenTransportRecoveries:report.details.reduce((sum,game)=>sum+game.frozenTransportRecoveries.length,0),
         gameDurationMs:distribution(report.details.map(g=>g.durationMs)),totalGameMs,serial400EstimateHours:totalGameMs/report.details.length*400/3600000,
         validPerformanceGames:perGame.filter(g=>g.performanceCaptureValid).length,rafIntervalsMs:distribution(raf),longTasksMs:distribution(longTasks),perGame,losses};

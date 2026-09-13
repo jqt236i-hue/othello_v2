@@ -7,7 +7,7 @@ import { createDesktopChromiumLaunchOptions } from './browser-performance-enviro
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
 export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000,
-    injectMissingPassPrng:true,restoreIncomingBoard:true});
+    injectMissingPassPrng:true,restoreIncomingBoard:true,verifyAutomaticPasses:true,liveAutomaticPassOwner:'frozen-browser'});
 export const FROZEN_LV9_MODEL_SETTINGS=Object.freeze({enabled:true,minLevel:6,useValueRerank:true,policyWeight:.75,
     topK:8,heuristicRerankWeight:3,whiteSafetyMultiplier:1.45,exactSolveEmpties:10,exactSolveNodeBudget:50000,exactSolveMaxMs:250});
 
@@ -18,6 +18,7 @@ export function verifyFrozenLv9ModelStatus(status:any): void {
 }
 let verifiedBaseline: string | null = null;
 export type FrozenOracleAnswer = { action: any; attempts: any[]; after: any; thinkingMs: number; performanceEntries: any[]; model: any;
+    oracleAnswerIndex?: number;
     turnPlan?: { turnNumber:number; index:number; length:number };
     transportRecoveries?: { error:string; time:string; browserEvents:any[] }[] };
 export type FrozenLv9Oracle = {
