@@ -648,6 +648,10 @@
         inset 0 calc(-16px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.38);
 }
 
+.result-dialogues .character-name[style*="observed-dark-dragon-transparent.png"]::before {
+    transform: scaleX(-1);
+}
+
 .result-dialogues .character-name::after {
     content: '';
     position: absolute;
