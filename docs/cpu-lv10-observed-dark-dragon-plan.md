@@ -488,3 +488,6 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 - `browser-vite/features/onnx.ts` は旧CPU Workerの3秒probeが失敗すると `disableCpuWorkerBridge` を呼ぶ。`browser-vite/cpu-worker/bridge.ts` のその処理はLv10 clientもterminateし、bootstrapの全CPU注入をnullにしていた。Lv10を別Workerへ分離しても、この停止経路では無関係な旧CPU障害が波及する。
 - 実際のbridge正本を分離したclientで実行した `probe-lv10-worker-isolation.cjs` は、旧CPU停止の呼び出しによってLv10もterminate、注入解除、bridge削除となることを再現した（`lv10-worker-isolation-before.json`）。初回の検証ヘルパーはCommonJS予約変数exportsの再宣言で開始前に失敗し、変数名を修正して再実行。製品コードと固定候補はまだ変更していない。今回の実対局で旧Workerが失敗した下位の原因は記録不足で断定しない。
 - 次は旧CPUの停止・ONNX fallbackとLv10 advisorの存続を分離し、旧CPU失敗後もLv10の専用Workerで判断できる回帰テストと実ブラウザの故障注入を行う。Lv1〜9の既存停止/fallback契約は維持する。現行100局は全記録を集計するが、修正版の採用証明として流用せず、必要な修正・小規模比較後に新しい未使用50条件で評価する。
+
+- UTC13:28に評価PID67320が終了、管理セッション24304もexit1を回収した。85局完了・1局失敗・14局未開始。失敗はseed1670431598・Lv10黒、固定Lv9白の73ターン目「理論の化身」→(4,6)配置後の `Frozen turn presentation did not settle`。両行動は受理され、74ターンへ更新済み。診断末尾ではplaybackActive/claimed=true、writer local:217が残り、processing/animating/pendingVisual=falseだった。原因はまだ未確定で、待機条件を弱めて通さない。全状態の `game-1670431598-black.oracle-failure.json.gz` と簡潔な `presentation-failure-1670431598-black.json` を保存した。
+- UTC13:28:49の `disposition.json` で全50条件を開発専用に移した。元manifest/runtime/失敗/未開始を保持し、途中勝率による選別は行っていない。次回は過去8宣言の計1,450条件とその他すべての既発行条件を除外する。Worker停止波及と今回の演出待ちの二つを再現・修正し、小規模検証を経て新しい100局を宣言する。現在、採用条件を満たす成立した100局評価はない。
