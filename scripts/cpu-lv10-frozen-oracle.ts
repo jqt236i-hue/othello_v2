@@ -5,11 +5,12 @@ import type { Page } from 'playwright';
 import Runner = require('./run-ui-level-match');
 import { createDesktopChromiumLaunchOptions } from './browser-performance-environment';
 import { installFrozenPresentationSettlement } from './cpu-lv10-frozen-presentation';
+import { installFrozenShrinkActionPrng } from './cpu-lv10-frozen-shrink-prng';
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
 export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000,
     injectMissingPassPrng:true,restoreIncomingBoard:true,verifyAutomaticPasses:true,liveAutomaticPassOwner:'frozen-browser',
-    presentationSettlement:'owner-aware-v1'});
+    presentationSettlement:'owner-aware-v1',alignShrinkActionPrng:true});
 export const FROZEN_LV9_MODEL_SETTINGS=Object.freeze({enabled:true,minLevel:6,useValueRerank:true,policyWeight:.75,
     topK:8,heuristicRerankWeight:3,whiteSafetyMultiplier:1.45,exactSolveEmpties:10,exactSolveNodeBudget:50000,exactSolveMaxMs:250});
 
@@ -100,6 +101,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
         },
         setupPage: async (page: Page) => {
             await page.evaluate(installFrozenPresentationSettlement,FROZEN_LV9_EXECUTION_LIMITS);
+            await page.evaluate(installFrozenShrinkActionPrng);
             await page.evaluate((limits) => {
                 const root = window as any, req = root.require;
                 const handler = req('game/cpu-turn-handler');
@@ -182,10 +184,16 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     // The frozen CPU still chooses its original action; this
                     // supplies the live RNG for canonical delayed effects.
                     const passPrngInjected = limits.injectMissingPassPrng && action.type==='pass' && !rng;
-                    const result = apply(cs,gs,player,action,passPrngInjected ? realRng : rng,opts);
+                    const repair={shrinkActionPrngInjected:false};
+                    const previousCanonicalAttempt=oracle.canonicalAttempt;
+                    oracle.canonicalAttempt=repair;
+                    let result:any;
+                    try {result=apply(cs,gs,player,action,passPrngInjected ? realRng : rng,opts);}
+                    finally {oracle.canonicalAttempt=previousCanonicalAttempt;}
                     const attempt = { player, action: clone(action), options: clone(opts || {}), ok: result.ok,
                         rejectedReason: result.rejectedReason, errorMessage: result.errorMessage,
-                        passPrngInjected, rngBefore, rngAfter: realRng.getState(),preparations,before,
+                        passPrngInjected, shrinkActionPrngInjected:repair.shrinkActionPrngInjected,
+                        rngBefore, rngAfter: realRng.getState(),preparations,before,
                         after:clone({gameState:result.gameState,cardState:result.cardState,prngState:realRng.getState()}) };
                     active.attempts.push(attempt);
                     watchPending(result.cardState);
