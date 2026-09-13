@@ -4,10 +4,12 @@ import crypto = require('node:crypto');
 import type { Page } from 'playwright';
 import Runner = require('./run-ui-level-match');
 import { createDesktopChromiumLaunchOptions } from './browser-performance-environment';
+import { installFrozenPresentationSettlement } from './cpu-lv10-frozen-presentation';
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
 export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000,
-    injectMissingPassPrng:true,restoreIncomingBoard:true,verifyAutomaticPasses:true,liveAutomaticPassOwner:'frozen-browser'});
+    injectMissingPassPrng:true,restoreIncomingBoard:true,verifyAutomaticPasses:true,liveAutomaticPassOwner:'frozen-browser',
+    presentationSettlement:'owner-aware-v1'});
 export const FROZEN_LV9_MODEL_SETTINGS=Object.freeze({enabled:true,minLevel:6,useValueRerank:true,policyWeight:.75,
     topK:8,heuristicRerankWeight:3,whiteSafetyMultiplier:1.45,exactSolveEmpties:10,exactSolveNodeBudget:50000,exactSolveMaxMs:250});
 
@@ -97,6 +99,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
             });
         },
         setupPage: async (page: Page) => {
+            await page.evaluate(installFrozenPresentationSettlement,FROZEN_LV9_EXECUTION_LIMITS);
             await page.evaluate((limits) => {
                 const root = window as any, req = root.require;
                 const handler = req('game/cpu-turn-handler');
@@ -210,11 +213,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     if (oracle.active) throw new Error('Concurrent frozen oracle query');
                     // Finish any old presentation before replacing the shadow
                     // position. Its continuation is blocked at the turn handoff.
-                    const deadline = performance.now()+limits.presentationTimeoutMs;
-                    while (root.isCardAnimating || req('ui/playback-state-manager').isPlaybackRunning()) {
-                        if (performance.now()>deadline) throw new Error('Frozen oracle presentation did not settle');
-                        await new Promise(resolve => setTimeout(resolve,10));
-                    }
+                    await root.__waitForFrozenPresentation('previous turn');
                     const boardController=req('ui/bootstrap').getBoardVisualController();
                     await waitForPresentation(boardController.waitForIdle(),'previous board settlement');
                     handler.resetCpuTurnHandlerState();
@@ -230,6 +229,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     req('game/controller-events').emitBoardUpdate();
                     req('game/controller-events').emitGameStateChange();
                     await waitForPresentation(boardController.waitForIdle(),'restored board settlement');
+                    await root.__waitForFrozenPresentation('restored board');
                     if(comparable({gameState:root.gameState,cardState:root.cardState,prngState:rng.getState()})!==comparable(snapshot)) {
                         throw new Error('Frozen board restoration changed canonical state or PRNG');
                     }
@@ -260,11 +260,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     await waitForPresentation(oracle.settled,'turn settlement');
                     // Scheduled invocations may finish after the first invocation.
                     // Await the normal handoff presentation before another turn.
-                    const settleDeadline=performance.now()+limits.presentationTimeoutMs;
-                    while(oracle.autoInFlight || root.isProcessing || root.isCardAnimating || req('ui/playback-state-manager').isPlaybackRunning()) {
-                        if(performance.now()>settleDeadline)throw new Error('Frozen turn presentation did not settle');
-                        await new Promise(resolve=>setTimeout(resolve,10));
-                    }
+                    await root.__waitForFrozenPresentation('turn');
                     answers[answers.length-1].performanceEntries=oracle.performanceEntries.slice();
                     answers.forEach((answer:any,index:number)=>{
                         answer.turnPlan={turnNumber:snapshot.gameState.turnNumber,index,length:answers.length};
@@ -312,6 +308,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                                     gameState:root.gameState,cardState:root.cardState,prngState:root.require('card-system').getGamePrng().getState(),
                                     auto:root.AUTO_MODE_ACTIVE,processing:root.isProcessing,animating:root.isCardAnimating,
                                     autoInFlight:root.__frozenLv9Oracle.autoInFlight,
+                                    presentationFailure:root.__frozenPresentationFailure,
                                     performanceEntries:root.__frozenLv9Oracle.performanceEntries}));
                             }).catch(()=>null);
                             (error as any).frozenBrowserEvents=browserEvents.slice();
