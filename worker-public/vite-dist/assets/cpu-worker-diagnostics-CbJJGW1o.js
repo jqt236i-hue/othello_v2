@@ -1,0 +1,1 @@
+import{n as e}from"./bridge-Bf4OCRpm.js";function t(t=window){return e(t)}export{t as getCpuWorkerBridgeDiagnostics};
