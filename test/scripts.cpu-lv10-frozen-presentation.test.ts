@@ -69,3 +69,23 @@ test('a writer acquired while the final frame settles must also finish', async (
     await jest.advanceTimersByTimeAsync(100); expect(returned).toBe(false);
     f.state.writer = null; await jest.advanceTimersByTimeAsync(10); await waiting;
 });
+
+test('timeout records rendering diagnostics without releasing the writer or masking the original error', async () => {
+    const f = fixture(); f.state.writer = { id: 217 };
+    (f.controller as any).getBackendDiagnostics = () => ({
+        state: 'ready', noAnimation: true, timeline: { activeRunCount: 0 },
+        textures: { pendingLoadCount: 1 }, contextRecovery: { state: 'ready' }
+    });
+    const waiting = expect(f.wait()).rejects.toThrow('Frozen turn presentation did not settle');
+    await jest.advanceTimersByTimeAsync(5000); await waiting;
+    expect(f.root.__frozenPresentationFailure.detail.backend).toMatchObject({
+        noAnimation: true, textures: { pendingLoadCount: 1 }, timeline: { activeRunCount: 0 }
+    });
+    expect(f.state.writer).toEqual({ id: 217 });
+
+    (f.controller as any).getBackendDiagnostics = () => { throw new Error('diagnostics unavailable'); };
+    const again = expect(f.wait()).rejects.toThrow('Frozen turn presentation did not settle');
+    await jest.advanceTimersByTimeAsync(5000); await again;
+    expect(f.root.__frozenPresentationFailure.detail.observationError).toContain('diagnostics unavailable');
+    expect(f.state.writer).toEqual({ id: 217 });
+});

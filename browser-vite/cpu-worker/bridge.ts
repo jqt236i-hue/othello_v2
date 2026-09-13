@@ -115,13 +115,18 @@ export function disableCpuWorkerBridge(
   if (bridge && current && current !== bridge) return;
   const target = current || bridge || null;
   if (target && target.client) target.client.terminate('Dedicated CPU Worker disabled');
-  if (target && target.lv10Client) target.lv10Client.terminate('Dedicated Lv10 Worker disabled');
+  // A failed ONNX/legacy Worker must not terminate the independent Lv10 client.
+  // Keep the legacy bridge disabled, but retain only the Lv10 bootstrap injection.
+  const lv10Advisor = target && typeof target.adviseLv10InWorker === 'function'
+    && rootRef.__CARD_REVERSI_BROWSER_CAPABILITIES__?.cpuLv10AdvisorWorker !== false
+    ? target.adviseLv10InWorker
+    : null;
   bridges.delete(rootRef);
   permanentlyDisabledRoots.add(rootRef);
   try {
     const bootstrap = rootRef.UIBootstrap;
     if (bootstrap && typeof bootstrap.configureCpuCandidateScoring === 'function') {
-      bootstrap.configureCpuCandidateScoring(null);
+      bootstrap.configureCpuCandidateScoring(lv10Advisor ? { adviseLv10InWorker: lv10Advisor } : null);
     }
   } catch (error) { /* local fallback remains available */ }
   const detachResult = detachOnnxWorkerExecutor(rootRef);
@@ -132,7 +137,7 @@ export function disableCpuWorkerBridge(
     dedicatedCpuWorkerConfigured: false,
     cpuCandidateScoringWorker: false,
     cpuCardQuiescenceWorker: false,
-    cpuLv10AdvisorWorker: false,
+    cpuLv10AdvisorWorker: !!lv10Advisor,
     cpuCandidateScoringInjected: false,
     dedicatedCpuWorker: false,
     onnxInferenceWorker: false,

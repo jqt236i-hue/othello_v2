@@ -78,6 +78,8 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
             page.on('framenavigated',frame=>{if(frame===page.mainFrame())recordBrowserEvent({kind:'navigation',url:frame.url()});});
             page.on('crash',()=>recordBrowserEvent({kind:'crash'}));
             page.on('pageerror',error=>recordBrowserEvent({kind:'pageerror',error:String(error)}));
+            page.on('requestfailed',request=>recordBrowserEvent({kind:'requestfailed',url:request.url(),
+                method:request.method(),error:request.failure()?.errorText || 'unknown'}));
             await page.route('**/*', async route => {
                 const url = new URL(route.request().url());
                 if (url.hostname !== '127.0.0.1') return route.continue();

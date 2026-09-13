@@ -23,7 +23,22 @@ export function installFrozenPresentationSettlement(limits: { presentationTimeou
             if (done) return;
             done = true; clearTimeout(timer); clearTimeout(poll);
             if (error) {
-                root.__frozenPresentationFailure = { stage, samples, error: String(error) };
+                let detail: any = null;
+                try {
+                    const backend = controller.getBackendDiagnostics?.();
+                    detail = {
+                        visibility: root.document?.visibilityState ?? null,
+                        focused: root.document?.hasFocus?.() ?? null,
+                        animationEnginePlaying: root.AnimationEngine?.isPlaying === true,
+                        backend: backend ? {
+                            state: backend.state, noAnimation: backend.noAnimation,
+                            latestFrameToken: backend.latestFrameToken, settledFrameToken: backend.settledFrameToken,
+                            lastErrorCode: backend.lastErrorCode, timeline: backend.timeline,
+                            contextRecovery: backend.contextRecovery, textures: backend.textures
+                        } : null
+                    };
+                } catch (diagnosticError) { detail = { observationError: String(diagnosticError) }; }
+                root.__frozenPresentationFailure = { stage, samples, detail, error: String(error) };
                 reject(error);
             } else resolve();
         };

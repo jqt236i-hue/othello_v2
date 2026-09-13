@@ -491,3 +491,12 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 
 - UTC13:28に評価PID67320が終了、管理セッション24304もexit1を回収した。85局完了・1局失敗・14局未開始。失敗はseed1670431598・Lv10黒、固定Lv9白の73ターン目「理論の化身」→(4,6)配置後の `Frozen turn presentation did not settle`。両行動は受理され、74ターンへ更新済み。診断末尾ではplaybackActive/claimed=true、writer local:217が残り、processing/animating/pendingVisual=falseだった。原因はまだ未確定で、待機条件を弱めて通さない。全状態の `game-1670431598-black.oracle-failure.json.gz` と簡潔な `presentation-failure-1670431598-black.json` を保存した。
 - UTC13:28:49の `disposition.json` で全50条件を開発専用に移した。元manifest/runtime/失敗/未開始を保持し、途中勝率による選別は行っていない。次回は過去8宣言の計1,450条件とその他すべての既発行条件を除外する。Worker停止波及と今回の演出待ちの二つを再現・修正し、小規模検証を経て新しい100局を宣言する。現在、採用条件を満たす成立した100局評価はない。
+
+### 2026-09-13: Worker停止の分離と演出停止の追加調査
+
+- 旧CPU/ONNXの停止処理からLv10 clientのterminateを除き、bootstrapには生存しているLv10 advisorだけを残す。旧CPUの停止・モデル切り離し・main fallback契約は維持し、Lv10自身の致命的障害は従来どおり専用clientを停止する。配置/カード判断、モデル、特典、探索予算は変更しない。関連3スイート21件と診断追加後2スイート8件が成功（`worker-isolation-tests-v2.log`、`worker-isolation-diagnostics-tests.log`）。最初のテストfixtureで公開観測schemaが不足していた失敗も保存し、fixtureを訂正した。
+- 通常8000のVite/Pixiで旧CPU Workerの生成だけを例外にする実ブラウザ故障注入を実施。黒白ともLv10を選択・再読み込みし、両側合計6判断が実Lv10 Workerで進行、代替/拒否/古い回答/行動なし/ページ例外0。旧Worker無効・Lv10有効を確認し、`worker-isolation-browser/report.json` と目視済み `both-seats.png` を保存。このprobeは開始seedの記録を欠いていたため、ログ開始〜結果保存の時刻±5秒に含まれる全24,095個の32bit seedを保守的に開発除外ledgerへ登録した（`register-worker-probe-seeds.cjs`）。勝率評価には含めない。
+- seed1670431598黒の停止は、失敗直前の単独再生1回、全履歴再生2回、4並列の全履歴再生4回で再発せず、すべて74ターンまで正常にsettleした。さらに失敗直前から実対局を継続する4並列再生も4局とも終局（黒42/白13）、合計85判断で代替/拒否/古い回答/行動なし0。記録は `dev7-settlement-probe-theory-*` と `dev6-resume-1670431598-black-theory-full-parallel-{1..4}-v1/`。同じ開発局面の再生なので強さの標本には数えない。
+- 詳細な全履歴再生ではNOANIM=true、342 timelineがすべて完了、未完texture要求/通信失敗0だった。元の停止原因は未確定で、修正済みとは主張しない。次回の失敗時だけbackendのtimeline/texture/context recovery/表示状態と通信失敗を保存する診断を追加した。5秒の待機条件、所有者の完了確認、失敗扱いを維持し、ロックの強制解除や自動再試行は加えない。次の小規模/最終評価は2並列で資源競合を減らすが、これを原因解消の証明とはしない。
+- 開発専用へ移した後に固定コピーから全記録を再検査した `final-dev7-static-100/retired-report.json` は85完了/1失敗/14未開始、valid=false、result=null。85完了局のみの開発集計は68勝0分17敗（80%）、黒35勝7敗・白33勝10敗。成立した100局ではなく、採用実績として使わない。
+- `worker-isolation-build-vite.log` と `worker-isolation-typecheck.log` は成功。初回mirror検査は通常ビルドのみでmirror未更新の9件を検出したため、正本から `worker:prepare` を再実行し1,115ファイル同期に成功（`worker-isolation-worker-prepare.log`）。Lv10 Workerは従来のSHA-256 `5eb654943e95a467fd61d4ee520d2d91e3eac1c99eb402256b133310eb6b8f30` を維持。次は今回分の生成物を別作業と分離してコミットし、固定コピー・2並列小規模比較を行う。
