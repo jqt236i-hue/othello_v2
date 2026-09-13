@@ -2,7 +2,7 @@
 import fs = require('node:fs');
 import path = require('node:path');
 import zlib = require('node:zlib');
-import { collectLv10Evaluation } from './run-cpu-lv10-evaluation';
+import { collectLv10Evaluation, LV10_EVALUATION_PROTOCOL } from './run-cpu-lv10-evaluation';
 
 function distribution(values: number[]) {
     const sorted=values.filter(Number.isFinite).sort((a,b)=>a-b);
@@ -39,6 +39,8 @@ export function frozenLv9InvocationTimes(answers:any[]): number[] {
 export function summarizeLv10Metrics(directory:string) {
     const out=path.resolve(directory),report=collectLv10Evaluation(out);
     if(!report.valid)throw new Error('Metrics require every declared game and pair to be valid');
+    const finalEvaluationGames=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8')).protocol?.finalGames
+        ?? LV10_EVALUATION_PROTOCOL.finalGames;
     const lv10={decisions:0,fallback:0,rejected:0,stale:0,noAction:0};
     const times:number[]=[],workerTimes:number[]=[],lv9Times:number[]=[],turnTimes:number[]=[],raf:number[]=[],longTasks:number[]=[];
     const stopped:Record<string,number>={},actionTypes:Record<string,number>={};
@@ -81,7 +83,8 @@ export function summarizeLv10Metrics(directory:string) {
         thinkingDefinition:'Per advisor/original invocation; real apply/presentation excluded, minimum-think waits disabled by benchmark mode. Lv9 uses the union of card-*, move-candidates, tactical-safety intervals.',
         stopped,actionTypes,frozenAnswers,staleFrozenAnswers,actualRejectedAttempts,frozenPassPrngRepairs,verifiedAutomaticPasses,totalTraceBytes:traceBytes,
         frozenTransportRecoveries:report.details.reduce((sum,game)=>sum+game.frozenTransportRecoveries.length,0),
-        gameDurationMs:distribution(report.details.map(g=>g.durationMs)),totalGameMs,serial400EstimateHours:totalGameMs/report.details.length*400/3600000,
+        gameDurationMs:distribution(report.details.map(g=>g.durationMs)),totalGameMs,finalEvaluationGames,
+        serialFinalEstimateHours:totalGameMs/report.details.length*finalEvaluationGames/3600000,
         validPerformanceGames:perGame.filter(g=>g.performanceCaptureValid).length,rafIntervalsMs:distribution(raf),longTasksMs:distribution(longTasks),perGame,losses};
 }
 
@@ -90,5 +93,6 @@ if(require.main===module) {
     const metrics=summarizeLv10Metrics(directory);
     fs.writeFileSync(path.join(directory,'metrics.json'),JSON.stringify(metrics,null,2));
     console.log(JSON.stringify({result:metrics.result,lv10:metrics.lv10,lv10TimingMs:metrics.lv10TimingMs,lv9TimingMs:metrics.lv9TimingMs,
-        gameDurationMs:metrics.gameDurationMs,totalTraceBytes:metrics.totalTraceBytes,serial400EstimateHours:metrics.serial400EstimateHours}));
+        gameDurationMs:metrics.gameDurationMs,totalTraceBytes:metrics.totalTraceBytes,finalEvaluationGames:metrics.finalEvaluationGames,
+        serialFinalEstimateHours:metrics.serialFinalEstimateHours}));
 }

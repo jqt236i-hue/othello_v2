@@ -1,4 +1,4 @@
-import {collectLv10Evaluation,makeLv10Conditions,runLv10Evaluation,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
+import {collectLv10Evaluation,LV10_EVALUATION_PROTOCOL,makeLv10Conditions,prepareLv10Evaluation,runLv10Evaluation,summarizeLv10Pairs,verifyLv10StartingConditions} from '../scripts/run-cpu-lv10-evaluation';
 import {FROZEN_LV9_MODEL_SETTINGS} from '../scripts/cpu-lv10-frozen-oracle';
 import fs = require('node:fs');
 import os = require('node:os');
@@ -46,10 +46,10 @@ test('progress caching preserves results and rechecks changed traces; final coll
     const initialState=JSON.stringify({game:{turnNumber:0,currentPlayer:1,consecutivePasses:0},card:{
         charge:{black:99,white:99},chargeGainMultiplierByPlayer:{black:2,white:2},
         decks:{black:['hard_01'],white:['hard_01']},hands:{black:[],white:[]}}});
-    const conditions=Array.from({length:200},(_,i)=>({pair:i+1,seed:123+i})),schedule=conditions.flatMap(c=>['black','white'].map(color=>({...c,color})));
+    const conditions=Array.from({length:50},(_,i)=>({pair:i+1,seed:123+i})),schedule=conditions.flatMap(c=>['black','white'].map(color=>({...c,color})));
     try {
         fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'final',label:'cache-test',conditions,schedule,
-            baselineSha256:'fixture',search:{version:'fixture',maxTransitions:10},gameConditions:{initialCharge:99,
+            protocol:LV10_EVALUATION_PROTOCOL,baselineSha256:'fixture',search:{version:'fixture',maxTransitions:10},gameConditions:{initialCharge:99,
                 chargeGainMultiplier:2,cardUseUnlockTurnNumber:6,deckCardIds:['hard_01']}}));
         for(const game of schedule) {
             const prefix=path.join(directory,`game-${game.seed}-${game.color}`);
@@ -61,20 +61,20 @@ test('progress caching preserves results and rechecks changed traces; final coll
         }
         const cache=new Map(),first=collectLv10Evaluation(directory,cache);
         expect(first.valid).toBe(true);
-        expect(cache.size).toBe(400);
-        expect(first.result).toMatchObject({wins:400,meetsFinalGate:true});
+        expect(cache.size).toBe(100);
+        expect(first.result).toMatchObject({wins:100,meetsFinalGate:true});
         expect(collectLv10Evaluation(directory,cache)).toEqual(first);
         expect(collectLv10Evaluation(directory)).toEqual(first);
         const stopPath=path.join(directory,'stop-request.json');
         fs.writeFileSync(stopPath,JSON.stringify({reason:'explicit stop'}));
-        expect(collectLv10Evaluation(directory,cache)).toMatchObject({valid:true,completed:400,stopRequested:true,acceptanceEligible:false,
-            result:{wins:400,meetsFinalGate:false}});
+        expect(collectLv10Evaluation(directory,cache)).toMatchObject({valid:true,completed:100,stopRequested:true,acceptanceEligible:false,
+            result:{wins:100,meetsFinalGate:false}});
         fs.unlinkSync(stopPath);
         const dispositionPath=path.join(directory,'disposition.json');
         fs.writeFileSync(dispositionPath,JSON.stringify({developmentOnly:true,reason:'used for improvement'}));
         const retired=collectLv10Evaluation(directory,cache);
-        expect(retired).toMatchObject({valid:true,completed:400,mode:'development',declaredMode:'final',acceptanceEligible:false,
-            result:{wins:400,winRate:1,meetsFinalGate:false}});
+        expect(retired).toMatchObject({valid:true,completed:100,mode:'development',declaredMode:'final',acceptanceEligible:false,
+            result:{wins:100,winRate:1,meetsFinalGate:false}});
         expect(collectLv10Evaluation(directory)).toEqual(retired);
         fs.unlinkSync(dispositionPath);
         const summaryPath=path.join(directory,'game-123-black.summary.json'),summaryBytes=fs.readFileSync(summaryPath);
@@ -109,7 +109,7 @@ test('conditions are reproducible, unique and separated by declaration label',()
     expect(a.some(c=>b.some(d=>d.seed===c.seed))).toBe(false);
 });
 
-test('both colors of a pair are resampled together and the final gate requires 400 games',()=>{
+test('both colors of a pair are resampled together; earlier 400-game protocols remain reproducible',()=>{
     const conditions=makeLv10Conditions('test',200);
     const games=conditions.flatMap(c=>(['black','white'] as const).map(color=>({pair:c.pair,color,score:c.pair<=140?1:0})));
     const result=summarizeLv10Pairs(conditions,games);
@@ -119,19 +119,27 @@ test('both colors of a pair are resampled together and the final gate requires 4
     expect(result.black.score).toBe(.7);
     expect(result.white.score).toBe(.7);
     expect(summarizeLv10Pairs(conditions.slice(0,8),games.slice(0,16)).meetsFinalGate).toBe(false);
+    const allWins=games.map(game=>({...game,score:1}));
+    expect(summarizeLv10Pairs(conditions,allWins).meetsFinalGate).toBe(false);
+    const earlier={...LV10_EVALUATION_PROTOCOL,finalPairs:200,finalGames:400,minimumScore:.6,minimumLower95:.5,
+        acceptanceVersion:'2026-09-13-user-win-rate-at-least-75'};
+    expect(summarizeLv10Pairs(conditions,allWins,earlier)).toMatchObject({wins:400,meetsFinalGate:true,
+        acceptanceVersion:'2026-09-13-user-win-rate-at-least-75'});
 });
 
-test('the revised final gate requires at least 300 actual wins and does not substitute draw points',()=>{
-    const conditions=makeLv10Conditions('strict-win-rate',200);
+test('the user-revised final gate requires 75 actual wins in exactly 100 games without substituting draw points',()=>{
+    expect(LV10_EVALUATION_PROTOCOL).toMatchObject({finalPairs:50,finalGames:100,minimumWinRate:.75});
+    expect(()=>prepareLv10Evaluation('unused-final-count-test','final','invalid-count',200)).toThrow('exactly 50 pairs');
+    const conditions=makeLv10Conditions('strict-win-rate',50);
     const schedule=conditions.flatMap(c=>(['black','white'] as const).map(color=>({pair:c.pair,color})));
-    const below=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<299?1:0})));
-    expect(below).toMatchObject({wins:299,winRate:.7475,meetsFinalGate:false});
-    const draws=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<299?1:.5})));
-    expect(draws).toMatchObject({wins:299,draws:101,score:.87375,winRate:.7475,meetsFinalGate:false});
-    const pass=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<300?1:0})));
-    expect(pass).toMatchObject({wins:300,winRate:.75,meetsFinalGate:true});
-    expect(pass.black.winRate).toBe(.75);
-    expect(pass.white.winRate).toBe(.75);
+    const below=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<74?1:0})));
+    expect(below).toMatchObject({wins:74,winRate:.74,meetsFinalGate:false});
+    const draws=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<74?1:.5})));
+    expect(draws).toMatchObject({wins:74,draws:26,score:.87,winRate:.74,meetsFinalGate:false});
+    const pass=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<75?1:0})));
+    expect(pass).toMatchObject({wins:75,winRate:.75,meetsFinalGate:true});
+    expect(pass.black.winRate).toBe(.76);
+    expect(pass.white.winRate).toBe(.74);
     expect(pass.confidence95[0]).toBeGreaterThan(.5);
 });
 

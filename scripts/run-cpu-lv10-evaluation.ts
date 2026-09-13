@@ -15,8 +15,8 @@ type GameScore = { pair: number; color: Color; score: number };
 type ValidatedGame = { fingerprint:string; game:GameScore; detail:any; initialHash:string };
 export type Lv10ValidationCache = Map<string,ValidatedGame>;
 export const LV10_EVALUATION_PROTOCOL = Object.freeze({
-    finalPairs: 200, finalGames: 400, minimumScore: .60, minimumLower95: .50,
-    acceptanceVersion: '2026-09-13-user-win-rate-at-least-75',
+    finalPairs: 50, finalGames: 100,
+    acceptanceVersion: '2026-09-13-user-100-games-at-least-75-wins',
     minimumWinRate: .75,
     winRateDefinition: 'wins / all games; draws are not wins',
     confidence: 'paired percentile bootstrap, 20000 resamples, two-sided 95%',
@@ -47,7 +47,12 @@ export function makeLv10Conditions(label: string, pairs: number): Condition[] {
     return conditions;
 }
 
-export function summarizeLv10Pairs(conditions: Condition[], games: GameScore[]) {
+type AcceptanceProtocol = {
+    finalPairs:number; finalGames:number; minimumWinRate?:number; minimumScore?:number; minimumLower95?:number;
+    acceptanceVersion?:string; bootstrapSeed:number; bootstrapSamples:number;
+};
+
+export function summarizeLv10Pairs(conditions: Condition[], games: GameScore[], protocol:AcceptanceProtocol=LV10_EVALUATION_PROTOCOL) {
     if (games.length !== conditions.length*2) throw new Error('Incomplete paired evaluation');
     const lookup = new Map<string,GameScore>();
     for (const game of games) {
@@ -60,9 +65,9 @@ export function summarizeLv10Pairs(conditions: Condition[], games: GameScore[]) 
         if (!black || !white) throw new Error('Missing color in pair');
         return (black.score+white.score)/2;
     });
-    let rng=LV10_EVALUATION_PROTOCOL.bootstrapSeed;
+    let rng=protocol.bootstrapSeed;
     const random = () => { rng ^= rng << 13; rng ^= rng >>> 17; rng ^= rng << 5; return (rng>>>0)/4294967296; };
-    const samples = Array.from({length:LV10_EVALUATION_PROTOCOL.bootstrapSamples}, () => {
+    const samples = Array.from({length:protocol.bootstrapSamples}, () => {
         let sum=0;
         for (let i=0;i<pairs.length;i++) sum+=pairs[Math.floor(random()*pairs.length)];
         return sum/pairs.length;
@@ -73,12 +78,12 @@ export function summarizeLv10Pairs(conditions: Condition[], games: GameScore[]) 
         winRate:items.filter(g=>g.score===1).length/items.length,
         score:items.reduce((sum,g)=>sum+g.score,0)/items.length });
     const total=tally(games);
-    return { ...total, confidence95, pairScores:pairs, acceptanceVersion:LV10_EVALUATION_PROTOCOL.acceptanceVersion,
+    return { ...total, confidence95, pairScores:pairs, acceptanceVersion:protocol.acceptanceVersion||'legacy-score-rate',
         black:tally(games.filter(g=>g.color==='black')),white:tally(games.filter(g=>g.color==='white')),
-        meetsFinalGate:conditions.length===LV10_EVALUATION_PROTOCOL.finalPairs
-            && total.winRate>=LV10_EVALUATION_PROTOCOL.minimumWinRate
-            && total.score>=LV10_EVALUATION_PROTOCOL.minimumScore
-            && confidence95[0]>LV10_EVALUATION_PROTOCOL.minimumLower95 };
+        meetsFinalGate:conditions.length===protocol.finalPairs && games.length===protocol.finalGames
+            && (protocol.minimumWinRate===undefined || total.winRate>=protocol.minimumWinRate)
+            && (protocol.minimumScore===undefined || total.score>=protocol.minimumScore)
+            && (protocol.minimumLower95===undefined || confidence95[0]>protocol.minimumLower95) };
 }
 
 function runtimeFiles(): string[] {
@@ -107,8 +112,9 @@ export function prepareLv10Evaluation(directory:string, mode:'development'|'fina
     const replayBytes=replayDirectory?fs.readFileSync(path.join(replayDirectory,'manifest.json')):null;
     const replay=replayBytes?JSON.parse(replayBytes.toString()):null;
     if(replay && (mode!=='development'||replay.mode!=='development')) throw new Error('Only development conditions can be explicitly replayed here');
-    const pairs=mode==='final'?200:(replay?.conditions.length??count??8);
-    if (mode==='final' && count!==undefined && count!==200) throw new Error('Final evaluation requires exactly 200 pairs');
+    const pairs=mode==='final'?LV10_EVALUATION_PROTOCOL.finalPairs:(replay?.conditions.length??count??8);
+    if (mode==='final' && count!==undefined && count!==LV10_EVALUATION_PROTOCOL.finalPairs)
+        throw new Error(`Final evaluation requires exactly ${LV10_EVALUATION_PROTOCOL.finalPairs} pairs`);
     const conditions:Condition[]=replay?.conditions || makeLv10Conditions(label,pairs);
     const ledgerPath=path.resolve('data/cpu-lv10/issued-conditions.json');
     const ledger=fs.existsSync(ledgerPath)?JSON.parse(fs.readFileSync(ledgerPath,'utf8')):[];
@@ -186,7 +192,7 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
         validatedGames?.set(prefix,entry);record(entry);
     }
     const valid=errors.length===0&&pending.length===0;
-    const result=valid?summarizeLv10Pairs(manifest.conditions,games):null;
+    const result=valid?summarizeLv10Pairs(manifest.conditions,games,manifest.protocol):null;
     if(result&&!acceptanceEligible)result.meetsFinalGate=false;
     return {schema:'cpu-lv10-evaluation-report.v1',mode,declaredMode:manifest.mode,disposition,stopRequested,acceptanceEligible,label:manifest.label,
         valid,completed:games.length,expected:manifest.schedule.length,errors,pending,details,
