@@ -83,7 +83,7 @@ test('both colors of a pair are resampled together and the final gate requires 4
     const conditions=makeLv10Conditions('test',200);
     const games=conditions.flatMap(c=>(['black','white'] as const).map(color=>({pair:c.pair,color,score:c.pair<=140?1:0})));
     const result=summarizeLv10Pairs(conditions,games);
-    expect(result).toMatchObject({games:400,wins:280,draws:0,losses:120,score:.7,meetsFinalGate:true});
+    expect(result).toMatchObject({games:400,wins:280,draws:0,losses:120,score:.7,winRate:.7,meetsFinalGate:false});
     expect(result.confidence95[0]).toBeGreaterThan(.62);
     expect(result.confidence95[0]).toBeLessThan(.65);
     expect(result.black.score).toBe(.7);
@@ -91,11 +91,25 @@ test('both colors of a pair are resampled together and the final gate requires 4
     expect(summarizeLv10Pairs(conditions.slice(0,8),games.slice(0,16)).meetsFinalGate).toBe(false);
 });
 
+test('the revised final gate requires at least 300 actual wins and does not substitute draw points',()=>{
+    const conditions=makeLv10Conditions('strict-win-rate',200);
+    const schedule=conditions.flatMap(c=>(['black','white'] as const).map(color=>({pair:c.pair,color})));
+    const below=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<299?1:0})));
+    expect(below).toMatchObject({wins:299,winRate:.7475,meetsFinalGate:false});
+    const draws=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<299?1:.5})));
+    expect(draws).toMatchObject({wins:299,draws:101,score:.87375,winRate:.7475,meetsFinalGate:false});
+    const pass=summarizeLv10Pairs(conditions,schedule.map((g,i)=>({...g,score:i<300?1:0})));
+    expect(pass).toMatchObject({wins:300,winRate:.75,meetsFinalGate:true});
+    expect(pass.black.winRate).toBe(.75);
+    expect(pass.white.winRate).toBe(.75);
+    expect(pass.confidence95[0]).toBeGreaterThan(.5);
+});
+
 test('draws count as half a point; missing or duplicate paired games cannot pass',()=>{
     const conditions=makeLv10Conditions('draws',2);
     const games=conditions.flatMap(c=>(['black','white'] as const).map(color=>({pair:c.pair,color,score:color==='black'?1:.5})));
     const result=summarizeLv10Pairs(conditions,games);
-    expect(result).toMatchObject({wins:2,draws:2,score:.75,meetsFinalGate:false});
+    expect(result).toMatchObject({wins:2,draws:2,score:.75,winRate:.5,meetsFinalGate:false});
     expect(()=>summarizeLv10Pairs(conditions,games.slice(1))).toThrow('Incomplete');
     expect(()=>summarizeLv10Pairs(conditions,[...games.slice(0,3),games[0]])).toThrow('duplicate');
 });

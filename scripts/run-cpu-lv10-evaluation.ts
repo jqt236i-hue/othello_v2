@@ -16,6 +16,9 @@ type ValidatedGame = { fingerprint:string; game:GameScore; detail:any; initialHa
 export type Lv10ValidationCache = Map<string,ValidatedGame>;
 export const LV10_EVALUATION_PROTOCOL = Object.freeze({
     finalPairs: 200, finalGames: 400, minimumScore: .60, minimumLower95: .50,
+    acceptanceVersion: '2026-09-13-user-win-rate-at-least-75',
+    minimumWinRate: .75,
+    winRateDefinition: 'wins / all games; draws are not wins',
     confidence: 'paired percentile bootstrap, 20000 resamples, two-sided 95%',
     bootstrapSamples: 20000, bootstrapSeed: 10100493,
     concurrency: 2, timeoutMs: 1200000, noAcceptedActionTimeoutMs:60000, minimumFreeMemoryBytes: 2 * 1024 ** 3,
@@ -67,11 +70,15 @@ export function summarizeLv10Pairs(conditions: Condition[], games: GameScore[]) 
     const confidence95=[samples[Math.floor(samples.length*.025)],samples[Math.ceil(samples.length*.975)-1]];
     const tally = (items:GameScore[]) => ({ games:items.length,wins:items.filter(g=>g.score===1).length,
         draws:items.filter(g=>g.score===.5).length,losses:items.filter(g=>g.score===0).length,
+        winRate:items.filter(g=>g.score===1).length/items.length,
         score:items.reduce((sum,g)=>sum+g.score,0)/items.length });
     const total=tally(games);
-    return { ...total, confidence95, pairScores:pairs,
+    return { ...total, confidence95, pairScores:pairs, acceptanceVersion:LV10_EVALUATION_PROTOCOL.acceptanceVersion,
         black:tally(games.filter(g=>g.color==='black')),white:tally(games.filter(g=>g.color==='white')),
-        meetsFinalGate:conditions.length===200 && total.score>=.60 && confidence95[0]>.50 };
+        meetsFinalGate:conditions.length===LV10_EVALUATION_PROTOCOL.finalPairs
+            && total.winRate>=LV10_EVALUATION_PROTOCOL.minimumWinRate
+            && total.score>=LV10_EVALUATION_PROTOCOL.minimumScore
+            && confidence95[0]>LV10_EVALUATION_PROTOCOL.minimumLower95 };
 }
 
 function runtimeFiles(): string[] {
