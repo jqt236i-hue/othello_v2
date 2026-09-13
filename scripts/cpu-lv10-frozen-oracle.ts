@@ -7,7 +7,7 @@ import { createDesktopChromiumLaunchOptions } from './browser-performance-enviro
 
 const BASELINE_SHA256 = '17e477b998a8afc8e6e821327c9d6aa7e250b1b61a7fa6c4a4eb5c52ca2070d5';
 export const FROZEN_LV9_EXECUTION_LIMITS=Object.freeze({turnTimeoutMs:45000,maxActionsPerTurn:256,presentationTimeoutMs:5000,
-    injectMissingPassPrng:true});
+    injectMissingPassPrng:true,restoreIncomingBoard:true});
 export const FROZEN_LV9_MODEL_SETTINGS=Object.freeze({enabled:true,minLevel:6,useValueRerank:true,policyWeight:.75,
     topK:8,heuristicRerankWeight:3,whiteSafetyMultiplier:1.45,exactSolveEmpties:10,exactSolveNodeBudget:50000,exactSolveMaxMs:250});
 
@@ -102,6 +102,10 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                 const pipeline = req('game/turn/turn_pipeline'), apply = pipeline.applyTurnSafe;
                 const coordinator = req('game/turn/pending-coordinator'), clearPending = coordinator.clearPendingEffect;
                 const clone = (value: any) => JSON.parse(JSON.stringify(value));
+                const waitForPresentation = (task: PromiseLike<any>, stage: string) => new Promise<void>((resolve,reject) => {
+                    const timer=setTimeout(()=>reject(new Error(`Frozen ${stage} timed out`)),limits.presentationTimeoutMs);
+                    Promise.resolve(task).then(()=>{clearTimeout(timer);resolve();},error=>{clearTimeout(timer);reject(error);});
+                });
                 const oracle: any = { blocked: true, active: null, settled: Promise.resolve(), sequence:0, performanceEntries:[],
                     queued:[], expected:null,lastPlan:null,autoInFlight:false };
                 const stopAuto = () => { if(typeof root.disableAutoMode === 'function')root.disableAutoMode(); };
@@ -201,7 +205,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                         if(comparable(snapshot)!==comparable(oracle.expected))throw new Error('Frozen turn continuation state differs');
                         const answer=oracle.queued.shift();oracle.expected=answer.after;return answer;
                     }
-                    await oracle.settled;
+                    await waitForPresentation(oracle.settled,'previous turn settlement');
                     if (oracle.active) throw new Error('Concurrent frozen oracle query');
                     // Finish any old presentation before replacing the shadow
                     // position. Its continuation is blocked at the turn handoff.
@@ -210,6 +214,8 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                         if (performance.now()>deadline) throw new Error('Frozen oracle presentation did not settle');
                         await new Promise(resolve => setTimeout(resolve,10));
                     }
+                    const boardController=req('ui/bootstrap').getBoardVisualController();
+                    await waitForPresentation(boardController.waitForIdle(),'previous board settlement');
                     handler.resetCpuTurnHandlerState();
                     root.gameState = clone(snapshot.gameState);
                     root.cardState = clone(snapshot.cardState);
@@ -217,6 +223,15 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                     const rng = req('card-system').getGamePrng();
                     rng.restoreState(snapshot.prngState);
                     root.cardState._defaultRandomSource = rng;
+                    // The shadow browser did not render the other CPU's moves.
+                    // Restore their canonical board before starting the frozen
+                    // turn, so expansion/layout work cannot overlap its playback.
+                    req('game/controller-events').emitBoardUpdate();
+                    req('game/controller-events').emitGameStateChange();
+                    await waitForPresentation(boardController.waitForIdle(),'restored board settlement');
+                    if(comparable({gameState:root.gameState,cardState:root.cardState,prngState:rng.getState()})!==comparable(snapshot)) {
+                        throw new Error('Frozen board restoration changed canonical state or PRNG');
+                    }
                     req('ui/playback-state-manager').setBusyState({ processing:false });
                     root.isProcessing = false;
                     oracle.blocked = false;
@@ -241,7 +256,7 @@ export async function createFrozenLv9Oracle(directory = path.resolve('data/cpu-l
                             clearTimeout(timer); oracle.active=null; oracle.blocked=true; stopAuto(); reject(error);
                         });
                     });
-                    await oracle.settled;
+                    await waitForPresentation(oracle.settled,'turn settlement');
                     // Scheduled invocations may finish after the first invocation.
                     // Await the normal handoff presentation before another turn.
                     const settleDeadline=performance.now()+limits.presentationTimeoutMs;
