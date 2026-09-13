@@ -134,7 +134,7 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         decisionLevel: 10,
         name: '観測ダークドラゴン',
         menuLabel: 'Lv10: 観測ダークドラゴン',
-        portraitSrc: 'assets/images/cpu/observed-dark-dragon.png',
+        portraitSrc: 'assets/images/cpu/observed-dark-dragon-transparent.png',
         ...ENDING_ASH_GAME_CONDITIONS
     }
 ];

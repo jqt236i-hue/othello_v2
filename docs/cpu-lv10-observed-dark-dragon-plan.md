@@ -526,3 +526,11 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 - 続く「もう採用していいと思うのですが。」を現版の採用指示として受け、dev7を採用済みに変更。UTC15:01:29の最新確認は35局29勝0分6敗（82.857%）、黒16勝1敗/白13勝5敗。Lv10の2,332判断で代替/拒否/古い回答/行動なし0、完了計画なしは記録済みの1件、固定側2,327回答/受理照合2,327件。対局の停止・例外0。
 - 採用する実体は正本 `5203afcaf`、配信生成物 `1dbed5764` のWorker分離済みdev7。コード・モデル・布石等の条件・指定立ち絵・探索予算に追加変更はない。通常画面には既にLv10が接続され、過去の黒白実対局/表示/記録検証、最終コードのbuild:vite/typecheck/worker同期が成功している。今回の採用記録だけの更新ではゲーム再ビルドを要しない。通常8000は同じPID39540でHTTP 200を確認した。
 - 原評価manifestを上書きせず、100局の実行は同じPID51348/管理セッション94564で継続する。75勝以上の原判定を後から合格扱いに変えず、途中採用と最終結果を別々に報告する。追加100局の全結果と品質・性能の最終集計が残るため、作業ゴールはまだactiveとする。採用判断は `data/cpu-lv10/adoption-user-20260914.json` にも保存する。
+
+### 2026-09-14: 指定立ち絵をユーザー提供の透過版へ変更
+
+- 原本 `output/imagegen/observed-dark-dragon-standing-transparent-20260913-v1.png` を再加工せず `assets/images/cpu/observed-dark-dragon-transparent.png` にコピーし、Lv10プロフィールのportraitSrcだけを切り替えた。1024×1536、RGBA8、2,098,511 bytes、双方SHA-256 `e495534a7625cac079df6cce0cf4ccfc7df099baa16baa48e84509308890bfe9`。ブラウザの画素読み取りで完全透過760,363・半透過15,990・不透明796,511画素を確認した。
+- 進行中評価の固定コピーはassetsを共有しているため旧 `observed-dark-dragon.png` は削除・上書きせず保持（SHA-256 `b6950509b4a939ec5eeb6b112ef619f90c93617321056a0c81bb2ae157e1ddda`）。評価manifestのSHA-256は宣言時と同じ。Lv10 Workerも `5eb654943e95a467fd61d4ee520d2d91e3eac1c99eb402256b133310eb6b8f30` のままで、判断・特典・モデル・探索予算に差はない。通常配信のプロフィール/表示バンドルのみ更新した。
+- 通常URL `http://127.0.0.1:8000/` のVite/Pixiで、黒白Lv10選択・再読み込み後の保持・両立ち絵の透過表示を確認。過去の正常終局記録を表示再生し、黒Lv10/白Lv10双方の結果画面の名前・画像も確認した（新しい勝率標本ではない）。ページ例外0。証拠は `data/cpu-lv10/transparent-portrait-browser/`、`transparent-portrait-result-black/`、`transparent-portrait-result-white/` のreport.jsonと目視済みPNG。
+- `transparent-portrait-typecheck.log`、関連プロフィール17テスト、`worker:prepare`内の最終`build:vite`成功。main mirror1,116ファイル、別作業を除いた生成コピー1,107ファイルとも同期検査成功。ログは `transparent-portrait-tests.log`、`transparent-portrait-build.log`、`transparent-portrait-mirror.log`、`transparent-portrait-clean-build.log`、`transparent-portrait-clean-mirror.log`。今回分の生成物だけを専用index経由で分離する。
+- UTC15:12の評価は同じPID51348で41局完了・対局エラー0。通常8000はUTC10:04から継続している対象repoのPID39540/親3204を再確認しHTTP 200。100局の追加評価は継続し、画像差し替えを理由に再開始・条件変更は行わない。
