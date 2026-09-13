@@ -407,7 +407,7 @@ async function runMatch(args: any) {
         await page.waitForSelector('#smartBlack', { state: 'attached' });
         await page.waitForSelector('#smartWhite', { state: 'attached' });
         stage = 'wait-ui-init';
-        await page.waitForFunction(() => (globalThis as BenchGlobal).__uiInitialized === true, {
+        await page.waitForFunction(() => (globalThis as BenchGlobal).__uiInitialized === true, null, {
             timeout: Math.min(args.timeoutMs, 30000)
         });
         stage = 'close-maintenance-notice';

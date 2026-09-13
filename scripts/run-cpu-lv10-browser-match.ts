@@ -7,6 +7,7 @@ import Runner = require('./run-ui-level-match');
 import { installFrozenLv9Verification } from './cpu-lv10-frozen-verification';
 import { createDesktopChromiumLaunchOptions } from './browser-performance-environment';
 import { createFrozenLv9Oracle, type FrozenOracleAnswer } from './cpu-lv10-frozen-oracle';
+import { installLv10StaticTransport, type Lv10StaticTransportAudit } from './cpu-lv10-static-transport';
 
 /** Development match through the actual Vite CPU orchestrator. This is also
  * the trace format used to reproduce mistakes; it is not a teacher selfplay. */
@@ -19,6 +20,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
     const oracle = options.frozenOpponent === false ? null : await createFrozenLv9Oracle();
     const oracleAnswers: FrozenOracleAnswer[] = [];
     let firstOracleFailure: unknown = null;
+    let assetTransport:Lv10StaticTransportAudit|undefined;
     try {
         const result = await Runner.runMatch({ black: options.color === 'black' ? 10 : 9,
             white: options.color === 'white' ? 10 : 9, seed: options.seed, timeoutMs: options.timeoutMs || 1200000,
@@ -49,7 +51,10 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
                     }
                 });
                 const goto = page.goto.bind(page);
-                page.goto = (url: string, opts: any) => goto(url + (url.includes('?') ? '&' : '?') + 'perf=1&boardRenderer=pixi', opts);
+                page.goto = async (url: string, opts: any) => {
+                    assetTransport ||= await installLv10StaticTransport(page,Runner.resolveServeRoot(),new URL(url).origin);
+                    return goto(url + (url.includes('?') ? '&' : '?') + 'perf=1&boardRenderer=pixi', opts);
+                };
             },
             setupPage: async (page: any) => {
               await page.evaluate(() => {
@@ -125,11 +130,13 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
             }
         });
         result.audit.frozenOpponent = oracle ? { baselineSha256:oracle.baselineSha256, answers:oracleAnswers } : null;
+        (result as any).assetTransport=assetTransport;
         const bytes = zlib.gzipSync(JSON.stringify(result));
         fs.writeFileSync(`${prefix}.json.gz`, bytes);
         if (result.audit.oracleVerificationErrors?.length) throw new Error('Frozen opponent parity failed; full trace saved');
         if (!result.audit?.gameOver) throw new Error('Match did not reach canonical termination');
         if (result.pageErrors?.length) throw new Error('Page exceptions occurred; full trace saved');
+        if(!assetTransport||assetTransport.failures.length)throw new Error('Static asset transport failed; full trace saved');
         const counts = result.audit.counts;
         const other = options.color === 'black' ? 'white' : 'black';
         const score = counts[options.color] === counts[other] ? .5 : counts[options.color] > counts[other] ? 1 : 0;
@@ -143,7 +150,7 @@ export async function runLv10BrowserMatch(options: { seed: number; color: 'black
         return summary;
     } catch (error) {
         const cause=firstOracleFailure || error;
-        write('error', { ...options, error: String(cause), stack: cause instanceof Error ? cause.stack : null,
+        write('error', { ...options, error: String(cause), stack: cause instanceof Error ? cause.stack : null,assetTransport,
             ...(firstOracleFailure ? { subsequentError:String(error) } : {}) });
         throw cause;
     } finally {

@@ -47,13 +47,15 @@ test('progress caching preserves results and rechecks changed traces; final coll
         charge:{black:99,white:99},chargeGainMultiplierByPlayer:{black:2,white:2},
         decks:{black:['hard_01'],white:['hard_01']},hands:{black:[],white:[]}}});
     const conditions=Array.from({length:50},(_,i)=>({pair:i+1,seed:123+i})),schedule=conditions.flatMap(c=>['black','white'].map(color=>({...c,color})));
+    const runtime=[{path:'index.html',sha256:'fixture-index'},{path:'vite-dist/assets/bridge-fixture.js',sha256:'fixture-bridge'}];
+    const assetTransport={version:LV10_EVALUATION_PROTOCOL.assetTransport,requests:2,files:runtime.map(file=>({...file,bytes:1})),failures:[]};
     try {
         fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'final',label:'cache-test',conditions,schedule,
-            protocol:LV10_EVALUATION_PROTOCOL,baselineSha256:'fixture',search:{version:'fixture',maxTransitions:10},gameConditions:{initialCharge:99,
+            protocol:LV10_EVALUATION_PROTOCOL,runtime,baselineSha256:'fixture',search:{version:'fixture',maxTransitions:10},gameConditions:{initialCharge:99,
                 chargeGainMultiplier:2,cardUseUnlockTurnNumber:6,deckCardIds:['hard_01']}}));
         for(const game of schedule) {
             const prefix=path.join(directory,`game-${game.seed}-${game.color}`);
-            const bytes=zlib.gzipSync(JSON.stringify({initialState,audit:{records:[],gameOver:true,counts:game.color==='black'?{black:2,white:1}:{black:1,white:2},
+            const bytes=zlib.gzipSync(JSON.stringify({initialState,assetTransport,audit:{records:[],gameOver:true,counts:game.color==='black'?{black:2,white:1}:{black:1,white:2},
                 frozenOpponent:{baselineSha256:'fixture',answers:[{model:{...FROZEN_LV9_MODEL_SETTINGS,loaded:true,lastError:null}}]},
                 lv10:{totals:{decisions:1},historyComplete:true,history:[{search:{version:'fixture',transitions:1}}]}}}));
             fs.writeFileSync(`${prefix}.json.gz`,bytes);

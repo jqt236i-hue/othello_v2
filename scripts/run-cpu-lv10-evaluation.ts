@@ -8,6 +8,7 @@ import { LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
 import { runLv10BrowserMatch } from './run-cpu-lv10-browser-match';
 import { readFrozenLv9GameConditions,FROZEN_LV9_EXECUTION_LIMITS,FROZEN_LV9_MODEL_SETTINGS,verifyFrozenLv9ModelStatus } from './cpu-lv10-frozen-oracle';
 import { verifyFrozenTransitionCoverage } from './cpu-lv10-frozen-verification';
+import { LV10_STATIC_TRANSPORT_VERSION, verifyLv10StaticTransport } from './cpu-lv10-static-transport';
 
 type Color = 'black' | 'white';
 type Condition = { pair: number; seed: number };
@@ -21,6 +22,7 @@ export const LV10_EVALUATION_PROTOCOL = Object.freeze({
     winRateDefinition: 'wins / all games; draws are not wins',
     confidence: 'paired percentile bootstrap, 20000 resamples, two-sided 95%',
     bootstrapSamples: 20000, bootstrapSeed: 10100493,
+    assetTransport:LV10_STATIC_TRANSPORT_VERSION, startupTimeoutMs:30000,
     concurrency: 2, timeoutMs: 1200000, noAcceptedActionTimeoutMs:60000, minimumFreeMemoryBytes: 2 * 1024 ** 3,
     frozenOpponent:{...FROZEN_LV9_EXECUTION_LIMITS,model:FROZEN_LV9_MODEL_SETTINGS},
     failurePolicy: 'Keep every trace and error. Any failed or unfinished game makes evaluation incomplete and ineligible for acceptance. No automatic retry or exclusion.'
@@ -163,6 +165,10 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
         const cached=validatedGames?.get(prefix);
         if(cached?.fingerprint===fingerprint){record(cached);continue;}
         const bytes=fs.readFileSync(`${prefix}.json.gz`),trace=JSON.parse(zlib.gunzipSync(bytes).toString());
+        if(manifest.protocol?.assetTransport) {
+            if(manifest.protocol.assetTransport!==LV10_STATIC_TRANSPORT_VERSION)throw new Error('Unsupported declared asset transport');
+            verifyLv10StaticTransport(trace.assetTransport,manifest.runtime||[]);
+        }
         const audit=trace.audit;
         const gameConditions=manifest.gameConditions || readFrozenLv9GameConditions();
         verifyLv10StartingConditions(JSON.parse(trace.initialState),gameConditions);
