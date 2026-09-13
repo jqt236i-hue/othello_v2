@@ -6,6 +6,23 @@ import path = require('node:path');
 import crypto = require('node:crypto');
 import zlib = require('node:zlib');
 
+test('a saved stop request prevents new games without creating a fake game failure or allowing automatic resume',async()=>{
+    const directory=fs.mkdtempSync(path.join(os.tmpdir(),'lv10-validation-test-'));
+    try {
+        fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'final',conditions:[{pair:1,seed:123}],
+            schedule:[{pair:1,seed:123,color:'black'},{pair:1,seed:123,color:'white'}],protocol:{concurrency:2}}));
+        fs.writeFileSync(path.join(directory,'stop-request.json'),JSON.stringify({reason:'retired for improvement'}));
+        const result=await runLv10Evaluation(directory);
+        expect(result).toMatchObject({valid:false,completed:0,expected:2,errors:[],stopRequested:true,acceptanceEligible:false,result:null});
+        expect(result.pending).toHaveLength(2);
+        expect(fs.existsSync(path.join(directory,'stop-acknowledged.json'))).toBe(true);
+        expect(await runLv10Evaluation(directory)).toEqual(result);
+    } finally {
+        if(path.dirname(directory)!==path.resolve(os.tmpdir()) || !path.basename(directory).startsWith('lv10-validation-test-'))throw new Error('Invalid test cleanup path');
+        fs.rmSync(directory,{recursive:true,force:true});
+    }
+});
+
 test('a pre-launch failure is recorded against its condition and cannot be automatically retried',async()=>{
     const directory=fs.mkdtempSync(path.join(os.tmpdir(),'lv10-validation-test-'));
     try {
@@ -48,6 +65,11 @@ test('progress caching preserves results and rechecks changed traces; final coll
         expect(first.result).toMatchObject({wins:400,meetsFinalGate:true});
         expect(collectLv10Evaluation(directory,cache)).toEqual(first);
         expect(collectLv10Evaluation(directory)).toEqual(first);
+        const stopPath=path.join(directory,'stop-request.json');
+        fs.writeFileSync(stopPath,JSON.stringify({reason:'explicit stop'}));
+        expect(collectLv10Evaluation(directory,cache)).toMatchObject({valid:true,completed:400,stopRequested:true,acceptanceEligible:false,
+            result:{wins:400,meetsFinalGate:false}});
+        fs.unlinkSync(stopPath);
         const dispositionPath=path.join(directory,'disposition.json');
         fs.writeFileSync(dispositionPath,JSON.stringify({developmentOnly:true,reason:'used for improvement'}));
         const retired=collectLv10Evaluation(directory,cache);

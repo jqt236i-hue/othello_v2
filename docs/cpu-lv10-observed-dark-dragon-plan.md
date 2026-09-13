@@ -334,3 +334,10 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 - 既存128完了局の探索エラーを検査し、注入PRNGエラー1132件が6局の `shrinkTarget` に集中していた。他種類の同種ランタイムエラーはこの記録では見つからなかった（`dev7-existing-search-error-audit.json`）。この調査は開発用へ移したデータだけを対象にする。
 - 固定コピー `C:/Users/quarr/AppData/Local/Temp/othello-lv10-dev7-shrink-61b16fd82` は4623ファイル/125,522,917 bytes。`candidate-dev7-shrink.json` のSHA-256 `7a39c772ce52da83052fa6817ea43d02a5ea8bf8ffb7b4c09227b52af3b402f1`。全ファイルを保存後に再ハッシュした。画像/依存ライブラリ/実験記録のみmainへのリンクを使う。
 - 最初の開発比較 `dev7-shrink-pilot-8` は新しい4条件×先後交換8局、1並列を事前固定（label `dev7-shrink-pilot-20260913`、manifest SHA-256 `eecb9d9ebb36656f8caa3bbcd41f19bf67bf152ae8e3bee480d4414369b97819`）。旧版4並列と合わせて最大5対局、起動前空き2GiB、1局20分/無受理60秒、判断1024遷移/1500msは維持する。予想20〜40分/圧縮対局記録数MiB。旧版の4並列設定を変更せず、追加負荷を通常プレイの性能値へ流用しない。これで成立/資源/取消頻度を確認してから次の比較を決める。
+- dev7復元ZIPは35,606,403 bytes、SHA-256 `9454cf3271b6f6ac3b2e50b363116ac592ae90c3b2a8d441cb78425bbefbb3e4`。全4623エントリーを再照合した。8局pilotはUTC05:03:04開始、PID53892/親23108、管理セッション15088。実行情報はその `process.json` に保存。
+
+### 2026-09-13: 評価の途中終了を明示する進行管理
+
+- 今後の評価ホストは、評価ディレクトリに `stop-request.json` が存在すれば新しい局の開始を止める。既に実行中の局は通常の記録/終了処理まで待ち、`stop-acknowledged.json` と全体reportを保存する。条件・件数・runtime manifestは上書きしない。
+- 中断要求のある評価は、完了数や勝率にかかわらず `acceptanceEligible: false` とし、`meetsFinalGate` はfalse。未開始局はpendingとして残し、架空の対局エラーにはしない。中断ファイルが残った状態での再実行でも新しい局を開始しない。2スイート11件、main/training型検査、スクリプト生成が成功（`evaluation-stop-{tests,typecheck,build}.log`）。
+- この変更は対局間のホスト制御だけで、dev7の判断・探索予算・ブラウザWorkerを変更しない。既に起動している2つの固定コピーへは適用していない。特に旧400局の固定コピーにこの停止機能はないため、終了方法を確認してから旧比較の計算資源を次の評価へ回す。中断する場合は全条件の開発専用化を維持し、完了/途中終了/未開始を区別して保存する。

@@ -137,7 +137,8 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
     const dispositionPath=path.join(out,'disposition.json');
     const disposition=fs.existsSync(dispositionPath)?JSON.parse(fs.readFileSync(dispositionPath,'utf8')):null;
     const mode=disposition?.developmentOnly===true?'development':manifest.mode;
-    const acceptanceEligible=mode==='final';
+    const stopRequested=fs.existsSync(path.join(out,'stop-request.json'));
+    const acceptanceEligible=mode==='final'&&!stopRequested;
     const games:GameScore[]=[], errors:any[]=[],pending:any[]=[],details:any[]=[];
     const initialByPair=new Map<number,string>();
     const record=(entry:ValidatedGame) => {
@@ -187,7 +188,7 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
     const valid=errors.length===0&&pending.length===0;
     const result=valid?summarizeLv10Pairs(manifest.conditions,games):null;
     if(result&&!acceptanceEligible)result.meetsFinalGate=false;
-    return {schema:'cpu-lv10-evaluation-report.v1',mode,declaredMode:manifest.mode,disposition,acceptanceEligible,label:manifest.label,
+    return {schema:'cpu-lv10-evaluation-report.v1',mode,declaredMode:manifest.mode,disposition,stopRequested,acceptanceEligible,label:manifest.label,
         valid,completed:games.length,expected:manifest.schedule.length,errors,pending,details,
         result};
 }
@@ -216,8 +217,16 @@ export async function runLv10Evaluation(directory:string) {
     const resourceTimer=setInterval(captureResources,5000);
     resourceTimer.unref();
     let cursor=0, failure:unknown=null;
+    const shouldStopLaunching=() => {
+        if(!fs.existsSync(path.join(out,'stop-request.json')))return false;
+        const acknowledgement=path.join(out,'stop-acknowledged.json');
+        if(!fs.existsSync(acknowledgement))fs.writeFileSync(acknowledgement,JSON.stringify({
+            time:new Date().toISOString(),policy:'Finish active games and preserve every record; do not launch remaining games or accept this evaluation.'
+        },null,2),{flag:'wx'});
+        return true;
+    };
     const work=async () => {
-        while(cursor<pending.length&&!failure) {
+        while(cursor<pending.length&&!failure&&!shouldStopLaunching()) {
             const game=pending[cursor++];
             try {
                 if(os.freemem()<manifest.protocol.minimumFreeMemoryBytes) throw new Error('Free memory below declared launch threshold');
@@ -242,7 +251,9 @@ export async function runLv10Evaluation(directory:string) {
     try { await Promise.all(Array.from({length:manifest.protocol.concurrency},()=>work())); }
     finally { clearInterval(resourceTimer);captureResources(); }
     if(failure)throw failure;
-    return collectLv10Evaluation(out);
+    const report=collectLv10Evaluation(out);
+    fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));
+    return report;
 }
 
 if(require.main===module) {
