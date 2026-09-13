@@ -22,6 +22,23 @@ function fixture() {
 
 function sampled() { return sampleLv10Position(observeLv10Position(fixture(), 'black'), 42); }
 
+test.each(['BOARD_SHRINK_WILL','BOARD_SHRINK_GOD'])('sampled %s uses its injected RNG through destruction and revival',type=>{
+    const observation=cloneLv10(require('./fixtures/cpu-lv10-shrink-random-target.json'));
+    if(type==='BOARD_SHRINK_GOD') observation.cardState.pendingEffectByPlayer.black={
+        type,cardId:'board_shrink_god_01',stage:'selectTarget',firstTarget:{row:0,col:0}
+    };
+    const state=sampleLv10Position(observation,100901),before=JSON.stringify(state);
+    const action=enumerateLv10Actions(state)[0];
+    expect(action).toBeDefined();
+    const result=applyLv10Action(state,action);
+    expect(result.ok).toBe(true);
+    if(!result.ok)throw new Error(result.reason);
+    expect(result.state.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.state.prngState.calls).toBeGreaterThan(state.prngState.calls);
+    expect(applyLv10Action(state,action)).toEqual(result);
+    expect(JSON.stringify(state)).toBe(before);
+});
+
 describe('Lv10 public information and canonical transitions', () => {
     test('hidden hand identities, both deck orders and all live random states cannot affect the observation or sampled world', () => {
         const a = fixture(), b = cloneLv10(a);

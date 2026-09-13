@@ -1268,7 +1268,7 @@ function resetPendingSelectRetryState(playerKey: any) {
 }
 
 function resetCpuTurnHandlerState() {
-    for (const memory of Object.values(lv10RejectedActions)) { memory.identity = null; memory.actions = []; }
+    for (const memory of Object.values(lv10RejectedActions)) { memory.identity = null; memory.actions = []; delete memory.cancelledCards; }
     return CpuTurnScheduler.resetCpuTurnHandlerState();
 }
 

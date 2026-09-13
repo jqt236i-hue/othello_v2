@@ -11,7 +11,7 @@ import {
 /** Provisional development budget. Not shipped until the fixed-baseline match
  * and browser responsiveness gates in the Lv10 plan have passed. */
 export const LV10_SEARCH_CONFIG = Object.freeze({
-    version: 'lv10-canonical-beam-dev6', maxTransitions: 1024, maxMs: 1500,
+    version: 'lv10-canonical-beam-dev7', maxTransitions: 1024, maxMs: 1500,
     maxRetainedPlans: 12, continuationBeam: 2, maxActionsPerTurn: 8,
     maxRootCandidates: 6, scenarioSeeds: Object.freeze([100901, 100909]), maxStageCandidates: 12
 });

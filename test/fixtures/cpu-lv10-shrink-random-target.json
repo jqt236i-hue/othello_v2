@@ -1,0 +1,621 @@
+{
+  "schema": "cpu_lv10_observation.v1",
+  "player": "black",
+  "gameState": {
+    "board": [
+      [
+        1,
+        1,
+        0,
+        -1,
+        -1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        1
+      ],
+      [
+        1,
+        1,
+        0,
+        -1,
+        -1,
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        -1,
+        0,
+        -1,
+        0,
+        1
+      ],
+      [
+        1,
+        1,
+        0,
+        1,
+        -1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        -1,
+        1,
+        -1,
+        -1,
+        -1,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    "boardConfig": {
+      "rows": 8,
+      "cols": 8,
+      "shape": "rectangle",
+      "standard8x8": true,
+      "baseBounds": {
+        "minRow": 0,
+        "maxRow": 7,
+        "minCol": 0,
+        "maxCol": 7
+      },
+      "outerBounds": {
+        "minRow": -1,
+        "maxRow": 8,
+        "minCol": -1,
+        "maxCol": 8
+      }
+    },
+    "currentPlayer": 1,
+    "consecutivePasses": 0,
+    "turnNumber": 28,
+    "roundNumber": 15,
+    "roundCompletionByPlayer": {
+      "black": false,
+      "white": false
+    },
+    "pendingRoundBonus": null,
+    "boardExpansion": {
+      "active": false,
+      "side": null,
+      "row": null,
+      "owner": 0,
+      "usedByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "cells": [],
+      "col": null
+    }
+  },
+  "cardState": {
+    "boardConfig": {
+      "rows": 8,
+      "cols": 8,
+      "shape": "rectangle",
+      "standard8x8": true,
+      "baseBounds": {
+        "minRow": 0,
+        "maxRow": 7,
+        "minCol": 0,
+        "maxCol": 7
+      },
+      "outerBounds": {
+        "minRow": -1,
+        "maxRow": 8,
+        "minCol": -1,
+        "maxCol": 8
+      }
+    },
+    "discard": [
+      "stone_salvation_god_01",
+      "cell_teleport_01",
+      "silver_stone",
+      "time_stop_deity_01",
+      "ultimate_hyperactive_01",
+      "ghost_01",
+      "blockade_01",
+      "extreme_hyperactive_01",
+      "udg_01",
+      "corrosion_01",
+      "robot_vacuum_01",
+      "capture_01",
+      "double_01",
+      "extreme_hyperactive_01",
+      "afterimage_will_01",
+      "destroy_01",
+      "hard_01",
+      "triple_01",
+      "ultimate_work_god_01",
+      "quad_01",
+      "chaos_summon_01",
+      "execution_01",
+      "seed_01",
+      "board_shrink_01"
+    ],
+    "initialDeckSize": 93,
+    "initialDeckSizeByPlayer": {
+      "black": 93,
+      "white": 93
+    },
+    "reshuffleRequiresFullCycle": false,
+    "hands": {
+      "black": [
+        "salvation_01",
+        "position_swap_01",
+        "board_shrink_god_01",
+        "teleport_01"
+      ],
+      "white": [
+        "__hidden_hand__:white:0",
+        "__hidden_hand__:white:1"
+      ]
+    },
+    "turnIndex": 29,
+    "lastTurnStartedFor": "black",
+    "_activeTurnPlayer": "black",
+    "turnCountByPlayer": {
+      "black": 15,
+      "white": 14
+    },
+    "timeStopConsecutiveTurnsRemainingByPlayer": {
+      "black": 0,
+      "white": 0
+    },
+    "observerTriviaBaseByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "observerTriviaCursorByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "nextObserverWillStoneByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "observerWillRepaymentsByPlayer": {
+      "black": [],
+      "white": []
+    },
+    "_nextObserverWillRepaymentSeq": 1,
+    "nextBoardExecutorStoneByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "theoryIncarnationStateByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "nextTheoryIncarnationStoneByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "theoryNumberCellsBySession": {},
+    "theoryNumberCellByCell": {},
+    "numberCellCollectedTotalByPlayer": {
+      "black": 31,
+      "white": 36
+    },
+    "_nextTheoryIncarnationSeq": 1,
+    "selectedCardId": null,
+    "hasUsedCardThisTurnByPlayer": {
+      "black": true,
+      "white": true
+    },
+    "hasDestroyedCardThisTurnByPlayer": {
+      "black": false,
+      "white": true
+    },
+    "pendingEffectByPlayer": {
+      "black": {
+        "type": "BOARD_SHRINK_WILL",
+        "cardId": "board_shrink_01",
+        "pendingEffectId": "pending_29_20",
+        "sourceHandIndex": 1,
+        "stage": "selectTarget",
+        "selectedCount": 2,
+        "maxSelections": 3,
+        "selectedTargets": [
+          {
+            "row": 0,
+            "col": 0
+          },
+          {
+            "row": 0,
+            "col": 1
+          }
+        ]
+      },
+      "white": null
+    },
+    "activeEffectsByPlayer": {
+      "black": [],
+      "white": []
+    },
+    "markers": [
+      {
+        "id": 1,
+        "markerId": "1",
+        "row": 3,
+        "col": 5,
+        "kind": "specialStone",
+        "owner": "black",
+        "createdSeq": 1,
+        "data": {
+          "type": "STONE_SALVATION_GOD",
+          "remainingOwnerTurns": 1,
+          "sourceType": "STONE_SALVATION_GOD",
+          "sourceCardId": "stone_salvation_god_01"
+        }
+      },
+      {
+        "id": 8,
+        "markerId": "8",
+        "row": 2,
+        "col": 7,
+        "kind": "specialStone",
+        "owner": "black",
+        "createdSeq": 8,
+        "data": {
+          "type": "EXTREME_HYPERACTIVE",
+          "flipEvadeRemaining": 4,
+          "destroyEvadeRemaining": 5,
+          "hyperactiveSeq": 3,
+          "sourceType": "EXTREME_HYPERACTIVE_WILL",
+          "sourceCardId": "extreme_hyperactive_01"
+        }
+      },
+      {
+        "id": 9,
+        "markerId": "9",
+        "row": 5,
+        "col": 3,
+        "kind": "specialStone",
+        "owner": "white",
+        "createdSeq": 9,
+        "data": {
+          "type": "AFTERIMAGE_WILL",
+          "flipEvadeRemaining": 5,
+          "destroyEvadeRemaining": 6,
+          "sourceType": "AFTERIMAGE_WILL",
+          "sourceCardId": "afterimage_will_01"
+        }
+      },
+      {
+        "id": 12,
+        "markerId": "12",
+        "row": 6,
+        "col": 5,
+        "kind": "specialStone",
+        "owner": "white",
+        "createdSeq": 12,
+        "data": {
+          "type": "ULTIMATE_HYPERACTIVE",
+          "remainingOwnerTurns": 11,
+          "flipEvadeRemaining": 5,
+          "destroyEvadeRemaining": 2,
+          "sourceType": "CHAOS_SUMMON",
+          "sourceCardId": "ultimate_hyperactive_01",
+          "sourceCardType": "ULTIMATE_HYPERACTIVE_GOD"
+        }
+      },
+      {
+        "id": 13,
+        "markerId": "13",
+        "row": 7,
+        "col": 0,
+        "kind": "specialStone",
+        "owner": "white",
+        "createdSeq": 13,
+        "data": {
+          "type": "SEED",
+          "remainingOwnerTurns": 5,
+          "sourceCardType": "SEED_WILL",
+          "sourceType": "SEED_WILL",
+          "sourceCardId": "seed_01"
+        }
+      }
+    ],
+    "_nextMarkerId": 14,
+    "_nextCreatedSeq": 14,
+    "presentationEvents": [],
+    "_nextStoneId": 48,
+    "stoneIdMap": [
+      [
+        "s13",
+        "s10",
+        null,
+        "s45",
+        "s47",
+        "s35",
+        "s36",
+        "s29"
+      ],
+      [
+        "s22",
+        "s31",
+        null,
+        null,
+        "s43",
+        null,
+        null,
+        null
+      ],
+      [
+        "s28",
+        null,
+        null,
+        null,
+        "s38",
+        "s15",
+        null,
+        "s32"
+      ],
+      [
+        "s16",
+        "s6",
+        null,
+        "s5",
+        "s24",
+        "s11",
+        null,
+        null
+      ],
+      [
+        "s30",
+        null,
+        null,
+        "s34",
+        null,
+        "s37",
+        null,
+        "s18"
+      ],
+      [
+        "s9",
+        "s42",
+        null,
+        "s33",
+        "s41",
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        "s23",
+        "s26",
+        "s14",
+        "s39",
+        "s44",
+        "s3",
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        "s46",
+        null,
+        null,
+        null,
+        "s25"
+      ]
+    ],
+    "expansionStoneIdByCell": {},
+    "hyperactiveSeqCounter": 3,
+    "lastUsedCardByPlayer": {
+      "black": "board_shrink_01",
+      "white": "seed_01"
+    },
+    "cardUseCountByPlayer": {
+      "black": 9,
+      "white": 11
+    },
+    "totalFlipCountByPlayer": {
+      "black": 23,
+      "white": 26
+    },
+    "cornerCaptureCountByPlayer": {
+      "black": 0,
+      "white": 0
+    },
+    "charge": {
+      "black": 18,
+      "white": 69
+    },
+    "chargeGainMultiplierByPlayer": {
+      "black": 2,
+      "white": 2
+    },
+    "chargeGainedTotal": {
+      "black": 111,
+      "white": 108
+    },
+    "chargeDeltaEvents": [],
+    "_nextChargeDeltaSeq": 47,
+    "riboRepaymentsByPlayer": {
+      "black": [],
+      "white": []
+    },
+    "extraPlaceRemainingByPlayer": {
+      "black": 0,
+      "white": 0
+    },
+    "infinitePlaceActiveByPlayer": {
+      "black": false,
+      "white": false
+    },
+    "multiPlaceSourceTypeByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "boardBonusByCell": {
+      "6,7": 9,
+      "7,1": 8,
+      "1,1": 10,
+      "0,1": 8,
+      "1,6": 9,
+      "5,7": 5,
+      "5,6": 4,
+      "5,0": 3,
+      "4,0": 1,
+      "6,4": 2,
+      "4,1": 2,
+      "5,5": 2,
+      "3,6": 6,
+      "0,2": 7,
+      "7,7": 6,
+      "3,7": 4,
+      "3,1": 1,
+      "2,2": 5,
+      "4,6": 3,
+      "1,3": 1,
+      "2,6": 2,
+      "2,1": 1,
+      "0,4": 3,
+      "6,0": 1,
+      "1,7": 1,
+      "5,1": 1,
+      "3,0": 2,
+      "7,6": 4,
+      "0,5": 7,
+      "6,2": 2,
+      "5,2": 5,
+      "1,2": 7,
+      "6,5": 3,
+      "7,3": 3,
+      "7,4": 5,
+      "7,5": 6,
+      "6,3": 6,
+      "0,0": 4,
+      "0,6": 5,
+      "2,7": 2,
+      "1,0": 9,
+      "0,3": 1,
+      "0,7": 1,
+      "1,4": 2,
+      "1,5": 2,
+      "2,0": 2,
+      "2,5": 3,
+      "4,7": 5,
+      "6,1": 6
+    },
+    "boardBonusConsumedByCell": {
+      "2,2": true,
+      "5,1": true,
+      "1,3": true,
+      "1,4": true,
+      "1,2": true,
+      "5,2": true,
+      "3,6": true,
+      "6,2": true,
+      "0,3": true,
+      "1,6": true,
+      "0,6": true,
+      "2,5": true,
+      "6,4": true,
+      "4,7": true,
+      "0,5": true,
+      "0,4": true,
+      "7,3": true
+    },
+    "workAnchorPosByPlayer": {
+      "black": null,
+      "white": null
+    },
+    "workNextPlacementArmedByPlayer": {
+      "black": false,
+      "white": false
+    },
+    "breedingFrontierByAnchorId": {},
+    "breedingSproutByOwner": {
+      "black": [],
+      "white": []
+    },
+    "_breedingSproutClearedTokenByOwner": {
+      "black": "black:29",
+      "white": "white:28"
+    },
+    "prevOpponentTurnDestroyedStonesByPlayer": {
+      "black": [],
+      "white": []
+    },
+    "pendingStoneSalvationGodRevivesByPlayer": {
+      "black": [],
+      "white": []
+    },
+    "fateWillControllerByTurnOwner": {
+      "black": null,
+      "white": null
+    },
+    "_presentationEventsPersist": [],
+    "lastUsedCard": {
+      "cardId": "board_shrink_01",
+      "ownerKey": "black"
+    },
+    "pendingEffectSeq": 20,
+    "_nextEffectBlockId": 11,
+    "_effectBlockDepth": 0,
+    "_stoneSalvationGodDestroyBlockDepth": 0,
+    "_stoneSalvationGodReviveBlockQueue": [],
+    "observedHandSlotsByPlayer": {
+      "black": [],
+      "white": []
+    },
+    "handCostAdjustmentsByPlayer": {
+      "black": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "white": [
+        null,
+        null
+      ]
+    },
+    "selectedCardOwnerKey": null,
+    "deckRemainingByPlayer": {
+      "black": 80,
+      "white": 79
+    }
+  }
+}

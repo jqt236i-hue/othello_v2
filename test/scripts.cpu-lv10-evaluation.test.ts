@@ -29,14 +29,14 @@ test('progress caching preserves results and rechecks changed traces; final coll
     const initialState=JSON.stringify({game:{turnNumber:0,currentPlayer:1,consecutivePasses:0},card:{
         charge:{black:99,white:99},chargeGainMultiplierByPlayer:{black:2,white:2},
         decks:{black:['hard_01'],white:['hard_01']},hands:{black:[],white:[]}}});
-    const conditions=[{pair:1,seed:123}],schedule=conditions.flatMap(c=>['black','white'].map(color=>({...c,color})));
+    const conditions=Array.from({length:200},(_,i)=>({pair:i+1,seed:123+i})),schedule=conditions.flatMap(c=>['black','white'].map(color=>({...c,color})));
     try {
-        fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'development',label:'cache-test',conditions,schedule,
+        fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({mode:'final',label:'cache-test',conditions,schedule,
             baselineSha256:'fixture',search:{version:'fixture',maxTransitions:10},gameConditions:{initialCharge:99,
                 chargeGainMultiplier:2,cardUseUnlockTurnNumber:6,deckCardIds:['hard_01']}}));
         for(const game of schedule) {
             const prefix=path.join(directory,`game-${game.seed}-${game.color}`);
-            const bytes=zlib.gzipSync(JSON.stringify({initialState,audit:{records:[],gameOver:true,counts:{black:2,white:1},
+            const bytes=zlib.gzipSync(JSON.stringify({initialState,audit:{records:[],gameOver:true,counts:game.color==='black'?{black:2,white:1}:{black:1,white:2},
                 frozenOpponent:{baselineSha256:'fixture',answers:[{model:{...FROZEN_LV9_MODEL_SETTINGS,loaded:true,lastError:null}}]},
                 lv10:{totals:{decisions:1},historyComplete:true,history:[{search:{version:'fixture',transitions:1}}]}}}));
             fs.writeFileSync(`${prefix}.json.gz`,bytes);
@@ -44,9 +44,17 @@ test('progress caching preserves results and rechecks changed traces; final coll
         }
         const cache=new Map(),first=collectLv10Evaluation(directory,cache);
         expect(first.valid).toBe(true);
-        expect(cache.size).toBe(2);
+        expect(cache.size).toBe(400);
+        expect(first.result).toMatchObject({wins:400,meetsFinalGate:true});
         expect(collectLv10Evaluation(directory,cache)).toEqual(first);
         expect(collectLv10Evaluation(directory)).toEqual(first);
+        const dispositionPath=path.join(directory,'disposition.json');
+        fs.writeFileSync(dispositionPath,JSON.stringify({developmentOnly:true,reason:'used for improvement'}));
+        const retired=collectLv10Evaluation(directory,cache);
+        expect(retired).toMatchObject({valid:true,completed:400,mode:'development',declaredMode:'final',acceptanceEligible:false,
+            result:{wins:400,winRate:1,meetsFinalGate:false}});
+        expect(collectLv10Evaluation(directory)).toEqual(retired);
+        fs.unlinkSync(dispositionPath);
         const summaryPath=path.join(directory,'game-123-black.summary.json'),summaryBytes=fs.readFileSync(summaryPath);
         fs.writeFileSync(summaryPath,JSON.stringify({...JSON.parse(summaryBytes.toString()),pageErrors:['uncaught exception']}));
         expect(()=>collectLv10Evaluation(directory,cache)).toThrow('Page exceptions');

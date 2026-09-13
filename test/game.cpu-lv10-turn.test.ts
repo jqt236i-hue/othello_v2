@@ -12,6 +12,30 @@ function fixture() {
     return { gameState: Core.createGameState(), cardState: Cards.createCardState() };
 }
 
+test('a cancelled card is not reused after its refund changes hand order, and becomes eligible on the next turn',async()=>{
+    const { sampleLv10Position,applyLv10Action } = require('../game/ai/cpu-lv10-position');
+    let state=sampleLv10Position(require('./fixtures/cpu-lv10-shrink-random-target.json'),100901);
+    const memory:NonNullable<Parameters<typeof runLv10Turn>[1]['rejectedActions']>={identity:null,actions:[]};
+    const requests:any[]=[];
+    const advise=async(request:any)=>{
+        requests.push(request);
+        const result=searchLv10(request.observation,{maxTransitions:1,excludedActions:request.excludedActions});
+        return requests.length===1?{...result,action:null}:result;
+    };
+    const deps={getState:()=>state,getPublicRecipes:()=>undefined,isCurrent:()=>true,rejectedActions:memory,advise,
+        apply:async(action:any)=>{const result=applyLv10Action(state,action);if(result.ok)state=result.state;return result;}};
+    const cancelled=await runLv10Turn('black',deps);
+    expect(cancelled).toMatchObject({action:{type:'cancel_card'},outcome:'applied'});
+    const returnedIndex=state.cardState.hands.black.indexOf('board_shrink_01');
+    expect(returnedIndex).toBeGreaterThanOrEqual(0);
+    const next=await runLv10Turn('black',deps);
+    expect(requests[1].excludedActions).toContainEqual({type:'use_card',useCardId:'board_shrink_01',useCardHandIndex:returnedIndex,useCardOwnerKey:'black'});
+    expect(next.action?.useCardId).not.toBe('board_shrink_01');
+    state.gameState.turnNumber+=2;
+    await runLv10Turn('black',deps);
+    expect(requests[2].excludedActions).toEqual([]);
+});
+
 test('a rejected action is remembered from public feedback and reconsidered only after a public change',async()=>{
     const state=fixture(),memory={identity:null as string|null,actions:[] as any[]};
     const requests:any[]=[];

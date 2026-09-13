@@ -2801,7 +2801,7 @@ const {
             setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             addMarker,
-            random: (cardState && cardState._defaultRandomSource) || defaultPrng,
+            random: getCurrentActionRandomSource(cardState),
             isInviolableCell
         });
     }
@@ -2827,7 +2827,7 @@ const {
             setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             addMarker,
-            random: (cardState && cardState._defaultRandomSource) || defaultPrng,
+            random: getCurrentActionRandomSource(cardState),
             isInviolableCell
         });
     }

@@ -13,7 +13,8 @@ export type Lv10TurnDeps = {
     apply: (action: Lv10Action) => Promise<any>;
     record?: (record: Lv10TurnRecord) => void;
     performanceScope?: CpuTurnPerformanceScope | null;
-    rejectedActions?: { identity: string | null; actions: Lv10Action[] };
+    rejectedActions?: { identity: string | null; actions: Lv10Action[];
+        cancelledCards?: { turnIdentity: string; cardIds: string[] } };
 };
 export type Lv10TurnRecord = {
     player: Lv10Player; turnNumber: number; action: Lv10Action | null;
@@ -34,7 +35,20 @@ export async function runLv10Turn(player: Lv10Player, deps: Lv10TurnDeps): Promi
         rejectionMemory.identity = identity;
         rejectionMemory.actions = [];
     }
-    const excludedActions = rejectionMemory?.actions.slice() || [];
+    const owner = currentLv10Player(observation);
+    const turnIdentity = `${player}/${owner}/${observation.gameState.turnNumber}`;
+    if (rejectionMemory && rejectionMemory.cancelledCards?.turnIdentity !== turnIdentity) {
+        rejectionMemory.cancelledCards = { turnIdentity, cardIds: [] };
+    }
+    // Cancellation refunds and returns the card at a different hand index.
+    // Its new pending ID / hand order must not trigger the same failed sequence
+    // indefinitely. This is a one-turn policy choice, not a card-rule change.
+    const cancelledIds = new Set(rejectionMemory?.cancelledCards?.cardIds || []);
+    const cancelledActions: Lv10Action[] = (observation.cardState.hands[owner] as string[])
+        .flatMap((id,index) => cancelledIds.has(id)
+            ? [{ type:'use_card',useCardId:id,useCardHandIndex:index,useCardOwnerKey:owner }] : []);
+    const excludedActions = [...new Map([...cancelledActions,...(rejectionMemory?.actions || [])]
+        .map(action => [lv10ActionKey(action),action])).values()].slice(0,64);
     const excluded = new Set(excludedActions.map(lv10ActionKey));
     const request = { observation, publicRecipes: deps.getPublicRecipes(), excludedActions };
     const record: Lv10TurnRecord = { player, turnNumber: observation.gameState.turnNumber, action: null,
@@ -82,6 +96,12 @@ export async function runLv10Turn(player: Lv10Player, deps: Lv10TurnDeps): Promi
         const result = await deps.apply(record.action);
         const rejected = result === false || result?.ok === false;
         record.outcome = rejected ? 'rejected' : 'applied';
+        if (!rejected && record.action.type === 'cancel_card' && rejectionMemory?.cancelledCards?.turnIdentity === turnIdentity) {
+            const id = observation.cardState.pendingEffectByPlayer?.[owner]?.cardId;
+            if (typeof id === 'string' && !cancelledIds.has(id) && rejectionMemory.cancelledCards.cardIds.length < 64) {
+                rejectionMemory.cancelledCards.cardIds.push(id);
+            }
+        }
         if (rejected) {
             record.error = String(result?.res?.reason || result?.reason || 'canonical action rejected');
             // A hidden opponent card can invalidate an otherwise plausible

@@ -134,6 +134,10 @@ export function prepareLv10Evaluation(directory:string, mode:'development'|'fina
 export function collectLv10Evaluation(directory:string, validatedGames?:Lv10ValidationCache) {
     const out=path.resolve(directory),manifestBytes=fs.readFileSync(path.join(out,'manifest.json'));
     const manifest=JSON.parse(manifestBytes.toString()),manifestHash=hash(manifestBytes);
+    const dispositionPath=path.join(out,'disposition.json');
+    const disposition=fs.existsSync(dispositionPath)?JSON.parse(fs.readFileSync(dispositionPath,'utf8')):null;
+    const mode=disposition?.developmentOnly===true?'development':manifest.mode;
+    const acceptanceEligible=mode==='final';
     const games:GameScore[]=[], errors:any[]=[],pending:any[]=[],details:any[]=[];
     const initialByPair=new Map<number,string>();
     const record=(entry:ValidatedGame) => {
@@ -181,9 +185,11 @@ export function collectLv10Evaluation(directory:string, validatedGames?:Lv10Vali
         validatedGames?.set(prefix,entry);record(entry);
     }
     const valid=errors.length===0&&pending.length===0;
-    return {schema:'cpu-lv10-evaluation-report.v1',mode:manifest.mode,label:manifest.label,
+    const result=valid?summarizeLv10Pairs(manifest.conditions,games):null;
+    if(result&&!acceptanceEligible)result.meetsFinalGate=false;
+    return {schema:'cpu-lv10-evaluation-report.v1',mode,declaredMode:manifest.mode,disposition,acceptanceEligible,label:manifest.label,
         valid,completed:games.length,expected:manifest.schedule.length,errors,pending,details,
-        result:valid?summarizeLv10Pairs(manifest.conditions,games):null};
+        result};
 }
 
 export async function runLv10Evaluation(directory:string) {
