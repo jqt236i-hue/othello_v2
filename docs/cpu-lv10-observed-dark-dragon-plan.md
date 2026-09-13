@@ -479,3 +479,12 @@ dev1黒敗局の再現点は `dev-browser-v3/game-91311001-black.json.gz` の68�
 - 15局の読み込みを固定候補の検査処理で再照合し、12,622要求/延べ3,383供給ファイル、失敗0・実行用ファイルの宣言ハッシュ一致を確認（`final-dev7-static-100/transport-observation.json`）。対局の勝敗は読まずに行った。途中確認用の最初の一行スクリプトは構文誤りで実行前に失敗し、修正して再実行した。評価プロセスへの変更はない。
 - 通常8000のVite/Pixiで、既存の黒Lv10対局 `normal-dev7-owner-black/trace.json.gz` の正本終局状態を白閲覧側として再表示し、黒19/白39、Lv10記録、観測ダークドラゴンの指定画像と名前を確認。`user-portrait-result-black/report.json` と `result.png` を保存し、画像も目視確認。ページ例外0。表示専用の再生であり、新規対局や最終評価成績には含めない。
 - 黒側画像確認の初回は、閲覧側のグローバル指定より優先される既存の座席供給が黒を返したため、白Lv9の結果を表示して検査失敗した（`user-portrait-result-black/failure.png`）。表示確認ヘルパーだけで座席供給も明示的に白へ揃え、再実行した。製品の判断/ゲーム状態遷移や固定評価を変更していない。この確認は白閲覧視点の表示契約の検査であり、通常UIから人間側の色を切り替える操作の証明ではない。
+
+### 2026-09-13: 評価後半で検出したWorker停止の波及（未修正）
+
+- UTC13:25:26時点で最終100局は同じPID67320で81局完了・対局エラー0、残りも進行中。途中勝敗を調整へ使わず、元の100局を保持して継続している。
+- 60局の品質確認で、seed2756148128黒・44ターン目の断罪使用がCARD_USE_FAILEDで拒否されていた。同じ手番で拒否行動を除外し、(5,1)への配置が受理され終局まで進んだ。拒否を黙って除外しない（`evaluations/final-dev7-static-100/nonfatal-rejection-2756148128-black.json`）。
+- 80局時点は5,417判断、代替34/拒否1/古い回答4/行動なし0。固定側5,652回答/受理検証5,652件。代替34件はseed2982513547白の全判断で、最初から `Lv10 Worker unavailable` だった。全行動は合法に受理され終局したが、通常時のWorker品質の懸念として残す。pageerror0、静的供給失敗0。traceのcapabilitiesは旧CPUとLv10の全Workerが無効、ONNX Workerの切り離し成功、main-thread fallback pending=false、供給したWorkerファイルは旧CPU用だけだった。
+- `browser-vite/features/onnx.ts` は旧CPU Workerの3秒probeが失敗すると `disableCpuWorkerBridge` を呼ぶ。`browser-vite/cpu-worker/bridge.ts` のその処理はLv10 clientもterminateし、bootstrapの全CPU注入をnullにしていた。Lv10を別Workerへ分離しても、この停止経路では無関係な旧CPU障害が波及する。
+- 実際のbridge正本を分離したclientで実行した `probe-lv10-worker-isolation.cjs` は、旧CPU停止の呼び出しによってLv10もterminate、注入解除、bridge削除となることを再現した（`lv10-worker-isolation-before.json`）。初回の検証ヘルパーはCommonJS予約変数exportsの再宣言で開始前に失敗し、変数名を修正して再実行。製品コードと固定候補はまだ変更していない。今回の実対局で旧Workerが失敗した下位の原因は記録不足で断定しない。
+- 次は旧CPUの停止・ONNX fallbackとLv10 advisorの存続を分離し、旧CPU失敗後もLv10の専用Workerで判断できる回帰テストと実ブラウザの故障注入を行う。Lv1〜9の既存停止/fallback契約は維持する。現行100局は全記録を集計するが、修正版の採用証明として流用せず、必要な修正・小規模比較後に新しい未使用50条件で評価する。
