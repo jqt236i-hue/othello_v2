@@ -855,6 +855,42 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         }
         continue;
       }
+      if (marker.kind === 'blockade') {
+        const owner = marker.owner === 'white' ? 'white' : 'black';
+        const texture = resolvePixiStaticPrimaryTexture(context.textures, [`special-stone:BLOCKADE:${owner}`]);
+        const sprite = texture ? createPixiSprite(runtime, 'pixi-marker-blockade-texture') : null;
+        if (sprite) {
+          sprite.texture = texture;
+          sprite.visible = true;
+          sprite.width = cellSize * 1.08;
+          sprite.height = cellSize * 1.08;
+          sprite.alpha = 0.94;
+          setPixiAnchor(sprite, 0.5);
+          setPixiPosition(sprite, cellSize / 2, cellSize / 2);
+          addPixiChild(markerRoot, sprite);
+        } else {
+          const cross = createPixiGraphics(runtime, 'pixi-marker-blockade-fallback');
+          const stroke = { color: '#ef442c', alpha: 0.85, width: cellSize * 0.12 };
+          drawPixiLine(cross, cellSize * 0.2, cellSize * 0.2, cellSize * 0.8, cellSize * 0.8, stroke);
+          drawPixiLine(cross, cellSize * 0.8, cellSize * 0.2, cellSize * 0.2, cellSize * 0.8, stroke);
+          addPixiChild(markerRoot, cross);
+        }
+        if (label) {
+          const background = createPixiGraphics(runtime, 'pixi-marker-blockade-timer-background');
+          drawPixiCircle(background, cellSize / 2, cellSize / 2, cellSize * 0.17, {
+            color: '#0a0808', alpha: 0.72
+          }, { color: '#ffd6ad', alpha: 0.5, width: Math.max(1, cellSize * 0.018) });
+          addPixiChild(markerRoot, background);
+          const text = createPixiText(runtime, 'pixi-marker-label:blockade', label,
+            toPixiTextStyle(context.theme.timer, cellSize, label));
+          if (text) {
+            setPixiAnchor(text, 0.5);
+            setPixiPosition(text, cellSize / 2, cellSize / 2);
+            addPixiChild(markerRoot, text);
+          }
+        }
+        continue;
+      }
       if (marker.kind === 'seed') {
         const owner = marker.owner === 'white' ? 'white' : 'black';
         const seedTexture = resolvePixiStaticPrimaryTexture(

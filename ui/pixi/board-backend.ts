@@ -773,7 +773,7 @@ export function createPixiBoardVisualBackend(
       const purpose = `special-stone:${special.type}:${special.owner}`;
       const fallbackRole = `${special.owner}-stone` as BoardAppearanceResourceDescriptor['role'];
       const fallback = defaultByRole.get(fallbackRole);
-      const requiresProceduralFallback = special.type === 'FREEZE' || special.type === 'SEED';
+      const requiresProceduralFallback = special.type === 'FREEZE' || special.type === 'SEED' || special.type === 'BLOCKADE';
       const physical = resourcePhysicalLimit(purpose, frame, effectGutterCells);
       requests.set(purpose, Object.freeze({
         purpose,

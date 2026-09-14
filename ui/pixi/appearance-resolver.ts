@@ -271,7 +271,9 @@ export function resolveSpecialStoneAppearanceResource(
     ? 'assets/images/other/ICE.png'
     : normalizedType === 'SEED'
       ? 'assets/images/other/seed.png'
-      : null;
+      : normalizedType === 'BLOCKADE'
+        ? 'assets/images/other/X.png'
+        : null;
   const rawPath = effectPath || statusAssetPath;
   if (!rawPath) return null;
   const root = resolveRootRef(rootRef);

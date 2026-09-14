@@ -650,6 +650,26 @@ describe('Pixi board backend integration', () => {
     });
   });
 
+  test.each([false, true])('prepares an empty blockade cell with an image or semantic fallback (image failure: %s)', async (imageFails) => {
+    const harness = createHarness();
+    const frame = makeFrame('blockade-marker', 2, { seed: true });
+    const marker = frame.model.cells[0].markers[0] as any;
+    marker.kind = 'blockade';
+    marker.data = { type: 'BLOCKADE', remainingOwnerTurns: 3 };
+    const url = 'https://example.test/special/BLOCKADE/black.png';
+    if (imageFails) harness.textures.failUrl(url);
+    await harness.backend.mount(harness.host, {});
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+    const textures = harness.scene.applyCalls.at(-1)?.context?.textures;
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(url, 'special-stone:BLOCKADE:black');
+    expect(textures.getResource('special-stone:BLOCKADE:black').usedFallback).toBe(imageFails);
+    expect(textures.get('special-stone:BLOCKADE:black')).toEqual(imageFails
+      ? { procedural: 'special-stone:BLOCKADE:black' } : { url });
+    harness.backend.destroy();
+  });
+
   test('exposes a procedural fallback instead of a normal stone when the seed image fails', async () => {
     const harness = createHarness();
     const frame = makeFrame('seed-marker-fallback', 2, { seed: true });

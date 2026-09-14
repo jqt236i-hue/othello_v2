@@ -177,6 +177,50 @@ function readSegments(graphics: FakeGraphics): Array<{ from: number[]; to: numbe
 }
 
 describe('Pixi temporary cell rendering', () => {
+  test.each(['black', 'white'])('renders the %s blockade cross and centered countdown, then clears both on expiry', (owner) => {
+    class FakeSprite extends FakeDisplayObject { anchor = new FakePoint(); }
+    class FakeText extends FakeSprite { text = ''; }
+    const view = CellView.createPixiCellView({ ...createRuntime(), Sprite: FakeSprite, Text: FakeText });
+    const texture = { image: 'X.png' };
+    const context = { ...createContext(), cellRenderMode: 'markers-only',
+      textures: new Map([[`special-stone:BLOCKADE:${owner}`, texture]]) };
+    for (const turns of [3, 2, 1]) {
+      const cell = createCell(`blockade:${turns}`, {
+        kind: 'blockade', owner, value: null, data: { type: 'BLOCKADE', remainingOwnerTurns: turns }
+      });
+      cell.kind = 'playable';
+      view.update(cell, context);
+      expect(childWithLabel(view.markerRoot, 'pixi-marker-blockade-texture')).toMatchObject({
+        texture, visible: true, width: 43.2, height: 43.2, position: { x: 20, y: 20 }
+      });
+      expect(childWithLabel(view.markerRoot, 'pixi-marker-label:blockade')).toMatchObject({
+        text: String(turns), position: { x: 20, y: 20 }
+      });
+      expect(view.markerRoot.children.some((child: any) => child.label === 'pixi-marker-dot:blockade')).toBe(false);
+    }
+    const cleared = { ...createCell('expired', {}), kind: 'playable', markers: [] };
+    view.update(cleared, context);
+    expect(view.markerRoot.children).toHaveLength(0);
+  });
+
+  test.each([null, { texture: { genericStone: true }, usedFallback: true }])(
+    'draws a cell-sized red cross when the blockade texture is unavailable: %p', (resource) => {
+      const view = CellView.createPixiCellView(createRuntime());
+      const cell = createCell('blockade:fallback', {
+        kind: 'blockade', owner: 'black', value: null, data: { type: 'BLOCKADE', remainingOwnerTurns: 3 }
+      });
+      cell.kind = 'playable';
+      view.update(cell, { ...createContext(), textures: { getResource: () => resource, get: () => resource } });
+      const cross = childWithLabel(view.markerRoot, 'pixi-marker-blockade-fallback');
+      expect(readSegments(cross)).toEqual([
+        { from: [8, 8], to: [32, 32] }, { from: [32, 8], to: [8, 32] }
+      ]);
+      expect(cross.commands).toContainEqual(expect.objectContaining({
+        op: 'stroke', style: expect.objectContaining({ color: '#ef442c', alpha: 0.85 })
+      }));
+    }
+  );
+
   test('splits stable cell paint from sparse marker paint without changing either visual', () => {
     const runtime = createRuntime();
     const baseView = CellView.createPixiCellView(runtime);
