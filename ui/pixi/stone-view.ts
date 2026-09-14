@@ -16,6 +16,7 @@ import {
   removeAndDestroyPixiChildren,
   removePixiFromParent,
   resolvePixiStaticTexture,
+  resolvePixiStaticPrimaryTexture,
   setPixiAnchor,
   setPixiPosition,
   setPixiScale,
@@ -291,6 +292,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
   const aura = createPixiGraphics(runtime, 'pixi-stone-aura');
   const procedural = createPixiGraphics(runtime, 'pixi-stone-procedural');
   const sprite = createPixiSprite(runtime, 'pixi-stone-texture');
+  const statusOverlay = createPixiGraphics(runtime, 'pixi-stone-status-overlay');
   const markerOverlay = createPixiSprite(runtime, 'pixi-stone-marker-overlay');
   const specialRing = createPixiGraphics(runtime, 'pixi-stone-special-ring');
   const specialBadge = createPixiText(runtime, 'pixi-stone-special-badge');
@@ -302,6 +304,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     aura,
     procedural,
     sprite,
+    statusOverlay,
     markerOverlay,
     specialRing,
     specialBadge,
@@ -346,6 +349,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     clearPixiGraphics(aura);
     clearPixiGraphics(procedural);
     clearPixiGraphics(specialRing);
+    clearPixiGraphics(statusOverlay);
     const stone = cell.kind === 'playable' ? cell.stone : null;
     const stoneMarkers = cell.kind === 'playable'
       ? cell.markers.filter((marker) => STONE_MARKER_KINDS.has(marker.kind))
@@ -427,7 +431,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     const freezeOverlayOwner = freezeMarker?.owner || owner;
     const freezeOverlayPurposes = stoneTexturePurposes(freezeOverlayOwner, 'FREEZE').slice(0, 4);
     const freezeOverlayTexture = freezeMarker
-      ? resolvePixiStaticTexture(context.textures, freezeOverlayPurposes)
+      ? resolvePixiStaticPrimaryTexture(context.textures, freezeOverlayPurposes)
       : null;
     const texture = stone
       ? (normalizedSpecialType === 'FREEZE'
@@ -503,6 +507,22 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       sprite.width = compositeSize;
       sprite.height = compositeSize;
     }
+    if (stone && stoneMarkers.some((marker) => marker.kind === 'poisoned')) {
+      drawPixiCircle(statusOverlay, center, center, radius, { color: '#a733c5', alpha: 0.22 });
+    }
+    if (freezeMarker && !freezeOverlayTexture) {
+      drawPixiRect(statusOverlay, cellSize * 0.025, cellSize * 0.025, cellSize * 0.95, cellSize * 0.95, {
+        color: '#8dc8ed', alpha: 0.62
+      }, {
+        color: '#d9f2ff', alpha: 0.78, width: Math.max(1, cellSize * 0.025)
+      }, cellSize * 0.035);
+      drawPixiLine(statusOverlay, cellSize * 0.08, cellSize * 0.76, cellSize * 0.76, cellSize * 0.08, {
+        color: '#eaf8ff', alpha: 0.8, width: Math.max(1, cellSize * 0.025)
+      });
+      drawPixiLine(statusOverlay, cellSize * 0.3, cellSize * 0.96, cellSize * 0.96, cellSize * 0.3, {
+        color: '#4f91c4', alpha: 0.72, width: Math.max(1, cellSize * 0.025)
+      });
+    }
     if (markerOverlay) {
       markerOverlay.visible = !!freezeOverlayTexture;
       if (freezeOverlayTexture) markerOverlay.texture = freezeOverlayTexture;
@@ -534,6 +554,14 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       });
     }
 
+    if (stone && renderedMarkerKinds.includes('living-will-aura')) {
+      for (const [scale, alpha] of [[1.4, 0.06], [1.3, 0.1], [1.2, 0.18], [1.1, 0.28]] as const) {
+        drawPixiCircle(aura, center, center, radius * scale, { color: '#ffdc48', alpha });
+      }
+      drawPixiCircle(aura, center, center, radius * 1.04, null, {
+        color: '#fff082', alpha: 0.82, width: Math.max(1, cellSize * 0.035)
+      });
+    }
     if (renderedMarkerKinds.includes('manifest-aura')) {
       const whiteAura = owner === 'white';
       const auraColor = whiteAura ? '#effcff' : '#090b10';
@@ -583,23 +611,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         setPixiAnchor(specialBadge, 0.5);
         setPixiPosition(specialBadge, x, y);
       };
-      if (normalizedType === 'FREEZE' && !freezeOverlayTexture) {
-        drawPixiRect(specialRing, cellSize * 0.025, cellSize * 0.025, cellSize * 0.95, cellSize * 0.95, {
-          color: '#8dc8ed',
-          alpha: 0.86
-        }, {
-          color: '#d9f2ff',
-          alpha: 0.78,
-          width: Math.max(1, cellSize * 0.025)
-        }, cellSize * 0.035);
-        drawPixiLine(specialRing, cellSize * 0.08, cellSize * 0.76, cellSize * 0.76, cellSize * 0.08, {
-          color: '#eaf8ff', alpha: 0.48, width: Math.max(1, cellSize * 0.018)
-        });
-        drawPixiLine(specialRing, cellSize * 0.3, cellSize * 0.96, cellSize * 0.96, cellSize * 0.3, {
-          color: '#4f91c4', alpha: 0.42, width: Math.max(1, cellSize * 0.018)
-        });
-        showSpecialBadge('❄', center, center, '#f4fcff', 0.9);
-      } else if ((normalizedType === 'TIME_BOMB' || normalizedType === 'BOMB') && !dedicatedTexture) {
+      if ((normalizedType === 'TIME_BOMB' || normalizedType === 'BOMB') && !dedicatedTexture) {
         drawPixiCircle(specialRing, center, center, radius * 1.02, {
           color: '#160d08', alpha: 0.76
         }, {
@@ -616,7 +628,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         drawPixiCircle(specialRing, center, center, radius * 1.02, null, {
           color: '#f4ffff', alpha: owner === 'white' ? 0.88 : 0.34, width: Math.max(1, cellSize * 0.028)
         });
-      } else if (!dedicatedTexture && normalizedType !== 'POISONED') {
+      } else if (!dedicatedTexture && !['POISONED', 'FREEZE', 'LIVING_WILL'].includes(normalizedType)) {
         drawPixiCircle(specialRing, center, center, radius * 1.03, null, {
           color: context.theme.hintColor,
           alpha: 0.86,
@@ -924,7 +936,9 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     clearPixiGraphics(aura);
     clearPixiGraphics(procedural);
     clearPixiGraphics(specialRing);
+    clearPixiGraphics(statusOverlay);
     if (sprite) sprite.visible = false;
+    if (markerOverlay) markerOverlay.visible = false;
     if (specialBadge) specialBadge.visible = false;
     if (flipProtectionBadge) flipProtectionBadge.visible = false;
     removeAndDestroyPixiChildren(statusLabelsRoot);

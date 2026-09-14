@@ -139,5 +139,8 @@ describe('Pixi appearance resolver', () => {
         url: 'https://example.test/game/assets/images/other/X.png'
       })
     );
+    expect(resolver.resolveSpecialStoneAppearanceResource(window, 'METEOR_HOLE', 'black')).toEqual(
+      expect.objectContaining({ role: 'special-stone', url: 'https://example.test/game/assets/images/other/aaa.png' })
+    );
   });
 });

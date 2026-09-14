@@ -329,7 +329,10 @@ function textureLaneRevision(
   lane: 'surface' | 'stone'
 ): string {
   const resources = snapshot.resources
-    .filter((resource) => lane === 'surface' ? resource.purpose === 'board' : resource.purpose !== 'board')
+    .filter((resource) => {
+      const surfaceResource = resource.purpose === 'board' || resource.purpose === 'board-hole';
+      return lane === 'surface' ? surfaceResource : !surfaceResource;
+    })
     .map((resource) => [resource.purpose, resource.key] as const)
     .sort(([leftPurpose, leftKey], [rightPurpose, rightKey]) => (
       leftPurpose.localeCompare(rightPurpose) || leftKey.localeCompare(rightKey)
@@ -371,6 +374,8 @@ function collectSpecialStones(frame: BoardVisualFrame): ReadonlyArray<{
         || markerTypeByKind[marker.kind]
         || ''
       ).trim().toUpperCase();
+      // Holes are cell surfaces with one owner-independent texture.
+      if (markerType === 'METEOR_HOLE') continue;
       const markerOwner = marker.owner || stone?.owner || null;
       if (!markerType || (markerOwner !== 'black' && markerOwner !== 'white')) continue;
       byKey.set(`${markerType}:${markerOwner}`, Object.freeze({ type: markerType, owner: markerOwner }));
@@ -759,6 +764,21 @@ export function createPixiBoardVisualBackend(
           ? Object.freeze({ kind: 'built-in' as const, url: fallback.url, contentFingerprint: fallback.contentFingerprint })
           : Object.freeze({ kind: 'procedural' as const, id: `${resource.role}:procedural` })
       }));
+    }
+    if (frame.model.cells.some((cell) => cell.kind === 'hole')) {
+      const resource = resolveSpecialAppearance('METEOR_HOLE', 'black', frame);
+      if (resource) {
+        const physical = resourcePhysicalLimit('board-hole', frame, effectGutterCells);
+        requests.set('board-hole', Object.freeze({
+          purpose: 'board-hole',
+          kind: 'built-in' as const,
+          url: resource.url,
+          contentFingerprint: resource.contentFingerprint,
+          maxPhysicalWidth: physical.width,
+          maxPhysicalHeight: physical.height,
+          fallback: Object.freeze({ kind: 'procedural' as const, id: 'board-hole:procedural' })
+        }));
+      }
     }
     const specialStones = new Map<string, PlaybackSpecialStone>();
     for (const special of collectSpecialStones(frame)) {

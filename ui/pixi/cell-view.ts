@@ -377,7 +377,7 @@ export function resolvePixiStaticTexture(
  * Marker views use this when their own procedural rendering is semantically
  * safer than displaying a generic texture fallback.
  */
-function resolvePixiStaticPrimaryTexture(
+export function resolvePixiStaticPrimaryTexture(
   source: PixiStaticTextureSource | null | undefined,
   purposes: readonly string[]
 ): unknown | null {
@@ -576,6 +576,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
   const markerRoot = createPixiContainer(runtime, 'pixi-cell-markers');
   const surface = createPixiGraphics(runtime, 'pixi-cell-surface-fill');
   const surfaceTexture = createPixiSprite(runtime, 'pixi-cell-surface-texture');
+  const holeTexture = createPixiSprite(runtime, 'pixi-cell-hole-texture');
   const poisonSurface = createPixiGraphics(runtime, 'pixi-cell-poison-surface');
   const scorchedSurface = createPixiGraphics(runtime, 'pixi-cell-scorched-surface');
   const healingSurface = createPixiGraphics(runtime, 'pixi-cell-healing-surface');
@@ -590,6 +591,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     scorchedSurface,
     healingSurface,
     boardFrameHoleSurface,
+    holeTexture,
     boardFrameHoleInnerEdges
   );
   addPixiChild(cellRoot, grid);
@@ -656,6 +658,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     renderedMarkerKinds = [];
     theoryNumberStyle = cell.markers.some((marker) => marker.kind === 'theory-number-cell');
     usesBoardTexture = false;
+    if (holeTexture) holeTexture.visible = false;
     const boardFrameHoleMarker = cell.kind === 'hole'
       ? cell.markers.find(isBoardFrameHoleMarker) || null
       : null;
@@ -700,6 +703,16 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
       surfaceTexture.y = 0;
       surfaceTexture.width = cellSize;
       surfaceTexture.height = cellSize;
+    }
+    const holeImage = cell.kind === 'hole'
+      ? resolvePixiStaticPrimaryTexture(context.textures, ['board-hole'])
+      : null;
+    if (holeTexture && holeImage) {
+      holeTexture.texture = holeImage;
+      holeTexture.visible = true;
+      holeTexture.width = cellSize;
+      holeTexture.height = cellSize;
+      holeTexture.alpha = boardFrameHole ? 0.82 : 1;
     }
     const poisonCellMarker = cell.markers.find((marker) => marker.kind === 'poison-cell') || null;
     poisonSurface.visible = !!poisonCellMarker;
@@ -1083,6 +1096,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     healingSurface.visible = false;
     grid.visible = true;
     if (surfaceTexture) surfaceTexture.visible = false;
+    if (holeTexture) holeTexture.visible = false;
     removeAndDestroyPixiChildren(markerRoot);
     removePixiFromParent(surfaceRoot);
     removePixiFromParent(cellRoot);

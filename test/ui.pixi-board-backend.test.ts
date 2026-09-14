@@ -632,6 +632,31 @@ describe('Pixi board backend integration', () => {
     });
   });
 
+  test.each([false, true])('prepares ownerless hole surfaces in the surface texture lane (image failure: %s)', async (imageFails) => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const normal = makeFrame('before-hole', 1);
+    await harness.backend.prepareFrame(normal);
+    harness.backend.applyFrame(normal);
+    await harness.backend.waitForVisualSettlement(normal);
+    const before = harness.scene.applyCalls.at(-1)?.context;
+    const frame = makeFrame('hole-image', 2, { seed: true });
+    const hole = frame.model.cells[0] as any;
+    hole.kind = 'hole';
+    hole.markers = [{ kind: 'blockade', owner: null, value: null, data: { type: 'METEOR_HOLE' } }];
+    const url = 'https://example.test/special/METEOR_HOLE/black.png';
+    if (imageFails) harness.textures.failUrl(url);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+    const after = harness.scene.applyCalls.at(-1)?.context;
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(url, 'board-hole');
+    expect(after.textures.getResource('board-hole').usedFallback).toBe(imageFails);
+    expect(after.surfaceTextureRevision).not.toEqual(before.surfaceTextureRevision);
+    expect(after.stoneTextureRevision).toEqual(before.stoneTextureRevision);
+    harness.backend.destroy();
+  });
+
   test('prepares the seed marker texture for an empty Pixi board cell', async () => {
     const harness = createHarness();
     const frame = makeFrame('seed-marker-texture', 2, { seed: true });

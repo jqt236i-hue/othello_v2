@@ -273,7 +273,9 @@ export function resolveSpecialStoneAppearanceResource(
       ? 'assets/images/other/seed.png'
       : normalizedType === 'BLOCKADE'
         ? 'assets/images/other/X.png'
-        : null;
+        : normalizedType === 'METEOR_HOLE'
+          ? 'assets/images/other/aaa.png'
+          : null;
   const rawPath = effectPath || statusAssetPath;
   if (!rawPath) return null;
   const root = resolveRootRef(rootRef);
