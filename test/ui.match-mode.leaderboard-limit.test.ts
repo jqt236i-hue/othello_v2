@@ -290,6 +290,8 @@ describe('match-mode shared leaderboard panel', () => {
         ? leaderboardEntriesByMode.timeDefenseCpu
         : options && options.category === 'shortestTurns'
         ? leaderboardEntriesByMode.shortestTurnsCpu
+        : options && options.mode === 'cpu' && options.cpuLevel === 11
+          ? [{ rank: 1, playerId: 'player_lv11_0001', playerName: '執行者', bestScore: 9500, mode: 'cpu', cpuLevel: 11 }]
         : options && options.mode === 'cpu' && options.cpuLevel === 6
         ? leaderboardEntriesByMode.cpuLv6
         : leaderboardEntriesByMode[(options && options.mode) || 'all'] || leaderboardEntriesByMode.all,
@@ -598,7 +600,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(levelControl?.classList.contains('is-visible')).toBe(false);
   });
 
-  test('CPUタブではレベルボタンからレベル別ランキングに切り替えられる', async () => {
+  test.each([6, 11])('CPUタブでLv%iのランキングへ切り替えられる', async (level) => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
     await Promise.resolve();
@@ -618,7 +620,7 @@ describe('match-mode shared leaderboard panel', () => {
     levelBtn.click();
     await Promise.resolve();
 
-    const lv6Option = document.getElementById('leaderboardCpuLevelOption6');
+    const lv6Option = document.getElementById(`leaderboardCpuLevelOption${level}`);
     expect(lv6Option).toBeTruthy();
     lv6Option.click();
     await Promise.resolve();
@@ -627,12 +629,13 @@ describe('match-mode shared leaderboard panel', () => {
     expect(fetchLeaderboard).toHaveBeenLastCalledWith(expect.objectContaining({
       limit: 100,
       mode: 'cpu',
-      cpuLevel: 6,
+      cpuLevel: level,
       category: 'score',
       era: 'history'
     }));
-    expect(levelBtn?.textContent).toContain('Lv6');
-    expect(document.getElementById('leaderboardPodium').textContent).toContain('分岐');
+    expect(levelBtn?.textContent).toContain(`Lv${level}`);
+    expect(document.getElementById('leaderboardPodium').textContent).toContain(level === 11 ? '執行者' : '分岐');
+    if (level === 11) expect(lv6Option?.textContent).toContain('執行エグゼキューションカオスドラゴン');
   });
 
   test('タイムアタックタブではタイム列と短時間記録を表示する', async () => {

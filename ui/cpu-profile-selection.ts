@@ -15,7 +15,7 @@ function normalizeStoredProfile(value:unknown): string | null {
     const raw=String(value ?? '').trim();
     const numeric=Number(raw);
     const known=CpuOpponentProfiles.getCpuOpponentMenuOptions().some(option=>String(option.value)===raw);
-    if(!known && !(raw && Number.isInteger(numeric) && numeric>=1 && numeric<=10))return null;
+    if(!known && !(raw && Number.isInteger(numeric) && numeric>=1 && numeric<=11))return null;
     return CpuOpponentProfiles.getCpuOpponentProfileId(raw);
 }
 
@@ -77,7 +77,7 @@ function readCpuSmartnessValueFromSelectId(selectId: unknown, doc?: Document | n
     const raw = readRawSelectValue(selectId, doc).trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(10, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(11, Math.floor(n))) : raw;
 }
 
 function readCpuSmartnessFromSelects(doc?: Document | null): CpuSmartnessSelection {

@@ -2,14 +2,15 @@ import {JSDOM} from 'jsdom';
 import Selection = require('../ui/cpu-profile-selection');
 import Startup = require('../shared/cpu-opponent-startup-options');
 
-test('saved profiles restore both colors before initial select options and opening perks are created',()=>{
+test.each([10, 11])('saved Lv%i profiles restore both colors before initial select options and opening perks are created',(level)=>{
     const dom=new JSDOM('<select id="smartBlack"></select><select id="smartWhite"></select>',{url:'http://localhost/'});
     try {
         const doc=dom.window.document;
-        expect(Selection.writeStoredCpuProfile('black',10,doc)).toBe(true);
-        expect(Selection.writeStoredCpuProfile('white','9-ending-ash',doc)).toBe(true);
+        expect(Selection.writeStoredCpuProfile('black',level,doc)).toBe(true);
+        const profileId = level === 11 ? '11-execution-chaos-dragon' : '10-observed-dark-dragon';
+        expect(Selection.writeStoredCpuProfile('white',profileId,doc)).toBe(true);
         const restored=Selection.readCpuSmartnessFromSelects(doc);
-        expect(restored).toEqual({black:'10-observed-dark-dragon',white:'9-ending-ash'});
+        expect(restored).toEqual({black:profileId,white:profileId});
         expect(Startup.getCpuOpponentStartupOptions(restored.black,'black')).toMatchObject({initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6});
         expect(Startup.getCpuOpponentStartupOptions(restored.black,'black').deckCardIds)
             .toEqual(Startup.getCpuOpponentStartupOptions(restored.white,'white').deckCardIds);

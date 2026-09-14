@@ -34,7 +34,7 @@ const CPU_OPPONENT_PROFILE_ALIASES: Record<string, string> = {
     '8-ending-ash': '9-ending-ash'
 };
 
-// Lv9 and Lv10 share game conditions; only their decision policy differs.
+// Lv9–11 share game conditions; only their decision policy differs.
 const ENDING_ASH_GAME_CONDITIONS = Object.freeze({
     deckProfile: 'lv9-ending-ash-all-enabled' as const,
     initialCharge: 99,
@@ -136,6 +136,15 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         menuLabel: 'Lv10: 観測ダークドラゴン',
         portraitSrc: 'assets/images/cpu/observed-dark-dragon-transparent.png',
         ...ENDING_ASH_GAME_CONDITIONS
+    },
+    {
+        id: '11-execution-chaos-dragon',
+        level: 11,
+        decisionLevel: 11,
+        name: '執行エグゼキューションカオスドラゴン',
+        menuLabel: 'Lv11: 執行エグゼキューションカオスドラゴン',
+        portraitSrc: 'assets/images/cpu/execution-chaos-dragon.png',
+        ...ENDING_ASH_GAME_CONDITIONS
     }
 ];
 
@@ -156,7 +165,7 @@ CPU_OPPONENT_PROFILES.forEach((profile) => {
 function clampCpuLevel(value: unknown): number {
     const n = Number(value);
     if (!Number.isFinite(n)) return 1;
-    return Math.max(1, Math.min(10, Math.floor(n)));
+    return Math.max(1, Math.min(11, Math.floor(n)));
 }
 
 function getCpuOpponentProfiles(): CpuOpponentProfile[] {

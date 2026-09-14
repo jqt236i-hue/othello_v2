@@ -1,5 +1,7 @@
 # レベル10「観測ダークドラゴン」実装・評価計画
 
+後続作業: [レベル11と描画不要の自己対局環境](cpu-lv11-execution-chaos-dragon-plan.md)。開始時点のLv10を新しく独立保存して比較する。停止済みの旧Lv10対Lv9評価は再開しない。
+
 文書の役割: Active な実装計画と実験記録。対象: `C:/Users/quarr/Desktop/othello_v2` の通常 CPU 対戦。一次情報: ユーザーの2026-09-13依頼、`01-rulebook.md`、`docs/architecture-contracts.md`、各対象パスの指示。追加特典、既存Lv1〜9の調整、本番公開、他作業の取り込みは対象外。
 
 ## 完了条件

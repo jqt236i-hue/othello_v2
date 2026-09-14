@@ -1638,15 +1638,17 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
 
     const row = document.createElement('div');
     row.className = 'dialogue-row monster';
+    if (cpuLevel === 11) row.classList.add('cpu-level-11');
     const name = document.createElement('div');
     name.className = 'character-name';
     name.style.setProperty('--result-character-image', `url("${profile.portraitSrc}")`);
     const label = document.createElement('span');
     label.className = 'result-character-label';
     if (cpuLevel === 10) label.append('観測', document.createElement('br'), 'ダークドラゴン');
+    else if (cpuLevel === 11) label.append('執行', document.createElement('br'), 'エグゼキューション', document.createElement('br'), 'カオスドラゴン');
     else label.textContent = profile.name;
     name.appendChild(label);
-    if (cpuLevel === 10) name.classList.add('has-long-name');
+    if (cpuLevel >= 10) name.classList.add('has-long-name');
     const text = document.createElement('div');
     text.className = 'dialogue-text';
 
@@ -1734,5 +1736,3 @@ const ResultOverlay = {
     syncQuickResetButtonLabelForResultState
 };
 export = ResultOverlay;
-
-

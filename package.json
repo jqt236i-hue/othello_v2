@@ -88,6 +88,11 @@
     "test:jest:coverage": "jest --runInBand --coverage",
     "test:jest:noanim": "node scripts/run-jest-noanim.js --runInBand",
     "test:jest:noanim:coverage": "node scripts/run-jest-noanim.js --runInBand --coverage",
+    "selfplay:production": "node dist/scripts/run-production-selfplay.js",
+    "perf:production-selfplay": "node dist/scripts/perf/measure-production-selfplay.js",
+    "selfplay:experiment": "node dist/scripts/run-cpu-experiment.js",
+    "selfplay:audit": "node dist/scripts/audit-cpu-experiment.js",
+    "selfplay:inspect": "node dist/scripts/inspect-production-decision.js",
     "selfplay:generate": "npm run build:ts && node scripts/generate-selfplay-data.js",
     "selfplay:generate:parallel": "npm run build:ts && node scripts/generate-selfplay-data-parallel.js",
     "selfplay:benchmark": "node scripts/benchmark-selfplay-policy.js",
@@ -166,7 +171,8 @@
     "modulePathIgnorePatterns": [
       "<rootDir>/.wrangler/",
       "<rootDir>/worker-public/",
-      "<rootDir>/data/cpu-lv10/baseline-v1/"
+      "<rootDir>/data/cpu-lv10/baseline-v1/",
+      "<rootDir>/data/cpu-lv11/"
     ],
     "moduleFileExtensions": [
       "ts",

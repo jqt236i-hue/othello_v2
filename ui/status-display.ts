@@ -1256,7 +1256,7 @@ function updateCpuCharacter(): void {
             if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
         }
         else if (!applyNetworkSeatLabels(levelLabel)) {
-            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level === 10 ? '\n' : ' '}${defaultName}`);
+            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level >= 10 ? '\n' : ' '}${defaultName}`);
         }
         else {
             applyNetworkSeatLabels(levelLabel);

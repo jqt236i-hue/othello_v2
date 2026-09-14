@@ -1,5 +1,6 @@
 import CpuWorkerConstructor from './worker-entry?worker';
 import Lv10WorkerConstructor from './lv10-worker-entry?worker';
+import Lv11WorkerConstructor from './lv11-worker-entry?worker';
 import {
   CpuWorkerClientError,
   createCpuCardQuiescenceWorkerSearcher,
@@ -20,9 +21,11 @@ const permanentlyDisabledRoots = new WeakSet<object>();
 export interface BrowserCpuWorkerBridge {
   client: CpuWorkerClient;
   lv10Client: CpuWorkerClient;
+  lv11Client: CpuWorkerClient;
   scoreCandidatesInWorker: ReturnType<typeof createCpuCandidateWorkerScorer>;
   searchCardQuiescenceInWorker: ReturnType<typeof createCpuCardQuiescenceWorkerSearcher>;
   adviseLv10InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
+  adviseLv11InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
 }
 
 export function getCpuWorkerBridge(rootRef: RuntimeRoot): BrowserCpuWorkerBridge | null {
@@ -59,9 +62,27 @@ export function installCpuWorkerBridge(
     defaultTimeoutMs: 3000
   });
   const rawSearchCardQuiescenceInWorker = createCpuCardQuiescenceWorkerSearcher({ client, timeoutMs: 2500 });
+  const lv11Client = createCpuWorkerClient({
+    workerFactory: () => new Lv11WorkerConstructor({ name: 'card-reversi-lv11' }) as unknown as Worker,
+    defaultTimeoutMs: 8000
+  });
   const bridge: BrowserCpuWorkerBridge = {
     client,
     lv10Client,
+    lv11Client,
+    adviseLv11InWorker: async request => {
+      try {
+        return parseLv10AdvisorResult(await lv11Client.request(CPU_WORKER_OPERATIONS.LV11_ADVISE, request, {
+          turnNumber: request.observation.gameState.turnNumber, timeoutMs: 8000
+        }));
+      } catch (error) {
+        if (error instanceof CpuWorkerClientError && error.recoverable === false) {
+          lv11Client.terminate('Lv11 Worker failed');
+          updateCapabilities(rootRef, { cpuLv11AdvisorWorker: false });
+        }
+        throw error;
+      }
+    },
     adviseLv10InWorker: async (request) => {
       try {
         return parseLv10AdvisorResult(await lv10Client.request(CPU_WORKER_OPERATIONS.LV10_ADVISE, request, {
@@ -101,7 +122,8 @@ export function installCpuWorkerBridge(
     dedicatedCpuWorkerConfigured: true,
     cpuCandidateScoringWorker: true,
     cpuCardQuiescenceWorker: true,
-    cpuLv10AdvisorWorker: true
+    cpuLv10AdvisorWorker: true,
+    cpuLv11AdvisorWorker: true
   });
   return bridge;
 }
@@ -121,12 +143,18 @@ export function disableCpuWorkerBridge(
     && rootRef.__CARD_REVERSI_BROWSER_CAPABILITIES__?.cpuLv10AdvisorWorker !== false
     ? target.adviseLv10InWorker
     : null;
+  const lv11Advisor = target && typeof target.adviseLv11InWorker === 'function'
+    && rootRef.__CARD_REVERSI_BROWSER_CAPABILITIES__?.cpuLv11AdvisorWorker !== false
+    ? target.adviseLv11InWorker : null;
   bridges.delete(rootRef);
   permanentlyDisabledRoots.add(rootRef);
   try {
     const bootstrap = rootRef.UIBootstrap;
     if (bootstrap && typeof bootstrap.configureCpuCandidateScoring === 'function') {
-      bootstrap.configureCpuCandidateScoring(lv10Advisor ? { adviseLv10InWorker: lv10Advisor } : null);
+      bootstrap.configureCpuCandidateScoring(lv10Advisor || lv11Advisor ? {
+        ...(lv10Advisor ? { adviseLv10InWorker: lv10Advisor } : {}),
+        ...(lv11Advisor ? { adviseLv11InWorker: lv11Advisor } : {})
+      } : null);
     }
   } catch (error) { /* local fallback remains available */ }
   const detachResult = detachOnnxWorkerExecutor(rootRef);
@@ -138,6 +166,7 @@ export function disableCpuWorkerBridge(
     cpuCandidateScoringWorker: false,
     cpuCardQuiescenceWorker: false,
     cpuLv10AdvisorWorker: !!lv10Advisor,
+    cpuLv11AdvisorWorker: !!lv11Advisor,
     cpuCandidateScoringInjected: false,
     dedicatedCpuWorker: false,
     onnxInferenceWorker: false,

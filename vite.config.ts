@@ -15,12 +15,14 @@ export default defineConfig(({ command }) => ({
   // canonical CJS output emitted by build:ts, as the main Vite bridge does,
   // instead of resolving adjacent compatibility shims in a native Worker.
   worker: { plugins: () => [{
-    name: 'card-reversi-lv10-canonical-runtime',
+    name: 'card-reversi-full-rule-canonical-runtime',
     enforce: 'pre' as const,
     resolveId(source: string, importer: string | undefined) {
-      if (source === '../../game/ai/cpu-lv10-search'
-        && importer?.replace(/\\/g, '/').endsWith('/cpu-worker/lv10-worker-entry.ts')) {
-        return path.resolve(__dirname, 'dist/game/ai/cpu-lv10-search.js');
+      for (const level of [10, 11]) {
+        if (source === `../../game/ai/cpu-lv${level}-search`
+          && importer?.replace(/\\/g, '/').endsWith(`/cpu-worker/lv${level}-worker-entry.ts`)) {
+          return path.resolve(__dirname, `dist/game/ai/cpu-lv${level}-search.js`);
+        }
       }
       return null;
     }

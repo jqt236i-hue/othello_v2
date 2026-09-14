@@ -43,6 +43,8 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-lv10-observation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-observation.js"),
   "game/ai/cpu-lv10-position": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-position.js"),
   "game/ai/cpu-lv10-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-search.js"),
+  "game/ai/cpu-lv11-evaluation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv11-evaluation.js"),
+  "game/ai/cpu-lv11-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv11-search.js"),
   "game/ai/cpu-lv6-lookahead-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv6-lookahead-profile.js"),
   "game/ai/cpu-movement-target-feasibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-movement-target-feasibility.js"),
   "game/ai/cpu-policy-board-counts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-counts.js"),
@@ -385,6 +387,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/turn/turn_pipeline_phase_helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn_pipeline_phase_helpers.js"),
   "game/turn/turn_pipeline_phases": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn_pipeline_phases.js"),
   "game/turn/turn-runtime-services": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn-runtime-services.js"),
+  "game/turn/turn-start-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn-start-runtime.js"),
   "game/turn/turn-start/bomb-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn-start/bomb-phase.js"),
   "game/turn/turn-start/marker-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn-start/marker-phase.js"),
   "game/turn/turn-start/post-processing": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/turn/turn-start/post-processing.js"),
@@ -798,6 +801,8 @@ installBootModuleMetadata({
     "game/ai/cpu-lv10-observation",
     "game/ai/cpu-lv10-position",
     "game/ai/cpu-lv10-search",
+    "game/ai/cpu-lv11-evaluation",
+    "game/ai/cpu-lv11-search",
     "game/ai/cpu-lv6-lookahead-profile",
     "game/ai/cpu-movement-target-feasibility",
     "game/ai/cpu-policy-board-counts",
@@ -1136,6 +1141,7 @@ installBootModuleMetadata({
     "game/turn/theory-spawn-immediate-effects",
     "game/turn/theory-spawn-resolution",
     "game/turn/turn-runtime-services",
+    "game/turn/turn-start-runtime",
     "game/turn/turn-start/bomb-phase",
     "game/turn/turn-start/marker-phase",
     "game/turn/turn-start/post-processing",
@@ -1604,4 +1610,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 750;
+export const startupModuleCount = 753;

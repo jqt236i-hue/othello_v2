@@ -258,6 +258,16 @@ Browser settlement ownership is registered independently from the caller that fi
 
 `workers/match-worker-game-runtime.ts` is the frozen Worker command port. Worker error transport remains the existing `RUNTIME_UNAVAILABLE` rejection category; network wire, snapshot, saved-data, and model formats are unchanged. Actual built delivery is proven separately for source/built Node and local authority, canonical Worker bundle, and production Vite/classic entries. Temporary non-shipping composition fixtures must not remain after those actual-entry gates pass.
 
+### 5.5 Production CPU selfplay and experiment isolation
+
+`src/engine/production-match.ts` owns Node match progression, not an alternate rule implementation. It creates the same board/card state from the same startup options, calls canonical `applyTurnSafe` for every action and `applyTurnStartAndCheckpoint` for turn boundaries, and records the entire state and PRNG. The shared turn-start wrapper includes the persisted PRNG checkpoint that the browser already required. Rendering, sound, presentation completion and UI locks are not dependencies of this runtime.
+
+The CPU receives only the normal player-view projection. `runLv10Turn` supplies the shared advisory-action application policy, rejected-action history and cancelled-card memory; a saved opponent supplies its own frozen copy of that policy and search. The development Lv11 search has a separate implementation and configuration. Search copies and simulation RNG never become match state. Actual rejection remains a recorded rejection; an unresolved runtime capability or non-progressing decision ends the attempt with an error record rather than substituting an unrecorded move.
+
+`scripts/run-production-selfplay.ts` owns a single resumable game. `scripts/run-cpu-experiment.ts` fixes conditions, seat assignment, order, budgets, concurrency and code identity before results. Experiment execution uses independent file copies for both policies, common rules, the dynamically loaded catalog JSON and the Node executable. A journal/checkpoint pair stores state, PRNG and decision memory after every decision. Resume writes a new attempt, retains the predecessor, verifies the original identity and continues its decision index. A completed attempt cannot be resumed or counted twice.
+
+`verify-production-selfplay.ts` and `audit-cpu-experiment.ts` independently replay every recorded action and boundary through the saved common runtime and check the declared schedule, deal correspondence, runtime identity and final result. Gameplay-state exclusions are limited to the six explicitly documented presentation/runtime-reference fields in `PRODUCTION_STATE_EXCLUSIONS`. A strength tally does not establish browser adoption, responsiveness or a successful normal-game build. Card/special-stone parity evidence is indexed in [the Lv11 coverage record](cpu-lv11-card-coverage.md); the active adoption protocol and experiment history are in [the Lv11 plan](cpu-lv11-execution-chaos-dragon-plan.md).
+
 ## 6. Core state contracts
 
 ### 6.1 `gameState`

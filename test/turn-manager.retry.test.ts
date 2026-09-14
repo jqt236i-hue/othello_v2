@@ -989,6 +989,24 @@ describe('turn-manager scheduling', () => {
     expect(global.cardState.presentationEvents).toEqual([]);
   });
 
+  test.each([2971938113, 914001])('onTurnStart preserves the seeded 40-cell bonus map when presentation storage is lazy (%s)', async (seed) => {
+    const Cards = require('../game/logic/cards');
+    const Core = require('../game/logic/core');
+    const Prng = require('../game/schema/prng');
+    const rng = Prng.createPRNG(seed);
+    global.gameState = Core.createGameState();
+    global.cardState = Cards.createCardState(rng);
+    global.getGamePrng = () => rng;
+    const bonuses = { ...global.cardState.boardBonusByCell };
+    expect(Object.keys(bonuses)).toHaveLength(40);
+    expect(global.cardState._presentationEventsPersist).toBeUndefined();
+    const rm = require('../game/turn-manager');
+    await rm.onTurnStart(global.BLACK);
+    expect(global.cardState.boardBonusByCell).toEqual(bonuses);
+    expect(Object.keys(global.cardState.boardBonusByCell)).toHaveLength(40);
+    expect(global.cardState.prngState).toEqual(rng.getState());
+  });
+
   test('onTurnStart shows terminal result through injected UI bridge', async () => {
     global.MATCH_MODE = 'reversi';
     global.showResult = jest.fn();

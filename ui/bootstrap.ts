@@ -78,7 +78,7 @@ function readCpuSmartnessValueFromSelect(id: string): number | string {
     const raw = String(el && el.value || '').trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(10, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(11, Math.floor(n))) : raw;
 }
 
 function createInjectedTimerService(timersImpl: any) {
@@ -135,6 +135,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         scoreCandidatesInWorker?: Function;
         searchCardQuiescenceInWorker?: Function;
         adviseLv10InWorker?: Function;
+        adviseLv11InWorker?: Function;
     } = {};
 
     function configureCpuCandidateScoring(runtime: any): boolean {
@@ -147,7 +148,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         cpuCandidateScoringRuntime = {
             ...(scorer ? { scoreCandidatesInWorker: scorer } : {}),
             ...(quiescenceSearcher ? { searchCardQuiescenceInWorker: quiescenceSearcher } : {}),
-            ...(typeof runtime?.adviseLv10InWorker === 'function' ? { adviseLv10InWorker: runtime.adviseLv10InWorker } : {})
+            ...(typeof runtime?.adviseLv10InWorker === 'function' ? { adviseLv10InWorker: runtime.adviseLv10InWorker } : {}),
+            ...(typeof runtime?.adviseLv11InWorker === 'function' ? { adviseLv11InWorker: runtime.adviseLv11InWorker } : {})
         };
         return !!scorer || !!quiescenceSearcher;
     }
@@ -1709,6 +1711,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         if (typeof advisor !== 'function') return Promise.reject(new Error('Lv10 Worker unavailable'));
                         return advisor(request);
                     },
+                    adviseLv11InWorker: (request: any) => {
+                        const advisor = cpuCandidateScoringRuntime.adviseLv11InWorker;
+                        if (typeof advisor !== 'function') return Promise.reject(new Error('Lv11 Worker unavailable'));
+                        return advisor(request);
+                    },
                     isCpuCardQuiescenceAvailable: () => (
                         typeof cpuCandidateScoringRuntime.searchCardQuiescenceInWorker === 'function'
                     )
@@ -2599,4 +2606,3 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         value: initializeUIBootstrapRuntime
     });
 export = UIBootstrap;
-

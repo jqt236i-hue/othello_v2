@@ -21,6 +21,8 @@ const CardLogic = _require('./logic/cards');
 const Core = _require('./logic/core');
 const { createGameState, isGameOver } = Core;
 const TurnPipelinePhases = _require('./turn/turn_pipeline_phases');
+const { applyTurnStartAndCheckpoint } = _require('./turn/turn-start-runtime');
+const TurnManagerPresentationQueues = _require('../shared/presentation-queue');
 const { ensureCurrentPlayerCanActOrPass } = _require('./pass-handler');
 let OwnerHelpersModule: any = null;
 try {
@@ -547,6 +549,9 @@ function hasTurnManagerCardStateMinimums(cardStateRef: any): boolean {
 
 function ensureTurnManagerCardStateShape(cardStateRef: any, options?: any) {
     if (!cardStateRef || typeof cardStateRef !== 'object') return cardStateRef;
+    // Lazy presentation storage is not a missing game-state schema. Repair it
+    // before considering the legacy template, which also contains random maps.
+    TurnManagerPresentationQueues.ensurePresentationQueues(cardStateRef);
     if (hasTurnManagerCardStateMinimums(cardStateRef)) return cardStateRef;
     const template = createTurnManagerCardStateTemplate(options);
     mergeTurnManagerMissingState(cardStateRef, template);
@@ -1526,12 +1531,7 @@ async function onTurnStart(player: number) {
         // Provide runtime PRNG to pipeline so start-of-turn effects that need randomness can run in browser
         const runtimePrng = getTurnManagerPrng();
         logTurnManagerDebug('[onTurnStart] runtimePrng available:', 'debug', { available: !!runtimePrng });
-        turnStartResult = TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
-        if (runtimePrng && typeof runtimePrng.getState === 'function') {
-            try {
-                cardState.prngState = runtimePrng.getState();
-            } catch (e) { /* ignore */ }
-        }
+        turnStartResult = applyTurnStartAndCheckpoint(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
         // Convert any presentation events emitted during turn-start into PlaybackEvents
         const adapter = getTurnPipelineUIAdapter();
         if (adapter && typeof adapter.mapToPlaybackEvents === 'function'
