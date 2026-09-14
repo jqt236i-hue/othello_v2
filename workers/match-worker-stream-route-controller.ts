@@ -45,8 +45,15 @@ type MatchWorkerStreamRouteControllerConfig = {
         initialPayload: Record<string, unknown>;
         streamId: string;
     }) => void;
+    deliverInitialStreamEvents?: (options: {
+        room: MatchWorkerRoomState;
+        replayEvents: MatchAuthorityBufferedSseReplayEvent[] | null | undefined;
+        initialPayload: Record<string, unknown>;
+        streamId: string;
+    }) => Promise<void>;
     closeStream: (streamId: string) => Promise<void>;
     ensureHeartbeatTimer: () => void;
+    openWebSocket?: (streamId: string, viewer: MatchAuthorityViewer, url: URL) => Response | null;
     onStreamOpened?: (streamId: string) => Promise<void> | void;
     jsonResponse: (statusCode: number, payload: unknown) => Response;
     corsHeaders: Record<string, string>;
@@ -84,10 +91,20 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
         if (prepared.response) return prepared.response;
         const { room, viewer, replayEvents } = prepared;
 
+        const streamId = cfg.makeSseStreamId(now(), cfg.cryptoLike || null);
+        if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
+            const response = cfg.openWebSocket?.(streamId, viewer, urlObj);
+            if (!response) return cfg.jsonResponse(426, { ok: false, reason: 'WEBSOCKET_UNAVAILABLE' });
+            await cfg.onStreamOpened?.(streamId);
+            const delivery = { room, replayEvents, initialPayload: cfg.buildSnapshotPayload(room, { playbackEvents: [] }, viewer), streamId };
+            if (cfg.deliverInitialStreamEvents) await cfg.deliverInitialStreamEvents(delivery);
+            else cfg.scheduleInitialStreamDelivery(delivery);
+            return response;
+        }
+
         const { readable, writable } = new TransformStream<Uint8Array>();
         const writer = writable.getWriter();
 
-        const streamId = cfg.makeSseStreamId(now(), cfg.cryptoLike || null);
         cfg.getStreams().set(streamId, {
             writer,
             viewer,

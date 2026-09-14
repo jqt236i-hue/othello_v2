@@ -35,16 +35,16 @@
     <!-- CSS Split Modules -->
     <link rel="stylesheet" href="styles-variables.css?v=27450893054797">
     <link rel="stylesheet" href="styles-base.css?v=209378510089087">
-    <link rel="stylesheet" href="styles-layout.css?v=220711798526145">
+    <link rel="stylesheet" href="styles-layout.css?v=118201487454956">
     <link rel="stylesheet" href="styles-charge-hud.css?v=33539802130051">
-    <link rel="stylesheet" href="styles-layout-controls.css?v=214623610889671">
+    <link rel="stylesheet" href="styles-layout-controls.css?v=252877528302275">
     <meta data-card-reversi-feature-style-slot="network-layout-controls"
         data-card-reversi-feature-style-href="styles-feature-network-layout-controls.css?v=207648095638469"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
     <meta data-card-reversi-feature-style-slot="deck-builder"
         data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=230986042292973"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
-    <link rel="stylesheet" href="styles-layout-info.css?v=154406270521224">
+    <link rel="stylesheet" href="styles-layout-info.css?v=191877541796811">
     <meta data-card-reversi-feature-style-slot="network"
         data-card-reversi-feature-style-href="styles-feature-network.css?v=41267236501823"
         data-card-reversi-feature-style-after="styles-layout-info.css">
@@ -52,7 +52,7 @@
         data-card-reversi-feature-style-href="styles-feature-rules-help-layout-info.css?v=15023398429445"
         data-card-reversi-feature-style-after="styles-layout-info.css">
     <meta data-card-reversi-feature-style-slot="result"
-        data-card-reversi-feature-style-href="styles-layout-result.css?v=72470285810080"
+        data-card-reversi-feature-style-href="styles-layout-result.css?v=21078588578884"
         data-card-reversi-feature-style-before="styles-layout-characters.css">
     <link rel="stylesheet" href="styles-layout-characters.css?v=13825693058453">
     <link rel="stylesheet" href="styles-board.css?v=209965508062681">
@@ -61,7 +61,7 @@
         data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css?v=98671376079036"
         data-card-reversi-feature-style-after="styles-cards.css">
     <link rel="stylesheet" href="styles-animations.css?v=139184032415868">
-    <link rel="stylesheet" href="styles-responsive.css?v=273543425980562">
+    <link rel="stylesheet" href="styles-responsive.css?v=176910485244926">
     <meta data-card-reversi-feature-style-slot="network-responsive"
         data-card-reversi-feature-style-href="styles-feature-network-responsive.css?v=269170872007779"
         data-card-reversi-feature-style-after="styles-responsive.css">
@@ -72,7 +72,7 @@
         data-card-reversi-feature-style-href="styles-feature-rules-help-responsive.css?v=71396489629988"
         data-card-reversi-feature-style-after="styles-responsive.css">
     <link rel="stylesheet" href="styles-stone-shadows.css?v=50154902815750">
-    <link rel="stylesheet" href="styles-mobile-command-surface.css?v=15427466298365">
+    <link rel="stylesheet" href="styles-mobile-command-surface.css?v=161330156685431">
     <meta data-card-reversi-feature-style-slot="board-dom-compat"
         data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=36234041226082">
     <meta data-card-reversi-feature-style-slot="profile"
@@ -119,10 +119,7 @@
             <span class="left-action-icon left-action-icon-network" aria-hidden="true"></span>
             <span class="left-action-label">ネット対戦</span>
         </button>
-        <button id="ratedMatchOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="ratedMatchOverlay" aria-expanded="false">
-            <span class="left-action-icon left-action-icon-rated" aria-hidden="true"></span>
-            <span class="left-action-label">レート戦</span>
-        </button>
+
         <a id="reversiDestinyOpenLink" class="btn-small left-action-btn reversi-destiny-launcher-link" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-label="2Dアクションを別タブで開く" title="別タブで開く（カードリバーシは継続します）">
             <span class="left-action-icon left-action-icon-reversi-destiny" aria-hidden="true"></span>
             <span class="left-action-label">2Dアクション</span>
@@ -262,7 +259,7 @@
         <div id="board-stack">
             <div id="board-frame">
                 <div id="board"></div>
-                <div id="ratedMatchQueueTimer" class="rated-queue-timer" hidden aria-hidden="true" aria-live="polite" aria-atomic="true"></div>
+
                 <button id="board-frame-pass-btn" type="button" hidden disabled aria-hidden="true" aria-label="パス">パス</button>
                 <!-- Occupancy UI (removed) -->
                 <!-- Card Animation FX Layer -->
@@ -412,67 +409,7 @@
         <div id="networkModal" role="dialog" aria-modal="true" aria-label="ネット対戦設定"></div>
     </div>
 
-    <div id="ratedMatchOverlay" aria-hidden="true">
-        <div id="ratedMatchModal" role="dialog" aria-modal="true" aria-labelledby="ratedMatchModalTitle">
-            <div id="ratedMatchModalHeader">
-                <div class="rated-match-crest" aria-hidden="true"></div>
-                <div class="rated-match-heading">
-                    <span class="rated-match-kicker">Ranked Match</span>
-                    <div id="ratedMatchModalTitle" class="rated-match-title">レート戦</div>
-                </div>
-                <button id="ratedMatchCloseBtn" class="btn-small" type="button" aria-label="レート戦を閉じる">×</button>
-            </div>
-            <div id="ratedMatchModalBody">
-                <div id="ratedMatchPanel">
-                    <section class="rated-match-overview" aria-label="レート戦情報">
-                        <div class="rated-match-rating">
-                            <span class="rated-match-rating-label">RATE</span>
-                            <strong id="ratedMatchRatingText">未計測</strong>
-                        </div>
-                        <div class="rated-match-player">
-                            <span>プレイヤーID</span>
-                            <strong id="ratedMatchIdentityText">未確認</strong>
-                        </div>
-                    </section>
-                    <section class="rated-match-rules" aria-label="レート戦条件">
-                        <button id="ratedMatchDeckOpenBtn" class="rated-match-rule rated-match-deck-button" type="button" aria-label="デッキ構築を開く">
-                            <span>デッキ</span>
-                            <strong id="ratedMatchDeckNameText">確認中</strong>
-                        </button>
-                        <div class="rated-match-rule">
-                            <span>盤面</span>
-                            <strong>8x8固定</strong>
-                        </div>
-                    </section>
-                    <section class="rated-match-shortcuts" aria-label="レート戦メニュー">
-                        <button id="ratedMatchLeaderboardBtn" class="btn-small" type="button">レートランキング</button>
-                        <button id="ratedMatchHistoryBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="ratedMatchHistoryPanel">直近10戦</button>
-                    </section>
-                    <section class="rated-match-queue" aria-label="レート戦キュー">
-                        <div class="rated-match-queue-head">
-                            <div class="rated-match-section-title">マッチング</div>
-                            <div id="ratedMatchDeckSummary" class="rated-match-deck-summary">使用デッキ: 確認中</div>
-                        </div>
-                        <div class="rated-match-status-frame">
-                            <span class="rated-match-status-label">QUEUE STATUS</span>
-                            <div id="ratedMatchStatus" role="status" aria-live="polite">待機していません</div>
-                        </div>
-                        <div class="rated-match-actions">
-                            <button id="ratedMatchQueueBtn" class="btn-small" type="button">キューに入る</button>
-                            <button id="ratedMatchCancelBtn" class="btn-small" type="button" disabled>待機解除</button>
-                        </div>
-                    </section>
-                    <section id="ratedMatchHistoryPanel" class="rated-match-history" aria-label="直近レート戦績" hidden>
-                        <div class="rated-match-history-head">
-                            <div class="rated-match-section-title">直近10戦</div>
-                            <div id="ratedMatchHistoryStatus" class="rated-match-history-status" role="status" aria-live="polite">戦績を読み込んでいません</div>
-                        </div>
-                        <div id="ratedMatchHistoryList" class="rated-match-history-list"></div>
-                    </section>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <div id="leaderboardOverlay" aria-hidden="true">
         <div id="leaderboardModal" role="dialog" aria-modal="true" aria-label="スコアランキング">

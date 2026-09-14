@@ -48,10 +48,8 @@ const PlaybackEventHelpers = require('../shared/playback-event-helpers');
 const DeckCodecModule = require('../shared/deck-codec');
 const DeckSpecHelpers = require('../shared/deck-spec');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
-const RatedMatchmaking = require('../shared/rated-matchmaking');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 const PresentationEnvelopeContract = require('../shared/network-presentation-envelope');
-const { createMatchWorkerRatingHelpers } = require('../workers/match-worker-rating');
 
 function readArgValue(name: any) {
     const key = `--${name}`;
@@ -79,9 +77,6 @@ const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_AC
 
 const rooms = new Map();
 const playerIdentityRecords = new Map();
-const ratedQueueEntries = new Map();
-const localRatingHelpers = createMatchWorkerRatingHelpers();
-let localRatingStore = localRatingHelpers.createEmptyStore();
 let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function parseSeatKeyOptional(value: any) {
@@ -136,62 +131,6 @@ function toPublicSnapshot(room: any, viewerSeatKey: any) {
 
 function toPublicSnapshotForViewer(room: any, viewer: any) {
     return MatchAuthority.buildPublicSnapshotForViewer(room, viewer);
-}
-
-function isRatedRoom(room: any): boolean {
-    return !!(room && (room.matchType === 'rated' || (room.ratedMatch && room.ratedMatch.enabled === true)));
-}
-
-function toPublicRatingSeatResult(source: any) {
-    const display = source && source.display && typeof source.display === 'object' ? source.display : {};
-    return {
-        playerId: String(source && source.playerId || '').trim(),
-        display: {
-            before: Number.isFinite(Number(display.before)) ? Math.round(Number(display.before)) : null,
-            after: Number.isFinite(Number(display.after)) ? Math.round(Number(display.after)) : null,
-            delta: Number.isFinite(Number(display.delta)) ? Math.trunc(Number(display.delta)) : null
-        }
-    };
-}
-
-function toPublicRatingResult(source: any) {
-    if (!source || source.ok !== true) return null;
-    return {
-        ok: true,
-        matchId: String(source.matchId || '').trim(),
-        result: String(source.result || '').trim(),
-        black: toPublicRatingSeatResult(source.black),
-        white: toPublicRatingSeatResult(source.white)
-    };
-}
-
-function toPublicRatedMatch(room: any) {
-    if (!isRatedRoom(room)) return null;
-    const source = room && room.ratedMatch && typeof room.ratedMatch === 'object' ? room.ratedMatch : {};
-    const out: any = {
-        enabled: source.enabled === true,
-        pool: String(source.pool || 'card_ranked_v1'),
-        systemVersion: Number.isFinite(Number(source.systemVersion)) ? Math.trunc(Number(source.systemVersion)) : 1,
-        matchId: String(source.matchId || '').trim(),
-        matchedAt: Number.isFinite(Number(source.matchedAt)) ? Math.trunc(Number(source.matchedAt)) : 0,
-        startedAt: typeof source.startedAt === 'string' ? source.startedAt : '',
-        finalizedAt: typeof source.finalizedAt === 'string' ? source.finalizedAt : '',
-        finalResult: typeof source.finalResult === 'string' ? source.finalResult : '',
-        finalReason: typeof source.finalReason === 'string' ? source.finalReason : '',
-        ratingStatus: typeof source.ratingStatus === 'string' ? source.ratingStatus : 'pending'
-    };
-    const ratingResult = toPublicRatingResult(source.ratingResult);
-    if (ratingResult) out.ratingResult = ratingResult;
-    return out;
-}
-
-function withPublicRatedMatchMetadata(payload: any, room: any) {
-    const ratedMatch = toPublicRatedMatch(room);
-    if (ratedMatch && payload && typeof payload === 'object') {
-        payload.matchType = 'rated';
-        payload.ratedMatch = ratedMatch;
-    }
-    return payload;
 }
 
 function buildPresentationCursor(room: any) {
@@ -504,8 +443,6 @@ const buildPublishPayload = createMatchPublishPayloadBuilder({
     toPublicNetworkAutoEnabled,
     toPublicTurnTimer,
     buildPresentationFrames: (room, viewerSeatKey, options) => buildPresentationFramesForViewer(room, viewerFromSeatKey(viewerSeatKey), options),
-    decoratePayload: withPublicRatedMatchMetadata,
-    decorateAcknowledgement: true
 });
 
 function createLocalMatchCommandCapabilities() {
@@ -1143,14 +1080,8 @@ function ensureHeartbeatLoop() {
             if (!room || !room.streams || room.streams.size === 0) continue;
             const serverTime = Date.now();
             const payload = buildHeartbeatPayload(room, serverTime);
-            const eventId = nextSseEventId(room);
-            rememberBufferedRoomEvent(room, {
-                eventId,
-                eventName: 'heartbeat',
-                payload
-            });
             for (const streamId of Array.from(room.streams.keys())) {
-                safeWriteToStream(room, streamId, 'heartbeat', payload, eventId);
+                safeWriteToStream(room, streamId, 'heartbeat', payload, null);
             }
         }
         stopHeartbeatLoopIfIdle();
@@ -1170,7 +1101,7 @@ function buildSnapshotPayload(room: any, meta: any, viewer: any) {
         ? publishViewerArtifacts.projectedSnapshots
         : {};
     const artifactSnapshot = artifactSnapshots[MatchAuthority.getPayloadKeyForViewer(viewer)];
-    return withPublicRatedMatchMetadata(MatchAuthority.buildSnapshotPayloadFromRoom(room, {
+    return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
         viewerRole,
         snapshot: artifactSnapshot && typeof artifactSnapshot === 'object'
             ? deepClone(artifactSnapshot)
@@ -1189,7 +1120,7 @@ function buildSnapshotPayload(room: any, meta: any, viewer: any) {
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
         actionType: meta && meta.actionType ? String(meta.actionType) : null,
         serverTime
-    }), room);
+    });
 }
 
 function resolveAutoPassNoticeForCommand(actionType: any, action: any, playerKey: any) {
@@ -1361,8 +1292,6 @@ function makeRoom(options: any) {
         roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
         networkDebugEnabled: false,
         networkAutoEnabled: opts.networkAutoEnabled === true,
-        matchType: typeof opts.matchType === 'string' ? opts.matchType : '',
-        ratedMatch: opts.ratedMatch && typeof opts.ratedMatch === 'object' ? deepClone(opts.ratedMatch) : null,
         allCardsDeckEnabled: opts.allCardsDeckEnabled === true,
         publishResponseMode: MatchAuthority.normalizePublishResponseMode(opts.publishResponseMode),
         turnTimer: createPausedTurnTimer({
@@ -1656,317 +1585,6 @@ async function handlePlayerIdentityRegenerateRecovery(req: any, res: any) {
     writeJson(res, 200, { ok: true, playerId, recoveryCode, serverTime: nowMs });
 }
 
-function queueEntriesObject() {
-    const entries: Record<string, unknown> = {};
-    for (const [playerId, entry] of ratedQueueEntries.entries()) {
-        entries[playerId] = entry;
-    }
-    return entries;
-}
-
-function cleanupExpiredRatedQueueEntries(nowMs = Date.now()) {
-    for (const [playerId, entry] of Array.from(ratedQueueEntries.entries()) as any[]) {
-        if (RatedMatchmaking.isQueueEntryExpired(entry, nowMs)) {
-            ratedQueueEntries.delete(playerId);
-        }
-    }
-}
-
-function readRatedQueueEntry(playerIdValue: any) {
-    const playerId = RatedMatchmaking.normalizePlayerId(playerIdValue);
-    if (!playerId) return null;
-    return RatedMatchmaking.normalizeQueueEntry(ratedQueueEntries.get(playerId));
-}
-
-function validateRatedQueueIdentity(body: any) {
-    const verifiedIdentity = verifyLocalPlayerIdentityFromBody(body);
-    if (!verifiedIdentity.ok || !verifiedIdentity.playerId) {
-        return { ok: false, status: 403, reason: verifiedIdentity.reason || 'PLAYER_ID_TOKEN_INVALID', playerId: '' };
-    }
-    return { ok: true, status: 200, reason: '', playerId: verifiedIdentity.playerId };
-}
-
-function buildRatedSeatPayload(room: any, seatKey: any, playerName: any) {
-    const normalizedSeatKey = normalizePlayerKey(seatKey);
-    const serverTime = Date.now();
-    const payload = MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        seatKey: normalizedSeatKey,
-        playerName: RatedMatchmaking.normalizePlayerName(playerName),
-        seatToken: room.seatTokens[normalizedSeatKey],
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-        stateVersion: room.stateVersion,
-        snapshot: toPublicSnapshot(room, normalizedSeatKey),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    });
-    payload.matchType = 'rated';
-    payload.ratedMatch = deepClone(room.ratedMatch || {});
-    return payload;
-}
-
-function applyRatedSeat(room: any, seatKey: any, entry: any, deckSelection: any) {
-    const normalizedSeatKey = normalizePlayerKey(seatKey);
-    room.seats[normalizedSeatKey] = true;
-    room.seatNames[normalizedSeatKey] = RatedMatchmaking.normalizePlayerName(entry && entry.playerName);
-    room.seatHandSkins = toPublicSeatHandSkins(room);
-    room.seatHandSkins[normalizedSeatKey] = RatedMatchmaking.normalizeSelectedHandSkinId(entry && entry.selectedHandSkinId);
-    room.seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(room.seatPlayerIds);
-    room.seatPlayerIds[normalizedSeatKey] = RatedMatchmaking.normalizePlayerId(entry && entry.playerId);
-    if (deckSelection && deckSelection.hasCustomDeck) {
-        assignRoomDeckSelection(room, normalizedSeatKey, deckSelection);
-    }
-}
-
-function resolveRatedResultFromRoom(room: any) {
-    if (!room || !room.snapshot || !room.snapshot.gameState) return null;
-    try {
-        if (Core && typeof Core.isGameOver === 'function' && Core.isGameOver(room.snapshot.gameState) !== true) {
-            return null;
-        }
-    } catch (e) {
-        return null;
-    }
-    const counts = MatchAuthority.countSnapshotBoardDiscs(room.snapshot, SharedBoardUtils);
-    if (!counts) return null;
-    if (counts.black === counts.white) return 'DRAW';
-    return counts.black > counts.white ? 'BLACK_WIN' : 'WHITE_WIN';
-}
-
-function finalizeLocalRatedMatchIfNeeded(room: any, result: any, reason: any) {
-    if (!isRatedRoom(room)) return null;
-    const ratedMatch = room.ratedMatch && typeof room.ratedMatch === 'object' ? room.ratedMatch : {};
-    const matchId = String(ratedMatch.matchId || '').trim();
-    if (!matchId) return null;
-    if (ratedMatch.ratingStatus === 'applied' || ratedMatch.ratingStatus === 'no_contest') {
-        return toPublicRatingResult(ratedMatch.ratingResult) || null;
-    }
-    const seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(room.seatPlayerIds);
-    const blackPlayerId = seatPlayerIds.black;
-    const whitePlayerId = seatPlayerIds.white;
-    if (!blackPlayerId || !whitePlayerId || blackPlayerId === whitePlayerId) {
-        room.ratedMatch = Object.assign({}, ratedMatch, {
-            ratingStatus: 'failed',
-            finalReason: String(reason || 'player_id_invalid')
-        });
-        return null;
-    }
-    const applied = localRatingHelpers.applyRatedResult(localRatingStore, {
-        matchId,
-        pool: 'card_ranked_v1',
-        blackPlayerId,
-        whitePlayerId,
-        result,
-        rulesetVersion: 'card-ranked-v1',
-        catalogVersion: 'local'
-    });
-    if (!applied.ok) {
-        room.ratedMatch = Object.assign({}, ratedMatch, {
-            ratingStatus: 'failed',
-            finalReason: String(reason || 'rating_failed')
-        });
-        return null;
-    }
-    localRatingStore = applied.store;
-    const publicResult = toPublicRatingResult(applied.payload);
-    room.ratedMatch = Object.assign({}, ratedMatch, {
-        finalResult: result === 'NO_CONTEST' ? 'NO_CONTEST' : result,
-        finalReason: String(reason || ''),
-        finalizedAt: new Date().toISOString(),
-        ratingStatus: result === 'NO_CONTEST' ? 'no_contest' : 'applied',
-        ratingResult: publicResult
-    });
-    room.updatedAt = Date.now();
-    return publicResult;
-}
-
-function createRatedRoomForPair(blackEntry: any, whiteEntry: any) {
-    const blackDeckSelection = resolveDeckSelection(blackEntry && blackEntry.deckCode);
-    if (!blackDeckSelection.ok) {
-        return { ok: false, reason: blackDeckSelection.reason || 'BLACK_DECK_CODE_INVALID' };
-    }
-    const whiteDeckSelection = resolveDeckSelection(whiteEntry && whiteEntry.deckCode);
-    if (!whiteDeckSelection.ok) {
-        return { ok: false, reason: whiteDeckSelection.reason || 'WHITE_DECK_CODE_INVALID' };
-    }
-
-    const matchedAt = Date.now();
-    const matchId = RatedMatchmaking.createRatedMatchId(matchedAt, blackEntry && blackEntry.playerId, whiteEntry && whiteEntry.playerId);
-    const startedAt = new Date(matchedAt).toISOString();
-    const claim = localRatingHelpers.claimActiveRatedMatch(localRatingStore, {
-        matchId,
-        roomId: 'local-pending',
-        blackPlayerId: blackEntry && blackEntry.playerId,
-        whitePlayerId: whiteEntry && whiteEntry.playerId,
-        blackPlayerName: blackEntry && blackEntry.playerName,
-        whitePlayerName: whiteEntry && whiteEntry.playerName,
-        blackAvatarStoneType: blackEntry && blackEntry.avatarStoneType,
-        whiteAvatarStoneType: whiteEntry && whiteEntry.avatarStoneType,
-        blackBio: blackEntry && blackEntry.bio,
-        whiteBio: whiteEntry && whiteEntry.bio,
-        startedAt
-    });
-    if (!claim.ok) {
-        return { ok: false, reason: claim.reason || 'RATED_ACTIVE_MATCH_LOCK_FAILED' };
-    }
-    localRatingStore = claim.store;
-    const room = makeRoom({
-        roomName: RatedMatchmaking.RATED_ROOM_NAME,
-        roomBoardConfig: RatedMatchmaking.cloneRatedBoardConfig(),
-        networkAutoEnabled: false,
-        matchType: 'rated',
-        ratedMatch: {
-            enabled: true,
-            pool: 'card_ranked_v1',
-            systemVersion: 1,
-            matchId,
-            matchedAt,
-            startedAt,
-            finalizedAt: '',
-            finalResult: '',
-            ratingStatus: 'pending',
-            disconnectForfeitPolicy: 'grace'
-        }
-    });
-    applyRatedSeat(room, 'black', blackEntry, blackDeckSelection);
-    applyRatedSeat(room, 'white', whiteEntry, whiteDeckSelection);
-
-    const nextSnapshot = makeInitialSnapshot(room.seed, buildInitialDeckSnapshotOptions(room));
-    const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(nextSnapshot, {
-        allowLegacy: true,
-        requireFullSnapshot: true
-    });
-    if (!boardContractInspection || boardContractInspection.ok !== true) {
-        throw new Error(`rated_initial_snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
-    }
-    room.stateVersion = 1;
-    nextSnapshot.stateVersion = room.stateVersion;
-    nextSnapshot.updatedAt = Date.now();
-    room.snapshot = nextSnapshot;
-    room.updatedAt = nextSnapshot.updatedAt;
-    room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
-    refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: true });
-
-    return {
-        ok: true,
-        roomId: room.roomId,
-        blackPayload: buildRatedSeatPayload(room, 'black', blackEntry && blackEntry.playerName),
-        whitePayload: buildRatedSeatPayload(room, 'white', whiteEntry && whiteEntry.playerName)
-    };
-}
-
-function validateRatedQueueDeck(body: any) {
-    const deckSelection = resolveDeckSelection(body && body.deckCode);
-    return deckSelection.ok
-        ? { ok: true, status: 200, reason: '' }
-        : { ok: false, status: 400, reason: deckSelection.reason || 'DECK_CODE_INVALID' };
-}
-
-async function handleRatedQueueEnter(req: any, res: any) {
-    const body = await parseBody(req);
-    const identity = validateRatedQueueIdentity(body);
-    if (!identity.ok) {
-        writeJson(res, identity.status, { ok: false, reason: identity.reason });
-        return;
-    }
-    const deckValidation = validateRatedQueueDeck(body);
-    if (!deckValidation.ok) {
-        writeJson(res, deckValidation.status, { ok: false, reason: deckValidation.reason });
-        return;
-    }
-
-    const nowMs = Date.now();
-    cleanupExpiredRatedQueueEntries(nowMs);
-    const existing = readRatedQueueEntry(identity.playerId);
-    if (existing && existing.status === 'matched') {
-        writeJson(res, 200, RatedMatchmaking.toMatchedResponse(existing, nowMs));
-        return;
-    }
-    if (existing && existing.status === 'waiting') {
-        writeJson(res, 200, RatedMatchmaking.toWaitingResponse(existing, nowMs));
-        return;
-    }
-
-    const entry = RatedMatchmaking.createQueueEntry(Object.assign({}, body, {
-        playerId: identity.playerId
-    }), nowMs);
-    if (!entry) {
-        writeJson(res, 403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
-        return;
-    }
-
-    const candidate = RatedMatchmaking.findWaitingCandidate(queueEntriesObject(), entry.playerId, nowMs);
-    if (!candidate) {
-        ratedQueueEntries.set(entry.playerId, entry);
-        writeJson(res, 200, RatedMatchmaking.toWaitingResponse(entry, nowMs));
-        return;
-    }
-
-    const match = createRatedRoomForPair(candidate, entry);
-    if (!match.ok) {
-        ratedQueueEntries.delete(candidate.playerId);
-        writeJson(res, 400, { ok: false, reason: match.reason || 'RATED_MATCH_CREATE_FAILED' });
-        return;
-    }
-
-    const matched = RatedMatchmaking.markEntriesMatched(candidate, entry, match, Date.now());
-    if (!matched) {
-        writeJson(res, 500, { ok: false, reason: 'RATED_MATCH_PAYLOAD_FAILED' });
-        return;
-    }
-    ratedQueueEntries.set(matched.black.playerId, matched.black);
-    ratedQueueEntries.set(matched.white.playerId, matched.white);
-    writeJson(res, 200, RatedMatchmaking.toMatchedResponse(matched.white, Date.now()));
-}
-
-async function handleRatedQueuePoll(req: any, res: any) {
-    const body = await parseBody(req);
-    const identity = validateRatedQueueIdentity(body);
-    if (!identity.ok) {
-        writeJson(res, identity.status, { ok: false, reason: identity.reason });
-        return;
-    }
-    const nowMs = Date.now();
-    const entry = readRatedQueueEntry(identity.playerId);
-    if (!entry) {
-        writeJson(res, 200, RatedMatchmaking.toIdleResponse(identity.playerId, nowMs));
-        return;
-    }
-    if (RatedMatchmaking.isQueueEntryExpired(entry, nowMs)) {
-        ratedQueueEntries.delete(identity.playerId);
-        writeJson(res, 200, RatedMatchmaking.toExpiredResponse(identity.playerId, nowMs));
-        return;
-    }
-    if (entry.status === 'matched') {
-        writeJson(res, 200, RatedMatchmaking.toMatchedResponse(entry, nowMs));
-        return;
-    }
-    writeJson(res, 200, RatedMatchmaking.toWaitingResponse(entry, nowMs));
-}
-
-async function handleRatedQueueCancel(req: any, res: any) {
-    const body = await parseBody(req);
-    const identity = validateRatedQueueIdentity(body);
-    if (!identity.ok) {
-        writeJson(res, identity.status, { ok: false, reason: identity.reason });
-        return;
-    }
-    const nowMs = Date.now();
-    const entry = readRatedQueueEntry(identity.playerId);
-    if (entry && entry.status === 'matched') {
-        writeJson(res, 200, RatedMatchmaking.toMatchedResponse(entry, nowMs));
-        return;
-    }
-    ratedQueueEntries.delete(identity.playerId);
-    writeJson(res, 200, Object.assign(RatedMatchmaking.toIdleResponse(identity.playerId, nowMs), {
-        status: 'cancelled',
-        reason: String(body.reason || 'cancelled')
-    }));
-}
-
 async function handleCreate(req: any, res: any) {
     const body = await parseBody(req);
     const verifiedIdentity = verifyLocalPlayerIdentityFromBody(body);
@@ -2098,40 +1716,10 @@ function handleList(_req: any, res: any) {
     disposeExpiredRooms(nowMs);
     const roomsList = MatchRoomLobby.sortRoomListEntries(
         Array.from(rooms.values())
-            .filter((room: any) => !(room && room.matchType === 'rated'))
             .map((room) => MatchRoomLobby.toPublicRoomListEntry(room, { nowMs }))
             .filter(Boolean)
     );
     writeJson(res, 200, { ok: true, rooms: roomsList });
-}
-
-function handleRatingMe(urlObj: URL, res: any) {
-    const playerId = String(urlObj.searchParams.get('playerId') || '').trim();
-    const rating = localRatingHelpers.getPlayerRating(localRatingStore, playerId);
-    if (!rating) {
-        writeJson(res, 403, { ok: false, reason: 'PLAYER_ID_REQUIRED' });
-        return;
-    }
-    writeJson(res, 200, {
-        ok: true,
-        pool: 'card_ranked_v1',
-        rating,
-        displayRating: Math.round(rating.rating)
-    });
-}
-
-function handleRatingLeaderboard(urlObj: URL, res: any) {
-    writeJson(res, 200, localRatingHelpers.listLeaderboard(localRatingStore, {
-        limit: urlObj.searchParams.get('limit') || 50
-    }));
-}
-
-function handleRatingHistory(urlObj: URL, res: any) {
-    const result = localRatingHelpers.listPlayerHistory(localRatingStore, {
-        playerId: urlObj.searchParams.get('playerId') || '',
-        limit: urlObj.searchParams.get('limit') || 10
-    });
-    writeJson(res, result.ok ? 200 : 403, result);
 }
 
 function createLocalMatchLeaveController() {
@@ -2293,10 +1881,6 @@ async function handlePublish(req: any, res: any) {
         makeInitialSnapshot,
         buildInitialDeckSnapshotOptions,
         applyCommandPublishToSnapshot,
-        finalizeRatedMatchAfterAcceptedPublish: async () => {
-            const ratedResult = resolveRatedResultFromRoom(activeRoom);
-            if (ratedResult) finalizeLocalRatedMatchIfNeeded(activeRoom, ratedResult, 'normal_end');
-        },
         refreshTurnTimer: (options: any) => refreshTurnTimer(activeRoom, options),
         buildPublishViewerArtifacts: (room: any, options: any) => MatchAuthority.buildPublishViewerArtifacts(room, options),
         prepareSnapshotBroadcast: (meta: any) => prepareSnapshotBroadcast(activeRoom, meta),
@@ -2509,7 +2093,6 @@ function createLocalMatchStateController() {
         toPublicTurnTimer,
         buildPresentationCursor,
         normalizePlayerKey,
-        decorateStatePayload: (payload: any) => payload,
         jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
 }
@@ -2655,36 +2238,6 @@ function createLocalMatchServer() {
                 return;
             }
 
-            if (req.method === 'POST' && pathname === '/api/match/rated/queue') {
-                await handleRatedQueueEnter(req, res);
-                return;
-            }
-
-            if (req.method === 'POST' && pathname === '/api/match/rated/poll') {
-                await handleRatedQueuePoll(req, res);
-                return;
-            }
-
-            if (req.method === 'POST' && pathname === '/api/match/rated/cancel') {
-                await handleRatedQueueCancel(req, res);
-                return;
-            }
-
-            if (req.method === 'GET' && pathname === '/api/rating/me') {
-                handleRatingMe(urlObj, res);
-                return;
-            }
-
-            if (req.method === 'GET' && pathname === '/api/rating/leaderboard') {
-                handleRatingLeaderboard(urlObj, res);
-                return;
-            }
-
-            if (req.method === 'GET' && pathname === '/api/rating/history') {
-                handleRatingHistory(urlObj, res);
-                return;
-            }
-
             if (req.method === 'POST' && pathname === '/api/match/join') {
                 await handleJoin(req, res);
                 return;
@@ -2766,7 +2319,6 @@ function createLocalMatchServer() {
 function resetRoomsForTests() {
     rooms.clear();
     playerIdentityRecords.clear();
-    ratedQueueEntries.clear();
     stopHeartbeatLoopIfIdle();
 }
 

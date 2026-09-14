@@ -1102,6 +1102,9 @@ describe('NetworkSessionLifecycleController', () => {
     });
 
     test('保存済みvisual cursorが遅れていてもF5復帰では現在cursorへ同期してjournal再生をスキップする', async () => {
+      const { normalizeNetworkSnapshotEnvelope } = require('../ui/network/intake-envelope');
+      mockConfig.normalizeNetworkSnapshotEnvelope = normalizeNetworkSnapshotEnvelope;
+      mockConfig.submitNetworkSnapshotEnvelope = jest.fn(() => ({ appliedSnapshot: true }));
       mockConfig.readStoredSession.mockReturnValue({
         roomId: 'ABC',
         viewerRole: 'seat',
@@ -1117,7 +1120,9 @@ describe('NetworkSessionLifecycleController', () => {
             roomId: 'ABC',
             stateVersion: 4,
             snapshot: { stateVersion: 4, gameState: { currentPlayer: 1 }, cardState: {} },
-            presentationCursor: { visualSeq: 3, stateVersion: 4 }
+            presentationCursor: { visualSeq: 3, stateVersion: 4 },
+            presentationFrames: [{ visualSeq: 3, stateVersionFrom: 3, stateVersionTo: 4, playbackEvents: [{ type: 'stone_placed' }] }],
+            playbackEvents: [{ type: 'stone_placed' }]
           });
         }
         if (method === 'GET' && path.startsWith('/api/match/presentation-journal')) {
@@ -1129,6 +1134,10 @@ describe('NetworkSessionLifecycleController', () => {
       const result = await controller.restoreStoredSession();
 
       expect(result).toEqual(expect.objectContaining({ ok: true, restored: true }));
+      expect(mockConfig.submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
+        presentationFrames: [], playbackEvents: [],
+        snapshot: expect.objectContaining({ stateVersion: 4 })
+      }));
       expect(mockConfig.requestJson).toHaveBeenCalledTimes(1);
       expect(mockConfig.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
       expect(mockConfig.drainPresentationTimeline).not.toHaveBeenCalled();

@@ -57,7 +57,6 @@ interface InitDomElements {
   modeReversiBtn: HTMLElement | null;
   modeOthelloBtn: HTMLElement | null;
   modeNetworkBtn: HTMLElement | null;
-  ratedMatchOpenBtn: HTMLElement | null;
   controlPanel: HTMLElement | null;
   deckBuilderOpenBtn: HTMLElement | null;
   deckBuilderControlSummary: HTMLElement | null;
@@ -97,22 +96,6 @@ interface InitDomElements {
   networkTimerStatus: HTMLElement | null;
   networkOverlay: HTMLElement | null;
   networkCloseBtn: HTMLElement | null;
-  ratedMatchOverlay: HTMLElement | null;
-  ratedMatchCloseBtn: HTMLElement | null;
-  ratedMatchQueueBtn: HTMLElement | null;
-  ratedMatchCancelBtn: HTMLElement | null;
-  ratedMatchStatus: HTMLElement | null;
-  ratedMatchQueueTimer: HTMLElement | null;
-  ratedMatchDeckOpenBtn: HTMLElement | null;
-  ratedMatchDeckNameText: HTMLElement | null;
-  ratedMatchDeckSummary: HTMLElement | null;
-  ratedMatchLeaderboardBtn: HTMLElement | null;
-  ratedMatchHistoryBtn: HTMLElement | null;
-  ratedMatchHistoryPanel: HTMLElement | null;
-  ratedMatchHistoryStatus: HTMLElement | null;
-  ratedMatchHistoryList: HTMLElement | null;
-  ratedMatchRatingText: HTMLElement | null;
-  ratedMatchIdentityText: HTMLElement | null;
   leaderboardOpenBtn: HTMLElement | null;
   leaderboardOverlay: HTMLElement | null;
   leaderboardPanel: HTMLElement | null;
@@ -371,7 +354,6 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (typeof setupMatchModeControls === 'function') {
     setupMatchModeControls({
       modeCpuBtn: refs.modeCpuBtn, modeReversiBtn: refs.modeReversiBtn || refs.modeOthelloBtn, modeOthelloBtn: refs.modeOthelloBtn, modeNetworkBtn: refs.modeNetworkBtn,
-      ratedMatchOpenBtn: refs.ratedMatchOpenBtn,
       deckBuilderOpenBtn: refs.deckBuilderOpenBtn,
       controlPanel: refs.controlPanel, networkPanel: refs.networkPanel,
       networkAdvancedSettings: refs.networkAdvancedSettings,
@@ -395,20 +377,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       networkJoinBtn: refs.networkJoinBtn, networkLeaveBtn: refs.networkLeaveBtn,
       networkStatus: refs.networkStatusText, networkDeckInfo: refs.networkDeckInfo,
       networkTimerStatus: refs.networkTimerStatus, networkOverlay: refs.networkOverlay,
-      networkCloseBtn: refs.networkCloseBtn, ratedMatchOverlay: refs.ratedMatchOverlay,
-      ratedMatchCloseBtn: refs.ratedMatchCloseBtn, ratedMatchQueueBtn: refs.ratedMatchQueueBtn,
-      ratedMatchCancelBtn: refs.ratedMatchCancelBtn, ratedMatchStatus: refs.ratedMatchStatus,
-      ratedMatchQueueTimer: refs.ratedMatchQueueTimer,
-      ratedMatchDeckOpenBtn: refs.ratedMatchDeckOpenBtn,
-      ratedMatchDeckNameText: refs.ratedMatchDeckNameText,
-      ratedMatchDeckSummary: refs.ratedMatchDeckSummary,
-      ratedMatchLeaderboardBtn: refs.ratedMatchLeaderboardBtn,
-      ratedMatchHistoryBtn: refs.ratedMatchHistoryBtn,
-      ratedMatchHistoryPanel: refs.ratedMatchHistoryPanel,
-      ratedMatchHistoryStatus: refs.ratedMatchHistoryStatus,
-      ratedMatchHistoryList: refs.ratedMatchHistoryList,
-      ratedMatchRatingText: refs.ratedMatchRatingText,
-      ratedMatchIdentityText: refs.ratedMatchIdentityText,
+      networkCloseBtn: refs.networkCloseBtn,
       leaderboardOpenBtn: refs.leaderboardOpenBtn,
       leaderboardOverlay: refs.leaderboardOverlay, leaderboardPanel: refs.leaderboardPanel,
       leaderboardCloseBtn: refs.leaderboardCloseBtn, leaderboardNameInput: refs.leaderboardNameInput,

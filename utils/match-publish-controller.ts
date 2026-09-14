@@ -420,10 +420,6 @@ export function createMatchPublishController(config?: any): any {
     }
     await cfg.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
-    if (typeof cfg.finalizeRatedMatchAfterAcceptedPublish === 'function') {
-      await cfg.finalizeRatedMatchAfterAcceptedPublish(room);
-    }
-
     const presentationFrameEntry = typeof cfg.appendPresentationFrameForAcceptedPublish === 'function'
       ? cfg.appendPresentationFrameForAcceptedPublish(room, {
         previousStateVersion,

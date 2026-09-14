@@ -1,4 +1,5 @@
 import type { NetworkStreamState } from './client-state';
+import { NetworkWebSocketStream } from './websocket-stream';
 'use strict';
 
 const PresentationEnvelopeContract = require('../../shared/network-presentation-envelope');
@@ -77,14 +78,17 @@ function createNetworkStreamSessionController(config?: any): any {
     if (!state.active || !state.roomId) return;
 
     const EventSourceClass = getEventSourceClass();
-    if (typeof EventSourceClass !== 'function') {
+    const WebSocketClass = cfg.webSocketClass || (state.streamTransport === 'websocket' && !cfg.eventSourceClass && typeof window !== 'undefined' ? window.WebSocket : null);
+    if (typeof EventSourceClass !== 'function' && typeof WebSocketClass !== 'function') {
       if (typeof cfg.emitStatus === 'function') {
         cfg.emitStatus('ネット対戦: この環境ではリアルタイム接続に未対応です', true);
       }
       return;
     }
 
-    const es = new EventSourceClass(buildStreamUrl(opts));
+    const es = typeof WebSocketClass === 'function'
+      ? new NetworkWebSocketStream(buildStreamUrl(opts), { WebSocketClass, EventSourceClass })
+      : new EventSourceClass(buildStreamUrl(opts));
     state.eventSource = es;
     const streamSessionEpoch = typeof cfg.getSessionEpoch === 'function'
       ? cfg.getSessionEpoch()
@@ -149,6 +153,10 @@ function createNetworkStreamSessionController(config?: any): any {
     es.addEventListener('presence', handlePresenceEvent);
     es.addEventListener('chat', handleChatEvent);
     es.addEventListener('heartbeat', handleHeartbeatEvent);
+    es.addEventListener('transport-health', makeHandler(guardStreamPayloadHandler(function (payload: any) {
+      // Auto-responses contain only the committed version, no stale server clock or session data.
+      if (typeof cfg.maybeSyncFromHeartbeat === 'function') cfg.maybeSyncFromHeartbeat(payload);
+    })));
     es.onmessage = handleStreamEvent;
 
     es.onopen = function () {

@@ -149,48 +149,6 @@ describe('leaderboard client shortest turns category', () => {
     });
   });
 
-  test('getRatedLeaderboard fetches rated leaderboard from rating endpoint', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        ok: true,
-        updatedAt: 1000,
-        entries: [{
-          rank: 1,
-          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
-          playerName: 'アルファ',
-          avatarStoneType: 'LIGHTNING',
-          bio: 'よろしくお願いします',
-          displayRating: 1662,
-          ratedGames: 1,
-          wins: 1,
-          draws: 0,
-          losses: 0
-        }]
-      })
-    });
-
-    const client = require('../ui/leaderboard-client.js');
-    const result = await client.getRatedLeaderboard(25);
-
-    expect(fetchMock).toHaveBeenCalledWith('/api/rating/leaderboard?pool=card_ranked_v1&limit=25', expect.objectContaining({
-      method: 'GET'
-    }));
-    expect(result).toMatchObject({
-      ok: true,
-      category: 'rated',
-      entries: [{
-        playerName: 'アルファ',
-        displayRating: 1662,
-        ratedGames: 1,
-        wins: 1,
-        draws: 0,
-        losses: 0
-      }]
-    });
-  });
-
   test('submitShortestTurns rejects client-authored CPU results without a request', async () => {
     const client = require('../ui/leaderboard-client.js');
     const result = await client.submitShortestTurns(

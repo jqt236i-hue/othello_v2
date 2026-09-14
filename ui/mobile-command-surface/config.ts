@@ -76,18 +76,6 @@ const MOBILE_COMMANDS = [
     tone: 'azure',
   },
   {
-    kind: 'panel',
-    id: 'rated',
-    label: 'レート戦',
-    panelLabel: 'レート戦',
-    group: 'game',
-    triggerId: 'ratedMatchOpenBtn',
-    panelElementId: 'ratedMatchOverlay',
-    closeButtonId: 'ratedMatchCloseBtn',
-    chrome: { kind: 'existing', headerElementId: 'ratedMatchModalHeader' },
-    tone: 'gold',
-  },
-  {
     kind: 'action',
     id: 'action',
     label: '2Dアクション',

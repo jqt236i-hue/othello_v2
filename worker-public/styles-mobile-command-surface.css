@@ -817,7 +817,6 @@ html.layout-profile-phone-portrait :is(
 html.layout-profile-phone-portrait :is(
     #rules-help-backdrop,
     #networkOverlay,
-    #ratedMatchOverlay,
     #leaderboardOverlay,
     #profileOverlay,
     #gachaOverlay,
@@ -835,7 +834,6 @@ html.layout-profile-phone-portrait :is(
 html.layout-profile-phone-portrait :is(
     #rules-help-panel,
     #networkModal,
-    #ratedMatchModal,
     #leaderboardModal,
     #profileModal,
     #gachaModal,
@@ -867,7 +865,6 @@ html.layout-profile-phone-portrait #rules-help-panel {
 
 html.layout-profile-phone-portrait :is(
     #networkModalBody,
-    #ratedMatchModalBody,
     #leaderboardModalBody,
     #profileModalBody,
     #gachaModalBody,

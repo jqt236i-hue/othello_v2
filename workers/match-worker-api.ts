@@ -5,7 +5,6 @@ const IdentityContract = require('../shared/player-identity-contract');
 type MatchWorkerApiControllerConfig = {
     corsHeaders: Record<string, string>;
     leaderboardRoomId: string;
-    ratingPoolRoomId?: string;
     lobbyRoomId?: string;
     playerIdentityRoomId?: string;
     normalizeRoomId: (value: unknown) => string;
@@ -50,14 +49,6 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         return getRoomStub(env, cfg.leaderboardRoomId);
     }
 
-    function getRatingPoolRoomId() {
-        return String(cfg.ratingPoolRoomId || '__rating_pool_card_ranked_v1__');
-    }
-
-    function getRatingPoolStub(env: MatchWorkerEnv) {
-        return getRoomStub(env, getRatingPoolRoomId());
-    }
-
     function getLobbyStub(env: MatchWorkerEnv) {
         return getRoomStub(env, cfg.lobbyRoomId || '__match_lobby__');
     }
@@ -90,7 +81,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         }
     }
 
-    async function forwardGetToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, sourceUrl: string): Promise<Response> {
+    async function forwardGetToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, sourceUrl: string, sourceHeaders?: Headers): Promise<Response> {
         try {
             const stub = getRoomStub(env, roomId);
             const urlObj = new URL(sourceUrl);
@@ -100,7 +91,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             }
             target.searchParams.set('roomId', roomId);
 
-            const req = new Request(target.toString(), { method: 'GET' });
+            const req = new Request(target.toString(), { method: 'GET', headers: sourceHeaders });
             const response = await stub.fetch(req);
             return cfg.withCORS(response);
         } catch (error) {
@@ -227,47 +218,6 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         }
     }
 
-    async function forwardJsonToRatingPool(env: MatchWorkerEnv, pathname: string, payload: unknown): Promise<Response> {
-        try {
-            const stub = getRatingPoolStub(env);
-            const req = new Request(`https://room${pathname}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload || {})
-            });
-            const response = await stub.fetch(req);
-            return cfg.withCORS(response);
-        } catch (error) {
-            return cfg.jsonResponse(500, {
-                ok: false,
-                reason: 'RATING_FORWARD_FAILED',
-                message: errorMessage(error),
-                pathname
-            });
-        }
-    }
-
-    async function forwardGetToRatingPool(env: MatchWorkerEnv, pathname: string, sourceUrl: string): Promise<Response> {
-        try {
-            const stub = getRatingPoolStub(env);
-            const urlObj = new URL(sourceUrl);
-            const target = new URL(`https://room${pathname}`);
-            for (const [key, value] of urlObj.searchParams.entries()) {
-                target.searchParams.set(key, value);
-            }
-            const req = new Request(target.toString(), { method: 'GET' });
-            const response = await stub.fetch(req);
-            return cfg.withCORS(response);
-        } catch (error) {
-            return cfg.jsonResponse(500, {
-                ok: false,
-                reason: 'RATING_FORWARD_FAILED',
-                message: errorMessage(error),
-                pathname
-            });
-        }
-    }
-
     async function forwardGetToLobby(env: MatchWorkerEnv, pathname: string, sourceUrl: string): Promise<Response> {
         try {
             const stub = getLobbyStub(env);
@@ -277,26 +227,6 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
                 target.searchParams.set(key, value);
             }
             const req = new Request(target.toString(), { method: 'GET' });
-            const response = await stub.fetch(req);
-            return cfg.withCORS(response);
-        } catch (error) {
-            return cfg.jsonResponse(500, {
-                ok: false,
-                reason: 'LOBBY_FORWARD_FAILED',
-                message: errorMessage(error),
-                pathname
-            });
-        }
-    }
-
-    async function forwardJsonToLobby(env: MatchWorkerEnv, pathname: string, payload: unknown): Promise<Response> {
-        try {
-            const stub = getLobbyStub(env);
-            const req = new Request(`https://room${pathname}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload || {})
-            });
             const response = await stub.fetch(req);
             return cfg.withCORS(response);
         } catch (error) {
@@ -376,8 +306,6 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             delete profilePayload.recoveryCode;
             const leaderboardResponse = await forwardJsonToLeaderboard(env, '/api/leaderboard/profile', profilePayload);
             if (!leaderboardResponse.ok) return leaderboardResponse;
-            const ratingResponse = await forwardJsonToRatingPool(env, '/api/rating/profile', profilePayload);
-            if (!ratingResponse.ok) return ratingResponse;
             return cfg.jsonResponse(200, { ok: true, playerId: verified.playerId });
         }
 
@@ -401,25 +329,6 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             }
         }
 
-        if (request.method === 'POST' && (
-            pathname === '/api/match/rated/queue'
-            || pathname === '/api/match/rated/poll'
-            || pathname === '/api/match/rated/cancel'
-        )) {
-            const parsed = await parsePostBody(request);
-            if (!parsed.ok) return parsed.response;
-            const body = parsed.body || {};
-            const verified = await verifyPlayerIdentityForPublicApi(env, body);
-            if (!verified.ok) return verified.response;
-            if (!verified.playerId) {
-                return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
-            }
-            body.playerId = verified.playerId;
-            delete body.playerToken;
-            delete body.recoveryCode;
-            return forwardJsonToLobby(env, pathname, body);
-        }
-
         if (request.method === 'GET' && pathname === '/api/match/list') {
             return forwardGetToLobby(env, pathname, request.url);
         }
@@ -433,7 +342,6 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             || pathname === '/api/match/chat'
             || pathname === '/api/match/hand-skin'
             || pathname === '/api/match/deck'
-            || pathname === '/api/match/resign'
             || pathname === '/api/match/rematch-request'
             || pathname === '/api/match/rematch-response'
         )) {
@@ -466,7 +374,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             if (!roomId) {
                 return cfg.jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
             }
-            return forwardGetToRoom(env, roomId, pathname, request.url);
+            return forwardGetToRoom(env, roomId, pathname, request.url, request.headers);
         }
 
         return cfg.jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
@@ -497,52 +405,18 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         return cfg.jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     }
 
-    async function handleRatingApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
-        const urlObj = new URL(request.url);
-        const pathname = urlObj.pathname;
-
-        if (request.method === 'OPTIONS') {
-            return new Response(null, { status: 204, headers: corsHeaders });
-        }
-
-        if (request.method === 'GET' && (
-            pathname === '/api/rating/me'
-            || pathname === '/api/rating/leaderboard'
-            || pathname === '/api/rating/history'
-        )) {
-            return forwardGetToRatingPool(env, pathname, request.url);
-        }
-
-        if (request.method === 'POST' && (
-            pathname === '/internal/rating/finalize'
-            || pathname === '/internal/rating/active/claim'
-            || pathname === '/internal/rating/active/release'
-        )) {
-            const parsed = await parsePostBody(request);
-            if (!parsed.ok) return parsed.response;
-            return forwardJsonToRatingPool(env, pathname, parsed.body || {});
-        }
-
-        return cfg.jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
-    }
-
     return {
         getRoomStub,
         getLeaderboardStub,
-        getRatingPoolStub,
         forwardJsonToRoom,
         forwardGetToRoom,
         forwardJsonToLeaderboard,
         forwardGetToLeaderboard,
         forwardVerifiedLeaderboardSubmit,
-        forwardJsonToRatingPool,
-        forwardGetToRatingPool,
-        forwardJsonToLobby,
         forwardGetToLobby,
         parsePostBody,
         verifyPlayerIdentityForPublicApi,
         handleMatchApi,
         handleLeaderboardApi,
-        handleRatingApi
     };
 }

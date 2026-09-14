@@ -79,7 +79,7 @@ export function createMatchStateController(config?: any): any {
       actionType: recoveredMeta.actionType ? String(recoveredMeta.actionType) : null,
       serverTime
     });
-    return cfg.jsonResponse(200, cfg.decorateStatePayload(payload, room));
+    return cfg.jsonResponse(200, payload);
   }
 
   async function handlePresentationJournal(urlObj: any): Promise<any> {

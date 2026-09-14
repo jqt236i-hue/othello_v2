@@ -10,7 +10,6 @@ import type {
     MatchAuthorityViewer
 } from '../utils/match-authority-types';
 import type { MatchRoomDeckMetadata } from '../utils/match-room-deck';
-import type { PlayerRating, RatingMatchRecord, RatedPool, RatingPublicProfile } from '../shared/rating-contract';
 
 export interface MatchWorkerEnv {
     MATCH_ROOM?: DurableObjectNamespaceLike;
@@ -37,6 +36,17 @@ export interface DurableObjectStorageLike {
 
 export interface DurableObjectStateLike {
     storage: DurableObjectStorageLike;
+    acceptWebSocket?(socket: MatchWorkerWebSocket): void;
+    getWebSockets?(): MatchWorkerWebSocket[];
+    setWebSocketAutoResponse?(pair: unknown): void;
+}
+
+export interface MatchWorkerWebSocket {
+    readyState: number;
+    send(data: string): void;
+    close(code?: number, reason?: string): void;
+    serializeAttachment(value: unknown): void;
+    deserializeAttachment(): unknown;
 }
 
 export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
@@ -48,9 +58,11 @@ export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
 }
 
 export interface MatchWorkerSseStreamInfo {
-    writer: WritableStreamDefaultWriter<Uint8Array>;
+    writer: Pick<WritableStreamDefaultWriter<Uint8Array>, 'write' | 'close' | 'releaseLock'>;
     viewer: MatchAuthorityViewer;
     presentationEnvelopeVersion: 2 | 3 | null;
+    webSocket?: MatchWorkerWebSocket;
+    credentials?: Record<string, unknown>;
 }
 
 export interface MatchWorkerPublicSeatState {
@@ -111,25 +123,6 @@ export interface MatchWorkerLeaderboardEntry {
     updatedAt: number;
     submittedAt: number;
     recordSource?: MatchWorkerLeaderboardRecordSource;
-}
-
-export interface MatchWorkerRatingStore {
-    version: number;
-    pool: RatedPool;
-    players: Record<string, PlayerRating>;
-    publicProfiles: Record<string, RatingPublicProfile>;
-    matches: Record<string, RatingMatchRecord>;
-    activeMatches: Record<string, MatchWorkerActiveRatedMatch>;
-    updatedAt: string;
-}
-
-export interface MatchWorkerActiveRatedMatch {
-    matchId: string;
-    pool: RatedPool;
-    roomId: string;
-    playerIds: string[];
-    publicProfiles?: Record<string, RatingPublicProfile>;
-    startedAt: string;
 }
 
 export interface MatchWorkerRuntimeModule {

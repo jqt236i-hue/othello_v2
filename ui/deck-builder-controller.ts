@@ -1349,26 +1349,8 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         }
 
         function close() {
-            const returnToRatedMatch = rootRef && rootRef.__returnToRatedMatchAfterDeckBuilder === true;
-            if (returnToRatedMatch) {
-                try { rootRef.__returnToRatedMatchAfterDeckBuilder = false; } catch (e) { /* ignore */ }
-            }
             state.overlayOpen = false;
             render();
-            if (returnToRatedMatch) {
-                try {
-                    const ratedOpenBtn = rootRef.document && rootRef.document.getElementById('ratedMatchOpenBtn');
-                    if (ratedOpenBtn && typeof ratedOpenBtn.click === 'function') {
-                        ratedOpenBtn.click();
-                    }
-                } catch (e) { /* ignore missing rated match UI */ }
-            } else {
-                try {
-                    if (refs.openBtn && typeof refs.openBtn.focus === 'function') {
-                        refs.openBtn.focus();
-                    }
-                } catch (e) { /* focus return is best-effort */ }
-            }
         }
 
         function useStandardDeck() {

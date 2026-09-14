@@ -614,9 +614,15 @@ Current clients advertise V3; explicit V2 and legacy requests retain their prior
 
 V2/V3 may remove top-level `playbackEvents` only when the envelope contains a non-empty, wholly valid ordered frame list. It may replace a frame's duplicate `snapshotAfter` only with an `envelope-snapshot` reference to the exact envelope snapshot when room, viewer projection, `stateVersionTo`, and `projectedSnapshotHash` all agree. Historical or nonmatching frames remain full. Before normal intake, the client resolver reconstructs the legacy full frame shape and rejects unknown versions, duplicate full-and-reference fields, malformed references, projection/hash/version/room mismatches, or references used without V2/V3. Compaction and reconstruction must not change `visualSeq`, playback ordering, settlement, authority identity, or idempotency semantics.
 
-### 8.4 SSE and liveness
+### 8.4 Stream transport and liveness
 
-SSE, reconnect, and heartbeat behavior are part of the authority / projection contract, not just transport details.
+Cloudflare advertises `X-Match-Stream-Transport: websocket` on JSON responses. Clients then prefer WebSocket Hibernation on the existing authenticated /api/match/stream route. The existing SSE event envelope, viewer projection, presentation capability, replay cursor, and intake guards are shared across transports. Servers without the capability header use SSE directly; an unsuccessful initial WebSocket connection also falls back to SSE.
+
+WebSocket attachments contain the stream identity, viewer credentials, and presentation capability only. Constructors restore connections with getWebSockets; loadRoom revalidates credentials before broadcasting. Room state/history remain persisted independently; socket attachments never become game authority. Closing the final restored connection runs the existing inactive-room lifecycle. Handlers keep the existing turn-deadline and room-expiry alarms, with no recurring server timer for WebSocket-only rooms.
+
+The client sends a liveness ping every 10 seconds. Cloudflare auto-responds without waking the object, using only the committed stateVersion; saveRoom updates this response after persistence succeeds. Health packets do not set the server clock, change session state, or advance replay cursors. A higher version uses the existing single-flight state recovery. SSE heartbeats retain their public session/timer payload but do not write storage or consume replay history. Unbuffered initial snapshots/chat history also have no event id, preventing id reuse after hibernation.
+
+Stored-session restoration explicitly supplies empty replay arrays to intake normalization before rebasing the visual cursor. Clearing only applyOptions is insufficient because the intake envelope independently reads buffered frames from the state response. Live continuity recovery continues to use its normal replay path.
 
 Changes here must be treated as contract changes because they affect canonical state delivery and replay ordering.
 
@@ -843,7 +849,7 @@ The following are known structural risks and should be treated as debt, not as d
 
 The Worker/local command-execution cluster is no longer part of this debt: canonical prepare/apply/pending validation/presentation/turn-start/finalization is shared by `utils/match-command-runtime.ts`. Normalized room-deck metadata construction, selection patching, initial-option projection, and supported public projection are likewise shared by `utils/match-room-deck.ts`. Runtime-specific deck decode and raw compatibility adapters remain intentionally separate. This does not claim that duplicated network constants, route handling, room lifecycle, payload decoration, or other runtime module-resolution patterns have been unified.
 
-Publish-response assembly is shared by `utils/match-publish-payload.ts`. The already initialized authority module, projection, and rated metadata decoration remain injected ports; importing the builder must not initialize authority ahead of Worker catalog preload. The local server decorates acknowledgements while the Worker keeps them minimal; the explicit `decorateAcknowledgement` port preserves that existing wire difference.
+Publish-response assembly is shared by `utils/match-publish-payload.ts`. The already initialized authority module and projection remain injected ports; importing the builder must not initialize authority ahead of Worker catalog preload. Worker and local server use the same acknowledgement shape.
 
 These debts should be reduced over time, but they are not automatically public extension points.
 

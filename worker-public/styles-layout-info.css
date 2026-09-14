@@ -1999,7 +1999,7 @@
 }
 
 /* Shared premium panels opened from the left command rail */
-:is(#networkOverlay, #ratedMatchOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay) {
+:is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay) {
     display: flex;
     opacity: 0;
     visibility: hidden;
@@ -2007,26 +2007,26 @@
     transition: opacity 180ms ease, visibility 0s linear 180ms;
 }
 
-:is(#networkOverlay, #ratedMatchOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open {
+:is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
     transition-delay: 0s;
 }
 
-:is(#networkModal, #ratedMatchModal, #leaderboardModal, #gachaModal, #deckBuilderModal) {
+:is(#networkModal, #leaderboardModal, #gachaModal, #deckBuilderModal) {
     opacity: 0;
     transform: translateY(calc(8px * var(--layout-stage-scale))) scale(0.985);
     transition: opacity 180ms ease, transform 180ms ease;
 }
 
-:is(#networkOverlay, #ratedMatchOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open
-    :is(#networkModal, #ratedMatchModal, #leaderboardModal, #gachaModal, #deckBuilderModal) {
+:is(#networkOverlay, #leaderboardOverlay, #gachaOverlay, #deckBuilderOverlay).is-open
+    :is(#networkModal, #leaderboardModal, #gachaModal, #deckBuilderModal) {
     opacity: 1;
     transform: translateY(0) scale(1);
 }
 
-:is(#networkModal, #ratedMatchModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel) {
+:is(#networkModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel) {
     --rail-panel-accent: #53d6d1;
     --rail-panel-gold: #f2c95f;
     --rail-panel-cyan: #7ed7ff;
@@ -2054,11 +2054,11 @@
     -webkit-backdrop-filter: blur(calc(9px * var(--layout-stage-scale)));
 }
 
-:is(#networkModal, #ratedMatchModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #control-panel) {
+:is(#networkModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #control-panel) {
     position: relative;
 }
 
-:is(#ratedMatchModal, #leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel)::before {
+:is(#leaderboardModal, #gachaModal, #deckBuilderModal, #handSkinPanel, #rules-help-panel, #control-panel)::before {
     content: "";
     position: absolute;
     left: calc(14px * var(--layout-stage-scale));
@@ -2071,7 +2071,7 @@
     z-index: 1;
 }
 
-:is(#networkModalHeader, #ratedMatchModalHeader, #leaderboardModalHeader, #gachaModalHeader, #deckBuilderModalHeader, #handSkinPanelHeader, #rules-help-title-row) {
+:is(#networkModalHeader, #leaderboardModalHeader, #gachaModalHeader, #deckBuilderModalHeader, #handSkinPanelHeader, #rules-help-title-row) {
     position: relative;
     align-items: center;
     padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
@@ -2081,7 +2081,7 @@
         rgba(0, 10, 13, 0.28);
 }
 
-:is(.network-title, .rated-match-title, .leaderboard-title, .gacha-title, .deck-builder-title, #handSkinPanelTitle, #rules-help-title) {
+:is(.network-title, .leaderboard-title, .gacha-title, .deck-builder-title, #handSkinPanelTitle, #rules-help-title) {
     color: #dffffb;
     font-size: calc(14px * var(--layout-stage-scale));
     font-weight: 900;
@@ -2092,7 +2092,7 @@
         0 0 calc(10px * var(--layout-stage-scale)) rgba(83, 214, 209, 0.22);
 }
 
-:is(#networkCloseBtn, #ratedMatchCloseBtn, #leaderboardCloseBtn, #gachaCloseBtn, #deckBuilderCloseBtn, #handSkinCloseBtn, #rules-help-close-btn) {
+:is(#networkCloseBtn, #leaderboardCloseBtn, #gachaCloseBtn, #deckBuilderCloseBtn, #handSkinCloseBtn, #rules-help-close-btn) {
     width: calc(28px * var(--layout-stage-scale));
     min-width: calc(28px * var(--layout-stage-scale));
     height: calc(28px * var(--layout-stage-scale));
@@ -2111,29 +2111,29 @@
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.12);
 }
 
-:is(#networkCloseBtn, #ratedMatchCloseBtn, #leaderboardCloseBtn, #gachaCloseBtn, #deckBuilderCloseBtn, #handSkinCloseBtn, #rules-help-close-btn):hover {
+:is(#networkCloseBtn, #leaderboardCloseBtn, #gachaCloseBtn, #deckBuilderCloseBtn, #handSkinCloseBtn, #rules-help-close-btn):hover {
     border-color: rgba(126, 239, 234, 0.78);
     filter: brightness(1.08);
 }
 
-:is(#networkModalBody, #ratedMatchModalBody, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody) {
+:is(#networkModalBody, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody) {
     padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages) {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages) {
     scrollbar-width: thin;
     scrollbar-color: rgba(83, 214, 209, 0.48) rgba(0, 0, 0, 0.22);
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar {
     width: calc(8px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.18);
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
     border-radius: calc(999px * var(--layout-stage-scale));
     background: linear-gradient(180deg, rgba(83, 214, 209, 0.66), rgba(126, 215, 255, 0.32));
 }
@@ -2148,7 +2148,7 @@
         inset 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.54);
 }
 
-:is(#networkCreateBtn, #networkJoinBtn, .network-room-entry-join, #networkLeaveBtn, #networkCopyRoomBtn, #ratedMatchQueueBtn, #ratedMatchCancelBtn, #leaderboardReloadBtn, #gachaDetailToggleBtn, #gachaSinglePullBtn, #gachaTenPullBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #debugModeBtn, #bgmPlayBtn, #bgmPauseBtn):not(.quick-control-btn) {
+:is(#networkCreateBtn, #networkJoinBtn, .network-room-entry-join, #networkLeaveBtn, #networkCopyRoomBtn, #leaderboardReloadBtn, #gachaDetailToggleBtn, #gachaSinglePullBtn, #gachaTenPullBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #debugModeBtn, #bgmPlayBtn, #bgmPauseBtn):not(.quick-control-btn) {
     border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.38);
     border-radius: calc(5px * var(--layout-stage-scale));
     background:
@@ -2161,15 +2161,14 @@
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(83, 214, 209, 0.30);
 }
 
-:is(#networkCreateBtn, #ratedMatchQueueBtn, #gachaTenPullBtn) {
+:is(#networkCreateBtn, #gachaTenPullBtn) {
     border-color: rgba(126, 215, 255, 0.46);
     background:
         linear-gradient(180deg, rgba(126, 215, 255, 0.20), rgba(255, 255, 255, 0) 48%),
         linear-gradient(180deg, rgba(30, 45, 50, 0.98), rgba(14, 18, 20, 0.98));
 }
 
-#networkCreateBtn,
-#ratedMatchQueueBtn {
+#networkCreateBtn {
     color: #e9f8ff;
     border-color: rgba(126, 215, 255, 0.62);
     box-shadow:

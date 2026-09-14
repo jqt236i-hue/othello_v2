@@ -512,7 +512,7 @@ function runRematchPresenceBufferScenario() {
 }
 
 describe('match worker stream SSE', () => {
-  test('初回snapshotイベントにSSE event idを付与する', () => {
+  test('未保存の初回snapshotには再利用されうるSSE event idを付与しない', () => {
     const result = runStreamScenario();
 
     expect(result.status).toBe(200);
@@ -520,7 +520,7 @@ describe('match worker stream SSE', () => {
     expect(result.createRoomDeck).not.toHaveProperty('deckCode');
     expect(typeof result.firstChunk).toBe('string');
     expect(result.firstChunk).toContain('event: snapshot');
-    expect(result.firstChunk).toContain('id: ');
+    expect(result.firstChunk).not.toMatch(/^id: /m);
     expect(result.firstChunk).toContain('data: ');
     expect(result.firstChunk).toContain('"networkDebugEnabled":false');
     expect(result.firstChunk).toContain('"roomDeck":{"mode":"shared"');

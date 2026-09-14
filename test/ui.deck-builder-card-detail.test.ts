@@ -7,7 +7,6 @@ describe('deck builder card detail button', () => {
     jest.resetModules();
     dom = new JSDOM(`<!doctype html><html><body>
       <button id="openBtn" type="button"></button>
-      <button id="ratedMatchOpenBtn" type="button"></button>
       <div id="summary"></div>
       <div id="overlay"></div>
       <button id="closeBtn" type="button"></button>
@@ -107,20 +106,6 @@ describe('deck builder card detail button', () => {
     closeButton.click();
 
     expect(body.querySelector('.deck-builder-card-detail-popup')).toBeFalsy();
-  });
-
-  test('レート戦から開いたデッキ構築は閉じるとレート戦へ戻る', () => {
-    const controller = createController();
-    const ratedOpenHandler = jest.fn();
-    document.getElementById('ratedMatchOpenBtn')?.addEventListener('click', ratedOpenHandler);
-
-    (window as any).__returnToRatedMatchAfterDeckBuilder = true;
-    controller.open();
-
-    document.getElementById('closeBtn')?.click();
-
-    expect(ratedOpenHandler).toHaveBeenCalledTimes(1);
-    expect((window as any).__returnToRatedMatchAfterDeckBuilder).toBe(false);
   });
 
   test('候補カードの詳細ポップアップは専門用語と固有名詞を共通ハイライトで表示する', () => {

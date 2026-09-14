@@ -30,7 +30,6 @@ describe('browser UI control smoke evaluation', () => {
     expect(byName.gacha.touchSelector).toBe('#mobile-command-menu-gacha');
     expect(byName.leaderboard.touchSelector).toBe('#mobile-command-menu-ranking');
     expect(byName.network.touchSelector).toBe('#mobile-command-menu-network');
-    expect(byName.ratedMatch.touchSelector).toBe('#mobile-command-menu-rated');
     expect(byName.debug.touchSelector).toBeUndefined();
   });
 

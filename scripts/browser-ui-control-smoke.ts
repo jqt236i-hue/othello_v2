@@ -135,13 +135,6 @@ const REQUIRED_UI_CONTROL_SMOKE_TARGETS: UiControlSmokeTarget[] = [
     touchSelector: '#mobile-command-menu-network',
     panelSelector: '#networkOverlay',
     closeSelector: '#networkCloseBtn'
-  },
-  {
-    name: 'ratedMatch',
-    selector: '#ratedMatchOpenBtn',
-    touchSelector: '#mobile-command-menu-rated',
-    panelSelector: '#ratedMatchOverlay',
-    closeSelector: '#ratedMatchCloseBtn'
   }
 ];
 

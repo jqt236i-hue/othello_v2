@@ -46,7 +46,7 @@ describe('observation gacha typography CSS', () => {
     expect(css).not.toMatch(/url\(["']assets\/images\/other\/(?:gacha-observation-bg-v1|gacha-reference-banner|gacha-crystal-cluster-v1|network-lobby-frame-v1)\.png["']\)/);
     expect(`${controlsCss}\n${css}`).not.toContain('assets/images/other/leaderboard-');
     expect(controlsCss).not.toMatch(/var\(--rated-asset-[a-z-]+\)/);
-    expect(controlsCss).toContain('var(--rated-asset-panel, none)');
+    expect(controlsCss).not.toContain('var(--rated-asset-panel, none)');
     expect(css).toContain('var(--gacha-observation-background-image, none)');
     expect(networkCss).toContain('var(--network-lobby-frame-image, none)');
     expect(gachaCss).toContain('gacha-observation-bg-v1.png');

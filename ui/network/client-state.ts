@@ -30,7 +30,6 @@ export function createNetworkClientState(options: NetworkClientStateOptions) {
         seatHandSkins: { black: '', white: '' },
         roomDeck: null,
         roomBoardConfig: null,
-        ratedMatch: null as any,
         networkDebugEnabled: false,
         networkAutoEnabled: false,
         statusWriter: null as any,
@@ -53,6 +52,7 @@ export function createNetworkClientState(options: NetworkClientStateOptions) {
     };
     const connection = {
         serverUrl: options.serverUrl,
+        streamTransport: 'sse',
         eventSource: null as any,
         lastStreamActivityAt: 0,
         lastStreamEventId: '',
@@ -115,7 +115,7 @@ export function createNetworkClientState(options: NetworkClientStateOptions) {
         });
     }
     const reconnection = stateView(state, ["serverUrl","eventSource","lastStreamActivityAt","lastStreamEventId","streamWatchdogTimerId","reconnectTimerId","reconnectAttempt","heartbeatResyncInFlight","reconnectRecoveryTimerId","reconnectRecoveryPending","networkRecoverySyncInFlight","stateVersion"] as const);
-    const stream = stateView(state, ['active', 'serverUrl', 'roomId', 'viewerRole', 'spectatorId', 'spectatorToken', 'seatKey', 'seatToken', 'eventSource', 'lastStreamEventId', 'reconnectAttempt'] as const);
+    const stream = stateView(state, ['active', 'serverUrl', 'streamTransport', 'roomId', 'viewerRole', 'spectatorId', 'spectatorToken', 'seatKey', 'seatToken', 'eventSource', 'lastStreamEventId', 'reconnectAttempt'] as const);
     return { state, session, connection, publishing, authority, presentation, diagnostics, reconnection, stream };
 }
 

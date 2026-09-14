@@ -104,13 +104,6 @@ const MatchModeNetworkButtonsModule = (() => {
         return null;
     }
 })();
-const MatchModeRatedMatchModule = (() => {
-    try {
-        return _require('./match-mode/rated-match');
-    } catch (e) {
-        return null;
-    }
-})();
 
 const MODE_CPU = 'cpu';
 const MODE_REVERSI = 'reversi';
@@ -139,7 +132,6 @@ const MODE_OTHELLO = 'othello';
         modeCpuBtn: null,
         modeReversiBtn: null,
         modeNetworkBtn: null,
-        ratedMatchOpenBtn: null,
         controlPanel: null,
         deckBuilderOpenBtn: null,
         networkPanel: null,
@@ -172,22 +164,6 @@ const MODE_OTHELLO = 'othello';
         networkTimerStatus: null,
         networkOverlay: null,
         networkCloseBtn: null,
-        ratedMatchOverlay: null,
-        ratedMatchCloseBtn: null,
-        ratedMatchQueueBtn: null,
-        ratedMatchCancelBtn: null,
-        ratedMatchStatus: null,
-        ratedMatchQueueTimer: null,
-        ratedMatchDeckOpenBtn: null,
-        ratedMatchDeckNameText: null,
-        ratedMatchDeckSummary: null,
-        ratedMatchLeaderboardBtn: null,
-        ratedMatchHistoryBtn: null,
-        ratedMatchHistoryPanel: null,
-        ratedMatchHistoryStatus: null,
-        ratedMatchHistoryList: null,
-        ratedMatchRatingText: null,
-        ratedMatchIdentityText: null,
         leaderboardOpenBtn: null,
         leaderboardOverlay: null,
         leaderboardPanel: null,
@@ -1313,7 +1289,6 @@ const MODE_OTHELLO = 'othello';
         if (!open) {
             setNetworkRoomSettingsPopupVisible(false);
         } else {
-            setRatedMatchOverlayVisible(false);
         }
         uiRefs.networkOverlay.classList.toggle('is-open', open);
         uiRefs.networkOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
@@ -1356,7 +1331,6 @@ const MODE_OTHELLO = 'othello';
             getSharedPlayerName,
             setNetworkOverlayVisible,
             isNetworkOverlayOpen,
-            openRatedMatchOverlay: () => setRatedMatchOverlayVisible(true)
         };
     }
 
@@ -1376,24 +1350,10 @@ const MODE_OTHELLO = 'othello';
 
     function setLeaderboardOverlayVisible(visible: any) {
         if (visible === true) {
-            setRatedMatchOverlayVisible(false);
         }
         const controller = getLeaderboardController();
         if (controller && typeof controller.setOverlayVisible === 'function') {
             controller.setOverlayVisible(visible);
-        }
-    }
-
-    function openRatedLeaderboard() {
-        setRatedMatchOverlayVisible(false);
-        const controller = getLeaderboardController();
-        if (controller && typeof controller.openLeaderboard === 'function') {
-            controller.openLeaderboard({ category: 'rated' });
-            return;
-        }
-        setLeaderboardOverlayVisible(true);
-        if (controller && typeof controller.refreshPanel === 'function') {
-            controller.refreshPanel({ force: true });
         }
     }
 
@@ -1401,70 +1361,6 @@ const MODE_OTHELLO = 'othello';
         const controller = getLeaderboardController();
         if (controller && typeof controller.bindControls === 'function') {
             controller.bindControls();
-        }
-    }
-
-    let ratedMatchController: any = null;
-
-    function createRatedMatchControllerContext() {
-        return {
-            root,
-            uiRefs,
-            MODE_NETWORK,
-            DEFAULT_PLAYER_NAME,
-            setMode,
-            setNetworkOverlayVisible,
-            setLeaderboardOverlayVisible,
-            ensureLeaderboardStylesheet: () => {
-                if (FeatureStylesheetLoader && typeof FeatureStylesheetLoader.ensureFeatureStylesheet === 'function') {
-                    return FeatureStylesheetLoader.ensureFeatureStylesheet('leaderboard', typeof document !== 'undefined' ? document : null);
-                }
-                return Promise.resolve({ ok: false, group: 'leaderboard', href: '', warning: 'stylesheet loader unavailable' });
-            },
-            openRatedLeaderboard,
-            disableAutoModeForHumanPlay,
-            refreshNetworkAutoModeAccess,
-            readActiveLocalDeckSelection,
-            notifyInvalidCustomDeckFallback,
-            normalizePlayerName,
-            getSharedPlayerName
-        };
-    }
-
-    function getRatedMatchController() {
-        if (!ratedMatchController
-            && MatchModeRatedMatchModule
-            && typeof MatchModeRatedMatchModule.createRatedMatchController === 'function') {
-            ratedMatchController = MatchModeRatedMatchModule.createRatedMatchController(createRatedMatchControllerContext());
-        }
-        return ratedMatchController;
-    }
-
-    function setRatedMatchOverlayVisible(visible: any) {
-        const controller = getRatedMatchController();
-        if (controller && typeof controller.setOverlayVisible === 'function') {
-            controller.setOverlayVisible(visible);
-        }
-    }
-
-    function cancelRatedMatchQueue(options?: any) {
-        const controller = getRatedMatchController();
-        if (controller && typeof controller.cancelQueue === 'function') {
-            controller.cancelQueue(options || {});
-        }
-    }
-
-    function bindRatedMatchControls() {
-        const controller = getRatedMatchController();
-        if (controller && typeof controller.bindControls === 'function') {
-            controller.bindControls();
-        }
-    }
-
-    function refreshRatedMatchButtonState() {
-        const controller = getRatedMatchController();
-        if (controller && typeof controller.refreshButtonState === 'function') {
-            controller.refreshButtonState();
         }
     }
 
@@ -1737,7 +1633,6 @@ const MODE_OTHELLO = 'othello';
         if (uiRefs.modeCpuBtn) uiRefs.modeCpuBtn.style.outline = cpuActive ? '2px solid #90ee90' : '';
         if (uiRefs.modeReversiBtn) uiRefs.modeReversiBtn.style.outline = reversiActive ? '2px solid #90ee90' : '';
         if (uiRefs.modeNetworkBtn) uiRefs.modeNetworkBtn.style.outline = networkActive ? '2px solid #90ee90' : '';
-        refreshRatedMatchButtonState();
 
         if (uiRefs.networkPanel) {
             uiRefs.networkPanel.style.display = networkActive ? 'block' : 'none';
@@ -1990,7 +1885,6 @@ const MODE_OTHELLO = 'othello';
         uiRefs.modeCpuBtn = opts.modeCpuBtn || null;
         uiRefs.modeReversiBtn = opts.modeReversiBtn || opts.modeOthelloBtn || null;
         uiRefs.modeNetworkBtn = opts.modeNetworkBtn || null;
-        uiRefs.ratedMatchOpenBtn = opts.ratedMatchOpenBtn || null;
         uiRefs.controlPanel = opts.controlPanel || null;
         uiRefs.deckBuilderOpenBtn = opts.deckBuilderOpenBtn || null;
         uiRefs.networkPanel = opts.networkPanel || null;
@@ -2020,22 +1914,6 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkTimerStatus = opts.networkTimerStatus || null;
         uiRefs.networkOverlay = opts.networkOverlay || null;
         uiRefs.networkCloseBtn = opts.networkCloseBtn || null;
-        uiRefs.ratedMatchOverlay = opts.ratedMatchOverlay || null;
-        uiRefs.ratedMatchCloseBtn = opts.ratedMatchCloseBtn || null;
-        uiRefs.ratedMatchQueueBtn = opts.ratedMatchQueueBtn || null;
-        uiRefs.ratedMatchCancelBtn = opts.ratedMatchCancelBtn || null;
-        uiRefs.ratedMatchStatus = opts.ratedMatchStatus || null;
-        uiRefs.ratedMatchQueueTimer = opts.ratedMatchQueueTimer || null;
-        uiRefs.ratedMatchDeckOpenBtn = opts.ratedMatchDeckOpenBtn || null;
-        uiRefs.ratedMatchDeckNameText = opts.ratedMatchDeckNameText || null;
-        uiRefs.ratedMatchDeckSummary = opts.ratedMatchDeckSummary || null;
-        uiRefs.ratedMatchLeaderboardBtn = opts.ratedMatchLeaderboardBtn || null;
-        uiRefs.ratedMatchHistoryBtn = opts.ratedMatchHistoryBtn || null;
-        uiRefs.ratedMatchHistoryPanel = opts.ratedMatchHistoryPanel || null;
-        uiRefs.ratedMatchHistoryStatus = opts.ratedMatchHistoryStatus || null;
-        uiRefs.ratedMatchHistoryList = opts.ratedMatchHistoryList || null;
-        uiRefs.ratedMatchRatingText = opts.ratedMatchRatingText || null;
-        uiRefs.ratedMatchIdentityText = opts.ratedMatchIdentityText || null;
         uiRefs.leaderboardOpenBtn = opts.leaderboardOpenBtn || null;
         uiRefs.leaderboardOverlay = opts.leaderboardOverlay || null;
         uiRefs.leaderboardPanel = opts.leaderboardPanel || null;
@@ -2093,7 +1971,6 @@ const MODE_OTHELLO = 'othello';
                     }
                 });
             }
-            bindRatedMatchControls();
             bindLeaderboardControls();
             bindControlPanelLayoutObservers();
             matchModeControlsBound = true;

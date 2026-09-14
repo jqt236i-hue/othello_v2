@@ -62,7 +62,7 @@ const PENDING_SELECTION_CONTRACT_DEFINITIONS: Record<string, PendingSelectionDef
 function buildPendingSelectionContracts(definitions: Record<string, PendingSelectionDefinition>): Record<string, PendingSelectionContract> {
     const contracts: Record<string, PendingSelectionContract> = {};
     Object.keys(definitions).forEach((cardType) => {
-        const definition = definitions[cardType] || {};
+        const definition = definitions[cardType] || ({} as PendingSelectionDefinition);
         contracts[cardType] = Object.freeze({
             kind: definition.kind,
             turnOutcome: definition.turnOutcome,

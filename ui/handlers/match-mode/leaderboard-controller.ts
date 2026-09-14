@@ -80,9 +80,8 @@ function createLeaderboardController(context: any) {
         normalizePlayerName,
         getSharedPlayerName,
         setNetworkOverlayVisible,
-        isNetworkOverlayOpen,
-        openRatedMatchOverlay
-    } = context;
+        isNetworkOverlayOpen
+} = context;
 
     const SHARED_LEADERBOARD_PANEL_LIMIT = 100;
     const LEADERBOARD_PODIUM_ENTRY_COUNT = 3;
@@ -93,7 +92,6 @@ function createLeaderboardController(context: any) {
     const LEADERBOARD_CATEGORY_TIME_ATTACK = 'timeAttack';
     const LEADERBOARD_CATEGORY_TIME_DEFENSE = 'timeDefense';
     const LEADERBOARD_CATEGORY_SHORTEST_TURNS = 'shortestTurns';
-    const LEADERBOARD_CATEGORY_RATED = 'rated';
     const LEADERBOARD_ERA_CURRENT = 'current';
     const LEADERBOARD_ERA_HISTORY = 'history';
     const LEADERBOARD_ERA_LEGACY = 'legacy';
@@ -179,12 +177,6 @@ function createLeaderboardController(context: any) {
         if (!uiRefs.leaderboardOverlay) return;
         const open = !!visible;
         if (open) ensureLeaderboardStylesheet();
-        const returnToRatedMatch = !open
-            && root
-            && root.__returnToRatedMatchAfterLeaderboard === true;
-        if (returnToRatedMatch) {
-            try { root.__returnToRatedMatchAfterLeaderboard = false; } catch (e) { /* ignore */ }
-        }
         uiRefs.leaderboardOverlay.classList.toggle('is-open', open);
         uiRefs.leaderboardOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
 
@@ -200,18 +192,6 @@ function createLeaderboardController(context: any) {
             } catch (e) {
                 try { uiRefs.leaderboardNameInput.focus(); } catch (_e) { /* ignore */ }
             }
-        }
-        if (returnToRatedMatch) {
-            try {
-                if (typeof openRatedMatchOverlay === 'function') {
-                    openRatedMatchOverlay();
-                    return;
-                }
-                const ratedOpenBtn = root.document && root.document.getElementById('ratedMatchOpenBtn');
-                if (ratedOpenBtn && typeof ratedOpenBtn.click === 'function') {
-                    ratedOpenBtn.click();
-                }
-            } catch (e) { /* ignore missing rated match UI */ }
         }
     }
 
@@ -241,7 +221,6 @@ function createLeaderboardController(context: any) {
     }
 
     function normalizeLeaderboardCategory(value: any) {
-        if (value === LEADERBOARD_CATEGORY_RATED) return LEADERBOARD_CATEGORY_RATED;
         if (value === LEADERBOARD_CATEGORY_TIME_ATTACK) return LEADERBOARD_CATEGORY_TIME_ATTACK;
         if (value === LEADERBOARD_CATEGORY_TIME_DEFENSE) return LEADERBOARD_CATEGORY_TIME_DEFENSE;
         if (value === LEADERBOARD_CATEGORY_SHORTEST_TURNS) return LEADERBOARD_CATEGORY_SHORTEST_TURNS;
@@ -255,11 +234,11 @@ function createLeaderboardController(context: any) {
     }
 
     function isLegacyLeaderboardActive(): boolean {
-        return leaderboardActiveEra === LEADERBOARD_ERA_LEGACY && !isRatedLeaderboardActive();
+        return leaderboardActiveEra === LEADERBOARD_ERA_LEGACY;
     }
 
     function isHistoricalLeaderboardActive(): boolean {
-        return leaderboardActiveEra === LEADERBOARD_ERA_HISTORY && !isRatedLeaderboardActive();
+        return leaderboardActiveEra === LEADERBOARD_ERA_HISTORY;
     }
 
     function getLeaderboardModeLabel(filter: any): string {
@@ -303,10 +282,6 @@ function createLeaderboardController(context: any) {
         return leaderboardActiveCategory === LEADERBOARD_CATEGORY_SHORTEST_TURNS;
     }
 
-    function isRatedLeaderboardActive(): boolean {
-        return leaderboardActiveCategory === LEADERBOARD_CATEGORY_RATED;
-    }
-
     function isTurnCountLeaderboardActive(): boolean {
         return isTimeDefenseLeaderboardActive() || isShortestTurnsLeaderboardActive();
     }
@@ -322,10 +297,6 @@ function createLeaderboardController(context: any) {
     }
 
     function getLeaderboardEntryValueText(entry: any): string {
-        if (isRatedLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_RATED)) {
-            const rating = Number(entry && entry.displayRating);
-            return Number.isFinite(rating) ? `${Math.round(rating)}` : '1500';
-        }
         if (isTimeAttackLeaderboardActive() || (entry && entry.category === LEADERBOARD_CATEGORY_TIME_ATTACK)) {
             return formatLeaderboardDuration(entry && entry.bestTimeMs);
         }
@@ -340,14 +311,12 @@ function createLeaderboardController(context: any) {
     }
 
     function getLeaderboardValueHeaderLabel(): string {
-        if (isRatedLeaderboardActive()) return 'レート';
         if (isTimeAttackLeaderboardActive()) return 'タイム';
         if (isTurnCountLeaderboardActive()) return '手数';
         return 'スコア';
     }
 
     function getLeaderboardSummaryBestLabel(): string {
-        if (isRatedLeaderboardActive()) return 'あなたのレート';
         if (isTimeAttackLeaderboardActive()) return 'あなたの最速記録';
         if (isTimeDefenseLeaderboardActive()) return 'あなたの最長記録';
         if (isShortestTurnsLeaderboardActive()) return 'あなたの最短記録';
@@ -355,13 +324,6 @@ function createLeaderboardController(context: any) {
     }
 
     function createLeaderboardModeLabel(entry: any) {
-        if (entry && entry.category === LEADERBOARD_CATEGORY_RATED) {
-            const games = Number.isFinite(Number(entry.ratedGames)) ? Math.max(0, Math.trunc(Number(entry.ratedGames))) : 0;
-            const wins = Number.isFinite(Number(entry.wins)) ? Math.max(0, Math.trunc(Number(entry.wins))) : 0;
-            const draws = Number.isFinite(Number(entry.draws)) ? Math.max(0, Math.trunc(Number(entry.draws))) : 0;
-            const losses = Number.isFinite(Number(entry.losses)) ? Math.max(0, Math.trunc(Number(entry.losses))) : 0;
-            return `${games}戦 ${wins}勝 ${draws}分 ${losses}敗`;
-        }
         const cpuSuffix = Number.isFinite(Number(entry && entry.cpuLevel)) ? ` Lv${entry.cpuLevel}` : '';
         const modeLabel = entry && entry.mode === 'network' ? '対人' : `CPU${cpuSuffix}`;
         if (!isHistoricalLeaderboardActive()) return modeLabel;
@@ -373,9 +335,6 @@ function createLeaderboardController(context: any) {
     function createLeaderboardModeChip(entry: any) {
         const chip = document.createElement('span');
         chip.className = 'leaderboard-mode-chip';
-        if (entry && entry.category === LEADERBOARD_CATEGORY_RATED) {
-            chip.classList.add('leaderboard-rating-record');
-        }
         chip.dataset.mode = entry && entry.mode === 'network' ? 'network' : 'cpu';
         chip.textContent = createLeaderboardModeLabel(entry);
         return chip;
@@ -430,7 +389,6 @@ function createLeaderboardController(context: any) {
 
             const tabDefs = [
                 { id: 'leaderboardCategoryScore', label: 'スコアランキング', category: LEADERBOARD_CATEGORY_SCORE },
-                { id: 'leaderboardCategoryRated', label: 'レートランキング', category: LEADERBOARD_CATEGORY_RATED },
                 { id: 'leaderboardCategoryTimeAttack', label: 'タイムアタック', category: LEADERBOARD_CATEGORY_TIME_ATTACK },
                 { id: 'leaderboardCategoryTimeDefense', label: '最長手数', category: LEADERBOARD_CATEGORY_TIME_DEFENSE, compact: true },
                 { id: 'leaderboardCategoryShortestTurns', label: '最短手数', category: LEADERBOARD_CATEGORY_SHORTEST_TURNS, compact: true }
@@ -563,7 +521,7 @@ function createLeaderboardController(context: any) {
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、スコアランキングとは分離する。通算ランキングは旧記録を基準に、同じプレイヤーの検証済み新記録が上回った場合だけ表示を更新する。各行の「旧記録」「検証済み」で記録の由来を示す。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。速攻は15:00超過を有効記録にしない。';
+            details.textContent = '通算ランキングは旧記録を基準に、同じプレイヤーの検証済み新記録が上回った場合だけ表示を更新する。各行の「旧記録」「検証済み」で記録の由来を示す。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。速攻は15:00超過を有効記録にしない。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');
@@ -980,7 +938,7 @@ function createLeaderboardController(context: any) {
         const button = uiRefs.leaderboardPanel.querySelector('#leaderboardModeBtn');
         const menu = uiRefs.leaderboardPanel.querySelector('#leaderboardModeMenu');
         const control = uiRefs.leaderboardPanel.querySelector('#leaderboardModeControl');
-        const visible = !isRatedLeaderboardActive();
+        const visible = true;
         if (control) {
             control.classList.toggle('is-visible', visible);
             control.setAttribute('aria-hidden', visible ? 'false' : 'true');
@@ -1034,9 +992,7 @@ function createLeaderboardController(context: any) {
         if (!uiRefs.leaderboardPanel) return;
         const header = uiRefs.leaderboardPanel.querySelector('#leaderboardTableHeader');
         if (!header) return;
-        const labels = isRatedLeaderboardActive()
-            ? ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), '対戦数 / 勝分敗']
-            : ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), 'モード'];
+        const labels = ['順位', 'プレイヤー名', getLeaderboardValueHeaderLabel(), 'モード'];
         const cells = Array.from(header.querySelectorAll('.leaderboard-table-header-cell'));
         cells.forEach((cell: any, index) => {
             cell.textContent = labels[index] || '';
@@ -1048,7 +1004,7 @@ function createLeaderboardController(context: any) {
         const control = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelControl');
         const button = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelBtn');
         const menu = uiRefs.leaderboardPanel.querySelector('#leaderboardCpuLevelMenu');
-        const cpuActive = leaderboardActiveFilter === LEADERBOARD_FILTER_CPU && !isRatedLeaderboardActive();
+        const cpuActive = leaderboardActiveFilter === LEADERBOARD_FILTER_CPU;
         if (control) {
             control.classList.toggle('is-visible', cpuActive);
             control.setAttribute('aria-hidden', cpuActive ? 'false' : 'true');
@@ -1196,16 +1152,14 @@ function createLeaderboardController(context: any) {
         }
         if (token !== leaderboardRefreshToken) return;
 
-        if (!leaderboardClient || (isRatedLeaderboardActive() ? typeof leaderboardClient.getRatedLeaderboard !== 'function' : typeof leaderboardClient.fetchLeaderboard !== 'function')) {
+        if (!leaderboardClient || (typeof leaderboardClient.fetchLeaderboard !== 'function')) {
             writeLeaderboardStatus('ランキング機能を利用できません', true);
             return;
         }
 
         let result = null;
         try {
-            if (isRatedLeaderboardActive()) {
-                result = await leaderboardClient.getRatedLeaderboard(SHARED_LEADERBOARD_PANEL_LIMIT, opts);
-            } else {
+{
                 const fetchOptions = Object.assign({ limit: SHARED_LEADERBOARD_PANEL_LIMIT, mode: requestedFilter, category: leaderboardActiveCategory }, opts);
                 delete fetchOptions.force;
                 fetchOptions.mode = requestedFilter;
@@ -1324,7 +1278,6 @@ function createLeaderboardController(context: any) {
                     : null;
                 if (!target || !target.dataset) return;
                 if (target.classList.contains('leaderboard-era-toggle')) {
-                    if (isRatedLeaderboardActive()) return;
                     leaderboardActiveEra = isHistoricalLeaderboardActive()
                         ? LEADERBOARD_ERA_CURRENT
                         : LEADERBOARD_ERA_HISTORY;

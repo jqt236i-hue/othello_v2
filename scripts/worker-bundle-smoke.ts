@@ -438,9 +438,10 @@ function stopProcessTree(child: SmokeProcess): void {
     }
 }
 
-function startWorker(port: number): { child: SmokeProcess; output: () => string } {
+function startWorker(port: number): { child: SmokeProcess; output: () => string; persistenceDirectory: string } {
     const isWindows = process.platform === 'win32';
-    const wranglerArgs = ['wrangler', 'dev', '--local', '--ip', '127.0.0.1', '--port', String(port)];
+    const persistenceDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'match-worker-smoke-state-'));
+    const wranglerArgs = ['wrangler', 'dev', '--local', '--ip', '127.0.0.1', '--port', String(port), '--persist-to', persistenceDirectory];
     const child = spawn(
         isWindows ? (process.env.ComSpec || 'cmd.exe') : 'npx',
         isWindows ? ['/d', '/s', '/c', 'npx', ...wranglerArgs] : wranglerArgs,
@@ -457,12 +458,13 @@ function startWorker(port: number): { child: SmokeProcess; output: () => string 
     };
     child.stdout.on('data', append);
     child.stderr.on('data', append);
-    return { child, output: () => output };
+    return { child, output: () => output, persistenceDirectory };
 }
 
 async function requestJson(baseUrl: string, method: string, route: string, body?: unknown): Promise<JsonResponse> {
     const response = await fetch(`${baseUrl}${route}`, {
         method,
+        signal: AbortSignal.timeout(15000),
         headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body)
     });
@@ -495,6 +497,36 @@ async function leaveRoom(baseUrl: string, roomId: string, seatKey: string, seatT
     assertTrue(response.ok && response.data && response.data.ok === true, `leave(${seatKey}) failed status=${response.status}`);
 }
 
+function connectRoomSocket(baseUrl: string, credentials: Record<string, string>) {
+    const query = new URLSearchParams({ ...credentials, presentationEnvelopeVersion: '3' });
+    const socket = new WebSocket(`${baseUrl.replace(/^http/, 'ws')}/api/match/stream?${query}`);
+    const events: Array<{ event: string; id: string; data: any }> = [];
+    socket.addEventListener('message', message => {
+        const text = String(message.data);
+        if (text.startsWith('{')) {
+            events.push({ event: 'health', id: '', data: JSON.parse(text) });
+            return;
+        }
+        const lines = text.split('\n');
+        events.push({
+            event: lines.find(line => line.startsWith('event:'))?.slice(6).trim() || 'message',
+            id: lines.find(line => line.startsWith('id:'))?.slice(3).trim() || '',
+            data: JSON.parse(lines.filter(line => line.startsWith('data:')).map(line => line.slice(5).trim()).join('\n'))
+        });
+    });
+    const next = async (predicate: (event: typeof events[number]) => boolean) => {
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+            const found = events.find(predicate);
+            if (found) return found;
+            assertTrue(socket.readyState !== 3, 'room WebSocket closed before the expected event');
+            await wait(25);
+        }
+        throw new Error('room WebSocket event timed out');
+    };
+    return { socket, events, next };
+}
+
 async function main(): Promise<void> {
     verifyBundledAuthorityScenarios();
 
@@ -503,6 +535,7 @@ async function main(): Promise<void> {
     const runtime = startWorker(port);
     let black: any = null;
     let white: any = null;
+    const sockets: ReturnType<typeof connectRoomSocket>[] = [];
 
     console.log(`[worker-bundle-smoke] starting ${baseUrl}`);
     try {
@@ -525,6 +558,28 @@ async function main(): Promise<void> {
         );
         assertTrue(state.ok && state.data && state.data.ok === true, `state failed status=${state.status}`);
 
+        const blackSocket = connectRoomSocket(baseUrl, { roomId: black.roomId, seatKey: 'black', seatToken: black.seatToken });
+        sockets.push(blackSocket);
+        const initial = await blackSocket.next(event => event.event === 'snapshot');
+        assertTrue(initial.id === '', 'initial unbuffered snapshot consumed a replay id');
+        assertTrue(initial.data.snapshot.cardState.hands.white.every((card: string) => card.startsWith('__hidden_hand__:')),
+            'WebSocket leaked opponent hand');
+        const spectator = await requestJson(baseUrl, 'POST', '/api/match/spectate', { roomId: black.roomId, playerName: '観戦' });
+        assertTrue(spectator.ok, 'spectator entry failed');
+        const watchSocket = connectRoomSocket(baseUrl, {
+            roomId: black.roomId, viewerRole: 'spectator', spectatorId: spectator.data.spectatorId, spectatorToken: spectator.data.spectatorToken
+        });
+        sockets.push(watchSocket);
+        const watched = await watchSocket.next(event => event.event === 'snapshot');
+        // Spectators intentionally see both hands, but never future draws or RNG.
+        for (const seat of ['black', 'white']) assertTrue(watched.data.snapshot.cardState.hands[seat].every((card: string) => !card.startsWith('__hidden_hand__:')),
+            'WebSocket spectator lost the existing public hand view');
+        assertTrue(!('decks' in watched.data.snapshot.cardState) && !('prngState' in watched.data.snapshot.cardState),
+            'WebSocket spectator received private deck or RNG state');
+        blackSocket.socket.send('match-stream-ping-v1');
+        const health = await blackSocket.next(event => event.event === 'health');
+        assertTrue(Object.keys(health.data).sort().join(',') === 'stateVersion,type', 'health contains stale clock or private state');
+
         // Exercise real local Durable Object transactions, not only the
         // bundled in-memory adapter, including negotiated delivery and retry.
         const core = require(path.join(ROOT, 'dist/game/logic/core.js'));
@@ -546,6 +601,24 @@ async function main(): Promise<void> {
         const retried = await requestJson(baseUrl, 'POST', '/api/match/publish', command);
         assertTrue(retried.ok && retried.data.stateVersion === placed.data.stateVersion,
             'transactional retry changed the accepted version');
+        const resumedState = await requestJson(baseUrl, 'GET', `/api/match/state?roomId=${black.roomId}&seatKey=black&seatToken=${encodeURIComponent(black.seatToken)}`);
+        assertTrue(resumedState.ok && resumedState.data.stateVersion === placed.data.stateVersion
+            && resumedState.data.presentationCursor.stateVersion === resumedState.data.snapshot.stateVersion,
+            `state recovery after publish failed status=${resumedState.status}`);
+
+        const published = await blackSocket.next(event => event.event === 'snapshot' && event.data.stateVersion === placed.data.stateVersion);
+        await watchSocket.next(event => event.event === 'snapshot' && event.data.stateVersion === placed.data.stateVersion);
+        blackSocket.socket.close();
+        const resumed = connectRoomSocket(baseUrl, { roomId: black.roomId, seatKey: 'black', seatToken: black.seatToken, lastEventId: published.id });
+        sockets.push(resumed);
+        await resumed.next(event => event.event === 'heartbeat' || event.event === 'snapshot');
+        resumed.socket.send('match-stream-ping-v1');
+        await resumed.next(event => event.event === 'health' && event.data.stateVersion === placed.data.stateVersion);
+        const retired = await requestJson(baseUrl, 'POST', '/api/match/rated/queue', {});
+        assertTrue(retired.status === 404, 'retired rated route is still active');
+        const retiredRating = await requestJson(baseUrl, 'GET', '/api/rating/list');
+        assertTrue(retiredRating.status === 404, 'retired rating route is still active');
+        console.log('[worker-bundle-smoke] WebSocket authentication/private hands/spectator/publish/replay/auto-response passed');
 
         await leaveRoom(baseUrl, black.roomId, 'white', white.seatToken);
         await leaveRoom(baseUrl, black.roomId, 'black', black.seatToken);
@@ -553,6 +626,7 @@ async function main(): Promise<void> {
         black = null;
         console.log('[worker-bundle-smoke] create/join/state/V3 place/idempotent retry/leave passed');
     } finally {
+        for (const connection of sockets) connection.socket.close();
         if (white && black) {
             await requestJson(baseUrl, 'POST', '/api/match/leave', {
                 roomId: black.roomId,
@@ -568,6 +642,7 @@ async function main(): Promise<void> {
             }).catch(() => undefined);
         }
         stopProcessTree(runtime.child);
+        // Keep isolated local state in the OS temp directory for failure inspection.
     }
 }
 

@@ -62,7 +62,8 @@ function createNetworkTransportController(config?: any): any {
 
   async function requestJson(method: any, path: any, payload: any): Promise<any> {
     const state = readState();
-    const url = withTrailingSlashRemoved(state.serverUrl) + String(path || '');
+    const requestServerUrl = state.serverUrl;
+    const url = withTrailingSlashRemoved(requestServerUrl) + String(path || '');
     const sessionReadRequest = String(method || '').trim().toUpperCase() === 'GET'
       && String(path || '').startsWith('/api/match/');
     const init: any = {
@@ -99,6 +100,9 @@ function createNetworkTransportController(config?: any): any {
     try {
       const response = await getFetchImpl()(url, init);
       const data = await response.json().catch(function () { return {}; });
+      if (readState().serverUrl === requestServerUrl) {
+        state.streamTransport = response.headers?.get?.('X-Match-Stream-Transport') === 'websocket' ? 'websocket' : 'sse';
+      }
       return { ok: response.ok, status: response.status, data };
     } finally {
       if (controller && sessionReadRequest) {

@@ -109,6 +109,32 @@ function createController(options?: {
 }
 
 describe('match worker stream controller', () => {
+  test('WebSocket-only rooms have no heartbeat timer, writes or replay churn', async () => {
+    const ctx = createController();
+    ctx.streams.get('stream1').webSocket = {};
+    ctx.controller.ensureHeartbeatTimer();
+    await ctx.controller.broadcastHeartbeat();
+    expect(ctx.getScheduledTimeouts()).toEqual([]);
+    expect(ctx.getWritten()).toEqual([]);
+    expect(ctx.getSavedCount()).toBe(0);
+    expect(ctx.room.eventSeq).toBe(0);
+    expect(ctx.getBuffer()).toEqual([]);
+  });
+
+  test('mixed rooms heartbeat only SSE and stop the timer when the last SSE closes', async () => {
+    const ctx = createController();
+    const write = jest.fn(async () => {});
+    ctx.streams.set('socket', { webSocket: {}, writer: { write } });
+    ctx.controller.ensureHeartbeatTimer();
+    expect(ctx.getHeartbeatTimerId()).not.toBeNull();
+    await ctx.controller.broadcastHeartbeat();
+    expect(ctx.getWritten()).toHaveLength(1);
+    expect(write).not.toHaveBeenCalled();
+    await ctx.controller.closeStream('stream1');
+    expect(ctx.getHeartbeatTimerId()).toBeNull();
+    expect(ctx.streams.has('socket')).toBe(true);
+  });
+
   test('reuses encoding only for matching projected payload, event identity and capability', async () => {
     const ctx = createController();
     const encode = jest.spyOn(TextEncoder.prototype, 'encode');
@@ -133,16 +159,12 @@ describe('match worker stream controller', () => {
 
     await ctx.controller.broadcastHeartbeat();
 
-    expect(ctx.room.eventSeq).toBe(1);
-    expect(ctx.getSavedCount()).toBe(1);
-    expect(ctx.getBuffer()).toHaveLength(1);
-    expect(ctx.getBuffer()[0]).toMatchObject({
-      id: 'SSE1_2_1',
-      event: 'heartbeat'
-    });
+    expect(ctx.room.eventSeq).toBe(0);
+    expect(ctx.getSavedCount()).toBe(0);
+    expect(ctx.getBuffer()).toHaveLength(0);
     expect(ctx.getWritten()).toHaveLength(1);
     expect(ctx.getWritten()[0]).toContain('event: heartbeat');
-    expect(ctx.getWritten()[0]).toContain('id: SSE1_2_1');
+    expect(ctx.getWritten()[0]).not.toContain('id:');
   });
 
   test('closeStream removes the last stream and clears the heartbeat timer', async () => {

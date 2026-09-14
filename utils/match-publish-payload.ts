@@ -1,8 +1,7 @@
 import type MatchAuthorityModule = require('./match-authority');
 import type {
     MatchAuthorityRoomState,
-    MatchAuthorityPublishPayloadFromRoomOptions,
-    MatchAuthorityPublishResponsePayload
+    MatchAuthorityPublishPayloadFromRoomOptions
 } from './match-authority-types';
 
 export interface MatchPublishPayloadOptions extends MatchAuthorityPublishPayloadFromRoomOptions {
@@ -19,12 +18,9 @@ export interface MatchPublishPayloadPorts<Room extends MatchAuthorityRoomState |
     toPublicNetworkAutoEnabled(room: Room): boolean;
     toPublicTurnTimer(room: Room, serverTime: number): unknown;
     buildPresentationFrames(room: Room, viewerSeatKey: unknown, options: MatchPublishPayloadOptions): unknown;
-    decoratePayload(payload: MatchAuthorityPublishResponsePayload, room: Room): MatchAuthorityPublishResponsePayload;
-    /** The local server historically decorates ACKs; the Worker keeps them minimal. */
-    decorateAcknowledgement: boolean;
 }
 
-/** Shared wire assembly. Projection and environment-specific decoration stay explicit ports. */
+/** Shared wire assembly. Projection stays an explicit port. */
 export function createMatchPublishPayloadBuilder<Room extends MatchAuthorityRoomState | null | undefined>(
     ports: MatchPublishPayloadPorts<Room>
 ) {
@@ -42,7 +38,7 @@ export function createMatchPublishPayloadBuilder<Room extends MatchAuthorityRoom
                 idempotentReplay: options.idempotentReplay === true,
                 publishMeta: options.publishMeta || null
             });
-            return ports.decorateAcknowledgement ? ports.decoratePayload(acknowledgement, room) : acknowledgement;
+            return acknowledgement;
         }
         const networkDebugEnabled = ports.toPublicNetworkDebugEnabled(room);
         const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
@@ -69,6 +65,6 @@ export function createMatchPublishPayloadBuilder<Room extends MatchAuthorityRoom
         if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
             payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
         }
-        return ports.decoratePayload(MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions), room);
+        return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
     };
 }

@@ -81,6 +81,28 @@ describe('NetworkTransportController', () => {
     });
   });
 
+  test('selects WebSocket only for an advertised server and falls back for older servers', async () => {
+    fetchImpl.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}),
+      headers: new Headers({ 'X-Match-Stream-Transport': 'websocket' }) });
+    await controller.requestJson('POST', '/api/match/create', {});
+    expect(stateObj.streamTransport).toBe('websocket');
+    fetchImpl.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+    await controller.requestJson('GET', '/api/match/state');
+    expect(stateObj.streamTransport).toBe('sse');
+  });
+
+  test('a late response from a previous server cannot change transport selection', async () => {
+    let resolveResponse: any;
+    fetchImpl.mockImplementation(() => new Promise(resolve => { resolveResponse = resolve; }));
+    const pending = controller.requestJson('GET', '/api/match/state');
+    stateObj.serverUrl = 'https://new-server.example';
+    stateObj.streamTransport = 'sse';
+    resolveResponse({ ok: true, status: 200, json: async () => ({}),
+      headers: new Headers({ 'X-Match-Stream-Transport': 'websocket' }) });
+    await pending;
+    expect(stateObj.streamTransport).toBe('sse');
+  });
+
   test('publishRequestWithRetry retries retryable status and then succeeds', async () => {
     fetchImpl
       .mockResolvedValueOnce({

@@ -771,6 +771,10 @@ function createNetworkSessionLifecycleController(config: any): any {
             source: intakeSource,
             payload: res.data,
             force: true,
+            // Intake reads replay from the envelope itself, not applyOptions.
+            // A restored session rebases to the current snapshot without replay.
+            presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
+            playbackEvents,
             applyOptions: {
               force: true,
               playbackEvents: playbackEvents,

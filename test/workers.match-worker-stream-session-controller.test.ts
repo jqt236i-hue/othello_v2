@@ -147,7 +147,7 @@ describe('match worker stream session controller', () => {
         streamId: 'stream1',
         eventName: 'snapshot',
         payload: { ok: true, type: 'snapshot' },
-        options: null
+        options: { eventId: null }
       },
       {
         streamId: 'stream1',
@@ -161,7 +161,7 @@ describe('match worker stream session controller', () => {
           networkDebugEnabled: true,
           messages: [{ id: 1, text: 'hello' }]
         },
-        options: null
+        options: { eventId: null }
       }
     ]);
   });

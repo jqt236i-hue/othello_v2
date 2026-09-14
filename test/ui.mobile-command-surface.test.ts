@@ -34,7 +34,6 @@ function createFixture() {
         <div id="leftActionButtons">
           <button id="modeCpuBtn"><span class="left-action-icon left-action-icon-cpu"></span>CPU</button>
           <button id="modeNetworkBtn"><span class="left-action-icon left-action-icon-network"></span>ネット対戦</button>
-          <button id="ratedMatchOpenBtn"><span class="left-action-icon left-action-icon-rated"></span>レート戦</button>
           <a id="reversiDestinyOpenLink" href="https://example.com/" target="_blank" rel="noopener noreferrer">
             <span class="left-action-icon left-action-icon-reversi-destiny"></span>2Dアクション
           </a>
@@ -70,7 +69,6 @@ function createFixture() {
         <div id="gachaOverlay" aria-hidden="true"><div id="gachaModalHeader"><button id="gachaCloseBtn">×</button></div></div>
         <div id="deckBuilderOverlay" aria-hidden="true"><div id="deckBuilderModalHeader"><button id="deckBuilderCloseBtn">×</button></div></div>
         <div id="networkOverlay" aria-hidden="true"><div id="networkModalHeader"><button id="networkCloseBtn">×</button></div></div>
-        <div id="ratedMatchOverlay" aria-hidden="true"><div id="ratedMatchModalHeader"><button id="ratedMatchCloseBtn">×</button></div></div>
       </body>
     </html>`, {
     url: 'http://localhost/',
@@ -84,7 +82,6 @@ function createFixture() {
 
   const panelPairs: Array<[string, string, string]> = [
     ['modeNetworkBtn', 'networkOverlay', 'networkCloseBtn'],
-    ['ratedMatchOpenBtn', 'ratedMatchOverlay', 'ratedMatchCloseBtn'],
     ['deckBuilderOpenBtn', 'deckBuilderOverlay', 'deckBuilderCloseBtn'],
     ['gachaOpenBtn', 'gachaOverlay', 'gachaCloseBtn'],
     ['handSkinBtn', 'handSkinPanel', 'handSkinCloseBtn'],
@@ -146,7 +143,6 @@ describe('mobile command surface', () => {
     )).toEqual({
       cpu: 'emerald',
       network: 'azure',
-      rated: 'gold',
       action: 'ember',
       deck: 'azure',
       gacha: 'ember',

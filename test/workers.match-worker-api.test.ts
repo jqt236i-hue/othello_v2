@@ -416,12 +416,11 @@ describe('match worker api controller', () => {
     expect(seen).toEqual([{ roomId: '__player_identity__', pathname: '/api/player/identity/verify' }]);
   });
 
-  test('player profile update は本人確認後に leaderboard と rating へ転送する', async () => {
+  test('player profile update は本人確認後に leaderboard へ転送する', async () => {
     const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
     const controller = createMatchWorkerApiController({
       corsHeaders: { 'Access-Control-Allow-Origin': '*' },
       leaderboardRoomId: '__leaderboard__',
-      ratingPoolRoomId: '__rating_pool__',
       normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
       jsonResponse,
       withCORS,
@@ -467,18 +466,25 @@ describe('match worker api controller', () => {
           avatarStoneType: 'GHOST',
           bio: '更新後'
         }
-      },
-      {
-        roomId: '__rating_pool__',
-        pathname: '/api/rating/profile',
-        body: {
-          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
-          playerName: '新名',
-          avatarStoneType: 'GHOST',
-          bio: '更新後'
-        }
       }
     ]);
+  });
+
+  test('retired queue and resign endpoints do not reach storage or identity services', async () => {
+    const controller = createMatchWorkerApiController({
+      corsHeaders: {}, leaderboardRoomId: '__leaderboard__',
+      normalizeRoomId: String, jsonResponse, withCORS,
+      handleCreate: async () => jsonResponse(200, {})
+    });
+    const forward = jest.fn(() => jsonResponse(200, {}));
+    const env = createEnv(forward);
+    for (const endpoint of ['rated/queue', 'rated/poll', 'rated/cancel', 'resign']) {
+      const response = await controller.handleMatchApi(new Request('https://worker/api/match/' + endpoint, {
+        method: 'POST', body: JSON.stringify({ roomId: 'OLD' })
+      }), env as any);
+      expect(response.status).toBe(404);
+    }
+    expect(forward).not.toHaveBeenCalled();
   });
 
   test('invalid json と roomId不足を fail-closed で返す', async () => {

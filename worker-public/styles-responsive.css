@@ -2087,13 +2087,7 @@ html.layout-profile-tablet-4x3.layout-stage-enabled #muteBtn.quick-control-btn {
         height: 20px;
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#handSkinPanel.is-open) :is(#leftActionButtons, #quick-controls-bar),
-html.layout-profile-tablet-4x3.layout-stage-enabled:has(#networkOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
-html.layout-profile-tablet-4x3.layout-stage-enabled:has(#ratedMatchOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
-html.layout-profile-tablet-4x3.layout-stage-enabled:has(#leaderboardOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
-html.layout-profile-tablet-4x3.layout-stage-enabled:has(#profileOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
-html.layout-profile-tablet-4x3.layout-stage-enabled:has(#gachaOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar),
-html.layout-profile-tablet-4x3.layout-stage-enabled:has(#deckBuilderOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar) {
+    html.layout-profile-tablet-4x3.layout-stage-enabled:has(#handSkinPanel.is-open) :is(#leftActionButtons, #quick-controls-bar), html.layout-profile-tablet-4x3.layout-stage-enabled:has(#networkOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar), html.layout-profile-tablet-4x3.layout-stage-enabled:has(#leaderboardOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar), html.layout-profile-tablet-4x3.layout-stage-enabled:has(#profileOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar), html.layout-profile-tablet-4x3.layout-stage-enabled:has(#gachaOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar), html.layout-profile-tablet-4x3.layout-stage-enabled:has(#deckBuilderOverlay.is-open) :is(#leftActionButtons, #quick-controls-bar) {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;

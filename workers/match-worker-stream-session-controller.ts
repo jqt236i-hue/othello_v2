@@ -59,7 +59,9 @@ export function createMatchWorkerStreamSessionController(config: MatchWorkerStre
             stateHashBefore: room.authoritativeStateHash,
             dedupeOutcome: 'full_sync'
         }, undefined);
-        await cfg.sendSse(opts.streamId, 'snapshot', opts.initialPayload);
+        // Initial state/history are not in the persisted replay buffer. Do not
+        // consume an event id that could be reused after hibernation.
+        await cfg.sendSse(opts.streamId, 'snapshot', opts.initialPayload, { eventId: null });
         await cfg.sendSse(opts.streamId, 'chat', cfg.withPublicSeatState(room, {
             ok: true,
             roomId: room.roomId,
@@ -67,7 +69,7 @@ export function createMatchWorkerStreamSessionController(config: MatchWorkerStre
             roomDeck: cfg.toPublicRoomDeck(room),
             networkDebugEnabled: cfg.toPublicNetworkDebugEnabled(room),
             messages: cfg.toPublicChatMessages(room)
-        }));
+        }), { eventId: null });
     }
 
     function scheduleInitialStreamDelivery(options: MatchWorkerInitialStreamDeliveryOptions): void {

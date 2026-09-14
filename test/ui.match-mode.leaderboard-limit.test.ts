@@ -454,7 +454,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(summary?.textContent).toContain('8543');
     expect(summary?.textContent).toContain('#4');
     expect(summary?.textContent).toContain('06:40');
-    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'レートランキング', 'タイムアタック', '最長手数', '最短手数']);
+    expect(Array.from(tabs?.querySelectorAll('button') || []).map((button) => button.textContent)).toEqual(['スコアランキング', 'タイムアタック', '最長手数', '最短手数']);
     expect(document.getElementById('leaderboardCategoryScore')?.getAttribute('aria-pressed')).toBe('true');
     expect(document.getElementById('leaderboardCategoryTimeDefense')?.classList.contains('is-compact')).toBe(true);
     expect(document.getElementById('leaderboardCategoryShortestTurns')?.classList.contains('is-compact')).toBe(true);
@@ -715,7 +715,7 @@ describe('match-mode shared leaderboard panel', () => {
     const infoBtn = document.getElementById('leaderboardInfoBtn');
     const panel = document.getElementById('leaderboardDetailsPanel');
     expect(infoBtn).toBeTruthy();
-    expect(panel?.textContent).toContain('スコアランキング');
+    expect(panel?.textContent).toContain('共有スコア');
     expect(panel?.textContent).toContain('最短手数');
     expect(document.getElementById('leaderboardModal').classList.contains('is-detail-open')).toBe(false);
 

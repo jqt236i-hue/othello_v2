@@ -86,7 +86,7 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
         if (typeof cfg.onStreamClosed === 'function') {
             await cfg.onStreamClosed(stream, streamId);
         }
-        if (streams.size === 0 && cfg.getHeartbeatTimerId() !== null) {
+        if (!Array.from(streams.values()).some(info => !info.webSocket) && cfg.getHeartbeatTimerId() !== null) {
             try { clearTimeoutFn(cfg.getHeartbeatTimerId()); } catch (e) { /* ignore */ }
             cfg.setHeartbeatTimerId(null);
         }
@@ -176,31 +176,23 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
     async function broadcastHeartbeat(): Promise<void> {
         const room = cfg.getRoom();
         if (!room) return;
-        const streamEntries = Array.from(cfg.getStreams().entries());
+        const streamEntries = Array.from(cfg.getStreams().entries()).filter(([, stream]) => !stream.webSocket);
         if (streamEntries.length === 0) return;
 
         const serverTime = now();
         const payload = cfg.buildHeartbeatPayload(room, serverTime);
-        const eventId = nextSseEventId();
-        rememberBufferedSseEvent({
-            eventId,
-            eventName: 'heartbeat',
-            payload
-        });
-        await cfg.saveRoom();
-
         await Promise.all(streamEntries.map(([streamId]) => (
-            sendSse(streamId, 'heartbeat', payload, { eventId })
+            sendSse(streamId, 'heartbeat', payload, { eventId: null })
         )));
     }
 
     function ensureHeartbeatTimer(): void {
         if (cfg.getHeartbeatTimerId() !== null) return;
-        if (cfg.getStreams().size === 0) return;
+        if (!Array.from(cfg.getStreams().values()).some(info => !info.webSocket)) return;
 
         const handle = setTimeoutFn(() => {
             cfg.setHeartbeatTimerId(null);
-            if (cfg.getStreams().size === 0) return;
+            if (!Array.from(cfg.getStreams().values()).some(info => !info.webSocket)) return;
 
             broadcastHeartbeat().catch(() => {
                 // Keep heartbeat loop resilient even if one tick fails.

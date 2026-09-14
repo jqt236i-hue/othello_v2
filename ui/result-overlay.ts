@@ -934,73 +934,6 @@ function createObservationStoneLine(summary: any) {
     }
 }
 
-function resolveNetworkRatedMatchForResult(): any {
-    try {
-        const networkClient = (typeof window !== 'undefined' && window) ? window.NetworkMatchClient : null;
-        if (networkClient && typeof networkClient.getRatedMatch === 'function') {
-            return networkClient.getRatedMatch();
-        }
-        if (networkClient && typeof networkClient.getState === 'function') {
-            const state = networkClient.getState();
-            if (state && state.ratedMatch) return state.ratedMatch;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).__NETWORK_RATED_MATCH) {
-            return (globalThis as any).__NETWORK_RATED_MATCH;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
-function formatRatingDelta(value: any): string {
-    const delta = Number(value);
-    if (!Number.isFinite(delta) || Math.trunc(delta) === 0) return '±0';
-    return delta > 0 ? `+${Math.trunc(delta)}` : `${Math.trunc(delta)}`;
-}
-
-function createRatedRatingLine(viewerKey: any): HTMLElement | null {
-    const ratedMatch = resolveNetworkRatedMatchForResult();
-    if (!ratedMatch || typeof ratedMatch !== 'object') return null;
-    if (String(ratedMatch.ratingStatus || '').trim() === 'failed') {
-        const pendingLine = document.createElement('div');
-        pendingLine.className = 'result-rating-line is-pending';
-        pendingLine.textContent = 'レート更新を確認中';
-        try {
-            const windowRef: any = (typeof window !== 'undefined' && window) ? window : null;
-            const networkClient = windowRef ? windowRef.NetworkMatchClient : null;
-            const identity = (windowRef && windowRef.PlayerIdentity && typeof windowRef.PlayerIdentity.getPlayerIdentity === 'function')
-                ? windowRef.PlayerIdentity.getPlayerIdentity()
-                : null;
-            if (networkClient && typeof networkClient.getMyRating === 'function' && identity && identity.playerId) {
-                void networkClient.getMyRating(identity.playerId).catch(() => undefined);
-            }
-        } catch (e: any) { /* ignore */ }
-        return pendingLine;
-    }
-    const ratingResult = ratedMatch.ratingResult && typeof ratedMatch.ratingResult === 'object'
-        ? ratedMatch.ratingResult
-        : null;
-    if (!ratingResult || ratingResult.ok !== true) return null;
-    const seatKey = parseResultPlayerKey(viewerKey) || 'black';
-    const seatResult = ratingResult[seatKey] && typeof ratingResult[seatKey] === 'object'
-        ? ratingResult[seatKey]
-        : null;
-    const display = seatResult && seatResult.display && typeof seatResult.display === 'object'
-        ? seatResult.display
-        : null;
-    if (!display) return null;
-    const before = Number(display.before);
-    const after = Number(display.after);
-    const delta = Number(display.delta);
-    if (!Number.isFinite(before) || !Number.isFinite(after) || !Number.isFinite(delta)) return null;
-    const line = document.createElement('div');
-    line.className = 'result-rating-line';
-    line.textContent = `レート ${Math.round(before)} → ${Math.round(after)}（${formatRatingDelta(delta)}）`;
-    notifySharedLeaderboardUpdated({ category: 'rated', matchId: ratingResult.matchId || '' });
-    return line;
-}
-
 function notifySharedLeaderboardUpdated(detail: any) {
     try {
         if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
@@ -1430,11 +1363,6 @@ function showResultOverlay(options?: any) {
 
     const discCountsLine = createResultDiscCountsLine(counts);
     panel.appendChild(discCountsLine);
-
-    const ratingLine = createRatedRatingLine(viewerKey);
-    if (ratingLine) {
-        panel.appendChild(ratingLine);
-    }
 
     if (!othelloMode) {
         const totalScore = document.createElement('div');
