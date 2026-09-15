@@ -8,14 +8,16 @@ const hash = (value: string | Buffer) => crypto.createHash('sha256').update(valu
 
 /** Audits every journal entry and the original deal across resume attempts.
  * A result JSON or a terminal-looking board cannot replace this evidence. */
-export function verifyProductionSelfplay(directory: string, seen = new Set<string>(), runtimeOverride?: string): any {
+export function verifyProductionSelfplay(directory: string, seen = new Set<string>(), runtimeOverride?: string, recoverySummary?: any): any {
     const absolute = path.resolve(directory);
     if (seen.has(absolute)) throw new Error('Cyclic selfplay resume chain'); seen.add(absolute);
     const manifest = JSON.parse(fs.readFileSync(path.join(absolute, 'manifest.json'), 'utf8'));
     const runtimeRoot = path.resolve(runtimeOverride || manifest.commonRuntime.root);
     const runtime = require(path.join(runtimeRoot, 'dist/src/engine/production-match'));
     const { ProductionMatch, createProductionPosition } = runtime;
-    const result = JSON.parse(fs.readFileSync(path.join(absolute, 'result.json'), 'utf8'));
+    // Recovery may validate a proposed summary before writing it. Every action,
+    // count, state and winner is still established by the canonical replay.
+    const result = recoverySummary || JSON.parse(fs.readFileSync(path.join(absolute, 'result.json'), 'utf8'));
     if (hash(JSON.stringify(manifest.identity)) !== manifest.identityHash) throw new Error('Game identity metadata changed');
     const journalBytes = fs.readFileSync(path.join(absolute, 'steps.ndjson'));
     const text = journalBytes.toString();

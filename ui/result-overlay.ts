@@ -1567,6 +1567,7 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     const row = document.createElement('div');
     row.className = 'dialogue-row monster';
     if (cpuLevel === 11) row.classList.add('cpu-level-11');
+    if (cpuLevel === 12) row.classList.add('cpu-level-12');
     const name = document.createElement('div');
     name.className = 'character-name';
     name.style.setProperty('--result-character-image', `url("${profile.portraitSrc}")`);
@@ -1574,6 +1575,7 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     label.className = 'result-character-label';
     if (cpuLevel === 10) label.append('観測', document.createElement('br'), 'ダークドラゴン');
     else if (cpuLevel === 11) label.append('執行', document.createElement('br'), 'エグゼキューション', document.createElement('br'), 'カオスドラゴン');
+    else if (cpuLevel === 12) label.append('理論', document.createElement('br'), 'カオスロジカル', document.createElement('br'), 'エンペラービースト');
     else label.textContent = profile.name;
     name.appendChild(label);
     if (cpuLevel >= 10) name.classList.add('has-long-name');
@@ -1633,6 +1635,11 @@ function getMonsterDialogues() {
             win: ['盤理は語る、最善は唯一。', '三十手先まで視えている、抵抗は無意味だ。', '観測の果て、君の手は既に詰んでいる。', '全局面は掌中にある、迷いはない。', '決定済みの未来だ、ただ受け入れよ。'],
             lose: ['ほう…観測を上回るとは。次は修正する。', '一瞬の乱数か、だが再び誤算は許さぬ。', '興味深い偏差だ。次は収束させよう。', '想定外…ならば分岐を削り、必勝へ向かう。', 'わずかな誤差だ。再計算で終わる。'],
             draw: '観測結果は拮抗。次は差を証明しよう。'
+        },
+        12: {
+            win: 'この一局から、次の一手へ。',
+            lose: 'その一手は、読み切れなかった。',
+            draw: '次の対局で、この続きを。'
         },
         10: {
             win: 'この盤面の行く末は、見えていた。',

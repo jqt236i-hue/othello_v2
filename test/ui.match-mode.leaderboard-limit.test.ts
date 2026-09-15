@@ -290,6 +290,8 @@ describe('match-mode shared leaderboard panel', () => {
         ? leaderboardEntriesByMode.timeDefenseCpu
         : options && options.category === 'shortestTurns'
         ? leaderboardEntriesByMode.shortestTurnsCpu
+        : options && options.mode === 'cpu' && options.cpuLevel === 12
+          ? [{ rank: 1, playerId: 'player_lv12_0001', playerName: '戦略家', bestScore: 9600, mode: 'cpu', cpuLevel: 12 }]
         : options && options.mode === 'cpu' && options.cpuLevel === 11
           ? [{ rank: 1, playerId: 'player_lv11_0001', playerName: '執行者', bestScore: 9500, mode: 'cpu', cpuLevel: 11 }]
         : options && options.mode === 'cpu' && options.cpuLevel === 6
@@ -600,7 +602,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(levelControl?.classList.contains('is-visible')).toBe(false);
   });
 
-  test.each([6, 11])('CPUタブでLv%iのランキングへ切り替えられる', async (level) => {
+  test.each([6, 11, 12])('CPUタブでLv%iのランキングへ切り替えられる', async (level) => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();
     await Promise.resolve();
@@ -634,8 +636,9 @@ describe('match-mode shared leaderboard panel', () => {
       era: 'history'
     }));
     expect(levelBtn?.textContent).toContain(`Lv${level}`);
-    expect(document.getElementById('leaderboardPodium').textContent).toContain(level === 11 ? '執行者' : '分岐');
+    expect(document.getElementById('leaderboardPodium').textContent).toContain(level === 12 ? '戦略家' : level === 11 ? '執行者' : '分岐');
     if (level === 11) expect(lv6Option?.textContent).toContain('執行エグゼキューションカオスドラゴン');
+    if (level === 12) expect(lv6Option?.textContent).toContain('理論カオスロジカルエンペラービースト');
   });
 
   test('タイムアタックタブではタイム列と短時間記録を表示する', async () => {

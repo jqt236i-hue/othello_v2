@@ -79,9 +79,11 @@ function walk(dir: string, root = dir): string[] {
     const filePath = path.join(dir, file);
     const stat = fs.statSync(filePath);
     if (stat.isDirectory()) {
-      // Immutable Lv9 comparison deployment; its old JS is evidence, not an
-      // additional source tree to migrate. Keep all other data paths checked.
-      if (path.relative('.', filePath).replace(/\\/g, '/') === 'data/cpu-lv10/baseline-v1') continue;
+      // CPU comparison archives retain the exact old JS and diagnostic models
+      // needed to replay each recorded policy. Production sources live outside
+      // these evidence roots; never migrate or rewrite a frozen opponent here.
+      const relativeDir = path.relative('.', filePath).replace(/\\/g, '/');
+      if (['data/cpu-lv10/baseline-v1', 'data/cpu-lv11', 'data/cpu-lv12'].includes(relativeDir)) continue;
       const relDir = path.relative(root, filePath).replace(/\\/g, '/');
       const firstSegment = relDir.split('/')[0];
       if (SKIP_DIRS.has(file) || SKIP_DIRS.has(firstSegment)) continue;

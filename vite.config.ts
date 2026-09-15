@@ -18,7 +18,7 @@ export default defineConfig(({ command }) => ({
     name: 'card-reversi-full-rule-canonical-runtime',
     enforce: 'pre' as const,
     resolveId(source: string, importer: string | undefined) {
-      for (const level of [10, 11]) {
+      for (const level of [10, 11, 12]) {
         if (source === `../../game/ai/cpu-lv${level}-search`
           && importer?.replace(/\\/g, '/').endsWith(`/cpu-worker/lv${level}-worker-entry.ts`)) {
           return path.resolve(__dirname, `dist/game/ai/cpu-lv${level}-search.js`);

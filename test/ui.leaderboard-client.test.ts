@@ -75,6 +75,16 @@ describe('leaderboard client shortest turns category', () => {
     });
   });
 
+  test('Lv12 ranking filter and entries retain level 12', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true, entries: [
+      { rank: 1, playerId: 'player_lv12_0001', playerName: '戦略家', bestScore: 9600, mode: 'cpu', cpuLevel: 12 }
+    ] }) });
+    const client = require('../ui/leaderboard-client.js');
+    const result = await client.fetchLeaderboard({ mode: 'cpu', cpuLevel: 12, category: 'score', limit: 100 });
+    expect(fetchMock).toHaveBeenCalledWith('/api/leaderboard/list?limit=100&mode=cpu&category=score&cpuLevel=12', expect.objectContaining({ method: 'GET' }));
+    expect(result).toMatchObject({ ok: true, entries: [expect.objectContaining({ cpuLevel: 12 })] });
+  });
+
   test('fetchLeaderboard requests the read-only legacy record set only when selected', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,

@@ -46,7 +46,8 @@ describe('cpu opponent profiles', () => {
       { value: '8-theory-incarnation', label: 'Lv8: 理論の化身' },
       { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' },
       { value: '10-observed-dark-dragon', label: 'Lv10: 観測ダークドラゴン' },
-      { value: '11-execution-chaos-dragon', label: 'Lv11: 執行エグゼキューションカオスドラゴン' }
+      { value: '11-execution-chaos-dragon', label: 'Lv11: 執行エグゼキューションカオスドラゴン' },
+      { value: '12-strategy-cpu', label: 'Lv12: 理論カオスロジカルエンペラービースト' }
     ]);
   });
 
@@ -320,4 +321,21 @@ describe('cpu opponent profiles', () => {
       nextProfileValue: '8-theory-incarnation'
     })).toBe(false);
   });
+});
+
+
+test('Lv12 keeps every evaluated Lv11 startup condition for both colors',()=>{
+  expect(CpuOpponentProfiles.getCpuOpponentProfile(12)).toMatchObject({
+    name:'理論カオスロジカルエンペラービースト',
+    portraitSrc:'assets/images/cpu/theory-chaos-logical-emperor-beast.png'
+  });
+  expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(12)).toBe(12);
+  expect(CpuOpponentProfiles.getCpuOpponentProfileId(12)).toBe('12-strategy-cpu');
+  for(const side of ['black','white']){
+    const {profileId:_old,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11,side);
+    const {profileId:_new,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
+    expect(candidate).toEqual(baseline);
+    expect(candidate.deckCardIds).toHaveLength(93);
+    expect(candidate).toMatchObject({initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6});
+  }
 });

@@ -54,7 +54,8 @@ const CPU_HAND_SKIN_BY_LEVEL = Object.freeze({
   8: 'cpu-lv6-9',
   9: 'cpu-lv6-9',
   10: 'cpu-lv6-9',
-  11: 'cpu-lv6-9'
+  11: 'cpu-lv6-9',
+  12: 'cpu-lv6-9'
 } as any);
 
 function resolveCatalogModule(rootRef: any): any {
@@ -272,12 +273,12 @@ function clampCpuLevel(value: any): number {
   try {
     if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentLevel === 'function') {
       const profileLevel = Number(CpuOpponentProfiles.getCpuOpponentLevel(value));
-      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(11, Math.floor(profileLevel)));
+      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(12, Math.floor(profileLevel)));
     }
   } catch (e) { /* ignore and fall back to numeric level */ }
   const n = Number(value);
   if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.min(11, Math.floor(n)));
+  return Math.max(1, Math.min(12, Math.floor(n)));
 }
 
 function resolveCpuLevel(rootRef: any, ownerKey: any, explicitLevel: any): number {

@@ -605,10 +605,10 @@ describe('hand skin handler', () => {
     expect(document.getElementById('handImage').getAttribute('src')).toBe(manifestOnlySkinPath);
   });
 
-  test('CPU preview uses fixed hand image by white CPU level and explicit black owner restores selected skin', () => {
+  test.each([6, 11, 12])('CPU Lv%i preview uses its fixed hand image and explicit black owner restores selected skin', (level) => {
     window.gameState = { currentPlayer: 1 };
     window.cardState = { fateWillControllerByTurnOwner: {} };
-    window.cpuSmartness = { white: 6 };
+    window.cpuSmartness = { white: level };
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     const mod = require('../ui/handlers/hand-skin.js');

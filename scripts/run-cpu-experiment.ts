@@ -5,14 +5,24 @@ import crypto = require('node:crypto');
 import os = require('node:os');
 import { spawn } from 'node:child_process';
 import { productionRuntimeManifest, type ProductionGameSpec } from './run-production-selfplay';
-import { LV11_ACCEPTANCE, makeExperimentSchedule, summarizeExperiment, runExperimentSchedule, type ExperimentSpec, type ExperimentSlot, type ExperimentScore } from './cpu-experiment-protocol';
+import { experimentProtocol, makeExperimentSchedule, summarizeExperiment, runExperimentSchedule, type ExperimentSpec, type ExperimentSlot, type ExperimentScore } from './cpu-experiment-protocol';
 import { freezeProductionRuntime } from './freeze-production-runtime';
 import { verifyProductionParityGate } from './production-parity-gate';
+import { loadAuditedDevelopmentSet } from './cpu-development-set';
 
 const hash = (bytes: Buffer | string) => crypto.createHash('sha256').update(bytes).digest('hex');
 const read = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const writeNew = (file: string, value: unknown) => fs.writeFileSync(file, JSON.stringify(value, null, 2), { flag: 'wx' });
-const ledgerPath = 'data/cpu-lv11/issued-conditions.json';
+
+/** Include Lv12's sampling/model helpers as well as search and evaluation.
+ * The separately frozen runtime still binds every shared rule dependency. */
+export function lv12PolicyFingerprint(root:string){
+    const directory=path.join(root,'dist/game/ai');
+    const names=fs.readdirSync(directory).filter(name=>/^cpu-lv12-[a-z0-9-]+\.js$/.test(name)).sort();
+    if(!names.includes('cpu-lv12-search.js')||!names.includes('cpu-lv12-evaluation.js'))throw new Error('Lv12 policy is incomplete');
+    const files=names.map(name=>({name,sha256:hash(fs.readFileSync(path.join(directory,name)))}));
+    return {files,sha256:hash(JSON.stringify(files))};
+}
 
 export function collectIssuedSeeds(value: any, target = new Set<number>()): Set<number> {
     if (!value || typeof value !== 'object') return target;
@@ -23,17 +33,67 @@ export function collectIssuedSeeds(value: any, target = new Set<number>()): Set<
 }
 
 export function declareExperiment(specInput: ExperimentSpec) {
+    const ledgerPath = specInput.acceptance === 'lv12' ? 'data/cpu-lv12/issued-conditions.json' : 'data/cpu-lv11/issued-conditions.json';
     const spec = { ...specInput, out: path.resolve(specInput.out),
         candidate: { ...specInput.candidate, root: path.resolve(specInput.candidate.root) },
         opponent: { ...specInput.opponent, root: path.resolve(specInput.opponent.root) } };
     if (fs.existsSync(spec.out)) throw new Error('Experiment output already exists');
     const oldLedgerFile = 'data/cpu-lv10/issued-conditions.json';
     const oldLedger = read(oldLedgerFile), ledger = fs.existsSync(ledgerPath) ? read(ledgerPath) : [];
-    const used = collectIssuedSeeds([oldLedger, ledger]);
-    const schedule = makeExperimentSchedule(spec, used);
-    const roots = [...new Set([process.cwd(), spec.candidate.root, spec.opponent.root])];
+    const otherLedger = specInput.acceptance === 'lv12' ? 'data/cpu-lv11/issued-conditions.json' : 'data/cpu-lv12/issued-conditions.json';
+    const used = collectIssuedSeeds([oldLedger, ledger, fs.existsSync(otherLedger) ? read(otherLedger) : []]);
+    let replaySchedule: ExperimentSlot[] | undefined;
+    let developmentReplayEvidence: unknown;
+    let developmentRulesRoot: string | undefined;
+    if (spec.developmentSet) {
+        if (spec.mode !== 'development' || spec.acceptance !== 'lv12' || spec.developmentReplayOf) throw new Error('Common development conditions cannot be used for acceptance or combined with another replay');
+        const fixed = loadAuditedDevelopmentSet(spec.developmentSet, ledger);
+        replaySchedule = fixed.schedule;
+        developmentReplayEvidence = fixed.evidence;
+        developmentRulesRoot = path.resolve(fixed.rulesRuntime.root);
+        if (productionRuntimeManifest(developmentRulesRoot).sha256 !== fixed.rulesRuntime.sha256) throw new Error('Common development rules runtime changed');
+    }
+    if (spec.developmentReplayOf) {
+        if (spec.mode !== 'development' || spec.acceptance !== 'lv12') throw new Error('Formal conditions cannot be replayed for acceptance');
+        const sourceFile = path.resolve(spec.developmentReplayOf.manifest), auditFile = path.resolve(spec.developmentReplayOf.audit);
+        const source = read(sourceFile), audit = read(auditFile), sourceSha256 = hash(fs.readFileSync(sourceFile));
+        if (source.spec?.mode !== 'acceptance' || source.spec?.acceptance !== 'lv12'
+            || audit.valid !== true || audit.manifestSha256 !== sourceSha256 || (!audit.earlyStopped && !audit.complete)
+            || !ledger.some((entry: any) => entry.mode === 'acceptance' && path.resolve(entry.directory) === path.dirname(sourceFile))) {
+            throw new Error('Development replay requires an issued, finished and audited Lv12 formal trial');
+        }
+        replaySchedule = source.schedule.slice(0, 10);
+        developmentReplayEvidence = { source: { path: sourceFile, sha256: sourceSha256 },
+            audit: { path: auditFile, sha256: hash(fs.readFileSync(auditFile)) },
+            scope: 'Development-only replay of every declared first-ten pair, in the same order. These conditions remain ineligible for all formal evaluations.' };
+    }
+    const schedule = makeExperimentSchedule(spec, used, replaySchedule);
+    const roots = [...new Set([process.cwd(), spec.candidate.root, spec.opponent.root, ...(developmentRulesRoot ? [developmentRulesRoot] : [])])];
     let parityEvidence: ReturnType<typeof verifyProductionParityGate> | undefined;
-    if (spec.mode === 'acceptance') {
+    if ((spec.mode === 'acceptance' && spec.acceptance === 'lv12') || spec.developmentSet) {
+        const baseline = path.resolve('data/cpu-lv12/baseline-start/repo');
+        const baselineManifestFile = path.resolve('data/cpu-lv12/baseline-start/manifest.json');
+        if (hash(fs.readFileSync(baselineManifestFile)) !== '8dc3d1d776b1e1dff2d4de09ca6783ccf1cf4e06d258381406acc35dcb3924fd'
+            || productionRuntimeManifest(baseline).sha256 !== read(baselineManifestFile).sha256) throw new Error('Starting Lv11 baseline changed');
+        if (spec.opponent.root !== baseline || spec.opponent.module !== 'game/ai/cpu-lv11-search'
+            || spec.opponent.search !== 'searchLv11' || spec.opponent.config !== 'LV11_SEARCH_CONFIG'
+            || spec.opponent.maxMs !== undefined || spec.opponent.maxTransitions !== undefined
+            || (spec.opponent.turnModule && spec.opponent.turnModule !== 'game/cpu-lv10-turn')) throw new Error('Lv12 requires the frozen starting Lv11 opponent');
+        if (spec.candidate.module !== 'game/ai/cpu-lv12-search' || spec.candidate.search !== 'searchLv12'
+            || spec.candidate.config !== 'LV12_SEARCH_CONFIG' || spec.candidate.maxMs !== undefined || spec.candidate.maxTransitions !== undefined
+            || (spec.candidate.turnModule && spec.candidate.turnModule !== 'game/cpu-lv10-turn')) throw new Error('Lv12 requires its normal production policy');
+        for (const policy of [spec.candidate, spec.opponent]) {
+            const config = require(path.join(policy.root, 'dist', policy.module))[policy.config];
+            if (config.maxTransitions !== 4096 || config.maxMs !== 4800) throw new Error('Both CPUs must use 4096 transitions / 4800 ms');
+        }
+        if (spec.candidateProfile !== 11 || spec.opponentProfile !== 11) throw new Error('Lv12 evaluation uses identical Lv11 conditions on both seats');
+        if (spec.mode === 'acceptance') {
+            const previousCandidates = ledger.filter((entry: any) => entry.mode === 'acceptance').map((entry: any) => entry.candidatePolicySha256);
+            const candidatePolicySha256 = lv12PolicyFingerprint(spec.candidate.root).sha256;
+            if (previousCandidates.includes(candidatePolicySha256)) throw new Error('An unchanged candidate cannot be redrawn on new formal conditions');
+            parityEvidence = verifyProductionParityGate(spec.parityGateFile!, process.cwd(), spec.candidate.root);
+        }
+    } else if (spec.mode === 'acceptance') {
         const baseline = path.resolve('data/cpu-lv11/baseline-start/repo');
         if (spec.opponent.root !== baseline || spec.opponent.module !== 'game/ai/cpu-lv10-search'
             || spec.opponent.search !== 'searchLv10' || spec.opponent.config !== 'LV10_SEARCH_CONFIG'
@@ -63,11 +123,11 @@ export function declareExperiment(specInput: ExperimentSpec) {
     const frozenRoot = (root: string) => frozen.find(entry => entry.originalRoot === root)!.manifest.root;
     const executionSpec = { ...spec, candidate: { ...spec.candidate, root: frozenRoot(spec.candidate.root) },
         opponent: { ...spec.opponent, root: frozenRoot(spec.opponent.root) } };
-    const commonRoot = frozenRoot(process.cwd()), runtimes = frozen.map(entry => entry.manifest);
+    const commonRoot = frozenRoot(developmentRulesRoot || process.cwd()), runtimes = frozen.map(entry => entry.manifest);
     const executable = path.join(spec.out, 'runtimes', path.basename(process.execPath));
     fs.copyFileSync(process.execPath, executable, fs.constants.COPYFILE_EXCL);
     fs.copyFileSync(__filename, path.join(spec.out, 'driver-at-declaration.js'), fs.constants.COPYFILE_EXCL);
-    const coordinatorFiles = [__filename, ...['cpu-experiment-protocol.js', 'freeze-production-runtime.js', 'production-parity-gate.js', 'verify-production-replay.js'].map(name => path.join(__dirname, name))]
+    const coordinatorFiles = [__filename, ...['cpu-experiment-protocol.js', 'cpu-development-set.js', 'freeze-production-runtime.js', 'production-parity-gate.js', 'verify-production-replay.js'].map(name => path.join(__dirname, name))]
         .map(source => {
             const destination = path.join(commonRoot, 'dist/scripts', path.basename(source));
             const bytes = fs.readFileSync(source);
@@ -80,12 +140,20 @@ export function declareExperiment(specInput: ExperimentSpec) {
     const manifest = { schema: 'cpu-experiment.v3', spec, executionSpec, commonRoot, executable, coordinator,
         executableSha256: hash(fs.readFileSync(executable)), ...schedule, runtimes, frozenRoots: frozen.map(entry => ({ original: entry.originalRoot, frozen: entry.manifest.root })),
         driverSha256: hash(fs.readFileSync(__filename)), createdAt: new Date().toISOString(), parityEvidence,
-        protocol: LV11_ACCEPTANCE,
+        environment: { platform: process.platform, arch: process.arch, node: process.version, osRelease: os.release(),
+            cpuModel: os.cpus()[0]?.model, logicalCpus: os.cpus().length, totalMemory: os.totalmem(),
+            freeMemoryAtDeclaration: os.freemem(), concurrency: spec.concurrency,
+            timing: 'Both seats use the same production monotonic clock; check limits at transition boundaries',
+            loadPolicy: 'No additional selfplay process, training, build or heavy verification while matches run' },
+        protocol: experimentProtocol(spec), developmentReplayEvidence,
+        ...(spec.acceptance==='lv12'?{candidatePolicyFingerprint:lv12PolicyFingerprint(spec.candidate.root)}:{}),
         seedAudit: { excluded: used.size, oldLedgerSha256: hash(fs.readFileSync(oldLedgerFile)),
             currentLedgerSha256: fs.existsSync(ledgerPath) ? hash(fs.readFileSync(ledgerPath)) : null } };
     writeNew(path.join(spec.out, 'manifest.json'), manifest);
     writeNew(path.join(spec.out, 'manifest-sha256.json'), { sha256: hash(fs.readFileSync(path.join(spec.out, 'manifest.json'))) });
-    ledger.push({ label: spec.label, mode: spec.mode, seeds: schedule.conditions.map(condition => condition.seed),
+    ledger.push({ label: spec.label, mode: spec.mode,
+        ...(spec.acceptance === 'lv12' ? { candidatePolicySha256: lv12PolicyFingerprint(spec.candidate.root).sha256 } : {}),
+        seeds: schedule.conditions.map(condition => condition.seed),
         directory: spec.out, createdAt: manifest.createdAt });
     fs.writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));
     return { out: spec.out, games: schedule.schedule.length, conditions: schedule.conditions.length,
@@ -211,13 +279,22 @@ export async function runCpuExperiment(directoryInput: string, resume = false) {
             } finally { fs.closeSync(stdout); fs.closeSync(stderr); }
             fs.writeFileSync(path.join(directory, 'progress.json'), JSON.stringify(summarizeCpuExperiment(directory), null, 2));
     };
+    const globalLock = path.resolve('data/cpu-lv12/active-experiment.json');
+    fs.mkdirSync(path.dirname(globalLock), { recursive: true });
+    if (fs.existsSync(globalLock)) {
+        const owner = read(globalLock);
+        let live = true; try { process.kill(owner.pid, 0); } catch { live = false; }
+        if (live) throw new Error(`Another selfplay coordinator owns the global game limit: ${owner.pid}`);
+        fs.renameSync(globalLock, path.join(path.dirname(globalLock), `stale-owner-${crypto.randomUUID()}.json`));
+    }
+    writeNew(globalLock, { pid: process.pid, directory, concurrency: spec.concurrency, at: new Date().toISOString() });
     try {
         const results = await Promise.allSettled([runExperimentSchedule(spec, manifest.schedule,
             slot => work(slot).catch(error => { stop(); throw error; }), () => fs.existsSync(stopFile), () => {
                 const gate = summarizeCpuExperiment(directory).earlyStop;
                 if (!gate.ready) throw new Error('First-ten gate has unresolved games');
                 if (gate.stop) writeNew(path.join(directory, 'early-stop.json'), {
-                    at: new Date().toISOString(), reason: 'At least five losses in the declared first ten games', ...gate });
+                    at: new Date().toISOString(), reason: `At least ${experimentProtocol(spec).earlyStopLosses} losses in the declared first ten games`, ...gate });
                 return !gate.stop;
             })]);
         const errors = results.filter(result => result.status === 'rejected').map(result => String((result as PromiseRejectedResult).reason));
@@ -226,6 +303,7 @@ export async function runCpuExperiment(directoryInput: string, resume = false) {
         if (errors.length) throw new Error(errors.join('\n'));
         return report;
     } finally {
+        fs.renameSync(globalLock, path.join(directory, `released-global-owner-${crypto.randomUUID()}.json`));
         process.off('SIGINT', stop); process.off('SIGTERM', stop);
         fs.renameSync(lockFile, path.join(directory, `finished-run-${crypto.randomUUID()}.json`));
     }

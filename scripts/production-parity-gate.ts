@@ -23,11 +23,12 @@ export function establishProductionParityGate(candidateRoot: string, judgmentFil
             || !item.expected || !item.actual || diffProductionStates(item.expected, item.actual).length)) {
         throw new Error('Passing browser candidate judgment evidence is required');
     }
-    for (const [file, expected] of [['game/ai/cpu-lv11-search.js', judgment.searchSha256], ['game/ai/cpu-lv11-evaluation.js', judgment.evaluationSha256]]) {
+    const level = judgment.level === 12 ? 12 : 11;
+    for (const [file, expected] of [[`game/ai/cpu-lv${level}-search.js`, judgment.searchSha256], [`game/ai/cpu-lv${level}-evaluation.js`, judgment.evaluationSha256]]) {
         if (hash(fs.readFileSync(path.join(candidate.root, 'dist', file))) !== expected
             || hash(fs.readFileSync(path.join(common.root, 'dist', file))) !== expected) throw new Error('Candidate differs from the browser judgment evidence');
     }
-    const config = require(path.join(candidate.root, 'dist/game/ai/cpu-lv11-search')).LV11_SEARCH_CONFIG;
+    const config = require(path.join(candidate.root, `dist/game/ai/cpu-lv${level}-search`))[`LV${level}_SEARCH_CONFIG`];
     for (const item of judgment.results) {
         if (item.requireAllScenarios && config.scenarioSeeds.some((seed: number) =>
             !item.expected.comparisonScenarioSeeds?.includes(seed) || !item.actual.comparisonScenarioSeeds?.includes(seed))) {

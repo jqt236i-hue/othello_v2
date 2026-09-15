@@ -14,7 +14,7 @@ function createHelpers() {
 }
 
 describe('match worker leaderboard helpers', () => {
-  test.each([10, 11])('Lv%i records survive storage and remain distinct from the preceding level', (level) => {
+  test.each([10, 11, 12])('Lv%i records survive storage and remain distinct from the preceding level', (level) => {
     const helpers = createHelpers();
     const result = helpers.applySubmit(helpers.createEmptyStore(), {
       playerId: 'player_lv10_0001', playerName: 'テスト', score: 7200, mode: 'cpu', cpuLevel: level

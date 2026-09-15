@@ -176,6 +176,11 @@ const lv11DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, n
 const lv11RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedActions']>> = {
     black: { identity: null, actions: [] }, white: { identity: null, actions: [] }
 };
+const lv12RecentDecisions: Lv10TurnRecord[] = [];
+const lv12DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, noAction: 0 };
+const lv12RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedActions']>> = {
+    black: { identity: null, actions: [] }, white: { identity: null, actions: [] }
+};
 // Presentation and extra-action handoffs may release the shared processing flag
 // while an advisory action is still awaiting completion. Keep the Lv10 request
 // exclusive through that completion; a reset cannot release an older request.
@@ -185,6 +190,9 @@ function getLv10DecisionDiagnostics() {
 }
 function getLv11DecisionDiagnostics() {
     return { totals: { ...lv11DecisionTotals }, recent: lv11RecentDecisions.slice() };
+}
+function getLv12DecisionDiagnostics() {
+    return { totals: { ...lv12DecisionTotals }, recent: lv12RecentDecisions.slice() };
 }
 function setCpuUIImpl(obj: any): void {
     if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) {
@@ -437,7 +445,7 @@ function resolveCpuDecisionLevelForTurn(playerKey: PlayerKey): number {
     const controller = (resolveRuntimeValue('cardState') || ((typeof cardState !== 'undefined') ? cardState : null))?.fateWillControllerByTurnOwner?.[playerKey];
     if (controller && controller !== playerKey) {
         const controllerSelection = resolveCpuRuntimeSelectionForTurn(controller);
-        if ([10, 11].includes(selection?.decisionLevel) || [10, 11].includes(controllerSelection?.decisionLevel)) {
+        if ([10, 11, 12].includes(selection?.decisionLevel) || [10, 11, 12].includes(controllerSelection?.decisionLevel)) {
             return controllerSelection?.decisionLevel || 1;
         }
     }
@@ -1276,7 +1284,7 @@ function resetPendingSelectRetryState(playerKey: any) {
 }
 
 function resetCpuTurnHandlerState() {
-    for (const memory of [...Object.values(lv10RejectedActions), ...Object.values(lv11RejectedActions)]) { memory.identity = null; memory.actions = []; delete memory.cancelledCards; }
+    for (const memory of [...Object.values(lv10RejectedActions), ...Object.values(lv11RejectedActions), ...Object.values(lv12RejectedActions)]) { memory.identity = null; memory.actions = []; delete memory.cancelledCards; }
     return CpuTurnScheduler.resetCpuTurnHandlerState();
 }
 
@@ -2189,13 +2197,13 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
     const level = resolveCpuDecisionLevelForTurn(playerKey);
     // Evaluation can ask a frozen browser for the opponent's action. This
     // DI seam is inactive in normal play and never replaces Lv10 judgment.
-    const comparisonAdvisor = level !== 10 && level !== 11 && isCpuFastBenchModeEnabled()
+    const comparisonAdvisor = level !== 10 && level !== 11 && level !== 12 && isCpuFastBenchModeEnabled()
         && typeof __uiImpl_cpu.adviseComparisonOpponent === 'function'
         ? __uiImpl_cpu.adviseComparisonOpponent : null;
 
     // Re-entrancy guard: prevent multiple concurrent runCpuTurn invocations
     // which can happen when processCpuTurn fires during a card-use resume window
-    if (readCpuProcessing() || (advisedTurnInFlight && (level === 10 || level === 11 || comparisonAdvisor))) {
+    if (readCpuProcessing() || (advisedTurnInFlight && (level === 10 || level === 11 || level === 12 || comparisonAdvisor))) {
         debugCpuTrace('[AI] runCpuTurn deferred: processing already active', {
             playerKey,
             autoMode
@@ -2225,7 +2233,7 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
     let ownsAdvisedTurn = false;
     try {
         performanceScope = createRunPerformanceScope(playerKey, level, options);
-        if (level === 10 || level === 11 || comparisonAdvisor) {
+        if (level === 10 || level === 11 || level === 12 || comparisonAdvisor) {
             // A frozen opponent reply is also asynchronous. Keep its next
             // request behind the previous action's full UI commit, including
             // repeated placements within the same turn.
@@ -2235,7 +2243,8 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
             const expectedTurn = getCurrentTurnNumberSafe();
             const viewer = (resolveRuntimeValue('cardState') || cardState)?.fateWillControllerByTurnOwner?.[playerKey] || playerKey;
             await runLv10Turn(viewer, {
-                rejectedActions: level === 11 ? lv11RejectedActions[viewer as PlayerKey]
+                rejectedActions: level === 12 ? lv12RejectedActions[viewer as PlayerKey]
+                    : level === 11 ? lv11RejectedActions[viewer as PlayerKey]
                     : level === 10 ? lv10RejectedActions[viewer as PlayerKey] : undefined,
                 getState: () => ({ gameState: resolveRuntimeValue('gameState') || gameState, cardState: resolveRuntimeValue('cardState') || cardState }),
                 getPublicRecipes: () => {
@@ -2248,6 +2257,10 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 },
                 advise: (request) => {
                     if (comparisonAdvisor) return comparisonAdvisor(request);
+                    if (level === 12) {
+                        if (typeof __uiImpl_cpu.adviseLv12InWorker !== 'function') return Promise.reject(new Error('Lv12 Worker unavailable'));
+                        return __uiImpl_cpu.adviseLv12InWorker(request);
+                    }
                     if (level === 11) {
                         if (typeof __uiImpl_cpu.adviseLv11InWorker !== 'function') return Promise.reject(new Error('Lv11 Worker unavailable'));
                         return __uiImpl_cpu.adviseLv11InWorker(request);
@@ -2285,8 +2298,8 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 performanceScope,
                 record: (record) => {
                     if (comparisonAdvisor) return;
-                    const totals = level === 11 ? lv11DecisionTotals : lv10DecisionTotals;
-                    const recent = level === 11 ? lv11RecentDecisions : lv10RecentDecisions;
+                    const totals = level === 12 ? lv12DecisionTotals : level === 11 ? lv11DecisionTotals : lv10DecisionTotals;
+                    const recent = level === 12 ? lv12RecentDecisions : level === 11 ? lv11RecentDecisions : lv10RecentDecisions;
                     totals.decisions++;
                     if (record.source === 'fallback') totals.fallback++;
                     if (record.outcome === 'rejected') totals.rejected++;
@@ -2440,6 +2453,7 @@ export = {
     runCpuTurn,
     getLv10DecisionDiagnostics,
     getLv11DecisionDiagnostics,
+    getLv12DecisionDiagnostics,
     resetCpuTurnHandlerState,
     PresentationRuntime: presentationRuntime
 };

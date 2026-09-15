@@ -235,6 +235,16 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
   const maxAbsCoordinate = resolveBoardMaxAbsCoordinate(
     deps.maxAbsCoordinate,
   );
+  let topologyMemo: Map<string,BoardTopology> | null = null;
+
+  /** Explicit synchronous scope. Only immutable geometry is reused; cell
+   * owners, legality checks, mutations, and game transitions still execute.
+   * Default callers retain the uncached path. Nothing survives the scope. */
+  function withTopologyMemo<T>(operation:()=>T):T {
+    const previous=topologyMemo;
+    topologyMemo=new Map();
+    try{return operation();}finally{topologyMemo=previous;}
+  }
 
   function buildBoardTopology(boardOrState: unknown, options?: unknown): BoardTopology {
     const state = boardOrState && typeof boardOrState === "object" && !Array.isArray(boardOrState)
@@ -289,6 +299,13 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       }
     }
 
+    // Construct the key from the canonical geometry already derived above.
+    // Expansion owners are intentionally absent: they belong to each view,
+    // whereas every field returned by this function depends on these inputs.
+    const memoKey=topologyMemo?JSON.stringify([config.rows,config.cols,config.baseBounds,
+      [...baseKeys],[...expansionSideByKey],[...holeKeys]]):null;
+    if(memoKey!==null){const cached=topologyMemo!.get(memoKey);if(cached)return cached;}
+
     // Explicit holes are existing topology tombstones, even when a malformed or
     // recovered snapshot places one outside the current base/expansion sets.
     // A missing key inside renderBounds is the only representation of void.
@@ -325,7 +342,7 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       maxCol: contentBounds.maxCol + 1,
     });
 
-    return Object.freeze({
+    const topology=Object.freeze({
       baseRows: config.rows,
       baseCols: config.cols,
       baseKeys: createReadonlySetView(baseKeys),
@@ -348,7 +365,12 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       renderBounds,
       candidateBounds,
     });
+    if(memoKey!==null){
+      if(topologyMemo!.size>=64)topologyMemo!.delete(topologyMemo!.keys().next().value!);
+      topologyMemo!.set(memoKey,topology);
+    }
+    return topology;
   }
 
-  return { buildBoardTopology };
+  return { buildBoardTopology,withTopologyMemo };
 }

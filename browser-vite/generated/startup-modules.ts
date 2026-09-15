@@ -45,6 +45,10 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-lv10-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-search.js"),
   "game/ai/cpu-lv11-evaluation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv11-evaluation.js"),
   "game/ai/cpu-lv11-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv11-search.js"),
+  "game/ai/cpu-lv12-evaluation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv12-evaluation.js"),
+  "game/ai/cpu-lv12-model": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv12-model.js"),
+  "game/ai/cpu-lv12-scenarios": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv12-scenarios.js"),
+  "game/ai/cpu-lv12-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv12-search.js"),
   "game/ai/cpu-lv6-lookahead-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv6-lookahead-profile.js"),
   "game/ai/cpu-movement-target-feasibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-movement-target-feasibility.js"),
   "game/ai/cpu-policy-board-counts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-counts.js"),
@@ -801,6 +805,10 @@ installBootModuleMetadata({
     "game/ai/cpu-lv10-search",
     "game/ai/cpu-lv11-evaluation",
     "game/ai/cpu-lv11-search",
+    "game/ai/cpu-lv12-evaluation",
+    "game/ai/cpu-lv12-model",
+    "game/ai/cpu-lv12-scenarios",
+    "game/ai/cpu-lv12-search",
     "game/ai/cpu-lv6-lookahead-profile",
     "game/ai/cpu-movement-target-feasibility",
     "game/ai/cpu-policy-board-counts",
@@ -1606,4 +1614,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 751;
+export const startupModuleCount = 755;

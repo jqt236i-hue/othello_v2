@@ -3,10 +3,11 @@ import fs = require('node:fs');
 import path = require('node:path');
 import crypto = require('node:crypto');
 import { verifyProductionSelfplay } from './verify-production-selfplay';
-import { LV11_ACCEPTANCE, summarizeExperiment, type ExperimentScore, type ExperimentSlot } from './cpu-experiment-protocol';
+import { auditExperimentProcesses, experimentProtocol, summarizeExperiment, type ExperimentScore, type ExperimentSlot } from './cpu-experiment-protocol';
 import { verifyProductionParityGate } from './production-parity-gate';
 import { summarizeProductionDecisions } from './run-production-selfplay';
 import type { Lv10TurnRecord } from '../game/cpu-lv10-turn';
+import { loadAuditedDevelopmentSet } from './cpu-development-set';
 
 const hash = (bytes: Buffer | string) => crypto.createHash('sha256').update(bytes).digest('hex');
 const read = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -16,11 +17,19 @@ const read = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'));
 export function auditCpuExperiment(directoryInput: string, runtimeOverride?: string) {
     const directory = path.resolve(directoryInput), manifestPath = path.join(directory, 'manifest.json');
     const manifest = read(manifestPath), spec = manifest.executionSpec || manifest.spec;
+    const protocol = experimentProtocol(spec);
+    const fixedDevelopment = manifest.spec.developmentSet
+        ? loadAuditedDevelopmentSet(manifest.spec.developmentSet, read('data/cpu-lv12/issued-conditions.json')) : null;
+    if (fixedDevelopment && (manifest.spec.mode !== 'development'
+        || JSON.stringify(fixedDevelopment.schedule) !== JSON.stringify(manifest.schedule)
+        || manifest.runtimes.find((runtime: any) => runtime.root === manifest.commonRoot)?.sha256 !== fixedDevelopment.rulesRuntime.sha256)) {
+        throw new Error('Common development conditions or rules changed');
+    }
     if (hash(fs.readFileSync(manifestPath)) !== read(path.join(directory, 'manifest-sha256.json')).sha256) throw new Error('Experiment declaration hash mismatch');
     if (manifest.executable && hash(fs.readFileSync(manifest.executable)) !== manifest.executableSha256) throw new Error('Frozen Node executable changed');
     for (const file of manifest.coordinator?.files || []) if (hash(fs.readFileSync(file.path)) !== file.sha256) throw new Error('Frozen coordinator changed');
     if (manifest.spec.mode === 'acceptance') {
-        if (JSON.stringify(manifest.protocol) !== JSON.stringify(LV11_ACCEPTANCE)) throw new Error('Acceptance declaration uses a withdrawn or different protocol');
+        if (JSON.stringify(manifest.protocol) !== JSON.stringify(protocol)) throw new Error('Acceptance declaration uses a withdrawn or different protocol');
         const evidence = manifest.parityEvidence;
         if (!evidence || hash(fs.readFileSync(evidence.path)) !== evidence.sha256) throw new Error('Declared parity evidence is absent or changed');
         verifyProductionParityGate(evidence.path, manifest.commonRoot, spec.candidate.root);
@@ -31,13 +40,14 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
     }
     const scores: ExperimentScore[] = [], games: any[] = [];
     const candidateDecisions: Lv10TurnRecord[] = [], opponentDecisions: Lv10TurnRecord[] = [];
+    let auditedPublicInputs = 0;
     const earlyStopFile = path.join(directory, 'early-stop.json');
     const earlyStopped = fs.existsSync(earlyStopFile);
     if (earlyStopped && manifest.spec.mode !== 'acceptance') throw new Error('Unexpected early-stop record outside acceptance');
     const auditSchedule: ExperimentSlot[] = earlyStopped
-        ? manifest.schedule.slice(0, LV11_ACCEPTANCE.earlyStopGames) : manifest.schedule;
+        ? manifest.schedule.slice(0, protocol.earlyStopGames) : manifest.schedule;
     if (earlyStopped) {
-        for (const slot of manifest.schedule.slice(LV11_ACCEPTANCE.earlyStopGames)) {
+        for (const slot of manifest.schedule.slice(protocol.earlyStopGames)) {
             if (fs.existsSync(path.join(directory, 'games', slot.id))) throw new Error('A game was launched beyond the failed first-ten gate');
         }
     }
@@ -64,7 +74,23 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
         const common = manifest.runtimes.find((runtime: any) => runtime.root === (manifest.commonRoot || manifest.runtimes[0].root));
         if (game.identity.runtimeSha256 !== common.sha256) throw new Error('Game rules runtime changed');
         const result = verifyProductionSelfplay(attemptPath, new Set(), runtimeOverride);
+        if (fixedDevelopment && result.initialSha256 !== fixedDevelopment.evidence.provenance.find(entry => entry.id === slot.id)?.initialSha256) {
+            throw new Error('Common development initial state differs from its audited source');
+        }
         const { finalStateKey: _state, decisionRecords, ...compact } = result;
+        if (spec.acceptance === 'lv12') {
+            for (const attempt of attempts) {
+                const rows = fs.readFileSync(path.join(gameRoot, attempt, 'steps.ndjson'), 'utf8').trimEnd().split('\n').map(line=>JSON.parse(line));
+                for (const row of rows.filter(row=>row.kind==='decision')) {
+                    const policy = game.identity.policies[row.player].spec;
+                    const input = require(path.join(policy.root,'dist/game/ai/cpu-lv10-observation')).observeLv10Position(
+                        row.transitions.find((step:any)=>step.kind==='action').before,row.player);
+                    if (row.memories?.[row.player]?.identity !== JSON.stringify(input)) throw new Error('Recorded CPU input differs from its permitted player projection');
+                    require(path.join(policy.root,'dist/game/ai/cpu-lv10-advisor-contract')).parseLv10AdvisorRequest({observation:input});
+                    auditedPublicInputs++;
+                }
+            }
+        }
         for (const record of decisionRecords) (record.player === slot.candidateColor ? candidateDecisions : opponentDecisions).push(record);
         scores.push({ id: slot.id, winner: result.result.winner, initialSha256: result.initialSha256 });
         games.push({ slot, ...compact, attempts });
@@ -73,14 +99,26 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
     if (earlyStopped) {
         const recorded = read(earlyStopFile);
         if (!tally.earlyStop.stop || recorded.losses !== tally.earlyStop.losses
-            || recorded.completed !== LV11_ACCEPTANCE.earlyStopGames
+            || recorded.completed !== protocol.earlyStopGames
             || JSON.stringify(recorded.slots) !== JSON.stringify(tally.earlyStop.slots)) {
             throw new Error('Early-stop record does not match the audited declared first ten games');
         }
     } else if (manifest.spec.mode === 'acceptance' && tally.earlyStop.stop) {
         throw new Error('Experiment continued despite failing its first-ten gate');
     }
+    const processHistory=spec.acceptance==='lv12'?read(path.join(directory,'processes.json')):[];
+    for(const entry of processHistory.filter((item:any)=>item.interruption)){
+        const recovery=read(entry.interruption.recoveryFile);
+        const recovered=recovery.summaries?.find((item:any)=>item.pid===entry.pid&&item.slot===entry.slot&&path.resolve(item.attempt)===path.resolve(entry.output));
+        if(recovery.schema!=='cpu-process-loss-recovery.v1'||recovery.recoveredAt!==entry.finishedAt||!recovered?.replay?.valid
+            ||recovered.journalSha256!==hash(fs.readFileSync(path.join(entry.output,'steps.ndjson')))
+            ||recovered.checkpointSha256!==hash(fs.readFileSync(path.join(entry.output,'checkpoint.json')))
+            ||recovered.journalSha256!==entry.interruption.journalSha256||recovered.checkpointSha256!==entry.interruption.checkpointSha256)
+            throw new Error('Unverified process-loss recovery');
+    }
+    const processAudit = spec.acceptance === 'lv12' ? auditExperimentProcesses(spec,manifest.schedule,processHistory) : null;
     return { schema: 'cpu-experiment-audit.v1', manifestSha256: hash(fs.readFileSync(manifestPath)),
+        processAudit, auditedPublicInputs,
         ...tally, valid: true, games, earlyStopped,
         auditScope: earlyStopped ? 'All ten started games audited; remaining twenty deliberately unstarted' : 'All scheduled games audited',
         strengthGatePassed: !earlyStopped && tally.meetsWinGate && !fs.existsSync(path.join(directory, 'retirement.json')),

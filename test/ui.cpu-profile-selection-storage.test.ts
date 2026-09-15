@@ -2,12 +2,12 @@ import {JSDOM} from 'jsdom';
 import Selection = require('../ui/cpu-profile-selection');
 import Startup = require('../shared/cpu-opponent-startup-options');
 
-test.each([10, 11])('saved Lv%i profiles restore both colors before initial select options and opening perks are created',(level)=>{
+test.each([10, 11, 12])('saved Lv%i profiles restore both colors before initial select options and opening perks are created',(level)=>{
     const dom=new JSDOM('<select id="smartBlack"></select><select id="smartWhite"></select>',{url:'http://localhost/'});
     try {
         const doc=dom.window.document;
         expect(Selection.writeStoredCpuProfile('black',level,doc)).toBe(true);
-        const profileId = level === 11 ? '11-execution-chaos-dragon' : '10-observed-dark-dragon';
+        const profileId = level === 12 ? '12-strategy-cpu' : level === 11 ? '11-execution-chaos-dragon' : '10-observed-dark-dragon';
         expect(Selection.writeStoredCpuProfile('white',profileId,doc)).toBe(true);
         const restored=Selection.readCpuSmartnessFromSelects(doc);
         expect(restored).toEqual({black:profileId,white:profileId});

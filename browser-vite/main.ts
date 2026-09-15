@@ -73,7 +73,8 @@ const startBrowserApp = createStartViteBrowserApp({
         scoreCandidatesInWorker: cpuWorkerBridge.scoreCandidatesInWorker,
         searchCardQuiescenceInWorker: cpuWorkerBridge.searchCardQuiescenceInWorker,
         adviseLv10InWorker: cpuWorkerBridge.adviseLv10InWorker,
-        adviseLv11InWorker: cpuWorkerBridge.adviseLv11InWorker
+        adviseLv11InWorker: cpuWorkerBridge.adviseLv11InWorker,
+        adviseLv12InWorker: cpuWorkerBridge.adviseLv12InWorker
       }) === true;
     }
     root.__CARD_REVERSI_BROWSER_CAPABILITIES__ = Object.freeze(Object.assign(

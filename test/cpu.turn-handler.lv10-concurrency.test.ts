@@ -6,14 +6,14 @@ function deferred<T = void>() {
     return { promise, resolve };
 }
 
-describe.each(['lv10', 'lv11', 'comparison'])('%s turn completion owns its asynchronous request', (mode) => {
+describe.each(['lv10', 'lv11', 'lv12', 'comparison'])('%s turn completion owns its asynchronous request', (mode) => {
     let handler: any;
     beforeEach(() => {
         jest.resetModules();
         const Core = require('../game/logic/core');
         const Cards = require('../game/logic/cards');
         Object.assign(runtime, { BLACK: 1, WHITE: -1, MATCH_MODE: 'cpu',
-            cpuSmartness: { black: 9, white: mode === 'lv11' ? '11-execution-chaos-dragon' : mode === 'lv10' ? '10-observed-dark-dragon' : '9-ending-ash' },
+            cpuSmartness: { black: 9, white: mode === 'lv12' ? '12-strategy-cpu' : mode === 'lv11' ? '11-execution-chaos-dragon' : mode === 'lv10' ? '10-observed-dark-dragon' : '9-ending-ash' },
             isProcessing: false, isCardAnimating: false, VisualPlaybackActive: false,
             isGameOver: () => false, isDebugLogAvailable: () => false,
             gameState: Core.createGameState(), cardState: Cards.createCardState() });
@@ -47,7 +47,7 @@ describe.each(['lv10', 'lv11', 'comparison'])('%s turn completion owns its async
             await finishApply.promise;
             return { ok: true };
         });
-        handler.setCpuUIImpl({ [mode === 'lv11' ? 'adviseLv11InWorker' : mode === 'lv10' ? 'adviseLv10InWorker' : 'adviseComparisonOpponent']: advise, executeMove });
+        handler.setCpuUIImpl({ [mode === 'lv12' ? 'adviseLv12InWorker' : mode === 'lv11' ? 'adviseLv11InWorker' : mode === 'lv10' ? 'adviseLv10InWorker' : 'adviseComparisonOpponent']: advise, executeMove });
         const first = handler.runCpuTurn('white');
         try {
             expect(advise).toHaveBeenCalledTimes(1);
@@ -78,7 +78,7 @@ describe.each(['lv10', 'lv11', 'comparison'])('%s turn completion owns its async
         const advise = jest.fn(async () => ({ version: 'test', action: { type: 'place', row: move.row, col: move.col },
             continuation: [], transitions: 1 }));
         const executeMove = jest.fn().mockRejectedValueOnce(new Error('failed presentation')).mockResolvedValue({ ok: true });
-        handler.setCpuUIImpl({ [mode === 'lv11' ? 'adviseLv11InWorker' : mode === 'lv10' ? 'adviseLv10InWorker' : 'adviseComparisonOpponent']: advise, executeMove, emitLogAdded: () => {} });
+        handler.setCpuUIImpl({ [mode === 'lv12' ? 'adviseLv12InWorker' : mode === 'lv11' ? 'adviseLv11InWorker' : mode === 'lv10' ? 'adviseLv10InWorker' : 'adviseComparisonOpponent']: advise, executeMove, emitLogAdded: () => {} });
         const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
         try {
             await handler.runCpuTurn('white');

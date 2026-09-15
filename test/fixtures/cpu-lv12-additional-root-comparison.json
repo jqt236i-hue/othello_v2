@@ -1,0 +1,1852 @@
+{
+  "schema": "cpu-lv12-additional-root-regression.v1",
+  "purpose": "A rescued baseline loss and a broken baseline win. Verify counted extra comparison and safe interruption; these fixtures do not assert that a higher search score is a won game.",
+  "source": "data/cpu-lv12/a04-broad-public-inputs-v1.json",
+  "sourceSha256": "253fcd31456cde39aba59c3261c57f22a97c03869730ac13999712fa45d903cd",
+  "cases": [
+    {
+      "id": "common40/a04/12-white/4",
+      "baselineOutcome": "loss",
+      "candidateOutcome": "win",
+      "observation": {
+        "schema": "cpu_lv10_observation.v1",
+        "player": "white",
+        "gameState": {
+          "board": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "boardConfig": {
+            "rows": 8,
+            "cols": 8,
+            "shape": "rectangle",
+            "standard8x8": true,
+            "baseBounds": {
+              "minRow": 0,
+              "maxRow": 7,
+              "minCol": 0,
+              "maxCol": 7
+            },
+            "outerBounds": {
+              "minRow": -1,
+              "maxRow": 8,
+              "minCol": -1,
+              "maxCol": 8
+            }
+          },
+          "currentPlayer": -1,
+          "consecutivePasses": 0,
+          "turnNumber": 3,
+          "roundNumber": 2,
+          "roundCompletionByPlayer": {
+            "black": true,
+            "white": false
+          },
+          "pendingRoundBonus": null,
+          "boardExpansion": {
+            "active": false,
+            "side": null,
+            "row": null,
+            "owner": 0,
+            "usedByPlayer": {
+              "black": false,
+              "white": false
+            },
+            "cells": [],
+            "col": null
+          }
+        },
+        "cardState": {
+          "boardConfig": {
+            "rows": 8,
+            "cols": 8,
+            "shape": "rectangle",
+            "standard8x8": true,
+            "baseBounds": {
+              "minRow": 0,
+              "maxRow": 7,
+              "minCol": 0,
+              "maxCol": 7
+            },
+            "outerBounds": {
+              "minRow": -1,
+              "maxRow": 8,
+              "minCol": -1,
+              "maxCol": 8
+            }
+          },
+          "discard": [],
+          "initialDeckSize": 93,
+          "initialDeckSizeByPlayer": {
+            "black": 93,
+            "white": 93
+          },
+          "reshuffleRequiresFullCycle": false,
+          "hands": {
+            "black": [
+              "__hidden_hand__:black:0",
+              "__hidden_hand__:black:1"
+            ],
+            "white": [
+              "swap_01",
+              "time_stop_god_01"
+            ]
+          },
+          "turnIndex": 4,
+          "lastTurnStartedFor": "white",
+          "_activeTurnPlayer": "white",
+          "turnCountByPlayer": {
+            "black": 2,
+            "white": 2
+          },
+          "timeStopConsecutiveTurnsRemainingByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "observerTriviaBaseByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "observerTriviaCursorByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "nextObserverWillStoneByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "observerWillRepaymentsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "_nextObserverWillRepaymentSeq": 1,
+          "nextBoardExecutorStoneByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "theoryIncarnationStateByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "nextTheoryIncarnationStoneByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "theoryNumberCellsBySession": {},
+          "theoryNumberCellByCell": {},
+          "numberCellCollectedTotalByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "_nextTheoryIncarnationSeq": 1,
+          "selectedCardId": null,
+          "hasUsedCardThisTurnByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "hasDestroyedCardThisTurnByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "pendingEffectByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "activeEffectsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "markers": [],
+          "_nextMarkerId": 1,
+          "_nextCreatedSeq": 1,
+          "presentationEvents": [],
+          "_nextStoneId": 8,
+          "stoneIdMap": [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "s7",
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "s1",
+              "s2",
+              "s6",
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "s3",
+              "s4",
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              "s5",
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          ],
+          "expansionStoneIdByCell": {},
+          "hyperactiveSeqCounter": 0,
+          "lastUsedCardByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "cardUseCountByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "totalFlipCountByPlayer": {
+            "black": 2,
+            "white": 1
+          },
+          "cornerCaptureCountByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "charge": {
+            "black": 99,
+            "white": 99
+          },
+          "chargeGainMultiplierByPlayer": {
+            "black": 2,
+            "white": 2
+          },
+          "chargeGainedTotal": {
+            "black": 0,
+            "white": 0
+          },
+          "chargeDeltaEvents": [],
+          "_nextChargeDeltaSeq": 1,
+          "riboRepaymentsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "extraPlaceRemainingByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "infinitePlaceActiveByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "multiPlaceSourceTypeByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "boardBonusByCell": {
+            "7,6": 9,
+            "6,7": 9,
+            "6,0": 10,
+            "1,0": 8,
+            "6,6": 8,
+            "5,2": 4,
+            "5,1": 5,
+            "0,4": 2,
+            "5,0": 4,
+            "5,7": 7,
+            "5,5": 5,
+            "6,4": 2,
+            "3,7": 1,
+            "2,2": 5,
+            "0,2": 5,
+            "0,3": 7,
+            "7,7": 7,
+            "2,7": 3,
+            "3,6": 1,
+            "1,2": 6,
+            "2,1": 5,
+            "0,7": 3,
+            "6,3": 6,
+            "1,7": 4,
+            "0,6": 2,
+            "0,1": 2,
+            "2,0": 2,
+            "7,2": 3,
+            "3,1": 1,
+            "6,5": 2,
+            "6,1": 3,
+            "4,0": 2,
+            "5,6": 1,
+            "7,4": 6,
+            "2,5": 1,
+            "4,6": 6,
+            "6,2": 1,
+            "7,1": 4,
+            "3,0": 3,
+            "7,5": 1
+          },
+          "boardBonusConsumedByCell": {},
+          "workAnchorPosByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "workNextPlacementArmedByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "breedingFrontierByAnchorId": {},
+          "breedingSproutByOwner": {
+            "black": [],
+            "white": []
+          },
+          "_breedingSproutClearedTokenByOwner": {
+            "black": "black:3",
+            "white": "white:4"
+          },
+          "prevOpponentTurnDestroyedStonesByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "pendingStoneSalvationGodRevivesByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "fateWillControllerByTurnOwner": {
+            "black": null,
+            "white": null
+          },
+          "_presentationEventsPersist": [],
+          "observedHandSlotsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "handCostAdjustmentsByPlayer": {
+            "black": [
+              null,
+              null
+            ],
+            "white": [
+              null,
+              null
+            ]
+          },
+          "selectedCardOwnerKey": null,
+          "deckRemainingByPlayer": {
+            "black": 91,
+            "white": 91
+          }
+        }
+      },
+      "publicRecipes": {
+        "black": [
+          "chest_01",
+          "free_01",
+          "last_resort_01",
+          "sniper_01",
+          "hard_01",
+          "ghost_01",
+          "sacrifice_will_01",
+          "zombie_will_01",
+          "afterimage_will_01",
+          "swap_01",
+          "position_swap_01",
+          "perma_01",
+          "strong_wind_01",
+          "super_buoyancy_01",
+          "buoyancy_01",
+          "super_gravity_01",
+          "super_attraction_01",
+          "gravity_01",
+          "trap_01",
+          "tempt_01",
+          "capture_01",
+          "double_chain_01",
+          "taboo_reverse_01",
+          "reverse_will_01",
+          "regen_01",
+          "destroy_01",
+          "bomb_01",
+          "time_stop_god_01",
+          "udr_01",
+          "breeding_01",
+          "proliferation_01",
+          "clone_01",
+          "seed_01",
+          "teleport_01",
+          "cell_teleport_01",
+          "cross_bomb_01",
+          "x_bomb_01",
+          "hyperactive_01",
+          "extreme_hyperactive_01",
+          "escape_01",
+          "robot_vacuum_01",
+          "gluttonous_will_01",
+          "will_hunter_king_01",
+          "instant_hyperactive_01",
+          "rebuild_01",
+          "work_01",
+          "ultimate_work_god_01",
+          "ribo_01",
+          "loss_will_01",
+          "mass_freeze_will_01",
+          "double_01",
+          "heaven_01",
+          "reveal_hand_01",
+          "theory_incarnation_01",
+          "board_executor_01",
+          "observer_will_01",
+          "condemn_01",
+          "execution_01",
+          "gold_stone",
+          "rainbow_stone",
+          "silver_stone",
+          "crystal_stone",
+          "extend_life_01",
+          "extend_life_god_01",
+          "corrosion_01",
+          "guard_01",
+          "guardian_god_01",
+          "stone_salvation_god_01",
+          "destroy_dragon_01",
+          "lightning_01",
+          "udg_01",
+          "ultimate_hyperactive_01",
+          "board_expand_01",
+          "board_expand_god_01",
+          "board_shrink_01",
+          "board_shrink_god_01",
+          "blockade_01",
+          "poison_will_01",
+          "fire_will_01",
+          "water_will_01",
+          "grass_will_01",
+          "meteor_01",
+          "causal_replay_01",
+          "freeze_01",
+          "salvation_01",
+          "living_will_01",
+          "reinforcement_01",
+          "support_troops_01",
+          "equality_will_01",
+          "fate_will_01",
+          "meteor_god_01",
+          "chaos_summon_01",
+          "time_stop_deity_01"
+        ],
+        "white": [
+          "chest_01",
+          "free_01",
+          "last_resort_01",
+          "sniper_01",
+          "hard_01",
+          "ghost_01",
+          "sacrifice_will_01",
+          "zombie_will_01",
+          "afterimage_will_01",
+          "swap_01",
+          "position_swap_01",
+          "perma_01",
+          "strong_wind_01",
+          "super_buoyancy_01",
+          "buoyancy_01",
+          "super_gravity_01",
+          "super_attraction_01",
+          "gravity_01",
+          "trap_01",
+          "tempt_01",
+          "capture_01",
+          "double_chain_01",
+          "taboo_reverse_01",
+          "reverse_will_01",
+          "regen_01",
+          "destroy_01",
+          "bomb_01",
+          "time_stop_god_01",
+          "udr_01",
+          "breeding_01",
+          "proliferation_01",
+          "clone_01",
+          "seed_01",
+          "teleport_01",
+          "cell_teleport_01",
+          "cross_bomb_01",
+          "x_bomb_01",
+          "hyperactive_01",
+          "extreme_hyperactive_01",
+          "escape_01",
+          "robot_vacuum_01",
+          "gluttonous_will_01",
+          "will_hunter_king_01",
+          "instant_hyperactive_01",
+          "rebuild_01",
+          "work_01",
+          "ultimate_work_god_01",
+          "ribo_01",
+          "loss_will_01",
+          "mass_freeze_will_01",
+          "double_01",
+          "heaven_01",
+          "reveal_hand_01",
+          "theory_incarnation_01",
+          "board_executor_01",
+          "observer_will_01",
+          "condemn_01",
+          "execution_01",
+          "gold_stone",
+          "rainbow_stone",
+          "silver_stone",
+          "crystal_stone",
+          "extend_life_01",
+          "extend_life_god_01",
+          "corrosion_01",
+          "guard_01",
+          "guardian_god_01",
+          "stone_salvation_god_01",
+          "destroy_dragon_01",
+          "lightning_01",
+          "udg_01",
+          "ultimate_hyperactive_01",
+          "board_expand_01",
+          "board_expand_god_01",
+          "board_shrink_01",
+          "board_shrink_god_01",
+          "blockade_01",
+          "poison_will_01",
+          "fire_will_01",
+          "water_will_01",
+          "grass_will_01",
+          "meteor_01",
+          "causal_replay_01",
+          "freeze_01",
+          "salvation_01",
+          "living_will_01",
+          "reinforcement_01",
+          "support_troops_01",
+          "equality_will_01",
+          "fate_will_01",
+          "meteor_god_01",
+          "chaos_summon_01",
+          "time_stop_deity_01"
+        ]
+      },
+      "baselineFixed": {
+        "version": "lv12-sparse-threats-dev10c",
+        "action": {
+          "type": "place",
+          "row": 3,
+          "col": 2
+        },
+        "continuation": [],
+        "value": -0.4408857362668483,
+        "transitions": 1550,
+        "elapsedMs": null,
+        "stopped": "complete",
+        "rejectedCount": 0,
+        "rejected": [],
+        "evaluatedCandidates": 3,
+        "comparisonScenarioSeeds": [
+          100901,
+          100909,
+          100913
+        ],
+        "scenarioTimeCuts": 0,
+        "scenarioNodeCuts": 0,
+        "scenarioSampleSeeds": [
+          3096073390,
+          2510117590,
+          265995594
+        ],
+        "alternatePlanRepairs": 0,
+        "comparisonDepths": [
+          5,
+          5,
+          5
+        ],
+        "evaluationCalls": 1586,
+        "evaluationCacheHits": 36,
+        "candidates": [
+          {
+            "action": {
+              "type": "place",
+              "row": 6,
+              "col": 4
+            },
+            "continuation": [],
+            "immediate": 8.301032695383515,
+            "retainedForDeepening": true,
+            "replies": [
+              -27.49922830873198,
+              -11.669160397551924,
+              -65.5988900015335
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.500344458888534
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 3
+            },
+            "continuation": [],
+            "immediate": 1.5539449152182554,
+            "retainedForDeepening": true,
+            "replies": [
+              -24.758565029972612,
+              -6.590435096160589,
+              -64.9364508768415
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.4661802304284117
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 1,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": 0.5653449517128584,
+            "retainedForDeepening": false,
+            "replies": [
+              -58.49903154314822
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.723069198324499
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 3,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -1.7842100680677957,
+            "retainedForDeepening": true,
+            "replies": [
+              -10.331004820144514,
+              -14.011521995676421,
+              -65.5988900015335
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.4408857362668483
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -5.300876711468351,
+            "retainedForDeepening": false,
+            "replies": [
+              -51.9605317278704
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.670627874806363
+          }
+        ]
+      },
+      "baselineSlow": {
+        "version": "lv12-sparse-threats-dev10c",
+        "action": {
+          "type": "place",
+          "row": 5,
+          "col": 3
+        },
+        "continuation": [],
+        "value": -0.034949817362175506,
+        "transitions": 800,
+        "elapsedMs": 4800,
+        "stopped": "time_budget",
+        "rejectedCount": 0,
+        "rejected": [],
+        "evaluatedCandidates": 3,
+        "comparisonScenarioSeeds": [
+          100901,
+          100909,
+          100913
+        ],
+        "scenarioTimeCuts": 1,
+        "scenarioNodeCuts": 0,
+        "scenarioSampleSeeds": [
+          3096073390,
+          2510117590,
+          265995594
+        ],
+        "alternatePlanRepairs": 0,
+        "comparisonDepths": [
+          3,
+          5,
+          3
+        ],
+        "evaluationCalls": 836,
+        "evaluationCacheHits": 36,
+        "candidates": [
+          {
+            "action": {
+              "type": "place",
+              "row": 6,
+              "col": 4
+            },
+            "continuation": [],
+            "immediate": 8.301032695383515,
+            "retainedForDeepening": true,
+            "replies": [
+              -1.5096246277317111,
+              -11.669160397551924,
+              -4.088640847409147
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.10290404473620361
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 3
+            },
+            "continuation": [],
+            "immediate": 1.5539449152182554,
+            "retainedForDeepening": true,
+            "replies": [
+              2.3647779872334116,
+              -6.590435096160589,
+              -0.21423823244402396
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.034949817362175506
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 1,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": 0.5653449517128584,
+            "retainedForDeepening": false,
+            "replies": [
+              -58.49903154314822
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.723069198324499
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 3,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -1.7842100680677957,
+            "retainedForDeepening": true,
+            "replies": [
+              0.7133710831014062,
+              -19.60396163509809,
+              -1.865645136576029
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.13383288680360295
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -5.300876711468351,
+            "retainedForDeepening": false,
+            "replies": [
+              -51.9605317278704
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.670627874806363
+          }
+        ]
+      }
+    },
+    {
+      "id": "common40/a04/19-white/4",
+      "baselineOutcome": "win",
+      "candidateOutcome": "loss",
+      "observation": {
+        "schema": "cpu_lv10_observation.v1",
+        "player": "white",
+        "gameState": {
+          "board": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              -1,
+              -1,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "boardConfig": {
+            "rows": 8,
+            "cols": 8,
+            "shape": "rectangle",
+            "standard8x8": true,
+            "baseBounds": {
+              "minRow": 0,
+              "maxRow": 7,
+              "minCol": 0,
+              "maxCol": 7
+            },
+            "outerBounds": {
+              "minRow": -1,
+              "maxRow": 8,
+              "minCol": -1,
+              "maxCol": 8
+            }
+          },
+          "currentPlayer": -1,
+          "consecutivePasses": 0,
+          "turnNumber": 3,
+          "roundNumber": 2,
+          "roundCompletionByPlayer": {
+            "black": true,
+            "white": false
+          },
+          "pendingRoundBonus": null,
+          "boardExpansion": {
+            "active": false,
+            "side": null,
+            "row": null,
+            "owner": 0,
+            "usedByPlayer": {
+              "black": false,
+              "white": false
+            },
+            "cells": [],
+            "col": null
+          }
+        },
+        "cardState": {
+          "boardConfig": {
+            "rows": 8,
+            "cols": 8,
+            "shape": "rectangle",
+            "standard8x8": true,
+            "baseBounds": {
+              "minRow": 0,
+              "maxRow": 7,
+              "minCol": 0,
+              "maxCol": 7
+            },
+            "outerBounds": {
+              "minRow": -1,
+              "maxRow": 8,
+              "minCol": -1,
+              "maxCol": 8
+            }
+          },
+          "discard": [],
+          "initialDeckSize": 93,
+          "initialDeckSizeByPlayer": {
+            "black": 93,
+            "white": 93
+          },
+          "reshuffleRequiresFullCycle": false,
+          "hands": {
+            "black": [
+              "__hidden_hand__:black:0",
+              "__hidden_hand__:black:1"
+            ],
+            "white": [
+              "regen_01",
+              "trap_01"
+            ]
+          },
+          "turnIndex": 4,
+          "lastTurnStartedFor": "white",
+          "_activeTurnPlayer": "white",
+          "turnCountByPlayer": {
+            "black": 2,
+            "white": 2
+          },
+          "timeStopConsecutiveTurnsRemainingByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "observerTriviaBaseByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "observerTriviaCursorByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "nextObserverWillStoneByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "observerWillRepaymentsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "_nextObserverWillRepaymentSeq": 1,
+          "nextBoardExecutorStoneByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "theoryIncarnationStateByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "nextTheoryIncarnationStoneByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "theoryNumberCellsBySession": {},
+          "theoryNumberCellByCell": {},
+          "numberCellCollectedTotalByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "_nextTheoryIncarnationSeq": 1,
+          "selectedCardId": null,
+          "hasUsedCardThisTurnByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "hasDestroyedCardThisTurnByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "pendingEffectByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "activeEffectsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "markers": [],
+          "_nextMarkerId": 1,
+          "_nextCreatedSeq": 1,
+          "presentationEvents": [],
+          "_nextStoneId": 8,
+          "stoneIdMap": [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "s7",
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "s1",
+              "s2",
+              "s6",
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              "s3",
+              "s4",
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              "s5",
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ]
+          ],
+          "expansionStoneIdByCell": {},
+          "hyperactiveSeqCounter": 0,
+          "lastUsedCardByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "cardUseCountByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "totalFlipCountByPlayer": {
+            "black": 2,
+            "white": 1
+          },
+          "cornerCaptureCountByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "charge": {
+            "black": 99,
+            "white": 99
+          },
+          "chargeGainMultiplierByPlayer": {
+            "black": 2,
+            "white": 2
+          },
+          "chargeGainedTotal": {
+            "black": 0,
+            "white": 0
+          },
+          "chargeDeltaEvents": [],
+          "_nextChargeDeltaSeq": 1,
+          "riboRepaymentsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "extraPlaceRemainingByPlayer": {
+            "black": 0,
+            "white": 0
+          },
+          "infinitePlaceActiveByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "multiPlaceSourceTypeByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "boardBonusByCell": {
+            "7,1": 8,
+            "6,0": 8,
+            "0,1": 9,
+            "1,6": 9,
+            "0,6": 10,
+            "0,0": 2,
+            "6,4": 4,
+            "0,4": 7,
+            "0,7": 4,
+            "2,5": 2,
+            "1,3": 6,
+            "6,2": 3,
+            "1,4": 2,
+            "0,5": 3,
+            "5,6": 7,
+            "4,1": 2,
+            "5,5": 1,
+            "3,1": 1,
+            "3,7": 2,
+            "1,5": 5,
+            "6,5": 3,
+            "7,0": 1,
+            "2,2": 1,
+            "7,4": 5,
+            "7,2": 1,
+            "5,7": 1,
+            "4,0": 4,
+            "5,2": 2,
+            "2,1": 5,
+            "6,3": 7,
+            "2,7": 5,
+            "6,7": 4,
+            "0,2": 3,
+            "3,0": 2,
+            "6,1": 3,
+            "7,6": 6,
+            "7,7": 6,
+            "4,6": 1,
+            "5,0": 6,
+            "4,7": 5
+          },
+          "boardBonusConsumedByCell": {},
+          "workAnchorPosByPlayer": {
+            "black": null,
+            "white": null
+          },
+          "workNextPlacementArmedByPlayer": {
+            "black": false,
+            "white": false
+          },
+          "breedingFrontierByAnchorId": {},
+          "breedingSproutByOwner": {
+            "black": [],
+            "white": []
+          },
+          "_breedingSproutClearedTokenByOwner": {
+            "black": "black:3",
+            "white": "white:4"
+          },
+          "prevOpponentTurnDestroyedStonesByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "pendingStoneSalvationGodRevivesByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "fateWillControllerByTurnOwner": {
+            "black": null,
+            "white": null
+          },
+          "_presentationEventsPersist": [],
+          "observedHandSlotsByPlayer": {
+            "black": [],
+            "white": []
+          },
+          "handCostAdjustmentsByPlayer": {
+            "black": [
+              null,
+              null
+            ],
+            "white": [
+              null,
+              null
+            ]
+          },
+          "selectedCardOwnerKey": null,
+          "deckRemainingByPlayer": {
+            "black": 91,
+            "white": 91
+          }
+        }
+      },
+      "publicRecipes": {
+        "black": [
+          "chest_01",
+          "free_01",
+          "last_resort_01",
+          "sniper_01",
+          "hard_01",
+          "ghost_01",
+          "sacrifice_will_01",
+          "zombie_will_01",
+          "afterimage_will_01",
+          "swap_01",
+          "position_swap_01",
+          "perma_01",
+          "strong_wind_01",
+          "super_buoyancy_01",
+          "buoyancy_01",
+          "super_gravity_01",
+          "super_attraction_01",
+          "gravity_01",
+          "trap_01",
+          "tempt_01",
+          "capture_01",
+          "double_chain_01",
+          "taboo_reverse_01",
+          "reverse_will_01",
+          "regen_01",
+          "destroy_01",
+          "bomb_01",
+          "time_stop_god_01",
+          "udr_01",
+          "breeding_01",
+          "proliferation_01",
+          "clone_01",
+          "seed_01",
+          "teleport_01",
+          "cell_teleport_01",
+          "cross_bomb_01",
+          "x_bomb_01",
+          "hyperactive_01",
+          "extreme_hyperactive_01",
+          "escape_01",
+          "robot_vacuum_01",
+          "gluttonous_will_01",
+          "will_hunter_king_01",
+          "instant_hyperactive_01",
+          "rebuild_01",
+          "work_01",
+          "ultimate_work_god_01",
+          "ribo_01",
+          "loss_will_01",
+          "mass_freeze_will_01",
+          "double_01",
+          "heaven_01",
+          "reveal_hand_01",
+          "theory_incarnation_01",
+          "board_executor_01",
+          "observer_will_01",
+          "condemn_01",
+          "execution_01",
+          "gold_stone",
+          "rainbow_stone",
+          "silver_stone",
+          "crystal_stone",
+          "extend_life_01",
+          "extend_life_god_01",
+          "corrosion_01",
+          "guard_01",
+          "guardian_god_01",
+          "stone_salvation_god_01",
+          "destroy_dragon_01",
+          "lightning_01",
+          "udg_01",
+          "ultimate_hyperactive_01",
+          "board_expand_01",
+          "board_expand_god_01",
+          "board_shrink_01",
+          "board_shrink_god_01",
+          "blockade_01",
+          "poison_will_01",
+          "fire_will_01",
+          "water_will_01",
+          "grass_will_01",
+          "meteor_01",
+          "causal_replay_01",
+          "freeze_01",
+          "salvation_01",
+          "living_will_01",
+          "reinforcement_01",
+          "support_troops_01",
+          "equality_will_01",
+          "fate_will_01",
+          "meteor_god_01",
+          "chaos_summon_01",
+          "time_stop_deity_01"
+        ],
+        "white": [
+          "chest_01",
+          "free_01",
+          "last_resort_01",
+          "sniper_01",
+          "hard_01",
+          "ghost_01",
+          "sacrifice_will_01",
+          "zombie_will_01",
+          "afterimage_will_01",
+          "swap_01",
+          "position_swap_01",
+          "perma_01",
+          "strong_wind_01",
+          "super_buoyancy_01",
+          "buoyancy_01",
+          "super_gravity_01",
+          "super_attraction_01",
+          "gravity_01",
+          "trap_01",
+          "tempt_01",
+          "capture_01",
+          "double_chain_01",
+          "taboo_reverse_01",
+          "reverse_will_01",
+          "regen_01",
+          "destroy_01",
+          "bomb_01",
+          "time_stop_god_01",
+          "udr_01",
+          "breeding_01",
+          "proliferation_01",
+          "clone_01",
+          "seed_01",
+          "teleport_01",
+          "cell_teleport_01",
+          "cross_bomb_01",
+          "x_bomb_01",
+          "hyperactive_01",
+          "extreme_hyperactive_01",
+          "escape_01",
+          "robot_vacuum_01",
+          "gluttonous_will_01",
+          "will_hunter_king_01",
+          "instant_hyperactive_01",
+          "rebuild_01",
+          "work_01",
+          "ultimate_work_god_01",
+          "ribo_01",
+          "loss_will_01",
+          "mass_freeze_will_01",
+          "double_01",
+          "heaven_01",
+          "reveal_hand_01",
+          "theory_incarnation_01",
+          "board_executor_01",
+          "observer_will_01",
+          "condemn_01",
+          "execution_01",
+          "gold_stone",
+          "rainbow_stone",
+          "silver_stone",
+          "crystal_stone",
+          "extend_life_01",
+          "extend_life_god_01",
+          "corrosion_01",
+          "guard_01",
+          "guardian_god_01",
+          "stone_salvation_god_01",
+          "destroy_dragon_01",
+          "lightning_01",
+          "udg_01",
+          "ultimate_hyperactive_01",
+          "board_expand_01",
+          "board_expand_god_01",
+          "board_shrink_01",
+          "board_shrink_god_01",
+          "blockade_01",
+          "poison_will_01",
+          "fire_will_01",
+          "water_will_01",
+          "grass_will_01",
+          "meteor_01",
+          "causal_replay_01",
+          "freeze_01",
+          "salvation_01",
+          "living_will_01",
+          "reinforcement_01",
+          "support_troops_01",
+          "equality_will_01",
+          "fate_will_01",
+          "meteor_god_01",
+          "chaos_summon_01",
+          "time_stop_deity_01"
+        ]
+      },
+      "baselineFixed": {
+        "version": "lv12-sparse-threats-dev10c",
+        "action": {
+          "type": "place",
+          "row": 3,
+          "col": 2
+        },
+        "continuation": [],
+        "value": -0.5305243849190394,
+        "transitions": 1472,
+        "elapsedMs": null,
+        "stopped": "complete",
+        "rejectedCount": 0,
+        "rejected": [],
+        "evaluatedCandidates": 3,
+        "comparisonScenarioSeeds": [
+          100901,
+          100909,
+          100913
+        ],
+        "scenarioTimeCuts": 0,
+        "scenarioNodeCuts": 0,
+        "scenarioSampleSeeds": [
+          3096073390,
+          2510117590,
+          265995594
+        ],
+        "alternatePlanRepairs": 0,
+        "comparisonDepths": [
+          5,
+          5,
+          5
+        ],
+        "evaluationCalls": 1508,
+        "evaluationCacheHits": 36,
+        "candidates": [
+          {
+            "action": {
+              "type": "place",
+              "row": 6,
+              "col": 4
+            },
+            "continuation": [],
+            "immediate": 7.555102414071347,
+            "retainedForDeepening": true,
+            "replies": [
+              -26.75538416739768,
+              -10.85584550319398,
+              -137.02653860546354
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.5811269597950276
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 3
+            },
+            "continuation": [],
+            "immediate": 0.8080146339060867,
+            "retainedForDeepening": true,
+            "replies": [
+              -44.04555167113794,
+              -6.6793751631159815,
+              -136.81245653717843
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.6200118726213348
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 1,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -0.18058532959931117,
+            "retainedForDeepening": false,
+            "replies": [
+              -58.965237968968324
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.7265268649493455
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 3,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -2.5301403493799643,
+            "retainedForDeepening": true,
+            "replies": [
+              -10.700645942817223,
+              -14.251973891526692,
+              -137.00420925523866
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.5305243849190394
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -6.046806992780519,
+            "retainedForDeepening": false,
+            "replies": [
+              -52.70646200918257
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.6769911975290593
+          }
+        ]
+      },
+      "baselineSlow": {
+        "version": "lv12-sparse-threats-dev10c",
+        "action": {
+          "type": "place",
+          "row": 5,
+          "col": 3
+        },
+        "continuation": [],
+        "value": -0.0033705011019712966,
+        "transitions": 799,
+        "elapsedMs": 4794,
+        "stopped": "complete",
+        "rejectedCount": 0,
+        "rejected": [],
+        "evaluatedCandidates": 3,
+        "comparisonScenarioSeeds": [
+          100901,
+          100909,
+          100913
+        ],
+        "scenarioTimeCuts": 0,
+        "scenarioNodeCuts": 0,
+        "scenarioSampleSeeds": [
+          3096073390,
+          2510117590,
+          265995594
+        ],
+        "alternatePlanRepairs": 0,
+        "comparisonDepths": [
+          3,
+          3,
+          3
+        ],
+        "evaluationCalls": 835,
+        "evaluationCacheHits": 36,
+        "candidates": [
+          {
+            "action": {
+              "type": "place",
+              "row": 6,
+              "col": 4
+            },
+            "continuation": [],
+            "immediate": 7.555102414071347,
+            "retainedForDeepening": true,
+            "replies": [
+              -2.255554909043879,
+              -4.785920649138316,
+              -4.834571128721315
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.06380161432427872
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 3
+            },
+            "continuation": [],
+            "immediate": 0.8080146339060867,
+            "retainedForDeepening": true,
+            "replies": [
+              1.6188477059212438,
+              -0.9115180341731932,
+              -0.9601685137561917
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.0033705011019712966
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 1,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -0.18058532959931117,
+            "retainedForDeepening": false,
+            "replies": [
+              -58.965237968968324
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.7265268649493455
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 3,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -2.5301403493799643,
+            "retainedForDeepening": true,
+            "replies": [
+              -0.032559198210761586,
+              -2.562924938305198,
+              -2.6115754178881967
+            ],
+            "scenarioSeeds": [
+              100901,
+              100909,
+              100913
+            ],
+            "score": -0.02915709716603309
+          },
+          {
+            "action": {
+              "type": "place",
+              "row": 5,
+              "col": 2
+            },
+            "continuation": [],
+            "immediate": -6.046806992780519,
+            "retainedForDeepening": false,
+            "replies": [
+              -52.70646200918257
+            ],
+            "scenarioSeeds": [
+              100901
+            ],
+            "score": -0.6769911975290593
+          }
+        ]
+      }
+    }
+  ]
+}

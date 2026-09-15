@@ -11,6 +11,7 @@ export type CpuRuntimeWiringDeps = {
   isCpuCardQuiescenceAvailable?: () => boolean;
   adviseLv10InWorker?: (request: any) => Promise<any>;
   adviseLv11InWorker?: (request: any) => Promise<any>;
+  adviseLv12InWorker?: (request: any) => Promise<any>;
 };
 
 type RuntimeFunction = (...args: any[]) => any;
@@ -162,6 +163,7 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
       scoreCandidatesInWorker,
       adviseLv10InWorker: deps.adviseLv10InWorker,
       adviseLv11InWorker: deps.adviseLv11InWorker,
+      adviseLv12InWorker: deps.adviseLv12InWorker,
       isCpuCandidateScoringAvailable: typeof deps.isCpuCandidateScoringAvailable === 'function'
         ? deps.isCpuCandidateScoringAvailable
         : () => typeof deps.scoreCandidatesInWorker === 'function',

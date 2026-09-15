@@ -22,6 +22,20 @@ export type ProductionGameSpec = {
 };
 const hash = (value: string | Buffer) => crypto.createHash('sha256').update(value).digest('hex');
 
+/** Windows readers/virus scanners can briefly deny atomic replacement. Keep
+ * the same pending bytes and old checkpoint; never rerun a CPU decision. */
+export async function replaceProductionCheckpoint(pending:string,target:string,onRetry?:(code:string,attempt:number)=>void){
+    for(let attempt=0;;attempt++){
+        try{fs.renameSync(pending,target);return;}
+        catch(error){
+            const code=String((error as NodeJS.ErrnoException).code);
+            if(!['EPERM','EBUSY','EACCES'].includes(code)||attempt>=6)throw error;
+            onRetry?.(code,attempt+1);
+            await new Promise(resolve=>setTimeout(resolve,10*2**attempt));
+        }
+    }
+}
+
 export function productionRuntimeManifest(rootInput: string) {
     const root = path.resolve(rootInput), files: any[] = [];
     const walk = (relative: string) => {
@@ -124,19 +138,23 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
     const match = new ProductionMatch(initial, transition => transitions.push(transition));
     let count = resume?.decisions || 0;
     let minimumFreeMemory = os.freemem(), maxRss = 0;
-    let lastCheckpoint: any;
-    const checkpoint = () => {
+    let lastCheckpoint: any, checkpointWriteRetries=0;
+    const retryCheckpoint = (code:string,attempt:number) => {
+        checkpointWriteRetries++;
+        fs.appendFileSync(path.join(out,'checkpoint-retries.ndjson'),JSON.stringify({code,attempt,count,at:new Date().toISOString()})+'\n');
+    };
+    const checkpoint = async () => {
         lastCheckpoint = { schema: 'production-selfplay-checkpoint.v1', identityHash, status: 'running',
             state: match.snapshot(), memories: { black: cpus.black.memory, white: cpus.white.memory }, decisions: count,
             elapsedMs: elapsedBefore + performance.now() - started, journal: path.join(out, 'steps.ndjson') };
         const tmp = path.join(out, 'checkpoint.pending.json');
         fs.writeFileSync(tmp, JSON.stringify(lastCheckpoint));
-        fs.renameSync(tmp, path.join(out, 'checkpoint.json'));
+        await replaceProductionCheckpoint(tmp, path.join(out, 'checkpoint.json'),retryCheckpoint);
     };
     process.on('SIGINT', onStop); process.on('SIGTERM', onStop);
     try {
         fs.writeSync(journal, JSON.stringify({ kind: 'initial', index: count, state: match.snapshot(), resumeFrom: spec.resumeFrom || null }) + '\n');
-        checkpoint();
+        await checkpoint();
         while (!match.terminal) {
             if (stopped || (spec.stopFile && fs.existsSync(spec.stopFile))) break;
             if (count >= (spec.maxDecisions || 2000)) throw new Error('Production match decision limit exceeded');
@@ -146,7 +164,7 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
             if (match.terminal || start?.stopAction) {
                 fs.writeSync(journal, JSON.stringify({ kind: 'settlement', index: count, transitions, state: match.snapshot(),
                     memories: { black: cpus.black.memory, white: cpus.white.memory } }) + '\n');
-                fs.fsyncSync(journal); transitions = []; checkpoint();
+                fs.fsyncSync(journal); transitions = []; await checkpoint();
                 continue;
             }
             const player = match.controller;
@@ -155,7 +173,7 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
             fs.writeSync(journal, JSON.stringify({ kind: 'decision', index: count, player, decision, transitions,
                 state: match.snapshot(), memories: { black: cpus.black.memory, white: cpus.white.memory } }) + '\n');
             fs.fsyncSync(journal); transitions = [];
-            checkpoint();
+            await checkpoint();
             const rss = process.memoryUsage().rss; maxRss = Math.max(maxRss, rss);
             minimumFreeMemory = Math.min(minimumFreeMemory, os.freemem());
             fs.writeFileSync(path.join(out, 'progress.json'), JSON.stringify({ count, turn: match.snapshot().gameState.turnNumber,
@@ -171,7 +189,7 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
             black: summarizeProductionDecisions(decisions.filter(record => record.player === 'black')),
             white: summarizeProductionDecisions(decisions.filter(record => record.player === 'white')),
             resources: { maxRss, minimumFreeMemory, resourceUsage: process.resourceUsage() },
-            finalStateHash: hash(productionStateKey(match.snapshot())) };
+            checkpointWriteRetries, finalStateHash: hash(productionStateKey(match.snapshot())) };
         fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2), { flag: 'wx' });
         if (match.terminal) {
             lastCheckpoint.status = 'complete';

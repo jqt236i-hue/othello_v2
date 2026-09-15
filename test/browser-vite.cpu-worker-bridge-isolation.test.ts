@@ -1,9 +1,11 @@
 jest.mock('../browser-vite/cpu-worker/worker-entry?worker', () => jest.fn(), { virtual: true });
 jest.mock('../browser-vite/cpu-worker/lv10-worker-entry?worker', () => jest.fn(), { virtual: true });
 jest.mock('../browser-vite/cpu-worker/lv11-worker-entry?worker', () => jest.fn(), { virtual: true });
+jest.mock('../browser-vite/cpu-worker/lv12-worker-entry?worker', () => jest.fn(), { virtual: true });
 
 import Lv10WorkerConstructor from '../browser-vite/cpu-worker/lv10-worker-entry?worker';
 import Lv11WorkerConstructor from '../browser-vite/cpu-worker/lv11-worker-entry?worker';
+import Lv12WorkerConstructor from '../browser-vite/cpu-worker/lv12-worker-entry?worker';
 import { disableCpuWorkerBridge, getCpuWorkerBridge, installCpuWorkerBridge } from '../browser-vite/cpu-worker/bridge';
 import { CpuWorkerClientError } from '../browser-vite/cpu-worker/client';
 import { CPU_WORKER_PROTOCOL_VERSION } from '../browser-vite/cpu-worker/protocol';
@@ -30,9 +32,10 @@ function setup() {
   };
   return worker;
   }
-  const worker = makeWorker(), lv11Worker = makeWorker();
+  const worker = makeWorker(), lv11Worker = makeWorker(), lv12Worker = makeWorker();
   (Lv10WorkerConstructor as unknown as jest.Mock).mockImplementation(() => worker);
   (Lv11WorkerConstructor as unknown as jest.Mock).mockImplementation(() => lv11Worker);
+  (Lv12WorkerConstructor as unknown as jest.Mock).mockImplementation(() => lv12Worker);
   let injected: any;
   const root: any = {
     Worker: function () {},
@@ -52,8 +55,9 @@ describe('independent Lv10 Worker lifecycle', () => {
 
     expect(terminateLegacy).toHaveBeenCalledTimes(1);
     expect(worker.terminate).not.toHaveBeenCalled();
-    expect(Object.keys(injected())).toEqual(['adviseLv10InWorker', 'adviseLv11InWorker']);
+    expect(Object.keys(injected())).toEqual(['adviseLv10InWorker', 'adviseLv11InWorker', 'adviseLv12InWorker']);
     await expect(injected().adviseLv11InWorker(request)).resolves.toEqual(result);
+    await expect(injected().adviseLv12InWorker(request)).resolves.toEqual(result);
     await expect(injected().adviseLv10InWorker(request)).resolves.toEqual(result);
     expect(root.__CARD_REVERSI_BROWSER_CAPABILITIES__).toMatchObject({
       cpuLv10AdvisorWorker: true, cpuCandidateScoringWorker: false,
@@ -66,6 +70,7 @@ describe('independent Lv10 Worker lifecycle', () => {
     await expect(injected().adviseLv10InWorker(request)).resolves.toEqual(result);
     bridge.lv10Client.terminate();
     bridge.lv11Client.terminate();
+    bridge.lv12Client.terminate();
   });
 
   test('ONNX session detach and asynchronous legacy fallback still run without clearing Lv10', async () => {
@@ -93,9 +98,10 @@ describe('independent Lv10 Worker lifecycle', () => {
     expect(terminateLegacy).not.toHaveBeenCalled();
     expect(root.__CARD_REVERSI_BROWSER_CAPABILITIES__).toMatchObject({ cpuLv10AdvisorWorker: false, cpuCandidateScoringWorker: true });
     disableCpuWorkerBridge(root, bridge);
-    expect(Object.keys(injected())).toEqual(['adviseLv11InWorker']);
+    expect(Object.keys(injected())).toEqual(['adviseLv11InWorker', 'adviseLv12InWorker']);
     await expect(injected().adviseLv11InWorker(request)).resolves.toEqual(result);
     bridge.lv11Client.terminate();
+    bridge.lv12Client.terminate();
     expect(root.__CARD_REVERSI_BROWSER_CAPABILITIES__.cpuLv10AdvisorWorker).toBe(false);
   });
   test('a fatal Lv11 failure leaves the Lv10 and legacy workers available', async () => {
@@ -106,8 +112,23 @@ describe('independent Lv10 Worker lifecycle', () => {
     expect(terminateLegacy).not.toHaveBeenCalled();
     await expect(bridge.adviseLv10InWorker(request)).resolves.toEqual(result);
     expect(root.__CARD_REVERSI_BROWSER_CAPABILITIES__).toMatchObject({ cpuLv11AdvisorWorker: false, cpuLv10AdvisorWorker: true });
+    await expect(bridge.adviseLv12InWorker(request)).resolves.toEqual(result);
     disableCpuWorkerBridge(root, bridge);
-    expect(Object.keys(injected())).toEqual(['adviseLv10InWorker']);
+    expect(Object.keys(injected())).toEqual(['adviseLv10InWorker', 'adviseLv12InWorker']);
     bridge.lv10Client.terminate();
+  });
+  test('a fatal Lv12 failure leaves Lv10, Lv11 and legacy workers available', async () => {
+    const { root, bridge, injected } = setup();
+    const terminateLegacy = jest.spyOn(bridge.client, 'terminate');
+    jest.spyOn(bridge.lv12Client, 'request').mockRejectedValue(new CpuWorkerClientError('Lv12 crash', 'TEST_CRASH', false));
+    await expect(bridge.adviseLv12InWorker(request)).rejects.toThrow('Lv12 crash');
+    expect(terminateLegacy).not.toHaveBeenCalled();
+    await expect(bridge.adviseLv10InWorker(request)).resolves.toEqual(result);
+    await expect(bridge.adviseLv11InWorker(request)).resolves.toEqual(result);
+    expect(root.__CARD_REVERSI_BROWSER_CAPABILITIES__).toMatchObject({ cpuLv12AdvisorWorker: false, cpuLv11AdvisorWorker: true, cpuLv10AdvisorWorker: true });
+    disableCpuWorkerBridge(root, bridge);
+    expect(Object.keys(injected())).toEqual(['adviseLv10InWorker', 'adviseLv11InWorker']);
+    bridge.lv10Client.terminate();
+    bridge.lv11Client.terminate();
   });
 });

@@ -1251,12 +1251,15 @@ function updateCpuCharacter(): void {
         const defaultName = hasNamedProfileOverride
             ? String(cpuProfile.name)
             : ((CPU_LEVEL_NAMES as any)[level] || ('レベル ' + level));
+        const displayName = level === 12
+            ? defaultName.replace('エンペラービースト', '\nエンペラービースト')
+            : defaultName;
         if (specialPresentation) {
             applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
             if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
         }
         else if (!applyNetworkSeatLabels(levelLabel)) {
-            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level >= 10 ? '\n' : ' '}${defaultName}`);
+            applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level >= 10 ? '\n' : ' '}${displayName}`);
         }
         else {
             applyNetworkSeatLabels(levelLabel);

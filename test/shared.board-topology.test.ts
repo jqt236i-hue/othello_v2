@@ -1,6 +1,32 @@
 const SharedBoardUtils = require('../shared/shared-board-utils');
 
 describe('shared BoardTopology', () => {
+  test('scoped immutable geometry reuse preserves owner changes and invalidates holes and expansion',()=>{
+    const boardConfig=SharedBoardUtils.normalizeBoardConfig({rows:8,cols:8,shape:'square'});
+    const gameState:any={board:SharedBoardUtils.createEmptyBoard(boardConfig),boardConfig,
+      boardExpansion:{cells:[],usedByPlayer:{black:false,white:false}}};
+    const cardState:any={markers:[]};
+    // Exercise the geometry builder directly: BoardView has its own existing
+    // cache and may legitimately retain an object constructed outside scope.
+    const geometry=()=>SharedBoardUtils.buildBoardTopology(gameState,{cardState});
+    const outside=geometry();let inside:any;
+    SharedBoardUtils.withTopologyMemo(()=>{
+      inside=geometry();expect(geometry()).toBe(inside);
+      gameState.board[3][3]=1;
+      expect(geometry()).toBe(inside);
+      expect(SharedBoardUtils.getCellValue(SharedBoardUtils.createBoardContext(gameState,cardState),3,3)).toBe(1);
+      cardState.markers.push({kind:'specialStone',row:0,col:0,data:{type:'METEOR_HOLE'}});
+      const hole=geometry();expect(hole).not.toBe(inside);expect(hole.playableKeys.has('0,0')).toBe(false);
+      gameState.boardExpansion.cells.push({row:-1,col:3,side:'top',owner:0});
+      const expanded=geometry();expect(expanded).not.toBe(hole);expect(expanded.playableKeys.has('-1,3')).toBe(true);
+      expect(()=>SharedBoardUtils.withTopologyMemo(()=>{throw new Error('scope-test');})).toThrow('scope-test');
+      expect(geometry()).toBe(expanded);
+    });
+    expect(geometry()).not.toBe(inside);expect(inside).not.toBe(outside);
+    cardState.markers=[];gameState.boardExpansion.cells=[];
+    const after=geometry();expect(after.playableKeys.size).toBe(outside.playableKeys.size);
+    expect(geometry()).not.toBe(after);
+  });
   function createCircleState(expansionCells: any[] = [], markers: any[] = []) {
     const boardConfig = SharedBoardUtils.normalizeBoardConfig({
       rows: 10,

@@ -377,24 +377,27 @@ describe('result overlay seat perspective', () => {
     expect(document.querySelector('.character-name')?.textContent).toBe('終局を告げる者');
   });
 
-  test.each(['black', 'white'])('Lv10が%s側でもプロフィールIDをレベル別記録と名前へ反映する', (cpuSide) => {
+  test.each([[10, 'black'], [10, 'white'], [12, 'black'], [12, 'white']])('Lv%sが%s側でもプロフィールIDをレベル別記録と名前へ反映する', (level, cpuSide) => {
+    const id = level === 12 ? '12-strategy-cpu' : '10-observed-dark-dragon';
+    const expectedName = level === 12 ? '理論カオスロジカルエンペラービースト' : '観測ダークドラゴン';
+    const expectedImage = level === 12 ? 'theory-chaos-logical-emperor-beast.png' : 'observed-dark-dragon-transparent.png';
     delete global.cpuSmartness;
     const viewer = cpuSide === 'white' ? 'black' : 'white';
     window.NetworkMatchClient = { getSeatKey: () => viewer };
     document.body.innerHTML = `
-      <select id="smartBlack"><option value="${cpuSide === 'black' ? '10-observed-dark-dragon' : '1'}" selected>CPU</option></select>
-      <select id="smartWhite"><option value="${cpuSide === 'white' ? '10-observed-dark-dragon' : '1'}" selected>CPU</option></select>
+      <select id="smartBlack"><option value="${cpuSide === 'black' ? id : '1'}" selected>CPU</option></select>
+      <select id="smartWhite"><option value="${cpuSide === 'white' ? id : '1'}" selected>CPU</option></select>
     `;
     global.countDiscs.mockReturnValue(viewer === 'black' ? { black: 48, white: 16 } : { black: 16, white: 48 });
     const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
-    expect(mod.resolveCpuLevelForViewer(viewer)).toBe(10);
-    expect(document.querySelector('.character-name')?.textContent).toBe('観測ダークドラゴン');
-    expect((document.querySelector('.character-name') as HTMLElement).style.getPropertyValue('--result-character-image')).toContain('ultimate_reverse_dragon-black.png');
+    expect(mod.resolveCpuLevelForViewer(viewer)).toBe(level);
+    expect(document.querySelector('.character-name')?.textContent).toBe(expectedName);
+    expect((document.querySelector('.character-name') as HTMLElement).style.getPropertyValue('--result-character-image')).toContain(expectedImage);
     expect(document.querySelector('.dialogue-text')?.textContent).toBe('「その一手は、読み切れなかった。」');
-    expect(document.querySelector('.result-score-meta')?.textContent).toContain('CPU Lv10');
+    expect(document.querySelector('.result-score-meta')?.textContent).toContain(`CPU Lv${level}`);
     const saved = JSON.parse(localStorage.getItem('othello_cpu_leaderboard_v5') || '{}');
-    expect(saved.cpu['10'].bestScore).toBeGreaterThan(0);
+    expect(saved.cpu[String(level)].bestScore).toBeGreaterThan(0);
     expect(saved.cpu['1']).toBeUndefined();
   });
 
@@ -736,9 +739,10 @@ describe('result overlay seat perspective', () => {
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
   });
 
-  test('CPU対戦時のみレベル別に最高点を更新する', () => {
+  test.each([4, 11, 12])('CPU対戦時にLv%iを別枠として最高点を更新する', (level) => {
     window.MATCH_MODE = 'cpu';
-    global.cpuSmartness.white = 4;
+    global.cpuSmartness.white = level;
+    localStorage.setItem('othello_cpu_leaderboard_v5', JSON.stringify({ version: 5, cpu: { '2': { bestScore: 3210 } } }));
     global.countDiscs.mockReturnValue({ black: 76, white: 0 });
     global.cardState.chargeGainedTotal = { black: 800, white: 0 };
     global.cardState.totalFlipCountByPlayer = { black: 150, white: 0 };
@@ -753,8 +757,9 @@ describe('result overlay seat perspective', () => {
     const key = 'othello_cpu_leaderboard_v5';
     const saved = JSON.parse(localStorage.getItem(key) || '{}');
     expect(saved.cpu).toBeTruthy();
-    expect(saved.cpu['4']).toBeTruthy();
-    expect(saved.cpu['4'].bestScore).toBe(12000);
+    expect(saved.cpu[String(level)]).toBeTruthy();
+    expect(saved.cpu[String(level)].bestScore).toBe(12000);
+    expect(saved.cpu['2'].bestScore).toBe(3210);
   });
 
   test('ネット対戦時はスコア表示してもランキングへ保存しない', () => {

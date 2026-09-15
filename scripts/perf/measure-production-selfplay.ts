@@ -14,7 +14,6 @@ const write = (file: string, value: any) => fs.writeFileSync(file, JSON.stringif
 const fingerprint = (file: string) => ({ path: path.resolve(file), sha256: hash(fs.readFileSync(file)) });
 const clone = (value: any) => JSON.parse(JSON.stringify(value));
 type Position = { id: string; category: string; representative: boolean; observation: any; publicRecipes: any; excludedActions: any[]; inputSha256: string; provenance: any };
-type Policy = { root: string; module: string; search: string; config: string };
 
 export function comparableProductionDecision(result: any): any {
     const { elapsedMs: _time, performance: _performance, ...judgment } = result;

@@ -346,6 +346,7 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         collectMeteorHoleKeys
     });
     const buildBoardTopologyFromSource = BoardTopology.buildBoardTopology;
+    const withTopologyMemo = BoardTopology.withTopologyMemo;
 
     if (!BoardStateKernelModule) throw new Error('BoardStateKernel is required by SharedBoardUtils');
     const BoardStateKernel = BoardStateKernelModule.createStateKernel({
@@ -831,6 +832,7 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         resolveExpansionSide,
         collectExpansionDescriptors,
         buildBoardTopology,
+        withTopologyMemo,
         inspectBoardState,
         createBoardView,
         createDenseBoardView,

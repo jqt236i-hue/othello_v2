@@ -31,11 +31,12 @@ export function resolveCandidateBrowserChecks(labels: readonly string[], config:
 
 /** Browser/Node judgment parity is a fixed-compute check, separate from games
  * and performance runs which always use the actual production time limit. */
-export async function verifyProductionCandidateBrowser(candidateRoot: string, traceFile: string, cardDirectory: string, output: string, cohortFile?: string, checkSpecFile?: string) {
+export async function verifyProductionCandidateBrowser(candidateRoot: string, traceFile: string, cardDirectory: string, output: string, cohortFile?: string, checkSpecFile?: string, level: 11 | 12 = 11) {
     if (fs.existsSync(output)) throw new Error('Candidate browser report already exists');
     const root = path.resolve(candidateRoot);
-    const { searchLv11: search, LV11_SEARCH_CONFIG: config } = require(path.join(root, 'dist/game/ai/cpu-lv11-search'));
-    for (const file of ['game/ai/cpu-lv11-search.js', 'game/ai/cpu-lv11-evaluation.js']) {
+    const policy = require(path.join(root, `dist/game/ai/cpu-lv${level}-search`));
+    const search = policy[`searchLv${level}`], config = policy[`LV${level}_SEARCH_CONFIG`];
+    for (const file of [`game/ai/cpu-lv${level}-search.js`, `game/ai/cpu-lv${level}-evaluation.js`]) {
         if (hash(path.join('dist', file)) !== hash(path.join(root, 'dist', file))) throw new Error('Current candidate differs from the frozen policy');
     }
     const trace = JSON.parse(zlib.gunzipSync(fs.readFileSync(traceFile)).toString());
@@ -71,8 +72,8 @@ export async function verifyProductionCandidateBrowser(candidateRoot: string, tr
         for (let index = 0; index < checks.length; index++) {
             const check = checks[index], budget = checkBudgets[index], maxTransitions = budget.maxTransitions;
             const expected = search(check.observation, { publicRecipes: check.publicRecipes, excludedActions: check.excludedActions, maxTransitions });
-            const actual = await page.evaluate(({ check, maxTransitions }) => (window as any).require('game/ai/cpu-lv11-search').searchLv11(check.observation,
-                { publicRecipes: check.publicRecipes, excludedActions: check.excludedActions, maxTransitions }), { check, maxTransitions });
+            const actual = await page.evaluate(({ check, maxTransitions, level }) => (window as any).require(`game/ai/cpu-lv${level}-search`)[`searchLv${level}`](check.observation,
+                { publicRecipes: check.publicRecipes, excludedActions: check.excludedActions, maxTransitions }), { check, maxTransitions, level });
             const missingScenarioSeeds = budget.requireAllScenarios ? config.scenarioSeeds.filter((seed: number) =>
                 !expected.comparisonScenarioSeeds?.includes(seed) || !actual.comparisonScenarioSeeds?.includes(seed)) : [];
             results.push({ ...budget, missingScenarioSeeds, differences: diffProductionStates(expected, actual), expected, actual });
@@ -82,16 +83,16 @@ export async function verifyProductionCandidateBrowser(candidateRoot: string, tr
         const failures = results.filter(result => result.differences.length || result.missingScenarioSeeds.length);
         const report = { valid: errors.length === 0 && failures.length === 0,
             mode: checkSpecFile ? 'fixed per-case calculation budgets; clock omitted for parity only' : 'fixed 64 transitions; clock omitted for parity only',
-            config, checkBudgets, url: page.url(), ...environment, errors, results, inputs,
-            searchSha256: hash('dist/game/ai/cpu-lv11-search.js'), evaluationSha256: hash('dist/game/ai/cpu-lv11-evaluation.js') };
+            level, config, checkBudgets, url: page.url(), ...environment, errors, results, inputs,
+            searchSha256: hash(`dist/game/ai/cpu-lv${level}-search.js`), evaluationSha256: hash(`dist/game/ai/cpu-lv${level}-evaluation.js`) };
         fs.writeFileSync(output, JSON.stringify(report, null, 2), { flag: 'wx' });
         return { output, valid: report.valid, checks: results.length, errors, failures };
     } finally { await browser.close(); }
 }
 
 if (require.main === module) {
-    const [candidate, trace, cards, output, cohort, checkSpec] = process.argv.slice(2);
-    verifyProductionCandidateBrowser(candidate, trace, cards, output, cohort, checkSpec).then(report => {
+    const [candidate, trace, cards, output, cohort, checkSpec, level] = process.argv.slice(2);
+    verifyProductionCandidateBrowser(candidate, trace, cards, output, cohort || undefined, checkSpec || undefined, level === '12' ? 12 : 11).then(report => {
         console.log(JSON.stringify(report)); if (!report.valid) process.exitCode = 1;
     }).catch(error => { console.error(error); process.exitCode = 1; });
 }
