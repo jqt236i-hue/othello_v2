@@ -221,6 +221,9 @@ const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
 ]);
 
 const EXCLUDED_MIRROR_DIRECTORY_PREFIXES = Object.freeze([
+    // Source models and Blender work files are authoring-only. Runtime-ready
+    // character art lives under assets/images and remains deployable.
+    'assets/models/',
     // Authoring references; the playable character art is stored alongside this
     // directory and remains deployable.
     'assets/images/special-cards/characters/observer_will_reference/'

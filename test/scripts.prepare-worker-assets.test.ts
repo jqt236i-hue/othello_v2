@@ -175,6 +175,7 @@ describe('prepare-worker-assets', () => {
         expect(shouldMirrorRelativePath('assets/character-notes.md')).toBe(false);
         expect(shouldMirrorRelativePath('assets/file.ts')).toBe(false);
         expect(shouldMirrorRelativePath('assets/asset-manifest.json.tmp-1-2')).toBe(false);
+        expect(shouldMirrorRelativePath('assets/models/special-cards/characters/theory_incarnation_hq/theory_incarnation_hq.blend')).toBe(false);
         expect(shouldMirrorRelativePath('assets/images/special-cards/characters/observer_will_reference/blender_model/Observer_Will.blend')).toBe(false);
         expect(shouldMirrorRelativePath('assets/images/special-cards/characters/observer_will_character_only.png')).toBe(true);
         expect(shouldMirrorRelativePath('game/logic/module-resolver.js')).toBe(false);
