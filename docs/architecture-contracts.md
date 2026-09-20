@@ -154,11 +154,11 @@ Production delivery follows one cache/MIME/security contract: HTML revalidates; 
 
 ### 5.1.2 Companion app launch boundary
 
-The `2Dアクション` companion game is an independently built and published static application. Card Reversi owns only a native top-level navigation link to its stable HTTPS URL. The companion application must not enter the Card browser module graph, optional Vite groups, dependency injection, canonical game state, network authority, or Worker runtime preload.
+The `並行世界を観測` control is a native selector for the independently built and published companion games `観測境界`, `Reversi Destiny ～黒白の運命～`, and `意志の共鳴`. Card Reversi owns only the selector and its fixed HTTPS navigation links. These applications must not enter the Card browser module graph, optional Vite groups, dependency injection, canonical game state, network authority, or Worker runtime preload.
 
-The link is intentionally inert until explicit player activation. Card startup must not issue companion-origin `preload`, `prefetch`, `preconnect`, module/script/style requests, or application-level `fetch`. The companion's Phaser runtime, assets, audio, storage, WebGL context, and build identity remain owned by its deployment and must not be copied into `worker-public/`.
+The selector is inert until explicit player activation. Card startup must not issue companion-origin `preload`, `prefetch`, `preconnect`, module/script/style requests, or application-level `fetch`; opening the selector must not load previews or connect to the destinations. Companion runtimes, assets, audio, storage, WebGL contexts, and build identities remain owned by their deployments and must not be copied into `worker-public/`.
 
-Navigation opens a separate top-level tab with `noopener` and `noreferrer`. It does not publish a game command, mutate mode state, pause the current match, or create a cross-window messaging channel. Any future in-page embed, shared state, pause coordination, or multiple-companion catalog requires a separate architecture change rather than widening this boundary implicitly.
+Each selected link opens a separate top-level tab with `noopener` and `noreferrer`. It does not publish a game command, mutate mode state, pause the current match, or create a cross-window messaging channel. Adding a companion requires an explicit native link and corresponding product documentation; in-page embeds, shared state, and pause coordination remain outside this boundary.
 
 ### 5.2 Worker runtime preload contract
 

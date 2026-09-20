@@ -37,7 +37,7 @@
     <link rel="stylesheet" href="styles-base.css?v=209378510089087">
     <link rel="stylesheet" href="styles-layout.css?v=118201487454956">
     <link rel="stylesheet" href="styles-charge-hud.css?v=33539802130051">
-    <link rel="stylesheet" href="styles-layout-controls.css?v=252877528302275">
+    <link rel="stylesheet" href="styles-layout-controls.css?v=69149723141943">
     <meta data-card-reversi-feature-style-slot="network-layout-controls"
         data-card-reversi-feature-style-href="styles-feature-network-layout-controls.css?v=207648095638469"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
@@ -120,10 +120,37 @@
             <span class="left-action-label">ネット対戦</span>
         </button>
 
-        <a id="reversiDestinyOpenLink" class="btn-small left-action-btn reversi-destiny-launcher-link" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-label="2Dアクションを別タブで開く" title="別タブで開く（カードリバーシは継続します）">
-            <span class="left-action-icon left-action-icon-reversi-destiny" aria-hidden="true"></span>
-            <span class="left-action-label">2Dアクション</span>
-        </a>
+        <button id="parallelWorldsOpenBtn" class="btn-small left-action-btn parallel-worlds-launcher-btn" type="button" popovertarget="parallelWorldsPopover" aria-haspopup="dialog" aria-controls="parallelWorldsPopover" aria-label="並行世界を観測" title="別ゲームを選ぶ">
+            <span class="left-action-icon left-action-icon-parallel-worlds" aria-hidden="true"></span>
+            <span class="left-action-label">並行世界を観測</span>
+        </button>
+        <section id="parallelWorldsPopover" class="parallel-worlds-popover" popover="auto" role="dialog" aria-labelledby="parallelWorldsTitle" aria-describedby="parallelWorldsDescription">
+            <header class="parallel-worlds-popover-header">
+                <div>
+                    <p class="parallel-worlds-eyebrow">CARD REVERSI MULTIVERSE</p>
+                    <h2 id="parallelWorldsTitle">行き先を選択</h2>
+                    <p id="parallelWorldsDescription">選んだゲームを別タブで開きます。対局はこのタブで続きます。</p>
+                </div>
+                <button class="parallel-worlds-close-btn" type="button" popovertarget="parallelWorldsPopover" popovertargetaction="hide" aria-label="閉じる">×</button>
+            </header>
+            <nav class="parallel-worlds-candidates" aria-label="並行世界のゲーム">
+                <a class="parallel-world-card" href="https://observation-front.reversi-0.workers.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer">
+                    <span class="parallel-world-card-index" aria-hidden="true">01</span>
+                    <span class="parallel-world-card-title">観測境界 — OBSERVATION FRONT</span>
+                    <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a id="reversiDestinyOpenLink" class="parallel-world-card" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-label="Reversi Destiny ～黒白の運命～を別タブで開く" title="別タブで開く（カードリバーシは継続します）">
+                    <span class="parallel-world-card-index" aria-hidden="true">02</span>
+                    <span class="parallel-world-card-title">Reversi Destiny ～黒白の運命～</span>
+                    <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a class="parallel-world-card" href="https://ishi-no-kyomei.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer">
+                    <span class="parallel-world-card-index" aria-hidden="true">03</span>
+                    <span class="parallel-world-card-title">意志の共鳴</span>
+                    <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
+                </a>
+            </nav>
+        </section>
         <button id="leaderboardOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">
             <span class="left-action-icon left-action-icon-ranking" aria-hidden="true"></span>
             <span class="left-action-label">ランキング</span>

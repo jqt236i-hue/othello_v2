@@ -78,9 +78,9 @@ const MOBILE_COMMANDS = [
   {
     kind: 'action',
     id: 'action',
-    label: '2Dアクション',
+    label: '並行世界を観測',
     group: 'game',
-    triggerId: 'reversiDestinyOpenLink',
+    triggerId: 'parallelWorldsOpenBtn',
     tone: 'ember',
   },
   {

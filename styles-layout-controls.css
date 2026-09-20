@@ -1055,8 +1055,8 @@ body.time-stop-active {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 8l4 4 4-4M8 16l4-4 4 4' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='8' r='2.5' fill='black'/%3E%3Ccircle cx='12' cy='12' r='2.5' fill='black'/%3E%3Ccircle cx='16' cy='8' r='2.5' fill='black'/%3E%3Ccircle cx='8' cy='16' r='2.5' fill='black'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='black'/%3E%3C/svg%3E");
 }
 
-#leftActionButtons .left-action-icon-reversi-destiny {
-    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5h7v2H7v10h10v-5h2v7H5Z' fill='black'/%3E%3Cpath d='M13 4h7v7h-2V7.4l-6.3 6.3-1.4-1.4L16.6 6H13Z' fill='black'/%3E%3C/svg%3E");
+#leftActionButtons .left-action-icon-parallel-worlds {
+    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 12 5.5 6.5M12 12l6.5-5.5M12 12v7' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='5' cy='6' r='2.5' fill='black'/%3E%3Ccircle cx='19' cy='6' r='2.5' fill='black'/%3E%3Ccircle cx='12' cy='12' r='3' fill='black'/%3E%3Ccircle cx='12' cy='20' r='2.5' fill='black'/%3E%3C/svg%3E");
 }
 
 #leftActionButtons .left-action-icon-gacha {
@@ -1252,6 +1252,7 @@ body.time-stop-active {
     --left-action-icon-bottom: #9fc2ff;
 }
 
+#leftActionButtons #parallelWorldsOpenBtn,
 #leftActionButtons #reversiDestinyOpenLink {
     --left-action-tone: rgba(255, 137, 90, 0.23);
     --left-action-tone-strong: rgba(255, 154, 105, 0.62);
@@ -1259,6 +1260,145 @@ body.time-stop-active {
     --left-action-border: rgba(255, 154, 105, 0.4);
     --left-action-icon-top: #fff4df;
     --left-action-icon-bottom: #ff9a69;
+}
+
+#parallelWorldsPopover {
+    box-sizing: border-box;
+    position: fixed;
+    inset: 50% auto auto 50%;
+    width: min(460px, calc(100vw - 28px));
+    max-height: min(82vh, 560px);
+    overflow: auto;
+    margin: 0;
+    padding: 22px;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(108, 194, 229, 0.42);
+    border-radius: 16px;
+    color: #f4f7f5;
+    background:
+        radial-gradient(115% 80% at 0% 0%, rgba(74, 166, 197, 0.2), transparent 62%),
+        linear-gradient(155deg, rgba(13, 32, 41, 0.99), rgba(5, 14, 21, 0.99));
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62), inset 0 0 0 1px rgba(229, 250, 251, 0.05);
+    font-family: inherit;
+}
+
+#parallelWorldsPopover::backdrop {
+    background: rgba(1, 8, 14, 0.64);
+    backdrop-filter: blur(3px);
+}
+
+.parallel-worlds-popover-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.parallel-worlds-eyebrow {
+    margin: 0 0 6px;
+    color: #79cbd8;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+}
+
+#parallelWorldsTitle {
+    margin: 0;
+    color: #f6eddc;
+    font-size: 22px;
+    line-height: 1.25;
+}
+
+#parallelWorldsDescription {
+    margin: 8px 0 0;
+    color: rgba(228, 238, 235, 0.72);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.parallel-worlds-close-btn {
+    flex: 0 0 auto;
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(192, 225, 229, 0.22);
+    border-radius: 50%;
+    color: #e9f3f0;
+    background: rgba(227, 246, 243, 0.06);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.parallel-worlds-close-btn:hover,
+.parallel-worlds-close-btn:focus-visible {
+    border-color: rgba(121, 203, 216, 0.8);
+    background: rgba(121, 203, 216, 0.16);
+}
+
+.parallel-worlds-candidates {
+    display: grid;
+    gap: 10px;
+}
+
+.parallel-world-card {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 12px;
+    min-height: 58px;
+    padding: 11px 14px;
+    border: 1px solid rgba(132, 190, 199, 0.22);
+    border-radius: 10px;
+    color: #f5f4ed;
+    background: linear-gradient(100deg, rgba(77, 144, 158, 0.12), rgba(255, 255, 255, 0.025));
+    text-decoration: none;
+    transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+}
+
+.parallel-world-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(121, 203, 216, 0.74);
+    background: linear-gradient(100deg, rgba(77, 144, 158, 0.25), rgba(255, 255, 255, 0.07));
+}
+
+.parallel-world-card:focus-visible {
+    outline: 2px solid #ffdf8a;
+    outline-offset: 3px;
+}
+
+.parallel-world-card-index {
+    color: #78cbd7;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.parallel-world-card-title {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.parallel-world-card-arrow {
+    color: #efcc83;
+    font-size: 17px;
+    text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .parallel-world-card {
+        transition: none;
+    }
+
+    .parallel-world-card:hover {
+        transform: none;
+    }
 }
 
 #leftActionButtons #gachaOpenBtn {
