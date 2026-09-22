@@ -19,3 +19,10 @@ worker-public/vite-dist/assets/* binary
 *.tsx text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+
+# Preserve original runtime model bytes so their hashes survive every checkout.
+data/models/policy-table.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+data/models/policy-net.onnx.meta.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+data/models/othello/policy-table.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+data/models/othello/value-table.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+data/models/othello/policy-value.onnx.meta.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

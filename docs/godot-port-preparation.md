@@ -52,7 +52,9 @@
 | 通常配信の演出・寿命 | `http://127.0.0.1:8000/?battleEmbed=1&debug=1&boardRenderer=pixi`、Vite/Pixi、演出有効。転生・破壊、実音声トラック、保存待機、CPU待機中退出、pending復元、演出中退出に成功。[report.json](../output/godot-port-preparation/presentation/report.json) と [詳細](godot-port-presentation-lifecycle.md)。転生確定は音開始から2532.7ms |
 | 最終配信・mirror | `npm run worker:prepare`（`build:vite`を含む）成功、1112ファイル一致。`worker-prepare-complete-final.log`。8000はこのrepoの `npm run serve` と独立したhiddenプロセスで継続、HTTP 200とゲーム操作を別々に確認 |
 
-採用ソースの保管先は `output/godot-source-adopted-20260922/`。`SOURCE-MANIFEST.json` の `sourceCommit` が今回のコミットを指し、`files` と `ASSET-INVENTORY.json` が実ファイルを特定する。保管原本はビルドせず、検証後にコピーを再生成に使う。途中の `godot-source-candidate-*`、`godot-source-baseline-*` と古い `output/battle-package` は最終採用元ではない。
+採用ソースの保管先は `output/godot-source-adopted-20260922-final/`。`SOURCE-MANIFEST.json` の `sourceCommit` が今回のコミットを指し、`files` と `ASSET-INVENTORY.json` が実ファイルを特定する。保管原本はビルドせず、検証後にコピーを再生成に使う。途中の `godot-source-candidate-*`、`godot-source-baseline-*`、改行保全前の `godot-source-adopted-20260922/` と古い `output/battle-package` は最終採用元ではない。
+
+最終Git blob照合でモデルJSON5ファイルが改行変換されることを検出し、該当パスだけ元のバイト列を保つ属性を設定した。全モデル8ファイルを実checkoutと原本でhash照合し、checkoutした実モデルでも推論比較を確認した。モデルの更新や学習は行っていない。
 
 ## 独立レビュー
 

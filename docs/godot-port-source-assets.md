@@ -8,6 +8,8 @@
 
 モデルはコミットに付随するとは推定しない。`--models-from` で指定した既存モデル保管元の `data/models/model-assets.json` と、その `files` に列挙された実ファイルだけを収集する。原本メタデータ、policy/value table、ONNXを同時に保存し、`externalModels` にサイズとハッシュを記録する。ONNXに対応する `.meta.json` がmanifestにない場合、空manifest、必要ファイル欠損の場合は失敗する。モデル付属メタデータは原本のまま保存するが、別ディレクトリの学習ログや候補モデルは対象外。
 
+今回保全したモデルJSONは原本の改行もhashの一部である。通常のJSON向けGit改行変換を適用すると、別OSのcheckoutでmetadata hashが比較値と異なるため、`.gitattributes` の明示5パスだけを `-text` とした。重み・table・metadataの内容と元のバイト列を保持し、通常のソースJSONのLF統一は継続する。
+
 `output/battle-package` は従来の組み込み配布物で、ここにあるだけでは最新版・正式採用版とみなさない。移植元は **新しい名前の `output/godot-source-*`** に作成する。途中失敗した収集物は `INCOMPLETE.json` を残し、正常完了の `SOURCE-MANIFEST.json` と区別する。既存の収集先への上書きは拒否する。
 
 ## 保存と再生成
