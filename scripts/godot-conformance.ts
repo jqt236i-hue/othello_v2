@@ -118,6 +118,72 @@ function ordinaryInitial(): CompleteBattlePosition {
     battle.startTurn(); const initial = battle.snapshot(); battle.dispose(); return initial;
 }
 
+/** A fixed late-lifetime position, not a rollout chosen by the implementation
+ * under test. Separate capture lanes supply the rule-prescribed owner actions
+ * without adapting the input when an implementation hands off too early. */
+function timeStopLifecycleCase(cardId: 'time_stop_god_01' | 'time_stop_deity_01', consecutiveTurns: 2 | 4): ConformanceCase {
+    const battle = createBattle({ version: 1, battleId: `time-stop-lifecycle-${cardId}`, seed: 914071,
+        board: { rows: 16, cols: 8, shape: 'rectangle' },
+        players: { black: { controller: 'human', deckCardIds: [] }, white: { controller: 'human', deckCardIds: [] } } } as any);
+    const initial = battle.snapshot(); battle.dispose();
+    const board = initial.gameState.board = Array.from({ length: 16 }, () => Array(8).fill(0));
+    board[0][0] = 1;
+    for (const row of [2, 4, 6, 8, 10]) { board[row][0] = 1; board[row][1] = -1; }
+    for (const row of [12, 14]) { board[row][6] = 1; board[row][7] = -1; }
+    let stoneId = 1;
+    initial.cardState.stoneIdMap = board.map(row => row.map(value => value ? `s${stoneId++}` : null));
+    initial.cardState._nextStoneId = stoneId;
+    const markerType = cardId === 'time_stop_god_01' ? 'TIME_STOP' : 'TIME_STOP_DEITY';
+    Cards.addMarker(initial.cardState, 'specialStone', 0, 0, 'black', { type: markerType, remainingOwnerTurns: 2 });
+    const operations: Operation[] = [
+        { kind: 'turn_start' }, // Penultimate owner start: 2 -> 1.
+        { kind: 'action', action: { type: 'place', row: 2, col: 2 } },
+        { kind: 'turn_start' }, // Opponent start must not reduce the counter.
+        { kind: 'action', action: { type: 'place', row: 14, col: 5 } },
+        { kind: 'turn_start' } // Final owner start: activate, including this turn.
+    ];
+    for (let index = 0; index < consecutiveTurns; index++) {
+        operations.push({ kind: 'action', action: { type: 'place', row: 4 + index * 2, col: 2 } });
+        operations.push({ kind: 'turn_start' });
+    }
+    operations.push({ kind: 'action', action: { type: 'place', row: 12, col: 5 } }, { kind: 'turn_start' });
+    return { id: `lifecycle/${cardId}/activation-to-handoff`, cardId, tags: ['time-stop-lifecycle'],
+        spec: `01-rulebook.md §2.7, §${consecutiveTurns === 2 ? '10.13.1' : '10.13.2'}`,
+        initial, operations };
+}
+
+function delayedActivationCases(): ConformanceCase[] {
+    return ['zombie_will_01', 'bomb_01', 'seed_01'].map(cardId => {
+        const initial = ordinaryInitial();
+        initial.gameState.currentPlayer = -1;
+        initial.gameState.turnNumber = 24;
+        initial.cardState.turnIndex = 23;
+        initial.cardState.lastTurnStartedFor = null;
+        const board = initial.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = 1;
+        board[7][6] = 1; board[7][7] = -1;
+        if (cardId === 'seed_01') {
+            board[2][3] = -1; board[2][4] = 1;
+            Cards.addMarker(initial.cardState, 'specialStone', 2, 2, 'black', {
+                type: 'SEED', remainingOwnerTurns: 1, sourceCardType: 'SEED_WILL'
+            });
+        } else {
+            for (let row = 2; row <= 4; row++) for (let col = 2; col <= 4; col++) board[row][col] = 1;
+            board[3][4] = -1;
+            Cards.addMarker(initial.cardState, 'specialStone', 3, 3, 'black', cardId === 'bomb_01'
+                ? { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 22 }
+                : { type: 'ZOMBIE', ownerColor: 1, turnsUntilInfection: 1, regenRemaining: 1 });
+        }
+        let stoneId = 1;
+        initial.cardState.stoneIdMap = board.map(row => row.map(value => value ? `s${stoneId++}` : null));
+        initial.cardState._nextStoneId = stoneId;
+        return { id: `lifecycle/${cardId}/delayed-activation`, cardId, tags: ['delayed-activation'],
+            spec: `01-rulebook.md §${cardId === 'zombie_will_01' ? '10.20.5' : cardId === 'bomb_01' ? '10.13' : '10.15.4'}`,
+            initial, operations: [{ kind: 'turn_start' },
+                { kind: 'action', action: { type: 'place', row: 7, col: 5 } }, { kind: 'turn_start' }] };
+    });
+}
+
 export function buildCases(): ConformanceCase[] {
     const cases: ConformanceCase[] = [];
     for (const cardId of productionFixtureCardIds()) {
@@ -129,6 +195,8 @@ export function buildCases(): ConformanceCase[] {
             spec: '01-rulebook.md §5', initial, operations: [basic.operations[0]] });
     }
     cases.push(cardCase('fire_will_01', true));
+    cases.push(timeStopLifecycleCase('time_stop_god_01', 2), timeStopLifecycleCase('time_stop_deity_01', 4));
+    cases.push(...delayedActivationCases());
     const full = ordinaryInitial();
     full.gameState.board = full.gameState.board.map((row: number[]) => row.map(() => 1));
     full.cardState.stoneIdMap = full.gameState.board.map((row: number[], r: number) => row.map((_v: number, c: number) => `s${r * row.length + c + 1}`));
@@ -205,6 +273,83 @@ export function assertCoverage(cases: ConformanceCase[], outputs: CaseOutput[]):
     for (const [id, increment] of [['reinforcement_01', 1], ['support_troops_01', 3], ['salvation_01', 2]] as const) {
         const input = cases.find(item => item.id === `card/${id}/basic`)!;
         assert.equal(count(map.get(input.id)!.steps[0].state) - count(input.initial), increment, `Spawn count: ${id}`);
+    }
+    for (const [cardId, markerType, turns] of [['time_stop_god_01', 'TIME_STOP', 2], ['time_stop_deity_01', 'TIME_STOP_DEITY', 4]] as const) {
+        const basicTimers = map.get(`card/${cardId}/basic`)!.steps
+            .map(step => step.state.cardState.markers.find((entry: any) => entry.data?.type === markerType)?.data.remainingOwnerTurns)
+            .filter(value => value !== undefined);
+        assert.equal(basicTimers[0], 5, `Placement must start a five-owner-turn countdown: ${cardId}`);
+        assert.equal(basicTimers[basicTimers.length - 1], 4, `First owner start must reduce five to four: ${cardId}`);
+        const id = `lifecycle/${cardId}/activation-to-handoff`;
+        assert.ok(ids.has(id), `Missing time-stop lifecycle: ${id}`);
+        const steps = map.get(id)!.steps;
+        assert.ok(steps.every(step => step.ok && step.result === null), `Time-stop continuation must succeed: ${id}`);
+        const remaining = (index: number) => steps[index].state.cardState.timeStopConsecutiveTurnsRemainingByPlayer.black;
+        const marker = (index: number) => steps[index].state.cardState.markers.find((entry: any) => entry.data?.type === markerType);
+        assert.equal(marker(0)?.data.remainingOwnerTurns, 1, `Owner start must count down: ${id}`);
+        assert.equal(marker(2)?.data.remainingOwnerTurns, 1, `Opponent start must not count down: ${id}`);
+        assert.equal(remaining(0), 0, `No premature activation: ${id}`);
+        assert.equal(remaining(2), 0, `No opponent activation: ${id}`);
+        assert.equal(marker(4), undefined, `Activated stone must revert to ordinary: ${id}`);
+        assert.equal(steps[4].state.gameState.board[0][0], 1, `Activation must preserve the owner stone: ${id}`);
+        assert.equal(remaining(4), turns, `Activation must include exactly ${turns} turns: ${id}`);
+        const activationRound = steps[4].state.gameState.roundNumber;
+        const activationTurn = steps[4].state.gameState.turnNumber;
+        assert.deepEqual(steps[4].state.gameState.roundCompletionByPlayer, { black: false, white: false }, id);
+        for (let index = 0; index < turns; index++) {
+            const actionIndex = 5 + index * 2;
+            const completed = steps[actionIndex].state;
+            assert.equal(steps[actionIndex].player, 'black', `Reserved action belongs to black: ${id}/${index}`);
+            assert.equal(remaining(actionIndex), turns - index - 1, `Consume exactly one reserved turn: ${id}/${index}`);
+            assert.equal(completed.gameState.currentPlayer, index === turns - 1 ? -1 : 1, `Handoff only after ${turns} actions: ${id}/${index}`);
+            assert.equal(completed.gameState.turnNumber, activationTurn + index + 1, `Every action completes one turn: ${id}/${index}`);
+            assert.equal(completed.gameState.roundNumber, activationRound, `Consecutive owner turns must not advance round: ${id}/${index}`);
+            assert.deepEqual(completed.gameState.roundCompletionByPlayer, { black: true, white: false }, id);
+            assert.equal(steps[actionIndex + 1].player, index === turns - 1 ? 'white' : 'black', `Next start owner: ${id}/${index}`);
+            assert.equal(remaining(actionIndex + 1), turns - index - 1, `Turn start must not consume reservation: ${id}/${index}`);
+        }
+        const opponentAction = steps[5 + turns * 2];
+        assert.equal(opponentAction.player, 'white', `Ordinary opponent action resumes: ${id}`);
+        assert.equal(opponentAction.state.gameState.currentPlayer, 1, `Ordinary handoff resumes: ${id}`);
+        assert.equal(opponentAction.state.gameState.roundNumber, activationRound + 1, `Both owners completing advances round once: ${id}`);
+        assert.deepEqual(opponentAction.state.gameState.roundCompletionByPlayer, { black: false, white: false }, id);
+        assert.equal(steps[steps.length - 1].player, 'black', `Next ordinary black start: ${id}`);
+        assert.equal(remaining(steps.length - 1), 0, `Reservation must stay exhausted: ${id}`);
+    }
+    for (const [cardId, type, counter] of [['zombie_will_01', 'ZOMBIE', 'turnsUntilInfection'],
+        ['bomb_01', 'TIME_BOMB', 'remainingTurns'], ['seed_01', 'SEED', 'remainingOwnerTurns']] as const) {
+        const id = `lifecycle/${cardId}/delayed-activation`;
+        assert.ok(ids.has(id), `Missing delayed activation: ${id}`);
+        const steps = map.get(id)!.steps;
+        assert.ok(steps.every(step => step.ok && step.result === null), `Delayed activation continuation: ${id}`);
+        assert.equal(steps[0].state.cardState.markers.find((entry: any) => entry.data?.type === type)?.data[counter], 1,
+            `Opponent start must leave the final counter intact: ${id}`);
+        const state = steps[2].state;
+        assert.equal(steps[2].player, 'black', `Delayed activation must run on owner start: ${id}`);
+        if (cardId === 'zombie_will_01') {
+            const zombies = state.cardState.markers.filter((entry: any) => entry.data?.type === 'ZOMBIE');
+            assert.equal(zombies.length, 2, 'Zombie infection must create exactly one new zombie');
+            assert.equal(state.gameState.board[3][4], 1, 'Zombie infection must change the adjacent enemy owner');
+            assert.deepEqual(zombies.map((entry: any) => [entry.row, entry.col]).sort(), [[3, 3], [3, 4]],
+                'Enclosed zombie stays put; newborn zombie must not move in its birth turn start');
+            assert.ok(zombies.every((entry: any) => entry.owner === 'black'
+                && entry.data.turnsUntilInfection === 4 && entry.data.regenRemaining === 1),
+            'Both infection counters reset to four; newborn retains its fresh revival');
+        } else if (cardId === 'bomb_01') {
+            for (let row = 2; row <= 4; row++) for (let col = 2; col <= 4; col++) {
+                assert.equal(state.gameState.board[row][col], 0, 'Time bomb must destroy every unprotected stone in its 3x3 area');
+                assert.equal(state.cardState.stoneIdMap[row][col], null, 'Exploded stones must lose their identities');
+            }
+            assert.equal(state.gameState.board[0][0], 1, 'Time bomb must not destroy outside its 3x3 area');
+            assert.deepEqual(state.cardState.charge, steps[1].state.cardState.charge, 'Time bomb destruction grants no charge');
+            assert.ok(!state.cardState.markers.some((entry: any) => entry.data?.type === 'TIME_BOMB'), 'Exploded bomb marker must be removed');
+        } else {
+            assert.equal(state.gameState.board[2][2], 1, 'Seed must sprout one owner stone at the countdown boundary');
+            assert.equal(state.gameState.board[2][3], 1, 'Seed sprout must flip the bracketed enemy');
+            assert.ok(!state.cardState.markers.some((entry: any) => entry.row === 2 && entry.col === 2), 'Sprout must be an ordinary stone');
+            assert.ok(state.cardState.stoneIdMap[2][2], 'Sprout must receive a stone identity');
+            assert.equal(count(state), count(steps[1].state) + 1, 'Seed sprout adds exactly one stone');
+        }
     }
 }
 

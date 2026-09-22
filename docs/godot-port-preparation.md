@@ -2,6 +2,8 @@
 
 役割: 移植準備の成果物・採用範囲・検証結果の入口。対象は既存JavaScript版の対局基盤、設計、CPU、素材、演出。ゲーム仕様の正本は [01-rulebook.md](../01-rulebook.md)、詳細は [正本](../正本/AGENTS.md)、内部責務は [architecture-contracts.md](architecture-contracts.md)。Godot版の開発・再現検証・性能保証は含まない。
 
+2026-09-22追加レビューで、保存の効果予約/選択段階検証、時間停止の発動後比較、携帯CPU顔画像9枚の収集に不足が確認された。前回の完成判断を撤回し、3件を修正・再検証した。以下は確認した範囲と証拠の記録であり、全カードの全寿命・全相互作用やGodotでの再現を網羅した証明ではない。旧採用原本は保持する。
+
 ## 引き継ぐ成果物
 
 | 準備 | 入口 | 完了の判定材料 |
@@ -10,12 +12,12 @@
 | 再現可能な採用元 | [ソース・素材の収集](godot-port-source-assets.md) | 採用commit＋明示overlay＋全実ファイルSHA-256＋モデル原本 |
 | ゲーム設計とルール | [全100カード対応表](godot-port-rules.md) | 正本・実装・検証・演出の対応、処理順・寿命・保護・盤形状 |
 | 言語非依存JSON | [データ契約](godot-port-data-contract.md) | schema出力、正常/異常JSON、設定/保存/状態/操作/遷移/結果/event検証 |
-| 自動比較 | [決定論比較](godot-port-conformance.md) | 206ケース671手順、全状態・イベント・結果、差のcase/step/path |
-| 乱数・保存・互換 | [比較vectors](../test/fixtures/godot-conformance/vectors.json)、[保存テスト](../test/battle.data-contract.test.ts) | PRNG/shuffle/UTF-16 hash正解例、異常拒否、671状態の保存検証 |
+| 自動比較 | [決定論比較](godot-port-conformance.md) | 211ケース706手順、全状態・イベント・結果、差のcase/step/path。時間停止の発動から交代と遅延効果を追加 |
+| 乱数・保存・互換 | [比較vectors](../test/fixtures/godot-conformance/vectors.json)、[保存テスト](../test/battle.data-contract.test.ts) | PRNG/shuffle/UTF-16 hash正解例、正常復元継続と異常拒否。予約と選択進行の整合を検査 |
 | 演出・音・画面 | [演出と証拠](godot-port-presentation-lifecycle.md) | 実入力、動画・音声・同期動画・PNG・event時系列 |
 | 戦闘ライフサイクル | [退出・再開・結果契約](godot-port-presentation-lifecycle.md) | CPU/演出中の保存・退出、pending再開、遅延結果破棄、報酬重複防止 |
 | CPU | [CPU仕様と比較](godot-port-cpu.md) | 固定128遷移×3局面×Lv10–12、モデル実推論、別建ての100ms計測 |
-| 素材・license | [収集台帳](godot-port-source-assets.md) | 実参照474素材、画像寸法/alpha、音gain/loop、欠損/case検査、出典確認状態 |
+| 素材・license | [収集台帳](godot-port-source-assets.md) | 実参照素材、画像寸法/alpha、音gain/loop、欠損/case検査、出典確認状態。携帯CPU顔9枚の収集漏れを修正 |
 | 再生成・CI | [環境とコマンド](godot-port-environment.md) | Node24、lockfile、Chromium導入、配布物と比較CI、独立レビュー |
 
 ## 採用境界
@@ -36,7 +38,31 @@
 - **画像参照切れ**: 究極多動神のプロフィール画像fallback名が実ファイルと異なった。存在する `ULTIMATE_HYPERACTIVE_GOD-black.png` へ修正し、全fallbackの存在を検査。
 - **再生成不足**: 配布物のモデル欠損を黙認しない。採用元・実素材・依存licenseを明示収集し、旧outputを自動採用しない。CIのNode20とChromium未導入を修正。
 
-## 最終検証
+## 追加レビュー3件への対応（2026-09-22）
+
+`b8eecdaab` を比較元として、今回の変更17ファイルを明示採用して検証した。記録は `output/godot-port-preparation/review-fixes-20260922/`。旧206ケース671手順と乱数vectorsは保持し、5ケース35手順を追加した。仕様・バランス・モデルの学習内容は変更しない。
+
+| 指摘 | 修正と確認 |
+| --- | --- |
+| 効果予約・選択段階の欠落 | 顕現予約3種の必須キー・型・参照、効果別stageを検査。欠損/型不正/転生stage不正を拒否し、復元後の顕現を確認。独立レビューで追加発見した観測カード破壊後の正常保存拒否と、理論の配置待ち予約nullの矛盾も修正・再確認した |
+| 時間停止の発動後が未比較 | 発動直前から2/4連続手番、ラウンド、交代まで追加。連続手番処理を無効化すると比較と独立した仕様条件が失敗する。感染・爆発・種の成長も発動直前から追加し、効果欠落を拒否する |
+| 携帯CPU顔9枚の未収集 | ファイル名prefixと変数・拡張子の連結を収集。別拡張子や下位フォルダーへ広げず、選択素材の欠損時は配布処理も失敗する。旧474素材は同一hashで維持し、9枚を追加して483素材となった |
+
+| 検査 | 結果と証拠 |
+| --- | --- |
+| 統合テスト | 9スイート120件成功。706手順の公開保存検査、正常復元継続、不正拒否、効果欠落検出、収集から配布までを含む。`integrated-tests.log` |
+| 型・静的検査 | `npm run typecheck`、`npm run checkall` 成功。`typecheck.log`、`checkall.log` |
+| 採用ソースの再構築 | 別ディレクトリ `output/godot-source-review-build-20260922/source/` で `npm ci`、Viteビルド、996ファイルの配布物生成に成功。`rebuild-install.log`、`rebuild-vite.log`、`rebuild-package.log` |
+| 比較の再生成 | 採用版の別ディレクトリで211ケース706手順の差分0、CPU固定量比較も成功。`rebuild-conformance.log` |
+| 素材差分 | 追加は `assets/images/cpu/face/level1.png`〜`level9.png` のみ。削除・旧素材のhash変更なし。`asset-delta.json` |
+| 実ブラウザ | 新規配布物のVite/PixiとDOM互換で通常クリック・保存・新document復元、黒勝/白勝/引分、Lv6の実ONNX推論4回が成功。390×844・タッチありの携帯縦画面でLv1〜9全顔画像の可視表示・正しいcurrentSrc・画像応答エラー0を確認。Lv1/9のPNGも目視確認。`packaged-browser.log` と再構築コピー内 `output/battle-verification/browser-report.json` |
+| 通常配信 | `npm run worker:prepare`（Viteビルドを含む）成功、mirror 1112件一致。通常URL `http://127.0.0.1:8000/` でも同じブラウザ検査が成功。サーバーは開始時と同じrepo所有プロセス25880と継続する親プロセスで稼働、HTTP 200。`worker-prepare.log`、`normal-browser.log`、`server-final.json` |
+
+今回の最終採用原本は `output/godot-source-adopted-20260922-reviewed/`。`SOURCE-MANIFEST.json` の `sourceCommit` と各ファイルhashを採用識別に使い、保管原本はビルドせず検証コピーを使用する。旧原本 `godot-source-adopted-20260922-final/` は追加レビュー前の記録として保持する。候補収集物と再構築用コピーは最終原本ではない。
+
+実ブラウザの配布物URLは `http://127.0.0.1:8000/output/godot-source-review-build-20260922/source/output/battle-package/browser/`。最初の携帯検査はタッチ設定なしでデスクトップ判定となり失敗したため、`isMobile` / `hasTouch` と実際のlayout属性の確認を追加して再実行した。ゲームの表示条件を検査に合わせて変更していない。端末実機そのものではなくChromiumの携帯環境設定による検査である。
+
+## 初回検証の記録（追加レビュー前）
 
 2026-09-22、Windows / Node 24.12.0で以下を確認した。生ログと画像・動画は `output/godot-port-preparation/` に保存する。これらは再生成できるローカル出力でありGitへ含めず、比較fixture・生成処理・採用モデル・資料をコミットする。
 
@@ -52,16 +78,16 @@
 | 通常配信の演出・寿命 | `http://127.0.0.1:8000/?battleEmbed=1&debug=1&boardRenderer=pixi`、Vite/Pixi、演出有効。転生・破壊、実音声トラック、保存待機、CPU待機中退出、pending復元、演出中退出に成功。[report.json](../output/godot-port-preparation/presentation/report.json) と [詳細](godot-port-presentation-lifecycle.md)。転生確定は音開始から2532.7ms |
 | 最終配信・mirror | `npm run worker:prepare`（`build:vite`を含む）成功、1112ファイル一致。`worker-prepare-complete-final.log`。8000はこのrepoの `npm run serve` と独立したhiddenプロセスで継続、HTTP 200とゲーム操作を別々に確認 |
 
-採用ソースの保管先は `output/godot-source-adopted-20260922-final/`。`SOURCE-MANIFEST.json` の `sourceCommit` が今回のコミットを指し、`files` と `ASSET-INVENTORY.json` が実ファイルを特定する。保管原本はビルドせず、検証後にコピーを再生成に使う。途中の `godot-source-candidate-*`、`godot-source-baseline-*`、改行保全前の `godot-source-adopted-20260922/` と古い `output/battle-package` は最終採用元ではない。
+初回採用ソースの保管先は `output/godot-source-adopted-20260922-final/`。`SOURCE-MANIFEST.json` の `sourceCommit` は `b8eecdaab` を指す。追加レビューの3件を含む旧記録として保持し、今回の修正後の採用元とは扱わない。保管原本はビルドせず、コピーを再生成に使う。途中の `godot-source-candidate-*`、`godot-source-baseline-*`、改行保全前の `godot-source-adopted-20260922/` と古い `output/battle-package` も最終採用元ではない。
 
 最終Git blob照合でモデルJSON5ファイルが改行変換されることを検出し、該当パスだけ元のバイト列を保つ属性を設定した。全モデル8ファイルを実checkoutと原本でhash照合し、checkoutした実モデルでも推論比較を確認した。モデルの更新や学習は行っていない。
 
 ## 独立レビュー
 
-実装担当外のレビューで、選択途中の保存項目欠落、`*_reference` 制作資料の収集混入、ガチャ音の出典推定の3件を検出し、修正・回帰検証した。既知旧UIセーブの厳密な移行、生成mirror検査、保存ソースの検査除外、音同期、5カードの表示文も追加レビュー済み。最終の実ブラウザ証拠・採用内容・コミット差分を照合し、未解消の指摘はない。
+初回の実装担当外レビューで、選択途中の保存項目欠落、`*_reference` 制作資料の収集混入、ガチャ音の出典推定の3件を検出し、修正・回帰検証した。既知旧UIセーブの厳密な移行、生成mirror検査、保存ソースの検査除外、音同期、5カードの表示文も確認した。ただし、その後の独立レビューで冒頭の3件を検出したため、初回レビューを網羅性や完成の証明として扱わない。
 
 通常ツリーには開始時のCPU Lv13・性能改善・素材制作/整理とその生成結果を残す。共有 `package.json` と生成物は採用版の内容だけをステージするため、コミット後も開発ツリーとの差分が残る。別作業を一括採用・巻き戻ししていない。
 
 ## 範囲外と確認状態
 
-Godotのゲーム本体は未作成で、Godotでの同一挙動・速度・画像・音の再現は未検証。リモートGitHub Actionsも未実行。演出の証拠は代表場面であり全カード全frameの録画ではない。素材出典の個別未照合とフォント・依存licenseの確認状態は台帳へ記録し、法的な権利確定と混同しない。元の素材・CPU開発作業を破棄・正式採用していない。
+Godotのゲーム本体は未作成で、Godotでの同一挙動・速度・画像・音の再現は未検証。リモートGitHub Actionsも未実行。全カードの寿命末端と全相互作用を網羅した証拠はない。演出の証拠は代表場面であり全カード全frameの録画ではない。実推論の途中で退出した後の遅延応答と、報酬保存失敗を含む物語ホスト全体の実ブラウザ確認は未完了。素材出典の個別未照合とフォント・依存licenseの確認状態は台帳へ記録し、法的な権利確定と混同しない。元の素材・CPU開発作業を破棄・正式採用していない。

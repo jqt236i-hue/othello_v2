@@ -6,8 +6,8 @@
 
 | ファイル | 内容 |
 | --- | --- |
-| [cases.json](../test/fixtures/godot-conformance/cases.json) | 206 ケースの初期 `gameState` / `cardState` / `prngState` と具体的な操作列 |
-| [expected.json](../test/fixtures/godot-conformance/expected.json) | 671 ステップの全状態、全ルールイベント、受理結果、終局結果、補助ハッシュ |
+| [cases.json](../test/fixtures/godot-conformance/cases.json) | 211 ケースの初期 `gameState` / `cardState` / `prngState` と具体的な操作列 |
+| [expected.json](../test/fixtures/godot-conformance/expected.json) | 706 ステップの全状態、全ルールイベント、受理結果、終局結果、補助ハッシュ |
 | [vectors.json](../test/fixtures/godot-conformance/vectors.json) | PRNG、復元、shuffle、合法手列挙、転生候補順、同値 marker 順、文字列化とハッシュの正解例 |
 | [実行コード](../scripts/godot-conformance.ts) / [検証](../test/godot.conformance.test.ts) | 公開 `BattleMatch` を使う再生・比較・収録漏れ検査・仕様オラクル |
 
@@ -27,8 +27,18 @@
 | 四属性の融合 | `interaction/four-element-fusion` | 火・水・草・雷から森羅万象神が実際に成立 |
 | 穴、穴の修復、盤の拡張・縮小 | `card/meteor_01/basic`, `card/causal_replay_01/basic`, `card/board_expand_01/basic`, `card/board_shrink_01/basic` | 盤面変更が起きることを要求し、座標・全marker・石ID・結果を照合 |
 | 複数対象・自由配置・手札対象 | 各 `card/*/basic` | 固定された全操作列の成功、使用カードの消費、全中間状態を照合 |
+| 時間停石・時間停神の発動と終了 | `lifecycle/time_stop_god_01/activation-to-handoff`, `lifecycle/time_stop_deity_01/activation-to-handoff` | 所有者開始で残2→1、相手開始では不減、残1→発動。通常石への復帰、発動手番を含む2/4連続手番、各完了時の残数、相手への交代、ラウンド進行を検査 |
+| 屍石の感染 | `lifecycle/zombie_will_01/delayed-activation` | 相手開始では残1を保持、所有者開始で敵通常石1個を自色の屍石へ変更。両個体の感染カウント4・復活残1、新生個体の同開始内不発動を検査 |
+| 時限爆弾の爆発 | `lifecycle/bomb_01/delayed-activation` | 相手開始では残1を保持、所有者開始で3×3内の無保護石9個と石ID・爆弾markerを除去。範囲外の生存と布石非獲得を検査 |
+| 種の芽生え | `lifecycle/seed_01/delayed-activation` | 相手開始では残1を保持、所有者開始で通常石1個を生成して石IDを付与し、挟んだ相手石を反転。種markerの除去を検査 |
 
 `assertCoverage` は現在のカード一覧から必要IDを検査します。カードを追加してfixtureを入れ忘れると失敗します。単に現在の実装出力を保存し直すだけでは合格しません。独立検査で、使用成功・消費・拒否時の不変性・各種本体/付与/マスmarkerの新規成立・パスによる終局・幽体の生存・pending維持・融合・穴の生成と修復・拡張座標を確認します。宝箱とリボ払いは初期布石を10にして上限による効果の隠蔽を防ぎ、獲得量とプロフィール倍率2を検査します。平等の意志の移送量は倍率を掛けず10、増援/援軍/救済の初回生成数は1/3/2を検査します。それ以上の効果固有の仕様は既存カードテストを併せて実行します。
+
+遅延発動の5ケースは、2026-09-22の独立レビューで「基本ケースが次の所有者開始で終了し、主要効果の発動まで到達しない」と判明したため追加しました。時間停止処理 `consumeTimeStopConsecutiveTurn` を常に不成立に置き換えると、従来206ケース・671ステップは差分0で通過しました。追加後の回帰テストは、その置換が固定期待値比較と仕様に基づく独立検査の両方で失敗することを確認します。余分な連続手番・早すぎるラウンド進行、感染・爆発・芽生えの欠落も独立検査で拒否します。
+
+追加した初期局面は意図的な発動直前の局面で、操作列は手書きの固定合法配置です。現実装から探索した操作列や無制限の対局延長には依存しません。時間停止の配置直後の残5と次所有者開始の残4は基本ケース、発動前の残2以降と終了後の通常交代は追加ケースに収録します。全5回を連続して追う検証は既存の時間停止専用テストで補います。屍石の追加ケースは周囲が埋まって移動先がなく、感染先が1個だけの局面です。移動後の感染・複数候補の乱数選択・感染不発・復活・保護との相互作用をすべてこのケースで網羅したとは扱いません。同様に、全カードの寿命末端・すべての効果の組合せは未網羅です。
+
+更新時は新規ディレクトリへ収録し、従来206ケースの入力・671ステップの出力と決定論vectorsが変更されていないことを照合しました。現在の採用基準へ5ケース35ステップを追加したもので、歴史的な保存・リプレイfixtureを更新したものではありません。
 
 既存の内部production fixtureの数値石IDは、移植用入力を作る入口で公開形式 `sN` / 空欄 `null` に変換しています。旧fixture本体は変更していません。公開保存検証との照合も行い、内部でしか受け取れない局面を外部契約の正解例にしないようにしています。
 

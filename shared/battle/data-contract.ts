@@ -2,7 +2,7 @@ import Board = require('../shared-board-utils');
 import Playback = require('../playback-event-contract');
 import { resolveBattleConfig } from './config';
 import { assertBattleJson, BATTLE_RULES_VERSION, BATTLE_CONTENT_VERSION, BATTLE_SAVE_LIMITS, validateBattleSave } from './save';
-import { BATTLE_EFFECT_TYPES, BATTLE_MARKER_TYPES, BATTLE_PENDING_REQUIRED_FIELDS } from './state-validation';
+import { BATTLE_EFFECT_TYPES, BATTLE_MARKER_TYPES, BATTLE_PENDING_REQUIRED_FIELDS, BATTLE_PENDING_STAGE_BY_TYPE, BATTLE_RESERVATION_FIELDS } from './state-validation';
 import { getBattleRuntimeCardDefinitions } from './content-version';
 import { cloneBattle, type BattleAction, type BattleResult } from './types';
 
@@ -111,6 +111,14 @@ export function getBattleDataContract() {
         cards: getBattleRuntimeCardDefinitions().map((card: any) => ({ id: card.id, type: card.type, cost: card.cost, initialDeckEligible: card.enabled !== false })),
         pendingEffectTypes: BATTLE_EFFECT_TYPES, markerTypes: BATTLE_MARKER_TYPES,
         pendingRequiredFieldsByType: BATTLE_PENDING_REQUIRED_FIELDS,
+        pendingStageByType: BATTLE_PENDING_STAGE_BY_TYPE,
+        reservations: { playerKeys: ['black', 'white'], mapsRequired: true, absentReservation: null,
+            fieldsByMap: BATTLE_RESERVATION_FIELDS,
+            sourceTypesByMap: { nextObserverWillStoneByPlayer: 'OBSERVER_WILL', nextBoardExecutorStoneByPlayer: 'BOARD_EXECUTOR', nextTheoryIncarnationStoneByPlayer: 'THEORY_INCARNATION' },
+            observerReference: 'repaymentId identifies a waiting, unplaced repayment; stolenCardId/copyId match that historical record, even after the stolen card is destroyed or used. repaymentIndex is a historical fallback index.',
+            theoryReference: 'sessionId identifies the same owner state and theoryNumberCellsBySession entry. A THEORY_INCARNATION placement pending requires a non-null reservation for that session.',
+            reviveMap: 'pendingStoneSalvationGodRevivesByPlayer', reviveEntriesRequired: ['row', 'col', 'owner', 'destroyedOwner', 'cause', 'reason', 'queuedTurnIndex'] },
+        expansionGodDirectionKeys: ['up-left', 'up-right', 'down-right', 'down-left'],
         markerKinds: ['specialStone', 'manifestStone'], pendingStages: [null, 'selectTarget'],
         requiredSaveFields: ['formatVersion', 'rulesVersion', 'contentVersion', 'config', 'position', 'phase', 'cpuMemory'],
         requiredPositionFields: ['gameState', 'cardState', 'prngState'],

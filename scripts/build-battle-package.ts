@@ -84,6 +84,7 @@ export function buildBattlePackage(root = process.cwd(), destination = path.join
     const art = (snapshot?.runtimeAssets || tracked).filter((file: string) => /^assets\/(images|audio|fonts)\//.test(file)
         && !/(?:_reference\/|\/blender|\.blend$|\.psd$|\.kra$)/i.test(file));
     for (const file of [...art, ...tracked.filter(file => /^styles[^/]*\.css$/.test(file)), 'assets/asset-manifest.json']) {
+        if (art.includes(file) && !fs.existsSync(path.join(root, file))) throw new Error(`Missing required runtime asset: ${file}`);
         if (fs.existsSync(path.join(root, file))) copy(path.join(root, file), `browser/${file}`);
     }
     const copyTree = (dir: string, prefix: string) => {

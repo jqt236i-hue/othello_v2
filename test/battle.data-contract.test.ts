@@ -8,8 +8,160 @@ import { runBattleDataContractCli } from '../scripts/godot-data-contract';
 import currentSave from './fixtures/battle-save-current-v1.json';
 import { comparableProductionState } from '../src/engine/production-match';
 import corpus from './fixtures/godot-conformance/expected.json';
+import inputs from './fixtures/godot-conformance/cases.json';
 
 const saved = () => JSON.parse(JSON.stringify(currentSave));
+
+const reservationCases = [
+    ['observer_will_01', 'nextObserverWillStoneByPlayer', 'OBSERVER_WILL', 1],
+    ['board_executor_01', 'nextBoardExecutorStoneByPlayer', 'BOARD_EXECUTOR', 0],
+    ['theory_incarnation_01', 'nextTheoryIncarnationStoneByPlayer', 'THEORY_INCARNATION', 0]
+] as const;
+function savedCase(cardId: string, index: number): any {
+    const position: any = JSON.parse(JSON.stringify(corpus.cases.find(item => item.id === `card/${cardId}/basic`)!.steps[index].state));
+    return createBattleSave({ ...saved().config, seed: position.prngState.seed }, position, 'action');
+}
+
+test.each(reservationCases)('saved %s reservation survives restoration and manifests on the same placement', (cardId, field, type, index) => {
+    const checkpoint = savedCase(cardId, index);
+    expect(checkpoint.position.cardState[field].black).toMatchObject({ sourceType: type });
+    const first = restoreBattle(checkpoint), second = restoreBattle(first.exportSave());
+    const action = inputs.cases.find(item => item.id === `card/${cardId}/basic`)!.operations[index + 1].action!;
+    const left = first.apply(action), right = second.apply(action);
+    expect(left.ok).toBe(true); expect(right.ok).toBe(true);
+    expect(right.events).toEqual(left.events); expect(second.exportSave()).toEqual(first.exportSave());
+    expect(right.after.cardState[field].black).toBeNull();
+    expect(right.after.cardState.markers).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'manifestStone', data: expect.objectContaining({ type }) })]));
+});
+
+test.each(reservationCases)('rejects missing or malformed %s reservation before runtime normalization loses it', (cardId, field, _type, index) => {
+    for (const corrupt of [
+        (cs: any) => { delete cs[field]; },
+        (cs: any) => { delete cs[field].black; },
+        (cs: any) => { cs[field] = 'invalid'; },
+        (cs: any) => { cs[field].black = 'invalid'; },
+        (cs: any) => { delete cs[field].black.sourceType; },
+        (cs: any) => { cs[field].black.sourceType = 'REINCARNATION_WILL'; }
+    ]) {
+        const input = savedCase(cardId, index); corrupt(input.position.cardState);
+        expect(() => restoreBattle(input)).toThrow();
+    }
+});
+
+test('observer reservation survives destroying the stolen card, saving and resuming the next placement', () => {
+    const battle = restoreBattle(savedCase('observer_will_01', 1));
+    const reservation = battle.snapshot().cardState.nextObserverWillStoneByPlayer.black;
+    expect(reservation.stolenCardId).toBe('udr_01');
+    expect(battle.apply({ type: 'destroy_hand_card', destroyCardId: reservation.stolenCardId }).ok).toBe(true);
+    const state = battle.snapshot().cardState;
+    expect(state.hands.black).not.toContain(reservation.stolenCardId);
+    expect(state.discard[state._discardCopyIds.indexOf(reservation.stolenCardCopyId)]).toBe(reservation.stolenCardId);
+    expect(state.nextObserverWillStoneByPlayer.black).toEqual(reservation);
+    const checkpoint = battle.exportSave(), resumed = restoreBattle(checkpoint);
+    expect(resumed.exportSave()).toEqual(checkpoint);
+    const placement = { type: 'place', row: 0, col: 1 };
+    const left = battle.apply(placement), right = resumed.apply(placement);
+    expect(left.ok).toBe(true); expect(right.ok).toBe(true);
+    expect(right.events).toEqual(left.events); expect(resumed.exportSave()).toEqual(battle.exportSave());
+    expect(right.after.cardState.nextObserverWillStoneByPlayer.black).toBeNull();
+    expect(right.after.cardState.markers).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'manifestStone', data: expect.objectContaining({ type: 'OBSERVER_WILL', repaymentId: reservation.repaymentId, stolenCardCopyId: reservation.stolenCardCopyId }) })]));
+});
+
+test('each recorded pending type rejects the opposite stage, including null reincarnation stage', () => {
+    const checked = new Set<string>();
+    for (const example of corpus.cases) for (const step of example.steps) {
+        const position: any = JSON.parse(JSON.stringify(step.state));
+        const pending = position.cardState.pendingEffectByPlayer.black;
+        if (!pending || checked.has(pending.type)) continue;
+        checked.add(pending.type);
+        pending.stage = pending.stage === null ? 'selectTarget' : null;
+        expect(() => validateBattleData('position', position)).toThrow('pending');
+    }
+    expect(checked.has('REINCARNATION_WILL')).toBe(true);
+    expect(checked.has('THEORY_INCARNATION')).toBe(true);
+});
+
+test('observer reservation identity and stolen-card references cannot be deleted or redirected', () => {
+    const corruptions = [
+        (cs: any) => { cs.nextObserverWillStoneByPlayer.black = null; },
+        (cs: any) => { cs.observerWillRepaymentsByPlayer.black = []; },
+        (cs: any) => { cs.nextObserverWillStoneByPlayer.black.repaymentId = 'observer_will_repay_white_1'; },
+        (cs: any) => { cs.nextObserverWillStoneByPlayer.black.stolenCardId = 'free_01'; },
+        (cs: any) => { cs.nextObserverWillStoneByPlayer.black.stolenCardCopyId = cs._nextCardCopySeq; },
+        (cs: any) => { cs.observerWillRepaymentsByPlayer.black[0].status = 'unknown'; }
+    ];
+    for (const field of ['repaymentId', 'stolenCardId', 'stolenCardCopyId', 'repaymentIndex', 'createdTurnNumber'])
+        corruptions.push((cs: any) => { delete cs.nextObserverWillStoneByPlayer.black[field]; });
+    for (const corrupt of corruptions) {
+        const input = savedCase('observer_will_01', 1); corrupt(input.position.cardState);
+        expect(() => restoreBattle(input)).toThrow();
+    }
+});
+
+test('theory reservations require intact owner state, session, cell records and references', () => {
+    for (const corrupt of [
+        (cs: any) => { delete cs.nextTheoryIncarnationStoneByPlayer.black.sessionId; },
+        (cs: any) => { cs.nextTheoryIncarnationStoneByPlayer.black.sessionId = 'theory_white_1'; },
+        (cs: any) => { delete cs.theoryIncarnationStateByPlayer; },
+        (cs: any) => { cs.theoryIncarnationStateByPlayer.black = null; },
+        (cs: any) => { delete cs.theoryIncarnationStateByPlayer.black.remainingSpawnCount; },
+        (cs: any) => { delete cs.theoryNumberCellsBySession; },
+        (cs: any) => { delete cs.theoryNumberCellsBySession.theory_black_1; },
+        (cs: any) => { delete cs.theoryNumberCellsBySession.theory_black_1.cells; },
+        (cs: any) => { Object.values<any>(cs.theoryNumberCellsBySession.theory_black_1.cells)[0].markerData.type = 'unknown'; },
+        (cs: any) => { Object.values<any>(cs.theoryNumberCellsBySession.theory_black_1.cells)[0].sourceCardId = 'unknown'; },
+        (cs: any) => { delete cs.theoryNumberCellByCell; },
+        (cs: any) => { Object.values<any>(cs.theoryNumberCellByCell)[0].sessionId = 'theory_black_999'; }
+    ]) {
+        const input = savedCase('theory_incarnation_01', 0); corrupt(input.position.cardState);
+        expect(() => restoreBattle(input)).toThrow();
+    }
+});
+
+test('theory placement pending requires its reservation even when the reservation map retains a null slot', () => {
+    const input = savedCase('theory_incarnation_01', 0);
+    const cs = input.position.cardState;
+    expect(cs.pendingEffectByPlayer.black).toMatchObject({ type: 'THEORY_INCARNATION', stage: null });
+    expect(cs.theoryIncarnationStateByPlayer.black.sessionId).toBe(cs.nextTheoryIncarnationStoneByPlayer.black.sessionId);
+    cs.nextTheoryIncarnationStoneByPlayer.black = null;
+    expect(() => createBattleSave(input.config, input.position, 'action')).toThrow('theory pending reservation');
+    expect(() => restoreBattle(input)).toThrow('theory pending reservation');
+});
+
+test('salvation revive reservation containers and work placement flags cannot silently default', () => {
+    for (const field of ['pendingStoneSalvationGodRevivesByPlayer', 'workNextPlacementArmedByPlayer']) {
+        for (const corrupt of [
+            (cs: any) => { delete cs[field]; }, (cs: any) => { delete cs[field].black; },
+            (cs: any) => { cs[field].black = 'invalid'; }
+        ]) {
+            const input = saved(); corrupt(input.position.cardState); expect(() => restoreBattle(input)).toThrow();
+        }
+    }
+    const input = saved();
+    const entry = { row: 3, col: 4, owner: 'black', destroyedOwner: 'white', cause: 'DESTROY_ONE_STONE', reason: 'destroy', queuedTurnIndex: 6 };
+    input.position.cardState.pendingStoneSalvationGodRevivesByPlayer.black = [entry];
+    expect(restoreBattle(input).exportSave().position.cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([entry]);
+    for (const key of ['row', 'col', 'owner', 'destroyedOwner', 'cause', 'reason', 'queuedTurnIndex']) {
+        const broken = JSON.parse(JSON.stringify(input)); delete broken.position.cardState.pendingStoneSalvationGodRevivesByPlayer.black[0][key];
+        expect(() => restoreBattle(broken)).toThrow();
+    }
+});
+
+test('expansion god preserves corner direction during a saved multi-selection and rejects direction loss', () => {
+    const example = corpus.cases.find(item => item.id === 'card/board_expand_god_01/basic')!;
+    const index = example.steps.findIndex(step => (step.state.cardState.pendingEffectByPlayer.black as any)?.selectedCount === 1);
+    const checkpoint = savedCase('board_expand_god_01', index);
+    const left = restoreBattle(checkpoint), right = restoreBattle(left.exportSave());
+    const action = inputs.cases.find(item => item.id === example.id)!.operations[index + 1].action!;
+    expect(left.apply(action).ok).toBe(true); expect(right.apply(action).ok).toBe(true);
+    expect(right.exportSave()).toEqual(left.exportSave());
+    for (const direction of [undefined, null, 'up', 'unknown']) {
+        const corrupt = JSON.parse(JSON.stringify(checkpoint));
+        const target = corrupt.position.cardState.pendingEffectByPlayer.black.selectedTargets[0];
+        if (direction === undefined) delete target.directionKey; else target.directionKey = direction;
+        expect(() => restoreBattle(corrupt)).toThrow('pending expansion direction');
+    }
+});
 
 test('content identity ignores only declared presentation fields; rules fields and catalog order remain significant', () => {
     const cards = getBattleRuntimeCardDefinitions();

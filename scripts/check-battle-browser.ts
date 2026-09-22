@@ -71,6 +71,29 @@ export async function checkBattleBrowser(baseUrl = 'http://127.0.0.1:8000/') {
         assert.equal(onnx.lastError, null);
         report.push({ scenario: 'cpu-lv6', url: cpuUrl, normalClick: true, cpuReply: true, onnx });
         await cpuPage.screenshot({ path: path.join(evidence, 'cpu-lv6.png') }); await cpuPage.close();
+        for (let level = 1; level <= 9; level++) {
+            const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+            const failures: string[] = [];
+            page.on('response', (response: any) => {
+                if (response.url().includes('/assets/images/cpu/face/') && response.status() >= 400) failures.push(`${response.status()} ${response.url()}`);
+            });
+            const url = baseUrl + '?battleEmbed=1&debug=1&boardRenderer=pixi';
+            await page.goto(url); await page.waitForFunction(() => !!(window as any).CardReversiBattle);
+            await page.evaluate((cfg: any) => (window as any).CardReversiBattle.start(cfg), { ...config,
+                battleId: `mobile-face-lv${level}`, players: { black: { controller: 'human' }, white: { controller: 'cpu', profile: String(level) } } });
+            await page.waitForFunction((expected: string) => {
+                const image = document.getElementById('mobile-command-opponent-avatar-image') as HTMLImageElement | null;
+                return !!image && image.complete && image.naturalWidth > 0 && image.currentSrc.endsWith(expected);
+            }, `assets/images/cpu/face/level${level}.png`);
+            const image = page.locator('#mobile-command-opponent-avatar-image');
+            const layout = await page.evaluate(() => document.documentElement.getAttribute('data-layout-profile'));
+            assert.equal(layout, 'layout-profile-phone-portrait', 'Touch viewport did not select phone portrait layout');
+            assert.equal(await image.isVisible(), true, 'Mobile CPU face is not visible');
+            const rendered = await image.evaluate((element: HTMLImageElement) => ({ src: element.getAttribute('src'), currentSrc: element.currentSrc, naturalWidth: element.naturalWidth }));
+            assert.deepEqual(failures, [], 'Mobile CPU face request failed');
+            report.push({ scenario: 'mobile-cpu-face', level, url, lane: 'vite', renderer: 'pixi', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, layout, rendered, failures });
+            await page.screenshot({ path: path.join(evidence, `mobile-lv${level}.png`) }); await page.close();
+        }
         fs.writeFileSync(path.join(evidence, 'browser-report.json'), JSON.stringify(report, null, 2));
         console.log(JSON.stringify(report, null, 2));
     } finally { await browser.close(); }

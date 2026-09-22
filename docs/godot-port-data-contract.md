@@ -16,7 +16,7 @@ node dist/scripts/godot-data-contract.js validate save test/fixtures/battle-cont
 
 最後のコマンドは意図的に失敗する異常例（未知の効果名）。成功は終了コード0と `ok:true`、失敗は1と `error`。`schema` の出力は本プロジェクト固有の契約カタログであり、JSON Schema規格のスキーマではない。検証の正本は同じAPIを使う `validate`。Godotからは任意の完成状態JSONを `validate position <file>`、遷移を `validate transition <file>` で検査できる。状態到達可能性の証明ではなく、以下の構造・列挙・参照・盤面整合性を検査する。
 
-正常・異常実例は [battle-contract](../test/fixtures/battle-contract)、完全な正常保存は [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json)。`config` / `save` / `position` / `transition` / `action` / `result` / `events` / `playbackEvents` が入力種別。テストは [battle.data-contract.test.ts](../test/battle.data-contract.test.ts) が同じCLI入口で実例を検証し、[Godot比較ケース](../test/fixtures/godot-conformance/expected.json) の全671境界状態を保存契約で検査する。
+正常・異常実例は [battle-contract](../test/fixtures/battle-contract)、完全な正常保存は [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json)。`config` / `save` / `position` / `transition` / `action` / `result` / `events` / `playbackEvents` が入力種別。テストは [battle.data-contract.test.ts](../test/battle.data-contract.test.ts) が同じCLI入口で実例を検証し、[Godot比較ケース](../test/fixtures/godot-conformance/expected.json) の全境界状態を保存契約で検査する。
 
 ## JSON共通条件と版
 
@@ -92,14 +92,23 @@ UTF-8のJSONファイルを用いる。文字列の内容はUnicode、JS側ハ�
 | `cardCostOverridesByCopyId` | copy ID文字列→`{cost,sourceType}`、cost非負整数、sourceTypeは正式効果名/null |
 | `cardCostModifiersByCopyId` | copy ID文字列→`[{delta,sourceType}]`、deltaは符号付きsafe integer |
 | `boardBonusByCell`, `boardBonusConsumedByCell` | canonical `"row,col"`→非負整数、消費済mapは値true。理論の化身はカードコストを数字にするため0や10超も有効 |
-| `next*StoneByPlayer`, `theoryIncarnationStateByPlayer`, `theoryNumberCellsBySession`, `theoryNumberCellByCell` | 顕現予約・理論session。nullまたは既存効果record/mapをそのまま保持 |
+| `nextObserverWillStoneByPlayer`, `nextBoardExecutorStoneByPlayer`, `nextTheoryIncarnationStoneByPlayer` | 3つのmapと各black/whiteキーは必須。値は下記の予約record/null。mapやownerキーの省略、文字列化は拒否 |
+| `theoryIncarnationStateByPlayer`, `theoryNumberCellsBySession`, `theoryNumberCellByCell` | 必須の理論session状態・記録・逆参照map。下記の型・参照を保持 |
 | `workAnchorPosByPlayer`, `breedingFrontierByAnchorId`, `breedingSproutByOwner`, `prevOpponentTurnDestroyedStonesByPlayer`, `pendingStoneSalvationGodRevivesByPlayer` | 効果の位置・履歴・復活予約。既存record/配列を保存し、表示キャッシュとして捨てない |
 
 効果ごとの追加情報は現行recordのまま保持する。全フィールドの到達可能な組合せを検査する証明器ではない。特定の効果内部recordの追加キーはbounded JSONとして保持し、今回追加したvalidatorは型の明らかな不正、正式でない効果名、既知カウンター、marker/カード/石参照、盤面の不整合を拒否する。
 
 markerは `{id,markerId,row,col,kind,owner,createdSeq,data}`。id/createdSeqは正整数、markerIdはidの10進文字列で、それぞれ一意。kindは `specialStone` / `manifestStone`、ownerはblack/white/null。`data.type` の閉じたenumは `schema.markerTypes` を用い、[SpecialStoneRegistry](../shared/special-stone-registry-static.ts) に従う。石本体・石の付与状態・マス効果をkindだけから推測しない。categoryは省略またはbomb、bombはTIME_BOMB。残り時間・回避回数は存在時に非負整数。石本体/付与状態にはその座標の石が必要。`METEOR_HOLE`は穴そのものを表すため通常の「石が存在する」検査の対象外。
 
-pendingは `{type,cardId,stage,...}`。typeは `schema.pendingEffectTypes`、stageはnullまたはselectTarget。cardIdは必須で、そのtypeと一致。sourceHandIndex/selectedCount/maxSelections/placementsRemainingは存在時に非負整数。firstTargetは省略/null/座標、selectedTargetsは座標配列とselectedCountが一致する。拡張神/縮小の意志はselectedTargets・selectedCount・maxSelectionsが必須、maxは拡張神1〜2/縮小3。最後の切り札はplacementsRemaining1〜3が必須。天の恵み/観測/断罪は非空offersが必須。機械列挙はschema.pendingRequiredFieldsByType。入替・超引力・縮小神等の途中選択を保存してよい。offersは天の恵みならカードID配列、断罪なら `{handIndex,cardId}` 配列、観測ならさらにcardCopyIdを含み、対象の相手手札と一致する。
+pendingは `{type,cardId,stage,...}`。typeは `schema.pendingEffectTypes`、stageは型ごとに `schema.pendingStageByType` の1値と一致させる。正本の [pending selection registry](../game/logic/cards-internal/pending-selection-registry.ts) の37選択型（転生を含む）はselectTarget、その他はnullで、選択途中にstageは変わらない。cardIdは必須で、そのtypeと一致。sourceHandIndex/selectedCount/maxSelections/placementsRemainingは存在時に非負整数。firstTargetは省略/null/座標、selectedTargetsは座標配列とselectedCountが一致する。拡張神/縮小の意志はselectedTargets・selectedCount・maxSelectionsが必須、maxは拡張神1〜2/縮小3。拡張神selectedTargetsの各要素にはdirectionKeyも必須で、up-left/up-right/down-right/down-leftの4値だけを許可する。最後の切り札はplacementsRemaining1〜3が必須。天の恵み/観測/断罪は非空offersが必須。機械列挙はschema.pendingRequiredFieldsByType。入替・超引力・縮小神等の途中選択を保存してよい。offersは天の恵みならカードID配列、断罪なら `{handIndex,cardId}` 配列、観測ならさらにcardCopyIdを含み、対象の相手手札と一致する。
+
+顕現予約は `schema.reservations` に必須フィールドを列挙する。盤上の執行者は `{sourceType:"BOARD_EXECUTOR"}`。観測は `{sourceType:"OBSERVER_WILL",repaymentId,stolenCardId,stolenCardCopyId,repaymentIndex,createdTurnNumber}` で、repaymentIdは同じownerの未顕現・待機中返済recordを指し、カードID/copy IDはその履歴recordに一致する。奪ったカードの破壊・使用後も次の配置への予約は続くため、現在の手札に残っていることを要求しない。repaymentIdは `observer_will_repay_<owner>_<正整数>`、整数部分は次の採番未満。repaymentIndexは非負整数の旧fallback位置であり、後の返済配列の削除に耐える参照はrepaymentIdが担う。createdTurnNumberはnullまたは0..現在turnNumber。返済recordのsourceType・status（waiting_for_marker_expire/active）・card/copy ID・baseCost・markerIdも必須で、markerIdは未顕現時null、以後は次の採番未満の正整数。期限後も返済が残るため、履歴markerIdに現存markerは要求しない。
+
+理論の化身は `{sourceType:"THEORY_INCARNATION",sessionId}`。sessionIdは `theory_<owner>_<正整数>`（次の採番未満）で、同じownerのtheoryIncarnationStateByPlayerとtheoryNumberCellsBySessionに参照可能でなければならない。逆方向にも、pending.typeがTHEORY_INCARNATIONの配置待ち状態なら、そのownerの予約は必ず非nullでなければならない。owner状態はownerKey、sessionId、非負整数remainingSpawnCountが必須。createdTurnIndexとmarkerIdは存在時に非負整数/正整数で、runtimeのmarker復元fallbackでは省略され得る。fallbackのsessionId:nullは有効だが、新しい予約のsessionIdにはnullを認めない。sessionにはownerKeyとcells mapが必須。各cellのキーとrow/colは一致し、value/originalValue/sourceCardCostは非負整数、originalConsumedはboolean、consumedは省略またはboolean。sourceCardId/type/costは正式カード定義と一致し、spawnTypeとmarkerData.typeは同じ正式marker型。theoryNumberCellByCellの各項目は同じowner/session内の未消費cellを指す。
+
+救済神のpendingStoneSalvationGodRevivesByPlayerもmap・black/white配列が必須。各予約のrow/col、owner（配列ownerと同一）、destroyedOwner、cause/reason（文字列/null）、queuedTurnIndex（非負整数/null）は必須。metaは省略/null/object。復活元のmarkerが失われた場合はruntimeが失敗結果を返すため、元markerの現存を保存の条件にはしない。労働の次配置予約workNextPlacementArmedByPlayerは従来どおり両ownerのbooleanが必須。
+
+検査限界として、firstTargetは未選択時に正当に省略される唯一の進捗情報であり、途中保存からそれだけ削除したデータと未選択状態を現在の形式で判別できない。sourceHandIndexもnoConsume経路では省略可能だが、通常使用の捕獲で削除すると手札挿入順が変わるため、保存者は既存値を落としてはならない。盤上の執行者は使用時点からpendingがnullで、顕現予約をnullへ置換した事実を判別する独立の進捗項目がない。map・ownerキーの省略は拒否するが、lastUsedCardなどの履歴から予約の存在を推測して正常保存を拒否しない。完全な状態到達可能性や失われた履歴の推定はこのvalidatorの責務に含めない。
 
 `phase` は needs-turn-start / action / terminal。保存されたphaseをそのまま復元し、actionのセーブに対する `startTurn()` はnullを返してドロー・持続効果・乱数を二重適用しない。描画キュー、関数、`__resultShown` / `__resultToken` は保存対象外。復元は過去の演出を再生しない。
 
@@ -126,6 +135,10 @@ pendingは `{type,cardId,stage,...}`。typeは `schema.pendingEffectTypes`、sta
 | [godot-conformance](../test/fixtures/godot-conformance) | 全カード基本/拒否、対象選択、重要な組合せ・盤面変化。旧goldenの不足を別ケースで補う |
 
 実不具合として、従来保存検査が初期デッキ用enabled IDだけを許可し、対局中に生成される派生カードを拒否していた。保存用ID集合をruntime全定義へ直し、初期デッキの制限は維持した。新しい検査の適用時には理論の数字マスや観測/断罪の手札offerを正本実装に合わせ、正常な671状態を拒否しないことを確認した。
+
+同日の独立再レビューで、顕現予約3種の欠落・文字列化と型に合わないpending.stageが受理され、復元時の既定値補完で予約や選択が失われる未検査箇所を確認した。保存検証の完全性に関する以前の説明をこの追補で訂正する。修正前の回帰は予約3件とstage1件が失敗、正常な顕現再開3件は成功した。上記の必須型・参照検査、救済神予約の型、拡張神の方向検査を追加し、ルールの処理順・効果自体は変更していない。証拠は `output/godot-port-preparation/review-fixes-20260922/save-before-fix.txt` と同ディレクトリの修正後ログ。
+
+続くレビューでは、観測で奪ったカードを合法的に手札破壊した後の保存を、現手札への参照条件が誤って拒否することと、理論の配置待ちpendingが残っているのに予約をnullへ置き換えた状態を受け入れることを各1件再現した。前者は返済recordの履歴参照として検査し、後者はpendingから予約への逆整合を追加した。正常な手札破壊→保存→復元→同じ配置での顕現と、理論の矛盾状態の拒否を回帰に追加。修正前ログは同ディレクトリの `observer-destroy-before-fix.txt` / `theory-null-before-fix.txt`、修正後は `save-final-recheck-tests.txt`。
 
 旧方式は表示説明まで含むカード全文hashだった。新方式ではruntime定義のname/desc/display_type_ja/card_face_art_pathだけ除外し、全100カード（派生を含む）のid/type/cost/enabled、配列順、その他の定義項目をhashに含める。同じ仕様と確認した既知の旧全文hash `fnv1a32:f89cfb79` だけを `fnv1a32:068d90fd` へ識別子移行する。この既知旧版でブラウザがlastUsedCardByPlayerへ誤保存した表示descriptorは、ちょうど{id,name,desc}の3項目・正式card ID・文字列の表示項目であることを検査してIDへ移行する。現在semantic版のdescriptorや、未知hash・将来版は受けない。今後意味が変わった版へこの固定対応を流用しない。
 

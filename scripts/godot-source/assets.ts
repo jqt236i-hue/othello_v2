@@ -19,8 +19,48 @@ export function listFiles(root: string, prefix = ''): string[] {
     }).sort();
 }
 
-export interface AssetReference { source: string; line: number; kind: 'literal' | 'dynamic-directory' | 'sound-config'; }
+export interface AssetReference { source: string; line: number; kind: 'literal' | 'dynamic-directory' | 'dynamic-filename' | 'sound-config'; }
 export interface AssetReferences { references: Map<string, AssetReference[]>; unresolved: string[]; }
+
+/** Resolve local immutable string prefixes without executing runtime/UI code.
+ * Unknown expressions are filename segments, not permission to traverse subdirectories. */
+function filenamePatterns(tree: ts.SourceFile): { pattern: RegExp; prefix: string; description: string; line: number }[] {
+    const constants = new Map<string, ts.Expression>();
+    for (const statement of tree.statements) {
+        if (!ts.isVariableStatement(statement) || !(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
+        for (const declaration of statement.declarationList.declarations) {
+            if (ts.isIdentifier(declaration.name) && declaration.initializer) constants.set(declaration.name.text, declaration.initializer);
+        }
+    }
+    const parts = (node: ts.Expression, seen = new Set<string>()): (string | null)[] => {
+        if (ts.isStringLiteralLike(node)) return [node.text];
+        if (ts.isParenthesizedExpression(node)) return parts(node.expression, seen);
+        if (ts.isIdentifier(node) && constants.has(node.text) && !seen.has(node.text)) {
+            return parts(constants.get(node.text)!, new Set([...seen, node.text]));
+        }
+        if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) return [...parts(node.left, seen), ...parts(node.right, seen)];
+        if (ts.isTemplateExpression(node)) return [node.head.text, ...node.templateSpans.flatMap(span => [...parts(span.expression, seen), span.literal.text])];
+        return [null];
+    };
+    const patterns: { pattern: RegExp; prefix: string; description: string; line: number }[] = [];
+    const walk = (node: ts.Node) => {
+        if (ts.isTemplateExpression(node) || (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken)) {
+            const tokens = parts(node);
+            const firstUnknown = tokens.indexOf(null);
+            const prefix = tokens.slice(0, firstUnknown).join('').replace(/^(?:\.\/|\/)/, '');
+            const description = tokens.map(token => token ?? '*').join('').replace(/^(?:\.\/|\/)/, '');
+            // Directory selectors already have their own collection rule. This
+            // handles a partial basename such as face/level + level + '.png'.
+            if (firstUnknown >= 0 && /^assets\/(?:images|audio|fonts)\//.test(prefix) && !prefix.endsWith('/') && mediaPattern.test(description)) {
+                const escaped = tokens.map(token => token === null ? '[^/]+' : token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('').replace(/^(?:\\\.\/|\/)/, '');
+                patterns.push({ pattern: new RegExp(`^${escaped}$`), prefix, description, line: tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1 });
+            }
+        }
+        ts.forEachChild(node, walk);
+    };
+    walk(tree);
+    return patterns;
+}
 
 /** Discover from runtime source, never from an asset directory listing alone or the old asset manifest. */
 export function discoverAssetReferences(root: string, available: string[]): AssetReferences {
@@ -40,8 +80,16 @@ export function discoverAssetReferences(root: string, available: string[]): Asse
         if (source.endsWith('.js') && fs.existsSync(path.join(root, source.replace(/\.js$/, '.ts')))) continue;
         const code = fs.readFileSync(path.join(root, source), 'utf8');
         const literals: { text: string; line: number; dynamic?: boolean }[] = [];
+        const filenamePrefixes = new Set<string>();
         if (/\.(?:ts|js|json)$/.test(source)) {
             const tree = ts.createSourceFile(source, code, ts.ScriptTarget.Latest, true);
+            for (const selector of filenamePatterns(tree)) {
+                filenamePrefixes.add(selector.prefix);
+                if (forbiddenAsset.test(selector.description)) throw new Error(`Runtime source references excluded production material: ${source}:${selector.line} -> ${selector.description}`);
+                const matches = media.filter(file => selector.pattern.test(file));
+                if (!matches.length) unresolved.push(`${source}:${selector.line} -> ${selector.description}`);
+                for (const file of matches) add(file, { source, line: selector.line, kind: 'dynamic-filename' });
+            }
             const walk = (node: ts.Node) => {
                 if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node)) {
                     literals.push({ text: node.text, line: tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1,
@@ -63,6 +111,9 @@ export function discoverAssetReferences(root: string, available: string[]): Asse
                 if (!mediaSet.has(value)) unresolved.push(`${source}:${literal.line} -> ${value}`);
                 add(value, { source, line: literal.line, kind: 'literal' });
             } else {
+                // A basename consumed by the expression matcher is not also a
+                // directory pool (including a direct template's TemplateHead).
+                if (filenamePrefixes.has(value)) continue;
                 // SoundEngine's directory strings are concatenation/legacy-replacement bases, not a playlist enumeration.
                 // The resolved effect map and explicit playlist/manifest tracks below are the actual references.
                 if (source === 'sound-engine.ts' && value.startsWith('assets/audio/')) continue;

@@ -1,11 +1,20 @@
 import Board = require('../shared-board-utils');
 import { getBattleRuntimeCardDefinitions } from './content-version';
 import Registry = require('../special-stone-registry-static');
+// This registry is a dependency-free contract shared with the pending factory.
+import PendingSelection = require('../../game/logic/cards-internal/pending-selection-registry');
 import type { CompleteBattlePosition } from './types';
 
 const MAX = Number.MAX_SAFE_INTEGER;
 export const BATTLE_MARKER_TYPES = Object.freeze(Object.keys(Registry.STONE_EFFECT_RULES));
 export const BATTLE_EFFECT_TYPES = Object.freeze([...new Set<string>(getBattleRuntimeCardDefinitions().map((card: any) => card.type))]);
+export const BATTLE_PENDING_STAGE_BY_TYPE = Object.freeze(Object.fromEntries(BATTLE_EFFECT_TYPES.map(type =>
+    [type, PendingSelection.getPendingSelectionEntry(type)?.needsTargetSelection ? 'selectTarget' : null])));
+export const BATTLE_RESERVATION_FIELDS = Object.freeze({
+    nextObserverWillStoneByPlayer: ['sourceType', 'repaymentId', 'stolenCardId', 'stolenCardCopyId', 'repaymentIndex', 'createdTurnNumber'],
+    nextBoardExecutorStoneByPlayer: ['sourceType'],
+    nextTheoryIncarnationStoneByPlayer: ['sourceType', 'sessionId']
+});
 export const BATTLE_PENDING_REQUIRED_FIELDS = Object.freeze({
     '*': ['type', 'cardId', 'stage'],
     BOARD_EXPANSION_GOD: ['selectedTargets', 'selectedCount', 'maxSelections'],
@@ -41,7 +50,7 @@ function optionalCounters(value: any, keys: readonly string[], name: string): vo
 export function validateSavedPending(pending: any): void {
     if (pending === null) return;
     record(pending, 'pending');
-    if (!effectTypes.has(pending.type) || ![null, 'selectTarget'].includes(pending.stage)) fail('pending effect/stage');
+    if (!effectTypes.has(pending.type) || pending.stage !== BATTLE_PENDING_STAGE_BY_TYPE[pending.type]) fail('pending effect/stage');
     if (cardsById.get(pending.cardId)?.type !== pending.type) fail('pending card reference');
     if (pending.pendingEffectId !== undefined && (typeof pending.pendingEffectId !== 'string' || !pending.pendingEffectId || pending.pendingEffectId.length > 256)) fail('pending identity');
     optionalCounters(pending, ['sourceHandIndex', 'selectedCount', 'maxSelections', 'placementsRemaining'], 'pending');
@@ -60,6 +69,8 @@ export function validateSavedPending(pending: any): void {
     if (pending.selectedTargets !== undefined) {
         if (!Array.isArray(pending.selectedTargets)) fail('pending targets');
         pending.selectedTargets.forEach((target: any) => coordinate(target, 'pending target'));
+        if (pending.type === 'BOARD_EXPANSION_GOD' && pending.selectedTargets.some((target: any) =>
+            !['up-left', 'up-right', 'down-right', 'down-left'].includes(target.directionKey))) fail('pending expansion direction');
         if (pending.selectedCount !== pending.selectedTargets.length || pending.selectedCount > pending.maxSelections) fail('pending count');
         if (new Set(pending.selectedTargets.map((target: any) => `${target.row},${target.col}`)).size !== pending.selectedTargets.length) fail('duplicate pending target');
     }
@@ -72,6 +83,100 @@ export function validateSavedPending(pending: any): void {
                 if (pending.type === 'OBSERVER_WILL') integer(offer.cardCopyId, 1, MAX, 'pending offered copy');
             } else if (!cardsById.has(offer)) fail('pending offers');
         }
+    }
+}
+
+function identity(value: any, prefix: string, next: number, name: string): void {
+    if (typeof value !== 'string' || !value.startsWith(prefix) || !/^[1-9][0-9]*$/.test(value.slice(prefix.length))) fail(name);
+    integer(Number(value.slice(prefix.length)), 1, next - 1, name);
+}
+function nullablePlayerRecords(cs: any, field: string): void {
+    record(cs[field], field);
+    for (const owner of ['black', 'white']) if (cs[field][owner] !== null) record(cs[field][owner], `${field}.${owner}`);
+}
+
+/** Deferred effects must survive cloneCardState's legacy defaulting unchanged. */
+function validateReservations(cs: any, gs: any): void {
+    for (const field of [...Object.keys(BATTLE_RESERVATION_FIELDS), 'theoryIncarnationStateByPlayer']) nullablePlayerRecords(cs, field);
+    for (const field of ['theoryNumberCellsBySession', 'theoryNumberCellByCell', 'pendingStoneSalvationGodRevivesByPlayer']) record(cs[field], field);
+    for (const owner of ['black', 'white']) {
+        const board = cs.nextBoardExecutorStoneByPlayer[owner];
+        if (board !== null && board.sourceType !== 'BOARD_EXECUTOR') fail('board executor reservation source');
+        const observer = cs.nextObserverWillStoneByPlayer[owner];
+        const repayments = cs.observerWillRepaymentsByPlayer[owner];
+        const repaymentIds = new Set<string>();
+        for (const entry of repayments) {
+            if (entry.sourceType !== 'OBSERVER_WILL' || !['waiting_for_marker_expire', 'active'].includes(entry.status)) fail('observer repayment type/status');
+            identity(entry.repaymentId, `observer_will_repay_${owner}_`, cs._nextObserverWillRepaymentSeq, 'observer repayment identity');
+            if (repaymentIds.has(entry.repaymentId)) fail('duplicate observer repayment');
+            repaymentIds.add(entry.repaymentId);
+            if (!cardsById.has(entry.stolenCardId)) fail('observer repayment card');
+            // A repaid/used card and an expired marker are historical references.
+            integer(entry.stolenCardCopyId, 1, cs._nextCardCopySeq - 1, 'observer repayment copy');
+            integer(entry.baseCost, 0, MAX, 'observer repayment base cost');
+            if (entry.markerId !== null) integer(entry.markerId, 1, cs._nextMarkerId - 1, 'observer repayment marker');
+            if (entry.markerId === null && (entry.status !== 'waiting_for_marker_expire' || observer?.repaymentId !== entry.repaymentId)) fail('observer unplaced repayment reservation');
+        }
+        if (observer !== null) {
+            if (observer.sourceType !== 'OBSERVER_WILL') fail('observer reservation source');
+            identity(observer.repaymentId, `observer_will_repay_${owner}_`, cs._nextObserverWillRepaymentSeq, 'observer reservation identity');
+            integer(observer.repaymentIndex, 0, MAX, 'observer reservation index');
+            if (observer.createdTurnNumber !== null) integer(observer.createdTurnNumber, 0, gs.turnNumber, 'observer reservation turn');
+            const entry = repayments.find((candidate: any) => candidate.repaymentId === observer.repaymentId);
+            if (!entry || entry.markerId !== null || entry.status !== 'waiting_for_marker_expire'
+                || entry.stolenCardId !== observer.stolenCardId || entry.stolenCardCopyId !== observer.stolenCardCopyId) fail('observer reservation reference');
+            // These IDs record the stolen card. A legal hand destruction/use can
+            // move it before the separately armed manifestation is placed.
+        }
+        const theory = cs.nextTheoryIncarnationStoneByPlayer[owner], state = cs.theoryIncarnationStateByPlayer[owner];
+        if (cs.pendingEffectByPlayer[owner]?.type === 'THEORY_INCARNATION' && theory === null) fail('theory pending reservation');
+        if (state !== null) {
+            if (state.ownerKey !== owner) fail('theory state owner');
+            integer(state.remainingSpawnCount, 0, MAX, 'theory remaining spawns');
+            if (state.createdTurnIndex !== undefined) integer(state.createdTurnIndex, 0, MAX, 'theory creation turn');
+            if (state.markerId !== undefined) integer(state.markerId, 1, cs._nextMarkerId - 1, 'theory state marker');
+            // A restored manifest may legitimately lack a session (runtime fallback).
+            if (state.sessionId !== null) {
+                identity(state.sessionId, `theory_${owner}_`, cs._nextTheoryIncarnationSeq, 'theory state identity');
+                if (cs.theoryNumberCellsBySession[state.sessionId]?.ownerKey !== owner) fail('theory state session reference');
+            }
+        }
+        if (theory !== null) {
+            if (theory.sourceType !== 'THEORY_INCARNATION') fail('theory reservation source');
+            identity(theory.sessionId, `theory_${owner}_`, cs._nextTheoryIncarnationSeq, 'theory reservation identity');
+            if (!state || state.sessionId !== theory.sessionId || cs.theoryNumberCellsBySession[theory.sessionId]?.ownerKey !== owner) fail('theory reservation session reference');
+        }
+        const revives = cs.pendingStoneSalvationGodRevivesByPlayer[owner];
+        if (!Array.isArray(revives)) fail('salvation revive reservations');
+        for (const revive of revives) {
+            coordinate(revive, 'salvation revive');
+            if (revive.owner !== owner) fail('salvation revive owner');
+            player(revive.destroyedOwner, false, 'salvation destroyed owner');
+            for (const key of ['cause', 'reason']) if (revive[key] !== null && typeof revive[key] !== 'string') fail(`salvation revive ${key}`);
+            if (revive.queuedTurnIndex !== null) integer(revive.queuedTurnIndex, 0, MAX, 'salvation revive turn');
+            if (revive.meta !== undefined && revive.meta !== null) record(revive.meta, 'salvation revive metadata');
+        }
+    }
+    for (const [id, raw] of Object.entries(cs.theoryNumberCellsBySession)) {
+        const session: any = raw; record(session, 'theory session'); player(session.ownerKey, false, 'theory session owner');
+        identity(id, `theory_${session.ownerKey}_`, cs._nextTheoryIncarnationSeq, 'theory session identity');
+        record(session.cells, 'theory session cells');
+        for (const [key, rawCell] of Object.entries(session.cells)) {
+            const cell: any = rawCell; const coordinateKey = cellKey(key, 'theory cell'); coordinate(cell, 'theory cell');
+            if (cell.row !== coordinateKey.row || cell.col !== coordinateKey.col) fail('theory cell coordinate');
+            for (const field of ['value', 'originalValue', 'sourceCardCost']) integer(cell[field], 0, MAX, `theory cell ${field}`);
+            if (typeof cell.originalConsumed !== 'boolean' || (cell.consumed !== undefined && typeof cell.consumed !== 'boolean')) fail('theory cell consumed flag');
+            const card = cardsById.get(cell.sourceCardId);
+            if (!card || cell.sourceCardType !== card.type || cell.sourceCardCost !== card.cost) fail('theory cell card reference');
+            record(cell.markerData, 'theory cell marker');
+            if (!markerTypes.has(cell.spawnType) || cell.markerData.type !== cell.spawnType) fail('theory cell spawn type');
+        }
+    }
+    for (const [key, raw] of Object.entries(cs.theoryNumberCellByCell)) {
+        cellKey(key, 'theory cell reference'); const entry: any = raw; record(entry, 'theory cell reference');
+        player(entry.ownerKey, false, 'theory cell owner');
+        const session = cs.theoryNumberCellsBySession[entry.sessionId];
+        if (!session || session.ownerKey !== entry.ownerKey || !session.cells[key] || session.cells[key].consumed === true) fail('theory cell session reference');
     }
 }
 
@@ -162,6 +267,7 @@ export function validateSavedRuleState(position: CompleteBattlePosition, stoneId
         if (!Array.isArray(revealed) || revealed.some((id: any) => !copies.has(id))) fail('revealed card reference');
     }
     for (const field of ['lastTurnStartedFor', '_activeTurnPlayer']) player(cs[field], true, field);
+    validateReservations(cs, gs);
     for (const field of ['cardCostOverridesByCopyId', 'cardCostModifiersByCopyId']) {
         for (const [key, value] of Object.entries(cs[field])) {
             if (!/^[1-9][0-9]*$/.test(key) || !copies.has(Number(key))) fail('card cost identity reference');

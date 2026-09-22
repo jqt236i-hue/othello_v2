@@ -95,6 +95,52 @@ test('reports literal references with missing files and case mismatches', async 
     await expect(buildAssetInventory(root)).rejects.toThrow('absent.png');
 });
 
+test('preserves filename-prefix CPU faces through source inventory and the browser distribution', async () => {
+    seed();
+    put('ui/view.ts', "const CPU_FACE_ASSET_PREFIX = 'assets/images/cpu/face/level';\n"
+        + 'export const face = (level: number) => `${CPU_FACE_ASSET_PREFIX}${level}.png`;\n'
+        + "export const concatenated = (level: number) => CPU_FACE_ASSET_PREFIX + level + '.png';\n"
+        + 'export const direct = (level: number) => `assets/images/cpu/face/level${level}.png`;\n');
+    const faces = Array.from({ length: 9 }, (_, i) => `assets/images/cpu/face/level${i + 1}.png`);
+    for (const face of faces) put(face, png);
+    for (const other of ['assets/images/cpu/face/level1.webp', 'assets/images/cpu/face/unrelated.png',
+        'assets/images/cpu/face/level/deep.png', 'assets/images/cpu/face/level1/deep.png', 'assets/images/cpu/face/level_reference/draft.png']) put(other, png);
+    cp.execFileSync('git', ['-C', root, 'add', '.']);
+    cp.execFileSync('git', ['-C', root, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'mobile faces']);
+    const out = path.join(root, 'output/mobile');
+    await createGodotSourcePackage({ root, ref: 'HEAD', out, modelsFrom: root });
+    const inventory = JSON.parse(fs.readFileSync(path.join(out, 'ASSET-INVENTORY.json'), 'utf8'));
+    expect(inventory.files.map((row: any) => row.path)).toEqual(faces);
+    for (const face of faces) {
+        expect(fs.readFileSync(path.join(out, 'runtime-assets', face))).toEqual(png);
+        expect(inventory.files.find((row: any) => row.path === face).references)
+            .toEqual(expect.arrayContaining([expect.objectContaining({ source: 'ui/view.ts', kind: 'dynamic-filename' })]));
+    }
+    const snapshot = 'output/mobile/source';
+    put(`${snapshot}/dist/game/battle/index.js`, 'module.exports = {};');
+    put(`${snapshot}/dist/ui/battle/host.d.ts`, 'export {};'); put(`${snapshot}/ui/battle/host.ts`, 'export {};');
+    put(`${snapshot}/vite-dist/app.js`, ''); put(`${snapshot}/index.html`, '<html></html>');
+    for (const name of ['ort.min.js', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm', 'ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
+        put(`${snapshot}/node_modules/onnxruntime-web/dist/${name}`, 'test');
+    }
+    const distribution = buildBattlePackage(path.join(root, snapshot));
+    const manifest = JSON.parse(fs.readFileSync(path.join(distribution, 'PACKAGE-MANIFEST.json'), 'utf8'));
+    for (const face of faces) {
+        expect(fs.readFileSync(path.join(distribution, 'browser', face))).toEqual(png);
+        expect(manifest.files[`browser/${face}`]).toBe(sha256(png));
+    }
+    expect(fs.existsSync(path.join(distribution, 'browser/assets/images/cpu/face/unrelated.png'))).toBe(false);
+    fs.unlinkSync(path.join(root, snapshot, faces[8]));
+    expect(() => buildBattlePackage(path.join(root, snapshot))).toThrow(`Missing required runtime asset: ${faces[8]}`);
+});
+
+test('reports an empty dynamic filename pool instead of silently treating it as unused', async () => {
+    put('ui/view.ts', "const prefix = './assets/images/cpu/face/level'; export const face = (level: number) => `${prefix}${level}.png`;");
+    await expect(buildAssetInventory(root)).rejects.toThrow('assets/images/cpu/face/level*.png');
+    put('assets/images/cpu/face/level1.png', png);
+    expect((await buildAssetInventory(root)).files.map((row: any) => row.path)).toEqual(['assets/images/cpu/face/level1.png']);
+});
+
 test('resolves effect filenames and records evaluated gain and loop defaults', async () => {
     put('sound-engine.ts', `export default { masterVolume: 1, effectBaseVolume: 0.56, effectDefaultVolumeScale: 0.35,
       effectVolumeScales: { cue: 10/7 }, effectBasePath: 'assets/audio/sound-effect/', effectSoundFiles: { cue: 'test.mp3' },

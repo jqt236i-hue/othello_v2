@@ -57,7 +57,9 @@ node dist/scripts/build-battle-package.js
 
 ## 台帳の参照規則
 
-[収集処理](../scripts/godot-source/assets.ts) は `cards/`、`shared/`、`game/`、`ui/`、`browser-vite/`、ルートCSS/HTML/音設定等から参照をたどる。TS正本があるJS shimは重複走査しない。直接の素材パスは `literal`、実行時に列挙する名前付きフォルダーは `dynamic-directory`、効果音ファイル名とbase pathの合成は `sound-config` と区別する。`dynamic-directory` は選択可能な素材プールであり、一対局で全部が使われたという主張ではない。
+[収集処理](../scripts/godot-source/assets.ts) は `cards/`、`shared/`、`game/`、`ui/`、`browser-vite/`、ルートCSS/HTML/音設定等から参照をたどる。TS正本があるJS shimは重複走査しない。直接の素材パスは `literal`、実行時に列挙する名前付きフォルダーは `dynamic-directory`、固定のファイル名prefixへ変数と拡張子を連結する式は `dynamic-filename`、効果音ファイル名とbase pathの合成は `sound-config` と区別する。動的参照は選択可能な素材プールであり、一対局で全部が使われたという主張ではない。
+
+`dynamic-filename` は同一ファイル直下のconst文字列を解決し、template/文字列連結の固定prefixとsuffixに一致する素材だけを列挙する。未知の式を評価せず、変数部分はパス区切りを含まない名前として扱うため、隣の拡張子や子ディレクトリへ収集を広げない。対象poolが空なら未解決として失敗する。携帯CPU顔の `level1.png`〜`level9.png` はこの経路であり、従来のディレクトリ扱いによる9枚の欠落を修正した。台帳で選ばれた素材が配布時に欠けた場合も、既存packagerは黙って省略せず失敗する。
 
 画像の寸法・形式・alpha channelは `sharp` で実ファイルから読む。`hasAlpha` はalpha channelの有無であり、全pixelの不透明度分布ではない。音は `sound-engine.ts` の初期設定を副作用なしで評価し、四則演算を含むloop時刻と音量を保存する。顕現BGMは `shared/special-card-registry.ts`、ガチャ音は `ui/gacha/gacha-reveal-audio.ts` の設定も記録する。実波形の音圧測定やブラウザの音声デコード結果はこの台帳の数値ではない。
 
@@ -69,7 +71,7 @@ node dist/scripts/build-battle-package.js
 | loopEndがnull | 音声デコード後のduration。明示loopEndは秒単位 |
 | 特殊カード使用 | 通常BGM mute 3000ms。演出と音の再開条件は演出資料も参照 |
 
-初期正式ソースの台帳検査で `ui/player-profile-avatar-options.ts` の究極多動神fallbackだけが欠損参照だった。`ULTIMATE_HYPERACTIVE_WILL-black.png` は存在せず、通常の描画経路が使う既存素材 `ULTIMATE_HYPERACTIVE_GOD-black.png` が正しいため修正する。新素材や演出変更ではない。これを直した正式ソースで **474件（画像382・音68・フォント24）** を確認し、全音素材に再生設定が対応した。最終成果物の正確な件数・採用内容はmanifest/台帳を確認する。
+初回の台帳検査では究極多動神のプロフィール画像fallbackを修正し、474件（画像382・音68・フォント24）を収集した。ただし追加レビューで携帯CPU顔9枚の収集漏れが判明したため、474件を完全な台帳とは扱わない。動的ファイル名の修正後は483件（画像391・音68・フォント24）となり、既存9画像を台帳と `runtime-assets` に含める。素材追加や描画仕様変更ではない。最終成果物の正確な件数・採用内容と配布先での携帯表示確認はmanifest/台帳と [検証記録](godot-port-preparation.md) を確認する。
 
 ## 出典と利用条件の引き継ぎ
 
