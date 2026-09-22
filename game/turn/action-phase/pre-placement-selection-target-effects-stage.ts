@@ -1,3 +1,5 @@
+import TheorySpawnImmediateEffects = require('../theory-spawn-immediate-effects');
+
 type TargetEffectsStageOptions = {
     CardLogic: any;
     cardState: any;
@@ -6,6 +8,7 @@ type TargetEffectsStageOptions = {
     action: any;
     prng: any;
     events: any[];
+    awardBoardChargeGain?: (...args: any[]) => void;
     pending: any;
     applyTrapEffectsAfterSelection: () => void;
     handOffTurnAfterSelection: () => void;
@@ -119,6 +122,17 @@ function resolveGuardSelection(options: TargetEffectsStageOptions): any {
     return { matched: true, result: true };
 }
 
+function resolveReincarnationSelection(options: TargetEffectsStageOptions): any {
+    const selection = readRequiredTarget(options, ['REINCARNATION_WILL'], 'reincarnationTarget', 'REINCARNATION_WILL requires reincarnationTarget before placement');
+    if (!selection) return null;
+    const result = options.CardLogic.applyReincarnationWill(options.cardState, options.gameState, options.playerKey, selection.target.row, selection.target.col, options.prng);
+    if (!result || !result.applied) throw new Error('REINCARNATION_WILL: invalid target');
+    options.events.push({ type: 'reincarnation_selected', player: options.playerKey, target: selection.target, applied: true, special: result.type });
+    TheorySpawnImmediateEffects.resolveTheorySpawnImmediateEffects({ ...options, spawned: result });
+    options.applyTrapEffectsAfterSelection();
+    return { matched: true, result: true };
+}
+
 function resolveLivingSelection(options: TargetEffectsStageOptions): any {
     const selection = readRequiredTarget(options, ['LIVING_WILL'], 'livingWillTarget', 'LIVING_WILL requires livingWillTarget before placement');
     if (!selection) return null;
@@ -186,6 +200,7 @@ function resolveTargetEffectsSelection(options: TargetEffectsStageOptions): any 
         || resolveTrapSelection(options)
         || resolveGuardSelection(options)
         || resolveLivingSelection(options)
+        || resolveReincarnationSelection(options)
         || resolveExtendLifeSelection(options)
         || resolveCorrosionSelection(options)
         || resolveTimeBombSelection(options)

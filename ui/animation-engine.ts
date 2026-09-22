@@ -1175,6 +1175,11 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             }
             let events = Array.isArray(phaseEvents) ? phaseEvents.slice() : [];
             this._throwIfLocalBoardWriterRecoveryIsUnresolved(events[0]);
+            if (events.some((event: any) => event?.type === EVENT_TYPES.SOUND_EFFECT
+                && (event.soundKey === 'reincarnation_will' || event.targets?.some((target: any) => target.soundKey === 'reincarnation_will')))) {
+                const sound = typeof SoundEngine !== 'undefined' ? SoundEngine : null;
+                if (typeof sound?.primeEffectBuffer === 'function') await sound.primeEffectBuffer('reincarnation_will');
+            }
             if (
                 this._strictNetworkPlayback !== true
                 && PresentationVisualSeed

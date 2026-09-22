@@ -1,4 +1,4 @@
-export {};
+import { REINCARNATION_SETTLE_MS, REINCARNATION_ROULETTE_DELAYS_MS } from '../constants/reincarnation-animation';
 
 type TheoryAnimationDeps = {
     isNoAnim: () => boolean;
@@ -286,11 +286,40 @@ async function materializeSelectedStone(target: any, deps: TheoryAnimationDeps, 
     );
 }
 
+async function playReincarnation(target: any, deps: TheoryAnimationDeps) {
+    const cell = deps.getCellEl(target.row ?? target.r, target.col);
+    if (!cell) return;
+    const render = (state: any) => {
+        for (const disc of cell.querySelectorAll('.disc')) disc.remove();
+        cell.appendChild(deps.createDisc(state));
+    };
+    const previews = Array.isArray(target.previewStates) ? target.previewStates : [];
+    try {
+        if (!deps.isNoAnim() && previews.length) {
+            cell.classList.add(ROULETTE_CLASS);
+            const start = performance.now();
+            let deadline = 0;
+            for (let step = 0; step < REINCARNATION_ROULETTE_DELAYS_MS.length; step++) {
+                render(previews[step % previews.length]);
+                deadline += REINCARNATION_ROULETTE_DELAYS_MS[step];
+                await sleep(Math.max(0, start + deadline - performance.now()), deps);
+            }
+        }
+        render(target.after);
+        cell.classList.remove(ROULETTE_CLASS);
+        cell.classList.add(ROULETTE_SELECTED_CLASS);
+        if (!deps.isNoAnim()) await sleep(REINCARNATION_SETTLE_MS, deps);
+    } finally {
+        cell.classList.remove(ROULETTE_CLASS, ROULETTE_SELECTED_CLASS);
+    }
+}
+
 async function handleTheoryIncarnationSpawnRouletteEvent(ev: any, deps: TheoryAnimationDeps) {
     const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
     if (!targets.length) return Promise.resolve();
 
     for (const target of targets) {
+        if (target.reincarnation === true) { await playReincarnation(target, deps); continue; }
         const durationMs = Number.isFinite(Number(ev.durationMs)) ? Math.max(0, Math.trunc(Number(ev.durationMs))) : THEORY_ROULETTE_BASE_DURATION_MS;
         const materializeMs = Number.isFinite(Number(ev.materializeMs)) ? Math.max(0, Math.trunc(Number(ev.materializeMs))) : THEORY_MATERIALIZE_BASE_DURATION_MS;
         const entries = collectCandidateCells(target, deps);

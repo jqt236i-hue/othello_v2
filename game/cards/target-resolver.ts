@@ -610,6 +610,7 @@ const Flips = CardFlips || {};
             getPositionSwapTargets,
             getSwapTargets,
             getLivingWillTargets,
+            getReincarnationTargets: callSelectorsMethod('getReincarnationTargets'),
             getHyperactiveInheritTargets,
             getExtendLifeTargets,
             getCorrosionTargets,

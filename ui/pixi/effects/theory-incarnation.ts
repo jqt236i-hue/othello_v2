@@ -1,3 +1,4 @@
+import { playPixiReincarnation } from './reincarnation';
 import type { PresentationPlaybackEvent } from '../../board-visual/playback-types';
 import type {
   PixiPlaybackEffectHandle,
@@ -222,7 +223,8 @@ export async function playPixiTheoryIncarnationEffect(
   projection: PixiBoardEffectProjection
 ): Promise<void> {
   for (const target of Array.isArray(event?.targets) ? event.targets : []) {
-    await playTarget(event, target, projection);
+    if (target?.reincarnation === true) await playPixiReincarnation(event, target, projection);
+    else await playTarget(event, target, projection);
   }
 }
 

@@ -365,7 +365,7 @@ export const CARD_RUNTIME_REQUIRED_EXPORTS = Object.freeze({
             'getSuperAttractionPathPreview', 'getGravityTargets', 'getSuperGravityTargets',
             'getTrapTargets', 'getGuardTargets', 'getLivingWillTargets', 'getHyperactiveInheritTargets',
             'getExtendLifeTargets', 'getCorrosionTargets', 'getTimeBombTargets', 'getTeleportTargets',
-            'getCellTeleportTargets', 'getCellTeleportDestinations', 'getCloneTargets',
+            'getCellTeleportTargets', 'getCellTeleportDestinations', 'getCloneTargets', 'getReincarnationTargets',
             'getBoardExpansionSocketTargets', 'getBoardExpansionGodSocketTargets',
             'getBoardExpansionTargets', 'getBoardExpansionGodTargets', 'getBlockadeTargets',
             'getPoisonTargets', 'getScorchTargets', 'getHealingCellTargets', 'getMeteorTargets', 'getCausalReplayTargets',
@@ -576,6 +576,7 @@ export const CARD_RUNTIME_REQUIRED_EXPORTS = Object.freeze({
             'processTheoryIncarnationMarkerAfterOwnerPlacement', 'processTheoryIncarnationOwnerPass'
         ),
         chaosSummon: requiredFunctions('canUseChaosSummon', 'applyChaosSummonUsage'),
+        reincarnationWill: requiredFunctions('getReincarnationTargets', 'applyReincarnationWill'),
         boardExecutor: requiredFunctions(
             'canUseBoardExecutor', 'applyBoardExecutorUsage', 'applyBoardExecutorStoneReservation',
             'processBoardExecutorHandTaxAtTurnStart', 'processBoardExecutorMarkerAtTurnStart'
@@ -666,7 +667,7 @@ export const CARD_RUNTIME_SERVICE_KEYS = Object.freeze({
         'shinraBanshoGod', 'willHunterKing', 'destroyDragon', 'workWill',
         'ultimateWorkGod', 'dragonEffects', 'destroyOneStone', 'swapWithEnemy',
         'protect', 'trap', 'ownership', 'boardExpansionApply', 'statusCells',
-        'handEffects', 'observerWill', 'theoryIncarnation', 'chaosSummon',
+        'handEffects', 'observerWill', 'theoryIncarnation', 'chaosSummon', 'reincarnationWill',
         'boardExecutor', 'specialStoneMarkerFactory', 'positionSwap'
     ] satisfies readonly (keyof CardResolutionServices)[])
 } satisfies Readonly<Record<CardRuntimeCohort, readonly string[]>>);

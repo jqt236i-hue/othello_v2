@@ -47,6 +47,7 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
             'positionSwapTarget',
             'guardTarget',
             'livingWillTarget',
+        'reincarnationTarget',
             'extendTarget',
             'corrosionTarget',
             'bombTarget',

@@ -1002,6 +1002,17 @@ const CardCatalog = {
       "display_type_ja": "禁忌",
       "name": "時間停神",
       "desc": "手札に残り、使用時に自分石9つを破壊して次に置く石を時間停神化する。5回目の所有者ターン開始時に時間停止を発動し、発動ターンから合計4回連続で行動する。"
+    },
+    {
+      "id": "reincarnation_will_01",
+      "name_ja": "転生の意志",
+      "type": "REINCARNATION_WILL",
+      "cost": 7,
+      "desc_ja": "盤上の自分の特殊石を１つ選び、ランダムな別の特殊石に転生させる。",
+      "display_type_ja": "特殊",
+      "card_face_art_path": "assets/images/card/reincarnation_will.png",
+      "name": "転生の意志",
+      "desc": "盤上の自分の特殊石を１つ選び、ランダムな別の特殊石に転生させる。"
     }
   ]
 };

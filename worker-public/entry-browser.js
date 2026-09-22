@@ -378,6 +378,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/game/card-effects/trap" },
   { moduleKey: "./dist/game/card-effects/guard" },
   { moduleKey: "./dist/game/card-effects/living-will" },
+  { moduleKey: "./dist/game/card-effects/reincarnation" },
   { moduleKey: "./dist/game/card-effects/hyperactive-inherit" },
   { moduleKey: "./dist/game/card-effects/extend-life" },
   { moduleKey: "./dist/game/card-effects/swap" },

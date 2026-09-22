@@ -689,6 +689,7 @@ const USAGE_PRECHECK_TARGET_METHODS = [
     'getTrapTargets',
     'getGuardTargets',
     'getLivingWillTargets',
+    'getReincarnationTargets',
     'getExtendLifeTargets',
     'getCorrosionTargets',
     'getTimeBombTargets',

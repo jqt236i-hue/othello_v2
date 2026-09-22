@@ -1432,6 +1432,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             return false;
         }
         const handledPrePlacementSelection = ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction({
+            awardBoardChargeGain,
             CardLogic,
             cardState,
             gameState,

@@ -198,7 +198,8 @@ export const CARD_FACE_ART_PATH_BY_ID: Record<string, string> = Object.freeze({
     "fate_will_01": "assets/images/card/90_運命の意志.png",
     "meteor_god_01": "assets/images/card/91_因果抹消神.png",
     "chaos_summon_01": "assets/images/card/94_混沌召喚.png",
-    "time_stop_deity_01": "assets/images/card/95_時間停神.png"
+    "time_stop_deity_01": "assets/images/card/95_時間停神.png",
+    "reincarnation_will_01": "assets/images/card/reincarnation_will.png"
 });
 
 export default CARD_FACE_ART_FILENAME_BY_ID;

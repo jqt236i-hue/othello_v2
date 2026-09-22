@@ -158,9 +158,14 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         deps.pushCueForPhases(ctx, chaosSummonSpawnPhases, 'chaos_summon_spawn', 'chaos_summon_spawn');
     }
 
+    const isReincarnationRoulette = (ev: any) => ev && ev.type === 'theory_incarnation_spawn_roulette'
+        && Array.isArray(ev.targets) && ev.targets.some((target: any) => target.reincarnation === true);
+    const reincarnationPhases = deps.collectUniquePhases(ctx.base, isReincarnationRoulette);
+    if (reincarnationPhases.length) deps.pushCueForPhases(ctx, reincarnationPhases, 'reincarnation_will', 'reincarnation_will');
+
     const theoryIncarnationSpawnPhases = deps.collectUniquePhases(
         ctx.base,
-        (ev: any) => ev && ev.type === 'theory_incarnation_spawn_roulette' && !isChaosSummonRouletteEvent(ev)
+        (ev: any) => ev && ev.type === 'theory_incarnation_spawn_roulette' && !isChaosSummonRouletteEvent(ev) && !isReincarnationRoulette(ev)
     );
     if (theoryIncarnationSpawnPhases.length > 0) {
         deps.pushCueForPhases(ctx, theoryIncarnationSpawnPhases, 'theory_incarnation_spawn', 'theory_incarnation_spawn');

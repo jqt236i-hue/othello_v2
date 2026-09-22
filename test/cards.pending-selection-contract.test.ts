@@ -162,7 +162,7 @@ describe('pending selection card contracts', () => {
         .filter(Boolean)
     )).sort();
 
-    expect(registryTargetMethods).toHaveLength(31);
+    expect(registryTargetMethods).toHaveLength(32);
     expect(precheckBlock).not.toBe('');
     expect(registryTargetMethods.filter((method) => !destructuredDependencies.has(method))).toEqual([]);
     expect(registryTargetMethods.filter((method) => !forwardedDependencies.has(method))).toEqual([]);

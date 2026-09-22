@@ -32,6 +32,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         BREEDING_WILL: 0,
         CAUSAL_REPLAY_WILL: 0,
         CHAOS_SUMMON: 0,
+        REINCARNATION_WILL: 0,
         DOUBLE_CHAIN_WILL: 4,
         TRIPLE_CHAIN_WILL: 6,
         QUAD_CHAIN_WILL: 8,
@@ -134,6 +135,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         'BREEDING_WILL',
         'CAUSAL_REPLAY_WILL',
         'CHAOS_SUMMON',
+        'REINCARNATION_WILL',
         'DOUBLE_CHAIN_WILL',
         'TRIPLE_CHAIN_WILL',
         'QUAD_CHAIN_WILL',
@@ -655,6 +657,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         // no-op scoring path while making the catalog coverage explicit.
         CAUSAL_REPLAY_WILL: { archetype: 'economyCycle', placementWeight: 0 },
         CHAOS_SUMMON: { archetype: 'economyCycle', placementWeight: 0 },
+        REINCARNATION_WILL: { archetype: 'economyCycle', placementWeight: 0 },
         DOUBLE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 4, oppAdjBias: 3 },
         TRIPLE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 5, oppAdjBias: 4, bonusBias: 1 },
         QUAD_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 6, oppAdjBias: 5, bonusBias: 2 },

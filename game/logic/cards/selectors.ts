@@ -3,6 +3,10 @@
  * @description Card selectable-target helpers (Shared between Browser and Headless)
  */
 
+import Reincarnation = require('../card-resolution/reincarnation-will');
+import ReincarnationFactory = require('../card-resolution/special-stone-marker-factory');
+import ReincarnationRegistry = require('../../../shared/special-stone-registry-static');
+import ReincarnationMarkers = require('./markers');
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import SharedConstantsImport = require('../../../shared-constants');
 import CardUtilsImport = require('./utils');
@@ -21,6 +25,14 @@ const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
 const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;
 const P_WHITE = (WHITE === undefined || WHITE === null) ? -1 : WHITE;
 const BOARD_SHRINK_SELECTION_COUNT = 3;
+
+function getReincarnationTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): any[] {
+    return Reincarnation.getReincarnationTargets(cardState, gameState, playerKey, {
+        ...SharedConstants, constants: SharedConstants, SpecialStoneMarkerFactory: ReincarnationFactory,
+        SpecialStoneRegistry: ReincarnationRegistry, getMarkers: ReincarnationMarkers.getMarkers,
+        isInviolableCell
+    });
+}
 
 function getSelectorsBoardShapeDeps() {
     return {
@@ -1340,6 +1352,7 @@ export = {
     getTrapTargets,
     getGuardTargets,
     getLivingWillTargets,
+    getReincarnationTargets,
     getHyperactiveInheritTargets,
     getExtendLifeTargets,
     getCorrosionTargets,

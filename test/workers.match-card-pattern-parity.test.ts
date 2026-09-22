@@ -369,6 +369,29 @@ function runWorkerPendingSelectionPlaceParityScenario(config) {
 }
 
 describe('worker card pattern parity', () => {
+  test('転生の意志はローカルとWorkerで転生先・表示候補・音・選択後の手番が一致する', () => {
+    const results = runWorkerPendingSelectionPlaceParityScenario({
+      cardId: 'reincarnation_will_01',
+      seed: 71,
+      setupRuntime(runtime) {
+        const shot = runtime.getSnapshot();
+        shot.cardState.markers = [{ id: 9101, markerId: '9101', kind: 'specialStone', row: 3, col: 4, owner: 'black', createdSeq: 9101, data: { type: 'GHOST', remainingOwnerTurns: 2 } }];
+        shot.cardState._nextMarkerId = 9102;
+        shot.cardState._nextCreatedSeq = 9102;
+      },
+      selectTargets: () => ({ reincarnationTarget: { row: 3, col: 4 } })
+    });
+    const local = results.localPlace.playbackEvents.find((event) => event.targets?.some((target) => target.reincarnation));
+    const worker = results.workerPlace.payload.playbackEvents.find((event) => event.targets?.some((target) => target.reincarnation));
+    expect(worker).toEqual(local);
+    expect(worker.targets[0].after.special).not.toBe('GHOST');
+    expect(results.workerPlace.payload.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(results.workerPlace.payload.snapshot.gameState.currentPlayer).toBe(Core.BLACK);
+    expect(results.workerPlace.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'sound_effect', targets: expect.arrayContaining([expect.objectContaining({ soundKey: 'reincarnation_will' })]) })
+    ]));
+  }, 90000);
+
   test('support troops publish resets stale consecutive pass count after spawning stones', () => {
     const cardId = 'support_troops_01';
     const runtime = createCardUseRuntime(cardId, 71);

@@ -300,6 +300,8 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
         case 'GUARD_WILL':
         case 'GUARDIAN_GOD':
             return validateSelectionTargets(context, 'getGuardTargets', 1) ? result : buildFailureResult();
+        case 'REINCARNATION_WILL':
+            return validateSelectionTargets(context, 'getReincarnationTargets', 1) ? result : buildFailureResult();
         case 'LIVING_WILL':
             return validateSelectionTargets(context, 'getLivingWillTargets', 1) ? result : buildFailureResult();
         case 'EXTEND_LIFE_WILL':

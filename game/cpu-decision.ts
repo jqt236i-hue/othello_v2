@@ -3392,6 +3392,10 @@ async function cpuSelectGuardWillWithPolicy(playerKey: any): Promise<any> {
  * 生きる意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
+async function cpuSelectReincarnationWithPolicy(playerKey: any): Promise<any> {
+    return CpuDecisionPendingActions.cpuSelectReincarnationWithPolicy(playerKey);
+}
+
 async function cpuSelectLivingWillWithPolicy(playerKey: any): Promise<any> {
     return CpuDecisionPendingActions.cpuSelectLivingWillWithPolicy(playerKey);
 }
@@ -3613,6 +3617,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectTrapWillWithPolicy,
         cpuSelectGuardWillWithPolicy,
         cpuSelectLivingWillWithPolicy,
+        cpuSelectReincarnationWithPolicy,
         cpuSelectCaptureWillWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,

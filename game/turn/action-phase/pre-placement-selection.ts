@@ -12,6 +12,7 @@ type ResolvePrePlacementSelectionActionOptions = {
     playerKey: any;
     action: any;
     events: any[];
+    awardBoardChargeGain?: (...args: any[]) => void;
     prng: any;
     pending: any;
     createDestroyOutcome: (kindOrResult: any, details: any) => any;

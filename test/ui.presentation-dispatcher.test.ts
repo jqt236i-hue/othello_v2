@@ -8,6 +8,25 @@ import {
 } from '../ui/board-visual/playback-types';
 
 describe('presentation dispatcher', () => {
+  test('starts reincarnation sound once after visual resources are ready, even if the cue is first', async () => {
+    const calls: string[] = [];
+    await dispatchPresentationPhase([
+      { type: 'sound_effect', phase: 1, targets: [{ soundKey: 'reincarnation_will' }] },
+      { type: 'theory_incarnation_spawn_roulette', phase: 1, targets: [{ reincarnation: true }] }
+    ], {
+      async playBoardPhase(events, scope) {
+        calls.push('prepare');
+        await Promise.resolve();
+        expect(calls).toEqual(['prepare']);
+        scope?.onVisualStart?.(events);
+        calls.push('draw');
+        scope?.onVisualStart?.(events);
+      },
+      async playGlobalEvent() { calls.push('sound'); }
+    });
+    expect(calls).toEqual(['prepare', 'sound', 'draw']);
+  });
+
   test('manifest is serial, then flip batch and non-flips launch in legacy order', async () => {
     const calls: string[] = [];
     const boardScopes: any[] = [];

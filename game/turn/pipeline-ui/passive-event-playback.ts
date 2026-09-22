@@ -1,3 +1,5 @@
+import { REINCARNATION_CONFIRM_MS, REINCARNATION_SETTLE_MS } from '../../../constants/reincarnation-animation';
+
 type PassiveEventPlaybackContext = {
     ev: any;
     phaseState: any;
@@ -79,6 +81,24 @@ function mapStatusApplied(ctx: PassiveEventPlaybackContext, deps: PassiveEventPl
         deps.preparePassivePlaybackPhaseState(ctx.phaseState);
     }
     const meta = getEventMeta(ctx.ev);
+    if (meta && meta.reincarnationRoulette) {
+        const roulette = meta.reincarnationRoulette;
+        ctx.phaseState.currentPhase++;
+        ctx.pEvent.phase = ctx.phaseState.currentPhase;
+        ctx.pEvent.type = 'theory_incarnation_spawn_roulette';
+        ctx.pEvent.durationMs = REINCARNATION_CONFIRM_MS;
+        ctx.pEvent.materializeMs = REINCARNATION_SETTLE_MS;
+        ctx.pEvent.targets = [{
+            r: ctx.ev.row, row: ctx.ev.row, col: ctx.ev.col, owner: ctx.ev.ownerAfter || meta.owner,
+            ownerBefore: ctx.ev.ownerBefore, ownerAfter: ctx.ev.ownerAfter,
+            before: roulette.before, after: roulette.after, previewStates: roulette.previews,
+            reincarnation: true, cause: 'REINCARNATION_WILL', reason: 'reincarnation_will',
+            subjectKind: 'stone_body', stoneMutation: 'replace', meta
+        }];
+        // Immediate effects must play only after the confirmation sound and glow.
+        ctx.phaseState.currentPhase++;
+        return;
+    }
     const isFireWillScorch = !!meta
         && String(meta.special || '').toUpperCase() === 'SCORCHED_CELL'
         && String(meta.cause || '').toUpperCase() === 'FIRE_WILL'

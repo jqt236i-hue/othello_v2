@@ -79,6 +79,7 @@ import CardHandEffects = require('./card-resolution/hand-effects');
 import CardObserverWill = require('./card-resolution/observer-will');
 import CardTheoryIncarnation = require('./card-resolution/theory-incarnation');
 import CardChaosSummon = require('./card-resolution/chaos-summon');
+import CardReincarnationWill = require('./card-resolution/reincarnation-will');
 import CardBoardExecutor = require('./card-resolution/board-executor');
 import SpecialStoneMarkerFactory = require('./card-resolution/special-stone-marker-factory');
 import CardPositionSwap = require('./card-resolution/position-swap');
@@ -193,6 +194,7 @@ export function composeDefaultCardRuntimeServices(): CardRuntimeServices {
             observerWill: CardObserverWill,
             theoryIncarnation: CardTheoryIncarnation,
             chaosSummon: CardChaosSummon,
+            reincarnationWill: CardReincarnationWill,
             boardExecutor: CardBoardExecutor,
             specialStoneMarkerFactory: SpecialStoneMarkerFactory,
             positionSwap: CardPositionSwap

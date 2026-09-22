@@ -575,6 +575,7 @@ const {
     const CardObserverWillResolutionModule = CardRuntimeServices.resolution.observerWill;
     const CardTheoryIncarnationResolutionModule = CardRuntimeServices.resolution.theoryIncarnation;
     const CardChaosSummonResolutionModule = CardRuntimeServices.resolution.chaosSummon;
+    const CardReincarnationModule = CardRuntimeServices.resolution.reincarnationWill;
     const CardBoardExecutorResolutionModule = CardRuntimeServices.resolution.boardExecutor;
     const SpecialStoneMarkerFactoryModule = CardRuntimeServices.resolution.specialStoneMarkerFactory;
     const CardPositionSwapModule = CardRuntimeServices.resolution.positionSwap;
@@ -1037,6 +1038,7 @@ const {
                 getTrapTargets,
                 getGuardTargets,
                 getLivingWillTargets,
+                getReincarnationTargets,
                 getExtendLifeTargets,
                 getCorrosionTargets,
                 getTimeBombTargets,
@@ -1847,6 +1849,17 @@ const {
         return CardTheoryIncarnationResolutionModule.canUseTheoryIncarnation(cardState, playerKey);
     }
 
+    function getReincarnationTargets(cardState: any, gameState: any, playerKey: any) {
+        return CardSelectorsModule.getReincarnationTargets(cardState, gameState, playerKey);
+    }
+
+    function applyReincarnationWill(cardState: any, gameState: any, playerKey: any, row: number, col: number, prng: any) {
+        return CardReincarnationModule.applyReincarnationWill(cardState, gameState, playerKey, row, col, prng, {
+            ...getTheoryIncarnationResolutionDeps(cardState), isInviolableCell,
+            readCardPendingEffect, clearCardPendingEffect, getCellVisualPresentationMeta, emitPresentationEvent
+        });
+    }
+
     function canUseChaosSummon(cardState: any, gameState: any, playerKey: any) {
         return CardChaosSummonResolutionModule.canUseChaosSummon(
             cardState,
@@ -2274,6 +2287,7 @@ const {
             getTrapTargets,
             getGuardTargets,
             getLivingWillTargets,
+            getReincarnationTargets,
             getExtendLifeTargets,
             getCorrosionTargets,
             getTimeBombTargets,
@@ -5041,6 +5055,7 @@ const cardsApi: any = {
         applyCorrosionWill,
         applyGuardWill,
         applyLivingWill,
+        applyReincarnationWill,
         applyTimeBombWill,
         applyTeleportWill,
         applyCellTeleportWill,
@@ -5134,6 +5149,7 @@ const cardsApi: any = {
         isFreePlacementPendingType,
         getSelectableTargets,
         getLivingWillTargets,
+        getReincarnationTargets,
         getStrongWindTargets,
         getBuoyancyTargets,
         getSuperBuoyancyTargets,

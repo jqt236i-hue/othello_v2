@@ -1663,6 +1663,30 @@ describe('Pixi board backend integration', () => {
     });
     expect(harness.backend.getDiagnostics().neededSpecialAssetIds).toEqual(['HYPERACTIVE', 'SNIPER']);
 
+    const onVisualStart = jest.fn(() => {
+      const textures = harness.scene.applyCalls.at(-1)?.context?.textures;
+      for (const type of ['GHOST', 'WORK', 'DRAGON']) {
+        expect(textures?.get(`special-stone:${type}:black`)).toEqual({
+          url: `https://example.test/special/${type}/black.png`
+        });
+      }
+    });
+    fixture.playback.playPhase.mockImplementationOnce(async () => {
+      expect(onVisualStart).toHaveBeenCalledTimes(1);
+    });
+    await harness.backend.playPhase([{
+      type: 'theory_incarnation_spawn_roulette',
+      targets: [{ r: 2, col: 3, reincarnation: true, owner: 'black',
+        before: { color: 1, special: 'GHOST' },
+        after: { color: 1, special: 'DRAGON' },
+        previewStates: [{ color: 1, special: 'WORK' }]
+      }]
+    }], {
+      token: { id: 7, frameToken: frame.frameToken, mode: 'local' },
+      strictNetworkPlayback: false,
+      phaseScope: { events: [], onVisualStart }
+    });
+
     expect(harness.textures.loadTexture).toHaveBeenCalledWith(
       'https://example.test/special/HYPERACTIVE/black.png',
       'special-stone:HYPERACTIVE:black'

@@ -39,6 +39,7 @@ export interface PresentationBoardPhaseScope {
   readonly events: readonly PresentationPlaybackEvent[];
   readonly phaseKey: string;
   readonly stepIndex: number;
+  readonly onVisualStart?: (events: readonly unknown[]) => void;
 }
 
 function createBoardPhaseScope(
@@ -201,9 +202,31 @@ export async function dispatchPresentationPhasePlan(
     const parallelEvents = scope.events;
     const runParallel = async () => {
       const promises: Promise<void>[] = [];
+      // A cold special-stone texture load must not run ahead of the roulette
+      // soundtrack. Keep global audio in the dispatcher and start it when the
+      // backend reports that its first visual frame is ready.
+      const isReincarnation = (event: any) => event?.type === 'theory_incarnation_spawn_roulette'
+        && event.targets?.some((target: any) => target.reincarnation === true);
+      const synchronizedSounds = parallelEvents.some(isReincarnation)
+        ? parallelEvents.filter((event) => isSoundEffect(event) && collectSoundKeys(event).includes('reincarnation_will'))
+        : [];
+      let soundStarted = false;
+      const launchScope = synchronizedSounds.length ? Object.freeze({
+        ...scope,
+        onVisualStart(events: readonly unknown[]) {
+          if (soundStarted || !events.some(isReincarnation)) return;
+          soundStarted = true;
+          for (const sound of synchronizedSounds) promises.push(Promise.resolve(deps.playGlobalEvent(sound)));
+        }
+      }) : scope;
       // Calling launchParallel before collecting the next promise preserves
       // the legacy synchronous launch order (flip batch first, then non-flip).
-      for (const launch of step.launches) promises.push(launchParallel(launch, deps, scope));
+      for (const launch of step.launches) {
+        if (launch.kind !== 'flip-batch' && synchronizedSounds.includes(launch.event)) continue;
+        promises.push(launchParallel(launch, deps, launchScope));
+      }
+      await Promise.all(promises);
+      // The backend may have appended sound promises after async preparation.
       await Promise.all(promises);
     };
     if (typeof deps.withParallelContext === 'function') {

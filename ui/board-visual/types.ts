@@ -292,6 +292,8 @@ export interface BoardPlaybackPhaseScope {
   readonly events: readonly unknown[];
   readonly phaseKey?: string;
   readonly stepIndex?: number;
+  /** Called after asset preparation, immediately before the first visual frame. */
+  readonly onVisualStart?: (events: readonly unknown[]) => void;
 }
 
 export interface BoardPlaybackContext {

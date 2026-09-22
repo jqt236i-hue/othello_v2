@@ -194,6 +194,13 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseGuardTarget', field: 'guardTarget' },
         cpuHandlerNames: ['cpuSelectGuardWillWithPolicy']
     },
+    REINCARNATION_WILL: {
+        kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true,
+        waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'reincarnation',
+        target: { method: 'getReincarnationTargets', argsKey: 'player' },
+        action: { policyMethod: 'chooseReincarnationTarget', field: 'reincarnationTarget' },
+        cpuHandlerNames: ['cpuSelectReincarnationWithPolicy']
+    },
     LIVING_WILL: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',

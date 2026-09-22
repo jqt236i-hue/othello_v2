@@ -233,6 +233,7 @@ function createDomBoardVisualBackend(options?: {
           ? playbackExecutor.playPhase.bind(playbackExecutor)
           : null;
       if (!playPhase) throw new Error('DOM board playback adapter is unavailable');
+      if (!context.recoveryReplay) context.phaseScope?.onVisualStart?.(events);
       await playPhase(events, context);
     },
     getCellClientRect(row: number, col: number): BoardClientRect | null {

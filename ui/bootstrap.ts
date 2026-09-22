@@ -2176,6 +2176,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             trap: 'handleTrapSelection',
                             guard: 'handleGuardSelection',
                             living_will: 'handleLivingWillSelection',
+                            reincarnation: 'handleReincarnationSelection',
                             extend_life: 'handleExtendLifeSelection',
                             corrosion: 'handleCorrosionSelection',
                             clone: 'handleCloneSelection',

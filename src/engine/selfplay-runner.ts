@@ -300,6 +300,7 @@ const {
         'positionSwapTarget',
         'guardTarget',
         'livingWillTarget',
+        'reincarnationTarget',
         'extendTarget',
         'corrosionTarget',
         'bombTarget',

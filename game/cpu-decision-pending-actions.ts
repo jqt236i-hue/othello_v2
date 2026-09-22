@@ -42,6 +42,7 @@ type TargetActionOptions = {
     applyMethodName: string;
     deferNetworkPublish?: boolean;
     fallbackOnPipelineReject?: boolean;
+    requirePipeline?: boolean;
     extraApplyArgs?: (target: any) => any[];
     onApplied?: () => any;
     onMissingApply?: 'clear-and-emit' | 'noop';
@@ -269,6 +270,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             opts.pendingType
         );
         if (isPendingPipelineHandled(pipelineResult)) return;
+        if (opts.requirePipeline === true) return;
         if (pipelineResult && pipelineResult.ok === false && opts.fallbackOnPipelineReject === false) return;
 
         const cardLogic = getCardLogic();
@@ -469,6 +471,23 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             targetLabel: '生きる意志ターゲット',
             payloadKey: 'livingWillTarget',
             applyMethodName: 'applyLivingWill'
+        });
+    }
+
+    async function cpuSelectReincarnationWithPolicy(playerKey: any): Promise<any> {
+        const pending = cfg.readCpuPendingEffect(playerKey);
+        const pendingType = (pending && pending.type === 'REINCARNATION_WILL') ? pending.type : 'REINCARNATION_WILL';
+        return runTargetAction({
+            playerKey,
+            pendingType,
+            pending,
+            targets: getTargetsByMethod(playerKey, 'getReincarnationTargets'),
+            noTargetLabel: '転生対象なし',
+            targetLabel: '転生ターゲット',
+            payloadKey: 'reincarnationTarget',
+            applyMethodName: 'applyReincarnationWill',
+            requirePipeline: true,
+            fallbackOnPipelineReject: false
         });
     }
 
@@ -1028,6 +1047,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectGuardWillWithPolicy,
         cpuSelectHeavenBlessingWithPolicy,
         cpuSelectLivingWillWithPolicy,
+        cpuSelectReincarnationWithPolicy,
         cpuSelectMeteorWillWithPolicy,
         cpuSelectObserverWillWithPolicy,
         cpuSelectPositionSwapWillWithPolicy,

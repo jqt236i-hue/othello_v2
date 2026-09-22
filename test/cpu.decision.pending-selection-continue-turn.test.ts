@@ -163,6 +163,31 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('CPU reincarnation uses the authoritative pending pipeline and continues its turn', async () => {
+    global.cardState.pendingEffectByPlayer.white = { type: 'REINCARNATION_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getReincarnationTargets: () => [{ row: 2, col: 3 }],
+      applyReincarnationWill: jest.fn()
+    };
+    await cpuDecision.cpuSelectReincarnationWithPolicy('white');
+    expect(runTurnMock.mock.calls[0][3].reincarnationTarget).toEqual({ row: 2, col: 3 });
+    expect(global.CardLogic.applyReincarnationWill).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(global.onTurnStart).not.toHaveBeenCalled();
+  });
+
+  test('CPU reincarnation never draws again through a direct fallback when the pipeline rejects', async () => {
+    global.cardState.pendingEffectByPlayer.white = { type: 'REINCARNATION_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getReincarnationTargets: () => [{ row: 2, col: 3 }],
+      applyReincarnationWill: jest.fn()
+    };
+    runTurnMock.mockReturnValue({ ok: false, reason: 'stale_turn' });
+    await cpuDecision.cpuSelectReincarnationWithPolicy('white');
+    expect(global.CardLogic.applyReincarnationWill).not.toHaveBeenCalled();
+    expect(global.cardState.pendingEffectByPlayer.white.type).toBe('REINCARNATION_WILL');
+  });
+
   test('CPU destroy selection falls back to direct apply when pending pipeline rejects', async () => {
     global.CardLogic = {
       getSelectableTargets: () => [{ row: 2, col: 3 }],

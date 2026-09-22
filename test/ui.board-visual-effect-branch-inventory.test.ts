@@ -392,7 +392,7 @@ const PHASE7_EXECUTABLE_FIXTURE_REGISTRY: readonly ExecutableFixture[] = Object.
   playbackFixture('legacy-strong-will-apply', 'legacy_strong_will_apply', ['legacy_strong_will_apply'], ['ui/pixi/effects/special-stone.ts#playPixiLegacyStrongWillApplyEffect']),
   playbackFixture('legacy-hyperactive-move', 'legacy_hyperactive_move', ['legacy_hyperactive_move'], ['ui/pixi/effects/special-stone.ts#playPixiLegacyHyperactiveMoveEffect']),
   playbackFixture('legacy-sacrifice-absorb-pulse', 'legacy_sacrifice_absorb_pulse', ['legacy_sacrifice_absorb_pulse'], ['ui/pixi/effects/special-stone.ts#playPixiLegacySacrificeAbsorbPulseEffect']),
-  playbackFixture('theory-incarnation-roulette-materialization', 'theory_incarnation_spawn_roulette', ['theory_incarnation_spawn_roulette'], ['ui/pixi/effects/theory-incarnation.ts#playPixiTheoryIncarnationEffect'], {
+  playbackFixture('theory-incarnation-roulette-materialization', 'theory_incarnation_spawn_roulette', ['theory_incarnation_spawn_roulette'], ['ui/pixi/effects/theory-incarnation.ts#playPixiTheoryIncarnationEffect', 'ui/pixi/effects/reincarnation.ts#playPixiReincarnation'], {
     target: { candidateCells: Object.freeze([{ row: 0, col: 0 }, { row: 0, col: 1 }]), selectedCell: Object.freeze({ row: 0, col: 1 }) }
   }),
   globalFixture('special-stone-speech-bubble', 'observer_bubble', 'observer_bubble', OBSERVER_BUBBLE_RENDERER, { kind: 'special-stone', specialType: 'ZOMBIE' }),

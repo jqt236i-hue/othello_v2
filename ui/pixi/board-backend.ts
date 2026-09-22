@@ -432,6 +432,16 @@ function collectPlaybackSpecialStones(events: readonly unknown[]): readonly Play
       );
       if (!type || !owner) continue;
       byKey.set(`${type}:${owner}`, Object.freeze({ type, owner }));
+      if (target.reincarnation === true) {
+        const previews = [target.before, ...(Array.isArray(target.previewStates) ? target.previewStates : [])];
+        for (const preview of previews) {
+          const previewType = normalizePlaybackSpecialType(preview?.special || preview?.specialType);
+          const previewOwner = normalizePlaybackOwner(preview?.owner, preview?.color, owner);
+          if (previewType && previewOwner) {
+            byKey.set(`${previewType}:${previewOwner}`, Object.freeze({ type: previewType, owner: previewOwner }));
+          }
+        }
+      }
     }
   }
   return Object.freeze(Array.from(byKey.values()));
@@ -1707,6 +1717,7 @@ export function createPixiBoardVisualBackend(
       if (launchGeneration !== playbackLaunchGeneration) {
         throw playbackInterruptReason;
       }
+      if (!context.recoveryReplay) context.phaseScope?.onVisualStart?.(events);
       const rawPlayback = playback!.playPhase(events, context);
       await rawPlayback;
       // Multiple board event branches in one presentation phase share this

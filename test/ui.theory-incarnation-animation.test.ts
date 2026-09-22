@@ -1,4 +1,32 @@
 describe('theory incarnation spawn roulette animation', () => {
+  test.each([false, true])('reincarnation replaces only the disc, keeps board labels, and settles at the cue: noanim=%s', async (noanim) => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<div class="cell"><span class="board-bonus-number">5</span><div class="disc old"></div></div>');
+    const cell = dom.window.document.querySelector('.cell');
+    const handler = require('../ui/animation-theory-events.js');
+    let now = 0;
+    const clock = jest.spyOn(performance, 'now').mockImplementation(() => now);
+    const seen: any[] = [];
+    try {
+      await handler.handleTheoryIncarnationSpawnRouletteEvent({ targets: [{
+        row: 0, col: 0, reincarnation: true,
+        previewStates: [{ special: 'WORK' }, { special: 'SNIPER' }], after: { special: 'DRAGON' }
+      }] }, {
+        isNoAnim: () => noanim, getCellEl: () => cell,
+        createDisc: (state) => {
+          seen.push({ special: state.special, at: now });
+          const disc = dom.window.document.createElement('div');
+          disc.className = 'disc'; return disc;
+        },
+        timer: () => ({ setTimeout: (fn, ms) => { now += ms; fn(); } })
+      });
+      expect(seen.at(-1)).toEqual({ special: 'DRAGON', at: noanim ? 0 : 2500 });
+      expect(cell.querySelectorAll('.disc')).toHaveLength(1);
+      expect(cell.querySelector('.board-bonus-number').textContent).toBe('5');
+      expect(cell.className).toBe('cell');
+    } finally { clock.mockRestore(); dom.window.close(); }
+  });
+
   beforeEach(() => {
     jest.resetModules();
   });
