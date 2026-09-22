@@ -19,6 +19,11 @@
     "serve": "node scripts/serve-with-fallback.js",
     "build:battle-package": "npm run build:vite && node dist/scripts/build-battle-package.js",
     "check:battle-browser": "node dist/scripts/check-battle-browser.js",
+    "godot:check": "node dist/scripts/godot-conformance.js check && node dist/scripts/godot-cpu-benchmark.js check",
+    "godot:contract": "node dist/scripts/godot-data-contract.js",
+    "godot:cpu": "node dist/scripts/godot-cpu-benchmark.js",
+    "godot:source": "node dist/scripts/godot-source-package.js",
+    "godot:presentation": "node dist/scripts/capture-godot-presentation.js",
     "match:server": "npm run build:ts && node scripts/local-match-server.js",
     "match:server:net": "npm run build:ts && node scripts/local-match-server.js --host 0.0.0.0 --port 8787",
     "match:check": "node scripts/match-network-smoke.js",
@@ -178,6 +183,7 @@
       "<rootDir>/worker-public/"
     ],
     "modulePathIgnorePatterns": [
+      "<rootDir>/output/godot-source",
       "<rootDir>/.wrangler/",
       "<rootDir>/worker-public/",
       "<rootDir>/data/cpu-lv10/baseline-v1/",

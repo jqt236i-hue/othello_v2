@@ -50,7 +50,7 @@ const FALLBACK_IMAGE_BY_STONE_TYPE: Record<string, string> = {
   DESTROY_DRAGON: 'assets/images/special-stones/DESTROY_DRAGON-black.png',
   LIGHTNING: 'assets/images/special-stones/rakurai-black.png',
   ULTIMATE_DESTROY_GOD: 'assets/images/special-stones/ULTIMATE_DESTROY_GOD-black.png',
-  ULTIMATE_HYPERACTIVE: 'assets/images/special-stones/ULTIMATE_HYPERACTIVE_WILL-black.png',
+  ULTIMATE_HYPERACTIVE: 'assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-black.png',
   METEOR_GOD: 'assets/images/special-stones/METEOR_GOD-black.png',
   THEORY_INCARNATION: 'assets/images/special-stones/theory_incarnation-black.png',
   BOARD_EXECUTOR: 'assets/images/special-stones/board_executor-black.png',

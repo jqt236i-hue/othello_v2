@@ -8,3 +8,6 @@ export { BattleSaveCompatibilityError, BATTLE_RULES_VERSION, BATTLE_CONTENT_VERS
 export type { BattleSave, BattlePhase } from '../../shared/battle/save';
 export { createBattleStorage } from '../../shared/battle/storage';
 export type { BattleStoragePort, StorageResult } from '../../shared/battle/storage';
+export { BATTLE_DATA_CONTRACT_VERSION, getBattleDataContract, validateBattleData, validateBattleAction, validateBattleResult } from '../../shared/battle/data-contract';
+export type { BattleDataKind } from '../../shared/battle/data-contract';
+export { computeBattleContentVersion, getBattleRuntimeCardDefinitions, BATTLE_PRESENTATION_CARD_FIELDS, BATTLE_LEGACY_CONTENT_VERSIONS } from '../../shared/battle/content-version';

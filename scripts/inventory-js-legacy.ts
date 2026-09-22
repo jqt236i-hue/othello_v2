@@ -85,6 +85,9 @@ function walk(dir: string, root = process.cwd()): string[] {
       const relativeDir = path.relative(root, filePath).replace(/\\/g, '/');
       // Generated distribution, rebuilt from canonical TS by build-battle-package.
       if (relativeDir === 'output/battle-package') continue;
+      // Godot porting collections preserve an identified historical source and
+      // rebuild copy. Audit their source repository, not duplicated old shims.
+      if (/^output\/godot-source-[^/]+$/.test(relativeDir)) continue;
       if (['data/cpu-lv10/baseline-v1', 'data/cpu-lv11', 'data/cpu-lv12', 'data/cpu-lv13', 'data/runs'].includes(relativeDir)) continue;
       const relDir = path.relative(root, filePath).replace(/\\/g, '/');
       const firstSegment = relDir.split('/')[0];

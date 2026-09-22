@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "model_assets.v1",
+  "generatedAt": "2026-09-22T09:35:28.398Z",
+  "files": [
+    "data/models/othello/policy-table.json",
+    "data/models/othello/policy-value.onnx",
+    "data/models/othello/policy-value.onnx.meta.json",
+    "data/models/othello/value-table.json",
+    "data/models/policy-net.onnx",
+    "data/models/policy-net.onnx.meta.json",
+    "data/models/policy-table.json"
+  ]
+}

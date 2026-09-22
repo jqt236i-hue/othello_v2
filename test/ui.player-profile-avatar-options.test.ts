@@ -35,4 +35,17 @@ describe('player profile avatar options', () => {
     expect(avatarOptions.normalizeProfileAvatarStoneType('unknown')).toBe('REGEN');
     expect(avatarOptions.normalizeProfileAvatarStoneType('')).toBe('REGEN');
   });
+
+  test('fallback paths still resolve to real runtime images when the visual map is unavailable', () => {
+    jest.doMock('../ui/visual-effects-map', () => ({}));
+    try {
+      const avatarOptions = require('../ui/player-profile-avatar-options');
+      const fs = require('node:fs');
+      const path = require('node:path');
+      const options = avatarOptions.getProfileAvatarOptions();
+      expect(options.find((option: any) => option.stoneType === 'ULTIMATE_HYPERACTIVE').imagePath)
+        .toBe('assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-black.png');
+      for (const option of options) expect(fs.existsSync(path.resolve(option.imagePath))).toBe(true);
+    } finally { jest.dontMock('../ui/visual-effects-map'); }
+  });
 });

@@ -16,6 +16,17 @@ function writeFile(rootDir: string, relativePath: string, content = 'x'): void {
 }
 
 describe('checkAssetFileCase', () => {
+  test('regeneration does not require obsolete mirror paths after their canonical source was removed', () => {
+    const rootDir = createTempRepo();
+    try {
+      const old = 'worker-public/assets/characters/old-reference.png';
+      expect(checkAssetFileCase({ rootDir, trackedPaths: [old] })).toMatchObject({ ok: true, checkedFiles: 0, obsoleteMirrorPaths: [old] });
+      writeFile(rootDir, 'assets/characters/old-reference.png');
+      expect(checkAssetFileCase({ rootDir, trackedPaths: [old] })).toMatchObject({ ok: false, obsoleteMirrorPaths: [], issues: [{ type: 'missing', expectedPath: old }] });
+      fs.unlinkSync(path.join(rootDir, 'assets/characters/old-reference.png'));
+      expect(checkAssetFileCase({ rootDir, trackedPaths: [old, 'assets/characters/old-reference.png'] }).issues).toHaveLength(2);
+    } finally { fs.rmSync(rootDir, { recursive: true, force: true }); }
+  });
   test('checks real Git filenames with Japanese characters and spaces, including missing files', () => {
     const rootDir = createTempRepo();
     try {

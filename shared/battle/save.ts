@@ -1,11 +1,12 @@
 import Hash = require('../state-hash');
-import Deck = require('../deck-spec');
 import Board = require('../shared-board-utils');
 import { resolveBattleConfig, type ResolvedBattleConfig } from './config';
 import { cloneBattle, type CompleteBattlePosition } from './types';
+import { BATTLE_CONTENT_VERSION, BATTLE_LEGACY_CONTENT_VERSIONS, getBattleRuntimeCardDefinitions } from './content-version';
+import { validateSavedRuleState } from './state-validation';
+export { BATTLE_CONTENT_VERSION } from './content-version';
 
 export const BATTLE_RULES_VERSION = 'card-reversi.rules.v1';
-export const BATTLE_CONTENT_VERSION = Hash.computeStableHash(Deck.getEnabledCardDefs());
 export const BATTLE_SAVE_LIMITS = Object.freeze({ chars: 8 * 1024 * 1024, nodes: 300000, depth: 80, rngCalls: 10000000 });
 export class BattleSaveCompatibilityError extends Error { readonly code = 'BATTLE_SAVE_INCOMPATIBLE'; }
 export type BattlePhase = 'needs-turn-start' | 'action' | 'terminal';
@@ -32,6 +33,8 @@ export function assertBattleJson(value: unknown): void {
         if (typeof item === 'number' && Number.isFinite(item)) return;
         if (typeof item !== 'object' || (!Array.isArray(item) && Object.getPrototypeOf(item) !== Object.prototype
             && Object.getPrototypeOf(item) !== null)) throw new Error('Expected plain battle data');
+        if (Array.isArray(item) && (item.length > BATTLE_SAVE_LIMITS.nodes || Object.keys(item).length !== item.length
+            || Object.keys(item).some((key, index) => key !== String(index)))) throw new Error('Expected dense battle array');
         for (const key of Object.keys(item)) {
             if (['__proto__', 'prototype', 'constructor'].includes(key)) throw new Error('Invalid battle data key');
             const property = Object.getOwnPropertyDescriptor(item, key);
@@ -47,11 +50,30 @@ function integer(value: any, min: number, max: number, name: string): void {
 export function validateBattleSave(value: any): BattleSave {
     assertBattleJson(value);
     if (value?.formatVersion !== 1) throw new BattleSaveCompatibilityError('Unsupported battle save version');
-    if (value.rulesVersion !== BATTLE_RULES_VERSION || value.contentVersion !== BATTLE_CONTENT_VERSION) {
+    const contentVersion = BATTLE_LEGACY_CONTENT_VERSIONS[value.contentVersion] || value.contentVersion;
+    if (value.rulesVersion !== BATTLE_RULES_VERSION || contentVersion !== BATTLE_CONTENT_VERSION) {
         throw new BattleSaveCompatibilityError('Incompatible battle rules or content');
     }
     const config = resolveBattleConfig(value.config);
-    const position = value.position;
+    let position = value.position;
+    // The inspected pre-migration browser writer stored display descriptors in
+    // this canonical ID slot. Repair only that known version and exact shape.
+    if (value.contentVersion === 'fnv1a32:f89cfb79' && position?.cardState?.lastUsedCardByPlayer) {
+        position = cloneBattle(position);
+        const byPlayer = position.cardState.lastUsedCardByPlayer;
+        const runtimeIds = new Set(getBattleRuntimeCardDefinitions().map(card => card.id));
+        for (const player of ['black', 'white']) {
+            const entry = byPlayer[player];
+            if (entry !== null && typeof entry === 'object') {
+                if (Array.isArray(entry) || Object.keys(entry).length !== 3
+                    || Object.keys(entry).some(key => !['id', 'name', 'desc'].includes(key))
+                    || !runtimeIds.has(entry.id) || typeof entry.name !== 'string' || typeof entry.desc !== 'string') {
+                    throw new Error('Invalid legacy last-used card descriptor');
+                }
+                byPlayer[player] = entry.id;
+            }
+        }
+    }
     if (!position || !position.gameState || !position.cardState || !position.prngState) throw new Error('Incomplete battle state');
     integer(position.prngState.seed, 0, 0xffffffff, 'seed');
     integer(position.prngState.calls, 0, BATTLE_SAVE_LIMITS.rngCalls, 'random checkpoint');
@@ -95,7 +117,7 @@ export function validateBattleSave(value: any): BattleSave {
         integer(cs.prngState.calls, 0, position.prngState.calls, 'card random checkpoint');
         if (cs.prngState.seed !== position.prngState.seed) throw new Error('Mismatched saved random seed');
     }
-    const cardIds = new Set(Deck.getEnabledCardIds());
+    const cardIds = new Set(getBattleRuntimeCardDefinitions().map(card => card.id));
     const validateCards = (cards: any, name: string) => {
         if (!Array.isArray(cards) || cards.length > 16384 || cards.some((id: any) => !cardIds.has(id))) throw new Error(`Invalid saved ${name}`);
     };
@@ -121,8 +143,9 @@ export function validateBattleSave(value: any): BattleSave {
         const pending = cs.pendingEffectByPlayer[player];
         if (pending !== null && (!pending || typeof pending.type !== 'string' || !pending.type)) throw new Error('Invalid saved pending');
     }
+    validateSavedRuleState(position, stoneIds, seenCopies);
     if (!value.cpuMemory || Array.isArray(value.cpuMemory) || typeof value.cpuMemory !== 'object') throw new Error('Invalid CPU memory');
-    return cloneBattle({ ...value, config });
+    return cloneBattle({ ...value, contentVersion, config, position });
 }
 
 export function createBattleSave(config: ResolvedBattleConfig, position: CompleteBattlePosition,

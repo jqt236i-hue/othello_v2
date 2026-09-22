@@ -14,6 +14,7 @@ export async function playPixiReincarnation(event: PresentationPlaybackEvent, ta
     try {
         await projection.timeline.run({
             durationMs: REINCARNATION_CONFIRM_MS,
+            timeSourceMs: () => performance.now(),
             effectFamily: 'reincarnation-roulette', event,
             onStart: () => projection.setProjectedStone(row, col, createPlaybackStoneVisual(target.before, target.owner)),
             onUpdate: (progress, frame) => {
@@ -30,6 +31,7 @@ export async function playPixiReincarnation(event: PresentationPlaybackEvent, ta
         });
         await projection.timeline.run({
             durationMs: REINCARNATION_SETTLE_MS,
+            timeSourceMs: () => performance.now(),
             effectFamily: 'reincarnation-confirm', event,
             onStart: () => projection.setProjectedStone(row, col, finalVisual),
             onUpdate: (progress) => projection.updateEffect(highlight, {

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "battleId": "chapter1-battle1",
+  "seed": 319,
+  "board": {
+    "rows": 8,
+    "cols": 8,
+    "shape": "rectangle"
+  },
+  "players": {
+    "black": {
+      "controller": "human"
+    },
+    "white": {
+      "controller": "cpu",
+      "profile": "10"
+    }
+  }
+}

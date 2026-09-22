@@ -92,7 +92,19 @@ Thumbs.db
 patches/*.patch
 output/battle-package/
 output/battle-verification/
+output/godot-port-preparation/
+output/godot-source-*/
 output/card-reversi-battle-*.tgz
 
 # Ignore data directory for machine learning
-data/
+data/**
+!data/models/
+!data/models/othello/
+!data/models/model-assets.json
+!data/models/policy-net.onnx
+!data/models/policy-net.onnx.meta.json
+!data/models/policy-table.json
+!data/models/othello/policy-table.json
+!data/models/othello/policy-value.onnx
+!data/models/othello/policy-value.onnx.meta.json
+!data/models/othello/value-table.json

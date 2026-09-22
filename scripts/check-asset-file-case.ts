@@ -21,6 +21,7 @@ export interface CheckAssetFileCaseResult {
   ok: boolean;
   checkedFiles: number;
   issues: AssetFileCaseIssue[];
+  obsoleteMirrorPaths: string[];
 }
 
 const DEFAULT_ASSET_ROOTS = [
@@ -142,14 +143,31 @@ export function checkAssetFileCase(options: CheckAssetFileCaseOptions = {}): Che
     .map(normalizeRelativePath)
     .filter((relativePath) => isCheckedAssetPath(relativePath, assetRoots));
   const uniqueTrackedPaths = Array.from(new Set(trackedPaths)).sort();
+  const trackedSet = new Set(uniqueTrackedPaths);
+  const obsoleteMirrorPaths: string[] = [];
   const issues = uniqueTrackedPaths
     .map((relativePath) => inspectPathCase(rootDir, relativePath))
-    .filter((issue): issue is AssetFileCaseIssue => issue !== null);
+    .filter((issue): issue is AssetFileCaseIssue => {
+      if (!issue) return false;
+      // A previously generated mirror can still be in Git's index after its
+      // canonical source was removed in an earlier commit. Regeneration must
+      // not resurrect it. Required mirrors and every canonical asset remain
+      // strict; check-worker-mirror owns the final generated content inventory.
+      if (issue.type === 'missing' && issue.expectedPath.startsWith('worker-public/assets/')) {
+        const canonical = issue.expectedPath.slice('worker-public/'.length);
+        if (!trackedSet.has(canonical) && !fs.existsSync(path.join(rootDir, canonical))) {
+          obsoleteMirrorPaths.push(issue.expectedPath);
+          return false;
+        }
+      }
+      return true;
+    });
 
   return {
     ok: issues.length === 0,
-    checkedFiles: uniqueTrackedPaths.length,
-    issues
+    checkedFiles: uniqueTrackedPaths.length - obsoleteMirrorPaths.length,
+    issues,
+    obsoleteMirrorPaths
   };
 }
 
@@ -158,6 +176,7 @@ export function main(): number {
     const result = checkAssetFileCase();
     if (result.ok) {
       console.log(`[asset-file-case] tracked asset file casing matches deploy paths (${result.checkedFiles} files checked).`);
+      if (result.obsoleteMirrorPaths.length) console.log(`[asset-file-case] ${result.obsoleteMirrorPaths.length} removed generated mirror paths have no canonical source; final inventory is checked by check-worker-mirror.`);
       return 0;
     }
 

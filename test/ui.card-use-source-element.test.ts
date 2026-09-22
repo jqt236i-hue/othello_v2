@@ -952,6 +952,21 @@ describe('card use source element selection', () => {
     });
   });
 
+  test('useSelectedCard preserves pipeline-owned last-used IDs for saves instead of storing display metadata', () => {
+    const nextCardState = {
+      ...global.cardState,
+      lastUsedCard: { cardId: 'dup_card', ownerKey: 'black' },
+      lastUsedCardByPlayer: { black: 'dup_card', white: 'previous-white-card' }
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true, nextCardState, nextGameState: global.gameState, playbackEvents: []
+    }));
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+    expect(global.cardState.lastUsedCardByPlayer).toEqual({ black: 'dup_card', white: 'previous-white-card' });
+    expect(global.cardState.lastUsedCard).toEqual({ cardId: 'dup_card', ownerKey: 'black' });
+  });
+
   test.each([
     ['seed_01', 'SEED_WILL'],
     ['cell_teleport_01', 'CELL_TELEPORT_WILL']

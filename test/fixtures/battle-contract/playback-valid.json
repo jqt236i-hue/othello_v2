@@ -1,0 +1,13 @@
+[
+  {
+    "type": "flip",
+    "phase": 0,
+    "targets": [
+      {
+        "row": 3,
+        "col": 4,
+        "owner": "black"
+      }
+    ]
+  }
+]

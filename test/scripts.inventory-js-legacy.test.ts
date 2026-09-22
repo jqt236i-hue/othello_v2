@@ -29,14 +29,17 @@ describe('JS inventory runtime-authority guard', () => {
   test('retains source checks while leaving frozen CPU runs and built packages untouched', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'source-inventory-'));
     const files = ['game/current.js', 'game/data/runs/current.js', 'data/cpu-lv13/frozen/driver.js',
-      'data/runs/experiment/previous-bundle.js', 'output/battle-package/host.js'];
+      'data/runs/experiment/previous-bundle.js', 'output/battle-package/host.js',
+      'output/godot-source-adopted/source/game/old.js', 'output/other/current.js',
+      'game/output/godot-source-current/current.js'];
     try {
       for (const file of files) {
         fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
         fs.writeFileSync(path.join(root, file), 'const preserved = true;');
       }
       const found = inventory.collectSourceJsFiles(root).map((file: string) => path.relative(root, file).replace(/\\/g, '/')).sort();
-      expect(found).toEqual(['game/current.js', 'game/data/runs/current.js']);
+      expect(found).toEqual(['game/current.js', 'game/data/runs/current.js',
+        'game/output/godot-source-current/current.js', 'output/other/current.js']);
       for (const file of files) expect(fs.readFileSync(path.join(root, file), 'utf8')).toBe('const preserved = true;');
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
   });

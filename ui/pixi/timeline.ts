@@ -62,6 +62,9 @@ export interface PixiTimelineRunResult {
 
 export interface PixiTimelineRunOptions {
   readonly durationMs: number;
+  /** Optional monotonic clock for sound-synchronized effects. Pixi's capped
+   * ticker delta otherwise stretches their duration after a slow frame. */
+  readonly timeSourceMs?: () => number;
   readonly effectFamily?: string | null;
   readonly event?: unknown;
   readonly onStart?: (frame: PixiTimelineFrame) => void;
@@ -134,6 +137,7 @@ interface ActiveRun {
   readonly options: PixiTimelineRunOptions;
   readonly durationContext: PixiTimelineDurationContext;
   readonly durationMs: number;
+  readonly startedAtMs: number | null;
   readonly resolve: (result: PixiTimelineRunResult) => void;
   readonly reject: (error: unknown) => void;
   elapsedMs: number;
@@ -397,7 +401,15 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     const finishing = new Set<ActiveRun>();
     for (const run of Array.from(activeRuns)) {
       if (run.done || run.durationMs <= 0) continue;
-      run.elapsedMs = Math.min(run.durationMs, run.elapsedMs + deltaMs);
+      try {
+        const elapsedMs = run.options.timeSourceMs && run.startedAtMs !== null
+          ? requireDuration(run.options.timeSourceMs(), 'Pixi timeline clock time') - run.startedAtMs
+          : run.elapsedMs + deltaMs;
+        run.elapsedMs = Math.min(run.durationMs, Math.max(run.elapsedMs, elapsedMs));
+      } catch (error) {
+        settleFailedRun(run, error, 'clock');
+        continue;
+      }
       const progress = Math.min(1, run.elapsedMs / run.durationMs);
       if (!invokeUpdate(run, progress)) continue;
       updatedRuns.push(run);
@@ -538,6 +550,9 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
       if (destroyed) throw new PixiTimelineAbortError('pixi_timeline_destroyed');
       if (aborting) throw new PixiTimelineAbortError('pixi_timeline_aborted', 'abort_in_progress');
       const prepared = createDurationContext(runOptions);
+      const startedAtMs = runOptions.timeSourceMs
+        ? requireDuration(runOptions.timeSourceMs(), 'Pixi timeline clock time')
+        : null;
       const runId = nextRunId++;
       return new Promise<PixiTimelineRunResult>((resolve, reject) => {
         const active: ActiveRun = {
@@ -545,6 +560,7 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
           options: runOptions,
           durationContext: prepared.context,
           durationMs: prepared.durationMs,
+          startedAtMs,
           resolve,
           reject,
           elapsedMs: 0,

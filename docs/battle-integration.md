@@ -20,7 +20,7 @@ const resumed = restoreBattle(parseBattleSave(saved));
 
 `apply` は既存pipelineの操作（`place`、`use_card`、`pass`等）を受け、採用／拒否と理由・前後状態・イベントを返す。次の手番への移行後は `startTurn()` が必要。`currentPhase` は `needs-turn-start` / `action` / `terminal`。`result()` は未終了ならnull。内部利用の `BattleMatch` は検証済み状態専用で、明示的なターン開始を必要とする旧ProductionMatch互換の入口。外部の保存入力は `restoreBattle` を通す。
 
-coreはCPUのスケジュール、描画、保存先を実行しない。結果は連続パスによる正本の終局から得る。満盤だけでは終了にしない。状態・条件・保存データはコピーで渡す。破棄後の操作・保存・CPUメモリー更新は拒否する。
+coreはCPUのスケジュール、描画、保存先を実行しない。結果は連続パスによる正本の終局から得る。満盤だけでは終了にしない。状態・条件・保存データはコピーで渡す。破棄後の操作・保存・CPUメモリー更新は拒否する。`BattleSession.apply` は公開操作の形を検証し、debug・強制pass等のauthority専用項目を受け付けない。対象選択・省略/null・数値範囲と機械検証は [移植用データ契約](godot-port-data-contract.md) を参照する。
 
 ## 設定
 
@@ -51,7 +51,9 @@ view.dispose();
 
 形式1は解決済み設定、全正本状態、乱数seed/calls、進行phase、CPU継続メモリーを保持する。描画キュー・関数・結果表示フラグは含めない。復元で開始済みターンのドロー・効果・過去の演出を再実行しない。ルール識別とカード内容の識別はpackage版・保存形式版とは別である。
 
-初版fixtureは [battle-before-refactor.json](../test/fixtures/battle-before-refactor.json) の変更前操作列と保存往復テストで固定する。今後ルールを変える場合は `BATTLE_RULES_VERSION` を更新し、旧保存fixtureへの移行テストを追加する。未知の形式／ルール／内容は明示的に拒否し、空の新規対戦として読み込まない。JSONは8 Mi文字、300,000ノード、深さ80、乱数checkpointは10,000,000 calls以内。チェックサムは破損検出であり不正改ざん防止ではない。
+初版fixture [battle-before-refactor.json](../test/fixtures/battle-before-refactor.json) と [battle-save-v1.json](../test/fixtures/battle-save-v1.json) は転生の意志追加前の歴史資料として保持する。新カードで標準デッキのシャッフルと乱数消費が変わるため、現在版の比較基準は [battle-replay-current-v1.json](../test/fixtures/battle-replay-current-v1.json) と [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json)。旧内容hash `fnv1a32:fce6c0f5` は現在明示拒否する。
+
+内容識別は表示名・説明・表示分類・画像パスを除いた全runtimeカード定義（ゲーム中に生成する派生カードを含む）で行う。検査済みの旧全文hash `fnv1a32:f89cfb79` だけは同一の内容hash `fnv1a32:068d90fd` へ識別子を移行する。この既知旧版のブラウザがlastUsedCardByPlayerへ保存した表示descriptorは、既知のshapeと正式card IDを検査して正本IDへ移す。現在版のdescriptorは拒否する。詳細と根拠は [移植用データ契約](godot-port-data-contract.md)。今後ルールを変える場合は `BATTLE_RULES_VERSION` を更新し、旧保存fixtureへの移行または明示拒否テストを追加する。未知の形式／ルール／内容は明示的に拒否し、空の新規対戦として読み込まない。JSONは8 Mi文字、300,000ノード、深さ80、乱数checkpointは10,000,000 calls以内。チェックサムは破損検出であり不正改ざん防止ではない。
 
 `createBattleStorage(port, prefix)` のportはread/writeと全writerを覆うexclusive lockを必須とする。各キーのwriteはatomicであること。2スロットとmanifestで確定し、破損時は直前の互換世代へ戻り `recovered` を返す。未知の将来版を古い版で上書きしない。容量不足やアクセス拒否は失敗として返す。ブラウザadapterはWeb LocksとlocalStorageを使用する。
 

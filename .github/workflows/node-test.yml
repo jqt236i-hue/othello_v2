@@ -12,11 +12,13 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Install
         run: npm ci
       - name: Run checks
-        run: npm run checkall
+        # Generated mirrors may contain retired paths in the checkout. Rebuild
+        # from canonical sources before validating the complete inventory.
+        run: npm run worker:prepare && npm run checkall
 
   test:
     needs: check
@@ -26,9 +28,11 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Install
         run: npm ci
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
       - name: Build test runtime
         run: npm run build:ts
       - name: Run tests
@@ -41,7 +45,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Install
         run: npm ci
       - name: Install Chromium
@@ -56,3 +60,32 @@ jobs:
           path: artifacts/ux-optimization-monitor/ci.json
           if-no-files-found: ignore
           retention-days: 7
+
+  godot-port-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build complete offline distribution
+        run: npm run build:battle-package
+      - name: Check language-neutral reference and CPU
+        run: |
+          node dist/scripts/godot-conformance.js check
+          node dist/scripts/godot-cpu-benchmark.js check
+          node dist/scripts/godot-cpu-benchmark.js models output/godot-ci/cpu-models.json
+          node dist/scripts/godot-cpu-benchmark.js compare-models output/godot-ci/cpu-models.json
+      - name: Archive comparison and package outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-port-reference
+          path: |
+            output/battle-package/
+            output/godot-ci/
+            test/fixtures/godot-conformance/
+            test/fixtures/godot-cpu*.json
+          if-no-files-found: error
+          retention-days: 14

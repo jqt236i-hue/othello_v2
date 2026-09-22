@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "othello_policy_value_onnx.v1",
+  "datasetSchemaVersion": "othello_onnx_teacher_dataset.v1",
+  "inputName": "obs",
+  "placeOutputName": "logits",
+  "valueOutputName": "value",
+  "inputDim": 80,
+  "baseInputDim": 80,
+  "outputDim": 64,
+  "boardSize": 8,
+  "featureSpec": [
+    "board_8x8_perspective_flat",
+    "legal_moves_norm",
+    "disc_diff_norm",
+    "own_count_norm",
+    "opp_count_norm",
+    "empty_count_norm",
+    "own_corners_norm",
+    "opp_corners_norm",
+    "own_edges_norm",
+    "opp_edges_norm",
+    "player_sign",
+    "phase_opening_flag",
+    "phase_mid_flag",
+    "phase_end_flag",
+    "reserved_zero_0",
+    "reserved_zero_1",
+    "reserved_zero_2"
+  ],
+  "model": {
+    "hiddenDim": 896,
+    "depth": 6,
+    "dropout": 0.04
+  },
+  "training": {
+    "dataset": "C:\\Users\\quarr\\Desktop\\othello_v2\\othello-ai\\data\\runs\\othello_balanced_896_plateau_v2_20260616_0209.it247\\teacher.othello_balanced_896_plateau_v2_20260616_0209.it247.jsonl",
+    "recordsRead": 240000,
+    "recordsUsed": 240000,
+    "trainSamples": 204000,
+    "valSamples": 36000,
+    "policyTableSamples": 2776,
+    "selfplayPolicySamples": 237224,
+    "valueTableSamples": 236196,
+    "fallbackValueSamples": 3804,
+    "epochs": 14,
+    "batchSize": 1024,
+    "lr": 0.001,
+    "policyLossWeight": 1.0,
+    "valueLossWeight": 0.8,
+    "whiteSampleWeight": 1.0,
+    "blackSampleWeight": 1.0,
+    "seed": 20260523,
+    "device": "cpu",
+    "initOnnx": {
+      "path": "C:\\Users\\quarr\\Desktop\\othello_v2\\othello-ai\\data\\models\\policy-value.onnx.champion.onnx",
+      "loaded": true,
+      "loadedTensors": 16,
+      "skippedTensors": 0,
+      "error": ""
+    }
+  },
+  "metrics": {
+    "train": {
+      "loss": 0.5950572490692139,
+      "policyLoss": 0.5822790861129761,
+      "valueLoss": 0.015972677618265152,
+      "policyAcc": 0.7985441088676453,
+      "valueMae": 0.091111920773983
+    },
+    "val": {
+      "loss": 1.0628639459609985,
+      "policyLoss": 1.0496777296066284,
+      "valueLoss": 0.01648283749818802,
+      "policyAcc": 0.6704999804496765,
+      "valueMae": 0.09184389561414719
+    }
+  }
+}

@@ -3239,10 +3239,9 @@ function useSelectedCard() {
         addLog(`🐛 デバッグ: コスト無視 & 回数制限無視`);
     }
 
-    // Store card def for display
-    if (cardDef) {
-        cardState.lastUsedCardByPlayer[playerKey] = { id: cardDef.id, name: cardDef.name, desc: cardDef.desc };
-    }
+    // The pipeline owns canonical last-used card IDs (including a borrowed
+    // card's owner). Display code resolves names/descriptions from the catalog;
+    // do not replace that saved state with a browser-only display descriptor.
 
     // Log
     const playerName = playerKey === 'black' ? '黒' : '白';

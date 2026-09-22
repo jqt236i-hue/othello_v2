@@ -3,6 +3,7 @@ import { prepareBattle } from './initial';
 import { cloneBattle, type BattleAction, type BattleTransition } from '../../shared/battle/types';
 import { type BattleConfig, type ResolvedBattleConfig } from '../../shared/battle/config';
 import { createBattleSave, validateBattleSave, type BattleSave, type BattlePhase } from '../../shared/battle/save';
+import { validateBattleAction } from '../../shared/battle/data-contract';
 
 /** One headless session. A host owns scheduling, CPU policy and presentation. */
 export class BattleSession {
@@ -38,7 +39,7 @@ export class BattleSession {
         if (this.isDisposed) throw new Error('Battle has been disposed');
         if (this.phase !== 'action') throw new Error('Battle is not accepting an action');
         const before = this.snapshot();
-        const transition = this.match.apply(action);
+        const transition = this.match.apply(validateBattleAction(action));
         if (transition.ok) {
             this.phase = this.match.terminal ? 'terminal'
                 : before.gameState.turnNumber !== transition.after.gameState.turnNumber || before.gameState.currentPlayer !== transition.after.gameState.currentPlayer

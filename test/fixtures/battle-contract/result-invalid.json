@@ -1,0 +1,7 @@
+{
+  "black": 19,
+  "white": 45,
+  "winner": "black",
+  "endedBy": "consecutive_passes",
+  "turnNumber": 66
+}
