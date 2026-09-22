@@ -2,14 +2,14 @@
   {
     "source": "../images/special-stones/board_executor-black.png",
     "outputs": [
-      "三面図/board_executor.png"
+      "観測執行理論/三面図/board_executor.png"
     ],
     "status": "generated"
   },
   {
     "source": "../images/special-stones/board_executor-white.png",
     "outputs": [
-      "三面図/board_executor.png"
+      "観測執行理論/三面図/board_executor.png"
     ],
     "status": "generated"
   },
@@ -177,14 +177,14 @@
   {
     "source": "../images/special-stones/OBSERVER_WILL-black.png",
     "outputs": [
-      "三面図/OBSERVER_WILL.png"
+      "観測執行理論/三面図/OBSERVER_WILL.png"
     ],
     "status": "generated"
   },
   {
     "source": "../images/special-stones/OBSERVER_WILL-white.png",
     "outputs": [
-      "三面図/OBSERVER_WILL.png"
+      "観測執行理論/三面図/OBSERVER_WILL.png"
     ],
     "status": "generated"
   },
@@ -338,14 +338,14 @@
   {
     "source": "../images/special-stones/theory_incarnation-black.png",
     "outputs": [
-      "三面図/theory_incarnation.png"
+      "観測執行理論/三面図/theory_incarnation.png"
     ],
     "status": "generated"
   },
   {
     "source": "../images/special-stones/theory_incarnation-white.png",
     "outputs": [
-      "三面図/theory_incarnation.png"
+      "観測執行理論/三面図/theory_incarnation.png"
     ],
     "status": "generated"
   },

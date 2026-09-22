@@ -1,6 +1,6 @@
 [
   {
-    "file": "board_executor.png",
+    "file": "../観測執行理論/デフォルト立ち絵/board_executor.png",
     "width": 1254,
     "height": 1254,
     "sha256": "70786A98E1139F7125C6899EA2F445E5921927007CBA45D96558CB758CC5FD7B"
@@ -84,7 +84,7 @@
     "sha256": "30096206EAFCE2D05F78A54DBC5C89090A55EEDB5E99E264F98CDC8EF72421FD"
   },
   {
-    "file": "OBSERVER_WILL.png",
+    "file": "../観測執行理論/デフォルト立ち絵/OBSERVER_WILL.png",
     "width": 1254,
     "height": 1254,
     "sha256": "4CA29E41417CFFB10C4C45ABFAEF1D4EE1FD2DEFC8D3C890702121966E6B70CE"
@@ -162,7 +162,7 @@
     "sha256": "AF34C09DCB99D89769D8570DEE0FEC42CA504036B72674BAEF37AA9E1EC90694"
   },
   {
-    "file": "theory_incarnation.png",
+    "file": "../観測執行理論/デフォルト立ち絵/theory_incarnation.png",
     "width": 1254,
     "height": 1254,
     "sha256": "3912A22146F47886A37DCD6314D19E4D1DA4F151BB749A2D06611642B3B79C64"

@@ -4,7 +4,7 @@
   "note": "先頭3件のpromptは生成条件の要約。その他は送信したプロンプト。revision_promptは最終修正指示。参照は同名の三面図。",
   "images": [
     {
-      "file": "board_executor.png",
+      "file": "../観測執行理論/デフォルト立ち絵/board_executor.png",
       "status": "saved",
       "prompt": "45-degree right-facing relaxed idle, lowered fiery sword, preserve hooded robed identity; pure white background."
     },
@@ -74,7 +74,7 @@
       "status": "saved"
     },
     {
-      "file": "OBSERVER_WILL.png",
+      "file": "../観測執行理論/デフォルト立ち絵/OBSERVER_WILL.png",
       "prompt": "Use case: identity-preserve. Edit this turnaround reference into exactly ONE isolated full-body default idle illustration. Preserve the exact subject's identity, anatomy, proportions, colors, costume, equipment, material, and rendering style. Turn subject about 45 degrees toward screen RIGHT, halfway between frontal and profile, head and torso aligned. Natural quiet balanced idle pose suitable for a 2D action game, no attack, jump, running or dramatic gesture. For non-humanoid, floating, plant or inanimate subjects retain their natural form, never add a face, arms or legs. One subject, one view only; no turnaround, no duplicates. Pure white background, no scenery, platform, ground shadow, captions, borders or game-piece framing (except when the stone itself is the subject). Entire subject and all appendages fit inside square canvas with 8% margins. Subject: 盤理の観測者, tall narrow black spectral figure with thornlike towering crown/head, one bright white circular eye, long rectangular checker-grid front panel and shredded charcoal robe. Relaxed arms at sides, upright quiet idle, preserve elongated silhouette and no visible feet. Show entire crown and robe with margins, no sword or invented equipment.",
       "status": "saved"
     },
@@ -139,7 +139,7 @@
       "status": "saved"
     },
     {
-      "file": "theory_incarnation.png",
+      "file": "../観測執行理論/デフォルト立ち絵/theory_incarnation.png",
       "prompt": "Use case: identity-preserve. Edit this turnaround reference into exactly ONE isolated full-body default idle illustration. Preserve the exact subject's identity, anatomy, proportions, colors, costume, equipment, material, and rendering style. Turn subject about 45 degrees toward screen RIGHT, halfway between frontal and profile, head and torso aligned. Natural quiet balanced idle pose suitable for a 2D action game, no attack, jump, running or dramatic gesture. For non-humanoid, floating, plant or inanimate subjects retain their natural form, never add a face, arms or legs. One subject, one view only; no turnaround, no duplicates. Pure white background, no scenery, platform, ground shadow, captions, borders or game-piece framing (except when the stone itself is the subject). Entire subject and all appendages fit inside square canvas with 8% margins. Subject: 理論の化身, tall black faceless figure with thorn crown, ornate silver-black high collar and layered robes, two black feather wings, checker-grid front with white circular stones. Upright idle, arms lowered relaxed at sides, wings half folded naturally, no dramatic open-arm gesture. Preserve all-black empty face, exact armor and wing identity. Keep crown, wings and hem fully inside frame with generous white margin.",
       "status": "saved"
     },

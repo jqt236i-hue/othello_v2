@@ -181,7 +181,7 @@
       ],
       "supportingReference": "../images/special-cards/characters/board_executor.png",
       "identityPrompt": "Tall black hooded shadow executioner, pointed cloth hood with tiny orange-red glow deep in face, ragged layered dark robe, black chessboard-like square grid on central long garment, long tattered cloak, one extended gloved hand, diagonal dark sword with burning orange magma edge. It is a ROBED figure, do not replace cloak with plate armor. Preserve robe proportions, hood and sword. Remove orbiting Othello disks, background boards, cloud and fire scenery, retaining intrinsic sword glow.",
-      "output": "三面図/board_executor.png",
+      "output": "観測執行理論/三面図/board_executor.png",
       "kind": "character"
     },
     {
@@ -193,7 +193,7 @@
       ],
       "supportingReference": "../images/special-cards/characters/theory_incarnation.png",
       "identityPrompt": "Tall frontally symmetrical faceless black winged sage. Completely featureless black void face crowned with thin spiky twig-like crown, two large black FEATHERED WINGS, high angular layered feather-like shoulder collar, long silver-gray trimmed black robe with exact chessboard-like grid and small round black/white counters down front garment, arms open with thin black clawed hands and long sleeves. Preserve WINGS and robe grid because attached to character, remove separate background boards, letters, orbiting Othello stones and cloud scenery. No invented face or armor.",
-      "output": "三面図/theory_incarnation.png",
+      "output": "観測執行理論/三面図/theory_incarnation.png",
       "kind": "character"
     },
     {
@@ -205,7 +205,7 @@
       ],
       "supportingReference": "../images/special-cards/characters/observer_will.png",
       "identityPrompt": "Tall dark robed observer with thin angular spire/crown head, ONE small pale gold-white light on forehead, featureless black face, rough ragged layered black cloak, square chessboard-like grid integrated in long front garment with small subdued light squares, one outstretched gloved hand, other arm descending. Preserve tall narrow form, garment grid, forehead light, dark texture; remove all orbiting Othello stones, background boards and scenery. No new facial features.",
-      "output": "三面図/OBSERVER_WILL.png",
+      "output": "観測執行理論/三面図/OBSERVER_WILL.png",
       "kind": "character"
     },
     {
