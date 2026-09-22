@@ -2,6 +2,8 @@
 
 現行の公開API・保存・配布物の利用手順。ゲームのルールは [01-rulebook.md](../01-rulebook.md)、責務の正本は [architecture-contracts.md](architecture-contracts.md)。物語・報酬・Steam機能はホストが所有する。カード効果やCPUの思考方法を変更するAPIではない。
 
+素材の制作元・配布元と確認済みの利用条件は [素材の出典・利用条件メモ](asset-provenance.md) を参照。
+
 ## 公開入口
 
 `npm run build:battle-package` で `output/battle-package` を生成し、`npm pack ./output/battle-package --pack-destination ./output` で非公開のローカル配布物を作る。`@card-reversi/battle` はCommonJSのcoreと型、`@card-reversi/battle/host` はブラウザ用ES moduleと型を公開する。内部の深いパスをconsumerから参照しない。ブラウザ用ONNXのJS・WASM・JSEPとモデルも成果物へ含める。既存のONNX先行読込経路を確認する場合はゲームURLに `eagerCpuPolicy=1` を指定する。通常の読込方針自体は変更していない。
