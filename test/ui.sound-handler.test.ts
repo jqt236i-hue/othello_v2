@@ -342,7 +342,7 @@ describe('sound handler', () => {
     dom.window.close();
   });
 
-  test('real sound engine reads unlocked placement sounds from the browser global storage export', () => {
+  test('real sound engine keeps retired gacha sounds out of the hand-only catalog even when owned', () => {
     jest.resetModules();
     const dom = new JSDOM(`<!DOCTYPE html><body>
       <button id="muteBtn">🔊 ON</button>
@@ -373,6 +373,7 @@ describe('sound handler', () => {
       ObservationGachaCatalogSharedModule: catalogSharedModule
     });
     gachaProgressStorage.unlockPlacementSoundIds(dom.window, ['gacha__n__placement_sound__type-1-standard']);
+    dom.window.localStorage.setItem('othello.placementSound', 'gacha__n__placement_sound__type-1-standard');
 
     SoundHandlerModule.setupSoundControls(
       document.getElementById('muteBtn'),
@@ -380,9 +381,10 @@ describe('sound handler', () => {
       document.getElementById('seVolSlider')
     );
 
-    expect(Array.from(document.getElementById('seTypeSelect').options).map((option) => option.value)).toContain(
-      'gacha__n__placement_sound__type-1-standard'
-    );
+    expect(Array.from(document.getElementById('seTypeSelect').options).map((option) => option.value)).toEqual(['default']);
+    expect(document.getElementById('seTypeSelect').value).toBe('default');
+    expect(dom.window.localStorage.getItem('othello.placementSound')).toBe('default');
+    expect(gachaProgressStorage.listOwnedPlacementSoundIds(dom.window)).toContain('gacha__n__placement_sound__type-1-standard');
 
     dom.window.close();
   });

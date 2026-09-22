@@ -90,10 +90,11 @@ describe('left action rail layout contract', () => {
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leftRailVisibilityBtn"[\s\S]*>非表示</);
     expect(html).toMatch(/class="left-action-icon left-action-icon-gacha"/);
     expect(html).not.toContain('ratedMatchOpenBtn');
-    expect(html).toMatch(/class="left-action-icon left-action-icon-reversi-destiny"/);
+    expect(html).toMatch(/id="parallelWorldsOpenBtn"[^>]*popovertarget="parallelWorldsPopover"/);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-parallel-worlds"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-deck"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
-    expect(html).toMatch(/id="reversiDestinyOpenLink"[\s\S]*href="https:\/\/reversi-destiny\.pages\.dev\/"[\s\S]*target="_blank"[\s\S]*rel="noopener noreferrer external"[\s\S]*referrerpolicy="no-referrer"[\s\S]*aria-label="2Dアクションを別タブで開く"/);
+    expect(html).toMatch(/id="reversiDestinyOpenLink"[\s\S]*href="https:\/\/reversi-destiny\.pages\.dev\/"[\s\S]*target="_blank"[\s\S]*rel="noopener noreferrer external"[\s\S]*referrerpolicy="no-referrer"[\s\S]*aria-describedby="parallelWorldsLinkNotice"/);
     expect(html.match(/https:\/\/reversi-destiny\.pages\.dev\//g)).toHaveLength(1);
   });
 

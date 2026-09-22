@@ -34,9 +34,9 @@ function createFixture() {
         <div id="leftActionButtons">
           <button id="modeCpuBtn"><span class="left-action-icon left-action-icon-cpu"></span>CPU</button>
           <button id="modeNetworkBtn"><span class="left-action-icon left-action-icon-network"></span>ネット対戦</button>
-          <a id="reversiDestinyOpenLink" href="https://example.com/" target="_blank" rel="noopener noreferrer">
-            <span class="left-action-icon left-action-icon-reversi-destiny"></span>2Dアクション
-          </a>
+          <button id="parallelWorldsOpenBtn" popovertarget="parallelWorldsPopover">
+            <span class="left-action-icon left-action-icon-parallel-worlds"></span>並行世界を観測
+          </button>
           <button id="deckBuilderOpenBtn"><span class="left-action-icon left-action-icon-deck"></span>デッキ</button>
           <button id="gachaOpenBtn"><span class="left-action-icon left-action-icon-gacha"></span>ガチャ</button>
           <button id="handSkinBtn"><span class="left-action-icon left-action-icon-skin"></span>スキン</button>

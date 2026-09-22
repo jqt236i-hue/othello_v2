@@ -40,7 +40,9 @@ describe('Reversi Destiny on-demand launcher contract', () => {
     expect(link).toContain('target="_blank"');
     expect(link).toContain('rel="noopener noreferrer external"');
     expect(link).toContain('referrerpolicy="no-referrer"');
-    expect(link).toContain('aria-label="2Dアクションを別タブで開く"');
+    expect(link).toContain('aria-describedby="parallelWorldsLinkNotice"');
+    expect(link).toContain('Reversi Destiny');
+    expect(html).toMatch(/id="parallelWorldsLinkNotice"[^>]*>選んだゲームは別タブで開き、カードリバーシの対局はこのタブで続きます。/u);
     expect(link).toContain('title="別タブで開く（カードリバーシは継続します）"');
     expect(link).not.toMatch(/\son\w+=/u);
     expect(html.match(new RegExp(productionUrl.replace(/[./]/gu, '\\$&'), 'gu'))).toHaveLength(1);

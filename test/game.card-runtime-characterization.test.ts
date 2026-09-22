@@ -159,9 +159,11 @@ describe('card runtime Gate B characterization', () => {
       edges: graph.edges.length,
       lookups: graph.lookups.length,
       unresolved: graph.unresolvedEdges.length
-    }).toEqual({ roots: 20, nodes: 197, edges: 864, lookups: 586, unresolved: 32 });
+    }).toEqual({ roots: 20, nodes: 197, edges: 866, lookups: 586, unresolved: 32 });
+    // Reviewed against 976fc9cf9: CPU advisor imports, static catalog composition,
+    // and the WebSocket controller replace the retired rated-match dependencies.
     expect(crypto.createHash('sha256').update(JSON.stringify(graph)).digest('hex')).toBe(
-      'aa9cad2abcc89768f63693bb4be7deace9fd6aead9a707d4319a73e84c2eae3e'
+      '3aae95fac13043dd8a873ae57d29d1a1601a73fd813a4896834a486a0e37d8a4'
     );
     expect(verifyCardRuntimeGraphNegativeFixtures()).toEqual([
       'aliasRequire', 'aliasedComputedGlobal', 'bareGlobalReference', 'castComputedGlobal',

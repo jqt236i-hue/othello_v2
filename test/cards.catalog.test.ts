@@ -103,7 +103,10 @@ describe('cards catalog consistency', () => {
     }
   });
 
-  test('shared constants fails fast when no card catalog source can be loaded', () => {
+  test.each([
+    { label: 'required generated module fails to load', moduleThrows: true, expectedError: /generated catalog unavailable/ },
+    { label: 'no source contains catalog cards', moduleThrows: false, expectedError: /Card catalog could not be loaded/ }
+  ])('shared constants fails fast when $label', ({ moduleThrows, expectedError }) => {
     jest.resetModules();
 
     const originalCwd = process.cwd();
@@ -114,11 +117,12 @@ describe('cards catalog consistency', () => {
       process.chdir(tempCwd);
       delete global.window;
       jest.doMock(catalogModulePath, () => {
-        throw new Error('generated catalog unavailable');
+        if (moduleThrows) throw new Error('generated catalog unavailable');
+        return { cards: [] };
       });
 
       expect(() => require(path.resolve(__dirname, '..', 'shared-constants.ts'))).toThrow(
-        /Card catalog could not be loaded/
+        expectedError
       );
     } finally {
       jest.dontMock(catalogModulePath);

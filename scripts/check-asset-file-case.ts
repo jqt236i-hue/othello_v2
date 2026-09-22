@@ -46,7 +46,7 @@ function isCheckedAssetPath(relativePath: string, assetRoots: string[]): boolean
 }
 
 function listTrackedAssetPaths(rootDir: string, assetRoots: string[]): string[] {
-  const args = ['-C', rootDir, 'ls-files', '--', ...assetRoots];
+  const args = ['-C', rootDir, 'ls-files', '-z', '--', ...assetRoots];
   const result = spawnSync('git', args, { encoding: 'utf8' });
   if (result.error) {
     throw result.error;
@@ -56,8 +56,8 @@ function listTrackedAssetPaths(rootDir: string, assetRoots: string[]): string[] 
     throw new Error(details || 'git ls-files failed');
   }
   return result.stdout
-    .split(/\r?\n/)
-    .map((line) => normalizeRelativePath(line.trim()))
+    .split('\0')
+    .map(normalizeRelativePath)
     .filter(Boolean);
 }
 

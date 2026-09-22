@@ -551,7 +551,7 @@ Observation-gacha cosmetics span generated catalog files, local inventory, local
 
 - `scripts/generate-observation-gacha-catalog.ts` is the canonical generator for both `shared/observation-gacha-catalog.generated.js` and the hand-only compatibility output `shared/gacha-hand-catalog.generated.js`; the adjacent `.js` file is the CLI wrapper.
 - `scripts/generate-gacha-hand-catalog.ts` is only a compatibility wrapper over that canonical generator; the adjacent `.js` file is the CLI shim.
-- `shared/observation-gacha-catalog-shared.ts` and `shared/observation-gacha-catalog.generated.js` are the canonical generic observation cosmetic catalog contract, including `hand_skin`, `placement_sound`, and `background_skin`; the adjacent `.js` source sibling is a compatibility wrapper.
+- `shared/observation-gacha-catalog-shared.ts` and `shared/observation-gacha-catalog.generated.js` own the observation catalog. Current rewards are `hand_skin` only, as specified in `01-rulebook.md`; retired `placement_sound` and `background_skin` entries must not re-enter through older manifests or generated catalogs. The adjacent `.js` source sibling is a compatibility wrapper.
 - `shared/gacha-hand-catalog-shared.ts` and `shared/gacha-hand-catalog.generated.js` are hand-skin-only compatibility adapters for callers that still intentionally consume `hand_skin` items only; the adjacent `.js` source sibling is a compatibility wrapper.
 - `ui/gacha/catalog-access.ts` is the canonical UI-side access boundary for manifest-vs-generated observation catalog resolution.
 - `ui/placement-sound-selection.ts` is the canonical local resolver for owned placement sounds, selected placement sound id, and selected placement sound file path.

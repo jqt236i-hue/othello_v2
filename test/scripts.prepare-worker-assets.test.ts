@@ -82,11 +82,12 @@ describe('prepare-worker-assets', () => {
         expect(OPTIONAL_FILES).toEqual(expect.arrayContaining([
             'node_modules/onnxruntime-web/dist/ort.min.js',
             'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
-            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm'
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs',
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
         ]));
         expect(OPTIONAL_FILES).not.toEqual(expect.arrayContaining([
             'node_modules/onnxruntime-web/dist/ort.webgpu.min.js',
-            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm',
             'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm'
         ]));
     });

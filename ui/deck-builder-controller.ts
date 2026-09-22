@@ -1357,8 +1357,12 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         }
 
         function close() {
+            const wasOpen = state.overlayOpen;
             state.overlayOpen = false;
             render();
+            if (wasOpen && refs.openBtn && typeof refs.openBtn.focus === 'function') {
+                try { refs.openBtn.focus({ preventScroll: true }); } catch (_error) { /* detached/legacy host */ }
+            }
         }
 
         function useStandardDeck() {

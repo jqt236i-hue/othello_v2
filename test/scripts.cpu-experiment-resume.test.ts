@@ -9,7 +9,7 @@ test('the declared coordinator survives checkout edits and preserves process his
     const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'cpu-coordinator-resume-'));
     const root = path.join(parent, 'checkout');
     freezeProductionRuntime(process.cwd(), root);
-    for (const name of ['run-cpu-experiment.js', 'cpu-experiment-protocol.js', 'freeze-production-runtime.js', 'production-parity-gate.js', 'verify-production-replay.js']) {
+    for (const name of ['run-cpu-experiment.js', 'cpu-experiment-protocol.js', 'cpu-development-set.js', 'freeze-production-runtime.js', 'production-parity-gate.js', 'verify-production-replay.js']) {
         fs.copyFileSync(path.join(process.cwd(), 'dist/scripts', name), path.join(root, 'dist/scripts', name));
     }
     for (const level of ['cpu-lv10', 'cpu-lv11']) {
@@ -22,6 +22,7 @@ test('the declared coordinator survives checkout edits and preserves process his
         paired: 0, blackOnly: 1, whiteOnly: 0, concurrency: 1, candidate: policy, opponent: policy };
     const specFile = path.join(parent, 'spec.json'); fs.writeFileSync(specFile, JSON.stringify(spec));
     const declared = spawnSync(process.execPath, [sourceEntry, 'declare', specFile], { cwd: root, encoding: 'utf8', windowsHide: true });
+    if (declared.status !== 0) throw new Error(`Coordinator declaration failed: ${declared.stderr || declared.stdout}`);
     expect(declared.status).toBe(0);
     const manifest = JSON.parse(fs.readFileSync(path.join(out, 'manifest.json'), 'utf8'));
     expect(manifest.coordinator.entry).not.toBe(sourceEntry);

@@ -19,13 +19,11 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
     initialDeckSizeByPlayer: { black: 4, white: 5 },
     expectedWorker: {
       mode: 'shared',
-      deckCode: 'SHARED-CODE',
       deckSize: 7,
       source: 'room'
     },
     expectedLocal: {
       mode: 'shared',
-      deckCode: 'SHARED-CODE',
       deckSize: 7,
       source: 'room'
     }
@@ -41,17 +39,13 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
     initialDeckSizeByPlayer: { black: 9, white: 8 },
     expectedWorker: {
       mode: 'perPlayer',
-      deckCode: '',
       deckSize: null,
-      deckCodeByPlayer: { black: 'BLACK-CODE', white: '' },
       deckSizeByPlayer: { black: 0, white: 8 },
       source: 'room'
     },
     expectedLocal: {
       mode: 'perPlayer',
-      deckCode: '',
       deckSize: null,
-      deckCodeByPlayer: { black: 'BLACK-CODE', white: '' },
       deckSizeByPlayer: { black: 0, white: 8 },
       source: 'room'
     }
@@ -62,7 +56,6 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
     expectedWorker: null,
     expectedLocal: {
       mode: 'shared',
-      deckCode: '',
       deckSize: null,
       source: 'room'
     }
@@ -77,13 +70,11 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
     },
     expectedWorker: {
       mode: 'shared',
-      deckCode: 'LEGACY-CODE',
       deckSize: 5,
       source: 'legacy'
     },
     expectedLocal: {
       mode: 'legacyCustom',
-      deckCode: 'LEGACY-CODE',
       deckSize: 5,
       source: ' legacy '
     }
@@ -98,13 +89,11 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
     },
     expectedWorker: {
       mode: 'shared',
-      deckCode: 'PADDED-CODE',
       deckSize: 6,
       source: 'room'
     },
     expectedLocal: {
       mode: ' shared ',
-      deckCode: 'PADDED-CODE',
       deckSize: 6,
       source: 'room'
     }
@@ -118,6 +107,8 @@ export const MATCH_ROOM_DECK_RAW_PROJECTION_FIXTURES: MatchRoomDeckRawProjection
 ];
 
 export const MATCH_ROOM_DECK_PRIVATE_FIELDS = [
+  'deckCode',
+  'deckCodeByPlayer',
   'initialDeckSpec',
   'initialDeckSpecByPlayer',
   'initialDeckCardIdsByPlayer'

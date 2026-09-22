@@ -414,13 +414,11 @@ function expectRuntimeCharacterization(result: any, runtime: 'worker' | 'local')
   });
   expect(result.zero.createRoomDeck).toMatchObject({
     mode: 'perPlayer',
-    deckCodeByPlayer: { black: zeroDeckCode, white: '' },
     deckSizeByPlayer: { black: 0, white: 30 }
   });
   expect(result.zero.joinRoomDeck).toEqual(result.zero.stateRoomDeck);
   expect(result.zero.stateRoomDeck).toMatchObject({
     mode: 'perPlayer',
-    deckCodeByPlayer: { black: zeroDeckCode, white: '' },
     deckSizeByPlayer: { black: 0, white: 30 }
   });
   expectNoPrivateDeckFields(result.zero.publicPayloads);

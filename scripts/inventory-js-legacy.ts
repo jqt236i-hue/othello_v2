@@ -72,7 +72,7 @@ function loadAllowlist(): AllowlistFile {
   return { version: 1, updatedAt: 'n/a', entries: {} };
 }
 
-function walk(dir: string, root = dir): string[] {
+function walk(dir: string, root = process.cwd()): string[] {
   const results: string[] = [];
   const list = fs.readdirSync(dir);
   for (const file of list) {
@@ -82,10 +82,10 @@ function walk(dir: string, root = dir): string[] {
       // CPU comparison archives retain the exact old JS and diagnostic models
       // needed to replay each recorded policy. Production sources live outside
       // these evidence roots; never migrate or rewrite a frozen opponent here.
-      const relativeDir = path.relative('.', filePath).replace(/\\/g, '/');
+      const relativeDir = path.relative(root, filePath).replace(/\\/g, '/');
       // Generated distribution, rebuilt from canonical TS by build-battle-package.
       if (relativeDir === 'output/battle-package') continue;
-      if (['data/cpu-lv10/baseline-v1', 'data/cpu-lv11', 'data/cpu-lv12'].includes(relativeDir)) continue;
+      if (['data/cpu-lv10/baseline-v1', 'data/cpu-lv11', 'data/cpu-lv12', 'data/cpu-lv13', 'data/runs'].includes(relativeDir)) continue;
       const relDir = path.relative(root, filePath).replace(/\\/g, '/');
       const firstSegment = relDir.split('/')[0];
       if (SKIP_DIRS.has(file) || SKIP_DIRS.has(firstSegment)) continue;
@@ -191,6 +191,10 @@ function classify(relPath: string, content: string): JsCategory {
   }
 
   return 'unknown';
+}
+
+function collectSourceJsFiles(rootDir: string): string[] {
+  return walk(path.resolve(rootDir), path.resolve(rootDir));
 }
 
 function isSubstantialRuntimeImplementation(content: string): boolean {
@@ -365,6 +369,7 @@ if (require.main === module) {
 }
 
 export = {
+  collectSourceJsFiles,
   classify,
   findHiddenRuntimeAuthorities,
   isSubstantialRuntimeImplementation,

@@ -23,7 +23,7 @@
     ]
   },
   "../../node_modules/pixi.js/lib/index.mjs": {
-    "file": "assets/lib-C6wNKBqx.js",
+    "file": "assets/lib-CdqLQ3Z-.js",
     "name": "lib",
     "src": "../../node_modules/pixi.js/lib/index.mjs",
     "isDynamicEntry": true,
@@ -77,7 +77,7 @@
     ]
   },
   "../../node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
-    "file": "assets/WebGLRenderer-BR3rkl_X.js",
+    "file": "assets/WebGLRenderer-u4y-XyBt.js",
     "name": "WebGLRenderer",
     "src": "../../node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
     "isDynamicEntry": true,
@@ -86,7 +86,7 @@
     ]
   },
   "../../node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
-    "file": "assets/WebGPURenderer-DlC4Q43s.js",
+    "file": "assets/WebGPURenderer-DqpAinc2.js",
     "name": "WebGPURenderer",
     "src": "../../node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
     "isDynamicEntry": true,
@@ -256,8 +256,8 @@
     "file": "assets/ViewableBuffer-CObpe3su.js",
     "name": "ViewableBuffer"
   },
-  "_bridge-yZf4GXz7.js": {
-    "file": "assets/bridge-yZf4GXz7.js",
+  "_bridge-DBxa9onE.js": {
+    "file": "assets/bridge-DBxa9onE.js",
     "name": "bridge"
   },
   "_canvasUtils-C8xQnZmC.js": {
@@ -305,12 +305,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-BW7aRh8P.js",
+    "file": "assets/cpu-worker-diagnostics-TdTD7TsU.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-yZf4GXz7.js"
+      "_bridge-DBxa9onE.js"
     ]
   },
   "browser-vite/generated-assets/optional-commentary.mjs": {
@@ -355,14 +355,14 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-BPPg0U45.js",
+    "file": "assets/index.vite-CsLxiTgs.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_bridge-yZf4GXz7.js"
+      "_bridge-DBxa9onE.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",

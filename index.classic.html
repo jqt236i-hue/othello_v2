@@ -34,10 +34,10 @@
     </script>
     <!-- CSS Split Modules -->
     <link rel="stylesheet" href="styles-variables.css?v=27450893054797">
-    <link rel="stylesheet" href="styles-base.css?v=209378510089087">
+    <link rel="stylesheet" href="styles-base.css?v=127745351103301">
     <link rel="stylesheet" href="styles-layout.css?v=118201487454956">
     <link rel="stylesheet" href="styles-charge-hud.css?v=33539802130051">
-    <link rel="stylesheet" href="styles-layout-controls.css?v=69149723141943">
+    <link rel="stylesheet" href="styles-layout-controls.css?v=39721011214991">
     <meta data-card-reversi-feature-style-slot="network-layout-controls"
         data-card-reversi-feature-style-href="styles-feature-network-layout-controls.css?v=207648095638469"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
@@ -134,7 +134,7 @@
                 <button class="parallel-worlds-close-btn" type="button" popovertarget="parallelWorldsPopover" popovertargetaction="hide" aria-label="閉じる">×</button>
             </header>
             <nav class="parallel-worlds-candidates" aria-label="並行世界のゲーム">
-                <a class="parallel-world-card parallel-world-card--observation" href="https://observation-front.reversi-0.workers.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer">
+                <a class="parallel-world-card parallel-world-card--observation" href="https://observation-front.reversi-0.workers.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-describedby="parallelWorldsLinkNotice" title="別タブで開く（カードリバーシは継続します）">
                     <span class="parallel-world-card-index" aria-hidden="true">01</span>
                     <span class="parallel-world-card-emblem" aria-hidden="true">
                         <svg viewBox="0 0 48 48" focusable="false"><circle cx="24" cy="24" r="8"></circle><circle cx="24" cy="24" r="2" fill="currentColor"></circle><path d="M24 4v8m0 24v8M4 24h8m24 0h8M10 10l6 6m16 16 6 6m0-28-6 6M16 32l-6 6"></path></svg>
@@ -146,7 +146,7 @@
                     </span>
                     <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
                 </a>
-                <a id="reversiDestinyOpenLink" class="parallel-world-card parallel-world-card--destiny" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer">
+                <a id="reversiDestinyOpenLink" class="parallel-world-card parallel-world-card--destiny" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-describedby="parallelWorldsLinkNotice" title="別タブで開く（カードリバーシは継続します）">
                     <span class="parallel-world-card-index" aria-hidden="true">02</span>
                     <span class="parallel-world-card-emblem" aria-hidden="true">
                         <svg viewBox="0 0 48 48" focusable="false"><path d="M9 39 33 15m-5-8 8-3 7 7-3 8M6 42l9-2m-5-5 7 7"></path><path d="m17 8 2.2 6.8L26 17l-6.8 2.2L17 26l-2.2-6.8L8 17l6.8-2.2z"></path></svg>
@@ -158,7 +158,7 @@
                     </span>
                     <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
                 </a>
-                <a class="parallel-world-card parallel-world-card--kyomei" href="https://ishi-no-kyomei.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer">
+                <a class="parallel-world-card parallel-world-card--kyomei" href="https://ishi-no-kyomei.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-describedby="parallelWorldsLinkNotice" title="別タブで開く（カードリバーシは継続します）">
                     <span class="parallel-world-card-index" aria-hidden="true">03</span>
                     <span class="parallel-world-card-emblem" aria-hidden="true">
                         <svg viewBox="0 0 48 48" focusable="false"><circle cx="24" cy="27" r="8"></circle><circle cx="15" cy="34" r="6"></circle><circle cx="33" cy="34" r="6"></circle><path d="M16 11h16m-12-5h8m-4-3v8"></path></svg>
@@ -171,7 +171,7 @@
                     <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
                 </a>
             </nav>
-            <p class="parallel-worlds-footnote">選んだゲームは別タブで開き、カードリバーシの対局はこのタブで続きます。</p>
+            <p id="parallelWorldsLinkNotice" class="parallel-worlds-footnote">選んだゲームは別タブで開き、カードリバーシの対局はこのタブで続きます。</p>
         </section>
         <button id="leaderboardOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">
             <span class="left-action-icon left-action-icon-ranking" aria-hidden="true"></span>
@@ -560,7 +560,7 @@
     <script src="public/vendor/pixi-8.18.1.min.js"></script>
     <script src="public/vendor/pixi-unsafe-eval-8.18.1.min.js"></script>
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=267140617837508"></script>
+    <script src="public/module-registry.js?v=178799124784243"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=125238422855285"></script>
 </body>

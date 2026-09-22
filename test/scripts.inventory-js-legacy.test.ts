@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 const inventory = require('../scripts/inventory-js-legacy');
 
@@ -25,6 +26,20 @@ function collectFiles(root: string, relativeDir: string, extension: string): Arr
 }
 
 describe('JS inventory runtime-authority guard', () => {
+  test('retains source checks while leaving frozen CPU runs and built packages untouched', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'source-inventory-'));
+    const files = ['game/current.js', 'game/data/runs/current.js', 'data/cpu-lv13/frozen/driver.js',
+      'data/runs/experiment/previous-bundle.js', 'output/battle-package/host.js'];
+    try {
+      for (const file of files) {
+        fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+        fs.writeFileSync(path.join(root, file), 'const preserved = true;');
+      }
+      const found = inventory.collectSourceJsFiles(root).map((file: string) => path.relative(root, file).replace(/\\/g, '/')).sort();
+      expect(found).toEqual(['game/current.js', 'game/data/runs/current.js']);
+      for (const file of files) expect(fs.readFileSync(path.join(root, file), 'utf8')).toBe('const preserved = true;');
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
   test('classifies the verified pinned Pixi classic artifact as generated output', () => {
     const banner = '/*!\n * PixiJS - v8.18.1\n * Compiled build\n */';
 

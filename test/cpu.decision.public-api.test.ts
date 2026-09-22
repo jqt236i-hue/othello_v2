@@ -6,6 +6,7 @@ describe('cpu-decision public api', () => {
   test('keeps exported compatibility surface stable', () => {
     expect(Object.keys(cpuDecision).sort()).toEqual([
       'applyCardChoice',
+      'applyCpuAdvisedSelection',
       'applyHandCardDestroy',
       'buildCardQuiescenceSnapshotFromBestMove',
       'buildCardUseDecisionContext',

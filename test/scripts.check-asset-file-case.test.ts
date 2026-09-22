@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { execFileSync } from 'child_process';
 
 import { checkAssetFileCase } from '../scripts/check-asset-file-case';
 
@@ -15,6 +16,19 @@ function writeFile(rootDir: string, relativePath: string, content = 'x'): void {
 }
 
 describe('checkAssetFileCase', () => {
+  test('checks real Git filenames with Japanese characters and spaces, including missing files', () => {
+    const rootDir = createTempRepo();
+    try {
+      execFileSync('git', ['init', '--quiet', rootDir]);
+      const relative = 'assets/観測者 資料/盤面画像.png';
+      writeFile(rootDir, relative);
+      execFileSync('git', ['-C', rootDir, 'add', '--', relative]);
+      expect(checkAssetFileCase({ rootDir })).toMatchObject({ ok: true, checkedFiles: 1 });
+      fs.unlinkSync(path.join(rootDir, relative));
+      expect(checkAssetFileCase({ rootDir })).toMatchObject({ ok: false, checkedFiles: 1,
+        issues: [expect.objectContaining({ type: 'missing', expectedPath: relative })] });
+    } finally { fs.rmSync(rootDir, { recursive: true, force: true }); }
+  });
   test('detects tracked asset files whose filesystem case differs from the deployed path', () => {
     const rootDir = createTempRepo();
     try {

@@ -1,1 +1,0 @@
-import{n as e}from"./bridge-yZf4GXz7.js";function t(t=window){return e(t)}export{t as getCpuWorkerBridgeDiagnostics};

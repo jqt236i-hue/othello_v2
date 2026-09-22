@@ -118,8 +118,12 @@ describe('CardLogic facade identity contract', () => {
     const inventoryHash = crypto.createHash('sha256')
       .update(JSON.stringify(owners))
       .digest('hex');
-    // The same 86 owners remain; extracting publish assembly shifts Worker evidence lines.
-    expect(inventoryHash).toBe('170fce67d247e8e591bec3433b2cc9c68322afebd87d060a6d4289599f1f6bac');
+    // CPU advice adds one in-flight owner; its finally block releases the lease.
+    // The other 86 owners retain their reset policies (source evidence lines moved).
+    expect(owners).toHaveLength(87);
+    expect(owners.find((owner) => owner.id === 'game/cpu-turn-handler.ts#advisedTurnInFlight'))
+      .toMatchObject({ resetOwner: 'game/cpu-turn-handler.ts module/isolate/page reconstruction' });
+    expect(inventoryHash).toBe('d5ff6e61529094a1099241a520894949fb8d4964dd4a06224ec6e08d868b1f1f');
   });
 
   test('pins classic registration/global installation cardinality and ordering', () => {

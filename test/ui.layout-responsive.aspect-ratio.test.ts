@@ -313,13 +313,13 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/\.gacha-result-rarity[\s\S]*font-size:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/#gachaOverlay\.is-revealing\s+#gachaModal/);
     expect(layoutCss).toMatch(/#gachaRevealStage[\s\S]*position:\s*absolute/);
-    expect(layoutCss).toMatch(/\.gacha-reveal-impact-flash/);
-    expect(layoutCss).toMatch(/#gachaRevealStage\.is-impact-visible\[data-reveal-effect="subtle"\]/);
-    expect(layoutCss).toMatch(/#gachaRevealStage\.is-impact-visible\[data-reveal-effect="singularity"\]/);
-    expect(layoutCss).toMatch(/\.gacha-reveal-hero-rarity::before/);
-    expect(layoutCss).toMatch(/\.gacha-reveal-hero-rarity[\s\S]*font-size:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(layoutCss).toMatch(/\.gacha-reveal-slot-rarity[\s\S]*border-radius:\s*calc\(999px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(layoutCss).toMatch(/\.gacha-reveal-slot-rarity[\s\S]*font-size:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    // The observation theatre is demand-loaded from the feature stylesheet.
+    expect(gachaFeatureCss).toMatch(/\.is-impact-visible \.gacha-reveal-impact-flash\s*\{[^}]*animation:\s*observatory-light/);
+    expect(gachaFeatureCss).toMatch(/#gachaRevealStage\[data-reveal-effect="subtle"\] \.gacha-reveal-impact/);
+    expect(gachaFeatureCss).toMatch(/#gachaRevealStage\[data-reveal-effect="singularity"\] \.gacha-reveal-impact-flash/);
+    expect(gachaFeatureCss).toMatch(/\.gacha-reveal-hero-rarity::after/);
+    expect(gachaFeatureCss).toMatch(/\.gacha-reveal-hero-rarity\s*\{[^}]*clamp\(62px,\s*8\.5vw,\s*128px\)/);
+    expect(gachaFeatureCss).toMatch(/\.gacha-reveal-slot-rarity\s*\{[^}]*font:\s*italic bold 18px Georgia, serif/);
     expect(networkFeatureCss).toMatch(/#networkChatPanel[\s\S]*--layout-anchor-chat-left/);
     expect(layoutCss).toMatch(/#hero-character-img[\s\S]*--layout-anchor-character-offset-y/);
     expect(layoutCss).toMatch(/#cpu-character-img[\s\S]*--layout-cpu-image-scale/);

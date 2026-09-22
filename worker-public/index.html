@@ -67,10 +67,10 @@
         data-card-reversi-feature-style-after="styles-stone-shadows.css">
     <base href="../">
     <meta name="card-reversi-classic-style" content="styles-variables.css?v=27450893054797">
-    <meta name="card-reversi-classic-style" content="styles-base.css?v=209378510089087">
+    <meta name="card-reversi-classic-style" content="styles-base.css?v=127745351103301">
     <meta name="card-reversi-classic-style" content="styles-layout.css?v=118201487454956">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=33539802130051">
-    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=252877528302275">
+    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=39721011214991">
     <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=191877541796811">
     <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=13825693058453">
     <meta name="card-reversi-classic-style" content="styles-board.css?v=209965508062681">
@@ -79,7 +79,7 @@
     <meta name="card-reversi-classic-style" content="styles-responsive.css?v=176910485244926">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=50154902815750">
     <meta name="card-reversi-classic-style" content="styles-mobile-command-surface.css?v=161330156685431">
-    <meta name="card-reversi-startup-version" content="267140617837508">
+    <meta name="card-reversi-startup-version" content="178799124784243">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -98,10 +98,10 @@
         })();
     </script>
     <meta name="card-reversi-browser-lane" content="vite">
-  <script type="module" crossorigin src="./vite-dist/assets/index.vite-BPPg0U45.js"></script>
+  <script type="module" crossorigin src="./vite-dist/assets/index.vite-CsLxiTgs.js"></script>
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/rolldown-runtime-aKtaBQYM.js">
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/preload-helper-HclGiUj8.js">
-  <link rel="modulepreload" crossorigin href="./vite-dist/assets/bridge-yZf4GXz7.js">
+  <link rel="modulepreload" crossorigin href="./vite-dist/assets/bridge-DBxa9onE.js">
 </head>
 
 <body>
@@ -144,10 +144,59 @@
             <span class="left-action-label">ネット対戦</span>
         </button>
 
-        <a id="reversiDestinyOpenLink" class="btn-small left-action-btn reversi-destiny-launcher-link" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-label="2Dアクションを別タブで開く" title="別タブで開く（カードリバーシは継続します）">
-            <span class="left-action-icon left-action-icon-reversi-destiny" aria-hidden="true"></span>
-            <span class="left-action-label">2Dアクション</span>
-        </a>
+        <button id="parallelWorldsOpenBtn" class="btn-small left-action-btn parallel-worlds-launcher-btn" type="button" popovertarget="parallelWorldsPopover" aria-haspopup="dialog" aria-controls="parallelWorldsPopover" aria-label="並行世界を観測" title="別ゲームを選ぶ">
+            <span class="left-action-icon left-action-icon-parallel-worlds" aria-hidden="true"></span>
+            <span class="left-action-label">並行世界を観測</span>
+        </button>
+        <section id="parallelWorldsPopover" class="parallel-worlds-popover" popover="auto" role="dialog" aria-labelledby="parallelWorldsTitle" aria-describedby="parallelWorldsDescription">
+            <header class="parallel-worlds-popover-header">
+                <div>
+                    <p class="parallel-worlds-eyebrow">CARD REVERSI MULTIVERSE</p>
+                    <h2 id="parallelWorldsTitle">行き先を選択</h2>
+                    <p id="parallelWorldsDescription">戦術FPS、2Dアクション、石が進化する落ち物パズル。別のルールで遊ぶ3つの世界へ。</p>
+                </div>
+                <button class="parallel-worlds-close-btn" type="button" popovertarget="parallelWorldsPopover" popovertargetaction="hide" aria-label="閉じる">×</button>
+            </header>
+            <nav class="parallel-worlds-candidates" aria-label="並行世界のゲーム">
+                <a class="parallel-world-card parallel-world-card--observation" href="https://observation-front.reversi-0.workers.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-describedby="parallelWorldsLinkNotice" title="別タブで開く（カードリバーシは継続します）">
+                    <span class="parallel-world-card-index" aria-hidden="true">01</span>
+                    <span class="parallel-world-card-emblem" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" focusable="false"><circle cx="24" cy="24" r="8"></circle><circle cx="24" cy="24" r="2" fill="currentColor"></circle><path d="M24 4v8m0 24v8M4 24h8m24 0h8M10 10l6 6m16 16 6 6m0-28-6 6M16 32l-6 6"></path></svg>
+                    </span>
+                    <span class="parallel-world-card-copy">
+                        <span class="parallel-world-card-category">戦術FPS</span>
+                        <span class="parallel-world-card-heading"><span class="parallel-world-card-title">観測境界</span><span class="parallel-world-card-subtitle">OBSERVATION FRONT</span></span>
+                        <span class="parallel-world-card-description">5対5の戦術戦・10人デスマッチ・射撃訓練</span>
+                    </span>
+                    <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a id="reversiDestinyOpenLink" class="parallel-world-card parallel-world-card--destiny" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-describedby="parallelWorldsLinkNotice" title="別タブで開く（カードリバーシは継続します）">
+                    <span class="parallel-world-card-index" aria-hidden="true">02</span>
+                    <span class="parallel-world-card-emblem" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" focusable="false"><path d="M9 39 33 15m-5-8 8-3 7 7-3 8M6 42l9-2m-5-5 7 7"></path><path d="m17 8 2.2 6.8L26 17l-6.8 2.2L17 26l-2.2-6.8L8 17l6.8-2.2z"></path></svg>
+                    </span>
+                    <span class="parallel-world-card-copy">
+                        <span class="parallel-world-card-category">2Dアクション</span>
+                        <span class="parallel-world-card-heading"><span class="parallel-world-card-title">Reversi Destiny</span><span class="parallel-world-card-subtitle">～黒白の運命～</span></span>
+                        <span class="parallel-world-card-description">360°攻撃と二段ジャンプで戦うアクション</span>
+                    </span>
+                    <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a class="parallel-world-card parallel-world-card--kyomei" href="https://ishi-no-kyomei.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer" aria-describedby="parallelWorldsLinkNotice" title="別タブで開く（カードリバーシは継続します）">
+                    <span class="parallel-world-card-index" aria-hidden="true">03</span>
+                    <span class="parallel-world-card-emblem" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" focusable="false"><circle cx="24" cy="27" r="8"></circle><circle cx="15" cy="34" r="6"></circle><circle cx="33" cy="34" r="6"></circle><path d="M16 11h16m-12-5h8m-4-3v8"></path></svg>
+                    </span>
+                    <span class="parallel-world-card-copy">
+                        <span class="parallel-world-card-category">落ち物進化パズル</span>
+                        <span class="parallel-world-card-heading"><span class="parallel-world-card-title">意志の共鳴</span></span>
+                        <span class="parallel-world-card-description">同じ石を重ねて進化。全30段階の制覇を目指す</span>
+                    </span>
+                    <span class="parallel-world-card-arrow" aria-hidden="true">↗</span>
+                </a>
+            </nav>
+            <p id="parallelWorldsLinkNotice" class="parallel-worlds-footnote">選んだゲームは別タブで開き、カードリバーシの対局はこのタブで続きます。</p>
+        </section>
         <button id="leaderboardOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">
             <span class="left-action-icon left-action-icon-ranking" aria-hidden="true"></span>
             <span class="left-action-label">ランキング</span>

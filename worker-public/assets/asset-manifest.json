@@ -1,6 +1,6 @@
 {
-  "version": "2026-08-24",
-  "generatedAt": "2026-08-24T14:36:02.783Z",
+  "version": "2026-09-22",
+  "generatedAt": "2026-09-22T05:32:31.429Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -519,12 +519,60 @@
       "sha256": "e1f371e9284f767c0f6f1a919312e03bfb7265ec554e9fa77f9c3ce3d7b1f802"
     },
     {
+      "path": "assets/images/special-cards/characters/board_executor_turnaround.png",
+      "sha256": "17dcaa57e3f2b65d76a824c003dae01faf0a5e7a35c100373eed8d2f90d2013c"
+    },
+    {
+      "path": "assets/images/special-cards/characters/board_executor_turnaround_upright_unarmed.png",
+      "sha256": "dfdccb1cd2f25b7f378ae6d5ca668bb9c4231d72ea62459e4fddefd808897c80"
+    },
+    {
       "path": "assets/images/special-cards/characters/observer_will.png",
       "sha256": "78f6c6a642677a3a64cd5818d8f98dba9488835f3eec651add1ceea9a5892e9e"
     },
     {
+      "path": "assets/images/special-cards/characters/observer_will_character_only.png",
+      "sha256": "68dcbaa28ce5f4ab0cf499126aab2133e61c5fdc9921018d26a661b7692768d2"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer_will_detail_sheet.png",
+      "sha256": "5905a9ae1d359a2cea1ea81eb40ddf55261679a0ab42f523028b80c3be1a2a16"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer_will_turnaround.png",
+      "sha256": "f40b063eda42132edcfe8ccf6ab5d665ab76ddecf15bbe07560c77479c4dbe88"
+    },
+    {
       "path": "assets/images/special-cards/characters/theory_incarnation.png",
       "sha256": "437408c51242dcafae253cc6b8b72e765ea29a8a58b9ca990f9803b9ad206cf1"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_reference/01-form-turnaround.png",
+      "sha256": "6e716f686556214b2746f41ffb95b034cec5ec194e67572bd925b50bbcaf189e"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_reference/02-head-hand-details.png",
+      "sha256": "7d40a40e26cc3270641593219d69a0da5aef62c5fa2673b6e26a3253b5d32acb"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_reference/03-wing-cape-construction.png",
+      "sha256": "e5faeb60ec0f004ecd32fd433266189f55428d1891e349163821bf05e5454d27"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_reference/04-finish-reference.png",
+      "sha256": "695662b94d697f2e72ef09ec12b56964ec1df196319023c864cfa64c26f1daac"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_reference/prompts.json",
+      "sha256": "be07c1ec1e4ede7a4f6a836f7f0a9d2b2acaa63ed191873850f92a135188600e"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_reference/README.md",
+      "sha256": "3f63c53d63dc2352b81b1d8b16a2de93c49dc92ff0765fbc9f7ef75691f5cf60"
+    },
+    {
+      "path": "assets/images/special-cards/characters/theory_incarnation_turnaround.png",
+      "sha256": "3704dca8a8f0765390da6ba9d8be487af3046346cec73b47481bae56cc559dd8"
     },
     {
       "path": "assets/images/special-cards/characters/終焉の冥灰.png",
@@ -712,7 +760,7 @@
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
-      "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
+      "sha256": "dbd36198717213c2c52e6f452e6e774fc9a53faf6458f6db0bfd595cbd686675"
     },
     {
       "path": "assets/images/background-skin/観測の机.png",
@@ -769,6 +817,10 @@
     {
       "path": "assets/images/Gacha/EXR/終焉の手.png",
       "sha256": "566174eacf654eb86b52ed15320b3d07762ad3bcbea68ed5bb44d9d2a22ea3d3"
+    },
+    {
+      "path": "assets/images/Gacha/generation-record.json",
+      "sha256": "a38124e1accf8d82e62b8061dd0c439b521d543d389e38dfc0fce8e27bbc26e3"
     },
     {
       "path": "assets/images/Gacha/N/人の手.png",

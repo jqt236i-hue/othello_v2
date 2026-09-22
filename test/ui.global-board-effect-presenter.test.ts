@@ -230,15 +230,10 @@ describe('global board effect presenter settlement', () => {
       expectedAnimations: 5
     }
   ])(
-    '$label preserves its deadline when every WAAPI animation finishes immediately',
+    '$label falls back to its deadline when WAAPI animations never finish',
     async ({ cause, reason, expectedAnimations }) => {
       const timer = createScopedTimerRegistry();
       const scope = Symbol('deadline-playback');
-      (dom.window.Element.prototype as any).animate = jest.fn(() => {
-        const cancel = jest.fn();
-        animationCancels.push(cancel);
-        return { finished: Promise.resolve(), cancel };
-      });
       const presenter = require('../ui/presentation/global-board-effect-presenter');
       let settled = false;
       const promise = presenter.presentDestroySourceAnimation({
@@ -273,7 +268,11 @@ describe('global board effect presenter settlement', () => {
     }
   );
 
-  test('lightning strike settles before its deadline only after every WAAPI animation finishes', async () => {
+  test.each([
+    { label: 'dragon breath', cause: 'DESTROY_DRAGON_WILL', reason: 'destroy_dragon_breath:finished', expectedAnimations: 3 },
+    { label: 'meteor black beam', cause: 'METEOR_GOD', reason: 'meteor_god_cell_destroy:finished', expectedAnimations: 5 },
+    { label: 'lightning strike', cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed:finished', expectedAnimations: 8 }
+  ])('$label settles before its deadline only after every WAAPI animation finishes', async ({ cause, reason, expectedAnimations }) => {
     const timer = createScopedTimerRegistry();
     const scope = Symbol('udg-animation-playback');
     const finishedResolvers: Array<() => void> = [];
@@ -296,14 +295,14 @@ describe('global board effect presenter settlement', () => {
         sourceRow: 1,
         sourceCol: 1,
         ownerBefore: 'white',
-        cause: 'ULTIMATE_DESTROY_GOD',
-        reason: 'udg_destroyed:finished'
+        cause,
+        reason
       }
     }, createDeps(timer, scope)).then(() => {
       settled = true;
     });
 
-    expect(finishedResolvers).toHaveLength(8);
+    expect(finishedResolvers).toHaveLength(expectedAnimations);
     for (const resolveFinished of finishedResolvers.slice(0, -1)) resolveFinished();
     await flushMicrotasks();
     expect(settled).toBe(false);
