@@ -1,3 +1,4 @@
+import { cloneBattle, currentBattlePlayer, battleDecisionPlayer, type BattlePlayer, type BattleAction, type BattlePosition } from '../../shared/battle/types';
 import Core = require('../logic/core');
 import Pipeline = require('../turn/turn_pipeline');
 import Phases = require('../turn/turn_pipeline_phases');
@@ -11,12 +12,12 @@ import StateHash = require('../../shared/state-hash');
 const Cards: any = require('../logic/cards');
 const Prng: any = require('../schema/prng');
 
-export type Lv10Player = 'black' | 'white';
-export type Lv10Action = { type: string; [key: string]: any };
+export type Lv10Player = BattlePlayer;
+export type Lv10Action = BattleAction;
 export function lv10ActionKey(action: Lv10Action): string {
     return StateHash.stableStringify(action);
 }
-export type Lv10Position = { gameState: any; cardState: any; prngState?: any };
+export type Lv10Position = BattlePosition;
 export type Lv10Observation = {
     schema: 'cpu_lv10_observation.v1';
     player: Lv10Player;
@@ -26,7 +27,7 @@ export type Lv10Observation = {
 export const LV10_POSITION_LIMITS = Object.freeze({ maxSerializedChars: 524288, maxActions: 1024, maxHand: 64, maxDeck: 512 });
 
 export function cloneLv10<T>(value: T): T {
-    return JSON.parse(JSON.stringify(value));
+    return cloneBattle(value);
 }
 
 function clearTransientState(cardState: any): void {
@@ -97,12 +98,11 @@ export function sampleLv10Position(
 }
 
 export function currentLv10Player(state: Lv10Position): Lv10Player {
-    return state.gameState.currentPlayer === 1 || state.gameState.currentPlayer === 'black' ? 'black' : 'white';
+    return currentBattlePlayer(state);
 }
 
 export function lv10DecisionPlayer(state: Lv10Position): Lv10Player {
-    const owner = currentLv10Player(state);
-    return state.cardState.fateWillControllerByTurnOwner?.[owner] || owner;
+    return battleDecisionPlayer(state);
 }
 
 export function lv10PlacementMoves(state: Lv10Position, player = currentLv10Player(state)): any[] {

@@ -811,6 +811,22 @@ describe('deck builder controller', () => {
     }
   });
 
+  test('保存できない時は編集中の内容を保持し、保存成功や使用中に切り替えない', () => {
+    const body = document.getElementById('body');
+    const controller = createController();
+    controller.open(); openEditor(body);
+    const before = controller.getActiveLocalChoice();
+    const setter = jest.spyOn(dom.window.Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    try {
+      Array.from(body.querySelectorAll('button')).find((button) => button.textContent === '保存').click();
+      expect(localStorage.getItem('deck_builder_presets_v1')).toBeNull();
+      expect(controller.getActiveLocalChoice()).toEqual(before);
+      expect(body.textContent).toContain('保存');
+      expect(body.textContent).toContain('保存できません');
+      expect(body.textContent).not.toContain('保存しました');
+    } finally { setter.mockRestore(); }
+  });
+
   test('ネット対戦中に保存プリセットを使用すると room の自席デッキへ同期する', () => {
     const { deckCode } = createThirtyCardDeck(0);
     const updateDeckSelection = jest.fn(() => Promise.resolve({ ok: true }));
@@ -837,6 +853,26 @@ describe('deck builder controller', () => {
     } finally {
       delete window.NetworkMatchClient;
     }
+  });
+
+  test('デッキ選択を保存できない時は選択・URL・通信を変えずに通知する', () => {
+    const { deckCode } = createThirtyCardDeck(0);
+    const presetState = buildPresetState('preset_1', '保存デッキ', deckCode);
+    presetState.activePresetId = '';
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(presetState));
+    const updateDeckSelection = jest.fn();
+    window.NetworkMatchClient = { isActive: () => true, isSpectator: () => false, getRoomDeck: () => null, updateDeckSelection };
+    const controller = createController(); controller.open();
+    const before = controller.getActiveLocalChoice(), url = window.location.href;
+    const setter = jest.spyOn(dom.window.Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    try {
+      const use = Array.from(document.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid .deck-builder-preset-card button'))
+        .find((button) => button.textContent === '使用');
+      use.click();
+      expect(controller.getActiveLocalChoice()).toEqual(before);
+      expect(window.location.href).toBe(url); expect(updateDeckSelection).not.toHaveBeenCalled();
+      expect(document.getElementById('body').textContent).toContain('保存できません');
+    } finally { setter.mockRestore(); delete window.NetworkMatchClient; }
   });
 
   test('ネット対戦中にデフォルトデッキを使用すると room の自席デッキをデフォルトへ戻す', () => {

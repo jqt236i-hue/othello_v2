@@ -1,0 +1,6 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>カードリバーシ 物語接続サンプル</title>
+<style>body{margin:0;background:#101a20;color:#f2ebd7;font:18px/1.7 sans-serif}main{max-width:900px;margin:8vh auto;padding:32px}h1{font-size:28px}button{font:inherit;padding:10px 22px;margin:8px;border:1px solid #a99569;border-radius:8px;background:#263e45;color:inherit;cursor:pointer}button:focus-visible{outline:3px solid #f4d583}button:disabled{opacity:.5;cursor:wait}#battle{height:calc(100vh - 94px)}#bar{height:94px;display:flex;align-items:center;justify-content:center}#notice{min-height:2em}#error{color:#ffc9b9} [hidden]{display:none!important}</style>
+<script type="importmap">{"imports":{"@card-reversi/battle/host":"./vendor/host.mjs"}}</script></head><body>
+<main id="scene"><h1>門番との一局</h1><p id="line">「この先へ進みたいなら、盤上で答えを見せてくれ。」</p><p>既存の戦闘画面を物語から呼び出す接続サンプルです。</p><p id="progress"></p><button id="start" disabled>対戦を始める</button><button id="resume" hidden disabled>中断した対戦を再開</button><p id="notice" role="status"></p><p id="error" role="alert"></p></main>
+<section id="play" hidden><div id="bar"><button id="save" disabled>中断して会話へ戻る</button><span id="battleNotice" role="status"></span></div><div id="battle"></div></section>
+<script type="module" src="story.js"></script></body></html>

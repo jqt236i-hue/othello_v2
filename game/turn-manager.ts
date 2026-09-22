@@ -1252,39 +1252,6 @@ function applyDebugTestScenarioAfterResetForTurnManager(options?: any) {
 function resetGame(options?: any) {
     // Auto mode removed: nothing to stop or reset
 
-    // Hard cleanup before rebuilding state (F5 相当の再起動に近づける)
-    // - stale playback/presentation queues can block board refresh
-    // - UI transient overlays/flags may survive without a full page reload
-    resetGameGeneration += 1;
-    const currentResetGeneration = resetGameGeneration;
-    const isCurrentResetGeneration = () => currentResetGeneration === resetGameGeneration;
-    const shouldPublishNetworkResetSnapshot = shouldPublishNetworkResetSnapshotAtResetStart(options);
-    resetCpuTurnSchedulingStateForTurnManager();
-    setTurnManagerBusyState({
-        processing: false,
-        cardAnimating: false,
-        playbackActive: false
-    });
-    clearPlaybackLockForTurnManager();
-    clearPendingSelectionActionCacheForTurnManager();
-    try {
-        if (cardState && typeof cardState === 'object') {
-            if (Array.isArray(cardState.presentationEvents)) cardState.presentationEvents.length = 0;
-            if (Array.isArray(cardState._presentationEventsPersist)) cardState._presentationEventsPersist.length = 0;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        const adapter = getTurnPipelineUIAdapter();
-        if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
-            adapter.clearDeferredGeneratedThrowChainPlayback();
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.resetTransientUIState === 'function') {
-            __uiImpl_turn_manager.resetTransientUIState();
-        }
-    } catch (e) { /* ignore */ }
-
     const clampCpuLevel = (value: any) => {
         if (CpuOpponentProfilesForTurnManager && typeof CpuOpponentProfilesForTurnManager.getCpuOpponentLevel === 'function') {
             return CpuOpponentProfilesForTurnManager.getCpuOpponentLevel(value);
@@ -1342,31 +1309,62 @@ function resetGame(options?: any) {
         }
     }
 
+    const prepared = options && options.preparedBattle;
     const createGameStateForReset = readTurnManagerRuntimeFunction('createGameState') || createGameState;
-    const nextGameState = createGameStateForReset(boardConfig);
-    writeTurnManagerRuntimeValue('gameState', nextGameState);
-    applyInitialBoardSetupForReset(nextGameState, cardInitOptions && cardInitOptions.initialBoardSetup);
+    const nextGameState = prepared ? prepared.gameState : createGameStateForReset(boardConfig);
+    if (!prepared) applyInitialBoardSetupForReset(nextGameState, cardInitOptions && cardInitOptions.initialBoardSetup);
+    // Prepare card state before replacing the current board or cancelling its visuals.
+    // CardSystem commits atomically; initialization failure is never a seeded fallback match.
     try {
-        // initCardState may rely on PRNG; if unavailable, tests should mock or skip
-        if (typeof initCardState === 'function') initCardState(undefined, cardInitOptions);
-    } catch (e) {
-        // In test environments without PRNG, allow fallback to a minimal cardState via CardLogic
-        console.warn('[resetGame] initCardState failed (test environment):', (e as any).message);
-        if (typeof CardLogic.createCardState === 'function') {  // CardLogic imported directly
-            const prngStub = { next: () => 0.5, _seed: 1, shuffle: (array: any[]) => array };
-            const newState = CardLogic.createCardState(prngStub, cardInitOptions);
-            // Wipe and copy properties to maintain legacy reference pattern
-            if (typeof cardState !== 'undefined') {
-                for (const k in cardState) delete cardState[k];
-                Object.assign(cardState, newState);
-            } else if (!readTurnManagerRuntimeValue('cardState')) {
-                writeTurnManagerRuntimeValue('cardState', newState);
-            }
+        if (prepared) {
+            if (typeof __uiImpl_turn_manager.installBattleCardState !== 'function') throw new Error('Battle card state installer is unavailable');
+            __uiImpl_turn_manager.installBattleCardState(prepared.cardState, prepared.prngState);
+        } else if (typeof initCardState === 'function') {
+            initCardState(undefined, cardInitOptions);
+        } else {
+            throw new Error('Card initializer is unavailable');
         }
+    } catch (error) {
+        emitLogAddedForTurnManager('ゲームを開始できませんでした。再試行してください。', 'normal');
+        throw error;
     }
+    // Hard cleanup before rebuilding state (F5 相当の再起動に近づける)
+    // - stale playback/presentation queues can block board refresh
+    // - UI transient overlays/flags may survive without a full page reload
+    resetGameGeneration += 1;
+    const currentResetGeneration = resetGameGeneration;
+    const isCurrentResetGeneration = () => currentResetGeneration === resetGameGeneration;
+    const shouldPublishNetworkResetSnapshot = shouldPublishNetworkResetSnapshotAtResetStart(options);
+    resetCpuTurnSchedulingStateForTurnManager();
+    setTurnManagerBusyState({
+        processing: false,
+        cardAnimating: false,
+        playbackActive: false
+    });
+    clearPlaybackLockForTurnManager();
+    clearPendingSelectionActionCacheForTurnManager();
+    try {
+        if (cardState && typeof cardState === 'object') {
+            if (Array.isArray(cardState.presentationEvents)) cardState.presentationEvents.length = 0;
+            if (Array.isArray(cardState._presentationEventsPersist)) cardState._presentationEventsPersist.length = 0;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const adapter = getTurnPipelineUIAdapter();
+        if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
+            adapter.clearDeferredGeneratedThrowChainPlayback();
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.resetTransientUIState === 'function') {
+            __uiImpl_turn_manager.resetTransientUIState();
+        }
+    } catch (e) { /* ignore */ }
+
+    writeTurnManagerRuntimeValue('gameState', nextGameState);
     const nextCardState = getTurnManagerCardStateRef();
     if (nextCardState && typeof nextCardState === 'object') {
-        ensureTurnManagerCardStateShape(nextCardState, cardInitOptions);
+        if (!prepared) ensureTurnManagerCardStateShape(nextCardState, cardInitOptions);
         writeTurnManagerRuntimeValue('cardState', nextCardState);
     }
 
@@ -1391,11 +1389,12 @@ function resetGame(options?: any) {
     try { emitGameStateChange(); } catch (e) { /* ignore */ }
 
     const runTurnStartAfterReset = () => {
+        if (options?.restoreBattle === true && options?.resumeTurnStart !== true) return true;
         const injectedOnTurnStart = resolveTurnManagerRuntimeFunction('onTurnStart');
         if (typeof injectedOnTurnStart === 'function' && injectedOnTurnStart !== onTurnStart) {
-            return injectedOnTurnStart(BLACK);
+            return injectedOnTurnStart(nextGameState.currentPlayer);
         }
-        return onTurnStart(BLACK);
+        return onTurnStart(nextGameState.currentPlayer);
     };
 
     const handleResetTurnStartFailure = (error: any) => {
@@ -1433,6 +1432,7 @@ function resetGame(options?: any) {
             .catch((error) => {
                 if (!isCurrentResetGeneration()) return false;
                 handleResetTurnStartFailure(error);
+                if (options?.preparedBattle) throw error;
                 return false;
             })
             .finally(() => {
@@ -1446,13 +1446,12 @@ function resetGame(options?: any) {
             });
     };
 
-    if (plainReversiMode) {
+    if (plainReversiMode || options?.restoreBattle === true) {
         setTurnManagerBusyState({
             cardAnimating: false,
             processing: false
         });
-        runTurnStartAndPublishResetSnapshot();
-        return;
+        return runTurnStartAndPublishResetSnapshot();
     }
 
     // Lock input during initial dealing animation
@@ -1462,18 +1461,19 @@ function resetGame(options?: any) {
     });
 
     if (typeof dealInitialCards === 'function') {
-        dealInitialCards()
+        return dealInitialCards()
             .then(() => {
                 if (!isCurrentResetGeneration()) return;
                 setTurnManagerBusyState({ processing: false });
-                runTurnStartAndPublishResetSnapshot();
                 emitLogAddedForTurnManager('カード配布完了', 'normal');
+                return runTurnStartAndPublishResetSnapshot();
 
     })
     .catch((err: any) => {
                 if (!isCurrentResetGeneration()) return;
                 console.error('Deal animation error:', err);
                 emitLogAddedForTurnManager('エラー: カード配布に失敗しました', 'normal');
+                if (options?.preparedBattle) throw err;
             })
             .finally(() => {
                 if (!isCurrentResetGeneration()) return;
@@ -1489,8 +1489,8 @@ function resetGame(options?: any) {
             cardAnimating: false,
             processing: false
         });
-        runTurnStartAndPublishResetSnapshot();
         emitLogAddedForTurnManager('カード配布完了', 'normal');
+        return runTurnStartAndPublishResetSnapshot();
     }
 
 }

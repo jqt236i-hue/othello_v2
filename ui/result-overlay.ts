@@ -30,6 +30,8 @@ let _pendingResultToken: any = null;
 let _resultPresentationActive = false;
 let _timeAttackStartedAt: number | null = null;
 let _leaderboardClientLoadPromise: Promise<any> | null = null;
+let battleResultConsumer: (() => void) | null = null;
+function setBattleResultConsumer(consumer: (() => void) | null): void { battleResultConsumer = consumer; }
 
 function markTimeAttackStarted(startedAt?: any) {
     if (_timeAttackStartedAt !== null) return _timeAttackStartedAt;
@@ -1264,6 +1266,7 @@ function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals:
  * Show game result in log and overlay
  */
 function showResult() {
+    if (battleResultConsumer) { battleResultConsumer(); return; }
     if (_resultPresentationActive) {
         if (gameState) gameState.__resultShown = true;
         syncQuickResetButtonLabelForResultState(true);
@@ -1309,6 +1312,7 @@ function showResult() {
  * Create or show a result overlay in the center of the screen
  */
 function showResultOverlay(options?: any) {
+    if (battleResultConsumer) { battleResultConsumer(); return; }
     const opts = (options && typeof options === 'object') ? options : {};
     prepareResultFullStylesheet();
     const counts = countDiscs(gameState);
@@ -1652,6 +1656,7 @@ function getMonsterDialogues() {
 // Export for module systems
 const ResultOverlay = {
     showResult,
+    setBattleResultConsumer,
     showResultOverlay,
     syncResultPresentationFromSnapshot,
     dismissResultOverlayIfPresent,

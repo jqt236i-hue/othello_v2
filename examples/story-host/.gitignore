@@ -1,0 +1,8 @@
+node_modules/
+web/
+release/
+*.log
+.smoke-data/
+smoke-result.json
+smoke.png
+vendor/*.tgz

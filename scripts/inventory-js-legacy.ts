@@ -83,6 +83,8 @@ function walk(dir: string, root = dir): string[] {
       // needed to replay each recorded policy. Production sources live outside
       // these evidence roots; never migrate or rewrite a frozen opponent here.
       const relativeDir = path.relative('.', filePath).replace(/\\/g, '/');
+      // Generated distribution, rebuilt from canonical TS by build-battle-package.
+      if (relativeDir === 'output/battle-package') continue;
       if (['data/cpu-lv10/baseline-v1', 'data/cpu-lv11', 'data/cpu-lv12'].includes(relativeDir)) continue;
       const relDir = path.relative(root, filePath).replace(/\\/g, '/');
       const firstSegment = relDir.split('/')[0];

@@ -57,6 +57,10 @@ describe('custom board reset bridge', () => {
     (global.window as any).CardLogic = CardLogic;
     (global.window as any).CoreLogic = CoreLogic;
     global.CardLogic = CardLogic;
+    const Prng = require('../game/schema/prng');
+    global.initCardState = (_seed: any, options: any) => {
+      Object.assign(global.cardState, CardLogic.createCardState(Prng.createPRNG(1), options));
+    };
     global.CoreLogic = CoreLogic;
     (global.window as any).SharedUIBootstrap = require('../shared/ui-bootstrap-shared');
   });
@@ -81,6 +85,7 @@ describe('custom board reset bridge', () => {
     delete global.dealInitialCards;
     delete global.updateCpuCharacter;
     delete global.CardLogic;
+    delete global.initCardState;
     delete global.CoreLogic;
     delete global.SharedUIBootstrap;
     delete global.__uiImpl_turn_manager;

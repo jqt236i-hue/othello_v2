@@ -17,6 +17,8 @@
     "dev": "node scripts/dev-vite-fast.js",
     "dev:vite": "npm run build:vite && node scripts/serve-with-fallback.js --host 0.0.0.0 --port 5174",
     "serve": "node scripts/serve-with-fallback.js",
+    "build:battle-package": "npm run build:vite && node dist/scripts/build-battle-package.js",
+    "check:battle-browser": "node dist/scripts/check-battle-browser.js",
     "match:server": "npm run build:ts && node scripts/local-match-server.js",
     "match:server:net": "npm run build:ts && node scripts/local-match-server.js --host 0.0.0.0 --port 8787",
     "match:check": "node scripts/match-network-smoke.js",

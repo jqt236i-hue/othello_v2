@@ -78,6 +78,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             }
         };
         let surfaceReadyPromise: Promise<any> | null = null;
+        let persistedPresetState = DeckPresetStorage.normalizeState(state.presetState);
 
         function normalizeChoiceLabel(name: any, fallback: any) {
             const normalized = String(name || '').replace(/\s+/g, ' ').trim();
@@ -510,7 +511,15 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         }
 
         function savePresetState() {
-            state.presetState = DeckPresetStorage.saveState(state.presetState);
+            const result = DeckPresetStorage.trySaveState(state.presetState);
+            if (!result.ok) {
+                state.presetState = DeckPresetStorage.normalizeState(persistedPresetState);
+                emitNotice('保存できませんでした。編集中のデッキは残っています。空き容量や保存設定を確認して再度お試しください', true, false);
+                return false;
+            }
+            state.presetState = result.state;
+            persistedPresetState = DeckPresetStorage.normalizeState(result.state);
+            return true;
         }
 
         function emitNotice(text: any, isError: any, alsoLog: any) {
@@ -530,17 +539,16 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
 
         function setLocalActiveChoice(choice: any, optionsOverride?: any) {
             const optsLocal = (optionsOverride && typeof optionsOverride === 'object') ? optionsOverride : {};
-            state.activeLocalChoice = choice;
-
             if (optsLocal.persistActivePreset !== false) {
                 state.presetState.activePresetId = choice && choice.presetId ? choice.presetId : '';
-                savePresetState();
+                if (!savePresetState()) return false;
             }
-
+            state.activeLocalChoice = choice;
             syncUrlFromLocalChoice();
             if (optsLocal.syncNetworkDeck !== false) {
                 syncNetworkDeckSelection(choice);
             }
+            return true;
         }
 
         function hydrateLocalChoiceFromStorage() {
@@ -1354,8 +1362,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         }
 
         function useStandardDeck() {
-            setLocalActiveChoice(createStandardChoice({ source: 'standard' }));
-            clearNotice();
+            if (setLocalActiveChoice(createStandardChoice({ source: 'standard' }))) clearNotice();
             render();
         }
 
@@ -1368,7 +1375,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             }
 
             const networkMatchActive = !!resolveNetworkMatchClientForDeckBuilder('updateDeckSelection');
-            setLocalActiveChoice(choice);
+            if (!setLocalActiveChoice(choice)) { render(); return; }
             if (networkMatchActive) {
                 emitNotice('全カードデッキはローカル対戦用に設定しました。ネット対戦では部屋作成時の「両者全カードデッキ」を使います。', false, false);
             } else {
@@ -1401,8 +1408,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 return;
             }
 
-            setLocalActiveChoice(choice);
-            clearNotice();
+            if (setLocalActiveChoice(choice)) clearNotice();
             render();
         }
 
@@ -1426,8 +1432,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 return;
             }
 
-            setLocalActiveChoice(presetChoice);
-            clearNotice();
+            if (setLocalActiveChoice(presetChoice)) clearNotice();
             render();
         }
 
@@ -1560,18 +1565,20 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     updatedAt: Date.now()
                 });
             });
-            savePresetState();
+            if (!savePresetState()) return null;
             return deckCode;
         }
 
         function saveEditorPreset() {
-            writePresetFromEditor();
-            emitNotice('プリセットを保存しました', false, false);
+            if (writePresetFromEditor() !== null) emitNotice('プリセットを保存しました', false, false);
             renderPreservingEditorScroll();
         }
 
         function useEditorDraft() {
-            writePresetFromEditor();
+            if (writePresetFromEditor() === null) {
+                renderPreservingEditorScroll();
+                return;
+            }
             usePreset(state.editor.presetId);
             state.view = 'presets';
             render();

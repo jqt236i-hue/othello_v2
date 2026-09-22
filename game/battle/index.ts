@@ -1,0 +1,10 @@
+export { BattleMatch } from './match';
+export { BattleSession, createBattle, restoreBattle } from './session';
+export { prepareBattle } from './initial';
+export { resolveBattleConfig, battleCardOptions } from '../../shared/battle/config';
+export type { BattleConfig, BattleSeatConfig, ResolvedBattleConfig } from '../../shared/battle/config';
+export type { BattlePlayer, BattleAction, BattlePosition, CompleteBattlePosition, BattleResult, BattleTransition } from '../../shared/battle/types';
+export { BattleSaveCompatibilityError, BATTLE_RULES_VERSION, BATTLE_CONTENT_VERSION, createBattleSave, validateBattleSave, serializeBattleSave, parseBattleSave } from '../../shared/battle/save';
+export type { BattleSave, BattlePhase } from '../../shared/battle/save';
+export { createBattleStorage } from '../../shared/battle/storage';
+export type { BattleStoragePort, StorageResult } from '../../shared/battle/storage';

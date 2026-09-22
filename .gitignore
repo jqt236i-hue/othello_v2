@@ -90,6 +90,9 @@ Thumbs.db
 
 # Ignore locally generated distribution patches
 patches/*.patch
+output/battle-package/
+output/battle-verification/
+output/card-reversi-battle-*.tgz
 
 # Ignore data directory for machine learning
 data/

@@ -72,16 +72,21 @@ function normalizeInitCardStateArgs(seedOrOptions?: any, maybeOptions?: any) {
 
 export function initCardState(seedOrOptions?: any, maybeOptions?: any) {
     const normalizedArgs = normalizeInitCardStateArgs(seedOrOptions, maybeOptions);
-
-    // Initialize PRNG if not already done
-    initGamePrng(normalizedArgs.seed);
-
-    const prng = getGamePrng();
+    const factory = (window as any).SeededPRNG;
+    if (!factory || typeof factory.createPRNG !== 'function') throw new Error('[CardSystem] SeededPRNG is required but not available');
+    const prng = factory.createPRNG(normalizedArgs.seed !== undefined ? normalizedArgs.seed : Date.now());
     const newState = (window as any).CardLogic.createCardState(prng, normalizedArgs.options);
+    installPreparedCardState(newState, prng.getState());
+}
 
+/** Install a validated position only after its PRNG has been reconstructed. */
+export function installPreparedCardState(newState: any, checkpoint: any) {
+    const nextPrng = (window as any).SeededPRNG.fromState(checkpoint);
     // Wipe and copy properties to maintain global reference
     for (const key in cardState) delete (cardState as any)[key];
     Object.assign(cardState, newState);
+    gamePrng = nextPrng;
+    cardState._defaultRandomSource = nextPrng;
 
     const blackDeckCount = (cardState.decks && Array.isArray(cardState.decks.black)) ? cardState.decks.black.length : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
     const whiteDeckCount = (cardState.decks && Array.isArray(cardState.decks.white)) ? cardState.decks.white.length : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
@@ -118,6 +123,7 @@ export function getCardState() {
 }
 
 export default {
+    installPreparedCardState,
     initCardState,
     commitDraw,
     drawCard,

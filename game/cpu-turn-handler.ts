@@ -1288,6 +1288,26 @@ function resetCpuTurnHandlerState() {
     return CpuTurnScheduler.resetCpuTurnHandlerState();
 }
 
+function exportBattleCpuMemory() {
+    return JSON.parse(JSON.stringify({ lv10: lv10RejectedActions, lv11: lv11RejectedActions, lv12: lv12RejectedActions }));
+}
+function validateBattleCpuMemory(memory: any) {
+    for (const key of ['lv10', 'lv11', 'lv12'] as const) {
+        if (!memory[key]) continue;
+        for (const player of ['black', 'white'] as const) {
+            const entry = memory[key][player];
+            if (!entry || !Array.isArray(entry.actions) || (entry.identity !== null && typeof entry.identity !== 'string')) throw new Error('Invalid CPU continuation memory');
+        }
+    }
+}
+function restoreBattleCpuMemory(memory: any) {
+    validateBattleCpuMemory(memory);
+    for (const [key, target] of [['lv10', lv10RejectedActions], ['lv11', lv11RejectedActions], ['lv12', lv12RejectedActions]] as const) {
+        if (!memory[key]) continue;
+        for (const player of ['black', 'white'] as const) Object.assign(target[player], JSON.parse(JSON.stringify(memory[key][player])));
+    }
+}
+
 function shouldAbortStuckPendingSelection(playerKey: any, pending: any) {
     return CpuTurnScheduler.shouldAbortStuckPendingSelection(playerKey, pending);
 }
@@ -2442,6 +2462,9 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
 }
 
 export = {
+    exportBattleCpuMemory,
+    validateBattleCpuMemory,
+    restoreBattleCpuMemory,
     processCpuTurn,
     processAutoBlackTurn,
     setTimers,

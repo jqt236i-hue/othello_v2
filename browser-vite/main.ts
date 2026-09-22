@@ -3,7 +3,7 @@ import { OPTIONAL_PAYLOAD_URLS } from './generated/optional-payload-urls';
 import { FEATURE_IMPORTS } from './optional-feature-adapters';
 import { installOptionalFeatureLoader } from './optional-feature-loader';
 import { installOptionalPayloadLoader } from './optional-payload-loader';
-import { installCpuWorkerBridge } from './cpu-worker/bridge';
+import { installCpuWorkerBridge, getCpuWorkerBridge } from './cpu-worker/bridge';
 import { applyPixiRuntimeOutcome, loadPixiRuntime } from './pixi-runtime-loader';
 
 installVitePreloadErrorHandler();
@@ -93,6 +93,14 @@ const startBrowserApp = createStartViteBrowserApp({
   }
 });
 const bootPromise = startBrowserApp();
+void bootPromise.then(() => {
+  const root = window as any;
+  if (new URLSearchParams(root.location.search).get('battleEmbed') !== '1') return;
+  root.require('ui/battle/embedded-runtime').installEmbeddedBattle(root, () => {
+    const bridge = getCpuWorkerBridge(root);
+    for (const client of [bridge?.client, bridge?.lv10Client, bridge?.lv11Client, bridge?.lv12Client]) client?.terminate('Battle disposed');
+  });
+}).catch(() => {});
 
 void bootPromise.catch((error) => {
   console.error('[vite-entry] browser boot failed', error);

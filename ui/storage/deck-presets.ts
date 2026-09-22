@@ -97,14 +97,21 @@ function loadState(): DeckPresetState {
   }
 }
 
-function saveState(nextState: unknown): DeckPresetState {
-  const normalized = normalizeState(nextState);
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+function trySaveState(nextState: unknown): { ok: true; state: DeckPresetState } | { ok: false; error: string } {
+    const normalized = normalizeState(nextState);
+    try {
+        if (typeof localStorage === 'undefined') throw new Error('Storage unavailable');
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        return { ok: true, state: normalized };
+    } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : 'Storage failed' };
     }
-  } catch (e) { /* ignore */ }
-  return normalized;
+}
+
+function saveState(nextState: unknown): DeckPresetState {
+    const result = trySaveState(nextState);
+    if (!result.ok) throw new Error(result.error);
+    return result.state;
 }
 
 export = {
@@ -115,5 +122,6 @@ export = {
   createDefaultState,
   normalizeState,
   loadState,
-  saveState
+    saveState,
+    trySaveState
 };

@@ -1,0 +1,14 @@
+{
+  "name": "card-reversi-story",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "build": "tsc && node build.cjs",
+    "start": "electron .",
+    "package": "npm run build && node package.cjs",
+    "test": "node --test test.cjs"
+  },
+  "dependencies": { "@card-reversi/battle": "file:vendor/card-reversi-battle-0.1.0.tgz" },
+  "devDependencies": { "electron": "44.4.3", "typescript": "6.0.3" }
+}

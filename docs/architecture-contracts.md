@@ -904,3 +904,13 @@ Add the following banner as the first line of the document, directly after the `
 ```
 > **[歴史的メモ]** この文書は作業完了記録または調査メモです。安定した契約は `docs/architecture-contracts.md` に置かれています。
 ```
+
+
+## 16. Product battle integration
+
+- `game/battle/match.ts` owns the canonical headless match transitions formerly owned by ProductionMatch. `src/engine/production-match.ts` keeps a compatibility alias and CPU/selfplay orchestration; public battle types live in `shared/battle/types.ts`.
+- `BattleSession` validates configuration/save inputs, owns phase and snapshots, and delegates to the existing turn pipeline. Turn-start and its PRNG checkpoint remain one boundary. Rejected commands preserve consumed random calls as before.
+- `ui/battle/host.ts` mounts one same-origin Vite battle document per session. `embedded-runtime.ts` installs validated state through the existing reset/DI boundary, consumes settled terminal results, and suppresses the original result/reward consumer. No second visual writer is introduced.
+- Battle teardown cancels initialization and CPU scheduling, terminates owned Workers, destroys the page renderer, then removes the document. A replay mounts a fresh document; destroyed page runtimes are never resurrected.
+- Save format, rule/content identity, persistence locks/commit generations, and distribution exports are specified in [battle-integration.md](battle-integration.md). Full saves are local/host data and must not enter network public snapshots or authority messages.
+- Host progress/rewards and receipt IDs must commit in the same generation. Steam and filesystem adapters belong to the host. The first browser adapter accepts a human black seat and human/CPU white seat; unsupported configurations are rejected explicitly.

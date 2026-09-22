@@ -1,0 +1,762 @@
+{
+  "sourceCommit": "592359fec1b263ab8c2c652c5fbe232ef848ecca",
+  "seed": 914001,
+  "profiles": {
+    "black": 10,
+    "white": 10
+  },
+  "records": [
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:58909c24",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 2,
+        "col": 3
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:5b8d3d18",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:11a7c032",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 2,
+        "col": 2
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:ad0914d2",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:f2aff258",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 2,
+        "col": 1
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:2659ac2c",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:eceb3274",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 1,
+        "col": 1
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:876caaa2",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:0e6d103a",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 0,
+        "col": 1
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:1baf4131",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:7e0653db",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 0,
+        "col": 0
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:8e8d115f",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:60d3ca39",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "will_hunter_king_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "black"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:b40ea79e",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:b40ea79e",
+      "prng": {
+        "seed": 914001,
+        "calls": 273
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 3,
+        "col": 2
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:613daa8d",
+      "prng": {
+        "seed": 914001,
+        "calls": 276
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:dcfcf4bd",
+      "prng": {
+        "seed": 914001,
+        "calls": 276
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "heaven_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "white"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:622cc38c",
+      "prng": {
+        "seed": 914001,
+        "calls": 281
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:622cc38c",
+      "prng": {
+        "seed": 914001,
+        "calls": 281
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "heavenBlessingCardId": "work_01"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:f48fae81",
+      "prng": {
+        "seed": 914001,
+        "calls": 281
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:f48fae81",
+      "prng": {
+        "seed": 914001,
+        "calls": 281
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 0,
+        "col": 2
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:75d3d2bb",
+      "prng": {
+        "seed": 914001,
+        "calls": 281
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:19b8a4fc",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "condemn_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "black"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:48f5678f",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:48f5678f",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "condemnTargetIndex": 0
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:ebbaac13",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:ebbaac13",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "pass"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:b883c377",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:7c99bc9a",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "work_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "white"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:fea0d1c6",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:fea0d1c6",
+      "prng": {
+        "seed": 914001,
+        "calls": 282
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 3,
+        "col": 1
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:8abe15cd",
+      "prng": {
+        "seed": 914001,
+        "calls": 284
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:1fccc976",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "fire_will_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "black"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:620e9f54",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:620e9f54",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "pass"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:78046aec",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:898e9d66",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "super_buoyancy_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "white"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:8c9b1360",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:8c9b1360",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "superBuoyancyTarget": {
+          "row": 1,
+          "col": 1
+        }
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:1f451bc9",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:1f451bc9",
+      "prng": {
+        "seed": 914001,
+        "calls": 288
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 4,
+        "col": 1
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:85cd618d",
+      "prng": {
+        "seed": 914001,
+        "calls": 289
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:c74f0474",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "rainbow_stone",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "black"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:897f5a1b",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:897f5a1b",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "pass"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:c4bb842f",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:41312fe2",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "work_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "white"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:d3f3ea6b",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:d3f3ea6b",
+      "prng": {
+        "seed": 914001,
+        "calls": 290
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "row": 0,
+        "col": 3
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:ebabe9fe",
+      "prng": {
+        "seed": 914001,
+        "calls": 293
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:402c129c",
+      "prng": {
+        "seed": 914001,
+        "calls": 297
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "trap_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "black"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:a464a665",
+      "prng": {
+        "seed": 914001,
+        "calls": 297
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:a464a665",
+      "prng": {
+        "seed": 914001,
+        "calls": 297
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "place",
+        "trapTarget": {
+          "row": 0,
+          "col": 3
+        }
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:2bb63c19",
+      "prng": {
+        "seed": 914001,
+        "calls": 298
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:138539fc",
+      "prng": {
+        "seed": 914001,
+        "calls": 298
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "use_card",
+        "useCardId": "execution_01",
+        "useCardHandIndex": 0,
+        "useCardOwnerKey": "white"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:82ff7af8",
+      "prng": {
+        "seed": 914001,
+        "calls": 300
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:82ff7af8",
+      "prng": {
+        "seed": 914001,
+        "calls": 300
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "pass"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:40e09e5b",
+      "prng": {
+        "seed": 914001,
+        "calls": 300
+      }
+    },
+    {
+      "kind": "turn_start",
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:77d35553",
+      "prng": {
+        "seed": 914001,
+        "calls": 300
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "type": "pass"
+      },
+      "ok": true,
+      "reason": null,
+      "hash": "fnv1a32:5b7237d3",
+      "prng": {
+        "seed": 914001,
+        "calls": 300
+      }
+    }
+  ]
+}

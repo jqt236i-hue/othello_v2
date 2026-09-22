@@ -62,12 +62,6 @@ const GAME_STONE_VISUAL_EFFECTS: Record<string, any> = {
         dataAttributes: {}
     },
 
-    crystalStone: {
-        cssClass: 'crystal-stone',
-        cssMethod: 'background',
-        imagePath: 'assets/images/special-stones/crystal_stone.png',
-        dataAttributes: {}
-    },
     // 永久保護（強い意志）
     protectedStone: {
         cssClass: 'protected-stone',
