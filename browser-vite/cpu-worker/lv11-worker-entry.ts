@@ -7,6 +7,8 @@ import { CPU_WORKER_OPERATIONS, parseCpuWorkerRequest, type CpuWorkerResponse } 
 export function executeLv11WorkerMessage(raw: unknown): CpuWorkerResponse | null {
   if ((raw as any)?.kind === 'cancel') return null;
   const { payload, kind: _kind, ...identity } = parseCpuWorkerRequest(raw);
+  // A warm-up probe only loads this Worker; it never runs a search.
+  if (identity.operation === CPU_WORKER_OPERATIONS.PING) return { ...identity, kind: 'response', ok: true, result: { ready: true } };
   try {
     if (identity.operation !== CPU_WORKER_OPERATIONS.LV11_ADVISE) throw new Error('Unsupported Lv11 operation');
     const request = parseLv10AdvisorRequest(payload);

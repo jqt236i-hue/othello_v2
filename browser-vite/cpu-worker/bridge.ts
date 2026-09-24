@@ -29,6 +29,8 @@ export interface BrowserCpuWorkerBridge {
   adviseLv10InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
   adviseLv11InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
   adviseLv12InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
+  /** Loads the advisor Worker for a Lv10+ match after boot; never searches. */
+  warmUpAdvisor: (level: number) => void;
 }
 
 export function getCpuWorkerBridge(rootRef: RuntimeRoot): BrowserCpuWorkerBridge | null {
@@ -73,7 +75,34 @@ export function installCpuWorkerBridge(
     workerFactory: () => new Lv12WorkerConstructor({ name: 'card-reversi-lv12' }) as unknown as Worker,
     defaultTimeoutMs: 8000
   });
+  // A cold advisor Worker spends part of the first CPU turn's deadline
+  // loading its bundle. When a Lv10+ opponent is shown, load it ahead of that
+  // turn, but only after boot so startup never creates a CPU Worker. Failures
+  // are left to the advise request, which keeps its existing error handling.
+  const warmedAdvisorLevels = new Set<number>();
+  let pendingWarmUpLevel: number | null = null;
+  const isBootReady = () => _documentRef?.documentElement?.getAttribute('data-browser-boot-state') === 'ready';
+  const startWarmUp = (level: number) => {
+    const advisor = level === 10 ? lv10Client : level === 11 ? lv11Client : level === 12 ? lv12Client : null;
+    if (!advisor || warmedAdvisorLevels.has(level)) return;
+    warmedAdvisorLevels.add(level);
+    void advisor.probe(level === 10 ? 3000 : 8000).catch(() => { warmedAdvisorLevels.delete(level); });
+  };
+  const warmUpAdvisor = (levelValue: number) => {
+    const level = Math.floor(Number(levelValue));
+    if (!(level >= 10 && level <= 12)) return;
+    if (isBootReady()) { startWarmUp(level); return; }
+    const alreadyWaiting = pendingWarmUpLevel !== null;
+    pendingWarmUpLevel = level;
+    if (alreadyWaiting || typeof rootRef.addEventListener !== 'function') return;
+    rootRef.addEventListener('card-reversi:browser-ready', () => {
+      const pending = pendingWarmUpLevel;
+      pendingWarmUpLevel = null;
+      if (pending !== null) startWarmUp(pending);
+    }, { once: true });
+  };
   const bridge: BrowserCpuWorkerBridge = {
+    warmUpAdvisor,
     client,
     lv10Client,
     lv11Client,
@@ -139,6 +168,7 @@ export function installCpuWorkerBridge(
     }
   };
   bridges.set(rootRef, bridge);
+  rootRef.__CARD_REVERSI_WARM_CPU_ADVISOR__ = warmUpAdvisor;
   updateCapabilities(rootRef, {
     dedicatedCpuWorkerConfigured: true,
     cpuCandidateScoringWorker: true,

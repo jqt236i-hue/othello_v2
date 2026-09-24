@@ -1202,6 +1202,14 @@ function updateCpuCharacter(): void {
     const specialPresentation = resolveSpecialCpuPresentation();
     const useNetworkHeroPresentation = !specialPresentation && isNetworkModeForLabels();
     const displayLevel = level;
+    if (!useNetworkHeroPresentation) {
+        // The Vite lane loads the Lv10+ advisor Worker ahead of the first CPU
+        // turn (after boot only); other lanes and levels ignore this.
+        try {
+            const warmUp = typeof window !== 'undefined' ? (window as any).__CARD_REVERSI_WARM_CPU_ADVISOR__ : null;
+            if (typeof warmUp === 'function') warmUp(level);
+        } catch (e) { /* warm-up is an optimization only */ }
+    }
     const charImg = (getElement as any)('cpuCharacterImg');
     const levelLabel = (getElement as any)('cpuLevelLabel');
     const heroLabel = document.getElementById('hero-label');
