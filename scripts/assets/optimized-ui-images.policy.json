@@ -51,6 +51,136 @@
         "investigation": "rejected before formal admission because decode regressed",
         "hardwareDecode": null
       }
+    },
+    {
+      "source": "assets/images/board/board-frame-submerged-wood-v1.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "admitted",
+        "reason": "headful hardware desktop Chromium median decode changed by 0.5ms (repeat run 0.45ms) and passed the +2ms/+10% threshold in both runs"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:09.724Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 9.9,
+          "webpMedianMs": 10.4,
+          "deltaMs": 0.5,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-table-player-v6.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "decode timing passed the +2ms/+10% threshold, but Chromium canvas readback differed from the PNG in 2110 visible (semi-transparent) pixels; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:10.712Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 5.5,
+          "webpMedianMs": 6.3,
+          "deltaMs": 0.8,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
+      }
+    },
+    {
+      "source": "assets/images/other/charge-counter-wafu-v1.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "decode timing passed the +2ms/+10% threshold, but Chromium canvas readback differed from the PNG in 3689 visible (semi-transparent) pixels; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:11.976Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 5.35,
+          "webpMedianMs": 7.25,
+          "deltaMs": 1.9,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
+      }
+    },
+    {
+      "source": "assets/images/other/card-back-deck-v1.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "headful hardware desktop Chromium median decode regressed by 2.95ms (repeat run 3.2ms), beyond the +2ms/+10% threshold; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:10.286Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 4.15,
+          "webpMedianMs": 7.1,
+          "deltaMs": 2.95,
+          "allowedDeltaMs": 2,
+          "verdict": "rejected"
+        }
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-table-opponent-v6.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "headful hardware desktop Chromium median decode regressed by 2.7ms (repeat run 2.8ms), beyond the +2ms/+10% threshold; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:11.316Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 5.5,
+          "webpMedianMs": 8.2,
+          "deltaMs": 2.7,
+          "allowedDeltaMs": 2,
+          "verdict": "rejected"
+        }
+      }
     }
   ]
 }

@@ -89,9 +89,200 @@
       "sourceSha256": "1bd8be6d6cf7b0f29c37a6c2e0ab3d35279b5f261270ccf577f07464b647da43",
       "outputSha256": "9fbf8bc13d9ff8c95c7f02a6d6463c8c1d29e50a9fb951ab101931bb79ddc475",
       "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/board/board-frame-submerged-wood-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-submerged-wood-v1.webp",
+      "output": "assets/images/board/board-frame-submerged-wood-v1.webp",
+      "criticalPath": true,
+      "admission": {
+        "status": "admitted",
+        "reason": "headful hardware desktop Chromium median decode changed by 0.5ms (repeat run 0.45ms) and passed the +2ms/+10% threshold in both runs"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:09.724Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 9.9,
+          "webpMedianMs": 10.4,
+          "deltaMs": 0.5,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1288714,
+      "outputBytes": 553854,
+      "savedBytes": 734860,
+      "savingsRatio": 0.570227373955742,
+      "sourceSha256": "5c761761da47bed74c9951be1078e397904a781f6819c1388c1a28679c8d6a14",
+      "outputSha256": "ff915d1d89c6d4fe3395225af4dd25c6a98b2167eba1bbe537318e178a028458",
+      "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/ui/card-area-table-player-v6.png",
+      "candidateOutput": "assets/images/ui/card-area-table-player-v6.webp",
+      "output": null,
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "decode timing passed the +2ms/+10% threshold, but Chromium canvas readback differed from the PNG in 2110 visible (semi-transparent) pixels; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:10.712Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 5.5,
+          "webpMedianMs": 6.3,
+          "deltaMs": 0.8,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
+      },
+      "width": 913,
+      "height": 648,
+      "hasAlpha": true,
+      "sourceBytes": 845342,
+      "outputBytes": 580564,
+      "savedBytes": 264778,
+      "savingsRatio": 0.31321997487407466,
+      "sourceSha256": "676183c1e9260097505ad2624d498c5afa8f178c44e75442767bca0c2a887aa7",
+      "outputSha256": "464104e7c578a3e1f65f12e9b01eef5f415e48ba651161a3dfb8e48ea7f57097",
+      "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/other/charge-counter-wafu-v1.png",
+      "candidateOutput": "assets/images/other/charge-counter-wafu-v1.webp",
+      "output": null,
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "decode timing passed the +2ms/+10% threshold, but Chromium canvas readback differed from the PNG in 3689 visible (semi-transparent) pixels; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:11.976Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 5.35,
+          "webpMedianMs": 7.25,
+          "deltaMs": 1.9,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
+      },
+      "width": 1703,
+      "height": 386,
+      "hasAlpha": true,
+      "sourceBytes": 769336,
+      "outputBytes": 512260,
+      "savedBytes": 257076,
+      "savingsRatio": 0.3341530878575811,
+      "sourceSha256": "5ed84ef6406537f3e97d114c6573092173224b12c0d0fa0574d03a40ba3e7b31",
+      "outputSha256": "b081747d6bd64b88a3ab1896359bb21c9369b081a42fff5002e0a512a2f47ada",
+      "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/other/card-back-deck-v1.png",
+      "candidateOutput": "assets/images/other/card-back-deck-v1.webp",
+      "output": null,
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "headful hardware desktop Chromium median decode regressed by 2.95ms (repeat run 3.2ms), beyond the +2ms/+10% threshold; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:10.286Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 4.15,
+          "webpMedianMs": 7.1,
+          "deltaMs": 2.95,
+          "allowedDeltaMs": 2,
+          "verdict": "rejected"
+        }
+      },
+      "width": 590,
+      "height": 780,
+      "hasAlpha": false,
+      "sourceBytes": 898218,
+      "outputBytes": 627584,
+      "savedBytes": 270634,
+      "savingsRatio": 0.3013010204649651,
+      "sourceSha256": "af74fdf4c5a3da8055c8b091353758480763c02e3eea0428355dafb5d8fa1630",
+      "outputSha256": "1437724863ffac2282e6b4166d9279981cedbbc12cb60f686a56ac365834ca9e",
+      "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/ui/card-area-table-opponent-v6.png",
+      "candidateOutput": "assets/images/ui/card-area-table-opponent-v6.webp",
+      "output": null,
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "headful hardware desktop Chromium median decode regressed by 2.7ms (repeat run 2.8ms), beyond the +2ms/+10% threshold; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "scripts/assets/measure-ui-image-decode.ts, two runs on 2026-09-25",
+        "hardwareDecode": {
+          "capturedAt": "2026-09-24T17:56:11.316Z",
+          "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+          "platform": "Windows 11 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 5.5,
+          "webpMedianMs": 8.2,
+          "deltaMs": 2.7,
+          "allowedDeltaMs": 2,
+          "verdict": "rejected"
+        }
+      },
+      "width": 679,
+      "height": 812,
+      "hasAlpha": true,
+      "sourceBytes": 804705,
+      "outputBytes": 538740,
+      "savedBytes": 265965,
+      "savingsRatio": 0.33051242380748225,
+      "sourceSha256": "04a2f704b4be7d29a519e1fb61e5ad60da9c42a12244ca57c5075b506ff040d7",
+      "outputSha256": "41a3a31ccead43ad4122a9747aff0d2979d1686f660013ab10923da7e6dab852",
+      "visiblePixelsEqual": true
     }
   ],
   "admittedMapping": {
-    "assets/images/board/board-frame-marsh-forged-iron-v1.png": "assets/images/board/board-frame-marsh-forged-iron-v1.webp"
+    "assets/images/board/board-frame-marsh-forged-iron-v1.png": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
+    "assets/images/board/board-frame-submerged-wood-v1.png": "assets/images/board/board-frame-submerged-wood-v1.webp"
   }
 }
