@@ -2416,13 +2416,21 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
 
         let pending = readCpuPendingSelection(playerKey);
         if (pending && pending.stage === 'selectTarget') {
+            // A selection that already existed at turn start is reached without an
+            // intervening await or card phase, so the turn-start commentary
+            // snapshot still describes this board; the identity check guards it.
+            const reuseTurnStartCommentary = hasPendingSelection
+                && !!(analysisForRun && analysisForRun.invocation && analysisForRun.isCurrent(false));
             const pendingPhaseResult = await CpuTurnPendingPhase.runCpuTurnPendingPhase({
                 playerKey,
                 autoMode,
                 level,
                 pending,
                 performanceScope,
-                analysisSeed: analysisForRun && analysisForRun.seed
+                analysisSeed: analysisForRun && analysisForRun.seed,
+                commentaryAnalysis: reuseTurnStartCommentary
+                    ? { invocation: analysisForRun.invocation, snapshotMoment: 'turn-start' }
+                    : null
             });
             if (stopCpuForRuntimeIntegrityIfBlocked()) return;
             if (pendingPhaseResult && pendingPhaseResult.status === 'handled') {

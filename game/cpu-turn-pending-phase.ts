@@ -9,7 +9,7 @@ import {
 
 type CpuTurnPendingPhaseConfig = {
     clearCpuPendingSelection: (playerKey: any) => any;
-    emitCpuCommentary: (eventType: any, playerKey: any, extra: any) => any;
+    emitCpuCommentary: (eventType: any, playerKey: any, extra: any, analysisOptions?: any) => any;
     emitCpuDebugLog: (message: any, kind?: any, meta?: any) => any;
     getAnimationRetryDelayMs: () => any;
     getCurrentPlayerKeySafe: () => any;
@@ -41,6 +41,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
         const autoMode = opts.autoMode === true;
         const level = opts.level;
         const performanceScope = (opts.performanceScope || null) as CpuTurnPerformanceScope | null;
+        const commentaryAnalysis = opts.commentaryAnalysis || undefined;
         const resumeOptions = performanceScope
             ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, level)
             : { autoMode };
@@ -57,13 +58,13 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                     cfg.emitCpuCommentary('card_targeted', playerKey, {
                         level,
                         pendingType: pending.type || ''
-                    });
+                    }, commentaryAnalysis);
                 });
             } else {
                 cfg.emitCpuCommentary('card_targeted', playerKey, {
                     level,
                     pendingType: pending.type || ''
-                });
+                }, commentaryAnalysis);
             }
         }
 

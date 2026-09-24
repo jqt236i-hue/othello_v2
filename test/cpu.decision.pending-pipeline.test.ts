@@ -1,5 +1,6 @@
 import { createCpuDecisionPendingPipeline } from '../game/cpu-decision-pending-pipeline';
 import { createCpuTurnPendingPhase } from '../game/cpu-turn-pending-phase';
+import { buildCpuTurnAnalysisSeed, createCpuTurnAnalysisInvocation } from '../game/cpu-turn-analysis';
 import {
   createCpuTurnPerformanceScope,
   readActiveCpuPendingSelectionPerformanceScope,
@@ -107,6 +108,36 @@ describe('cpu decision pending pipeline controller', () => {
       ['canonical-commit', 'sync', 'cpu-pending-1']
     ]);
     expect(ctx.getCardState()).toEqual({ turnIndex: 8 });
+  });
+
+  test('card_targeted commentary reuses the turn-start metrics snapshot of the same invocation', async () => {
+    const buildMetrics = jest.fn(() => ({ phase: 'middle', advantage: 'even' }));
+    const invocation = createCpuTurnAnalysisInvocation(buildCpuTurnAnalysisSeed({ identity: { runId: 1, playerKey: 'white' } }), {
+      commentary: { 'turn-start': { buildMetrics } }
+    } as any);
+    const emitted: any[] = [];
+    const emitCpuCommentary = jest.fn((eventType: any, playerKey: any, extra: any, analysisOptions?: any) => {
+      emitted.push(analysisOptions ? analysisOptions.invocation.deriveCommentaryAnalysis(analysisOptions.snapshotMoment).metrics : null);
+    });
+    const phase = createCpuTurnPendingPhase({
+      clearCpuPendingSelection: jest.fn(), emitCpuCommentary, emitCpuDebugLog: jest.fn(),
+      getAnimationRetryDelayMs: () => 0, getCurrentPlayerKeySafe: () => 'black',
+      getPendingDispatchHandlers: () => ({ trap: jest.fn(async () => undefined) }), isCpuDebugLogAvailable: () => false,
+      isUiAnimationBusy: () => false, readCpuPendingSelection: () => null, resetPendingSelectRetryState: jest.fn(),
+      resolvePendingSelectionDispatchKeyForCpu: () => 'trap', scheduleRunCpuTurn: jest.fn(), setCpuProcessing: jest.fn(),
+      shouldAbortCpuForHumanMode: () => false, shouldAbortStuckPendingSelection: () => false
+    });
+    const turnStart = invocation.deriveCommentaryAnalysis('turn-start').metrics;
+
+    await phase.runCpuTurnPendingPhase({ playerKey: 'white', level: 1,
+      pending: { stage: 'selectTarget', type: 'TRAP_WILL' },
+      commentaryAnalysis: { invocation, snapshotMoment: 'turn-start' } });
+    await phase.runCpuTurnPendingPhase({ playerKey: 'white', level: 1,
+      pending: { stage: 'selectTarget', type: 'TRAP_WILL' } });
+
+    expect(emitCpuCommentary.mock.calls.map((call) => call[0])).toEqual(['card_targeted', 'card_targeted']);
+    expect(emitted).toEqual([turnStart, null]);
+    expect(buildMetrics).toHaveBeenCalledTimes(1);
   });
 
   test('the pending phase labels the synchronous prefix as target choice and scopes the commit to the handler', async () => {
