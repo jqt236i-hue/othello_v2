@@ -101,6 +101,12 @@ describe('browser module registry boot contract', () => {
     expect(result && result.groupContents.cpu).toContain('_r("othello-ai/runtime/browser-cpu"');
     expect(result && result.groupContents.onnx).toContain('_r("game/ai/policy-onnx-runtime"');
     expect(result && result.groupContents.onnx).not.toContain('policy-onnx-runtime-v2');
+    // Lv10+ search is bundled only into its dedicated Worker entries.
+    const allContent = [result && result.startupContent, result && result.optionalContent].join('\n');
+    for (const name of ['cpu-lv10-search', 'cpu-lv11-search', 'cpu-lv11-evaluation', 'cpu-lv12-search', 'cpu-lv12-evaluation', 'cpu-lv12-model', 'cpu-lv12-scenarios']) {
+      expect(allContent).not.toContain(`_r("game/ai/${name}"`);
+    }
+    expect(result && result.startupContent).toContain('_r("game/ai/cpu-lv10-position"');
   });
 
   test('writes startup and optional registry files when split output is enabled', () => {

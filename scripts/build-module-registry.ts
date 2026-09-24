@@ -93,6 +93,11 @@ const DIST_EXCLUDED_BROWSER_MODULES = new Set([
     'game/ai/policy-onnx-runtime-v2.js'
 ]);
 
+// Lv10+ search runs only inside its dedicated Worker bundles (browser-vite/
+// cpu-worker/lv1x-worker-entry.ts); the main thread imports these modules for
+// types only, and they import only each other.
+const WORKER_ONLY_BROWSER_MODULE_PATTERN = /^game\/ai\/cpu-lv1[0-9]-(?:search|evaluation|model|scenarios)\.js$/;
+
 const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: string[] }> = [
     { source: 'othello-ai/core/board.js', key: 'othello-ai/core/board', aliases: ['othello-ai/core/board.js'] },
     { source: 'othello-ai/eval/value-table.js', key: 'othello-ai/eval/value-table', aliases: ['othello-ai/eval/value-table.js'] },
@@ -343,6 +348,7 @@ function isBrowserModule(rel: string): boolean {
     if (rel.includes('__tests__')) return false;
     if (rel.includes('.test.')) return false;
     if (DIST_EXCLUDED_BROWSER_MODULES.has(rel)) return false;
+    if (WORKER_ONLY_BROWSER_MODULE_PATTERN.test(rel)) return false;
     if (BROWSER_ROOT_MODULES.has(rel)) return true;
     return BROWSER_MODULE_PREFIXES.some(prefix => rel.startsWith(prefix));
 }
