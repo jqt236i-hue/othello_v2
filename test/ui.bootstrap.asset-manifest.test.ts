@@ -53,6 +53,16 @@ describe('UI bootstrap asset manifest runtime', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  test('refreshLoadedAssetManifest revalidates the cached manifest instead of bypassing the cache', async () => {
+    const bootstrap = loadBootstrap();
+    const fetch = jest.fn().mockResolvedValue({ ok: false, status: 304 });
+
+    await bootstrap.refreshLoadedAssetManifest({
+      root: { fetch, location: { protocol: 'https:', origin: 'https://example.test' } }
+    });
+    expect(fetch).toHaveBeenCalledWith('assets/asset-manifest.json', { cache: 'no-cache' });
+  });
+
   test('refreshLoadedAssetManifest reports non-ok fetch failures with status code', async () => {
     const bootstrap = loadBootstrap();
 

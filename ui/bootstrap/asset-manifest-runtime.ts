@@ -36,7 +36,7 @@ export function createAssetManifestRuntime(deps: AssetManifestRuntimeDeps) {
       } catch (e: any) { /* ignore */ }
 
       const manifestUrl = String(opts.manifestUrl || 'assets/asset-manifest.json').trim() || 'assets/asset-manifest.json';
-      const response = await fetchFn(manifestUrl, { cache: 'no-store' });
+      const response = await fetchFn(manifestUrl, { cache: 'no-cache' });
       if (!response || response.ok !== true) {
         return {
           status: 'error',

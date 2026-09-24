@@ -258,7 +258,7 @@ async function loadAssetManifestForBoot(
   } catch (e) { /* ignore */ }
 
   try {
-    const response = await fetchFn('assets/asset-manifest.json', { cache: 'no-store' });
+    const response = await fetchFn('assets/asset-manifest.json', { cache: 'no-cache' });
     if (!response || response.ok !== true) {
       return {
         status: 'error',

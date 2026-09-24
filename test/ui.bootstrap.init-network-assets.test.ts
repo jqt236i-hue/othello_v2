@@ -29,7 +29,7 @@ describe('initial asset manifest loading', () => {
       status: 'ok',
       manifest
     });
-    expect(fetch).toHaveBeenCalledWith('assets/asset-manifest.json', { cache: 'no-store' });
+    expect(fetch).toHaveBeenCalledWith('assets/asset-manifest.json', { cache: 'no-cache' });
     expect(uiBootstrap.setLoadedAssetManifest).toHaveBeenCalledWith(manifest, { root, dispatch: true });
     expect(uiBootstrap.preloadAssets).not.toHaveBeenCalled();
   });
