@@ -59,7 +59,8 @@ export function evaluateLv10Position(state: Lv10Position, player: Lv10Player): n
     const counts = Core.countDiscs(gs, cs);
     const material = sign * (counts.black - counts.white);
     if (Core.isGameOver(gs)) return material === 0 ? 0 : Math.sign(material) * 100000 + material;
-    const board = Board.createBoardContext(gs, cs);
+    // One compact search projection per evaluated position, as Lv11/Lv12 do.
+    const board = Board.prepareBoardForSearch(Board.createBoardContext(gs, cs));
     const coordinates = Board.collectBoardCoordinates(board).filter((cell: any) => Board.hasPlayableCell(board, cell.row, cell.col));
     const size = Math.max(1, coordinates.length), empty = size - counts.black - counts.white;
     const end = Math.max(0, 1 - empty / (size * .3));
