@@ -216,6 +216,25 @@ const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.
 ]);
 
 const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
+    // Unreferenced production leftovers: turnaround sheets and a cutout of
+    // the character art, BGM drafts, a byte-identical BGM duplicate
+    // (`Observation Battle3.mp3` is the referenced copy), a backup, an unused
+    // background, a sound-effect draft and authoring manifests/records.
+    'assets/images/special-cards/characters/board_executor_turnaround.png',
+    'assets/images/special-cards/characters/board_executor_turnaround_upright_unarmed.png',
+    'assets/images/special-cards/characters/theory_incarnation_turnaround.png',
+    'assets/images/special-cards/characters/observer_will_character_only.png',
+    'assets/audio/bgm/manifest-stones/A.mp3',
+    'assets/audio/bgm/manifest-stones/A (2).mp3',
+    'assets/audio/bgm/manifest-stones/aa.mp3',
+    'assets/audio/bgm/manifest-stones/s.mp3',
+    'assets/audio/bgm/manifest-stones/ss.mp3',
+    'assets/audio/bgm/Observation Battle.mp3',
+    'assets/audio/bgm/sacrifice.mp3.bak',
+    'assets/images/special-cards/backgrounds/zombie_will_background.png',
+    'assets/audio/sound-effect/進化仮.mp3',
+    'assets/fonts/font-build-manifest.json',
+    'assets/images/Gacha/generation-record.json',
     'game/logic/card-usage-prechecks.js',
     'game/logic/charge-ledger.js',
     'game/logic/module-resolver.js',
@@ -230,6 +249,9 @@ const EXCLUDED_MIRROR_DIRECTORY_PREFIXES = Object.freeze([
     // Authoring references; the playable character art is stored alongside this
     // directory and remains deployable.
     'assets/images/special-cards/characters/observer_will_reference/',
+    'assets/images/special-cards/characters/theory_incarnation_reference/',
+    // Archived sound-effect drafts; the game loads the non-archived set.
+    'assets/audio/sound-effect/archive/',
     // Unpublished story material (novel, story map, MV storyboards). The game
     // does not load these, and they must not be publicly served.
     'assets/ラノベ/',

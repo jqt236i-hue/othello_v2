@@ -178,7 +178,30 @@ describe('prepare-worker-assets', () => {
         expect(shouldMirrorRelativePath('assets/asset-manifest.json.tmp-1-2')).toBe(false);
         expect(shouldMirrorRelativePath('assets/models/special-cards/characters/theory_incarnation_hq/theory_incarnation_hq.blend')).toBe(false);
         expect(shouldMirrorRelativePath('assets/images/special-cards/characters/observer_will_reference/blender_model/Observer_Will.blend')).toBe(false);
-        expect(shouldMirrorRelativePath('assets/images/special-cards/characters/observer_will_character_only.png')).toBe(true);
+        // The runtime character art beside the excluded reference directory stays deployable.
+        expect(shouldMirrorRelativePath('assets/images/special-cards/characters/observer_will.png')).toBe(true);
+        expect(shouldMirrorRelativePath('assets/images/special-cards/characters/theory_incarnation.png')).toBe(true);
+        expect(shouldMirrorRelativePath('assets/audio/bgm/Observation Battle3.mp3')).toBe(true);
+        expect(shouldMirrorRelativePath('assets/audio/bgm/sacrifice.mp3')).toBe(true);
+        expect(shouldMirrorRelativePath('assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3')).toBe(true);
+        expect(shouldMirrorRelativePath('assets/images/Gacha/N/人の手.png')).toBe(true);
+        // Unreferenced production leftovers are not deployed.
+        for (const excluded of [
+            'assets/images/special-cards/characters/observer_will_character_only.png',
+            'assets/images/special-cards/characters/theory_incarnation_turnaround.png',
+            'assets/images/special-cards/characters/theory_incarnation_reference/01-form-turnaround.png',
+            'assets/images/special-cards/characters/board_executor_turnaround.png',
+            'assets/audio/bgm/manifest-stones/A (2).mp3',
+            'assets/audio/bgm/Observation Battle.mp3',
+            'assets/audio/bgm/sacrifice.mp3.bak',
+            'assets/audio/sound-effect/archive/web-audio-stone/type-1-standard.mp3',
+            'assets/audio/sound-effect/進化仮.mp3',
+            'assets/images/special-cards/backgrounds/zombie_will_background.png',
+            'assets/fonts/font-build-manifest.json',
+            'assets/images/Gacha/generation-record.json'
+        ]) {
+            expect(shouldMirrorRelativePath(excluded)).toBe(false);
+        }
         expect(shouldMirrorRelativePath('game/logic/module-resolver.js')).toBe(false);
     });
 
