@@ -34,6 +34,8 @@ let activeLocalPresentationDrainClaim: any = null;
 let legacyBoardPresentationSequence = 0;
 let detachedLegacyBoardPresentationLease: any = null;
 
+let presentationDebugSearchMemo: { search: string; enabled: boolean } | null = null;
+
 function isPresentationDebugEnabled(): boolean {
   try {
     const search = (typeof location !== 'undefined' && location && typeof location.search === 'string')
@@ -41,17 +43,24 @@ function isPresentationDebugEnabled(): boolean {
       : ((typeof globalThis !== 'undefined' && (globalThis as any).location && typeof (globalThis as any).location.search === 'string')
         ? (globalThis as any).location.search
         : '');
-    return /[?&]debug=1(?:&|$)/.test(search)
+    // Memoized per query string so a later URL change is still observed.
+    if (presentationDebugSearchMemo && presentationDebugSearchMemo.search === search) {
+      return presentationDebugSearchMemo.enabled;
+    }
+    const enabled = /[?&]debug=1(?:&|$)/.test(search)
       || /[?&]debug=true(?:&|$)/i.test(search)
       || /[?&]specialDebug=1(?:&|$)/.test(search)
       || /[?&]specialDebug=true(?:&|$)/i.test(search)
       || /[?&]special-debug=1(?:&|$)/.test(search)
       || /[?&]special-debug=true(?:&|$)/i.test(search);
+    presentationDebugSearchMemo = { search, enabled };
+    return enabled;
   } catch (e) { /* ignore */ }
   return false;
 }
 
-function emitPresentationDebugConsole(eventType: string, details?: any): void {
+/** Details may be a thunk so debug-only summaries are built only when printed. */
+function emitPresentationDebugConsole(eventType: string, detailsOrBuilder?: any): void {
   if (!isPresentationDebugEnabled()) {
     try {
       const client = resolveFromGlobal('NetworkMatchClient');
@@ -63,6 +72,7 @@ function emitPresentationDebugConsole(eventType: string, details?: any): void {
   }
   const line = `[presentation-debug] ${String(eventType || '').trim()}`;
   if (!line || line === '[presentation-debug]') return;
+  const details = typeof detailsOrBuilder === 'function' ? detailsOrBuilder() : detailsOrBuilder;
   try {
     if (typeof console !== 'undefined' && console && typeof console.log === 'function') {
       if (details && typeof details === 'object') {
@@ -425,7 +435,7 @@ function normalizePlaybackEventsForUi(payload: any[]): any[] {
       (typeof gameState !== 'undefined') ? gameState : null
     );
     const normalized = Array.isArray(mapped) && mapped.length > 0 ? mapped : payload;
-    emitPresentationDebugConsole('playback_batch_normalized', {
+    emitPresentationDebugConsole('playback_batch_normalized', () => ({
       rawCount: payload.length,
       rawTypes: payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value),
       normalizedCount: Array.isArray(normalized) ? normalized.length : 0,
@@ -433,7 +443,7 @@ function normalizePlaybackEventsForUi(payload: any[]): any[] {
         ? normalized.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value)
         : [],
       usedAdapter: Array.isArray(mapped) && mapped.length > 0
-    });
+    }));
     return normalized;
   } catch (e) {
     emitPresentationDebugConsole('playback_batch_normalize_failed', {
@@ -1035,13 +1045,13 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   const payloadTypes = payloadForClaim.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value);
 
   const opts = options && typeof options === 'object' ? options : {};
-  emitPresentationDebugConsole('playback_batch_received', {
+  emitPresentationDebugConsole('playback_batch_received', () => ({
     source: ev && ev.meta && ev.meta.source ? String(ev.meta.source) : '',
     suppressPlayback,
     payloadCount: payload.length,
     payloadTypes,
     targetSummary: getPlaybackTargetSummary(payloadForClaim)
-  });
+  }));
   if (!suppressPlayback) {
     if (opts.emitEnemyCardReaction !== false) {
       emitCpuReactionToEnemyCardFromPlayback(payload);
@@ -1643,12 +1653,12 @@ async function flushBoardPresentationEvents(): Promise<void> {
     if (drainClaim && drainClaim.meta && drainClaim.meta.strictNetworkPlayback !== true) {
       activeLocalPresentationDrainClaim = drainClaim;
     }
-    emitPresentationDebugConsole('board_updated_flush', {
+    emitPresentationDebugConsole('board_updated_flush', () => ({
       eventCount: Array.isArray(events) ? events.length : 0,
       eventTypes: Array.isArray(events)
         ? events.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value)
         : []
-    });
+    }));
     try {
       const drainChargeDeltaPopups = (typeof window !== 'undefined' && typeof (window as any).drainVisibleChargeDeltaPopups === 'function')
         ? (window as any).drainVisibleChargeDeltaPopups

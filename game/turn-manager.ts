@@ -1573,7 +1573,10 @@ async function onTurnStart(player: number) {
     // 3. Draw Animation (if draw happened during the turn-start phase)
     if (handSizeAfter > handSizeBefore) {
         // A card was drawn - convert to playback event and let AnimationEngine own the visuals.
-        console.log(`[DRAW] Card drawn for ${playerKey}! handBefore=${handSizeBefore}, handAfter=${handSizeAfter}`);
+        // Debug sessions keep the previous console line; normal play stays silent.
+        if (isTurnManagerDebugAvailable()) {
+            console.log(`[DRAW] Card drawn for ${playerKey}! handBefore=${handSizeBefore}, handAfter=${handSizeAfter}`);
+        }
         try {
             const drawnCardId = cardState.hands[playerKey][cardState.hands[playerKey].length - 1];
             if (drawnCardId !== null && drawnCardId !== undefined) {
