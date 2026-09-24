@@ -233,7 +233,9 @@ const EXCLUDED_MIRROR_DIRECTORY_PREFIXES = Object.freeze([
     // does not load these, and they must not be publicly served.
     'assets/ラノベ/',
     'assets/Reversi Destiny ～黒白の運命～v1/',
-    'assets/mv-storyboards-2026-09-12/'
+    'assets/mv-storyboards-2026-09-12/',
+    // Character reference sheets; not loaded by the game.
+    'assets/カードリバーシ全キャラ資料/'
 ]);
 
 function normalizeRelativePath(relativePath: string) {
