@@ -1,6 +1,5 @@
 import { cloneBattle, currentBattlePlayer, battleDecisionPlayer, type BattlePlayer, type BattleAction, type BattlePosition } from '../../shared/battle/types';
 import Core = require('../logic/core');
-import Pipeline = require('../turn/turn_pipeline');
 import Phases = require('../turn/turn_pipeline_phases');
 import BoardOps = require('../logic/board_ops');
 import DeckSpec = require('../../shared/deck-spec');
@@ -8,9 +7,22 @@ import Presentation = require('../../shared/presentation-queue');
 import Registry = require('../logic/cards-internal/pending-selection-registry');
 import SubPlacement = require('../turn/sub-placement-continuation');
 import StateHash = require('../../shared/state-hash');
+import TurnPipelineFactory = require('../turn/turn_pipeline_factory');
 
 const Cards: any = require('../logic/cards');
 const Prng: any = require('../schema/prng');
+
+/** The canonical pipeline with the same rule modules. Transitions applied here
+ * return only the next state, so the full-state stable hash that the shared
+ * pipeline computes for every accepted action is never read. */
+const TransitionPipeline = TurnPipelineFactory.createTurnPipelineModule({
+    CardLogic: Cards,
+    Core,
+    TurnPipelinePhases: Phases,
+    BoardOps,
+    SubPlacementContinuation: SubPlacement,
+    computeStateHash: () => null
+});
 
 export type Lv10Player = BattlePlayer;
 export type Lv10Action = BattleAction;
@@ -183,7 +195,7 @@ export function lv10CancellationAction(state: Lv10Position): Lv10Action | null {
  * are never passed to this function by the browser advisor. */
 export function applyLv10Action(state: Lv10Position, action: Lv10Action): Lv10Transition {
     const rng = Prng.fromState(state.prngState);
-    const result = Pipeline.applyTurnSafe(state.cardState, state.gameState, currentLv10Player(state), cloneLv10(action), rng,
+    const result = TransitionPipeline.applyTurnSafe(state.cardState, state.gameState, currentLv10Player(state), cloneLv10(action), rng,
         { skipTurnStart: true });
     if (!result.ok) return { ok: false, reason: `${result.rejectedReason || 'rejected'}: ${result.errorMessage || ''}` };
     const player = currentLv10Player(state), pending = state.cardState.pendingEffectByPlayer?.[player];
