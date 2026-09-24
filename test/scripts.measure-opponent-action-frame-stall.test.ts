@@ -10,7 +10,7 @@ import {
 
 function makeSample(scenarioId: string, durationMs = 20): any {
   return {
-    schemaVersion: 'cpu_turn_frame_stall_sample.v1',
+    schemaVersion: 'cpu_turn_frame_stall_sample.v2',
     scenarioId,
     metadata: {
       profile: 'desktop',
@@ -59,7 +59,18 @@ function makeSample(scenarioId: string, durationMs = 20): any {
       playerKey: 'white',
       level: 1,
       outcome: 'continue'
-    }],
+    }, ...(scenarioId === 'lv6-worker-backed-place-8x8' ? [{
+      correlationId: 'cpu-1',
+      runId: 1,
+      stage: 'tactical-safety',
+      kind: 'sync',
+      startMs: 22,
+      endMs: 24,
+      durationMs: 2,
+      playerKey: 'white',
+      level: 6,
+      outcome: 'continue'
+    }] : [])],
     longTasks: [{ entryType: 'longtask', startMs: 0, endMs: 12, durationMs: 12 }],
     longAnimationFrames: [],
     rafIntervalsMs: [16, 17],
@@ -135,7 +146,7 @@ describe('opponent action frame-stall report helpers', () => {
       },
       generatedAt: '2026-07-20T00:00:00.000Z'
     }) as any;
-    expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v2');
+    expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v3');
     expect(report.capture.graphics).toMatchObject({
       hardwareAccelerated: true,
       displayType: 'ANGLE_D3D11'
@@ -160,7 +171,7 @@ describe('opponent action frame-stall report helpers', () => {
 
   test('blocking gate uses sync metrics and ignores wait-only duration', () => {
     const makeReport = (syncP95: number, syncMax: number) => ({
-      schemaVersion: 'cpu_turn_frame_stall_report.v2',
+      schemaVersion: 'cpu_turn_frame_stall_report.v3',
       capture: {
         profile: 'desktop',
         lane: 'vite',
@@ -187,5 +198,33 @@ describe('opponent action frame-stall report helpers', () => {
     });
     expect(evaluateBlockingPerformanceGate(makeReport(100, 120), makeReport(25, 30)).ok).toBe(true);
     expect(evaluateBlockingPerformanceGate(makeReport(100, 120), makeReport(40, 50)).ok).toBe(false);
+  });
+
+  test('rejects an Lv6 sample when the tactical safety interval is absent', () => {
+    const sample = makeSample('lv6-worker-backed-place-8x8');
+    sample.stageEntries = sample.stageEntries.filter((entry: any) => entry.stage !== 'tactical-safety');
+    expect(() => buildFrameStallReport({
+      'lv6-worker-backed-place-8x8': [sample],
+      ...Object.fromEntries(SCENARIO_IDS.filter((id) => id !== 'lv6-worker-backed-place-8x8').map((id) => [id, [makeSample(id)]]))
+    }, {
+      profile: 'desktop',
+      lane: 'vite',
+      browserArtifactSha256: 'a'.repeat(64),
+      fixtureDigest: 'b'.repeat(64),
+      warmupIterations: 1,
+      captureIterations: 1,
+      buildMode: 'vite-production',
+      captureOrder: SCENARIO_IDS,
+      minimumValidSamples: 1,
+      graphics: {
+        hardwareAccelerated: true,
+        glRenderer: 'ANGLE (NVIDIA, D3D11)',
+        glVendor: 'Google Inc. (NVIDIA)',
+        displayType: 'ANGLE_D3D11',
+        gpuCompositing: 'enabled',
+        webgl: 'enabled_on',
+        devices: []
+      }
+    })).toThrow(/tactical-safety-entry-missing/);
   });
 });

@@ -1,5 +1,7 @@
 import { createCpuTurnMovePhase } from '../game/cpu-turn-move-phase.js';
 
+const CpuTurnPerformance = require('../game/cpu-turn-performance');
+
 const CANDIDATES = [
   { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
   { row: 4, col: 5, flips: [{ row: 4, col: 4 }] }
@@ -76,6 +78,35 @@ function run(phase: any, overrides: Record<string, any> = {}) {
 }
 
 describe('CPU turn Worker candidate scoring', () => {
+  test('records the Lv6 tactical safety check as part of the synchronous turn interval', async () => {
+    const entries: any[] = [];
+    let now = 1_000;
+    const performanceScope = CpuTurnPerformance.createCpuTurnPerformanceScope({
+      recorder: (entry: any) => entries.push(entry),
+      correlationId: 'cpu-tactical-safety-1',
+      runId: 1,
+      playerKey: 'white',
+      level: 6,
+      readNowMs: () => ++now
+    });
+    const harness = createConfig();
+    const phase = createCpuTurnMovePhase(harness.config as any);
+
+    await expect(run(phase, { level: 6, performanceScope })).resolves.toEqual({ status: 'handled' });
+
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        stage: 'tactical-safety',
+        kind: 'sync',
+        correlationId: 'cpu-tactical-safety-1',
+        runId: 1,
+        level: 6,
+        outcome: 'continue'
+      })
+    ]));
+    expect(harness.executeMove).toHaveBeenCalledWith(CANDIDATES[0], expect.objectContaining({ performanceScope }));
+  });
+
   test('passes only the attempt-local matched batch into the synchronous selector', async () => {
     const harness = createConfig();
     const phase = createCpuTurnMovePhase(harness.config as any);

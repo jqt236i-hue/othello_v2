@@ -31,7 +31,7 @@ const PERF_BENCH_ENABLED = ((): boolean => {
 })();
 
 const PERF_NAMESPACE = 'othello';
-const CPU_TURN_FRAME_STALL_SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v1';
+const CPU_TURN_FRAME_STALL_SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v2';
 const CPU_TURN_PERFORMANCE_SCENARIO_IDS = Object.freeze([
     'lv1-empty-or-unusable-hand-place-8x8',
     'lv1-usable-card-then-place-8x8',
@@ -173,6 +173,7 @@ function sanitizeCpuTurnPerformanceEntry(value: any): CpuTurnPerformanceEntry | 
         'card-context-base',
         'card-quiescence',
         'move-candidates',
+        'tactical-safety',
         'commentary-context',
         'canonical-commit',
         'presentation-handoff'

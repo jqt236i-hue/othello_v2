@@ -45,6 +45,24 @@ test('stability follows an expanded board boundary',()=>{
     expect(Safety.tacticalPositionFeatures(s.gameState,s.cardState,'white').stable).toBe(0);
 });
 
+test('tactical features rebuild a bounded search projection for sparse topology and same-reference changes',()=>{
+    const sparse=setupSafety(Array.from({length:8},()=>Array(8).fill(0)));
+    sparse.gameState.board[0][0]=-1;sparse.gameState.board[0][1]=-1;sparse.gameState.board[1][0]=-1;
+    sparse.gameState.boardExpansion.cells=[{side:'left',row:0,col:-1,owner:-1}];
+    sparse.cardState.markers=[{kind:'specialStone',row:0,col:1,owner:'white',data:{type:'METEOR_HOLE'}}];
+    expect(Safety.tacticalPositionFeatures(sparse.gameState,sparse.cardState,'white')).toEqual({stable:3,own:3,danger:1,late:false});
+    sparse.gameState.boardExpansion.cells[0].owner=1;sparse.cardState.markers=[];
+    expect(Safety.tacticalPositionFeatures(sparse.gameState,sparse.cardState,'white')).toEqual({stable:0,own:3,danger:1,late:false});
+
+    const circle=setupSafety(Array.from({length:10},()=>Array(10).fill(0)));
+    circle.gameState.boardConfig={rows:10,cols:10,shape:'circle'};
+    circle.gameState.board[4][4]=-1;circle.gameState.board[4][5]=-1;circle.gameState.board[5][4]=-1;
+    circle.cardState.markers=[{kind:'specialStone',row:4,col:4,owner:'white',data:{type:'PERMA_PROTECTED',sourceCardId:'perma_01'}}];
+    expect(Safety.tacticalPositionFeatures(circle.gameState,circle.cardState,'white')).toEqual({stable:1,own:3,danger:1,late:false});
+    circle.cardState.markers.push({kind:'specialStone',row:4,col:5,owner:'white',data:{type:'METEOR_HOLE'}});
+    expect(Safety.tacticalPositionFeatures(circle.gameState,circle.cardState,'white')).toEqual({stable:1,own:2,danger:2,late:false});
+});
+
 test.each([false,true])('midgame gives up one transient stone to retain three more stable stones (flip=%s)',flip=>{
     const s=setupSafety([[0,1,1,1,0,1,0,0],[0,-1,-1,-1,1,1,1,0],[-1,-1,-1,-1,0,1,1,0],[-1,-1,-1,-1,1,-1,1,-1],[-1,-1,1,1,-1,-1,1,0],[1,-1,1,-1,-1,-1,1,0],[1,-1,-1,-1,1,-1,-1,0],[1,-1,0,-1,1,-1,-1,-1]],flip),sign=s.gameState.currentPlayer;
     // The recorded position is black to move; setupSafety defaults to white.

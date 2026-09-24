@@ -352,7 +352,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             }
         }
 
-        let move = null;
+        let move: any = null;
         // Lv1 fast path: 強さを犠牲にして即ランダム着手 (応答性最優先)
         // ONNX 試行・CpuPolicy 経路を全てスキップするため move は同期的に確定する。
         const cardLevel = Number(level);
@@ -715,8 +715,11 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             }
         }
         if (level >= 6 && !othelloMode) {
-            const safety = avoidTacticalBlunder({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey,
+            const runSafety = () => avoidTacticalBlunder({ gameState: cfg.getGameState(), cardState: cfg.getCardState(), playerKey,
                 level, selected: move, candidates: candidateMoves });
+            const safety = performanceScope
+                ? measureCpuTurnSync(performanceScope, 'tactical-safety', runSafety)
+                : runSafety();
             if (safety.changed) { move = safety.selected; cfg.debugCpuTrace('[CPU] tactical placement safeguard', safety); }
         }
         if (cfg.isCpuDebugLogAvailable()) {

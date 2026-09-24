@@ -11,8 +11,8 @@ import {
   type DesktopGraphicsEnvironment
 } from '../browser-performance-environment';
 
-export const REPORT_SCHEMA_VERSION = 'cpu_turn_frame_stall_report.v2';
-export const SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v1';
+export const REPORT_SCHEMA_VERSION = 'cpu_turn_frame_stall_report.v3';
+export const SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v2';
 export const SCENARIO_IDS = Object.freeze([
   'lv1-empty-or-unusable-hand-place-8x8',
   'lv1-usable-card-then-place-8x8',
@@ -266,6 +266,7 @@ function validateStageEntry(entry: StageEntry): string | null {
     'card-quiescence',
     'card-context-base',
     'move-candidates',
+    'tactical-safety',
     'commentary-context',
     'canonical-commit',
     'presentation-handoff'
@@ -304,6 +305,12 @@ export function validateBrowserSample(sample: BrowserSample, expectedScenarioId?
   }
   if (!stageEntries.some((entry) => entry.kind === 'sync' && entry.runId !== null)) {
     errors.push('cpu-sync-entry-missing');
+  }
+  if (
+    sample.scenarioId === 'lv6-worker-backed-place-8x8'
+    && !stageEntries.some((entry) => entry.kind === 'sync' && entry.stage === 'tactical-safety')
+  ) {
+    errors.push('tactical-safety-entry-missing');
   }
   const metadata = sample.metadata || {};
   if (!/^[a-f0-9]{64}$/i.test(String(metadata.fixtureOutcomeDigest || ''))) errors.push('fixture-outcome-digest-invalid');

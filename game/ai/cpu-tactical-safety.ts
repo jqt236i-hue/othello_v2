@@ -18,7 +18,7 @@ const point = (m: any) => ({ row: m.row, col: m.col, ...(m.directionKey ? { dire
 /** Conservative lower bound on stability against ordinary flips, on the current board shape.
  * Card destruction/movement and future board-shape changes are separate threats. */
 export function tacticalPositionFeatures(gameState: any, cardState: any, playerKey: string) {
-    const b = Board.createBoardContext(gameState, cardState), sign = playerKey === 'black' ? 1 : -1;
+    const b = Board.prepareBoardForSearch(Board.createBoardContext(gameState, cardState)), sign = playerKey === 'black' ? 1 : -1;
     const cells = Board.collectBoardCoordinates(b).filter((c: any) => Board.hasPlayableCell(b, c.row, c.col));
     const owners = new Map(cells.map((c:any) => [`${c.row},${c.col}`,Board.getCellValue(b,c.row,c.col)]));
     const stable = new Set<string>(), axes = [[1,0],[0,1],[1,1],[1,-1]];

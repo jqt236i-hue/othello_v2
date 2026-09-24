@@ -2,7 +2,7 @@
 
 役割: 後続実装のための調査結果・設計判断・実行計画。対象はカードリバーシのCPU解析と盤面表示モデルの内部処理。正本は [ゲーム仕様](../../01-rulebook.md) と [内部契約](../architecture-contracts.md) §4.5、§6.1.1、§7.3、§8、§11。ルール、CPUの強さ、UX、視覚表現を変更する仕様書ではない。
 
-状態: **計画作成済み。製品実装は未着手。P0の現行確認と基準測定から開始可能。P1以降の採用は各測定条件に従う。**
+状態: **P1を採用して実装・局所検証まで完了。P2/P3は測定根拠により非採用。P4は安全確認を含む計測へ是正済みだが、標準mobileのP1到達外シナリオで全ターン非悪化をまだ証明できず、heap、Worker mirror、今回分のcommitも保留。**
 
 ## 1. 選定方針と完了条件
 
@@ -226,10 +226,55 @@ mirrorの2コマンドもブラウザビルドを行う。実際に同じ最終�
 | 段階 | 状態 | 実測・確認・残件 |
 | --- | --- | --- |
 | 計画時調査 | 完了 | 静的調査、メモリ上の局所試験。製品コード変更なし |
-| P0 | 未着手 | 現行比較・ブラウザ基準・専用fixture到達確認 |
-| P1 | 未着手 | 最優先の同期検索context利用 |
-| P2 | 条件未判定 | 残存集計を測定して採否決定 |
-| P3 | 条件未判定 | 表示モデルを測定して採否決定 |
-| P4 | 未着手 | 統合・生成・通常配信・今回分のコミット |
+| P0 | 完了 | Node/Vite-Pixi/desktop/mobile emulationの基準と対象経路を記録。詳細は§9 |
+| P1 | 採用・完了 | 同期安全確認内だけで検索用盤面を再利用。A1/A3/A4の局所・対象ブラウザ証拠あり |
+| P2 | 非採用 | `corners/material/valuable` の計測上限は同期安全確認の4.18%で、5%条件を満たさない |
+| P3 | 非採用 | 実ターンの1呼び出しp95は0.4–0.8ms。候補のbrowser側改善が10%に届かず、差分は撤回 |
+| P4 | 保留 | 安全確認を含むv3計測へ是正。Lv6は改善したが、標準mobileのLv1 multi-target p95悪化は未解決。heap、Worker mirror、commitも未完了 |
 
-計画レビュー記録: 自己点検とGPT-6 Astra（low）の読み取り専用独立レビュー1回を実施。成果物hashとcapture profileの比較条件、および全候補非採用時の完了経路の矛盾を修正した。P1不採用時のP2基準も明示した。主担当が関連実装を確認して修正箇所を再点検済み。製品実装・実ブラウザ性能は未検証のまま。
+計画レビュー記録: 計画作成時に自己点検とGPT-6 Astra（low）の読み取り専用独立レビュー1回を実施。成果物hashとcapture profileの比較条件、および全候補非採用時の完了経路の矛盾を修正した。P1不採用時のP2基準も明示した。実装後の測定・検証と保留理由は§9に記録する。
+
+## 9. 実施記録（2026-09-08）
+
+### P0: 現行確認と基準測定
+
+- 指定された `C:\Users\quarr\Desktop\othello\_v2` は存在せず、このworkspaceの `C:\Users\quarr\Desktop\othello_v2` に対象資料があったため、後者で実施した。開始時点の関連コードは調査HEAD以降に変更がなく、asset/manifest/`worker-public` の既存差分は保護対象とした。
+- 再利用可能な計測器 `scripts/perf/measure-cpu-tactical-safety.ts` を追加した。時間と計数を分離し、Nodeではbaseline/candidateを交互に15回（warmup 3回）実行し、入力・乱数・出力digestを比較する。ブラウザではVite/Pixiで公開関数へ到達する。
+- レビューで判明した名前だけのfixture digestは廃止し、計測器をschema v2へ更新した。digestは各caseの実行種別、盤面・card state・選択手・候補列・player・level・PRNG seed/stateをcanonical JSONで識別する。盤面、seed、候補が変わるとdigestが変わる回帰試験を追加した。旧v1 artifactは履歴として残すが、同条件比較の証拠に使わない。
+- Node基準はfixture digest `f747e2e3…`、Vite/Pixi基準は `34725a7b…` で取り直した。Nodeの旧新比較とVite/Pixi基準は§9 P1の表・数値を正本とする。Vite/Pixi基準はRTX 2070/D3D11、white 38.7ms（p95 46.3）、black 38.8ms（p95 47.0）、各 `JSON.stringify` 12,596回、9 captureだった（`artifacts/cpu-tactical-safety/p0-baseline-browser-v2.json`）。
+- 既存5シナリオの旧quick recordは安全確認を同期区間へ含めていなかったため、全ターン判定には使わない。v3でdesktop/mobile emulationを取り直し、標準mobile（warmup 5・20 capture）の結果はP4に記録する。物理モバイル端末は未計測である。
+
+### P1: 同期安全確認の検索用盤面
+
+- `game/ai/cpu-tactical-safety.ts` の `tacticalPositionFeatures` で、既存の `createBoardContext` 直後に `prepareBoardForSearch` を一度だけ適用した。共有kernel、公開契約、候補順、step上限、乱数、待機・演出経路は変更していない。
+- `test/cpu.tactical-safety.test.ts` に、穴、負座標を伴う拡張、circle形状、保護石、同一参照の盤面/marker変更後の再実行を追加した。既存のカード見送り、pending対象、unknown、上限、黒白の回帰試験と合わせて49テストが通過した。
+
+| Node fixture | baseline → candidate 中央値 | `buildSourceSignature` |
+| --- | ---: | ---: |
+| placement corner / white | 41.951 → 28.666ms | 3,820 → 876 |
+| placement corner / black | 42.918 → 30.339ms | 3,820 → 876 |
+| gold hold / white | 9.619 → 6.345ms | 861 → 93 |
+| gold hold / black | 10.017 → 5.581ms | 861 → 93 |
+| reply trap / white | 16.025 → 10.439ms | 1,671 → 263 |
+| reply trap / black | 15.875 → 10.402ms | 1,671 → 263 |
+
+- v2の最終Node比較では全6ケースの結果digest、入力、乱数が一致し、中央値は29.309–44.285%短縮、署名構築は768–2,944回減少した（`artifacts/cpu-tactical-safety/p1-final-node-v2.json`、source hash `501a442f…`）。
+- v2のVite/Pixi対象fixture（RTX 2070）はwhite 38.7→28.6ms（p95 46.3→47.1）、black 38.8→28.8ms（p95 47.0→37.1）、各 `JSON.stringify` 12,596→9,652回で、出力digestと入力不変が一致した。whiteのp95差は0.8msで `max(2ms, 5%)` 未満である（`artifacts/cpu-tactical-safety/{p0-baseline,p1-final}-browser-v2.json`）。このbrowser値はNodeの局所改善率を全対局の改善率として扱わない。
+
+### P2/P3: 条件付き候補の判断
+
+- P2ではP1候補の90安全確認を計測し、`corners`/material/valuableに属する外部呼び出しの合計上限は 55.094ms / 1,318.824ms = **4.18%** だった。個々の処理は重なり得るため上限として扱い、5%条件未満のため実装しなかった。browser側の成分時間を推定値で1ms以上と扱わず、独立した到達証拠がない限り採用しない。
+- P3では実ゲームのVite/Pixiで `createBoardRenderModel` の通常呼び出しp95が0.4–0.8msだった。markerを一走査にまとめる実験はNodeのmarker-heavy fixtureで0.556864→0.474899ms（fingerprint SHA-256一致）だったが、Vite/Pixiでは約0.40→0.3807msでP3の10%基準に届かなかった。実験差分と追加試験は撤回し、表示・署名形式を変更していない。
+
+### P4: 統合、通常配信、残件
+
+- 最終候補で `npm run build:vite`、`npm run typecheck`、関連7 suite / 61 tests、`git diff --check` を実行した。すべて成功し、buildは既存のchunk size警告のみだった。8000はrepo直下を配信するPID 39800のNode `http-server` が継続所有し、HTTP 200（38,829 bytes）を確認した。
+- レビュー是正: 旧recordの `syncInvocationMs` は `avoidTacticalBlunder` を計測区間外で実行していたため、旧v2の全ターン値（mobile 44.5msを含む）をP4の判定に使わない。Lv6の安全確認を `tactical-safety` 同期stageへ含め、browser sample schemaをv2、report schemaをv3へ上げた。Lv6 worker-backed fixtureでこのstageが欠けるrecordは検証エラーになるため、安全確認を含まない同期合計を再び有効な全ターン記録として扱えない。
+- 同一profile `lw-standard-m3`、同一fixture digest `f2d4a4e2…`、mobile emulation（390×844/DPR 2、CPU throttle 4）、warmup 5回・各20 captureでbaseline/candidateを標準再測定した。成果物hashは最適化前後で異なるが、全5シナリオで20/20 valid、操作順・カード効果・Worker経路・Pixi playback・outcome digestが一致した。P1到達Lv6では、同期処理の中央値/p95が 222.0/343.4→190.5/249.9ms、安全確認stageが 177.4/270.3→141.1/202.0ms、アプリ帰属Long Task p95が296.1→180.1msとなった。安全確認そのものの改善は確認できた（`artifacts/opponent-action-frame-stall/lightweight-standard-{baseline,candidate}-mobile-v3.json`）。
+- ただし同じ標準mobileのP1が到達しないLv1 multi-targetでは、同期p95が97.4→245.0ms、maxが252.1→450.9msとなった。そこには `tactical-safety` stageがbaseline/candidateとも存在せず、candidate側の大きい区間は `canonical-commit`、`commentary-context`、`presentation-handoff` と未帰属Long Taskに出ている。P1起因とは断定しないが、全ターンの非悪化を証明できないため、quick recordは診断専用とし、P4は通過・配信可とは扱わない。原因分離または清浄な同条件pairによる再測定が必要である。
+- heapは同じ操作列・同じ回収条件で取得していない。メモリ非悪化・メモリ削減はいずれも**未確認**であり、JSON文字数の減少をheapの証拠にしていない。
+- 通常サーバーは `http://127.0.0.1:8000/` でrepo直下を配信するNode `http-server` として継続起動し、HTTP 200を確認した。`?boardRenderer=pixi&debug=1`（Vite/Pixi、canvas 1枚）で通常の合法手を実クリックし、黒2/白2→黒4/白1の着手・反転演出、CPU応答後のROUND 2・黒3/白3・自分のターンへの復帰を確認した。console errorは0件だった。
+- DOM compatibility（`?boardRenderer=dom&debug=1`）は `DOM compatibility stone visuals failed to prepare (1 failed assets)` でboot errorになった。これはP1の変更範囲外で、開始時からあるasset作業と同じ未解決状態として記録する。Pixiの通常経路は成功した。
+- `npm run worker:prepare` は、開始時から削除状態の `worker-public/assets/images/special-stones/crystal_stone.png` をasset case検査が検出して停止した。続く `npm run check:worker-mirror` もasset manifestと未追跡素材を含む47件の既存mirror差分で失敗した。これらを復元・削除・上書きすると別作業の素材を壊すため実施していない。よってWorker mirror更新、mirror合格、今回分だけのcommit、本番デプロイは**未完了**である。
+
+残件: (1) P1到達外の標準mobile multi-target p95悪化を原因分離し、同じ条件の清浄なbaseline/candidate pairで全ターン非悪化を確認する、(2) 同じ操作列・warmup・回収条件でheap推移を比較する、(3) asset作業の所有者が上記削除・manifest・未追跡素材を整理または引き継いだ後に、`npm run worker:prepare`、`npm run check:worker-mirror`、最終`npm run build:vite`を再実行し、今回のソース・テスト・生成物・本記録だけをcommitする。物理モバイル端末とDOM compatibilityの成功も未検証である。
