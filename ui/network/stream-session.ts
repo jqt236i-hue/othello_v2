@@ -1,5 +1,6 @@
 import type { NetworkStreamState } from './client-state';
 import { NetworkWebSocketStream } from './websocket-stream';
+import { MATCH_STREAM_FRAME_COMPRESSION, canDecompressMatchStreamFrames } from '../../shared/match-stream-compression';
 'use strict';
 
 const PresentationEnvelopeContract = require('../../shared/network-presentation-envelope');
@@ -87,7 +88,11 @@ function createNetworkStreamSessionController(config?: any): any {
     }
 
     const es = typeof WebSocketClass === 'function'
-      ? new NetworkWebSocketStream(buildStreamUrl(opts), { WebSocketClass, EventSourceClass })
+      ? new NetworkWebSocketStream(buildStreamUrl(opts), {
+        WebSocketClass,
+        EventSourceClass,
+        frameCompression: canDecompressMatchStreamFrames() ? MATCH_STREAM_FRAME_COMPRESSION : null
+      })
       : new EventSourceClass(buildStreamUrl(opts));
     state.eventSource = es;
     const streamSessionEpoch = typeof cfg.getSessionEpoch === 'function'

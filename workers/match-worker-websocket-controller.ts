@@ -2,6 +2,12 @@ import type { MatchAuthorityViewer } from '../utils/match-authority-types';
 import type { DurableObjectStateLike, MatchWorkerRoomState, MatchWorkerSseStreamInfo, MatchWorkerWebSocket } from './match-worker-types';
 import { normalizePresentationEnvelopeCapability } from '../shared/network-presentation-envelope';
 import { MATCH_STREAM_PING, buildMatchStreamHealth } from '../shared/match-stream-health';
+import {
+    canCompressMatchStreamFrames,
+    compressMatchStreamFrame,
+    normalizeMatchStreamFrameCompression,
+    type MatchStreamFrameCompression
+} from '../shared/match-stream-compression';
 
 interface Attachment {
     version: 1;
@@ -9,6 +15,8 @@ interface Attachment {
     viewer: MatchAuthorityViewer;
     credentials: Record<string, unknown>;
     presentationEnvelopeVersion: 2 | 3 | null;
+    /** Absent on attachments written before frame compression existed. */
+    frameCompression?: MatchStreamFrameCompression | null;
 }
 
 interface WebSocketRuntime {
@@ -28,15 +36,42 @@ export function createMatchWorkerWebSocketController(cfg: {
 }) {
     const runtime = cfg.runtime || globalThis as unknown as WebSocketRuntime;
     const decoder = new TextDecoder();
+    // A fanout encodes one byte array per projected payload; viewers that
+    // share it also share its compressed frame.
+    const compressedFrames = new WeakMap<Uint8Array, Promise<ArrayBuffer>>();
+
+    function compressFrame(data: Uint8Array): Promise<ArrayBuffer> {
+        let frame = compressedFrames.get(data);
+        if (!frame) {
+            frame = compressMatchStreamFrame(data);
+            compressedFrames.set(data, frame);
+        }
+        return frame;
+    }
+
+    function createCompressedWrite(socket: MatchWorkerWebSocket) {
+        // Compression is asynchronous; chain sends so frames leave in write order.
+        let tail: Promise<unknown> = Promise.resolve();
+        return (data: Uint8Array): Promise<void> => {
+            const job = tail.then(async () => { socket.send(await compressFrame(data)); });
+            tail = job.catch(() => undefined);
+            return job;
+        };
+    }
 
     function register(socket: MatchWorkerWebSocket, attachment: Attachment): void {
+        const frameCompression = normalizeMatchStreamFrameCompression(attachment.frameCompression);
+        const compressedWrite = frameCompression && canCompressMatchStreamFrames() ? createCompressedWrite(socket) : null;
         cfg.streams.set(attachment.streamId, {
             viewer: attachment.viewer,
             credentials: attachment.credentials,
             presentationEnvelopeVersion: normalizePresentationEnvelopeCapability(attachment.presentationEnvelopeVersion),
             webSocket: socket,
             writer: {
-                async write(data) { socket.send(decoder.decode(data)); },
+                async write(data) {
+                    if (compressedWrite && data) return compressedWrite(data);
+                    socket.send(decoder.decode(data));
+                },
                 async close() { socket.close(1000, 'Session closed'); },
                 releaseLock() { /* WebSocket writes have no stream lock. */ }
             }
@@ -79,7 +114,10 @@ export function createMatchWorkerWebSocketController(cfg: {
         for (const key of ['viewerRole', 'seatKey', 'seatToken', 'spectatorId', 'spectatorToken']) credentials[key] = url.searchParams.get(key) || '';
         const attachment: Attachment = {
             version: 1, streamId, viewer, credentials,
-            presentationEnvelopeVersion: normalizePresentationEnvelopeCapability(url.searchParams.get('presentationEnvelopeVersion'))
+            presentationEnvelopeVersion: normalizePresentationEnvelopeCapability(url.searchParams.get('presentationEnvelopeVersion')),
+            frameCompression: canCompressMatchStreamFrames()
+                ? normalizeMatchStreamFrameCompression(url.searchParams.get('frameCompression'))
+                : null
         };
         pair[1].serializeAttachment(attachment);
         cfg.state.acceptWebSocket(pair[1]);

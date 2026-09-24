@@ -76,3 +76,25 @@ test('closed sockets missing from the restored list still mark the room idle', a
     await ctx.controller.closeSocket(new Socket());
     expect(ctx.onClosed).toHaveBeenCalledTimes(1);
 });
+
+test('negotiated frame compression sends each event as one raw-deflate frame in write order and survives hibernation', async () => {
+    const { decompressMatchStreamFrame } = require('../shared/match-stream-compression');
+    const first = setup();
+    first.controller.openConnection('black', { role: 'seat', seatKey: 'black' }, new URL('https://room/api/match/stream?seatKey=black&seatToken=valid&presentationEnvelopeVersion=3&frameCompression=deflate-raw'));
+    first.controller.openConnection('plain', { role: 'seat', seatKey: 'white' }, new URL('https://room/api/match/stream?seatKey=white&seatToken=valid&presentationEnvelopeVersion=3&frameCompression=gzip'));
+    const restored = setup(first.existing);
+    restored.controller.restoreStreams();
+    await restored.controller.validateRestoredStreams();
+    const events = ['id: 1\nevent: snapshot\ndata: {"stateVersion":1}\n\n', 'id: 2\nevent: presence\ndata: {"a":1}\n\n',
+        `id: 3\nevent: snapshot\ndata: ${JSON.stringify({ stateVersion: 3, filler: 'x'.repeat(4000) })}\n\n`];
+    const encoded = events.map(text => new TextEncoder().encode(text));
+    // Writes are issued without awaiting, as a fanout may do.
+    await Promise.all(encoded.map(bytes => restored.streams.get('black').writer.write(bytes)));
+    await restored.streams.get('plain').writer.write(encoded[0]);
+    const frames = first.existing[0].send.mock.calls.map(call => call[0]);
+    expect(frames.every(frame => frame instanceof ArrayBuffer)).toBe(true);
+    expect(await Promise.all(frames.map(frame => decompressMatchStreamFrame(frame)))).toEqual(events);
+    expect(frames[2].byteLength).toBeLessThan(encoded[2].byteLength * 0.1);
+    // Unknown formats are not negotiated; that viewer keeps text frames.
+    expect(first.existing[1].send).toHaveBeenCalledWith(events[0]);
+});

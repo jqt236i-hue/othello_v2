@@ -7,6 +7,7 @@ import { MatchRoomDurableObject } from '../../workers/match-worker';
 import deepClone from '../../utils/deepClone';
 import MatchAuthority from '../../utils/match-authority';
 import { compactNetworkPresentationEnvelope, resolveNetworkPresentationEnvelope } from '../../shared/network-presentation-envelope';
+import { compressMatchStreamFrame } from '../../shared/match-stream-compression';
 
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 async function measure(fn: () => unknown, count = 60) {
@@ -66,6 +67,10 @@ export async function measureNetworkStorage() {
     const wireV2EncodeMs = await measure(() => JSON.stringify(compactNetworkPresentationEnvelope(lastPayload, 2)));
     const wireV3EncodeMs = await measure(() => JSON.stringify(compactNetworkPresentationEnvelope(lastPayload, 3)));
     const serializedV3 = JSON.stringify(v3);
+    // One WebSocket frame carries the SSE envelope of one event.
+    const frameText = `id: perf-${room.stateVersion}\nevent: snapshot\ndata: ${serializedV3}\n\n`;
+    const wireV3FrameBytes = Buffer.byteLength(frameText);
+    const wireV3CompressedFrameBytes = (await compressMatchStreamFrame(new TextEncoder().encode(frameText))).byteLength;
     const wireV3DecodeMs = await measure(() => resolveNetworkPresentationEnvelope(JSON.parse(serializedV3)));
     const restored = resolveNetworkPresentationEnvelope(JSON.parse(JSON.stringify(v3)));
     if (!restored.ok || JSON.stringify(restored.payload.presentationFrames) !== JSON.stringify(lastPayload.presentationFrames)) {
@@ -77,7 +82,8 @@ export async function measureNetworkStorage() {
     rows.push({ fixture: fixture.id, events: turn.playbackEvents.length, fullRoomBytes: fullBytes,
       legacyCopyMs, unchangedSaveMs, unchangedWriteBytes, appendWriteBytes, appendWriteCount,
       appendWriteBytesByKey,
-      wireV2Bytes: bytes(v2), wireV3Bytes: bytes(v3), wireV3GzipBytes: zlib.gzipSync(serializedV3).length, wireV2EncodeMs, wireV3EncodeMs, wireV3DecodeMs, wireRoundtrip: true });
+      wireV2Bytes: bytes(v2), wireV3Bytes: bytes(v3), wireV3GzipBytes: zlib.gzipSync(serializedV3).length,
+      wireV3FrameBytes, wireV3CompressedFrameBytes, wireV2EncodeMs, wireV3EncodeMs, wireV3DecodeMs, wireRoundtrip: true });
   }
   return { node: process.version, storage: 'transaction adapter without disk I/O; copy/timing and JSON byte characterization only', rows };
 }

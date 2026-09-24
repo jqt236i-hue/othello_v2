@@ -54,3 +54,38 @@ test('unsupported WebSocket falls back to SSE once; an established connection us
     expect(active.onerror).toHaveBeenCalledTimes(1);
     active.close();
 });
+
+test('negotiated compression decodes binary frames and keeps them ordered with text health frames', async () => {
+    jest.useRealTimers();
+    const { compressMatchStreamFrame } = require('../shared/match-stream-compression');
+    const stream = new NetworkWebSocketStream('https://game.test/api/match/stream?roomId=A&lastEventId=4', {
+        WebSocketClass: FakeSocket as any, frameCompression: 'deflate-raw'
+    });
+    const seen: string[] = [];
+    stream.addEventListener('snapshot', event => seen.push(`snapshot:${event.lastEventId}:${event.data}`));
+    stream.addEventListener('transport-health', () => seen.push('health'));
+    const ws: any = FakeSocket.instances[0];
+    expect(new URL(ws.url).searchParams.get('frameCompression')).toBe('deflate-raw');
+    expect(new URL(ws.url).searchParams.get('lastEventId')).toBe('4');
+    expect(ws.binaryType).toBe('arraybuffer');
+    ws.readyState = 1; ws.onopen({});
+    const frame = async (text: string) => compressMatchStreamFrame(new TextEncoder().encode(text));
+    ws.onmessage({ data: await frame('id: 5\nevent: snapshot\ndata: {"stateVersion":5}\n\n') });
+    ws.onmessage({ data: '{"type":"match-stream-health-v1","stateVersion":5}' });
+    ws.onmessage({ data: await frame('id: 6\nevent: snapshot\ndata: {"stateVersion":6}\n\n') });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(seen).toEqual(['snapshot:5:{"stateVersion":5}', 'health', 'snapshot:6:{"stateVersion":6}']);
+    stream.close();
+});
+
+test('a page without negotiated compression keeps the synchronous text path', () => {
+    const stream = new NetworkWebSocketStream('https://game.test/api/match/stream?roomId=A', { WebSocketClass: FakeSocket as any });
+    const snapshot = jest.fn(); stream.addEventListener('snapshot', snapshot);
+    const ws: any = FakeSocket.instances[0];
+    expect(new URL(ws.url).searchParams.has('frameCompression')).toBe(false);
+    expect(ws.binaryType).toBeUndefined();
+    ws.readyState = 1; ws.onopen({});
+    ws.onmessage({ data: 'id: 1\nevent: snapshot\ndata: {}\n\n' });
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    stream.close();
+});

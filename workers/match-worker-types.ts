@@ -43,7 +43,7 @@ export interface DurableObjectStateLike {
 
 export interface MatchWorkerWebSocket {
     readyState: number;
-    send(data: string): void;
+    send(data: string | ArrayBuffer): void;
     close(code?: number, reason?: string): void;
     serializeAttachment(value: unknown): void;
     deserializeAttachment(): unknown;

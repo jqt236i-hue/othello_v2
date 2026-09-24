@@ -1,4 +1,5 @@
 import { MATCH_STREAM_HEALTH_TYPE, MATCH_STREAM_PING, MATCH_STREAM_PING_INTERVAL_MS } from '../../shared/match-stream-health';
+import { decompressMatchStreamFrame } from '../../shared/match-stream-compression';
 
 /** EventSource-shaped transport so all snapshot/replay/session guards stay shared. */
 export class NetworkWebSocketStream {
@@ -12,15 +13,22 @@ export class NetworkWebSocketStream {
     private closed = false;
     private opened = false;
     private failed = false;
+    // With negotiated frame compression, frames are decoded asynchronously;
+    // this chain keeps text and binary frames in arrival order.
+    private inbound: Promise<void> = Promise.resolve();
 
     constructor(private url: string, private options: {
         WebSocketClass: typeof WebSocket;
         EventSourceClass?: typeof EventSource | null;
+        /** Set only when the page can decompress; the Worker then sends binary frames. */
+        frameCompression?: string | null;
     }) {
         const socketUrl = new URL(url);
         socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+        if (options.frameCompression) socketUrl.searchParams.set('frameCompression', options.frameCompression);
         try {
             const socket = this.socket = new options.WebSocketClass(socketUrl.toString());
+            if (options.frameCompression) socket.binaryType = 'arraybuffer';
             socket.onopen = event => {
                 if (this.closed || this.socket !== socket) return;
                 this.opened = true;
@@ -29,7 +37,16 @@ export class NetworkWebSocketStream {
             };
             socket.onmessage = event => {
                 if (this.closed || this.socket !== socket) return;
-                this.receive(String(event.data));
+                if (!options.frameCompression) {
+                    this.receive(String(event.data));
+                    return;
+                }
+                const data = event.data;
+                this.inbound = this.inbound.then(async () => {
+                    const text = typeof data === 'string' ? data : await decompressMatchStreamFrame(data);
+                    if (this.closed || this.socket !== socket) return;
+                    this.receive(text);
+                }).catch(error => this.handleFailure(error));
             };
             socket.onerror = event => this.handleFailure(event);
             socket.onclose = event => this.handleFailure(event);
