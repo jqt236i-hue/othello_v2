@@ -253,11 +253,11 @@ git status --short
 | --- | --- | --- |
 | 計画時調査 | 完了 | 読み取り専用調査。製品コード変更なし。本番へは header 確認の HEAD/curl のみ |
 | P0 | 完了 | 前計画分 `fccf0882d`、計測是正 `c3d159bf1`、基準取得。詳細は §9.1 |
-| P1-a〜d | 未着手 | |
-| P2-a〜e | 未着手 | |
-| P3-a〜c | 未着手 | |
-| P4-a〜f | 未着手 | |
-| P5-a〜d | 未着手 | |
+| P1-a〜d | 採用・完了 | a `e947e2efb`、b `d71980476`、c `1dde2a0a9`、d `548ecacb8`。詳細は §9.1 |
+| P2-a〜e | 実施中 | a・b は非採用（a: 本番相当の配信で重複要求0、b: cold board-idle 中央値悪化）。§9.1 |
+| P3-a〜c | 採用・完了 | a `0517e4bb7`、b `932333905`、c `e9236db64`。§9.1 |
+| P4-a〜f | 実施中 | a `ff5cf8c1e`、b `efe0dda76`、c `41847e233` 採用。f は gate 再生成が既存証拠の失効で保留。§9.1 |
+| P5-a〜d | 採用・完了 | a `702d637c2`、b `fa0b21710`（S1 を raw-deflate JSON 保存へ修正、S2 不要）、c `af4df6104`、d `a6744b08a`＋`74ef6dea0`。§9.1 |
 | P6 | 未着手 | |
 
 ### 9.1 実施記録
@@ -281,3 +281,61 @@ git status --short
 | heap desktop | 上記 desktop と同じ操作列、各点で GC×2 | ready 16.52 MiB → 最終 28.47 MiB（シナリオ順に単調増加） |
 | CPU探索 | fixture `6a919ce7…`、warmup 1・各5、baseline `dist` を `p0/baseline-root` に固定 | node clock は全27行で決定的・入力不変。中央値 Lv10 0.06–1.64 s、Lv11 0.08–3.33 s、Lv12 0.23–3.55 s。production clock は Lv10 の2行が `time_budget`、Lv12 chance-continuation が非決定的のため、同一性判定は node clock で行う |
 | 通信・保存 | `measure-network-storage` 3 fixture | publish あたり書き込み: light 83,407 B、dense 125,624 B、special-20 452,179 B（うち SSE バッファ 265,714、journal 131,411、head 55,054）。V3 フレーム 6,123 / 9,314 / 31,203 B、gzip 後 1,838 / 2,658 / 4,265 B |
+
+#### P1 配信・キャッシュ・未使用素材（2026-09-25）
+
+- **P1-a（採用、`e947e2efb`）**: root `_headers` を新設し `ROOT_FILES` で mirror。immutable は `/vite-dist/assets/*` と、生成 HTML から `path?v=<内容 sha256 由来の版>` でだけ参照される CSS 24件・classic の `public/runtime.js`・`public/module-registry.js`・`entry-browser.js` に限定した。`_headers` はクエリを見ないため、起動版（registry の版）で版付けされる `styles-feature-gacha.css`・`styles-leaderboard.css`、版なしの `ui/layout-stage.js`、optional registry、HTML、`assets/**`、`data/**` は既定の revalidate のまま。splat の途中一致は資料上不明なためファイルを列挙した。Cloudflare 資料では `_headers` は Worker コードが生成した応答には効かないが、`run_worker_first` なしのこの構成では実在ファイルは Worker を通らずに配信される。`scripts/static-asset-headers.ts` で `_headers` を読み、`browser-production-delivery-smoke` は本番と同じ規則で応答する。`test/scripts.static-asset-headers.test.ts` が「immutable な各ファイルは生成 HTML の全参照が内容版と一致する」ことを固定する。
+  - 検証: `worker:prepare`・`check:worker-mirror` 成功（P0 時点で残っていた mirror 失敗は解消済み）。`npx wrangler dev` で 28 規則が読まれ、`curl -I` で hash 付き JS・`styles-base.css?v=…` が `public, max-age=31536000, immutable`、`/`・`assets/asset-manifest.json`・`assets/images/cpu/level1.png`・`styles-feature-gacha.css`・`ui/layout-stage.js` が `public, max-age=0, must-revalidate`、`/_headers` は 404。`match:production-delivery-smoke:vite` pass（revalidate 11 / immutable 89 応答）。
+  - 実測（wrangler dev、headless Chromium、同一コンテキストで2回訪問）: 2回目の訪問のサーバー要求 `_headers` なし 143（うち 304 が 142）→ あり 95（304 が 94）。再訪時の再検証往復 −48。
+- **P1-b（採用、`d71980476`）**: `assets/asset-manifest.json` の取得を `cache: 'no-cache'` に変更。wrangler dev で2回目の起動は `304 Not Modified`（本文 0 B、初回 195,463 B）。manifest はガチャ・コスメ・手スキンのカタログがファイル一覧から素材を探索するため、絞り込みは行わず fetch オプションの変更だけにした（§4.2 の条件）。
+- **P1-c（採用、`1dde2a0a9`）**: 除外リストに §3.1 の一覧を追加。root の素材は削除・移動していない。mirror から消えたのは 26 ファイル・35,940,776 B で一覧と一致。`check-asset-file-case` は追跡中の mirror ファイル削除を反映して pass、`match:asset-delivery-smoke:vite`・`browser-optional-feature-smoke` とも ok / resourceErrors 0。静的参照・パターン生成パス・manifest 走査（ガチャは `assets/images/Gacha` の画像拡張子のみ）のいずれも除外対象を選ばない。前計画で「隣の配信対象」の例として置かれていた `observer_will_character_only.png` はソース履歴上参照がなく、テストの例を実際に使う `observer_will.png` に置き換えた。asset manifest は root 生成を複写するため除外ファイルの行が残る（既存の `observer_will_reference/` と同じ状態で、消費側は選ばない）。
+- **P1-d（採用、`548ecacb8`）**: 6枚を RGB PNG に再エンコードし、元の `sRGB`/`gAMA`/`pHYs` チャンクをバイト単位で移植した。全画素アルファ 255 を確認後、sharp・Pillow・Chromium（canvas `getImageData`）の3復号器で RGB/RGBA 全画素一致、Pixi 盤面キャプチャ（`tests/visual-regression`、392×392）は旧新 RGBA 完全一致、既存 baseline との差分 0 画素。−760,819 B（felt −188,196、stone-inlay −103,576、brushed-lacquer −161,306、card-back-hand −177,196、card-back-deck −78,112、99_究極労働神 −52,433）。felt の WebP は既存 policy のまま `rejected` で、再生成した候補 WebP の `outputSha256` は置換前と同一。
+  - 既存の問題（今回の変更と無関係）: `assets:fonts:check` が `subset coverage mismatch for shippori-mincho-400: missing=1` で失敗する。HEAD のカード文言（`cards/catalog.ts` 等）に全角「１」（U+FF11）が入り、subset が再生成されていないため。フォント再生成は本計画の範囲外として残す。
+
+#### P2-a 二重取得（非採用）
+
+- boot capture の重複（felt、`cpu/level1.png`、`o-stone/{black,white}.png`、手札カード1枚）は、capture 用サーバーが `Cache-Control: no-store` を返すために起きていた。本番相当のヘッダ（wrangler dev、`max-age=0, must-revalidate` + ETag）で同じ起動を行うと、初回訪問で各 URL の要求は1回だけで、重複・304 とも 0 件だった（`artifacts/lightweight-2026-09-24/p1/wrangler-dev-noheaders.log`）。実配信で減る転送・要求がないため、取得経路の共有（Pixi の読み込み方式の変更を伴う）は行わない。harness 上の −3.5 MB は計測環境由来であり改善として扱わない。
+
+#### P3-a view-scoped helper（採用、`0517e4bb7`）
+
+- `countCornerControl` / `countEdgeControl`（`shared/board/control-counts.ts`）と commentary の `countCornerRiskCells` は、game/card-state の盤面なら helper 冒頭で view を一度解決し、`view.coordinates` の順に同じ所属・角（`computeCornerKeySetForCoordinates`、既存の角判定と同一アルゴリズム）・所有者の規則を適用する。検索用 context と dense 配列は従来の経路。公開 interface・戻り値・走査順は不変で、共有 getter を identity でキャッシュしない（helper 呼び出しごとに解決）。同一参照の盤面をその場で書き換えた後の再読込もテストで固定した。
+- 同一性: `scripts/perf/compare-board-view-helpers.ts` で P0 の baseline `dist` と比較し、8×8×24、穴＋拡張、角の穴、circle 10×10、6×9 の 28 fixture × 両手番で件数と commentary metrics が完全一致。CPU 判断・commentary の既存 26 suite は既知の2件以外すべて通過。
+- Node: `countEdgeControl` 1.44 → 0.026 ms（中央値、0.1 ms 未満）、`buildCpuCommentaryMetrics` 1.56 → 0.097 ms。
+- ブラウザ（P3-a だけを外したビルドとの交互の再ペア、同一 fixture `f2d4a4e2…`、全シナリオで結果 digest 同一）: mobile `commentary-context` 中央値 9.5→1.8 / 11.1→2.0 / 16.0→2.4 / 8.7→1.6 / 8.5→1.7 ms（−79〜85%）。mobile 同期 中央値/p95 は 30.2/39.7→22.3/23.9、34.1/39.6→17.7/25.5、36.7/43.4→18.8/25.7、105.6/125.0→98.2/105.1、26.5/27.7→19.9/21.6 ms。desktop も全シナリオで中央値・p95 とも非悪化（Lv6 22.0/27.9→22.6/25.4）。heap 最終値 28.46→28.54 MiB（+0.08、閾値 1 MiB 未満）。
+- 最初の対 P0 比較で desktop Lv6 の p95（30.0→45.0、変更対象外の `tactical-safety` stage の最悪2サンプル）と mobile Pixi 高頻度の p95（30.2→35.2、`presentation-handoff` の最悪2サンプル）が悪化したが、中央値は同じか改善していたため §6 の tail 規則に従い同条件で再ペア計測し、上記のとおり解消した。
+
+#### P2-b `modulepreload` 注入（非採用）
+
+- `vite.config.ts` の `transformIndexHtml`（`order: 'post'`）で、entry chunk の動的 import（`layout-stage`、`entry-browser`、Pixi `init`・`lib`）とその静的依存 24 chunk に `modulepreload` を注入する案を実装・計測した。Pixi runtime は DOM 指定時も常に読み込まれるため余分な転送はなく、Pixi が実行時に選ぶ renderer chunk は対象外にした。
+- 同じ HEAD から注入なし/ありの `worker-public` を作り、standard boot capture を交互に計8回ずつ取得した（`artifacts/lightweight-2026-09-24/p2/p2b-{base,cand}-{1..8}.json`）。chunk の取得開始は `entry-browser` で中央値 200 → 9 ms に前倒しされ、warm の board-idle 中央値は 680.5 → 576 ms だったが、**cold の board-idle 中央値は 1,384.5 → 1,530 ms に悪化**し、交互の後半5組ではすべて注入ありが遅かった（1,468/1,534、1,357/1,526、1,370/1,582、1,399/1,567、1,417/1,554）。転送量・要求数は同等。
+- §6 の「board ready 中央値が悪化」に該当するため非採用とし、差分は撤回した。ローカル配信では往復がほぼ 0 のため前倒しの利得が出ず、先行取得した Pixi ライブラリ等の解析がメイン chunk の実行と競合したと考えられる（原因の切り分けはしていない）。実回線での効果は未計測。
+
+#### P3-b / P3-c（採用、`932333905` / `e9236db64`）
+
+- P3-b: turn start 時点で既に存在した対象選択は、await もカード段階も挟まずに pending phase へ到達するため、`runCpuTurn` は解析 identity が current のときだけ invocation の turn-start commentary snapshot を pending phase に渡し、`card_targeted` はメモ済み metrics を読む。他の経路（カード使用直後の pending 等）は従来どおり再計算する。単体試験で、同一 invocation 内の `card_targeted` で metrics の構築が1回だけであることを固定した。
+- P3-c: `[DRAW]` は debug session のときだけ同じ文言で出力、presentation debug の summary は出力時だけ構築（thunk）、debug flag の判定はクエリ文字列ごとに memo。`move-executor.ts` の debug 引数は軽いオブジェクトリテラルだけで重い構築がないため変更していない。実ブラウザ（`http://127.0.0.1:8000/?boardRenderer=pixi`、Vite/Pixi）で着手→Lv12 応答を行い、通常モードでは `[DRAW]`・`[presentation-debug]` とも 0 件、`debug=1` では `[DRAW] Card drawn for black! handBefore=0, handAfter=1` と `[presentation-debug] …` が従来どおり出ることを確認した。
+- 回帰（P3-a の候補ビルドとの比較、同一 fixture、全シナリオで結果 digest 同一）: mobile 同期 p95 の差は最大 +1.9 ms（閾値 2 ms 以内）、multi-target の `commentary-context` 中央値 2.4→1.8 ms、desktop は全シナリオ非悪化、heap 最終値 28.54→28.51 MiB。
+
+#### P4 CPU探索（a・b・c 採用、f 保留）
+
+node clock、同一 fixture `6a919ce7…`、warmup 1・各5、直前の単位の `dist` を基準に固定して比較。全単位で 27 行（Lv10/11/12 × 9 fixture）の結果 digest が基準・P0 とも一致し、入力は不変。
+
+| 単位 | 変更 | Lv10 合計 | Lv11 合計 | Lv12 合計 |
+| --- | --- | ---: | ---: | ---: |
+| P4-a `ff5cf8c1e` | `searchLv10`/`searchLv11` を `Board.withTopologyMemo` で包む | 6.55→5.89 s（−10.1%） | 12.01→10.09 s（−16.0%） | 18.06→18.37 s（+1.7%、未変更・ノイズ幅） |
+| P4-b `efe0dda76` | `applyLv10Action` を `computeStateHash: () => null` の pipeline で適用 | 5.89→5.37 s（−8.7%） | 10.09→8.88 s（−12.0%、P4 前から累計 −26.1%） | 18.37→16.05 s（−12.6%） |
+| P4-c `41847e233` | Lv10 評価器を `prepareBoardForSearch` の盤面で読む | 5.37→3.16 s（−41.2%） | — | — |
+
+- P4-b: `applyLv10Action` は次状態だけを返し `stateHash` を外へ出さない。探索・battle・engine とも `stateHash` を読まないことを grep で確認し、`test/cpu.lv10-transition-pipeline.test.ts` で「共有 pipeline と同じ遷移」「到達状態の hash 計算が隠れた拒否経路にならない（`HASH_UNAVAILABLE` は現行ソースで投げる箇所がなく、hash 失敗は reject に分類される）」を固定した。P4-b の完了条件「Lv11 −20%」は計画時の数値が累計だったため累計で判定した（単独 −12.0%）。
+- P4-c: `scripts/perf/verify-lv10-evaluation.ts`（`verify-production-optimization` の Lv10 版）で 558 局面×両手番の評価値が `Object.is` で一致。
+- P4-f（保留）: `perf:production:verify` 相当（P0 baseline と現行の Lv11 評価器、6,086 局面・12,172 比較）は全一致、production selfplay の最小対局（Lv12 対 Lv11、256 遷移上限、12 手で `maxDecisions` による想定どおりの停止）は正常に動作した。ただし `production-parity-gate` は a04 の既存証拠（`data/cpu-lv11/browser-parity-v2/trace.json.gz`、`card-browser-v3`）で「Browser full-game initialization or terminal evidence is invalid」となり、**P0 の baseline dist でも同じく失敗する**（全局トレース取得後のルール変更で初期局面が一致しない）。gate の runtime hash には作業ツリーの `package.json`（Lv13 作業の差分あり）も含まれる。再生成には新しい全局ブラウザトレースと全カードのブラウザ証拠が必要で、Lv12/13 実験の所有者判断に委ねる。Lv13 作業は固定コピー（`data/cpu-lv13/baseline-start/repo`）を使うため今回の dist 変更の影響を受けない。
+
+#### P5 通信・保存（採用）
+
+- **P5-a `702d637c2`**: `frameCompression=deflate-raw` を query で交渉し hibernation `Attachment` に保存。Worker は各イベント（同じ SSE 封筒テキスト、1イベント1フレーム）を raw-deflate の binary フレームで送り、fanout 内で同じバイト列の圧縮結果を共有、ソケットごとに送信順を直列化する。health 応答は text のまま。クライアントは `binaryType='arraybuffer'`、復号を到着順の Promise 列で直列化して既存の `receive()` へ渡す。`DecompressionStream` 非対応や未知形式は交渉しない（text のまま）。計画の gzip ではなく raw-deflate にしたのはヘッダ/トレーラ 18 B/フレームを省くためで、対応ブラウザは同じ（`DecompressionStream` 導入時から3形式とも対応）。
+  - 実フレーム（SSE 封筒込み、fixture）: light 6,159→1,844 B（−70.1%）、dense 9,350→2,664 B（−71.5%）、special-20 31,239→4,272 B（−86.3%）。
+  - Worker 実 E2E（`npx wrangler dev`、同じ黒席に圧縮あり/なしの WS を同時接続、白席は圧縮あり、4手 publish 後に `lastEventId` で再接続）: `X-Match-Stream-Transport: websocket`、圧縮側は全イベントが binary、非圧縮側は text。接続時刻由来の `serverTime`・`remainingMs` を除きイベント本文・eventId・順序が一致し、再接続 replay も一致、白席へ黒の秘密情報は出ない。この序盤区間のイベント合計は 39,546→12,792 B（−67.7%、小さいフレームが多い区間）。非対応クライアントの模擬は単体試験で確認。
+- **P5-b `fa0b21710`（S1 を修正して採用、S2 不要）**: V2/V3 compact の往復は、V2/V3 購読者へは再圧縮後に元と同じバイト列になるが、version を送らない SSE 購読者（`match:check` など）へは top-level の `playbackEvents` が欠けた payload を再送してしまう（`artifacts/lightweight-2026-09-24/p5` の往復試験）。そこで保存層（`split-history-v2`）で SSE 再送レコードを raw-deflate した JSON として保存し、読み込み時に `JSON.parse` で戻す方式にした。レコードは wire payload なので、出力される JSON はすべてバイト同一（`-0` 等の JSON で表せない値は元々 wire に出ない）。v1 は読み込み可能。special-20 の再送バッファ書き込み 265,714 → 18,898 B/publish（−246.8 KB）。~195 KB の JSON の圧縮＋展開は Node で中央値 1.17 ms。S1 で目標を満たしたため S2（journal からの再構築）は行わない。
+- **P5-c `af4df6104`**: `split-history-v3`。`authorityLog` の要素を追記時に凍結し履歴と同じ要素ごとのキーのリングに、`initialSnapshotByViewer` を別キーにして内容が変わった時だけ書き、journal の base snapshot は退避元 journal エントリのキー参照にした。無いフィールドは無いまま、v1/v2 の root も読み込み可能。publish controller と同じく毎回 `authorityLog` を追記する harness（`artifacts/lightweight-2026-09-24/p5/publish-writes.js`）で、root の書き込みは special-20 75,486 → 13,744 B（＋ログ1件 319 B、−61.4 KB/publish）。P5-b と合わせた 1 publish の総書き込みは light 103,788→28,272、dense 145,749→42,558、special-20 472,624→164,378 B。
+- **P5-d `a6744b08a`（golden 先行）＋`74ef6dea0`**: fixture 3種の authoritative/各視点 projected と境界形状の計23件の hash 文字列を旧実装で固定してから、clone を使わない stableStringify 等価の走査に置き換えた。構造化クローンがそのまま保たない値（関数・symbol・プレーンでないオブジェクト）を含む snapshot は従来の clone 経路を使う。23件すべて同一、4 hash/fixture が 0.32/0.36/0.46 → 0.19/0.21/0.29 ms。
+- `test:network:parity`・`test:match:parity` は、既存の失敗1件（`network.playback-event-assembly.contract` の「deferred pending selection registry entries stay covered by playback parity fixtures」: 輪廻の意志 `REINCARNATION_WILL` の playback parity fixture が `bfd7ee626` 以降未追加）を除き通過。
