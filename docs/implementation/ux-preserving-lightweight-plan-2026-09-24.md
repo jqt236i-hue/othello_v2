@@ -2,7 +2,7 @@
 
 役割: 2026-09-24 の読み取り専用調査で確認した軽量化候補を、順序・変更境界・検証・完了条件つきで実装できる形にまとめた実行計画。対象はカードリバーシの配信・キャッシュ、起動転送、対局中ランタイム、CPU探索とWorker、オンライン対戦の通信・保存。正本は [ゲーム仕様](../../01-rulebook.md) と [内部契約](../architecture-contracts.md) §5.1.1、§5.2、§6、§7.3、§8、§11。ルール、CPUの判断、UX、視覚表現、音、タイミングを変更する仕様書ではない。
 
-状態: **実施中。** 各作業単位の状態は §9 の進捗表と実施記録で更新する。
+状態: **完了（2026-09-25）。** P6 まで実施した。非採用・部分採用・保留の単位と設計へ戻した項目は §9 の進捗表と実施記録に残す。
 
 前計画 [追加軽量化計画（2026-09-08）](ux-preserving-lightweight-plan-2026-09-08.md) は P1 採用・P4 保留のままローカル差分として残っている。本計画はそれを置き換えず、P0 でその差分の扱いを先に確定する。
 
@@ -254,11 +254,11 @@ git status --short
 | 計画時調査 | 完了 | 読み取り専用調査。製品コード変更なし。本番へは header 確認の HEAD/curl のみ |
 | P0 | 完了 | 前計画分 `fccf0882d`、計測是正 `c3d159bf1`、基準取得。詳細は §9.1 |
 | P1-a〜d | 採用・完了 | a `e947e2efb`、b `d71980476`、c `1dde2a0a9`、d `548ecacb8`。詳細は §9.1 |
-| P2-a〜e | 実施中 | a・b は非採用（a: 本番相当の配信で重複要求0、b: cold board-idle 中央値悪化）。§9.1 |
+| P2-a〜e | 一部採用 | c のみ部分採用 `a680114a3`（−9.5 KB、基準 −30 KB 未達。battle/debug/perf は設計へ）。a・b・d・e 非採用。§9.1 |
 | P3-a〜c | 採用・完了 | a `0517e4bb7`、b `932333905`、c `e9236db64`。§9.1 |
-| P4-a〜f | 実施中 | a `ff5cf8c1e`、b `efe0dda76`、c `41847e233` 採用。f は gate 再生成が既存証拠の失効で保留。§9.1 |
+| P4-a〜f | 一部保留 | a `ff5cf8c1e`、b `efe0dda76`、c `41847e233`、d `c8aae08ce` 採用。e 非採用。f は gate 再生成が既存証拠の失効で保留。§9.1 |
 | P5-a〜d | 採用・完了 | a `702d637c2`、b `fa0b21710`（S1 を raw-deflate JSON 保存へ修正、S2 不要）、c `af4df6104`、d `a6744b08a`＋`74ef6dea0`。§9.1 |
-| P6 | 未着手 | |
+| P6 | 完了 | 最終ソースで typecheck・`npm test`（失敗は開始時と同一の既存19件のみ）、P0 と同条件の再計測、build・mirror、実ブラウザ確認。生成物 `3fde62ba7`。§9.1 |
 
 ### 9.1 実施記録
 
@@ -339,3 +339,83 @@ node clock、同一 fixture `6a919ce7…`、warmup 1・各5、直前の単位の
 - **P5-c `af4df6104`**: `split-history-v3`。`authorityLog` の要素を追記時に凍結し履歴と同じ要素ごとのキーのリングに、`initialSnapshotByViewer` を別キーにして内容が変わった時だけ書き、journal の base snapshot は退避元 journal エントリのキー参照にした。無いフィールドは無いまま、v1/v2 の root も読み込み可能。publish controller と同じく毎回 `authorityLog` を追記する harness（`artifacts/lightweight-2026-09-24/p5/publish-writes.js`）で、root の書き込みは special-20 75,486 → 13,744 B（＋ログ1件 319 B、−61.4 KB/publish）。P5-b と合わせた 1 publish の総書き込みは light 103,788→28,272、dense 145,749→42,558、special-20 472,624→164,378 B。
 - **P5-d `a6744b08a`（golden 先行）＋`74ef6dea0`**: fixture 3種の authoritative/各視点 projected と境界形状の計23件の hash 文字列を旧実装で固定してから、clone を使わない stableStringify 等価の走査に置き換えた。構造化クローンがそのまま保たない値（関数・symbol・プレーンでないオブジェクト）を含む snapshot は従来の clone 経路を使う。23件すべて同一、4 hash/fixture が 0.32/0.36/0.46 → 0.19/0.21/0.29 ms。
 - `test:network:parity`・`test:match:parity` は、既存の失敗1件（`network.playback-event-assembly.contract` の「deferred pending selection registry entries stay covered by playback parity fixtures」: 輪廻の意志 `REINCARNATION_WILL` の playback parity fixture が `bfd7ee626` 以降未追加）を除き通過。
+
+#### P2-c 死コード除外（部分採用、`a680114a3`）
+
+- `cpu-lv1x-{search,evaluation,model,scenarios}` は専用 Worker bundle の中でだけ実行され、メインスレッドからは型 import のみ、相互 import もグループ内で閉じている（grep で確認）。`build-module-registry.ts` で browser registry から除外し、Vite の startup chunk と classic registry から外した。Worker bundle は従来どおり生成される（lv10/11/12 とも 1.1 MB 台）。
+- Vite メイン chunk: 4,585,342 → 4,516,082 B、brotli 827,338 → 817,858 B（**−9.5 KB。計画の −30 KB には届かない**）。`check:vite-modules`・`check:vite-entry`・`check:dependency-boundaries`・`browser-vite.optional-payload-loader`・registry 契約（除外を固定する試験を追加）・`match:ui-control-smoke:classic` 通過。実ブラウザで `?battleEmbed=1`（`CardReversiBattle` API 導入、Vite、boot ready）と `?boardRenderer=pixi&debug=1`（Pixi、canvas 1、`game/debug/debug-actions` 解決、console error 0）を確認。
+- 残り（battle 約17 KB、debug 約8 KB、perf-benchmarks 約4.7 KB、いずれも dist の brotli 見積もり）は、perf-benchmarks が各描画モジュールの初期化時に同期 require され、debug 系も debug 操作の中で同期 require されるため、遅延 group 化は非同期境界の変更になる。battle も `battleEmbed=1` の埋め込み表示の前に追加取得が入り表示タイミングが変わり得る。§8 に従い設計へ戻した。
+
+#### P2-d lossless WebP（非採用）
+
+- 既存の lossless WebP パイプラインと admission 規則（中央値 +2 ms/+10% 以内）をそのまま使い、計測器 `scripts/assets/measure-ui-image-decode.ts`（headful ハードウェア Chromium、PNG/WebP 交互 12 回）を追加して、過去に却下済みの felt・`デフォルト25` 以外の起動画像7枚を2回ずつ計測した（`artifacts/lightweight-2026-09-24/p2/p2d-decode-admission{,-2}.json`）。
+  - decode 退行で却下: `card-back-deck-v1`（+2.95/+3.2 ms）、`card-area-table-opponent-v6`（+2.7/+2.8 ms）。
+  - 時間は通過したが画素同一でない: `card-area-table-player-v6`（可視の半透明画素 2,110 個が Chromium の canvas 読み出しで PNG と異なる）、`charge-counter-wafu-v1`（同 3,689 個）。
+  - 時間・画素とも通過: `board-frame-submerged-wood-v1`（1,288,714 → 553,854 B、RGBA 完全一致）。既存の board-skin runtime で配線され、boot capture では WebP だけが1回取得され cold 転送 22.38〜22.69 MB になったが、既定枠の初回適用が「PNG を同期設定」から「最適化パスの非同期解決後」に変わり、board-skin の契約試験（既定枠の同期適用・古い解決の上書き防止）が失敗した。表示タイミングの意味が変わるため撤回した（`c357a191e` → `fac32ee65`）。
+  - `cpu/level1.png`・`hero.png` も時間・形式は通過したが、`<img>` の読み込み経路を非同期解決へ変える必要があり実施していない。
+- policy と生成物は P2-d 前の状態のまま。計測器だけを残した。
+
+#### P2-e フォント分割（非採用・条件不成立）
+
+- Pixi のセル数字などのテキスト（`ui/pixi/cell-view.ts`、`board-scene.ts`）は `document.fonts` の読み込み完了を待たずに描画する（`document.fonts.ready` を待つのは性能 harness のみ）。起動時の subset を分割すると未読込の範囲の文字がフォールバックで描かれ得るため、§4.3 の条件を満たさない。
+
+#### P4-d Worker warm-up（採用、`c8aae08ce`）
+
+- Lv10–12 の CPU が表示されたとき（`updateCpuCharacter`、リセットとレベル変更を含む）、Vite の Worker bridge が該当レベルの advisor Worker に PING を送り bundle を先に読み込む。要求は `card-reversi:browser-ready` まで保留するので起動中に CPU Worker は作られない。lv entry は PING に探索なしで応答し、探索要求の timeout・失敗処理は変えていない。Lv3–9 の採点 Worker は ONNX Worker smoke の契約（最初の採点で1回だけ生成）どおり遅延のまま。Lv3–5 の初回採点の 48 ms 打ち切り後は「exact local scorer」で同じ採点をするため、判断は変わらない。
+- 実ブラウザ（Vite/Pixi、headless Chromium、白 Lv12、新規コンテキスト、P4-d なし/ありを交互に各5回）: Lv12 Worker の取得は初回 CPU ターン時（5,691〜5,740 ms）から起動完了直後（ready+4〜5 ms）へ移り、最初の着手から手番が戻るまでは5組すべてで短縮（中央値 1,758 → 1,735 ms）。`match:onnx-worker-smoke:vite` ok。
+
+#### P4-e Worker bundle 共有（非採用）
+
+- lv10/11/12 の advisor bundle は各 1,136,617 / 1,140,894 / 1,153,277 B で大半が共通だが、通常のセッションは対戦相手の1レベル分しか取得しない。単一 advisor entry にすると3レベル分の探索コードを含む bundle を毎回取得することになり、レベルを切り替えない大多数のセッションで転送が増える。レベル切替時のキャッシュ再利用だけが利得で、実装はしなかった。
+
+#### P6 統合検証・配信（2026-09-25）
+
+最終ソースは `1478b4824`（単位のコミットはすべて済み）。成果物は `artifacts/lightweight-2026-09-24/p6/`。
+
+- **検証**: `npm run typecheck` 通過。`npm test` は `pretest` の checkall 通過後、jest 1,104 suite / 8,397 test のうち 14 suite / 19 test が失敗し、失敗の一覧は開始時のコミット `938062297`（同じ手順で取得）と suite 名・test 名とも完全一致した。一部は輪廻の意志（`REINCARNATION_WILL`）の追加に由来することを P0・P5 で確認済みで、残りも含めて開始時から存在し、今回の変更による新しい失敗はない（`npm-test-final.log`、`start-commit-failing-suites.txt`）。
+- **配信**: `npm run build:vite`、`npm run worker:prepare`（mirror-verified 983 files）、`npm run check:worker-mirror` 通過。今回の単位に対応する生成物（HTML 入口、`public/module-registry.js`、`browser-vite/generated/startup-modules.ts`、`worker-public` の vite-dist・HTML・registry）だけを `3fde62ba7` でコミットした。別作業の asset/font manifest、`data/models/model-assets.json` の生成時刻、未追跡の `worker-public/data/` は含めていない。
+
+P0 と同条件の再計測（P0 の値 → P6 の値）:
+
+| 領域 | 条件 | 結果 |
+| --- | --- | --- |
+| boot（standard） | P0 相当の成果物（`c3d159bf1` の source に別作業の asset manifest 差分を当てて同じ手順でビルド、artifact `3c09feb2…`）と最終成果物（`aea9ea7e…`）を交互に5組 | Vite cold board-idle 中央値 1,403 → 1,231 ms、warm 711 → 571 ms、classic cold 563 → 569 ms（範囲 545–585 / 552–595、先の3回比較では 612 → 589 で逆方向のため誤差と判断）。転送 Vite cold 23.53–24.27 → 23.35–23.45 MB（p6-5 の 28.25 MB は無作為に選ばれる大きなカード画像1枚による）、classic 29.64–29.74 → 29.25–29.39 MB、要求数は同等。P0 単独3回との比較で見えた cold +37 ms は P0 側のばらつき（1,213–1,450 ms）によるもので、交互計測では再現しない |
+| opponent-action desktop | 同 profile・fixture `f2d4a4e2…`、artifact `b3a9d9bd…` | 同期 中央値/p95（ms）: 7.2/11.8 → 5.2/6.5、7.8/10.3 → 4.4/6.2、7.9/9.8 → 4.2/5.8、22.5/30.0 → 21.9/28.1、6.4/8.5 → 4.7/5.2。結果 digest 全シナリオ同一、RAF p95 16.7–16.8 ms で不変 |
+| opponent-action mobile | 同上 | 31.6/39.0 → 23.6/28.4、36.3/41.9 → 18.6/25.3、36.5/44.4 → 20.2/26.2、106.1/126.9 → 99.1/112.5、27.9/30.2 → 19.9/22.2。`commentary-context` 中央値 9.5–16.6 → 1.6–2.0。digest 同一。50 ms 以上の新規 stall なし |
+| heap desktop | 同じ操作列、GC×2 | 最終 28.47 → 28.48 MiB |
+| CPU探索 | fixture `6a919ce7…`、P0 baseline `dist` 固定 | node clock 27 行すべて結果 digest 一致。合計 Lv10 7.02 → 3.19 s（−54.6%）、Lv11 12.58 → 8.82 s（−29.8%）、Lv12 18.65 → 15.87 s（−14.9%）。production clock でも同程度（−53.4% / −30.4% / −16.5%）で、P0 で `time_budget` 打ち切りだった Lv10 の2行は予算内で完了し、node clock と同じ結果になった（P0 の production clock は非決定的だったため同一性は node clock で判定） |
+| 通信・保存 | `measure-network-storage` 3 fixture | publish あたり書き込み light 83,407 → 24,924 B、dense 125,624 → 39,205 B、special-20 452,179 → 161,026 B。WS フレーム（SSE 封筒込み）6,159 → 1,846 / 9,350 → 2,665 / 31,239 → 4,272 B。wire 往復は全 fixture で一致 |
+
+実ブラウザ確認（いずれも console error 0）:
+
+| URL | lane / backend | 操作と結果 |
+| --- | --- | --- |
+| `http://127.0.0.1:8000/?boardRenderer=pixi`（Chrome、白 Lv10 `10-observed-dark-dragon`、Lv11 `11-execution-chaos-dragon`） | Vite / Pixi | 黒の着手で反転（黒4/白1）→ 相手のターン → CPU 応答後 ROUND 2・黒3/白3・あなたのターン |
+| `http://127.0.0.1:8000/?boardRenderer=pixi&debug=1`（Playwright headful Chromium、白 Lv12 `12-strategy-cpu`／既定 Lv1） | Vite / Pixi | 着手後 1.7 s／1.5 s で ROUND 2・あなたのターン。Lv12 は理論カオスロジカルエンペラービーストの応答を確認 |
+| `http://127.0.0.1:8000/?boardRenderer=dom&debug=1` | Vite / DOM（64 セル、canvas なし） | boot ready、着手・反転・CPU 応答で ROUND 2。P0 で記録した DOM compatibility の boot error は現行ビルドでは再現しない |
+| `http://127.0.0.1:8000/index.classic.html?boardRenderer=pixi&debug=1` | classic / Pixi | 着手・CPU 応答で ROUND 2 |
+| `http://127.0.0.1:8000/?boardRenderer=pixi&battleEmbed=1` | Vite / Pixi | `CardReversiBattle`（`apiVersion`/`status`/`finished`/`start`/`save`/`dispose`）が導入され、埋め込み用に side panel 等が非表示 |
+| `npx wrangler dev --port 8799`（`worker-public`）で2コンテキスト | Vite / Pixi | A が部屋作成、B がルーム一覧から参加。両者の WS は `frameCompression=deflate-raw` で binary フレームを受信。A（黒）の着手が B にも反映され、両画面とも黒4/白1・`currentPlayer=-1`、B が「あなたのターン」。確認後 wrangler は停止 |
+
+スクリーンショットは `artifacts/lightweight-2026-09-24/p6/browser/`。Chrome 拡張のタブはウィンドウが隠れて `document.visibilityState=hidden` になり描画が進まなくなったため、Lv12 以降は Playwright の headful Chromium で確認した。
+
+- **8000**: HTTP 200。所有者はこの repo の `npm run serve`（`serve-with-fallback.js` PID 33084 → http-server 子 PID 12824、`C:\Users\quarr\Desktop\othello_v2` を配信）。独立したコンソールで起動しており、起動元のツールセッション（PID 21936）の終了後も 2026-09-25 00:08 から継続している。ビルドのための停止はしていない。
+
+完了条件の整理:
+
+- A1: CPU探索は node clock 27 行と Lv10 評価値 558 局面、Lv11 評価器 12,172 比較で一致。opponent-action の結果 digest も全シナリオ一致。
+- A2: 画像は P1-d の6枚が画素同一、WebP は admission と画素同一の両方を満たすものが残らず非採用。表示タイミングを変える候補（P2-b・P2-d の枠・P2-e）は採用していない。
+- A3: WS 圧縮のイベント本文・eventId・順序・replay、保存形式の往復、snapshot hash 23件がすべて一致。
+- A4: 上表のとおり。悪化判定に該当するものは交互計測で解消を確認した。
+- A5: 起動順・Worker preload・Single Visual Writer は変更なし。Worker warm-up は `card-reversi:browser-ready` 後だけで、起動中の CPU Worker 生成なしを `match:onnx-worker-smoke:vite` で確認。
+- A6: 通常配信へ反映し、今回分だけをコミットした。
+
+未完了・非採用・設計へ戻した範囲:
+
+- P2-a・P2-b・P2-d・P2-e・P4-e は非採用（根拠は各記録）。P2-c は −9.5 KB の部分採用で、battle/debug/perf の遅延 group 化は同期 require 境界を変えるため設計へ戻した。
+- P4-f（production parity gate の再生成）は、既存の a04 証拠が P0 の baseline でも失効しているため保留。新しい全局ブラウザトレースと全カードのブラウザ証拠の取得は Lv12/13 実験の所有者判断が必要。
+- 実回線（高遅延）での boot・WS 圧縮の効果、Cloudflare 本番での `_headers` の適用は未計測（本番デプロイは行っていない）。
+- `debug=1` で盤面をクリックすると設定パネルが開く挙動は開始時のビルドでも同じで、今回の範囲外（Playwright の座標クリックでは着手できた）。
+- 既存の問題として `assets:fonts:check`（全角「１」が subset にない）と上記19件の test 失敗が残る。
+
+別作業の残り（コミットしていない）: `AGENTS.md`、Lv13 開発（`scripts/{audit-cpu-experiment,cpu-experiment-protocol,run-cpu-experiment,production-parity-gate}.ts`、`package.json` の Lv13 関連、未追跡の `game/ai/cpu-lv13-*.ts`・テスト・fixture・`docs/cpu-lv13-development-plan.md`・`scripts/analyze-cpu-lv13-comparison.ts`）、制作素材と両 asset manifest・font-build-manifest、`data/models/model-assets.json`、未追跡の `worker-public/data/`・`othello-ai/data/`・`output/`・`assets/ラノベ/` 等。
