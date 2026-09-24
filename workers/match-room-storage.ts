@@ -1,11 +1,34 @@
 import deepClone from '../utils/deepClone';
 import { freezeOwnedData, isOwnedImmutable } from '../shared/immutable-data';
 import type { DurableObjectStorageLike, MatchWorkerRoomState } from './match-worker-types';
+import { canCompressMatchStreamFrames, canDecompressMatchStreamFrames, rawDeflate, rawInflateText } from '../shared/match-stream-compression';
 
-const FORMAT = 'split-history-v1';
+// v2 stores each replay-buffer record as raw-deflated JSON; parsing it back
+// yields the same object, key order included. v1 roots still load.
+const FORMAT = 'split-history-v2';
+const LEGACY_FORMATS = new Set(['split-history-v1', FORMAT]);
 const FIELDS = ['presentationJournal', 'sseEventBuffer'] as const;
+const COMPRESSED_FIELDS = new Set<HistoryField>(['sseEventBuffer']);
+const COMPRESSED_ENTRY_ENCODING = 'deflate-raw-json-v1';
 type HistoryField = typeof FIELDS[number];
-type StoredRoom = { format: typeof FORMAT; room: MatchWorkerRoomState; historyKeys: Record<HistoryField, string[]> };
+type StoredRoom = { format: string; room: MatchWorkerRoomState; historyKeys: Record<HistoryField, string[]> };
+type CompressedEntry = { encoding: typeof COMPRESSED_ENTRY_ENCODING; bytes: Uint8Array };
+
+function isCompressedEntry(value: unknown): value is CompressedEntry {
+  return !!value && typeof value === 'object' && (value as CompressedEntry).encoding === COMPRESSED_ENTRY_ENCODING;
+}
+
+async function encodeEntry(field: HistoryField, value: unknown): Promise<unknown> {
+  if (!COMPRESSED_FIELDS.has(field) || !canCompressMatchStreamFrames()) return value;
+  const bytes = new Uint8Array(await rawDeflate(new TextEncoder().encode(JSON.stringify(value))));
+  return { encoding: COMPRESSED_ENTRY_ENCODING, bytes } as CompressedEntry;
+}
+
+async function decodeEntry(value: unknown): Promise<unknown> {
+  if (!isCompressedEntry(value)) return value;
+  if (!canDecompressMatchStreamFrames()) throw new Error('room_history_entry_undecodable');
+  return JSON.parse(await rawInflateText(value.bytes));
+}
 
 // The root and newly appended/removed history records commit as one unit.
 // Full history entries remain self-contained and viewer-separated on disk.
@@ -18,7 +41,7 @@ export function createMatchRoomStorage(storage: DurableObjectStorageLike, rootKe
     persisted = new Map();
     const stored = await storage.get(rootKey);
     if (!stored || typeof stored !== 'object') return null;
-    if ((stored as StoredRoom).format !== FORMAT) {
+    if (!LEGACY_FORMATS.has((stored as StoredRoom).format)) {
       const legacy = deepClone(stored) as MatchWorkerRoomState;
       for (const field of FIELDS) if (Array.isArray(legacy[field])) legacy[field].forEach(entry => freezeOwnedData(entry));
       return legacy;
@@ -32,8 +55,9 @@ export function createMatchRoomStorage(storage: DurableObjectStorageLike, rootKe
       if (!Array.isArray(keys) || keys.length > 8) throw new Error('room_history_manifest_invalid');
       const entries = await Promise.all(keys.map(async key => {
         if (typeof key !== 'string' || !key.startsWith(`${rootKey}:history:`)) throw new Error('room_history_key_invalid');
-        const entry = await storage.get(key);
-        if (!entry || typeof entry !== 'object') throw new Error('room_history_entry_missing');
+        const stored = await storage.get(key);
+        if (!stored || typeof stored !== 'object') throw new Error('room_history_entry_missing');
+        const entry = await decodeEntry(stored);
         const value = freezeOwnedData(deepClone(entry));
         nextPersisted.set(key, value);
         const suffix = Number(key.slice(key.lastIndexOf(':') + 1));
@@ -64,7 +88,7 @@ export function createMatchRoomStorage(storage: DurableObjectStorageLike, rootKe
           const key = previous ? previous[0] : `${rootKey}:history:${field}:${++sequence}`;
           historyKeys[field].push(key);
           nextPersisted.set(key, value);
-          if (!previous) writes.set(key, value);
+          if (!previous) writes.set(key, await encodeEntry(field, value));
         }
       }
       await storage.transaction!(async txn => {

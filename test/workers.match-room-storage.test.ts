@@ -26,9 +26,35 @@ function adapter() {
 function room(count = 8): any {
   return { roomId: 'ABC', stateVersion: 8, snapshot: { value: 8 },
     presentationJournal: Array.from({ length: count }, (_, i) => freezeOwnedData({ visualSeq: i + 1, snapshotAfterByViewer: { black: { hand: ['black'] }, white: { hand: ['white'] } })),
-    sseEventBuffer: Array.from({ length: count }, (_, i) => freezeOwnedData({ id: 'sse-' + i, payloadByViewer: { black: { value: i }, white: { value: -i } } })) };
+    // Replay records are wire payloads, so they only hold JSON values (no -0).
+    sseEventBuffer: Array.from({ length: count }, (_, i) => freezeOwnedData({ id: 'sse-' + i, payloadByViewer: { black: { value: i }, white: { value: -i - 1 } } })) };
 }
 describe('incremental room durability', () => {
+  test('replay-buffer records are stored raw-deflated and reload as the same objects, key order included', async () => {
+    const a = adapter(); const value = room(3);
+    value.sseEventBuffer = [freezeOwnedData({ id: 'x', event: 'snapshot', payloadByViewer: { white: { z: 1, a: [2, { y: 3, b: 4 }] }, black: { q: 'く' } } })];
+    await createMatchRoomStorage(a.storage, 'room').save(value);
+    const root = a.disk().get('room');
+    expect(root.format).toBe('split-history-v2');
+    const stored = a.disk().get(root.historyKeys.sseEventBuffer[0]);
+    expect(stored.encoding).toBe('deflate-raw-json-v1');
+    expect(stored.bytes).toBeInstanceOf(Uint8Array);
+    expect(a.disk().get(root.historyKeys.presentationJournal[0])).toEqual(value.presentationJournal[0]);
+    const loaded = await createMatchRoomStorage(a.storage, 'room').load();
+    expect(JSON.stringify(loaded)).toBe(JSON.stringify(value));
+  });
+  test('split-history-v1 roots with plain entries still load', async () => {
+    const a = adapter(); const value = room(2);
+    await a.storage.put('room:history:presentationJournal:1', value.presentationJournal[0]);
+    await a.storage.put('room:history:presentationJournal:2', value.presentationJournal[1]);
+    await a.storage.put('room:history:sseEventBuffer:3', value.sseEventBuffer[0]);
+    await a.storage.put('room:history:sseEventBuffer:4', value.sseEventBuffer[1]);
+    const { presentationJournal: _j, sseEventBuffer: _s, ...head } = value;
+    await a.storage.put('room', { format: 'split-history-v1', room: head, historyKeys: {
+      presentationJournal: ['room:history:presentationJournal:1', 'room:history:presentationJournal:2'],
+      sseEventBuffer: ['room:history:sseEventBuffer:3', 'room:history:sseEventBuffer:4'] } });
+    expect(JSON.stringify(await createMatchRoomStorage(a.storage, 'room').load())).toBe(JSON.stringify(value));
+  });
   test('Worker invalidates speculative state after failed persistence and reloads committed authority', async () => {
     const a = adapter(); const worker = new MatchRoomDurableObject({ storage: a.storage });
     worker.room = createAuthorityRoomFromFixture(createNetworkSpecialStonePerformanceFixture('baseline-light'));

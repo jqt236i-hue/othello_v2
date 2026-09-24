@@ -9,7 +9,9 @@ import MatchAuthority from '../../utils/match-authority';
 import { compactNetworkPresentationEnvelope, resolveNetworkPresentationEnvelope } from '../../shared/network-presentation-envelope';
 import { compressMatchStreamFrame } from '../../shared/match-stream-compression';
 
-const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
+// Binary history entries are counted by their byte length, not as JSON index maps.
+const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value,
+  (_key, item) => (item instanceof Uint8Array ? '#'.repeat(item.byteLength) : item)) ?? '');
 async function measure(fn: () => unknown, count = 60) {
   for (let i = 0; i < 10; i++) await fn();
   const samples: number[] = [];

@@ -50,13 +50,22 @@ async function transform(bytes: BufferSource, stream: any, root: StreamRoot): Pr
     return new root.Response!(source).arrayBuffer();
 }
 
-export async function compressMatchStreamFrame(bytes: Uint8Array, root?: StreamRoot | null): Promise<ArrayBuffer> {
+/** Raw deflate of arbitrary bytes; shared by stream frames and stored history. */
+export async function rawDeflate(bytes: Uint8Array, root?: StreamRoot | null): Promise<ArrayBuffer> {
     const scope = readRoot(root);
     return transform(bytes as BufferSource, new scope.CompressionStream!(MATCH_STREAM_FRAME_COMPRESSION), scope);
 }
 
-export async function decompressMatchStreamFrame(frame: ArrayBuffer | ArrayBufferView, root?: StreamRoot | null): Promise<string> {
+export async function rawInflateText(data: ArrayBuffer | ArrayBufferView, root?: StreamRoot | null): Promise<string> {
     const scope = readRoot(root);
-    const bytes = await transform(frame as BufferSource, new scope.DecompressionStream!(MATCH_STREAM_FRAME_COMPRESSION), scope);
+    const bytes = await transform(data as BufferSource, new scope.DecompressionStream!(MATCH_STREAM_FRAME_COMPRESSION), scope);
     return new TextDecoder().decode(bytes);
+}
+
+export function compressMatchStreamFrame(bytes: Uint8Array, root?: StreamRoot | null): Promise<ArrayBuffer> {
+    return rawDeflate(bytes, root);
+}
+
+export function decompressMatchStreamFrame(frame: ArrayBuffer | ArrayBufferView, root?: StreamRoot | null): Promise<string> {
+    return rawInflateText(frame, root);
 }
