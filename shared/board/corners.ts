@@ -23,7 +23,12 @@ export function createBoardCorners(deps: CornerDependencies) {
   const cornerKeyCache = new WeakMap<object, ReadonlySet<string>>();
 
   function computeCornerKeySet(board: unknown): Set<string> {
-    const coords = deps.collectBoardCoordinates(board);
+    return computeCornerKeySetForCoordinates(deps.collectBoardCoordinates(board));
+  }
+
+  function computeCornerKeySetForCoordinates(
+    coords: readonly CellCoord[],
+  ): Set<string> {
     const coordKeys = new Set(
       coords.map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
     );
@@ -158,6 +163,7 @@ export function createBoardCorners(deps: CornerDependencies) {
   }
   return {
     buildCornerKeySet,
+    computeCornerKeySetForCoordinates,
     getCornerCells,
     getPerimeterCells,
     getEffectiveCornerCells: getCornerCells,

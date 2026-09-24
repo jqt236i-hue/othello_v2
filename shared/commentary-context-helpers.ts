@@ -30,6 +30,12 @@
         white: number;
     }
 
+    interface ReadOnlyBoardView {
+        topology: { contentBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number } };
+        isPlayable: (row: number, col: number) => boolean;
+        get: (row: number, col: number) => number | null;
+    }
+
     interface CountOptions {
         blackValues?: unknown[];
         whiteValues?: unknown[];
@@ -330,11 +336,27 @@
         return 0;
     }
 
+    function resolveReadOnlyBoardView(board: unknown): ReadOnlyBoardView | null {
+        const utils = SharedBoardUtilsModule as { resolveReadOnlyBoardView?: (b: unknown) => ReadOnlyBoardView | null } | null;
+        return utils && typeof utils.resolveReadOnlyBoardView === 'function'
+            ? utils.resolveReadOnlyBoardView(board)
+            : null;
+    }
+
     function countCornerRiskCells(board: unknown, playerValue: unknown): { ownX: number; oppX: number; ownC: number; oppC: number } {
-        const bounds = resolveBoardBounds(board);
+        // A state-backed board is resolved once; the shared helpers below would
+        // otherwise re-resolve it for every probed cell.
+        const view = resolveReadOnlyBoardView(board);
+        const bounds = view ? { ...view.topology.contentBounds } : resolveBoardBounds(board);
         if (!bounds) {
             return { ownX: 0, oppX: 0, ownC: 0, oppC: 0 };
         }
+        const readCell = view
+            ? (row: number, col: number) => view.get(row, col)
+            : (row: number, col: number) => getCellValue(board, row, col);
+        const isPlayable = view
+            ? (row: number, col: number) => view.isPlayable(row, col)
+            : (row: number, col: number) => hasPlayableCell(board, row, col);
 
         const corners = [
             { row: bounds.minRow, col: bounds.minCol, inwardRow: bounds.minRow + 1, inwardCol: bounds.minCol + 1 },
@@ -345,14 +367,14 @@
         const out = { ownX: 0, oppX: 0, ownC: 0, oppC: 0 };
 
         const applyCell = (row: number, col: number, keyOwn: 'ownX' | 'ownC', keyOpp: 'oppX' | 'oppC') => {
-            if (!hasPlayableCell(board, row, col)) return;
-            const value = getCellValue(board, row, col);
+            if (!isPlayable(row, col)) return;
+            const value = readCell(row, col);
             if (value === playerValue) out[keyOwn] += 1;
             else if (value === -(playerValue as number)) out[keyOpp] += 1;
         };
 
         for (const corner of corners) {
-            if (getCellValue(board, corner.row, corner.col) !== 0) continue;
+            if (readCell(corner.row, corner.col) !== 0) continue;
             applyCell(corner.inwardRow, corner.inwardCol, 'ownX', 'oppX');
             applyCell(corner.row, corner.inwardCol, 'ownC', 'oppC');
             applyCell(corner.inwardRow, corner.col, 'ownC', 'oppC');

@@ -437,6 +437,13 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         });
     }
 
+    /** Game/card-state boards resolve to a view; search contexts and dense
+     * arrays keep their own helper paths. Callers must not mutate the board
+     * while they hold the returned view. */
+    function resolveReadOnlyBoardView(value: unknown): import('./board/state-kernel').BoardView | null {
+        return isBoardSearchContext(value) ? null : getContextView(value);
+    }
+
     function resolveBoardBounds(boardOrRows: unknown, maybeCols?: unknown) {
         if (isBoardSearchContext(boardOrRows)) {
             const shape = (boardOrRows as any).shape;
@@ -744,7 +751,10 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         getCornerCells,
         collectBoardCoordinates,
         isEdgeCell,
-        isCornerCell
+        isCornerCell,
+        resolveBoardView: resolveReadOnlyBoardView,
+        computeCornerKeySetForCoordinates: BoardCorners.computeCornerKeySetForCoordinates,
+        toBoardCellKey
     });
     const countCornerControl = BoardControlCounts.countCornerControl;
     const countEdgeControl = BoardControlCounts.countEdgeControl;
@@ -857,6 +867,7 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         getOpeningCells,
         createBoardSearchContext,
         prepareBoardForSearch,
+        resolveReadOnlyBoardView,
         isBoardSearchContext,
         hasPlayableCell,
         collectBoardCoordinates,
