@@ -2,6 +2,11 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
 import { chromium, type Browser, type Page } from 'playwright';
+import {
+  DEFAULT_STATIC_ASSET_CACHE_CONTROL,
+  loadStaticAssetHeaders,
+  resolveStaticAssetHeaders
+} from './static-asset-headers';
 
 const ROOT = process.cwd();
 const CSP = [
@@ -37,17 +42,17 @@ function mimeType(filePath: string): string {
   }
 }
 
-function cacheControl(pathname: string, searchParams: URLSearchParams): string {
-  if (pathname === '/' || /\/index(?:\.classic|\.vite)?\.html$/i.test(pathname)) {
-    return 'no-cache, must-revalidate';
-  }
-  if (/\/vite-dist\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.[A-Za-z0-9]+$/i.test(pathname)) {
-    return 'public, max-age=31536000, immutable';
-  }
-  if (/\.css$/i.test(pathname) && /^\d+$/.test(searchParams.get('v') || '')) {
-    return 'public, max-age=31536000, immutable';
-  }
-  return 'no-cache, must-revalidate';
+// Production serves files through Workers Static Assets: the root _headers
+// rules apply by path, and every other file gets the platform default.
+const STATIC_ASSET_HEADER_RULES = loadStaticAssetHeaders(ROOT);
+
+function cacheControl(pathname: string): string {
+  return resolveStaticAssetHeaders(STATIC_ASSET_HEADER_RULES, pathname)['cache-control']
+    || DEFAULT_STATIC_ASSET_CACHE_CONTROL;
+}
+
+function isRevalidated(value: string): boolean {
+  return /\bno-cache\b/.test(value) || (/\bmax-age=0\b/.test(value) && /\bmust-revalidate\b/.test(value));
 }
 
 function resolveRequestFile(requestUrl: string): { filePath: string; pathname: string; url: URL } | null {
@@ -74,7 +79,7 @@ function createProductionLikeServer(): http.Server {
     response.writeHead(200, {
       'Content-Type': mimeType(resolved.filePath),
       'Content-Security-Policy': CSP,
-      'Cache-Control': cacheControl(resolved.pathname, resolved.url.searchParams),
+      'Cache-Control': cacheControl(resolved.pathname),
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'same-origin'
     });
@@ -231,13 +236,16 @@ async function runBrowserProductionDeliverySmoke(options: { log?: boolean } = {}
     const errors: string[] = [];
     const documentResponse = responses.find((entry) => new URL(entry.url).pathname === '/');
     if (!documentResponse || documentResponse.csp !== CSP) errors.push('default document did not receive the production CSP');
-    if (!documentResponse || !documentResponse.cacheControl.includes('no-cache')) errors.push('default HTML is not revalidated');
+    if (!documentResponse || !isRevalidated(documentResponse.cacheControl)) errors.push('default HTML is not revalidated');
     const hashedAssets = responses.filter((entry) => /\/vite-dist\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.[A-Za-z0-9]+(?:\?|$)/i.test(entry.url));
     if (hashedAssets.length === 0) errors.push('no hashed Vite assets were observed');
     if (hashedAssets.some((entry) => !entry.cacheControl.includes('immutable'))) errors.push('a hashed Vite asset was not immutable');
     const cssResponses = responses.filter((entry) => /\.css\?v=\d+$/i.test(entry.url));
     if (cssResponses.length === 0) errors.push('no versioned CSS response was observed');
-    if (cssResponses.some((entry) => !entry.cacheControl.includes('immutable'))) errors.push('a versioned CSS response was not immutable');
+    if (!cssResponses.some((entry) => entry.cacheControl.includes('immutable'))) errors.push('no versioned CSS response was immutable');
+    const unversioned = responses.filter((entry) => !/\?v=\d+$/.test(entry.url)
+      && !new URL(entry.url).pathname.startsWith('/vite-dist/assets/'));
+    if (unversioned.some((entry) => entry.cacheControl.includes('immutable'))) errors.push('an unversioned response was immutable');
     const moduleResponses = responses.filter((entry) => /\.(?:js|mjs)(?:\?|$)/i.test(entry.url));
     if (moduleResponses.some((entry) => !entry.contentType.startsWith('text/javascript'))) errors.push('a JavaScript module has the wrong MIME type');
     const wasmResponses = responses.filter((entry) => /\.wasm(?:\?|$)/i.test(entry.url));

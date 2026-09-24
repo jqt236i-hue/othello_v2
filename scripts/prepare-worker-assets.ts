@@ -101,6 +101,7 @@ const MODEL_ASSET_MANIFEST_PATH = 'data/models/model-assets.json';
 
 const ROOT_FILES: readonly string[] = Object.freeze([
     '.assetsignore',
+    '_headers',
     'index.html',
     'index.classic.html',
     'mobile-preview.html',

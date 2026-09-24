@@ -1,0 +1,65 @@
+# Cloudflare Workers Static Assets response headers (mirrored to worker-public/).
+# Only URLs that are content-addressed may be immutable:
+# - Vite output under vite-dist/assets/ carries a content hash in its file name.
+# - The stylesheets and classic entry scripts below are referenced only as
+#   `<path>?v=<sha256 of the file>` by the generated HTML, so a changed file is
+#   always requested under a new URL. _headers matches the path only.
+# Everything else (HTML, assets/**, data/**, optional registries, the gacha and
+# leaderboard stylesheets versioned by the startup token) keeps the default
+# revalidation.
+/vite-dist/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/styles-variables.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-base.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-layout.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-charge-hud.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-layout-controls.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-layout-info.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-layout-characters.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-board.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-cards.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-animations.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-responsive.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-stone-shadows.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-mobile-command-surface.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-board-dom-compat.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-deck-builder.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-deck-builder-responsive.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-network.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-network-layout-controls.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-network-responsive.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-rules-help-cards.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-rules-help-layout-info.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-feature-rules-help-responsive.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-layout-result.css
+  Cache-Control: public, max-age=31536000, immutable
+/styles-profile.css
+  Cache-Control: public, max-age=31536000, immutable
+/public/runtime.js
+  Cache-Control: public, max-age=31536000, immutable
+/public/module-registry.js
+  Cache-Control: public, max-age=31536000, immutable
+/entry-browser.js
+  Cache-Control: public, max-age=31536000, immutable
