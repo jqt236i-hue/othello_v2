@@ -228,7 +228,12 @@ const EXCLUDED_MIRROR_DIRECTORY_PREFIXES = Object.freeze([
     'assets/models/',
     // Authoring references; the playable character art is stored alongside this
     // directory and remains deployable.
-    'assets/images/special-cards/characters/observer_will_reference/'
+    'assets/images/special-cards/characters/observer_will_reference/',
+    // Unpublished story material (novel, story map, MV storyboards). The game
+    // does not load these, and they must not be publicly served.
+    'assets/ラノベ/',
+    'assets/Reversi Destiny ～黒白の運命～v1/',
+    'assets/mv-storyboards-2026-09-12/'
 ]);
 
 function normalizeRelativePath(relativePath: string) {
