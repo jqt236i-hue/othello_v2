@@ -108,6 +108,7 @@ interface MatchAuthorityGachaHandCatalogShared {
 interface MatchAuthorityStateHash {
     [key: string]: unknown;
     computeStableHash?: (value: unknown) => string;
+    computeStableTextHash?: (text: string) => string;
 }
 
 interface MatchAuthorityPlaybackDigest {
@@ -290,6 +291,9 @@ const matchAuthorityProjection = createMatchAuthorityProjectionApi({
     stripTransientPresentationState,
     computeStableHash: StateHash && typeof StateHash.computeStableHash === 'function'
         ? (snapshot: unknown) => StateHash.computeStableHash!(snapshot)
+        : null,
+    computeStableTextHash: StateHash && typeof StateHash.computeStableTextHash === 'function'
+        ? (text: string) => StateHash.computeStableTextHash!(text)
         : null,
     boardContractVersion: matchAuthorityBoardContract.BOARD_CONTRACT_VERSION,
     canonicalizeSnapshotBoardForHash: matchAuthorityBoardContract.canonicalizeSnapshotBoardForHash,

@@ -38,7 +38,11 @@ const StateHash = (function () {
     }
 
     function computeStableHash(value: unknown): string {
-        var text = stableStringify(value);
+        return computeStableTextHash(stableStringify(value));
+    }
+
+    /** FNV-1a over an already stable text, e.g. a stableStringify-equivalent walk. */
+    function computeStableTextHash(text: string): string {
         var hash = 2166136261;
         for (var index = 0; index < text.length; index += 1) {
             hash ^= text.charCodeAt(index);
@@ -49,7 +53,8 @@ const StateHash = (function () {
 
     return {
         stableStringify: stableStringify,
-        computeStableHash: computeStableHash
+        computeStableHash: computeStableHash,
+        computeStableTextHash: computeStableTextHash
     };
 })();
 

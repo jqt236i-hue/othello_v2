@@ -21,6 +21,7 @@ interface MatchAuthorityProjectionDeps {
     sanitizeOwnerOnlyTrapState: (cardState: unknown, viewerSeatKey: unknown) => unknown;
     stripTransientPresentationState: (nextSnapshot: unknown) => unknown;
     computeStableHash: ((value: unknown) => string) | null;
+    computeStableTextHash?: ((text: string) => string) | null;
     boardContractVersion: number;
     canonicalizeSnapshotBoardForHash: (snapshotValue: unknown) => unknown;
     makeHiddenHandToken: (ownerKey: unknown, handIndex: unknown) => string;
@@ -366,12 +367,106 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         return deps.canonicalizeSnapshotBoardForHash(shot);
     }
 
+    const NOT_PLAIN_DATA = new Error('not plain snapshot data');
+
+    function isPlainObject(value: object): boolean {
+        const proto = Object.getPrototypeOf(value);
+        return proto === Object.prototype || proto === null;
+    }
+
+    // stableStringify of plain data (objects, arrays, primitives). Anything a
+    // structured clone would not keep as-is (functions, symbols, other
+    // classes) aborts the walk so the clone-based source stays the reference.
+    function stablePlainText(value: unknown): string {
+        if (value === null) return 'null';
+        if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
+        if (typeof value === 'boolean') return value ? 'true' : 'false';
+        if (typeof value === 'string') return JSON.stringify(value);
+        if (typeof value === 'undefined') return 'null';
+        if (typeof value === 'function' || typeof value === 'symbol') throw NOT_PLAIN_DATA;
+        if (typeof value !== 'object') return JSON.stringify(String(value));
+        if (Array.isArray(value)) {
+            const parts: string[] = [];
+            for (let index = 0; index < value.length; index += 1) {
+                parts.push(index in value ? stablePlainText(value[index]) : '');
+            }
+            return `[${parts.join(',')}]`;
+        }
+        if (!isPlainObject(value)) throw NOT_PLAIN_DATA;
+        return stablePlainObjectText(value as RecordValue, null);
+    }
+
+    function stablePlainObjectText(value: RecordValue, override: ((key: string, entry: unknown) => string | undefined) | null, extraKeys: readonly string[] = []): string {
+        const keys = Array.from(new Set([...Object.keys(value), ...extraKeys])).sort();
+        const segments: string[] = [];
+        for (const key of keys) {
+            const overridden = override ? override(key, value[key]) : undefined;
+            if (overridden === '') continue;
+            if (overridden !== undefined) { segments.push(`${JSON.stringify(key)}:${overridden}`); continue; }
+            const entry = value[key];
+            if (typeof entry === 'function' || typeof entry === 'symbol') throw NOT_PLAIN_DATA;
+            if (typeof entry === 'undefined') continue;
+            segments.push(`${JSON.stringify(key)}:${stablePlainText(entry)}`);
+        }
+        return `{${segments.join(',')}}`;
+    }
+
+    function isPlainRecord(value: unknown): value is RecordValue {
+        return !!value && typeof value === 'object' && !Array.isArray(value) && isPlainObject(value as object);
+    }
+
+    /** Same text as stableStringify(cloneSnapshotHashSource(snapshot)) without
+     * cloning: the hash fields of _meta are skipped, cardState reports empty
+     * charge deltas and expansion cells are ordered as the board contract sorts them. */
+    function snapshotHashSourceText(snapshotValue: unknown): string | null {
+        const shot = snapshotValue || {};
+        if (!isPlainRecord(shot)) return null;
+        try {
+            return stablePlainObjectText(shot, (key, entry) => {
+                if (key === '_meta' && isPlainRecord(entry)) {
+                    return stablePlainObjectText(entry, (metaKey) => (
+                        metaKey === 'projectedSnapshotHash' || metaKey === 'authoritativeStateHash' ? '' : undefined
+                    ));
+                }
+                if (key === 'cardState' && isPlainRecord(entry)) {
+                    return stablePlainObjectText(entry, (cardKey) => (cardKey === 'chargeDeltaEvents' ? '[]' : undefined), ['chargeDeltaEvents']);
+                }
+                if (key === 'gameState' && isPlainRecord(entry) && isPlainRecord(entry.boardExpansion) && Array.isArray(entry.boardExpansion.cells)) {
+                    const cells = entry.boardExpansion.cells.slice().sort((leftValue: unknown, rightValue: unknown) => {
+                        const left = asRecord(leftValue);
+                        const right = asRecord(rightValue);
+                        return Number(left.row) - Number(right.row) || Number(left.col) - Number(right.col);
+                    });
+                    return stablePlainObjectText(entry, (gameKey, gameEntry) => (
+                        gameKey === 'boardExpansion'
+                            ? stablePlainObjectText(gameEntry as RecordValue, (expansionKey) => (
+                                expansionKey === 'cells' ? stablePlainText(cells) : undefined
+                            ))
+                            : undefined
+                    ));
+                }
+                return undefined;
+            });
+        } catch (error) {
+            if (error === NOT_PLAIN_DATA) return null;
+            throw error;
+        }
+    }
+
+    function computeSnapshotHash(snapshotValue: unknown): string | null {
+        if (!deps.computeStableHash) return null;
+        const text = deps.computeStableTextHash ? snapshotHashSourceText(snapshotValue) : null;
+        return text !== null
+            ? deps.computeStableTextHash!(text)
+            : deps.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+    }
+
     function computeAuthoritativeStateHash(snapshotValue: unknown): string | null {
-        return deps.computeStableHash ? deps.computeStableHash(cloneSnapshotHashSource(snapshotValue)) : null;
+        return computeSnapshotHash(snapshotValue);
     }
 
     function computeProjectedSnapshotHash(snapshotValue: unknown): string | null {
-        return deps.computeStableHash ? deps.computeStableHash(cloneSnapshotHashSource(snapshotValue)) : null;
+        return computeSnapshotHash(snapshotValue);
     }
 
     function buildPublicSnapshotForViewer(
