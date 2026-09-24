@@ -64,6 +64,11 @@ export function compareLv11Scenarios(values: readonly (readonly (number | null)[
 /** Entire search operates on sampled, isolated positions and injected time.
  * The caller validates and applies the returned advisory action normally. */
 export function searchLv11(observation: Lv10Observation, options: Lv11SearchOptions = {}): Lv11SearchResult {
+    // Same scope as Lv12: only immutable board geometry is reused within one search.
+    return Board.withTopologyMemo(() => searchLv11Scoped(observation, options));
+}
+
+function searchLv11Scoped(observation: Lv10Observation, options: Lv11SearchOptions): Lv11SearchResult {
     const cfg = LV11_SEARCH_CONFIG, player = observation.player;
     if (options.maxTransitions !== undefined && (!Number.isInteger(options.maxTransitions) || options.maxTransitions < 1)) {
         throw new Error('Lv11 transition budget must be a positive integer');
