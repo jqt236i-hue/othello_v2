@@ -2,7 +2,7 @@
 
 役割: 2026-09-24 の読み取り専用調査で確認した軽量化候補を、順序・変更境界・検証・完了条件つきで実装できる形にまとめた実行計画。対象はカードリバーシの配信・キャッシュ、起動転送、対局中ランタイム、CPU探索とWorker、オンライン対戦の通信・保存。正本は [ゲーム仕様](../../01-rulebook.md) と [内部契約](../architecture-contracts.md) §5.1.1、§5.2、§6、§7.3、§8、§11。ルール、CPUの判断、UX、視覚表現、音、タイミングを変更する仕様書ではない。
 
-状態: **計画作成済み・未着手。** 各作業単位の状態は §9 の進捗表で更新する。
+状態: **実施中。** 各作業単位の状態は §9 の進捗表と実施記録で更新する。
 
 前計画 [追加軽量化計画（2026-09-08）](ux-preserving-lightweight-plan-2026-09-08.md) は P1 採用・P4 保留のままローカル差分として残っている。本計画はそれを置き換えず、P0 でその差分の扱いを先に確定する。
 
@@ -252,10 +252,32 @@ git status --short
 | 単位 | 状態 | 実測・確認・残件 |
 | --- | --- | --- |
 | 計画時調査 | 完了 | 読み取り専用調査。製品コード変更なし。本番へは header 確認の HEAD/curl のみ |
-| P0 | 未着手 | |
+| P0 | 完了 | 前計画分 `fccf0882d`、計測是正 `c3d159bf1`、基準取得。詳細は §9.1 |
 | P1-a〜d | 未着手 | |
 | P2-a〜e | 未着手 | |
 | P3-a〜c | 未着手 | |
 | P4-a〜f | 未着手 | |
 | P5-a〜d | 未着手 | |
 | P6 | 未着手 | |
+
+### 9.1 実施記録
+
+#### P0（2026-09-25）
+
+- 前計画の残差分のうち tactical-safety P1、`tactical-safety` stage（sample v2 / report v3）、Node/ブラウザ計測器 `scripts/perf/measure-cpu-tactical-safety.ts`、前計画の記録を `npm run typecheck` と関連5 suite / 35 tests 通過後に `fccf0882d` として単独コミットした。生成物・manifest は含めていない。
+- 開始時に「CPU実験ツール」として列挙されていた `scripts/{audit-cpu-experiment,cpu-experiment-protocol,run-cpu-experiment,production-parity-gate}.ts` と `package.json` の `selfplay:compare:lv13`・`data/cpu-lv13/` 除外は、全ハンクが未追跡の Lv13 開発（`docs/cpu-lv13-development-plan.md`、`game/ai/cpu-lv13-*.ts`、`data/cpu-lv13/`）に属するため、前計画分とは分けて別作業として保護した（コミットしていない）。
+- 別作業の残件: (1) `worker-public/assets/images/special-stones/crystal_stone.png` の削除は `354f21ba2`（2026-09-12）で追跡・manifest とも解消済み。(2) 未追跡の制作素材（`assets/Reversi Destiny ～黒白の運命～v1/*.png`、`observer_will_reference/` 追加分、`assets/ラノベ/`）と、それを含む両 asset manifest・font-build-manifest の差分は別作業のまま保護。(3) Lv13 開発の未追跡ソース・データと `browser-vite/generated/startup-modules.ts` の Lv13 行。(4) DOM compatibility の boot error は P6 の実ブラウザ確認で再判定する。
+- 既存の失敗（今回の変更と無関係）: `test/cpu.decision.refactor.test.ts` の「all catalog card types have explicit Lv6 plan pressure profile」（`REINCARNATION_WILL` が未登録）と `test/cpu.decision.public-api.test.ts`（`cpuSelectReincarnationWithPolicy` が固定一覧にない）。どちらも HEAD の時点で存在する輪廻の意志の追加に起因する。
+- 計測是正（`c3d159bf1`）: pending の同期プレフィックス（方策の対象採点）を `pending-target-choice` に改名し、`runCpuPendingSelectionViaPipeline` 内の `runTurnWithAdapter` と状態書き込みを `canonical-commit` で計測する。方策の await を越えるため、pending phase が handler の生存期間だけ player ごとの scope を `cpu-turn-performance` に登録し、pipeline が commit 時に読む。Lv10+ の advised 経路は scope を引数で渡す。sample schema v3 / report schema v4。multi-target desktop で `pending-target-choice` 3.7 ms と `canonical-commit` 0.7 ms が分離して記録されることを確認した。
+- 計測器の追加（P0 のコミットに含む）: `scripts/perf/measure-cpu-search.ts`（Lv10/11/12 × 9 fixture、node/production clock、結果 digest は `elapsedMs` 以外の全戻り値の stable JSON）、`measure-opponent-action-frame-stall.ts` の `--heap`（各シナリオの warmup 後・capture 後に `HeapProfiler.collectGarbage` ×2 → `Runtime.getHeapUsage`）、`measure-network-storage.ts` の出力先引数・キー種別内訳・V3 フレーム gzip 後バイト。
+
+基準値（成果物は `artifacts/lightweight-2026-09-24/p0/`、Node v24.12.0、この開発機、RTX 2070/D3D11、同じ HEAD `c3d159bf1` のビルド）:
+
+| 領域 | 条件 | 基準 |
+| --- | --- | --- |
+| boot（standard ×3） | `worker-public` artifact `f50d615d…`、1366×900/DPR1 | Vite cold: 23.60 / 23.97 / 23.95 MB、74–75 req、board-idle 1,213 / 1,450 / 1,418 ms（中央値 1,418）。warm board-idle 中央値 711 ms。重複取得: `cpu/level1.png`、felt、`o-stone/{black,white}.png`、手札カード1枚 |
+| opponent-action desktop | profile `lightweight-desktop`、artifact `01cbf8f8…`、fixture `f2d4a4e2…`、warmup 5・各20 | 同期 中央値/p95（ms）: Lv1空 7.2/11.8、Lv1カード 7.8/10.3、multi-target 7.9/9.8、Lv6 22.5/30.0、Pixi高頻度 6.4/8.5。`commentary-context` 中央値 2.0–3.8 |
+| opponent-action mobile | profile `lightweight-mobile`、390×844/DPR2、CPU×4、同 artifact・fixture | 同期 中央値/p95: 31.6/39.0、36.3/41.9、36.5/44.4、106.1/126.9、27.9/30.2。`commentary-context` 中央値 9.5 / 11.4 / 16.6 / 8.7 / 9.1 |
+| heap desktop | 上記 desktop と同じ操作列、各点で GC×2 | ready 16.52 MiB → 最終 28.47 MiB（シナリオ順に単調増加） |
+| CPU探索 | fixture `6a919ce7…`、warmup 1・各5、baseline `dist` を `p0/baseline-root` に固定 | node clock は全27行で決定的・入力不変。中央値 Lv10 0.06–1.64 s、Lv11 0.08–3.33 s、Lv12 0.23–3.55 s。production clock は Lv10 の2行が `time_budget`、Lv12 chance-continuation が非決定的のため、同一性判定は node clock で行う |
+| 通信・保存 | `measure-network-storage` 3 fixture | publish あたり書き込み: light 83,407 B、dense 125,624 B、special-20 452,179 B（うち SSE バッファ 265,714、journal 131,411、head 55,054）。V3 フレーム 6,123 / 9,314 / 31,203 B、gzip 後 1,838 / 2,658 / 4,265 B |

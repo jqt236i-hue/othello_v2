@@ -1214,6 +1214,7 @@ function parseArgs(argv: readonly string[]): Readonly<{
   mobile: boolean;
   cpuThrottleRate: number;
   cpuProfilePath: string | null;
+  heap: boolean;
 }> {
   let profile = 'desktop';
   let outputPath = path.join('artifacts', 'opponent-action-frame-stall', 'candidate.json');
@@ -1221,6 +1222,7 @@ function parseArgs(argv: readonly string[]): Readonly<{
   let mobile = false;
   let cpuThrottleRate = 1;
   let cpuProfilePath: string | null = null;
+  let heap = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--profile' && argv[index + 1]) profile = String(argv[++index]);
@@ -1229,13 +1231,14 @@ function parseArgs(argv: readonly string[]): Readonly<{
     else if (arg === '--mobile') mobile = true;
     else if (arg === '--cpu-throttle' && argv[index + 1]) cpuThrottleRate = Number(argv[++index]);
     else if (arg === '--cpu-profile' && argv[index + 1]) cpuProfilePath = String(argv[++index]);
+    else if (arg === '--heap') heap = true;
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (!/^[a-z0-9][a-z0-9._-]{0,31}$/i.test(profile)) throw new Error('profile must be an allowlisted identifier');
   if (!Number.isFinite(cpuThrottleRate) || cpuThrottleRate < 1 || cpuThrottleRate > 20) {
     throw new Error('cpu throttle must be between 1 and 20');
   }
-  return Object.freeze({ profile, outputPath, quick, mobile, cpuThrottleRate, cpuProfilePath });
+  return Object.freeze({ profile, outputPath, quick, mobile, cpuThrottleRate, cpuProfilePath, heap });
 }
 
 async function runCli(): Promise<void> {
@@ -1250,6 +1253,7 @@ async function runCli(): Promise<void> {
   let browser: Browser | null = null;
   let graphics: DesktopGraphicsEnvironment | null = null;
   const samplesByScenario: Record<string, BrowserSample[]> = Object.fromEntries(SCENARIO_IDS.map((id) => [id, []]));
+  const heapSeries: Array<Readonly<{ point: string; usedBytes: number; totalBytes: number }>> = [];
   try {
     const baseUrl = await listen(server);
     browser = await chromium.launch(createDesktopChromiumLaunchOptions());
@@ -1273,9 +1277,18 @@ async function runCli(): Promise<void> {
       });
     });
     const page = await context.newPage();
-    const cdp = args.cpuThrottleRate > 1 || args.cpuProfilePath
+    const cdp = args.cpuThrottleRate > 1 || args.cpuProfilePath || args.heap
       ? await context.newCDPSession(page)
       : null;
+    // Optional retained-heap series: the same operation order with a forced
+    // collection before every reading, so baseline and candidate compare.
+    const readHeapAfterCollection = async (point: string): Promise<void> => {
+      if (!args.heap || !cdp) return;
+      await cdp.send('HeapProfiler.collectGarbage');
+      await cdp.send('HeapProfiler.collectGarbage');
+      const usage = await cdp.send('Runtime.getHeapUsage');
+      heapSeries.push(Object.freeze({ point, usedBytes: usage.usedSize, totalBytes: usage.totalSize }));
+    };
     if (args.cpuThrottleRate > 1 && cdp) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: args.cpuThrottleRate });
     }
@@ -1294,8 +1307,10 @@ async function runCli(): Promise<void> {
       await cdp.send('Profiler.start');
     }
     let fixtureIndex = 0;
+    await readHeapAfterCollection('ready');
     for (const scenarioId of SCENARIO_IDS) {
       for (let iteration = 0; iteration < warmupIterations + captureIterations; iteration += 1) {
+        if (iteration === warmupIterations) await readHeapAfterCollection(`${scenarioId}:after-warmup`);
         fixtureIndex += 1;
         const warmup = iteration < warmupIterations;
         const sample = await captureOne(page, scenarioId, fixtureIndex, {
@@ -1314,6 +1329,7 @@ async function runCli(): Promise<void> {
         if (!warmup) samplesByScenario[scenarioId].push(sample);
         process.stdout.write(`[perf] ${scenarioId} ${warmup ? 'warmup' : 'capture'} ${iteration + 1}/${warmupIterations + captureIterations}\n`);
       }
+      await readHeapAfterCollection(`${scenarioId}:after-capture`);
     }
     if (args.cpuProfilePath && cdp) {
       const capturedProfile = await cdp.send('Profiler.stop');
@@ -1365,6 +1381,20 @@ async function runCli(): Promise<void> {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   process.stdout.write(`[perf] wrote ${path.relative(rootDir, outputPath)}\n`);
+  if (args.heap) {
+    const heapPath = `${outputPath.replace(/\.json$/i, '')}.heap.json`;
+    fs.writeFileSync(heapPath, `${JSON.stringify({
+      schemaVersion: 'cpu_turn_heap_series.v1',
+      profile: args.profile,
+      browserArtifactSha256: artifactHashBefore,
+      fixtureDigest,
+      warmupIterations,
+      captureIterations,
+      collection: 'HeapProfiler.collectGarbage x2 before Runtime.getHeapUsage',
+      series: heapSeries
+    }, null, 2)}\n`, 'utf8');
+    process.stdout.write(`[perf] wrote ${path.relative(rootDir, heapPath)}\n`);
+  }
 }
 
 if (require.main === module) {

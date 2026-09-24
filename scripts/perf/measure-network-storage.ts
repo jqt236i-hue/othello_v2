@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as zlib from 'zlib';
 import { performance } from 'perf_hooks';
 import { createAllNetworkSpecialStonePerformanceFixtures, createAuthorityRoomFromFixture, runHeadlessFixtureTurnStart } from '../../test/helpers/network-special-stone-performance-fixtures';
 import { MatchRoomDurableObject } from '../../workers/match-worker';
@@ -53,6 +54,13 @@ export async function measureNetworkStorage() {
     append(); await worker.saveRoom();
     const appendWriteBytes = writes.reduce((n, entry) => n + bytes(entry.value), 0);
     const appendWriteCount = writes.length;
+    // Group per-publish writes by key family (numeric suffixes collapsed) so
+    // head, journal and replay-buffer costs are visible separately.
+    const appendWriteBytesByKey: Record<string, number> = {};
+    for (const entry of writes) {
+      const family = String(entry.key).replace(/:\d+(?=:|$)/g, ':N');
+      appendWriteBytesByKey[family] = (appendWriteBytesByKey[family] || 0) + bytes(entry.value);
+    }
     const v2 = compactNetworkPresentationEnvelope(lastPayload, 2);
     const v3 = compactNetworkPresentationEnvelope(lastPayload, 3);
     const wireV2EncodeMs = await measure(() => JSON.stringify(compactNetworkPresentationEnvelope(lastPayload, 2)));
@@ -68,14 +76,15 @@ export async function measureNetworkStorage() {
     }
     rows.push({ fixture: fixture.id, events: turn.playbackEvents.length, fullRoomBytes: fullBytes,
       legacyCopyMs, unchangedSaveMs, unchangedWriteBytes, appendWriteBytes, appendWriteCount,
-      wireV2Bytes: bytes(v2), wireV3Bytes: bytes(v3), wireV2EncodeMs, wireV3EncodeMs, wireV3DecodeMs, wireRoundtrip: true });
+      appendWriteBytesByKey,
+      wireV2Bytes: bytes(v2), wireV3Bytes: bytes(v3), wireV3GzipBytes: zlib.gzipSync(serializedV3).length, wireV2EncodeMs, wireV3EncodeMs, wireV3DecodeMs, wireRoundtrip: true });
   }
   return { node: process.version, storage: 'transaction adapter without disk I/O; copy/timing and JSON byte characterization only', rows };
 }
 
 if (require.main === module) {
   void measureNetworkStorage().then(report => {
-    const output = path.resolve('artifacts/network-audit-20260905/optimized-storage.json');
+    const output = path.resolve(process.argv[2] || 'artifacts/network-audit-20260905/optimized-storage.json');
     fs.mkdirSync(path.dirname(output), { recursive: true }); fs.writeFileSync(output, JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
   }).catch(error => { console.error(error); process.exitCode = 1; });
