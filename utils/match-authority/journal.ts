@@ -45,7 +45,9 @@ export function createMatchAuthorityJournalApi(deps: MatchAuthorityJournalDeps) 
             rejectedReason: entry.rejectedReason ? String(entry.rejectedReason).trim() : null
         };
         const log = Array.isArray(room.authorityLog) ? room.authorityLog.slice() : [];
-        log.push(nextEntry);
+        // Entries are never edited after append; freezing lets room storage
+        // keep each one under its own key instead of rewriting the whole log.
+        log.push(freezeOwnedData(nextEntry));
         if (log.length > limit) {
             log.splice(0, log.length - limit);
         }

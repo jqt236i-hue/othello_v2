@@ -35,7 +35,7 @@ describe('incremental room durability', () => {
     value.sseEventBuffer = [freezeOwnedData({ id: 'x', event: 'snapshot', payloadByViewer: { white: { z: 1, a: [2, { y: 3, b: 4 }] }, black: { q: 'く' } } })];
     await createMatchRoomStorage(a.storage, 'room').save(value);
     const root = a.disk().get('room');
-    expect(root.format).toBe('split-history-v2');
+    expect(root.format).toBe('split-history-v3');
     const stored = a.disk().get(root.historyKeys.sseEventBuffer[0]);
     expect(stored.encoding).toBe('deflate-raw-json-v1');
     expect(stored.bytes).toBeInstanceOf(Uint8Array);
@@ -107,5 +107,62 @@ describe('incremental room durability', () => {
     const a = adapter(); await createMatchRoomStorage(a.storage, 'room').save(room());
     a.disk().delete(Array.from(a.disk().keys()).find(k => k.includes(':history:'))!);
     await expect(createMatchRoomStorage(a.storage, 'room').load()).rejects.toThrow('room_history_entry_missing');
+  });
+});
+
+describe('small room root (split-history-v3)', () => {
+  function adapterWithSizes() {
+    let disk = new Map<string, any>(); const puts: Array<[string, number]>[] = [];
+    const size = (v: any) => JSON.stringify(v, (_k, x) => x instanceof Uint8Array ? '#'.repeat(x.byteLength) : x)!.length;
+    const storage: any = {
+      get: async (key: string) => structuredClone(disk.get(key)), put: async (key: string, value: any) => { disk.set(key, structuredClone(value)); },
+      delete: async (key: string) => disk.delete(key),
+      transaction: async (fn: any) => { const next = new Map(disk); const w: Array<[string, number]> = [];
+        await fn({ put: async (k: string, v: any) => { w.push([k, size(v)]); next.set(k, structuredClone(v)); }, delete: async (k: string) => next.delete(k) });
+        disk = next; puts.push(w); }
+    };
+    return { storage, puts, disk: () => disk };
+  }
+  const snapshots = (n: number) => ({ black: { board: Array(64).fill(n), hand: ['b'] }, white: { board: Array(64).fill(-n), hand: ['w'] } });
+
+  test('appends one authority-log entry, keeps unchanged initial snapshots and references the evicted journal entry', async () => {
+    const a = adapterWithSizes(); const store = createMatchRoomStorage(a.storage, 'room');
+    const room: any = { roomId: 'R', stateVersion: 1, snapshot: { v: 1 }, initialSnapshotByViewer: snapshots(0),
+      presentationJournal: [], sseEventBuffer: [], authorityLog: [] };
+    for (let i = 1; i <= 12; i++) {
+      room.stateVersion = i;
+      room.authorityLog = room.authorityLog.concat([freezeOwnedData({ kind: 'publish', committedVersion: i })]).slice(-64);
+      const entry = freezeOwnedData({ visualSeq: i, snapshotAfterByViewer: snapshots(i) });
+      room.presentationJournal = room.presentationJournal.concat([entry]);
+      if (room.presentationJournal.length > 8) {
+        const base = room.presentationJournal[room.presentationJournal.length - 9];
+        room.presentationJournalBaseVisualSeq = base.visualSeq;
+        room.presentationJournalBaseSnapshotByViewer = structuredClone(base.snapshotAfterByViewer);
+        room.presentationJournal = room.presentationJournal.slice(-8);
+      }
+      await store.save(room);
+    }
+    const last = a.puts[a.puts.length - 1].map(([key]) => key.replace(/:\d+$/, ':N')).sort();
+    expect(last).toEqual(['room', 'room:history:authorityLog:N', 'room:history:presentationJournal:N']);
+    const root = a.disk().get('room');
+    expect(root.room).not.toHaveProperty('initialSnapshotByViewer');
+    expect(root.room).not.toHaveProperty('presentationJournalBaseSnapshotByViewer');
+    expect(root.room).not.toHaveProperty('authorityLog');
+    expect(a.disk().get(root.baseSnapshotJournalKey).visualSeq).toBe(4);
+    const loaded = await createMatchRoomStorage(a.storage, 'room').load();
+    expect(loaded).toEqual(room);
+    // Reloaded roots continue appending without rewriting retained entries.
+    const reopened = createMatchRoomStorage(a.storage, 'room'); const again: any = await reopened.load();
+    again.stateVersion = 13; again.authorityLog = again.authorityLog.concat([freezeOwnedData({ kind: 'publish', committedVersion: 13 })]);
+    await reopened.save(again);
+    expect(a.puts[a.puts.length - 1].map(([key]) => key.replace(/:\d+$/, ':N')).sort()).toEqual(['room', 'room:history:authorityLog:N']);
+  });
+
+  test('split-history-v2 roots that kept the authority log in the root still load', async () => {
+    const a = adapterWithSizes();
+    const head = { roomId: 'R', stateVersion: 3, authorityLog: [{ kind: 'publish', committedVersion: 3 }], initialSnapshotByViewer: snapshots(0) };
+    await a.storage.put('room', { format: 'split-history-v2', room: head, historyKeys: { presentationJournal: [], sseEventBuffer: [] } });
+    const loaded: any = await createMatchRoomStorage(a.storage, 'room').load();
+    expect(loaded).toEqual({ ...head, presentationJournal: [], sseEventBuffer: [] });
   });
 });
