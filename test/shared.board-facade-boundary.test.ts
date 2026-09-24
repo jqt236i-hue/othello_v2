@@ -22,6 +22,7 @@ describe('shared board context facade', () => {
       'createBoardSearchContext',
       'prepareBoardForSearch',
       'getContextView',
+      'resolveReadOnlyBoardView',
       'resolveBoardBounds',
       'isStandardBoard8x8',
       'hasPlayableCell',
