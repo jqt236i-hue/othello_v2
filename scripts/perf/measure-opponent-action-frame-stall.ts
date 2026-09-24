@@ -11,8 +11,8 @@ import {
   type DesktopGraphicsEnvironment
 } from '../browser-performance-environment';
 
-export const REPORT_SCHEMA_VERSION = 'cpu_turn_frame_stall_report.v3';
-export const SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v2';
+export const REPORT_SCHEMA_VERSION = 'cpu_turn_frame_stall_report.v4';
+export const SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v3';
 export const SCENARIO_IDS = Object.freeze([
   'lv1-empty-or-unusable-hand-place-8x8',
   'lv1-usable-card-then-place-8x8',
@@ -268,6 +268,7 @@ function validateStageEntry(entry: StageEntry): string | null {
     'move-candidates',
     'tactical-safety',
     'commentary-context',
+    'pending-target-choice',
     'canonical-commit',
     'presentation-handoff'
   ].includes(entry.stage) && !/^card-context-feature:[a-z0-9][a-z0-9-]*$/i.test(entry.stage)) return 'invalid-stage-name';

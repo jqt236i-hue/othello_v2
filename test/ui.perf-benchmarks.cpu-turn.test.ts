@@ -115,7 +115,7 @@ describe('debug-only CPU turn performance harness', () => {
     });
     const snapshot = harness.endScenario();
 
-    expect(snapshot.schemaVersion).toBe('cpu_turn_frame_stall_sample.v2');
+    expect(snapshot.schemaVersion).toBe('cpu_turn_frame_stall_sample.v3');
     expect(snapshot.metadata).toEqual({ profile: 'desktop', iteration: 1 });
     expect(snapshot.stageEntries).toHaveLength(2);
     expect(JSON.stringify(snapshot)).not.toContain('must-not-leak');

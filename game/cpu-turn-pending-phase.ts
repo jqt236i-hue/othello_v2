@@ -2,6 +2,7 @@ import {
     measureCpuTurnSync,
     readCpuTurnPerformanceNowMs,
     recordCpuTurnPerformanceInterval,
+    setActiveCpuPendingSelectionPerformanceScope,
     withCpuTurnPerformanceOptions,
     type CpuTurnPerformanceScope
 } from './cpu-turn-performance';
@@ -78,10 +79,13 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                         pendingEffect: pending
                     });
                 }
+                // The synchronous prefix is target scoring; the canonical commit runs
+                // after the policy await and is measured by the pending pipeline.
+                if (performanceScope) setActiveCpuPendingSelectionPerformanceScope(playerKey, performanceScope);
                 const handlerPromise = performanceScope
                     ? measureCpuTurnSync(
                         performanceScope,
-                        'canonical-commit',
+                        'pending-target-choice',
                         () => Promise.resolve(handler())
                     )
                     : Promise.resolve(handler());
@@ -89,6 +93,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                 try {
                     await handlerPromise;
                 } catch (error) {
+                    if (performanceScope) setActiveCpuPendingSelectionPerformanceScope(playerKey, null);
                     if (performanceScope && waitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(
                             performanceScope,
@@ -102,6 +107,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                     if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                     throw error;
                 }
+                if (performanceScope) setActiveCpuPendingSelectionPerformanceScope(playerKey, null);
                 if (abortIfNeeded()) return { status: 'handled', pending, reason: 'runtime_unavailable' };
                 if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
                     if (performanceScope && waitStartedAtMs !== null) {

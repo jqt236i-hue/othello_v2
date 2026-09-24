@@ -1948,9 +1948,9 @@ function resolveTurnPipeline(): any {
     return null;
 }
 
-async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: any, pendingType: any): Promise<any> {
+async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: any, pendingType: any, performanceScope?: CpuTurnPerformanceScope | null): Promise<any> {
     if (CpuDecisionPendingPipeline && typeof CpuDecisionPendingPipeline.runCpuPendingSelectionViaPipeline === 'function') {
-        return CpuDecisionPendingPipeline.runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType);
+        return CpuDecisionPendingPipeline.runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType, performanceScope);
     }
     return null;
 }
@@ -2057,7 +2057,7 @@ async function applyCpuAdvisedSelection(playerKey: any, action: any, performance
     }
     const pending = readCpuPendingEffect(playerKey);
     if (['place', 'cancel_card'].includes(action?.type) && pending?.stage === 'selectTarget') {
-        return runCpuPendingSelectionViaPipeline(playerKey, action, pending.type);
+        return runCpuPendingSelectionViaPipeline(playerKey, action, pending.type, performanceScope);
     }
     return { ok: false, reason: 'unsupported_advised_selection' };
 }

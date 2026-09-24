@@ -1,4 +1,10 @@
 import { createCpuDecisionPendingPipeline } from '../game/cpu-decision-pending-pipeline';
+import { createCpuTurnPendingPhase } from '../game/cpu-turn-pending-phase';
+import {
+  createCpuTurnPerformanceScope,
+  readActiveCpuPendingSelectionPerformanceScope,
+  setActiveCpuPendingSelectionPerformanceScope
+} from '../game/cpu-turn-performance';
 
 function createController(overrides?: Record<string, unknown>) {
   let cardState = {
@@ -74,6 +80,66 @@ function createController(overrides?: Record<string, unknown>) {
 }
 
 describe('cpu decision pending pipeline controller', () => {
+  test('times the post-policy canonical commit for the registered pending scope only', async () => {
+    const entries: any[] = [];
+    let now = 100;
+    const scope = createCpuTurnPerformanceScope({
+      recorder: (entry: any) => entries.push(entry), correlationId: 'cpu-pending-1', runId: 3,
+      playerKey: 'white', level: 1, readNowMs: () => ++now
+    });
+    const ctx = createController({ adapter: { runTurnWithAdapter: jest.fn(() => ({
+      ok: true, nextCardState: { turnIndex: 8 }, nextGameState: { currentPlayer: 1 }, playbackEvents: []
+    })) } });
+
+    await ctx.controller.runCpuPendingSelectionViaPipeline('white', { trapTarget: { row: 2, col: 3 } }, 'TRAP_WILL');
+    expect(entries).toEqual([]);
+
+    setActiveCpuPendingSelectionPerformanceScope('white', scope);
+    try {
+      await ctx.controller.runCpuPendingSelectionViaPipeline('black', { trapTarget: { row: 2, col: 3 } }, 'TRAP_WILL');
+      expect(entries).toEqual([]);
+      await ctx.controller.runCpuPendingSelectionViaPipeline('white', { trapTarget: { row: 2, col: 3 } }, 'TRAP_WILL');
+    } finally {
+      setActiveCpuPendingSelectionPerformanceScope('white', null);
+    }
+    expect(entries.map((entry) => [entry.stage, entry.kind, entry.correlationId])).toEqual([
+      ['canonical-commit', 'sync', 'cpu-pending-1'],
+      ['canonical-commit', 'sync', 'cpu-pending-1']
+    ]);
+    expect(ctx.getCardState()).toEqual({ turnIndex: 8 });
+  });
+
+  test('the pending phase labels the synchronous prefix as target choice and scopes the commit to the handler', async () => {
+    const entries: any[] = [];
+    let now = 0;
+    const scope = createCpuTurnPerformanceScope({
+      recorder: (entry: any) => entries.push(entry), correlationId: 'cpu-pending-2', runId: 4,
+      playerKey: 'white', level: 1, readNowMs: () => ++now
+    });
+    const seenScopes: any[] = [];
+    const handler = jest.fn(async () => {
+      seenScopes.push(readActiveCpuPendingSelectionPerformanceScope('white'));
+      await Promise.resolve();
+      seenScopes.push(readActiveCpuPendingSelectionPerformanceScope('white'));
+    });
+    const phase = createCpuTurnPendingPhase({
+      clearCpuPendingSelection: jest.fn(), emitCpuCommentary: jest.fn(), emitCpuDebugLog: jest.fn(),
+      getAnimationRetryDelayMs: () => 0, getCurrentPlayerKeySafe: () => 'black',
+      getPendingDispatchHandlers: () => ({ trap: handler }), isCpuDebugLogAvailable: () => false,
+      isUiAnimationBusy: () => false, readCpuPendingSelection: () => null, resetPendingSelectRetryState: jest.fn(),
+      resolvePendingSelectionDispatchKeyForCpu: () => 'trap', scheduleRunCpuTurn: jest.fn(), setCpuProcessing: jest.fn(),
+      shouldAbortCpuForHumanMode: () => false, shouldAbortStuckPendingSelection: () => false
+    });
+
+    await phase.runCpuTurnPendingPhase({ playerKey: 'white', level: 1, performanceScope: scope,
+      pending: { stage: 'selectTarget', type: 'TRAP_WILL' } });
+
+    expect(seenScopes).toEqual([scope, scope]);
+    expect(readActiveCpuPendingSelectionPerformanceScope('white')).toBeNull();
+    expect(entries.filter((entry) => entry.kind === 'sync').map((entry) => entry.stage))
+      .toEqual(['commentary-context', 'pending-target-choice']);
+  });
+
   test('a cancellation keeps its canonical action type and completes the ordinary UI handoff', async () => {
     const ctx = createController({ adapter: { runTurnWithAdapter: jest.fn(() => ({
       ok: true, nextCardState: { turnIndex: 7, pendingEffectByPlayer: { white: null } },

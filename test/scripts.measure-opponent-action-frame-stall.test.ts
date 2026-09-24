@@ -10,7 +10,7 @@ import {
 
 function makeSample(scenarioId: string, durationMs = 20): any {
   return {
-    schemaVersion: 'cpu_turn_frame_stall_sample.v2',
+    schemaVersion: 'cpu_turn_frame_stall_sample.v3',
     scenarioId,
     metadata: {
       profile: 'desktop',
@@ -146,7 +146,7 @@ describe('opponent action frame-stall report helpers', () => {
       },
       generatedAt: '2026-07-20T00:00:00.000Z'
     }) as any;
-    expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v3');
+    expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v4');
     expect(report.capture.graphics).toMatchObject({
       hardwareAccelerated: true,
       displayType: 'ANGLE_D3D11'
@@ -171,7 +171,7 @@ describe('opponent action frame-stall report helpers', () => {
 
   test('blocking gate uses sync metrics and ignores wait-only duration', () => {
     const makeReport = (syncP95: number, syncMax: number) => ({
-      schemaVersion: 'cpu_turn_frame_stall_report.v3',
+      schemaVersion: 'cpu_turn_frame_stall_report.v4',
       capture: {
         profile: 'desktop',
         lane: 'vite',

@@ -1,3 +1,9 @@
+import {
+    measureCpuTurnSync,
+    readActiveCpuPendingSelectionPerformanceScope,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 type CpuDecisionPendingPipelineConfig = {
     readRuntimeModule: (moduleKey: any) => any;
     resolveModuleReference: (currentValue: any, options: any) => any;
@@ -69,7 +75,12 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
         return resolved;
     }
 
-    async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: any, pendingType: any): Promise<any> {
+    async function runCpuPendingSelectionViaPipeline(
+        playerKey: any,
+        actionPayload: any,
+        pendingType: any,
+        explicitPerformanceScope?: CpuTurnPerformanceScope | null
+    ): Promise<any> {
         const adapter = resolveTurnPipelineAdapter();
         const pipeline = resolveTurnPipeline();
         const pendingSelectionFlow = cfg.resolvePendingSelectionFlow('createPendingSelectionAction');
@@ -93,7 +104,14 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
             action.turnIndex = cardState.turnIndex;
         }
 
-        const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
+        const performanceScope = explicitPerformanceScope || readActiveCpuPendingSelectionPerformanceScope(playerKey);
+        const res = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'canonical-commit',
+                () => adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline)
+            )
+            : adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
         if (!res || res.ok === false) {
             if (isRuntimeUnavailableResult(res)) {
                 return { ok: false, handled: true, reason: 'runtime_unavailable', res };
@@ -101,8 +119,15 @@ export function createCpuDecisionPendingPipeline(config: CpuDecisionPendingPipel
             return { ok: false, res };
         }
 
-        if (res.nextCardState) cfg.setCardState(res.nextCardState);
-        if (res.nextGameState) cfg.setGameState(res.nextGameState);
+        const applyCanonicalState = () => {
+            if (res.nextCardState) cfg.setCardState(res.nextCardState);
+            if (res.nextGameState) cfg.setGameState(res.nextGameState);
+        };
+        if (performanceScope) {
+            measureCpuTurnSync(performanceScope, 'canonical-commit', applyCanonicalState);
+        } else {
+            applyCanonicalState();
+        }
         if (res.playbackEvents && res.playbackEvents.length) {
             cfg.emitPresentationEventForCpu({
                 type: 'PLAYBACK_EVENTS',

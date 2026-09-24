@@ -6,6 +6,7 @@ export const CPU_TURN_PERFORMANCE_STAGES = Object.freeze([
     'move-candidates',
     'tactical-safety',
     'commentary-context',
+    'pending-target-choice',
     'canonical-commit',
     'presentation-handoff'
 ] as const);
@@ -158,6 +159,24 @@ export function measureCpuTurnSync<T>(
     }
 }
 
+// Pending target selection awaits the policy before it commits, so the scope
+// cannot follow the call stack. The pending phase registers it per player for
+// the lifetime of its handler and the pending pipeline reads it at commit time.
+const activePendingSelectionScopes = new Map<'black' | 'white', CpuTurnPerformanceScope>();
+
+export function setActiveCpuPendingSelectionPerformanceScope(
+    playerKey: unknown,
+    scope: CpuTurnPerformanceScope | null | undefined
+): void {
+    const key = normalizePlayerKey(playerKey);
+    if (scope) activePendingSelectionScopes.set(key, scope);
+    else activePendingSelectionScopes.delete(key);
+}
+
+export function readActiveCpuPendingSelectionPerformanceScope(playerKey: unknown): CpuTurnPerformanceScope | null {
+    return activePendingSelectionScopes.get(normalizePlayerKey(playerKey)) || null;
+}
+
 export function withCpuTurnPerformanceOptions<T extends Record<string, any>>(
     options: T,
     correlationId: unknown,
@@ -192,6 +211,8 @@ module.exports = {
     recordCpuTurnPerformanceInterval,
     measureCpuTurnSync,
     readCpuTurnPerformanceNowMs,
+    setActiveCpuPendingSelectionPerformanceScope,
+    readActiveCpuPendingSelectionPerformanceScope,
     withCpuTurnPerformanceOptions,
     readCpuTurnPerformanceCorrelationId,
     readCpuTurnPerformanceLevel
