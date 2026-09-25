@@ -64,8 +64,12 @@ function emitPresentationDebugConsole(eventType: string, detailsOrBuilder?: any)
   if (!isPresentationDebugEnabled()) {
     try {
       const client = resolveFromGlobal('NetworkMatchClient');
-      const state = client && typeof client.getState === 'function' ? client.getState() : null;
-      if (!state || state.networkDebugEnabled !== true) return;
+      if (client && typeof client.isNetworkDebugEnabled === 'function') {
+        if (client.isNetworkDebugEnabled() !== true) return;
+      } else {
+        const state = client && typeof client.getState === 'function' ? client.getState() : null;
+        if (!state || state.networkDebugEnabled !== true) return;
+      }
     } catch (e) {
       return;
     }

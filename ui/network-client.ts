@@ -4289,6 +4289,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return state.stateVersion;
     }
 
+    /** Debug gate read without the room-metadata clones that `getState()` performs. */
+    function isNetworkDebugEnabled() {
+        return state.networkDebugEnabled === true;
+    }
+
     function getRoomSeats() {
         return normalizeRoomSeats(state.roomSeats);
     }
@@ -4557,6 +4562,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getRoomId,
         getState,
         getStateVersion,
+        isNetworkDebugEnabled,
         getRoomDeck,
         getRoomBoardConfig,
         getNetworkAutoEnabled,

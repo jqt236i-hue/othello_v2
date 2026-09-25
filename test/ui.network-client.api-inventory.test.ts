@@ -19,6 +19,7 @@ const PUBLIC_NETWORK_MATCH_CLIENT_METHODS = [
   'getServerUrl',
   'getState',
   'getStateVersion',
+  'isNetworkDebugEnabled',
   'hasPendingRematchRequest',
   'hasRestorableStoredSession',
   'hasTwoPlayers',
