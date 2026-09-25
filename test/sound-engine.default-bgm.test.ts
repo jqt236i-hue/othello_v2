@@ -128,6 +128,23 @@ const DEFAULT_MASTER_VOLUME = 1;
 const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.24752 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
+  test('prepareAudioContext constructs the context without resuming or playing', () => {
+    const { context, sources } = createMockAudioContext();
+    context.state = 'suspended';
+    context.resume = jest.fn();
+    const AudioContextCtor = jest.fn(() => context);
+    const soundEngine = loadSoundEngine({ AudioContext: AudioContextCtor });
+
+    expect(soundEngine.prepareAudioContext()).toBe(true);
+    expect(AudioContextCtor).toHaveBeenCalledTimes(1);
+    expect(soundEngine.ctx).toBe(context);
+    expect(context.resume).not.toHaveBeenCalled();
+    expect(sources).toHaveLength(0);
+
+    expect(soundEngine.prepareAudioContext()).toBe(true);
+    expect(AudioContextCtor).toHaveBeenCalledTimes(1);
+  });
+
   test('unlockAudio resumes AudioContext and plays a silent buffer once', async () => {
     const { context, sources } = createMockAudioContext();
     context.state = 'suspended';

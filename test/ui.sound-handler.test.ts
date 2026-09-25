@@ -23,6 +23,33 @@ function loadSoundEngine(overrides = {}) {
 }
 
 describe('sound handler', () => {
+  test('prepares the AudioContext once after the first pointer gesture, outside the gesture handler', async () => {
+    const dom = new JSDOM(`<!DOCTYPE html><body><button id="muteBtn">🔊 ON</button></body>`);
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.SoundEngine = {
+      volume: 0.5,
+      init: jest.fn(),
+      prepareAudioContext: jest.fn(() => true),
+      toggleMute: jest.fn(() => false),
+      setVolume: jest.fn(),
+      playEffectByKey: jest.fn(() => true)
+    };
+    SoundHandlerModule.setupSoundControls(dom.window.document.getElementById('muteBtn'), null, null);
+    SoundHandlerModule.setupSoundControls(dom.window.document.getElementById('muteBtn'), null, null);
+
+    dom.window.document.body.dispatchEvent(new dom.window.Event('pointerdown', { bubbles: true }));
+    expect(global.SoundEngine.prepareAudioContext).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(global.SoundEngine.prepareAudioContext).toHaveBeenCalledTimes(1);
+    expect(global.SoundEngine.init).not.toHaveBeenCalled();
+
+    dom.window.document.body.dispatchEvent(new dom.window.Event('pointerdown', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(global.SoundEngine.prepareAudioContext).toHaveBeenCalledTimes(1);
+    dom.window.close();
+  });
+
   afterEach(() => {
     delete global.SoundEngine;
     delete global.PlacementSoundSelectionModule;

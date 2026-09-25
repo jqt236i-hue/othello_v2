@@ -143,7 +143,28 @@ function bindPlacementSoundInventoryRefresh(rootRef: any, seTypeSelect: HTMLSele
   }
 }
 
+/**
+ * After the first pointer gesture on the page, create the AudioContext outside the gesture
+ * handler (a zero-delay timer) so its construction cost does not land in the first stone
+ * placement playback. Sound playback, resume and BGM start remain where they were.
+ */
+function bindAudioContextPreparation(doc: Document | null): void {
+  if (!doc || typeof doc.addEventListener !== 'function') return;
+  const marker = (doc.documentElement && (doc.documentElement as HTMLElement).dataset) || null;
+  if (marker && marker.audioContextPrepareBound === '1') return;
+  if (marker) marker.audioContextPrepareBound = '1';
+  const prepare = () => {
+    const engine = resolveSoundEngine();
+    if (!engine || typeof engine.prepareAudioContext !== 'function') return;
+    setTimeout(() => {
+      try { engine.prepareAudioContext(); } catch (e) { /* audio preparation is best effort */ }
+    }, 0);
+  };
+  doc.addEventListener('pointerdown', prepare, { capture: true, once: true, passive: true } as AddEventListenerOptions);
+}
+
 function setupSoundControls(muteBtn: HTMLElement | null, seTypeSelect: HTMLSelectElement | null, seVolSlider: HTMLInputElement | null): void {
+  bindAudioContextPreparation(typeof document !== 'undefined' ? document : null);
   const engine = resolveSoundEngine();
   if (!engine) return;
   const rootRef = resolveRootRef(seTypeSelect);

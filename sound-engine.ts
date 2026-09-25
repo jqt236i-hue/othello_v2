@@ -199,6 +199,15 @@ const SoundEngine = {
         }
     },
 
+    /**
+     * Create the AudioContext ahead of the first effect. Construction alone costs tens of
+     * milliseconds on slow devices and otherwise lands inside the first placement playback;
+     * this does not resume, start or play anything, so audible behavior is unchanged.
+     */
+    prepareAudioContext() {
+        return !!this._ensureAudioContext(false);
+    },
+
     _ensureAudioContext(resumeIfSuspended = false) {
         if (!this.ctx) {
             const AudioContext = (typeof globalThis !== 'undefined' && ((globalThis as any).AudioContext || (globalThis as any).webkitAudioContext)) || null;
