@@ -28,7 +28,7 @@
 
 | 対象 | 主な入口 |
 | --- | --- |
-| Browser boot | `index.html`, `entry-browser.js`, `browser-vite/main.ts`, `browser-vite/pixi-runtime-loader.ts`, `ui/bootstrap.ts` |
+| Browser boot | `entry-browser.js`, `browser-vite/main.ts`, `browser-vite/pixi-runtime-loader.ts`, `ui/bootstrap.ts`。配信入口 `index.html` は生成物。HTML 生成は `scripts/build-vite-entry.ts` |
 | カード・ターン・描画・通信・関連テスト | [保守参照](docs/game-maintenance-reference.md) の該当項目 |
 | CPU / training | `game/ai/`, `training/`, `src/engine/`。`cpu/` は compatibility/read-only、root `scripts/run-selfplay-*.js` は CLI entry |
 | 共有処理 | `shared/`, `constants/`, `utils/` |
@@ -49,10 +49,11 @@
 | authority、操作の重複処理、再接続、非公開情報、乱数 | §8 |
 | 破壊・反転・所有者変更 | §10 |
 | root source と生成物・Worker mirror | §11 |
+| ブラウザ配信入口と生成物 | §5.1.1 |
 
 ## WORK RULES
 
-- root source を変更し、影響する生成物は既存スクリプトで更新する。`dist/`、`worker-public/`、生成 catalog、`public/module-registry.js` を正本として編集しない。
+- root source を変更し、影響する生成物は既存スクリプトで更新する。`dist/`、生成 catalog を正本として編集しない。ブラウザ生成物・Worker mirror の範囲は設計資料 §5.1.1・§11 を参照する。生成後は差分を確認し、既存の変更や依頼外のアセットを巻き込んでいないことを確かめる。
 - 仕様と責務境界に沿い、原因を持つ層と既存 helper で直す。テストを通すためだけに失敗を削除・skip・弱体化しない。
 - 長時間の selfplay・訓練、本番デプロイ、課金を伴う操作はユーザーの依頼に含まれる場合に行う。秘密情報は出力・文書・コミットに含めない。
 
@@ -75,7 +76,7 @@
 この節はゲーム変更、ローカルプレイの依頼、サーバーの起動・停止・引き継ぎに適用する。
 
 - 通常のローカルプレイは、この repo の `npm run serve` による `http://127.0.0.1:8000/`。既存の正常なサーバーを再利用し、編集・ビルド・作業完了後も動かしておく。
-- 起動時はポートの所有プロセスと対象 repo を確認する。他のプロジェクトのプロセスを停止せず、8001 などへの二重起動を通常 URL の代用にしない。
+- 起動・停止前はポートの所有プロセスと対象 repo を確認する。他のプロジェクトのプロセスを停止せず、8001 などへの二重起動を通常 URL の代用にしない。
 - サーバーはユーザー／アプリの継続するターミナルか、独立して存続することを確認できるプロセスで起動する。一時的なツールセッションの PID や HTTP 200 だけでは継続動作の証拠にならない。利用可能な手段で継続起動できなければ、未完了の確認事項と `npm run serve` をユーザーに伝える。
 - プレイ可能なゲームを変更したら、最終ソースに対して `npm run build:vite` を実行して通常配信へ反映する。これは `build:browser` を含む。8000 のサーバーをビルドのために停止する必要はない。
 - ゲーム変更、またはサーバーの起動・停止・引き継ぎを行った作業では、最後に 8000 の HTTP 200、repo のサーバー所有者、継続起動の根拠を確認し、ビルドとサーバーの結果を報告する。失敗した確認は未完了として明示する。
@@ -84,19 +85,24 @@
 
 ## GIT HYGIENE
 
+ユーザーは Git を操作しない（コミット・プッシュ・巻き戻し・履歴の閲覧をしない）。作業ツリーを整った状態に保つのはエージェントの責任であり、Git の判断をユーザーに求めない。
+
 - 作業開始時と完了前に `git status --short` と関連差分を確認し、既存の変更を保護する。今回分を分離できるなら進め、所有権が不明な変更の上書きを避けられない場合だけ、具体的な衝突を示して確認する。
-- ブランチ・タグ・worktree の作成はユーザーが依頼した場合に行う。並行作業では共有仕様と生成物の競合にも注意する。
+- 今回の作業で作った・変えたファイルは、完了時にすべてコミットして作業ツリーに残さない。新規のテスト・fixture・文書・更新した生成物も含める。repo に持つべきでない出力（実験結果、ログ、スクリーンショット、学習データ、一時ファイル）は `.gitignore` に追加し、untracked のまま放置しない。
+- 開始時点で他の作業の未コミット変更が残っている場合は触らず、完了報告で「別作業の未コミットが N 件残っている」と一言添える。ユーザーが片付けを依頼したら、内容を確認して意味のまとまりごとにコミットするか `.gitignore` に追加する。
+- 巻き戻しはしない。誤りや不要になった変更は、新しい編集で上書きして新しいコミットにする。`git reset --hard`、`git checkout -- <file>`、`git restore`、`git stash`、`git clean`、`git rebase`、`git revert`、`--amend`、`push --force` は使わない。履歴の書き換えと作業ツリーの破棄は行わない。
+- ブランチ・タグ・worktree の作成、`git push` はユーザーが依頼した場合に行う。並行作業では共有仕様と生成物の競合にも注意する。
 - ステージ・コミットの対象は今回の変更だけに限定する。無関係な変更の巻き戻し、未追跡ファイルの削除、破壊的な Git 操作を整理目的で行わない。
 
 ## COMMIT POLICY
 
-依頼された実装・修正・文書更新が検証済みになったら、今回の変更だけを短く具体的なメッセージでコミットする。調査・説明・レビューのみではコミットしない。
+依頼された実装・修正・文書更新が検証済みになったら、今回の変更だけを短く具体的なメッセージでコミットする。調査・説明・レビューのみではコミットしない。検証が途中で終わった場合も、動作を壊していない範囲で今回分をコミットし、未検証であることをメッセージと報告に明記する。
 
-完了報告は、変更内容、検証した挙動と結果、コミット、未検証・未完了の範囲を簡潔に示す。別タスクの変更が残る場合も明示する。
+完了報告は、変更内容、検証した挙動と結果、コミット、未検証・未完了の範囲を簡潔に示す。別タスクの変更が残る場合も明示する。Git 用語での説明は最小限にし、ユーザーに Git 操作を求めない。
 
 ## COMMANDS
 
 実際のコマンド定義は [package.json](package.json) を参照する。検証先の候補は [docs/game-maintenance-reference.md](docs/game-maintenance-reference.md) と設計資料 §12 にある。
 
-- `npm test` は `pretest` で `checkall` を実行する。限定した検証には対象の Jest テストを選べる。
-- `npm run worker:dev` / `npm run worker:deploy` は `worker:prepare` を含む。mirror の単独生成・検査には `worker:prepare` と `check:worker-mirror` を使う。
+- `npm test` は `pretest` で `checkall` を実行する。限定した検証は `npm run test:jest -- --runTestsByPath <対象テストのパス>`。型の整合性は `npm run typecheck` で確認する。
+- `npm run worker:dev` / `npm run worker:deploy` は `worker:prepare` を含む。mirror の生成には `worker:prepare`、検査には `check:worker-mirror` を使う。これらはブラウザビルドも実行するため、LOCAL DEV SERVER の配信中ビルド制約を確認する。
