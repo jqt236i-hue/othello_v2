@@ -128,7 +128,9 @@ export function createMatchRoomStorage(storage: DurableObjectStorageLike, rootKe
       ? JSON.stringify(head[BASE_SNAPSHOT_FIELD]) : null;
     const baseVisualSeq = head ? head.presentationJournalBaseVisualSeq : null;
     const ownedHead = deepClone(head) as Record<string, unknown> | null;
-    const ownedInitialSnapshot = initialSnapshot === null ? null : freezeOwnedData(deepClone(head![INITIAL_SNAPSHOT_FIELD]));
+    // `ownedHead` already holds a private deep copy of the initial snapshots (captured now, before
+    // the queued transaction runs); it is frozen only when the record actually has to be written.
+    const capturedInitialSnapshot = initialSnapshot === null || !ownedHead ? null : ownedHead[INITIAL_SNAPSHOT_FIELD];
     const captured = histories.map(({ field, values }) => ({ field, values: values.map(value => isOwnedImmutable(value) ? value : freezeOwnedData(deepClone(value))) }));
     const run = async () => {
       const writes = new Map<string, unknown>();
@@ -152,6 +154,7 @@ export function createMatchRoomStorage(storage: DurableObjectStorageLike, rootKe
           nextPersisted.set(initialSnapshotKey, persisted.get(initialSnapshotKey));
         } else {
           initialSnapshotKey = `${rootKey}:snapshot:${INITIAL_SNAPSHOT_FIELD}:${++sequence}`;
+          const ownedInitialSnapshot = freezeOwnedData(capturedInitialSnapshot);
           writes.set(initialSnapshotKey, ownedInitialSnapshot);
           nextPersisted.set(initialSnapshotKey, ownedInitialSnapshot);
           nextInitialSnapshot = { key: initialSnapshotKey, json: initialSnapshot };

@@ -32,12 +32,25 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
         return Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : fallback;
     }
 
-    function normalizePresentationPayload(value: unknown): MatchAuthorityPresentationFramePayload {
+    function normalizePresentationPayload(
+        value: unknown,
+        digestMemo?: Map<unknown, string>
+    ): MatchAuthorityPresentationFramePayload {
         const source = asRecord(value);
-        const playbackEvents = Array.isArray(source.playbackEvents) ? deepClone(source.playbackEvents) as unknown[] : [];
+        const sourceEvents = Array.isArray(source.playbackEvents) ? source.playbackEvents : null;
+        const playbackEvents = sourceEvents ? deepClone(sourceEvents) as unknown[] : [];
+        // The black / white / spectator payloads of one accepted publish share the same events
+        // array, so the digest (a pure function of the events) is computed once per array.
+        let playbackDigest: string;
+        if (digestMemo && sourceEvents && source.playbackDigest === undefined && digestMemo.has(sourceEvents)) {
+            playbackDigest = digestMemo.get(sourceEvents)!;
+        } else {
+            playbackDigest = deps.resolvePlaybackDigest(playbackEvents, source.playbackDigest);
+            if (digestMemo && sourceEvents && source.playbackDigest === undefined) digestMemo.set(sourceEvents, playbackDigest);
+        }
         return {
             playbackEvents,
-            playbackDigest: deps.resolvePlaybackDigest(playbackEvents, source.playbackDigest),
+            playbackDigest,
             effectLogs: deps.normalizeEffectLogMessages(source.effectLogs),
             playbackDiagnostics: source.playbackDiagnostics ? deepClone(source.playbackDiagnostics) : null
         };
@@ -82,9 +95,10 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
         const visualSeq = toPositiveInteger(room.visualSeq, 0) + 1;
         const payloadByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, MatchAuthorityPresentationFramePayload>> = {};
         const sourcePayloadByViewer = asRecord(input.payloadByViewer);
+        const digestMemo = new Map<unknown, string>();
         for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
             if (Object.prototype.hasOwnProperty.call(sourcePayloadByViewer, key)) {
-                payloadByViewer[key] = normalizePresentationPayload(sourcePayloadByViewer[key]);
+                payloadByViewer[key] = normalizePresentationPayload(sourcePayloadByViewer[key], digestMemo);
             }
         }
 
