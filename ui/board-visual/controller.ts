@@ -884,6 +884,20 @@ function createBoardVisualController(options: {
         assertLifecycleCurrent(epoch);
         if (pendingLatest !== target || pendingFrameVersion !== version) continue;
         if (!backendMounted) throw new Error('Local board settlement requires a mounted backend');
+        if (!backendInvalidated && hasEquivalentVisualFrameContent(lastSettled, target)) {
+          // The backend already shows this content (typically the strict-network committed
+          // frame that the following local writer re-derives). Present and commit the frame
+          // through the same receipt path as an equivalent idle frame without a second
+          // backend apply; the settled-frame notification and diagnostics still run.
+          const presentation = beginFramePresentation(target);
+          commitPresentation(presentation);
+          diagnostics.record('frame:equivalent-committed', {
+            frameToken: target.frameToken,
+            revision: target.model.visualRevision,
+            settlement: 'local-writer'
+          });
+          break;
+        }
         const presentation = applyReadyFrame(target);
         await waitForBackendVisualSettlement(target);
         assertLifecycleCurrent(epoch);

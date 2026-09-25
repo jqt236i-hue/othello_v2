@@ -133,6 +133,44 @@ describe('BoardVisualController async visual settlement', () => {
     expect(visualBackend.applyFrame).toHaveBeenCalledWith(latest);
   });
 
+  test('settles a local writer whose final frame equals the settled content without a second backend apply', async () => {
+    const visualBackend = backend();
+    const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });
+    const settled: any[] = [];
+    controller.subscribeSettledFrame((value: any) => settled.push(value));
+    await controller.mount({} as HTMLElement);
+    const completeFrame = (token: string, revision: number) => ({
+      ...frame(token, revision),
+      layout: { revision: 2 },
+      appearance: { revision: 4 },
+      theme: { revision: 5 },
+      renderSessionId: 'board-render-session:local-equivalent'
+    }) as any;
+    const committed = completeFrame('idle:committed', 7);
+    expect(controller.submitFrame(committed)).toBe(true);
+    await controller.waitForIdle();
+    await Promise.resolve();
+    expect(visualBackend.applyFrame).toHaveBeenCalledTimes(1);
+    expect(controller.getSettledFrame()).toBe(committed);
+
+    // A local writer (presentation drain / playback claim) re-derives the same content.
+    const token = controller.claimWriter('local:equivalent-final', 'local');
+    const equivalentFinal = completeFrame('local:equivalent-final', 7);
+    await expect(controller.settleLocalWriter(token, equivalentFinal)).resolves.toBe(true);
+    expect(visualBackend.applyFrame).toHaveBeenCalledTimes(1);
+    expect(controller.getSettledFrame()).toBe(equivalentFinal);
+    expect(settled).toEqual([committed, equivalentFinal]);
+    expect(controller.getMode()).toBe('idle');
+
+    // Different content still applies through the backend.
+    const token2 = controller.claimWriter('local:different-final', 'local');
+    const differentFinal = completeFrame('local:different-final', 8);
+    await expect(controller.settleLocalWriter(token2, differentFinal)).resolves.toBe(true);
+    expect(visualBackend.applyFrame).toHaveBeenCalledTimes(2);
+    expect(visualBackend.applyFrame).toHaveBeenLastCalledWith(differentFinal);
+    expect(controller.getSettledFrame()).toBe(differentFinal);
+  });
+
   test('ignores a stale preparation rejection after a newer playback frame prepares', async () => {
     const stalePreparation = deferred();
     const latest = frame('local:stale-prepare', 2);
