@@ -108,3 +108,9 @@ data/**
 !data/models/othello/policy-value.onnx
 !data/models/othello/policy-value.onnx.meta.json
 !data/models/othello/value-table.json
+
+# Experiment outputs, ML data and Blender work files (regenerable or authoring-only; too large for the repo)
+/output/
+/othello-ai/data/
+/worker-public/data/
+/assets/images/special-cards/characters/*_reference/blender_model*/
