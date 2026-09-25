@@ -155,6 +155,31 @@ describe('ui card sync scheduler', () => {
     expect(windowRef.renderCardUI).toHaveBeenCalledTimes(1);
   });
 
+  test('leaves the board to presentation when GAME_STATE_CHANGED says frames own it', async () => {
+    windowRef.VisualPlaybackActive = false;
+
+    gameEvents.emit(windowRef.GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, { boardRenderOwnedByPresentation: true });
+    await flushMicrotasks();
+
+    expect(windowRef.renderBoard).not.toHaveBeenCalled();
+    expect(rafQueue.length).toBe(0);
+
+    // Without the hint (or with playback already pending) the idle path renders the board as before.
+    gameEvents.emit(windowRef.GameEvents.EVENT_TYPES.GAME_STATE_CHANGED);
+    await flushMicrotasks();
+    expect(windowRef.renderBoard).toHaveBeenCalledTimes(1);
+
+    windowRef.VisualPlaybackActive = true;
+    gameEvents.emit(windowRef.GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, { boardRenderOwnedByPresentation: true });
+    await flushMicrotasks();
+    expect(windowRef.renderBoard).toHaveBeenCalledTimes(1);
+    expect(rafQueue.length).toBeGreaterThan(0);
+    windowRef.VisualPlaybackActive = false;
+    flushRafQueue();
+    await flushMicrotasks();
+    expect(windowRef.renderBoard).toHaveBeenCalledTimes(2);
+  });
+
   test('updates visible charge display immediately even while playback is active', async () => {
     windowRef.VisualPlaybackActive = true;
 

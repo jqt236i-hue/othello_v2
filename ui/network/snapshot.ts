@@ -379,7 +379,13 @@ function createNetworkSnapshotController(config: any): any {
         } catch (e) { /* ignore */ }
         try {
             const emitGameStateChange = resolveGlobalFunction('emitGameStateChange', cfg.emitGameStateChange);
-            if (emitGameStateChange) emitGameStateChange();
+            if (emitGameStateChange) {
+                if (opts.boardRenderOwnedByPresentation === true) {
+                    emitGameStateChange({ boardRenderOwnedByPresentation: true });
+                } else {
+                    emitGameStateChange();
+                }
+            }
         } catch (e) { /* ignore */ }
         if (opts.skipBoardUpdate !== true) {
             try {
@@ -746,7 +752,8 @@ function createNetworkSnapshotController(config: any): any {
         }
         const refreshState = refreshUi({
             deferCardUiUntilPlaybackIdle: playbackEvents.length > 0 || shouldEmitShadowPlayback,
-            skipBoardUpdate: opts.skipBoardUpdate === true || deferImmediateBoardRefreshForPlayback
+            skipBoardUpdate: opts.skipBoardUpdate === true || deferImmediateBoardRefreshForPlayback,
+            boardRenderOwnedByPresentation: opts.boardRenderOwnedByPresentation === true
         });
 
         if (shouldEmitShadowPlayback) {

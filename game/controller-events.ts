@@ -87,9 +87,12 @@ function emitBoardUpdate(options?: any): boolean {
     return emitNamedControllerEvent('BOARD_UPDATED', eventType, null, options);
 }
 
-function emitGameStateChange(): boolean {
+function emitGameStateChange(options?: any): boolean {
     const eventType = resolveControllerEventType('GAME_STATE_CHANGED');
-    return emitGameEvent(eventType, []);
+    // Optional listener hints (e.g. `boardRenderOwnedByPresentation`) ride on the event payload;
+    // callers without hints keep emitting `undefined` exactly as before.
+    const data = (options && typeof options === 'object') ? options : undefined;
+    return emitGameEvent(eventType, [], data);
 }
 
 function emitCardStateChange(options?: any): boolean {

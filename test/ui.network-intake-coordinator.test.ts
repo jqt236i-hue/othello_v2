@@ -48,6 +48,7 @@ describe('network intake coordinator', () => {
       skipBoardUpdate: true,
       presentationFrameSource: 'stream',
       deferResultUntilVisualSeq: 4,
+      boardRenderOwnedByPresentation: true,
       networkRoomId: null,
       networkOperationId: null,
       source: 'stream'

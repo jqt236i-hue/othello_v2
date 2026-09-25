@@ -101,8 +101,15 @@ export function buildNetworkIntakeApplyOptions(meta: NetworkIntakeApplyMeta | nu
     if (resultVisualSeq !== null) {
       applyOptions.deferResultUntilVisualSeq = resultVisualSeq;
     }
+    // Ordered frames own the board: the committed frame of each frame and the settle-time board
+    // sync render the new state. The synchronous board render that GAME_STATE_CHANGED would
+    // trigger on an idle client only rebuilds the pre-move visual snapshot (an equivalent frame
+    // the controller discards), so the snapshot refresh tells the UI to leave the board to
+    // presentation. Status / card UI refreshes are unaffected.
+    applyOptions.boardRenderOwnedByPresentation = true;
   } else {
     delete applyOptions.deferResultUntilVisualSeq;
+    delete applyOptions.boardRenderOwnedByPresentation;
   }
   applyOptions.networkRoomId = sourceMeta && sourceMeta.roomId ? String(sourceMeta.roomId) : null;
   applyOptions.networkOperationId = sourceMeta && sourceMeta.operationId ? String(sourceMeta.operationId) : null;

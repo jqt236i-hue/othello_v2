@@ -399,14 +399,24 @@ if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEve
             renderBoard: true
         });
     });
-    (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, () => {
-        _runWhenPlaybackIdle(() => {
-            renderBoard();
+    (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, (payload: any) => {
+        if (
+            payload && typeof payload === 'object' && payload.boardRenderOwnedByPresentation === true
+            && !_hasPendingPlaybackOrPresentation()
+        ) {
+            // Network intake with ordered presentation frames: the presentation timeline renders
+            // the board (committed frame, then the settle-time board sync). Rendering here would
+            // only rebuild the current visual snapshot into an equivalent, discarded frame.
             updateStatus();
-        }, {
-            renderBoard: true,
-            updateStatus: true
-        });
+        } else {
+            _runWhenPlaybackIdle(() => {
+                renderBoard();
+                updateStatus();
+            }, {
+                renderBoard: true,
+                updateStatus: true
+            });
+        }
         requestCardUiSync('event:game-state-changed');
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.CARD_STATE_CHANGED, () => {
