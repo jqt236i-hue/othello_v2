@@ -126,14 +126,29 @@ function cloneItem(item: any): CatalogItem | null {
   return out;
 }
 
+// The loaded asset manifest is replaced as a whole object when it changes (never mutated in
+// place), so the catalog derived from it can be reused by manifest identity. Every catalog read
+// (hand-skin sync, status refresh, hand animation context) previously rescanned all manifest
+// files; the derived items are still cloned per read below, so callers see the same values.
+const manifestCatalogMemo = new WeakMap<object, { sharedModule: any; catalog: any }>();
+
+function buildManifestCatalog(sharedModule: any, manifest: any): any {
+  if (!manifest || typeof manifest !== 'object' || !sharedModule || typeof sharedModule.buildCatalogFromAssetManifest !== 'function') {
+    return null;
+  }
+  const cached = manifestCatalogMemo.get(manifest);
+  if (cached && cached.sharedModule === sharedModule) return cached.catalog;
+  const catalog = sharedModule.buildCatalogFromAssetManifest(manifest, {
+    generatedAt: manifest.generatedAt || manifest.version || null
+  });
+  manifestCatalogMemo.set(manifest, { sharedModule, catalog });
+  return catalog;
+}
+
 function collectGeneratedItems(rootRef: any, kind: string): CatalogItem[] {
   const sharedModule = resolveObservationGachaCatalogSharedModule(rootRef);
   const manifest = readLoadedAssetManifest(rootRef);
-  const manifestCatalog = manifest && sharedModule && typeof sharedModule.buildCatalogFromAssetManifest === 'function'
-    ? sharedModule.buildCatalogFromAssetManifest(manifest, {
-      generatedAt: manifest.generatedAt || manifest.version || null
-    })
-    : null;
+  const manifestCatalog = buildManifestCatalog(sharedModule, manifest);
   const manifestItems = Array.isArray(manifestCatalog && manifestCatalog.items) ? manifestCatalog.items : [];
   const catalogModule = resolveObservationGachaCatalogModule(rootRef);
   const catalog = catalogModule && typeof catalogModule.getCatalog === 'function'

@@ -20,6 +20,25 @@ function rememberHandledRematchRequest(doc: Document, requestId: string): void {
     }
 }
 
+function buildCpuCharacterRoomStateSignature(roomState: any, roomActive: boolean): string {
+    const state = (roomState && typeof roomState === 'object') ? roomState : {};
+    try {
+        return JSON.stringify({
+            roomActive,
+            active: state.active === true,
+            roomId: String(state.roomId || ''),
+            viewerRole: String(state.viewerRole || ''),
+            seatKey: String(state.seatKey || ''),
+            seats: state.seats || null,
+            seatNames: state.seatNames || null,
+            seatHandSkins: state.seatHandSkins || null,
+            hasTwoPlayers: state.hasTwoPlayers === true
+        });
+    } catch (e) {
+        return `unserializable:${Date.now()}`;
+    }
+}
+
 function showNetworkRematchRequestDialog(payload: any, options: any): void {
     if (!payload) return;
     const config = options || {};
@@ -151,6 +170,11 @@ function bindNetworkClientListeners(options: any): void {
     }
 
     if (typeof client.setRoomStateListener === 'function') {
+        // The room-state listener fires for every stream snapshot. `updateCpuCharacter()` only
+        // depends on the seat / skin / viewer fields below (plus local state that its own callers
+        // refresh), and the status refresh of each snapshot calls it as well, so repeating it
+        // here for an unchanged room state is redundant main-thread work on the receive path.
+        let lastCpuCharacterSignature: string | null = null;
         client.setRoomStateListener((roomState: any) => {
             const spectatorActive = config.isNetworkSpectatorActive(roomState);
             const roomActive = typeof client.isActive === 'function' && client.isActive() === true;
@@ -164,6 +188,9 @@ function bindNetworkClientListeners(options: any): void {
             if (uiRefs.networkCreateBtn) uiRefs.networkCreateBtn.disabled = roomActive;
             if (uiRefs.networkJoinBtn) uiRefs.networkJoinBtn.disabled = roomActive;
             if (spectatorActive) config.writeNetworkStatus('観測中', false);
+            const cpuCharacterSignature = buildCpuCharacterRoomStateSignature(roomState, roomActive);
+            if (cpuCharacterSignature === lastCpuCharacterSignature) return;
+            lastCpuCharacterSignature = cpuCharacterSignature;
             try {
                 if (typeof config.root.updateCpuCharacter === 'function') config.root.updateCpuCharacter();
             } catch (e) { /* ignore */ }

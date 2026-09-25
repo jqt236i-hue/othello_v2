@@ -971,6 +971,37 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkBoardSizeNote').textContent).toBe('ネット対戦中は部屋で決めた盤面形状とサイズを使います');
   });
 
+  test('部屋状態が変わらない snapshot では updateCpuCharacter を繰り返さない', () => {
+    window.NetworkMatchClient.isActive = jest.fn(() => true);
+    const roomStateListener = window.NetworkMatchClient.setRoomStateListener.mock.calls[0][0];
+    const roomState = {
+      active: true,
+      roomId: 'ABC',
+      viewerRole: 'seat',
+      seatKey: 'black',
+      seats: { black: true, white: true },
+      seatNames: { black: 'A', white: 'B' },
+      seatHandSkins: { black: 'default', white: 'default' },
+      roomBoardConfig: { rows: 8, cols: 8 },
+      hasTwoPlayers: true
+    };
+    const updateCpuCharacter = jest.fn();
+    window.updateCpuCharacter = updateCpuCharacter;
+    try {
+      roomStateListener({ ...roomState });
+      roomStateListener({ ...roomState, seatNames: { ...roomState.seatNames } });
+      expect(updateCpuCharacter).toHaveBeenCalledTimes(1);
+
+      roomStateListener({ ...roomState, seatHandSkins: { black: 'default', white: 'skin-b' } });
+      expect(updateCpuCharacter).toHaveBeenCalledTimes(2);
+
+      roomStateListener({ ...roomState, seatHandSkins: { black: 'default', white: 'skin-b' }, seats: { black: true, white: false } });
+      expect(updateCpuCharacter).toHaveBeenCalledTimes(3);
+    } finally {
+      delete window.updateCpuCharacter;
+    }
+  });
+
   test('部屋参加中は接続先・作成・参加の操作をロックする', () => {
     window.NetworkMatchClient.isActive = jest.fn(() => true);
     const roomStateListener = window.NetworkMatchClient.setRoomStateListener.mock.calls[0][0];
