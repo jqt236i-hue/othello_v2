@@ -163,6 +163,8 @@ export type CliArgs = {
   readonly outputPath: string;
   readonly keepTraces: boolean;
   readonly headed: boolean;
+  /** Optional directory served before the repo root (an `index.html` + `vite-dist/` snapshot of another build). */
+  readonly appRoot: string | null;
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -205,7 +207,8 @@ export function parseArgs(argv: readonly string[]): CliArgs {
     label,
     outputPath: read('--output') || `artifacts/network-placement-freeze/${label}.json`,
     keepTraces: has('--keep-traces'),
-    headed: has('--headed')
+    headed: has('--headed'),
+    appRoot: read('--app-root')
   });
 }
 
@@ -580,8 +583,9 @@ function mimeType(filePath: string): string {
   return table[extension] || 'application/octet-stream';
 }
 
-function createStaticServer(rootDir: string): http.Server {
+function createStaticServer(rootDir: string, overlayDir: string | null = null): http.Server {
   const root = path.resolve(rootDir);
+  const overlay = overlayDir ? path.resolve(overlayDir) : null;
   return http.createServer((request, response) => {
     const raw = String(request.url || '/').split('?')[0] || '/';
     if (raw === '/api/match/list') { response.writeHead(200, { 'Content-Type': 'application/json' }); response.end('{"ok":true,"rooms":[]}'); return; }
@@ -590,12 +594,21 @@ function createStaticServer(rootDir: string): http.Server {
     try { decoded = decodeURIComponent(raw === '/' ? '/index.html' : raw); } catch { response.writeHead(400); response.end(); return; }
     const filePath = path.resolve(root, `.${decoded}`);
     if (filePath !== root && !filePath.startsWith(`${root}${path.sep}`)) { response.writeHead(403); response.end(); return; }
-    fs.readFile(filePath, (error, data) => {
-      if (error) { response.writeHead(404); response.end('Not found'); return; }
-      response.setHeader('Content-Type', mimeType(filePath));
-      response.setHeader('Cache-Control', 'no-store');
-      response.end(data);
-    });
+    const overlayPath = overlay ? path.resolve(overlay, `.${decoded}`) : null;
+    const candidates = overlayPath && overlayPath.startsWith(`${overlay}${path.sep}`) ? [overlayPath, filePath] : [filePath];
+    const serve = (index: number) => {
+      const target = candidates[index];
+      fs.readFile(target, (error, data) => {
+        if (error) {
+          if (index + 1 < candidates.length) { serve(index + 1); return; }
+          response.writeHead(404); response.end('Not found'); return;
+        }
+        response.setHeader('Content-Type', mimeType(target));
+        response.setHeader('Cache-Control', 'no-store');
+        response.end(data);
+      });
+    };
+    serve(0);
   });
 }
 
@@ -824,7 +837,7 @@ async function resetCounters(seat: Seat): Promise<void> {
   });
 }
 
-/** RAF watcher for playback / version transitions. Reads `getState()` (which clones) only every 6th frame. */
+/** RAF watcher for playback / version transitions. Uses the cheap `getStateVersion()` accessor; `getState()` (which clones) is only a fallback polled every 6th frame. */
 async function armWatcher(seat: Seat): Promise<void> {
   await seat.page.evaluate(() => {
     const root = window as any;
@@ -834,6 +847,7 @@ async function armWatcher(seat: Seat): Promise<void> {
     let pollTick = 0;
     let lastVersion: number | null = null;
     const readVersion = () => {
+      if (typeof client.getStateVersion === 'function') return client.getStateVersion();
       if (lastVersion === null || (pollTick++ % 6) === 0) lastVersion = client.getState().stateVersion;
       return lastVersion;
     };
@@ -877,8 +891,10 @@ let activeTrace: { session: CDPSession; events: any[] } | null = null;
 
 async function startBrowserTrace(browser: Browser, seats: readonly Seat[]): Promise<void> {
   const session = await browser.newBrowserCDPSession();
-  activeTrace = { session, events: [] };
-  session.on('Tracing.dataCollected', (event: any) => { activeTrace!.events.push(...event.value); });
+  const trace = { session, events: [] as any[] };
+  activeTrace = trace;
+  // Chunks keep arriving while `Tracing.end` is pending, so push into the captured object.
+  session.on('Tracing.dataCollected', (event: any) => { trace.events.push(...event.value); });
   await session.send('Tracing.start', { categories: TRACE_CATEGORIES, transferMode: 'ReportEvents' });
   for (const seat of seats) await seat.page.evaluate((label) => performance.mark(`np:seat:${label}`), seat.label);
 }
@@ -1053,7 +1069,7 @@ export async function runCapture(args: CliArgs): Promise<FreezeReport> {
   const LocalMatchServer = require(path.join(rootDir, 'dist', 'scripts', 'local-match-server.js'));
   const MatchAuthority = require(path.join(rootDir, 'dist', 'utils', 'match-authority.js'));
   const deepClone = require(path.join(rootDir, 'dist', 'utils', 'deepClone.js'));
-  const appServer = createStaticServer(rootDir);
+  const appServer = createStaticServer(rootDir, args.appRoot ? path.resolve(rootDir, args.appRoot) : null);
   const appUrl = await listen(appServer);
   let matchServer: http.Server | null = null;
   let matchUrl = args.server;
@@ -1077,6 +1093,7 @@ export async function runCapture(args: CliArgs): Promise<FreezeReport> {
       gpuCompositing: systemInfo.gpu && systemInfo.gpu.featureStatus && systemInfo.gpu.featureStatus.gpu_compositing,
       webgl: systemInfo.gpu && systemInfo.gpu.featureStatus && systemInfo.gpu.featureStatus.webgl,
       commit: safeGitHead(rootDir),
+      appRoot: args.appRoot,
       appUrl, matchUrl
     };
     process.stdout.write(`[perf] app=${appUrl} match=${matchUrl} label=${args.label} gpu=${String(capture.glRenderer)}\n`);

@@ -85,6 +85,8 @@ describe('measure-network-placement-freeze: parseArgs', () => {
     expect(mobile.trace).toBe(true);
     expect(mobile.countOps).toBe(true);
     expect(mobile.countCallers).toBe(true);
+    expect(mobile.appRoot).toBeNull();
+    expect(parseArgs(['--app-root', 'artifacts/x']).appRoot).toBe('artifacts/x');
   });
 
   test('rejects unknown scenarios', () => {
