@@ -1,0 +1,1056 @@
+{
+  "id": "lv12-dev10c-formal-30-v1/11-black/147",
+  "observation": {
+    "schema": "cpu_lv10_observation.v1",
+    "player": "black",
+    "gameState": {
+      "board": [
+        [
+          0,
+          -1,
+          -1,
+          0,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        [
+          0,
+          1,
+          -1,
+          -1,
+          -1,
+          -1,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          -1,
+          -1,
+          1,
+          -1,
+          -1
+        ],
+        [
+          -1,
+          -1,
+          -1,
+          1,
+          -1,
+          -1,
+          0,
+          1
+        ],
+        [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        [
+          -1,
+          1,
+          -1,
+          1,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "boardConfig": {
+        "rows": 8,
+        "cols": 8,
+        "shape": "rectangle",
+        "standard8x8": true,
+        "baseBounds": {
+          "minRow": 0,
+          "maxRow": 7,
+          "minCol": 0,
+          "maxCol": 7
+        },
+        "outerBounds": {
+          "minRow": -1,
+          "maxRow": 8,
+          "minCol": -1,
+          "maxCol": 8
+        }
+      },
+      "currentPlayer": 1,
+      "consecutivePasses": 0,
+      "turnNumber": 69,
+      "roundNumber": 35,
+      "roundCompletionByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "pendingRoundBonus": null,
+      "boardExpansion": {
+        "active": true,
+        "side": "left",
+        "row": 3,
+        "owner": -1,
+        "usedByPlayer": {
+          "black": false,
+          "white": false
+        },
+        "cells": [
+          {
+            "side": "left",
+            "row": 3,
+            "col": -1,
+            "owner": -1
+          }
+        ],
+        "col": -1
+      }
+    },
+    "cardState": {
+      "boardConfig": {
+        "rows": 8,
+        "cols": 8,
+        "shape": "rectangle",
+        "standard8x8": true,
+        "baseBounds": {
+          "minRow": 0,
+          "maxRow": 7,
+          "minCol": 0,
+          "maxCol": 7
+        },
+        "outerBounds": {
+          "minRow": -1,
+          "maxRow": 8,
+          "minCol": -1,
+          "maxCol": 8
+        }
+      },
+      "discard": [
+        "time_stop_deity_01",
+        "buoyancy_01",
+        "udg_01",
+        "execution_01",
+        "cross_bomb_01",
+        "board_expand_god_01",
+        "blockade_01",
+        "udg_01",
+        "gold_stone",
+        "guardian_god_01",
+        "grass_will_01",
+        "ultimate_hyperactive_01",
+        "capture_01",
+        "instant_hyperactive_01",
+        "ultimate_hyperactive_01",
+        "water_will_01",
+        "x_bomb_01",
+        "taboo_reverse_01",
+        "water_will_01",
+        "ribo_01",
+        "cell_teleport_01",
+        "guardian_god_01",
+        "poison_will_01",
+        "work_01",
+        "loss_will_01",
+        "extend_life_01",
+        "reinforcement_01",
+        "equality_will_01",
+        "time_stop_god_01",
+        "execution_01",
+        "poison_will_01",
+        "regen_01",
+        "mass_freeze_will_01",
+        "destroy_01",
+        "extreme_hyperactive_01",
+        "board_shrink_god_01",
+        "destroy_dragon_01",
+        "tempt_01",
+        "time_stop_deity_01",
+        "causal_replay_01",
+        "strong_wind_01",
+        "chest_01",
+        "super_buoyancy_01",
+        "hard_01",
+        "double_01",
+        "heaven_01",
+        "instant_hyperactive_01",
+        "theory_incarnation_01",
+        "super_attraction_01",
+        "corrosion_01",
+        "reverse_will_01",
+        "equality_will_01",
+        "triple_01",
+        "crystal_stone",
+        "theory_incarnation_01",
+        "tempt_01",
+        "ultimate_work_god_01",
+        "will_hunter_king_01",
+        "loss_will_01",
+        "meteor_01",
+        "gluttonous_will_01",
+        "fire_will_01",
+        "gravity_01"
+      ],
+      "initialDeckSize": 93,
+      "initialDeckSizeByPlayer": {
+        "black": 93,
+        "white": 93
+      },
+      "reshuffleRequiresFullCycle": false,
+      "hands": {
+        "black": [
+          "stone_salvation_god_01",
+          "quad_01",
+          "grass_will_01",
+          "sniper_01",
+          "taboo_reverse_01"
+        ],
+        "white": [
+          "__hidden_hand__:white:0",
+          "__hidden_hand__:white:1",
+          "__hidden_hand__:white:2"
+        ]
+      },
+      "turnIndex": 70,
+      "lastTurnStartedFor": "black",
+      "_activeTurnPlayer": "black",
+      "turnCountByPlayer": {
+        "black": 36,
+        "white": 34
+      },
+      "timeStopConsecutiveTurnsRemainingByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "observerTriviaBaseByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "observerTriviaCursorByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "nextObserverWillStoneByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "observerWillRepaymentsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "_nextObserverWillRepaymentSeq": 1,
+      "nextBoardExecutorStoneByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "theoryIncarnationStateByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "nextTheoryIncarnationStoneByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "theoryNumberCellsBySession": {},
+      "theoryNumberCellByCell": {},
+      "numberCellCollectedTotalByPlayer": {
+        "black": 126,
+        "white": 179
+      },
+      "_nextTheoryIncarnationSeq": 3,
+      "selectedCardId": null,
+      "hasUsedCardThisTurnByPlayer": {
+        "black": false,
+        "white": true
+      },
+      "hasDestroyedCardThisTurnByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "pendingEffectByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "activeEffectsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "markers": [
+        {
+          "id": 12,
+          "markerId": "12",
+          "row": 6,
+          "col": 0,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 12,
+          "data": {
+            "type": "METEOR_HOLE"
+          }
+        },
+        {
+          "id": 21,
+          "markerId": "21",
+          "row": 2,
+          "col": 3,
+          "kind": "specialStone",
+          "owner": "white",
+          "createdSeq": 21,
+          "data": {
+            "type": "REGEN",
+            "regenRemaining": 3,
+            "remainingOwnerTurns": 3,
+            "ownerColor": -1,
+            "sourceType": "REGEN_WILL",
+            "sourceCardId": "regen_01"
+          }
+        },
+        {
+          "id": 25,
+          "markerId": "25",
+          "row": 7,
+          "col": 7,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 25,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 26,
+          "markerId": "26",
+          "row": 7,
+          "col": 6,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 26,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 27,
+          "markerId": "27",
+          "row": 7,
+          "col": 5,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 27,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 28,
+          "markerId": "28",
+          "row": 7,
+          "col": 4,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 28,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 29,
+          "markerId": "29",
+          "row": 7,
+          "col": 3,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 29,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 30,
+          "markerId": "30",
+          "row": 7,
+          "col": 2,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 30,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 31,
+          "markerId": "31",
+          "row": 7,
+          "col": 1,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 31,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 32,
+          "markerId": "32",
+          "row": 7,
+          "col": 0,
+          "kind": "specialStone",
+          "owner": "black",
+          "createdSeq": 32,
+          "data": {
+            "type": "METEOR_HOLE",
+            "visualVariant": "BOARD_FRAME"
+          }
+        },
+        {
+          "id": 39,
+          "markerId": "39",
+          "row": 1,
+          "col": 4,
+          "kind": "specialStone",
+          "owner": "white",
+          "createdSeq": 39,
+          "data": {
+            "type": "STONE_SALVATION_GOD",
+            "remainingOwnerTurns": 6,
+            "sourceType": "THEORY_INCARNATION",
+            "sourceCardId": "stone_salvation_god_01",
+            "sourceCardType": "STONE_SALVATION_GOD"
+          }
+        },
+        {
+          "id": 40,
+          "markerId": "40",
+          "row": 0,
+          "col": 7,
+          "kind": "specialStone",
+          "owner": "white",
+          "createdSeq": 40,
+          "data": {
+            "type": "WATER",
+            "remainingOwnerTurns": 1,
+            "sourceType": "THEORY_INCARNATION",
+            "sourceCardId": "water_will_01",
+            "sourceCardType": "WATER_WILL"
+          }
+        },
+        {
+          "id": 43,
+          "markerId": "43",
+          "row": 2,
+          "col": 7,
+          "kind": "specialStone",
+          "owner": "white",
+          "createdSeq": 43,
+          "data": {
+            "type": "REGEN",
+            "regenRemaining": 1,
+            "sourceType": "THEORY_INCARNATION",
+            "sourceCardId": "regen_01",
+            "sourceCardType": "REGEN_WILL",
+            "remainingOwnerTurns": 1
+          }
+        },
+        {
+          "id": 46,
+          "markerId": "46",
+          "row": 5,
+          "col": 5,
+          "kind": "specialStone",
+          "owner": null,
+          "createdSeq": 46,
+          "data": {
+            "type": "HEALING_CELL",
+            "remainingTurns": 2,
+            "appliedTurnNumber": 62,
+            "sourcePlayer": "white"
+          }
+        },
+        {
+          "id": 48,
+          "markerId": "48",
+          "row": 3,
+          "col": 3,
+          "kind": "specialStone",
+          "owner": null,
+          "createdSeq": 48,
+          "data": {
+            "type": "HEALING_CELL",
+            "remainingTurns": 4,
+            "appliedTurnNumber": 64,
+            "sourcePlayer": "white"
+          }
+        },
+        {
+          "id": 49,
+          "markerId": "49",
+          "row": 5,
+          "col": 2,
+          "kind": "specialStone",
+          "owner": "white",
+          "createdSeq": 49,
+          "data": {
+            "type": "WILL_HUNTER_KING",
+            "remainingOwnerTurns": 6,
+            "flipEvadeRemaining": 2,
+            "destroyEvadeRemaining": 2,
+            "sourceType": "WILL_HUNTER_KING",
+            "sourceCardId": "will_hunter_king_01"
+          }
+        },
+        {
+          "id": 51,
+          "markerId": "51",
+          "row": 6,
+          "col": 6,
+          "kind": "specialStone",
+          "owner": null,
+          "createdSeq": 51,
+          "data": {
+            "type": "HEALING_CELL",
+            "remainingTurns": 6,
+            "appliedTurnNumber": 66,
+            "sourcePlayer": "white"
+          }
+        },
+        {
+          "id": 52,
+          "markerId": "52",
+          "row": 0,
+          "col": 3,
+          "kind": "specialStone",
+          "owner": "white",
+          "createdSeq": 52,
+          "data": {
+            "type": "METEOR_HOLE"
+          }
+        },
+        {
+          "id": 54,
+          "markerId": "54",
+          "row": 5,
+          "col": 1,
+          "kind": "specialStone",
+          "owner": null,
+          "createdSeq": 54,
+          "data": {
+            "type": "HEALING_CELL",
+            "remainingTurns": 8,
+            "appliedTurnNumber": 68,
+            "sourcePlayer": "white"
+          }
+        }
+      ],
+      "_nextMarkerId": 55,
+      "_nextCreatedSeq": 55,
+      "presentationEvents": [],
+      "_nextStoneId": 87,
+      "stoneIdMap": [
+        [
+          null,
+          "s73",
+          "s17",
+          null,
+          "s69",
+          "s80",
+          "s81",
+          "s66"
+        ],
+        [
+          null,
+          "s78",
+          "s14",
+          "s65",
+          "s64",
+          "s35",
+          "s83",
+          "s74"
+        ],
+        [
+          "s71",
+          "s67",
+          "s46",
+          "s39",
+          "s34",
+          "s48",
+          "s82",
+          "s70"
+        ],
+        [
+          "s32",
+          "s60",
+          "s8",
+          "s77",
+          "s2",
+          "s51",
+          null,
+          "s23"
+        ],
+        [
+          "s56",
+          "s13",
+          "s9",
+          "s47",
+          "s86",
+          "s55",
+          "s84",
+          "s85"
+        ],
+        [
+          "s50",
+          "s10",
+          "s76",
+          "s61",
+          "s52",
+          "s45",
+          null,
+          null
+        ],
+        [
+          null,
+          "s37",
+          "s53",
+          null,
+          "s62",
+          "s44",
+          "s57",
+          "s59"
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "expansionStoneIdByCell": {
+        "3,-1": "s63"
+      },
+      "hyperactiveSeqCounter": 4,
+      "lastUsedCardByPlayer": {
+        "black": "theory_incarnation_01",
+        "white": "gravity_01"
+      },
+      "cardUseCountByPlayer": {
+        "black": 22,
+        "white": 21
+      },
+      "totalFlipCountByPlayer": {
+        "black": 69,
+        "white": 64
+      },
+      "cornerCaptureCountByPlayer": {
+        "black": 1,
+        "white": 0
+      },
+      "charge": {
+        "black": 99,
+        "white": 89
+      },
+      "chargeGainMultiplierByPlayer": {
+        "black": 2,
+        "white": 2
+      },
+      "chargeGainedTotal": {
+        "black": 301,
+        "white": 346
+      },
+      "chargeDeltaEvents": [],
+      "_nextChargeDeltaSeq": 93,
+      "riboRepaymentsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "extraPlaceRemainingByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "infinitePlaceActiveByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "multiPlaceSourceTypeByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "boardBonusByCell": {
+        "7,1": 9,
+        "1,0": 8,
+        "0,1": 9,
+        "1,7": 10,
+        "0,6": 8,
+        "7,2": 6,
+        "5,6": 2,
+        "4,0": 5,
+        "2,2": 4,
+        "5,7": 3,
+        "3,0": 6,
+        "5,5": 2,
+        "6,5": 1,
+        "6,3": 2,
+        "7,7": 1,
+        "1,5": 3,
+        "1,2": 6,
+        "4,6": 4,
+        "5,0": 7,
+        "7,4": 5,
+        "6,2": 2,
+        "4,1": 4,
+        "5,1": 1,
+        "2,7": 12,
+        "6,7": 3,
+        "1,3": 7,
+        "6,4": 17,
+        "7,3": 4,
+        "1,6": 11,
+        "3,6": 11,
+        "7,0": 1,
+        "7,6": 4,
+        "6,6": 5,
+        "0,4": 3,
+        "6,1": 2,
+        "0,0": 2,
+        "2,6": 30,
+        "6,0": 1,
+        "5,2": 3,
+        "0,7": 15,
+        "1,4": 20
+      },
+      "boardBonusConsumedByCell": {
+        "2,2": true,
+        "5,1": true,
+        "1,2": true,
+        "6,0": true,
+        "5,5": true,
+        "4,0": true,
+        "5,0": true,
+        "3,0": true,
+        "1,5": true,
+        "7,4": true,
+        "6,5": true,
+        "6,2": true,
+        "6,6": true,
+        "6,7": true,
+        "6,4": true,
+        "1,4": true,
+        "1,3": true,
+        "0,7": true,
+        "2,7": true,
+        "1,6": true,
+        "1,7": true,
+        "2,6": true,
+        "3,6": true,
+        "4,6": true,
+        "5,2": true
+      },
+      "workAnchorPosByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "workNextPlacementArmedByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "breedingFrontierByAnchorId": {},
+      "breedingSproutByOwner": {
+        "black": [],
+        "white": []
+      },
+      "_breedingSproutClearedTokenByOwner": {
+        "black": "black:70",
+        "white": "white:69"
+      },
+      "prevOpponentTurnDestroyedStonesByPlayer": {
+        "black": [
+          {
+            "row": 5,
+            "col": 2,
+            "owner": "black",
+            "wasSpecial": true
+          }
+        ],
+        "white": []
+      },
+      "pendingStoneSalvationGodRevivesByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "fateWillControllerByTurnOwner": {
+        "black": null,
+        "white": null
+      },
+      "_presentationEventsPersist": [],
+      "lastUsedCard": {
+        "cardId": "gravity_01",
+        "ownerKey": "white"
+      },
+      "pendingEffectSeq": 43,
+      "_nextEffectBlockId": 54,
+      "_effectBlockDepth": 0,
+      "_stoneSalvationGodDestroyBlockDepth": 0,
+      "_stoneSalvationGodReviveBlockQueue": [],
+      "_lastWorkPlaced": {
+        "playerKey": "white",
+        "row": 3,
+        "col": 0
+      },
+      "observedHandSlotsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "handCostAdjustmentsByPlayer": {
+        "black": [
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "white": [
+          null,
+          null,
+          null
+        ]
+      },
+      "selectedCardOwnerKey": null,
+      "deckRemainingByPlayer": {
+        "black": 60,
+        "white": 59
+      }
+    }
+  },
+  "publicRecipes": {
+    "black": [
+      "chest_01",
+      "free_01",
+      "last_resort_01",
+      "sniper_01",
+      "hard_01",
+      "ghost_01",
+      "sacrifice_will_01",
+      "zombie_will_01",
+      "afterimage_will_01",
+      "swap_01",
+      "position_swap_01",
+      "perma_01",
+      "strong_wind_01",
+      "super_buoyancy_01",
+      "buoyancy_01",
+      "super_gravity_01",
+      "super_attraction_01",
+      "gravity_01",
+      "trap_01",
+      "tempt_01",
+      "capture_01",
+      "double_chain_01",
+      "taboo_reverse_01",
+      "reverse_will_01",
+      "regen_01",
+      "destroy_01",
+      "bomb_01",
+      "time_stop_god_01",
+      "udr_01",
+      "breeding_01",
+      "proliferation_01",
+      "clone_01",
+      "seed_01",
+      "teleport_01",
+      "cell_teleport_01",
+      "cross_bomb_01",
+      "x_bomb_01",
+      "hyperactive_01",
+      "extreme_hyperactive_01",
+      "escape_01",
+      "robot_vacuum_01",
+      "gluttonous_will_01",
+      "will_hunter_king_01",
+      "instant_hyperactive_01",
+      "rebuild_01",
+      "work_01",
+      "ultimate_work_god_01",
+      "ribo_01",
+      "loss_will_01",
+      "mass_freeze_will_01",
+      "double_01",
+      "heaven_01",
+      "reveal_hand_01",
+      "theory_incarnation_01",
+      "board_executor_01",
+      "observer_will_01",
+      "condemn_01",
+      "execution_01",
+      "gold_stone",
+      "rainbow_stone",
+      "silver_stone",
+      "crystal_stone",
+      "extend_life_01",
+      "extend_life_god_01",
+      "corrosion_01",
+      "guard_01",
+      "guardian_god_01",
+      "stone_salvation_god_01",
+      "destroy_dragon_01",
+      "lightning_01",
+      "udg_01",
+      "ultimate_hyperactive_01",
+      "board_expand_01",
+      "board_expand_god_01",
+      "board_shrink_01",
+      "board_shrink_god_01",
+      "blockade_01",
+      "poison_will_01",
+      "fire_will_01",
+      "water_will_01",
+      "grass_will_01",
+      "meteor_01",
+      "causal_replay_01",
+      "freeze_01",
+      "salvation_01",
+      "living_will_01",
+      "reinforcement_01",
+      "support_troops_01",
+      "equality_will_01",
+      "fate_will_01",
+      "meteor_god_01",
+      "chaos_summon_01",
+      "time_stop_deity_01"
+    ],
+    "white": [
+      "chest_01",
+      "free_01",
+      "last_resort_01",
+      "sniper_01",
+      "hard_01",
+      "ghost_01",
+      "sacrifice_will_01",
+      "zombie_will_01",
+      "afterimage_will_01",
+      "swap_01",
+      "position_swap_01",
+      "perma_01",
+      "strong_wind_01",
+      "super_buoyancy_01",
+      "buoyancy_01",
+      "super_gravity_01",
+      "super_attraction_01",
+      "gravity_01",
+      "trap_01",
+      "tempt_01",
+      "capture_01",
+      "double_chain_01",
+      "taboo_reverse_01",
+      "reverse_will_01",
+      "regen_01",
+      "destroy_01",
+      "bomb_01",
+      "time_stop_god_01",
+      "udr_01",
+      "breeding_01",
+      "proliferation_01",
+      "clone_01",
+      "seed_01",
+      "teleport_01",
+      "cell_teleport_01",
+      "cross_bomb_01",
+      "x_bomb_01",
+      "hyperactive_01",
+      "extreme_hyperactive_01",
+      "escape_01",
+      "robot_vacuum_01",
+      "gluttonous_will_01",
+      "will_hunter_king_01",
+      "instant_hyperactive_01",
+      "rebuild_01",
+      "work_01",
+      "ultimate_work_god_01",
+      "ribo_01",
+      "loss_will_01",
+      "mass_freeze_will_01",
+      "double_01",
+      "heaven_01",
+      "reveal_hand_01",
+      "theory_incarnation_01",
+      "board_executor_01",
+      "observer_will_01",
+      "condemn_01",
+      "execution_01",
+      "gold_stone",
+      "rainbow_stone",
+      "silver_stone",
+      "crystal_stone",
+      "extend_life_01",
+      "extend_life_god_01",
+      "corrosion_01",
+      "guard_01",
+      "guardian_god_01",
+      "stone_salvation_god_01",
+      "destroy_dragon_01",
+      "lightning_01",
+      "udg_01",
+      "ultimate_hyperactive_01",
+      "board_expand_01",
+      "board_expand_god_01",
+      "board_shrink_01",
+      "board_shrink_god_01",
+      "blockade_01",
+      "poison_will_01",
+      "fire_will_01",
+      "water_will_01",
+      "grass_will_01",
+      "meteor_01",
+      "causal_replay_01",
+      "freeze_01",
+      "salvation_01",
+      "living_will_01",
+      "reinforcement_01",
+      "support_troops_01",
+      "equality_will_01",
+      "fate_will_01",
+      "meteor_god_01",
+      "chaos_summon_01",
+      "time_stop_deity_01"
+    ]
+  },
+  "source": {
+    "journal": "data/cpu-lv12/lv12-dev10c-formal-30-v1/games/11-black/attempt-1/steps.ndjson",
+    "journalSha256": "fe2a654cbeb8ec35dab583b1aa0146822fe599289059b42ebf988874a73b9a85",
+    "index": 147
+  }
+}

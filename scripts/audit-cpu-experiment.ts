@@ -22,7 +22,8 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
         ? loadAuditedDevelopmentSet(manifest.spec.developmentSet, read('data/cpu-lv12/issued-conditions.json')) : null;
     if (fixedDevelopment && (manifest.spec.mode !== 'development'
         || JSON.stringify(fixedDevelopment.schedule) !== JSON.stringify(manifest.schedule)
-        || manifest.runtimes.find((runtime: any) => runtime.root === manifest.commonRoot)?.sha256 !== fixedDevelopment.rulesRuntime.sha256)) {
+        || manifest.runtimes.find((runtime: any) => runtime.root === manifest.commonRoot)?.sha256 !== (manifest.spec.acceptance === 'lv13'
+            ? '3b3ffbcfc68cff774b6b01c69573dfcbc0283d3559b137599a28dcbbd8ae8ba6' : fixedDevelopment.rulesRuntime.sha256))) {
         throw new Error('Common development conditions or rules changed');
     }
     if (hash(fs.readFileSync(manifestPath)) !== read(path.join(directory, 'manifest-sha256.json')).sha256) throw new Error('Experiment declaration hash mismatch');
@@ -78,7 +79,7 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
             throw new Error('Common development initial state differs from its audited source');
         }
         const { finalStateKey: _state, decisionRecords, ...compact } = result;
-        if (spec.acceptance === 'lv12') {
+        if (spec.acceptance === 'lv12' || spec.acceptance === 'lv13') {
             for (const attempt of attempts) {
                 const rows = fs.readFileSync(path.join(gameRoot, attempt, 'steps.ndjson'), 'utf8').trimEnd().split('\n').map(line=>JSON.parse(line));
                 for (const row of rows.filter(row=>row.kind==='decision')) {
@@ -106,7 +107,7 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
     } else if (manifest.spec.mode === 'acceptance' && tally.earlyStop.stop) {
         throw new Error('Experiment continued despite failing its first-ten gate');
     }
-    const processHistory=spec.acceptance==='lv12'?read(path.join(directory,'processes.json')):[];
+    const processHistory=['lv12','lv13'].includes(spec.acceptance)?read(path.join(directory,'processes.json')):[];
     for(const entry of processHistory.filter((item:any)=>item.interruption)){
         const recovery=read(entry.interruption.recoveryFile);
         const recovered=recovery.summaries?.find((item:any)=>item.pid===entry.pid&&item.slot===entry.slot&&path.resolve(item.attempt)===path.resolve(entry.output));
@@ -116,7 +117,7 @@ export function auditCpuExperiment(directoryInput: string, runtimeOverride?: str
             ||recovered.journalSha256!==entry.interruption.journalSha256||recovered.checkpointSha256!==entry.interruption.checkpointSha256)
             throw new Error('Unverified process-loss recovery');
     }
-    const processAudit = spec.acceptance === 'lv12' ? auditExperimentProcesses(spec,manifest.schedule,processHistory) : null;
+    const processAudit = ['lv12','lv13'].includes(spec.acceptance) ? auditExperimentProcesses(spec,manifest.schedule,processHistory) : null;
     return { schema: 'cpu-experiment-audit.v1', manifestSha256: hash(fs.readFileSync(manifestPath)),
         processAudit, auditedPublicInputs,
         ...tally, valid: true, games, earlyStopped,

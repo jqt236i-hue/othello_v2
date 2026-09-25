@@ -105,6 +105,7 @@
     "selfplay:experiment": "node dist/scripts/run-cpu-experiment.js",
     "selfplay:audit": "node dist/scripts/audit-cpu-experiment.js",
     "selfplay:analyze": "node dist/scripts/analyze-cpu-experiment.js",
+    "selfplay:compare:lv13": "node dist/scripts/analyze-cpu-lv13-comparison.js",
     "audit:cpu-decision": "node dist/scripts/capture-cpu-decision-audit.js",
     "audit:production-browser": "node dist/scripts/capture-production-browser-parity.js",
     "audit:production-cards": "node dist/scripts/verify-production-card-browser.js",
@@ -189,12 +190,13 @@
       "<rootDir>/worker-public/"
     ],
     "modulePathIgnorePatterns": [
-      "<rootDir>/output/godot-source",
       "<rootDir>/.wrangler/",
+      "<rootDir>/output/godot-source",
       "<rootDir>/worker-public/",
       "<rootDir>/data/cpu-lv10/baseline-v1/",
       "<rootDir>/data/cpu-lv11/",
-      "<rootDir>/data/cpu-lv12/"
+      "<rootDir>/data/cpu-lv12/",
+      "<rootDir>/data/cpu-lv13/"
     ],
     "moduleFileExtensions": [
       "ts",

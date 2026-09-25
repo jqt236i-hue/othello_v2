@@ -86,6 +86,10 @@
       "game/ai/cpu-lv12-model.ts",
       "game/ai/cpu-lv12-scenarios.ts",
       "game/ai/cpu-lv12-search.ts",
+      "game/ai/cpu-lv13-evaluation.ts",
+      "game/ai/cpu-lv13-model.ts",
+      "game/ai/cpu-lv13-scenarios.ts",
+      "game/ai/cpu-lv13-search.ts",
       "game/ai/cpu-lv6-lookahead-profile.ts",
       "game/ai/cpu-movement-target-feasibility.ts",
       "game/ai/cpu-policy-board-counts.ts",
@@ -881,10 +885,10 @@
       "workers/match-worker-websocket-controller.ts",
       "workers/match-worker.ts"
     ],
-    "sourceCount": 869,
+    "sourceCount": 873,
     "codepointCount": 1279,
     "codepointsSha256": "a45013fa72d36a86e51e3ac21b739130e168ec9029157ea6b4084e374801744a",
-    "sourcesSha256": "7d2342c8ee31d25c9fdc4e3ecf4b11f656a01186d6c13205ad4521bdacb3e0e3",
+    "sourcesSha256": "4a7490afe6fb925f1398535017bbd147fb6647dcd62758988f28c4fa82a2bf27",
     "unicodeRanges": [
       "U+20-7E",
       "U+B0",

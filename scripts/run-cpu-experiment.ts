@@ -16,10 +16,10 @@ const writeNew = (file: string, value: unknown) => fs.writeFileSync(file, JSON.s
 
 /** Include Lv12's sampling/model helpers as well as search and evaluation.
  * The separately frozen runtime still binds every shared rule dependency. */
-export function lv12PolicyFingerprint(root:string){
+export function lv12PolicyFingerprint(root:string, level: 'lv12' | 'lv13' = 'lv12'){
     const directory=path.join(root,'dist/game/ai');
-    const names=fs.readdirSync(directory).filter(name=>/^cpu-lv12-[a-z0-9-]+\.js$/.test(name)).sort();
-    if(!names.includes('cpu-lv12-search.js')||!names.includes('cpu-lv12-evaluation.js'))throw new Error('Lv12 policy is incomplete');
+    const names=fs.readdirSync(directory).filter(name=>new RegExp(`^cpu-${level}-[a-z0-9-]+\\.js$`).test(name)).sort();
+    if(!names.includes(`cpu-${level}-search.js`)||!names.includes(`cpu-${level}-evaluation.js`))throw new Error(`${level} policy is incomplete`);
     const files=names.map(name=>({name,sha256:hash(fs.readFileSync(path.join(directory,name)))}));
     return {files,sha256:hash(JSON.stringify(files))};
 }
@@ -33,25 +33,24 @@ export function collectIssuedSeeds(value: any, target = new Set<number>()): Set<
 }
 
 export function declareExperiment(specInput: ExperimentSpec) {
-    const ledgerPath = specInput.acceptance === 'lv12' ? 'data/cpu-lv12/issued-conditions.json' : 'data/cpu-lv11/issued-conditions.json';
+    const ledgerPath = `data/cpu-${specInput.acceptance || 'lv11'}/issued-conditions.json`;
     const spec = { ...specInput, out: path.resolve(specInput.out),
         candidate: { ...specInput.candidate, root: path.resolve(specInput.candidate.root) },
         opponent: { ...specInput.opponent, root: path.resolve(specInput.opponent.root) } };
     if (fs.existsSync(spec.out)) throw new Error('Experiment output already exists');
     const oldLedgerFile = 'data/cpu-lv10/issued-conditions.json';
     const oldLedger = read(oldLedgerFile), ledger = fs.existsSync(ledgerPath) ? read(ledgerPath) : [];
-    const otherLedger = specInput.acceptance === 'lv12' ? 'data/cpu-lv11/issued-conditions.json' : 'data/cpu-lv12/issued-conditions.json';
-    const used = collectIssuedSeeds([oldLedger, ledger, fs.existsSync(otherLedger) ? read(otherLedger) : []]);
+    const used = collectIssuedSeeds([oldLedger, ledger, ...['lv11','lv12','lv13'].map(level=>`data/cpu-${level}/issued-conditions.json`).filter(file=>fs.existsSync(file)).map(read)]);
     let replaySchedule: ExperimentSlot[] | undefined;
     let developmentReplayEvidence: unknown;
     let developmentRulesRoot: string | undefined;
     if (spec.developmentSet) {
-        if (spec.mode !== 'development' || spec.acceptance !== 'lv12' || spec.developmentReplayOf) throw new Error('Common development conditions cannot be used for acceptance or combined with another replay');
-        const fixed = loadAuditedDevelopmentSet(spec.developmentSet, ledger);
+        if (spec.mode !== 'development' || !['lv12','lv13'].includes(spec.acceptance || '') || spec.developmentReplayOf) throw new Error('Common development conditions cannot be used for acceptance or combined with another replay');
+        const fixed = loadAuditedDevelopmentSet(spec.developmentSet, spec.acceptance === 'lv13' ? read('data/cpu-lv12/issued-conditions.json') : ledger);
         replaySchedule = fixed.schedule;
         developmentReplayEvidence = fixed.evidence;
-        developmentRulesRoot = path.resolve(fixed.rulesRuntime.root);
-        if (productionRuntimeManifest(developmentRulesRoot).sha256 !== fixed.rulesRuntime.sha256) throw new Error('Common development rules runtime changed');
+        developmentRulesRoot = path.resolve(spec.acceptance === 'lv13' ? 'data/cpu-lv13/baseline-start/repo' : fixed.rulesRuntime.root);
+        if (productionRuntimeManifest(fixed.rulesRuntime.root).sha256 !== fixed.rulesRuntime.sha256) throw new Error('Common development rules runtime changed');
     }
     if (spec.developmentReplayOf) {
         if (spec.mode !== 'development' || spec.acceptance !== 'lv12') throw new Error('Formal conditions cannot be replayed for acceptance');
@@ -70,7 +69,27 @@ export function declareExperiment(specInput: ExperimentSpec) {
     const schedule = makeExperimentSchedule(spec, used, replaySchedule);
     const roots = [...new Set([process.cwd(), spec.candidate.root, spec.opponent.root, ...(developmentRulesRoot ? [developmentRulesRoot] : [])])];
     let parityEvidence: ReturnType<typeof verifyProductionParityGate> | undefined;
-    if ((spec.mode === 'acceptance' && spec.acceptance === 'lv12') || spec.developmentSet) {
+    if (spec.acceptance === 'lv13') {
+        const baseline = path.resolve('data/cpu-lv13/baseline-start/repo');
+        const baselineManifest = read('data/cpu-lv13/baseline-start/manifest.json');
+        if (baselineManifest.sha256 !== '3b3ffbcfc68cff774b6b01c69573dfcbc0283d3559b137599a28dcbbd8ae8ba6'
+            || productionRuntimeManifest(baseline).sha256 !== baselineManifest.sha256) throw new Error('Starting Lv12 baseline changed');
+        if (spec.opponent.root !== baseline || spec.opponent.module !== 'game/ai/cpu-lv12-search'
+            || spec.opponent.search !== 'searchLv12' || spec.opponent.config !== 'LV12_SEARCH_CONFIG'
+            || spec.opponent.maxMs !== undefined || spec.opponent.maxTransitions !== undefined
+            || spec.opponent.turnModule) throw new Error('Lv13 requires unchanged starting Lv12');
+        if ((spec.candidateProfile ?? 12) !== 12 || (spec.opponentProfile ?? 12) !== 12) throw new Error('Lv13 comparison requires identical level 12 game conditions');
+        if (spec.candidate.module !== 'game/ai/cpu-lv13-search' || spec.candidate.search !== 'searchLv13'
+            || spec.candidate.config !== 'LV13_SEARCH_CONFIG' || spec.candidate.maxMs !== undefined
+            || spec.candidate.maxTransitions !== undefined || spec.candidate.turnModule) throw new Error('Lv13 requires the unchanged declared production policy');
+        const config = require(path.join(spec.candidate.root,'dist',spec.candidate.module))[spec.candidate.config];
+        if (config.maxTransitions !== 4096 || config.maxMs !== 5500) throw new Error('Lv13 requires 4096 transitions and 5500 ms');
+        if (spec.mode === 'acceptance') {
+            const fingerprint = lv12PolicyFingerprint(spec.candidate.root,'lv13').sha256;
+            if (ledger.some((entry:any)=>entry.mode==='acceptance' && entry.candidatePolicySha256===fingerprint)) throw new Error('Unchanged candidate cannot be redrawn');
+            parityEvidence = verifyProductionParityGate(spec.parityGateFile!,process.cwd(),spec.candidate.root);
+        }
+    } else if ((spec.mode === 'acceptance' && spec.acceptance === 'lv12') || spec.developmentSet) {
         const baseline = path.resolve('data/cpu-lv12/baseline-start/repo');
         const baselineManifestFile = path.resolve('data/cpu-lv12/baseline-start/manifest.json');
         if (hash(fs.readFileSync(baselineManifestFile)) !== '8dc3d1d776b1e1dff2d4de09ca6783ccf1cf4e06d258381406acc35dcb3924fd'
@@ -146,13 +165,13 @@ export function declareExperiment(specInput: ExperimentSpec) {
             timing: 'Both seats use the same production monotonic clock; check limits at transition boundaries',
             loadPolicy: 'No additional selfplay process, training, build or heavy verification while matches run' },
         protocol: experimentProtocol(spec), developmentReplayEvidence,
-        ...(spec.acceptance==='lv12'?{candidatePolicyFingerprint:lv12PolicyFingerprint(spec.candidate.root)}:{}),
+        ...(['lv12','lv13'].includes(spec.acceptance || '')?{candidatePolicyFingerprint:lv12PolicyFingerprint(spec.candidate.root,spec.acceptance as 'lv12'|'lv13')}:{}),
         seedAudit: { excluded: used.size, oldLedgerSha256: hash(fs.readFileSync(oldLedgerFile)),
             currentLedgerSha256: fs.existsSync(ledgerPath) ? hash(fs.readFileSync(ledgerPath)) : null } };
     writeNew(path.join(spec.out, 'manifest.json'), manifest);
     writeNew(path.join(spec.out, 'manifest-sha256.json'), { sha256: hash(fs.readFileSync(path.join(spec.out, 'manifest.json'))) });
     ledger.push({ label: spec.label, mode: spec.mode,
-        ...(spec.acceptance === 'lv12' ? { candidatePolicySha256: lv12PolicyFingerprint(spec.candidate.root).sha256 } : {}),
+        ...(['lv12','lv13'].includes(spec.acceptance || '') ? { candidatePolicySha256: lv12PolicyFingerprint(spec.candidate.root,spec.acceptance as 'lv12'|'lv13').sha256 } : {}),
         seeds: schedule.conditions.map(condition => condition.seed),
         directory: spec.out, createdAt: manifest.createdAt });
     fs.writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));

@@ -11,7 +11,7 @@ export type ExperimentSpec = {
     developmentReplayOf?: { manifest: string; audit: string };
     /** Immutable union of whole completed audited trials, for controlled development comparisons. */
     developmentSet?: { path: string; sha256: string };
-    acceptance?: 'lv11' | 'lv12';
+    acceptance?: 'lv11' | 'lv12' | 'lv13';
     maxDecisions?: number; timeoutMs?: number;
 };
 export type ExperimentCondition = { id: number; seed: number; kind: 'paired' | 'black' | 'white' };
@@ -34,8 +34,16 @@ export const LV12_ACCEPTANCE = Object.freeze({
     minimumWins: 25, earlyStopLosses: 4, concurrency: 4
 });
 export function experimentProtocol(spec: Pick<ExperimentSpec, 'acceptance'>) {
+    if (spec.acceptance === 'lv13') return LV13_ACCEPTANCE;
     return spec.acceptance === 'lv12' ? LV12_ACCEPTANCE : LV11_ACCEPTANCE;
 }
+
+export const LV13_ACCEPTANCE = Object.freeze({
+    ...LV11_ACCEPTANCE,
+    version: '2026-09-15-lv13-30-games-25-wins-white20-black10-stop10-loss4',
+    minimumWins: 25, earlyStopLosses: 4, concurrency: 4,
+    firstTenWhite: 7, firstTenBlack: 3
+});
 
 export function makeExperimentSchedule(spec: ExperimentSpec, usedSeeds: ReadonlySet<number>, replaySchedule?: readonly ExperimentSlot[]) {
     const protocol = experimentProtocol(spec);
@@ -48,15 +56,16 @@ export function makeExperimentSchedule(spec: ExperimentSpec, usedSeeds: Readonly
     }
     if (spec.mode === 'acceptance' && (spec.paired !== protocol.paired
         || spec.blackOnly !== protocol.blackOnly || spec.whiteOnly !== protocol.whiteOnly)) {
-        throw new Error(spec.acceptance === 'lv12' ? 'Lv12 acceptance requires 15 paired conditions (30 games, 25 wins)'
+        throw new Error(spec.acceptance === 'lv13' ? 'Lv13 acceptance requires 10 paired and 10 white-only conditions (30 games, 25 wins)'
+            : spec.acceptance === 'lv12' ? 'Lv12 acceptance requires 15 paired conditions (30 games, 25 wins)'
             : 'Lv11 acceptance requires 10 paired plus 10 white-only conditions (30 games, 23 wins)');
     }
-    if (spec.acceptance === 'lv12' && spec.concurrency > 4) throw new Error('Lv12 development and acceptance permit at most four games');
-    if (spec.mode === 'acceptance' && spec.acceptance !== 'lv12' && spec.concurrency !== protocol.concurrency) {
+    if ((spec.acceptance === 'lv12' || spec.acceptance === 'lv13') && spec.concurrency > 4) throw new Error('Development and acceptance permit at most four games');
+    if (spec.mode === 'acceptance' && spec.acceptance !== 'lv12' && spec.acceptance !== 'lv13' && spec.concurrency !== protocol.concurrency) {
         throw new Error('Lv11 acceptance requires four concurrent games');
     }
     if (spec.developmentReplayOf || spec.developmentSet || replaySchedule) {
-        if (spec.mode !== 'development' || spec.acceptance !== 'lv12') throw new Error('Issued conditions may only be replayed in Lv12 development');
+        if (spec.mode !== 'development' || !['lv12', 'lv13'].includes(spec.acceptance || '')) throw new Error('Issued conditions may only be replayed in development');
         if (!!spec.developmentReplayOf === !!spec.developmentSet || !replaySchedule) throw new Error('Development replay requires audited source evidence');
         if (spec.developmentReplayOf && (spec.paired !== 5 || spec.blackOnly || spec.whiteOnly || replaySchedule.length !== 10)) throw new Error('Development replay uses all five first-ten pairs');
         if (spec.developmentSet && (!spec.paired || spec.blackOnly || spec.whiteOnly || replaySchedule.length !== spec.paired * 2)) throw new Error('Common development set requires every declared pair');
@@ -92,7 +101,13 @@ export function makeExperimentSchedule(spec: ExperimentSpec, usedSeeds: Readonly
     if (!schedule.length) throw new Error('Experiment must contain games');
     // Fixed hash ordering interleaves the color mix without consuming game RNG.
     const orderKey = (slot: ExperimentSlot) => crypto.createHash('sha256').update(`${spec.label}/order/${slot.id}`).digest('hex');
-    if (spec.acceptance === 'lv12') {
+    if (spec.acceptance === 'lv13' && spec.mode === 'acceptance') {
+        const ordered = schedule.slice().sort((a,b) => orderKey(a).localeCompare(orderKey(b)));
+        const first = [...ordered.filter(slot=>slot.candidateColor==='white').slice(0,7),
+            ...ordered.filter(slot=>slot.candidateColor==='black').slice(0,3)]
+            .sort((a,b)=>orderKey(a).localeCompare(orderKey(b)));
+        schedule.splice(0,schedule.length,...first,...ordered.filter(slot=>!first.includes(slot)));
+    } else if (spec.acceptance === 'lv12') {
         // Order whole condition pairs: the first ten are exactly five pairs.
         const pairKey = (slot: ExperimentSlot) => crypto.createHash('sha256').update(`${spec.label}/pair-order/${slot.condition}`).digest('hex');
         schedule.sort((a,b) => pairKey(a).localeCompare(pairKey(b)) || orderKey(a).localeCompare(orderKey(b)));
@@ -204,10 +219,11 @@ export function summarizeExperiment(spec: ExperimentSpec, conditions: Experiment
         && conditions.filter(condition => condition.kind === 'white').length === protocol.whiteOnly
         && schedule.length === protocol.games && black.scheduled === protocol.black && white.scheduled === protocol.white
         && (spec.acceptance !== 'lv12' || (schedule.slice(0,10).filter(slot => slot.candidateColor === 'black').length === 5
-            && new Set(schedule.slice(0,10).map(slot => slot.condition)).size === 5));
+            && new Set(schedule.slice(0,10).map(slot => slot.condition)).size === 5))
+        && (spec.acceptance !== 'lv13' || schedule.slice(0,10).filter(slot=>slot.candidateColor==='white').length===7);
     const earlyStop = experimentEarlyStop(schedule, scores, protocol);
     return { complete, ...all, black, white, earlyStop,
-        meetsWinGate: spec.mode === 'acceptance' && (spec.acceptance === 'lv12' ? spec.concurrency <= 4 : spec.concurrency === protocol.concurrency)
+        meetsWinGate: spec.mode === 'acceptance' && (spec.acceptance === 'lv12' || spec.acceptance === 'lv13' ? spec.concurrency <= 4 : spec.concurrency === protocol.concurrency)
             && gateSchedule && complete && !earlyStop.stop && all.wins >= protocol.minimumWins,
         note: complete ? 'All scheduled games complete' : 'Incomplete experiment; fractions use scheduled slots and are not final evidence' };
 }

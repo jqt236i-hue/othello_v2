@@ -1,0 +1,464 @@
+{
+  "source": {
+    "path": "data/cpu-lv13/b00-first-short-white-loss.json",
+    "sha256": "9a7f7f5736707c6412db65885e4e621329537c0c59583e3a2fc744c46da469db",
+    "decision": 4,
+    "outcome": "loss",
+    "purpose": "Public-input screen-order regression, not a win assertion"
+  },
+  "observation": {
+    "schema": "cpu_lv10_observation.v1",
+    "player": "white",
+    "gameState": {
+      "board": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          -1,
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "boardConfig": {
+        "rows": 8,
+        "cols": 8,
+        "shape": "rectangle",
+        "standard8x8": true,
+        "baseBounds": {
+          "minRow": 0,
+          "maxRow": 7,
+          "minCol": 0,
+          "maxCol": 7
+        },
+        "outerBounds": {
+          "minRow": -1,
+          "maxRow": 8,
+          "minCol": -1,
+          "maxCol": 8
+        }
+      },
+      "currentPlayer": -1,
+      "consecutivePasses": 0,
+      "turnNumber": 3,
+      "roundNumber": 2,
+      "roundCompletionByPlayer": {
+        "black": true,
+        "white": false
+      },
+      "pendingRoundBonus": null,
+      "boardExpansion": {
+        "active": false,
+        "side": null,
+        "row": null,
+        "owner": 0,
+        "usedByPlayer": {
+          "black": false,
+          "white": false
+        },
+        "cells": [],
+        "col": null
+      }
+    },
+    "cardState": {
+      "boardConfig": {
+        "rows": 8,
+        "cols": 8,
+        "shape": "rectangle",
+        "standard8x8": true,
+        "baseBounds": {
+          "minRow": 0,
+          "maxRow": 7,
+          "minCol": 0,
+          "maxCol": 7
+        },
+        "outerBounds": {
+          "minRow": -1,
+          "maxRow": 8,
+          "minCol": -1,
+          "maxCol": 8
+        }
+      },
+      "discard": [],
+      "initialDeckSize": 93,
+      "initialDeckSizeByPlayer": {
+        "black": 93,
+        "white": 93
+      },
+      "reshuffleRequiresFullCycle": false,
+      "hands": {
+        "black": [
+          "__hidden_hand__:black:0",
+          "__hidden_hand__:black:1"
+        ],
+        "white": [
+          "fire_will_01",
+          "teleport_01"
+        ]
+      },
+      "turnIndex": 4,
+      "lastTurnStartedFor": "white",
+      "_activeTurnPlayer": "white",
+      "turnCountByPlayer": {
+        "black": 2,
+        "white": 2
+      },
+      "timeStopConsecutiveTurnsRemainingByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "observerTriviaBaseByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "observerTriviaCursorByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "nextObserverWillStoneByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "observerWillRepaymentsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "_nextObserverWillRepaymentSeq": 1,
+      "nextBoardExecutorStoneByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "theoryIncarnationStateByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "nextTheoryIncarnationStoneByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "theoryNumberCellsBySession": {},
+      "theoryNumberCellByCell": {},
+      "numberCellCollectedTotalByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "_nextTheoryIncarnationSeq": 1,
+      "selectedCardId": null,
+      "hasUsedCardThisTurnByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "hasDestroyedCardThisTurnByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "pendingEffectByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "activeEffectsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "markers": [],
+      "_nextMarkerId": 1,
+      "_nextCreatedSeq": 1,
+      "presentationEvents": [],
+      "_nextStoneId": 8,
+      "stoneIdMap": [
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          "s7",
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          "s1",
+          "s2",
+          "s6",
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          "s3",
+          "s4",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          "s5",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "expansionStoneIdByCell": {},
+      "hyperactiveSeqCounter": 0,
+      "lastUsedCardByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "cardUseCountByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "totalFlipCountByPlayer": {
+        "black": 2,
+        "white": 1
+      },
+      "cornerCaptureCountByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "charge": {
+        "black": 99,
+        "white": 99
+      },
+      "chargeGainMultiplierByPlayer": {
+        "black": 2,
+        "white": 2
+      },
+      "chargeGainedTotal": {
+        "black": 0,
+        "white": 0
+      },
+      "chargeDeltaEvents": [],
+      "_nextChargeDeltaSeq": 1,
+      "riboRepaymentsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "extraPlaceRemainingByPlayer": {
+        "black": 0,
+        "white": 0
+      },
+      "infinitePlaceActiveByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "multiPlaceSourceTypeByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "boardBonusByCell": {
+        "0,1": 10,
+        "6,6": 9,
+        "6,7": 8,
+        "1,6": 8,
+        "1,7": 9,
+        "0,2": 3,
+        "7,5": 7,
+        "6,5": 1,
+        "0,7": 6,
+        "5,2": 3,
+        "5,5": 4,
+        "1,1": 7,
+        "5,1": 3,
+        "0,0": 6,
+        "2,1": 5,
+        "7,6": 5,
+        "2,5": 4,
+        "6,1": 1,
+        "6,0": 2,
+        "2,6": 2,
+        "2,7": 2,
+        "4,7": 1,
+        "7,3": 2,
+        "3,7": 7,
+        "0,3": 2,
+        "1,3": 6,
+        "1,2": 5,
+        "4,6": 2,
+        "0,4": 2,
+        "2,0": 4,
+        "2,2": 1,
+        "1,0": 5,
+        "1,4": 1,
+        "3,0": 3,
+        "7,0": 5,
+        "4,0": 1,
+        "4,1": 3,
+        "1,5": 4,
+        "0,5": 1,
+        "6,2": 6
+      },
+      "boardBonusConsumedByCell": {},
+      "workAnchorPosByPlayer": {
+        "black": null,
+        "white": null
+      },
+      "workNextPlacementArmedByPlayer": {
+        "black": false,
+        "white": false
+      },
+      "breedingFrontierByAnchorId": {},
+      "breedingSproutByOwner": {
+        "black": [],
+        "white": []
+      },
+      "_breedingSproutClearedTokenByOwner": {
+        "black": "black:3",
+        "white": "white:4"
+      },
+      "prevOpponentTurnDestroyedStonesByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "pendingStoneSalvationGodRevivesByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "fateWillControllerByTurnOwner": {
+        "black": null,
+        "white": null
+      },
+      "_presentationEventsPersist": [],
+      "observedHandSlotsByPlayer": {
+        "black": [],
+        "white": []
+      },
+      "handCostAdjustmentsByPlayer": {
+        "black": [
+          null,
+          null
+        ],
+        "white": [
+          null,
+          null
+        ]
+      },
+      "selectedCardOwnerKey": null,
+      "deckRemainingByPlayer": {
+        "black": 91,
+        "white": 91
+      }
+    }
+  }
+}
