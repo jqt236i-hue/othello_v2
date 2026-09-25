@@ -2,7 +2,7 @@
 
 役割: ネット対戦モードで石を置いたとき（自分の着手・相手の着手の受信）に画面が一時的に固まる症状について、2026-09-25 の読み取り専用調査と実ブラウザ計測で得た原因と、UX・UI・ゲーム体験を一切変えずに実施できる改善候補を、変更境界・同一性の検証方法・期待効果・完了条件・順序つきでまとめた実行計画。正本は [ゲーム仕様](../../01-rulebook.md) と [内部契約](../architecture-contracts.md) §7.2–7.3、§8。ルール、authority の結果、playback イベントの列・順序・`eventId`、再接続と replay、非公開情報の投影、演出の見た目・順序・時間・音、入力方法・入力ロック、Single Visual Writer、起動順と配信契約を変更する仕様書ではない。
 
-状態: **計画（未着手）。** 製品コードの変更・本番デプロイ・長時間訓練は行っていない。§9 の進捗表は空。
+状態: **実施済み（2026-09-25）。** C10・C3・C2・C4・C9・C6・C8 を採用してコミットし、C1 は計測で改善を示せず revert、C5・C7 は非採用。結果は §9。本番デプロイ・長時間訓練は行っていない。
 
 前計画 [体験を維持する全面軽量化計画（2026-09-24）](ux-preserving-lightweight-plan-2026-09-24.md) は完了済み。そこで実施した P5（WS フレームの raw-deflate 圧縮、`split-history-v3`、snapshot hash の複製なし計算）と P3（相手手番の commentary metrics 再利用、view-scoped helper、debug 遅延構築）、および同 §2 で否定した候補（クライアント apply 経路の置換、状態クローンの置換、通信 V4 codec）は本計画で再提案しない。
 
@@ -265,9 +265,30 @@
 | 単位 | 状態 | 実測・確認・残件 |
 | --- | --- | --- |
 | 計画時調査 | 完了 | 読み取り専用調査 + ローカル計測。製品コード変更なし。本番アクセスなし。8000 の配信サーバーは無操作 |
-| C1–C10 | 未着手 | — |
+| C10 計測器 | 採用 `47730bde9`、`c31c72024` | `scripts/perf/measure-network-placement-freeze.ts`（`npm run perf:network-placement-freeze`）。3 画面、SSE local / `--server`、`--mobile --throttle`、`--trace`（browser 全体 trace を pid 分割、区間 busy、長タスク帰属）、`--count-ops`、`--app-root`（別ビルドの `index.html` + `vite-dist/` を重ねて A/B）、`--compare`。監視は `getStateVersion()` を読み、`getState()` のクローンを避ける。単体テスト `test/scripts.measure-network-placement-freeze.test.ts`（11 件） |
+| 基準取得 | 完了 | `artifacts/network-placement-freeze/baseline/`（desktop / mobile 4x × opening 8 手 / late-special-20 ×3、trace 付き）。§9.1 |
+| C3 | 採用 `6dfb6edad` | catalog を manifest 同一性で memo、部屋状態 listener の `updateCpuCharacter` を同一署名で抑止。§9.1 の A/B で受信タスク中央値 80→64（opening 相手）、82→64（special 相手）、81→64（special 観戦）ms @4x |
+| C2 | 採用 `4aa6d8bf4` | frames を伴う intake の `GAME_STATE_CHANGED` に `boardRenderOwnedByPresentation` を付け、idle のクライアントは `updateStatus` のみ。frames 無しと playback 中は従来経路 |
+| C1 | 非採用（`de296c346` を `f5cab29cf` で revert） | `performLocalWriterSettlement` が settled と等価な final frame を backend 適用なしで commit する版（単体テスト 49 件通過）は、交互計測で決着タスクの中央値が base より長くなった（`ab-final`: opening 相手 62→82、観戦 63→81 ms @4x）。backend settlement の yield を残した版（`ab-final2`）でも 69→101、68→103 ms、desktop trace（`c1-trace`）でも 21〜29 → 22〜40 ms で短くならない。総 blocking は減るが対象指標が改善しないため §7 の規則で非採用。final frame の構築 2 回と `emitBoardUpdate` 後の再構築は残件（設計へ戻す: committed frame を drain の final frame として再利用する案は、frame-runtime の入力（live `cardState`、overlay、viewer context）を identity で保証する設計が要る） |
+| C4 | 採用 `836bdcb18` | `renderCardUI` の先頭で hand track の `scrollLeft/scrollTop` を 1 回読み、同一 pass の glow key で再利用 |
+| C9 | 採用 `62370f019` | `NetworkMatchClient.isNetworkDebugEnabled()` を追加し、`emitPresentationDebugConsole` の gate から `getState()` のクローンを除去 |
+| C6 | 採用 `37891831d` | `SoundEngine.prepareAudioContext()` と、最初の `pointerdown` 後の 0 ms timer で AudioContext を生成。`init()` の呼び出し先は不変（reset・音量・BGM ボタン・最初の効果音）で、通常のネット対局では最初の効果音まで生成されないことを確認して採用 |
+| C5 | 非採用 | preview hint 描画で model を再利用するには `createBoardRenderProjection` / `buildCurrentCellState` の入力（live `cardState`、選択・pending 状態、mode flag）を完全に列挙する必要があり、同一性を型と grep だけで保証できない。クリック同期処理 30〜60 ms @4x のうち約 12 ms が対象で、A3 の閾値に対して同一性リスクが見合わない |
+| C7 | 非採用 | `frameStoneRevisionSignature`（`ui/pixi/board-scene.ts:942`）は texture の purpose/key と layout/appearance の内容だけで構成され、commit ごとの generation を含まない。決着時の `prepareStaticVisual` は石が変わったセル（爆発・反転）だけで、再生成は契約どおり。`collectRenderablesWithEffects` は Pixi の描画走査そのもので、表示オブジェクト数を減らす以外の手段がなく対象外 |
+| C8 | 採用 `2a9bcf4ca` | journal の digest を同一 events 配列につき 1 回、storage 保存の初期 snapshot の clone+freeze を書き込み時だけに。`stateHashBefore` の再利用は `room.authoritativeStateHash` の最新性を全経路で保証できないため見送り。`test:network:parity` 35/36 suite・`test:match:parity` 10/11 suite 通過（失敗は前計画開始時から存在する `network.playback-event-assembly.contract` の fixture 網羅 1 件で、`artifacts/lightweight-2026-09-24/p6/start-commit-failing-suites.txt` に記載）。`local-match-server.presentation-journal` の timeout 系 1 件は他セッションの高負荷時だけ失敗し、単独では C8 の有無にかかわらず 4/4 通過 |
+| 統合・配信 | 完了 `5d73c8568`、`ba776f4e7` | `npm run worker:prepare`（`build:vite` を含む）と `npm run check:worker-mirror` 通過（C1 revert 後に再実行）。生成物は `index*.html`、`public/module-registry.js`、Worker mirror の該当ファイルだけをコミット（別作業の asset manifest・`worker-public/data/` は含めない）。8000 は無停止で最終ビルド `index.vite-DYrT59FP.js` を配信（HTTP 200、PID 12824 の `serve-with-fallback` → `http-server`）。最終ビルドと同じファイルで 3 画面 2 手のネット対局 smoke（`artifacts/network-placement-freeze/final/smoke-desktop-final.json`）に page error なし。`npm run typecheck` 通過 |
 
-### 9.1 検証コマンド（実装時）
+### 9.1 実施記録（2026-09-25）
+
+- 計測環境: この開発機（Chromium 143 headless、RTX 2070 D3D11、`--mobile --throttle 4` = 390×844 / DPR2 / CPU 4x）。`--app-root` で base（HEAD `47730bde9` のビルド、`index.vite-Bc41vdxX.js`）、C3+C2（`index.vite-DBgBT8pw.js`）、全変更（`index.vite-DLbYw7bO.js`）を同じ手順で交互に測った（`artifacts/network-placement-freeze/ab-all/`、opening 6 手 + late-special-20 ×2 を 1 ラウンド）。
+- 1・2 ラウンド目（機械が空いていた区間）の中央値 @4x: opening の受信タスク base 68–88 → C3+C2 58–83 → 全変更 55–58 ms、決着タスク base 65–97 → 全変更 65–74 ms、着手あたり LoAF blocking base 12–80 → 全変更 20–29 ms。late-special-20 の受信 base 76–94 → 全変更 50–67 ms、決着 base 141–157 → 全変更 123–141 ms、LoAF blocking base 89–140 → 全変更 73–111 ms。
+- 3・4 ラウンド目は別セッションの jest（別プロジェクト、多数の worker）が同時に走り、base を含む全席・全段階が 3〜10 倍に膨らんだ（例: base r4 special の受信 136 ms、全変更 r4 の着手 132 ms）。前計画 §6 の「別作業と同時に走らせない」に反する区間として判定から除外し、1・2 ラウンドと単体・契約テストで採用した。負荷のない時点での再ペア計測は統合検証で行う（下記）。
+- 同一性: `test:network:parity`（35 suite）、`test:match:parity`、board-visual / presentation-handler / card-renderer / hand-skin / sound / intake / snapshot の各 suite が通過。C1 は `frame:equivalent-committed` を local settlement でも記録し、等価でない final frame は従来どおり backend 適用（単体テストで固定）。C2 は playback 中・frames 無しの経路を単体テストで固定。C3 は listener が seats / seatNames / seatHandSkins / viewerRole / active の変化で従来どおり呼ばれることを固定。C8 は `npm run perf:network-storage` の書き込みバイト（light 24,922 / dense 39,210 / special 161,026 B、差は createdAt の桁数）と wire 往復一致。
+- 計測器の副作用: 初期版は監視ループが `getState()` を毎フレーム呼び、着手あたり約 3,400 回の `structuredClone` を計上していた。`getStateVersion()` に置き換え、`--count-ops` のアプリ自身の値は着手あたり 20〜35 回。
+- 最終確認（`ab-final`、`ab-final2`: 全変更ビルド ↔ base を 2 ラウンドずつ、外部負荷 30〜57% が残る条件）: 受信タスク中央値は opening 相手 77→56 / 86→75、観戦 79→68 / 95→81 ms、late-special-20 相手 77→61 / 89→69、観戦 78→51 / 88→69 ms、着手側の special 受信 62→59 / 68→51 ms、クリック 73→61 ms で、C3・C2・C4・C9 の受信・着手側の効果は負荷下でも一貫して残る。決着タスクは C1 込みで悪化したため C1 だけを revert した（上表）。最終ツリー（C1 なし）は `all2` から C1 を除いたものに等しく、決着タスクは base と同じ経路。
+- 未実施: 外部負荷のない状態での再ペア計測（他セッションの jest が終了してから `npm run perf:network-placement-freeze -- --mobile --throttle 4 --app-root artifacts/network-placement-freeze/apps/base` と最終ビルドを交互に 3 ラウンド）。実機・実回線・本番は §8 のまま未確認。
+
+### 9.2 検証コマンド（実装時）
 
 定義は [package.json](../../package.json) を参照する。
 
