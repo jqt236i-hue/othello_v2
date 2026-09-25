@@ -1337,10 +1337,36 @@ function _buildHandGlowLayoutSignature(ownerKey: any, entryStates: any[]) {
             }))
     });
 }
+// `scrollLeft` / `scrollTop` force a synchronous layout when read after the hand DOM was
+// mutated in the same render. `renderCardUI` reads them once before its own mutations and the
+// glow sync reuses those values within that render pass; other callers still read live.
+const handGlowScrollPrefetchByTrack = new WeakMap<any, { left: number; top: number; pass: number }>();
+let handGlowScrollPrefetchPass = 0;
+let handGlowScrollPrefetchActive = false;
+function _prefetchHandGlowScrollPositions(containerEls: any[]) {
+    handGlowScrollPrefetchPass += 1;
+    handGlowScrollPrefetchActive = true;
+    for (const containerEl of containerEls) {
+        const handTrackEl = containerEl && typeof containerEl.querySelector === 'function'
+            ? containerEl.querySelector('.hand-track')
+            : null;
+        if (!handTrackEl) continue;
+        handGlowScrollPrefetchByTrack.set(handTrackEl, {
+            left: Number(handTrackEl.scrollLeft) || 0,
+            top: Number(handTrackEl.scrollTop) || 0,
+            pass: handGlowScrollPrefetchPass
+        });
+    }
+}
+function _endHandGlowScrollPrefetch() {
+    handGlowScrollPrefetchActive = false;
+}
 function _buildHandGlowScrollKey(handTrackEl: any) {
+    const prefetched = handGlowScrollPrefetchActive && handTrackEl ? handGlowScrollPrefetchByTrack.get(handTrackEl) : null;
+    const usePrefetched = !!(prefetched && prefetched.pass === handGlowScrollPrefetchPass);
     return JSON.stringify({
-        trackScrollLeft: Number(handTrackEl && handTrackEl.scrollLeft) || 0,
-        trackScrollTop: Number(handTrackEl && handTrackEl.scrollTop) || 0,
+        trackScrollLeft: usePrefetched ? prefetched!.left : (Number(handTrackEl && handTrackEl.scrollLeft) || 0),
+        trackScrollTop: usePrefetched ? prefetched!.top : (Number(handTrackEl && handTrackEl.scrollTop) || 0),
         childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
     });
 }
@@ -1839,7 +1865,16 @@ function renderCardUI() {
     if (!gameState || !Array.isArray(gameState.board) || gameState.board.length <= 0 || !cardState) {
         return;
     }
-    const { deckBlackEl, deckWhiteEl, handBlackEl, handWhiteEl } = _getPlayerSlotElementsForRender();
+    const slotElements = _getPlayerSlotElementsForRender();
+    _prefetchHandGlowScrollPositions([slotElements.handBlackEl, slotElements.handWhiteEl]);
+    try {
+        return _renderCardUIWithPrefetchedLayout(gameState, cardState, slotElements);
+    } finally {
+        _endHandGlowScrollPrefetch();
+    }
+}
+function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotElements: any) {
+    const { deckBlackEl, deckWhiteEl, handBlackEl, handWhiteEl } = slotElements;
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const matchMode = _getCurrentMatchMode();
     const visibleOwners = _resolveVisibleChargeOwners(matchMode);

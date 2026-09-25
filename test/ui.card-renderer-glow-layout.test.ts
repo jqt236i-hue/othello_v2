@@ -117,6 +117,33 @@ describe('card renderer hand glow layout cache', () => {
     expect(rectSpy.mock.calls.length).toBeGreaterThan(afterScroll);
   });
 
+  test('reads hand track scroll offsets once per render pass instead of at glow sync time', () => {
+    const renderer = require('../cards/card-renderer.js');
+    renderer.renderCardUI();
+    const tracks = Array.from(document.querySelectorAll('.hand-track')) as HTMLElement[];
+    expect(tracks.length).toBeGreaterThan(0);
+    let scrollLeftReads = 0;
+    const originalDescriptor = Object.getOwnPropertyDescriptor(dom.window.Element.prototype, 'scrollLeft');
+    Object.defineProperty(dom.window.Element.prototype, 'scrollLeft', {
+      configurable: true,
+      get() {
+        scrollLeftReads += 1;
+        return 0;
+      },
+      set() { /* jsdom has no layout */ }
+    });
+    try {
+      renderer.renderCardUI();
+      expect(scrollLeftReads).toBe(tracks.length);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(dom.window.Element.prototype, 'scrollLeft', originalDescriptor);
+      } else {
+        delete (dom.window.Element.prototype as any).scrollLeft;
+      }
+    }
+  });
+
   test('identical hand input returns before reading cached layout dimensions', () => {
     let clientWidthReads = 0;
     const originalDescriptor = Object.getOwnPropertyDescriptor(dom.window.HTMLElement.prototype, 'clientWidth');
