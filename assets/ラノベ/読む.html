@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Reversi Destiny ～黒白の運命～</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600;700&family=Shippori+Mincho:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f4ead6;
+      --paper-edge: #e7d9bc;
+      --ink: #2a241c;
+      --ink-soft: #5b5146;
+      --rule: #c9b89a;
+      --accent: #1c1c1c;
+      --stone-w: #f7f3ea;
+      --stone-b: #161616;
+      --shadow: rgba(40, 28, 12, 0.12);
+      --header-h: 3.4rem;
+      --toc-w: 18rem;
+      --measure: 40em;
+      --fs: 18px;
+      --lh: 2.18;
+      --tap: 44px;
+    }
+    html[data-theme="white"] {
+      --paper: #fbfaf6;
+      --paper-edge: #ece8dc;
+      --ink: #222;
+      --ink-soft: #666;
+      --rule: #ddd6c8;
+    }
+    html[data-theme="night"] {
+      --paper: #161412;
+      --paper-edge: #24201c;
+      --ink: #e8dfd0;
+      --ink-soft: #b3a792;
+      --rule: #3a342c;
+      --shadow: rgba(0, 0, 0, 0.4);
+      --stone-w: #efe7d6;
+      --stone-b: #0c0c0c;
+    }
+    * { box-sizing: border-box; }
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      scroll-padding-top: calc(var(--header-h) + 0.6rem);
+    }
+    html.toc-open, html.sheet-open { overflow: hidden; }
+    body {
+      font-family: "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, a { font: inherit; color: inherit; }
+    button {
+      background: none;
+      border: 0;
+      cursor: pointer;
+      padding: 0;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Cover */
+    .cover {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255,255,255,0.05), transparent 28%),
+        linear-gradient(#0d0d0d, #161616 55%, #0a0a0a);
+      color: #f4ead6;
+      display: grid;
+      place-items: center;
+      padding: max(2rem, env(safe-area-inset-top)) 1.2rem max(2.4rem, env(safe-area-inset-bottom));
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: "";
+      position: absolute;
+      inset: 8% 10%;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(circle at 50% 40%, #000 20%, transparent 72%);
+      pointer-events: none;
+    }
+    .cover-inner {
+      position: relative;
+      max-width: 28rem;
+      text-align: center;
+    }
+    .stones {
+      width: 7.4rem;
+      height: 4.6rem;
+      margin: 0 auto 1.8rem;
+      position: relative;
+    }
+    .stone {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      position: absolute;
+      top: 0.5rem;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+    }
+    .stone.b { left: 0.4rem; background: radial-gradient(circle at 35% 32%, #3a3a3a, #111 62%); }
+    .stone.w { right: 0.4rem; background: radial-gradient(circle at 35% 32%, #fff, #e6e0d4 70%); }
+    .cover-kicker {
+      letter-spacing: 0.62em;
+      font-size: 0.72rem;
+      color: #cbbfa6;
+      margin: 0 0 0.9rem 0.62em;
+    }
+    .cover h1 {
+      font-family: "Shippori Mincho", "Noto Serif JP", serif;
+      font-weight: 700;
+      font-size: clamp(1.8rem, 6vw, 2.5rem);
+      letter-spacing: 0.12em;
+      margin: 0;
+      line-height: 1.35;
+    }
+    .cover h1 small {
+      display: block;
+      margin-top: 0.45rem;
+      font-size: 0.62em;
+      letter-spacing: 0.28em;
+      font-weight: 600;
+    }
+    .cover-rule {
+      width: 4.5rem;
+      height: 1px;
+      background: #cbbfa6;
+      margin: 1.5rem auto;
+    }
+    .cover-copy {
+      margin: 0;
+      color: #d9ccb3;
+      letter-spacing: 0.18em;
+      font-size: 0.92rem;
+    }
+    .cover-start {
+      margin-top: 2.2rem;
+      border: 1px solid #d9ccb3;
+      padding: 0.85rem 1.8rem;
+      min-height: var(--tap);
+      min-width: 12rem;
+      letter-spacing: 0.42em;
+      font-size: 0.82rem;
+      color: #f4ead6;
+    }
+    .cover-start:hover { background: #f4ead6; color: #111; }
+    .cover-vols {
+      margin: 2.4rem 0 0;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+      color: #cfc3aa;
+      font-size: 0.9rem;
+      line-height: 1.9;
+    }
+    .cover-vols li { display: grid; grid-template-columns: 4.6em 1fr; gap: 0.6rem; letter-spacing: 0.08em; }
+    .cover-vols span { color: #8f8676; }
+
+    /* App chrome */
+    .app { display: none; }
+    html.is-reading .cover { display: none; }
+    html.is-reading .app { display: block; }
+    .icon-btn {
+      min-width: var(--tap);
+      min-height: var(--tap);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+      color: var(--ink);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0 0.55rem 0 0.8rem;
+      padding-top: env(safe-area-inset-top);
+      background: var(--paper);
+      background: color-mix(in srgb, var(--paper) 92%, transparent);
+      border-bottom: 1px solid var(--rule);
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .brand strong {
+      font-family: "Shippori Mincho", serif;
+      font-size: 0.86rem;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brand small {
+      color: var(--ink-soft);
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tools {
+      display: flex;
+      gap: 0.15rem;
+      align-items: center;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+    .tools button, .tools select, .sheet button, .sheet select {
+      min-height: 2.1rem;
+      padding: 0 0.55rem;
+      border: 1px solid transparent;
+      color: var(--ink-soft);
+      letter-spacing: 0.06em;
+      font-size: 0.74rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .tools button:hover, .tools select:hover { color: var(--ink); border-color: var(--rule); }
+    .tools select, .sheet select { background: transparent; outline: none; }
+
+    .toc-backdrop, .sheet-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 16, 12, 0.4);
+      z-index: 30;
+    }
+    html.toc-open .toc-backdrop,
+    html.sheet-open .sheet-backdrop { display: block; }
+    .toc {
+      background: var(--paper);
+      overflow: auto;
+      padding: 1.1rem 1rem 2rem;
+    }
+    .toc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
+    }
+    .toc h2 {
+      font-family: "Shippori Mincho", serif;
+      font-size: 1rem;
+      letter-spacing: 0.28em;
+      margin: 0;
+    }
+    .toc-vol { margin: 0 0 1.3rem; }
+    .toc-vol h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+    }
+    .toc-vol h3 span {
+      display: block;
+      color: var(--ink-soft);
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      font-weight: 500;
+    }
+    .toc-blurb { margin: 0.25rem 0 0.5rem; color: var(--ink-soft); font-size: 0.78rem; }
+    .toc-links { display: grid; gap: 0.08rem; }
+    .toc a {
+      text-decoration: none;
+      padding: 0.42rem 0.3rem;
+      display: block;
+      font-size: 0.84rem;
+      line-height: 1.5;
+      border-radius: 4px;
+    }
+    .toc a.has-label {
+      display: grid;
+      grid-template-columns: 4.6em 1fr;
+      gap: 0.4rem;
+      align-items: baseline;
+    }
+    .toc a:hover { background: color-mix(in srgb, var(--rule) 35%, transparent); }
+    .toc-label { color: var(--ink-soft); letter-spacing: 0.08em; font-size: 0.74em; }
+    .toc-foot { margin-top: 1.2rem; padding-top: 0.9rem; border-top: 1px solid var(--rule); }
+    .toc-foot a { letter-spacing: 0.16em; }
+
+    .reader-main { min-width: 0; }
+    .page {
+      max-width: var(--measure);
+      margin: 0 auto;
+      padding: 2.4rem 1.6rem 5rem;
+      font-size: var(--fs);
+      line-height: var(--lh);
+      letter-spacing: 0.04em;
+    }
+    .chapter, .volume-open { scroll-margin-top: calc(var(--header-h) + 0.8rem); }
+    .volume { padding-bottom: 2rem; }
+    .volume + .volume { margin-top: 1.2rem; }
+    .volume-open {
+      text-align: center;
+      padding: 3.4rem 0 2.8rem;
+    }
+    .volume-label {
+      margin: 0;
+      letter-spacing: 0.42em;
+      color: var(--ink-soft);
+      font-size: 0.78em;
+      text-indent: 0.42em;
+    }
+    .volume-open h1 {
+      font-family: "Shippori Mincho", serif;
+      font-weight: 700;
+      font-size: 1.85em;
+      letter-spacing: 0.2em;
+      margin: 0.7rem 0 0;
+    }
+    .volume-rule {
+      width: 3.2rem;
+      height: 1px;
+      margin: 1.4rem auto 0;
+      background: var(--rule);
+    }
+    .chapter { padding-top: 0.2rem; }
+    .chapter-head {
+      text-align: center;
+      margin: 3em 0 2.1em;
+    }
+    .chapter-label {
+      margin: 0;
+      color: var(--ink-soft);
+      letter-spacing: 0.38em;
+      font-size: 0.78em;
+      text-indent: 0.38em;
+    }
+    .chapter-head h2 {
+      font-family: "Shippori Mincho", serif;
+      font-weight: 700;
+      font-size: 1.28em;
+      letter-spacing: 0.16em;
+      margin: 0.55rem 0 0;
+      line-height: 1.5;
+    }
+    .subhead {
+      font-family: "Shippori Mincho", serif;
+      font-size: 1.02em;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-align: center;
+      margin: 2.4em 0 1.3em;
+    }
+    .page p { margin: 0; text-indent: 1em; }
+    .scene-break {
+      text-align: center;
+      text-indent: 0 !important;
+      letter-spacing: 0.55em;
+      color: var(--ink-soft);
+      margin: 1.8em 0 !important;
+    }
+    .notes {
+      display: none;
+      max-width: var(--measure);
+      margin: 0 auto;
+      padding: 2.4rem 1.6rem 5rem;
+      font-size: 0.95rem;
+      line-height: 1.95;
+    }
+    html.show-notes .page { display: none; }
+    html.show-notes .notes { display: block; }
+    .notes h2, .notes h3 { font-family: "Shippori Mincho", serif; letter-spacing: 0.12em; }
+    .notes ul { padding-left: 1.2em; }
+    .note-table { width: 100%; border-collapse: collapse; font-size: 0.88em; margin: 1em 0 1.4em; }
+    .note-table th, .note-table td {
+      border-bottom: 1px solid var(--rule);
+      text-align: left;
+      padding: 0.45em 0.4em;
+      vertical-align: top;
+    }
+    .pager {
+      max-width: var(--measure);
+      margin: 0 auto;
+      padding: 0 1.6rem 3.5rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+    }
+    .pager button {
+      min-height: var(--tap);
+      padding: 0 0.8rem;
+    }
+    .pager button:hover { color: var(--ink); }
+    .sheet {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      background: var(--paper);
+      border-top: 1px solid var(--rule);
+      padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+      box-shadow: 0 -12px 32px var(--shadow);
+    }
+    html.sheet-open .sheet { display: block; }
+    html.sheet-open .pager { visibility: hidden; pointer-events: none; }
+    .sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
+    }
+    .sheet h3 {
+      margin: 0;
+      font-family: "Shippori Mincho", serif;
+      letter-spacing: 0.16em;
+      font-size: 0.95rem;
+    }
+    .sheet-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-bottom: 0.7rem;
+    }
+    .sheet-row button, .sheet-row select {
+      min-height: var(--tap);
+      border: 1px solid var(--rule) !important;
+      font-size: 1rem;
+    }
+
+    html[data-dir="vertical"] .page {
+      max-width: none;
+      writing-mode: vertical-rl;
+      height: calc(100dvh - var(--header-h) - 1.5rem);
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 2rem 3rem 2rem 2.2rem;
+    }
+    html[data-dir="vertical"] .volume-open,
+    html[data-dir="vertical"] .chapter-head,
+    html[data-dir="vertical"] .subhead,
+    html[data-dir="vertical"] .scene-break { text-align: center; }
+    html[data-dir="vertical"] .pager,
+    html[data-dir="vertical"] .notes { display: none; }
+    html[data-dir="vertical"].show-notes .notes {
+      display: block;
+      writing-mode: vertical-rl;
+      height: calc(100dvh - var(--header-h) - 1.5rem);
+      overflow-x: auto;
+      max-width: none;
+    }
+
+    /* PC */
+    @media (min-width: 860px) {
+      .mobile-only { display: none !important; }
+      html.is-reading .app {
+        display: grid;
+        grid-template-columns: var(--toc-w) minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        min-height: 100dvh;
+      }
+      .topbar { grid-column: 1 / -1; }
+      html.is-reading .toc {
+        grid-column: 1;
+        grid-row: 2;
+        position: sticky;
+        top: var(--header-h);
+        height: calc(100dvh - var(--header-h));
+        border-right: 1px solid var(--rule);
+        background: color-mix(in srgb, var(--paper) 72%, var(--paper-edge));
+      }
+      .reader-main { grid-column: 2; grid-row: 2; }
+      .toc-head .icon-btn { display: none; }
+      .page, .notes { padding: 2.6rem 2rem 4.5rem; }
+    }
+
+    /* Phone */
+    @media (max-width: 859.98px) {
+      .pc-only { display: none !important; }
+      :root { --fs: 17px; --lh: 1.95; --header-h: 3.15rem; }
+      .cover-inner { max-width: 22rem; }
+      .cover-start { width: min(16rem, 100%); }
+      .cover-copy { letter-spacing: 0.1em; font-size: 0.86rem; }
+      .cover-vols { font-size: 0.86rem; }
+      .brand strong { font-size: 0.78rem; }
+      .topbar { gap: 0.15rem; }
+      .toc {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 40;
+        width: min(22rem, 100vw);
+        height: 100dvh;
+        transform: translateX(-105%);
+        transition: transform 0.22s ease;
+        padding-top: max(1rem, env(safe-area-inset-top));
+        background: color-mix(in srgb, var(--paper) 82%, var(--paper-edge));
+        box-shadow: 12px 0 32px var(--shadow);
+      }
+      html.toc-open .toc { transform: none; }
+      .toc a { min-height: 2.4rem; padding: 0.55rem 0.35rem; }
+      .page, .notes {
+        padding: 1.35rem 1.05rem calc(5.6rem + env(safe-area-inset-bottom));
+        letter-spacing: 0.02em;
+      }
+      .volume-open { padding: 2.2rem 0 1.8rem; }
+      .volume-open h1 { font-size: 1.5em; letter-spacing: 0.14em; }
+      .chapter-head { margin: 2.2em 0 1.5em; }
+      .chapter-head h2 { font-size: 1.16em; }
+      .pager {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 15;
+        max-width: none;
+        margin: 0;
+        background: var(--paper);
+        border-top: 1px solid var(--rule);
+        padding: 0.15rem 0.6rem calc(0.25rem + env(safe-area-inset-bottom));
+      }
+      html[data-dir="vertical"] .page {
+        height: calc(100dvh - var(--header-h) - 4.2rem - env(safe-area-inset-bottom));
+        padding: 1.2rem 1.6rem;
+      }
+      html[data-dir="vertical"] .pager { display: flex; }
+    }
+  </style>
+</head>
+<body>
+  <section class="cover" id="cover">
+    <div class="cover-inner">
+      <div class="stones" aria-hidden="true">
+        <span class="stone b"></span>
+        <span class="stone w"></span>
+      </div>
+      <p class="cover-kicker">NOVEL</p>
+      <h1>Reversi Destiny<small>～黒白の運命～</small></h1>
+      <div class="cover-rule"></div>
+      <p class="cover-copy">黒と白の、そのあいだを読む</p>
+      <button class="cover-start" type="button" id="start">本編を開く</button>
+      <ul class="cover-vols">
+        <li><span>第一巻</span>終わった人間</li>
+        <li><span>第二巻</span>骸の虚影</li>
+        <li><span>第三巻</span>観測者の道</li>
+        <li><span>第四巻</span>執行者の道</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="app" id="app">
+    <header class="topbar">
+      <button class="icon-btn mobile-only" type="button" id="toc-btn" aria-controls="toc" aria-label="目次を開く">目次</button>
+      <div class="brand">
+        <strong>Reversi Destiny</strong>
+        <small id="now-reading">～黒白の運命～</small>
+      </div>
+      <div class="tools">
+        <button class="pc-only" type="button" data-fs="-">A−</button>
+        <button class="pc-only" type="button" data-fs="+">A＋</button>
+        <button class="pc-only dir-btn" type="button">縦組</button>
+        <select class="pc-only theme-sel" aria-label="紙面">
+          <option value="ivory">生成り</option>
+          <option value="white">白</option>
+          <option value="night">夜</option>
+        </select>
+        <button class="pc-only cover-btn" type="button">表紙</button>
+        <button class="icon-btn mobile-only" type="button" id="sheet-btn" aria-controls="sheet">設定</button>
+      </div>
+    </header>
+
+    <div class="toc-backdrop" id="toc-backdrop"></div>
+    <aside class="toc" id="toc" aria-label="目次">
+      <div class="toc-head">
+        <h2>目次</h2>
+        <button class="icon-btn mobile-only" type="button" id="toc-close" aria-label="目次を閉じる">閉じる</button>
+      </div>
+      <section class="toc-vol">
+              <h3><span>第一巻</span>終わった人間</h3>
+              <p class="toc-blurb">世界大会決勝から、理論盤界の入口まで。</p>
+              <div class="toc-links"><a class="has-label" href="#vol1-chapter-1-プロローグ-世界大会決勝"><span class="toc-label">プロローグ</span><span>世界大会決勝</span></a><a class="has-label" href="#vol1-chapter-2-第一章-終わった人間"><span class="toc-label">第一章</span><span>終わった人間</span></a><a class="has-label" href="#vol1-chapter-3-第二章-理論盤界と最初の対局"><span class="toc-label">第二章</span><span>理論盤界と最初の対局</span></a><a class="has-label" href="#vol1-chapter-4-第三章-多動村と究極多動神"><span class="toc-label">第三章</span><span>多動村と究極多動神</span></a><a class="has-label" href="#vol1-chapter-5-第四章-意志狩りの王"><span class="toc-label">第四章</span><span>意志狩りの王</span></a></div>
+            </section>
+<section class="toc-vol">
+              <h3><span>第二巻</span>骸の虚影</h3>
+              <p class="toc-blurb">父との対局、観測の罪、黒白の分岐。</p>
+              <div class="toc-links"><a class="has-label" href="#vol2-chapter-1-第五章-骸の虚影"><span class="toc-label">第五章</span><span>骸の虚影</span></a><a class="has-label" href="#vol2-chapter-2-第六章-変貌の兆し"><span class="toc-label">第六章</span><span>変貌の兆し</span></a><a class="has-label" href="#vol2-chapter-3-第七章-観測者の罪と大分岐"><span class="toc-label">第七章</span><span>観測者の罪と大分岐</span></a><a href="#vol2-sub-4-観測者を選ぶ"><span>観測者を選ぶ</span></a><a href="#vol2-sub-5-執行者を選ぶ"><span>執行者を選ぶ</span></a></div>
+            </section>
+<section class="toc-vol">
+              <h3><span>第三巻</span>観測者の道</h3>
+              <p class="toc-blurb">続きを探す道と、観測者ルートの結末。</p>
+              <div class="toc-links"><a class="has-label" href="#vol3-chapter-1-第八章-理論の化身"><span class="toc-label">第八章</span><span>理論の化身</span></a><a class="has-label" href="#vol3-chapter-2-最終章-そこまでの一手"><span class="toc-label">最終章</span><span>そこまでの一手</span></a><a class="has-label" href="#vol3-chapter-3-結末-真白対面"><span class="toc-label">結末</span><span>真白対面</span></a><a class="has-label" href="#vol3-chapter-4-結末-真白最期観測"><span class="toc-label">結末</span><span>真白最期観測</span></a><a class="has-label" href="#vol3-chapter-5-結末-終局の先へ"><span class="toc-label">結末</span><span>終局の先へ</span></a></div>
+            </section>
+<section class="toc-vol">
+              <h3><span>第四巻</span>執行者の道</h3>
+              <p class="toc-blurb">循環を守る道と、どちらからでも届く結末。</p>
+              <div class="toc-links"><a class="has-label" href="#vol4-chapter-1-第八章-理論の化身"><span class="toc-label">第八章</span><span>理論の化身</span></a><a class="has-label" href="#vol4-chapter-2-最終章-そこまでの一手"><span class="toc-label">最終章</span><span>そこまでの一手</span></a><a class="has-label" href="#vol4-chapter-3-結末-空白の帰還"><span class="toc-label">結末</span><span>空白の帰還</span></a><a class="has-label" href="#vol4-chapter-4-結末-白黒つかない明日"><span class="toc-label">結末</span><span>白黒つかない明日</span></a><a class="has-label" href="#vol4-chapter-5-結末-終局の先へ"><span class="toc-label">結末</span><span>終局の先へ</span></a><a class="has-label" href="#vol4-chapter-6-結末-誰も知らない一手"><span class="toc-label">結末</span><span>誰も知らない一手</span></a><a class="has-label" href="#vol4-chapter-7-結末-白を失った盤面"><span class="toc-label">結末</span><span>白を失った盤面</span></a></div>
+            </section>
+      <div class="toc-foot">
+        <a href="#notes" id="notes-link">凡例</a>
+      </div>
+    </aside>
+
+    <div class="reader-main">
+      <main class="page" id="page">
+        <article class="volume" id="vol1" data-volume="vol1">
+              <header class="volume-open">
+                <p class="volume-label">第一巻</p>
+                <h1>終わった人間</h1>
+                <p class="volume-rule" aria-hidden="true"></p>
+              </header>
+              <section class="chapter" id="vol1-chapter-1-プロローグ-世界大会決勝">
+<header class="chapter-head">
+<p class="chapter-label">プロローグ</p>
+<h2>世界大会決勝</h2>
+</header>
+<p>控室の照明は、白すぎた。</p>
+<p>白い光は盤面を公平に見せるためのもので、人の顔までは公平にしない。黒夜の指先だけが冷たい。掌の汗は、対局前のいつものものではなかった。いつものものなら、拭って終わりだ。拭っても、画面の向こうの白い天井は消えない。</p>
+<p>手元の端末に、病室が映っている。角度が低い。真白が枕に沈み、カメラを自分の方へ寄せている。画面の端で、点滴の管が細い線になって光った。</p>
+<p>実況の声が、控室の壁を薄く揺らす。会場は隣の棟だ。扉一枚の外で、世界が黒夜の名を呼んでいる。</p>
+<p class="dialogue">「国内公式戦無敗。世界初挑戦で決勝まで進んだ若き天才——黒夜！」</p>
+<p>拍手が降る。黒夜はそれに応えなかった。応える席に、まだ座っていない。真白の顔を見ていた。</p>
+<p>真白は明るく、元気で、優しい。正義感のある子だ。ここでの元気は気質であって、病弱を取り消すものではない。生まれつき、解明されていない病気を持っている。入退院を繰り返し、学校に通えない時期も多い。基本的には明るい。明るいまま、ときどき落ちる。落ちた夜のことは、黒夜の中に残っている。今は、からかう側に戻っていた。</p>
+<p class="dialogue">「兄ちゃん、その顔」</p>
+<p>真白が、画面のこちらを覗き込む。黒夜の頬が固いのを、すぐに見つけた。</p>
+<p class="dialogue">「盤、見てないで、カメラ見てる？」</p>
+<p class="dialogue">「うるさい」</p>
+<p class="dialogue">「ふふ。見てるね。ちゃんと」</p>
+<p>声は明るい。弱い息の上に、明るさを乗せている。乗せ方を、真白は長い入院で覚えてしまった。黒夜はそれを知っている。知っているから、医療の話を詳しくしない。優勝すれば治療につながる可能性がある。確約ではない。最後の望み。制度の説明は、しない。妹に負担を感じさせないためだ。黒夜は、真白が自分の勝利を望んでいると考えていた。真白が本当に見ていたのは、勝っている兄ではなく、盤面へ向かっている兄だった。そのずれは、まだ誰の口からも出ない。</p>
+<p class="dialogue">「見たいんだろ。俺が世界で勝つところ」</p>
+<p class="dialogue">「うん。見てるね」</p>
+<p class="dialogue">「なら、見てろ」</p>
+<p>真白が小さく舌を出す。からかいの残滓だ。黒夜は「うるさい」としか返せない。優しさを直接説明せず、約束と行動で示す。それが、兄としての黒夜のやり方だった。</p>
+<p>対戦相手の名が、会場を一度、静かにする。控室のスピーカーが、その静けさを遅れて運んでくる。</p>
+<p>過去に一度だけ世界大会へ現れ、圧倒的な内容で優勝した男。公式戦から姿を消し、今回、二度目の世界大会へ突如復帰した——盤上の神。</p>
+<p>黒夜は棋譜を読んでいた。夜を使って読んだ。人間同士の対局なら、自分の読みは届く。純粋な実力なら、勝てる。根拠のない強がりではない。終局までの手順は、自分の側にある。その確信が、いちばん危なかった。確信は、家族のノイズを計算に入れていなかった。</p>
+<p>黒夜が世界大会への出場をそれまで断っていたのは、真白を残して海外へ行くことへの不安と、家庭や金銭面の問題があったためだ。優勝が治療の可能性につながると知り、初めて出ることを決めた。打つと決めたのは、自分だ。そのことは、まだ誰にも、別の意味を持たされていない。</p>
+<p class="scene-break" aria-hidden="true">＊　＊　＊</p>
+<p>決勝直前、画面の向こうで人の気配が乱れた。</p>
+<p>真白の容体が急変する。白い天井が揺れる。誰かの声が、距離を測れない速さで重なる。カメラが落ちかけ、真白の顔が枠の外へ滑る。黒夜は椅子から立ち上がった。帰国するか。決勝に残るか。その二つだけが、視野を占有する。盤面は、まだ隣の棟にある。妹は、画面の向こうの国にある。両方に、同時には立てない。</p>
+<p>長く家に寄りつかない父へ、最後のメッセージを送る。指が遅れた。文章は短くした。説明は、もう要らないと思った。母の死後、父はほとんど家へ帰らず、最低限の金だけを残すようになった。真白の見舞いにも来ない。事情も説明しない。黒夜は、父を家族を捨てた人間だと認識している。その認識のまま、なお頼む。頼む相手を、他に持っていなかった。</p>
+<p class="dialogue">『息子として、最後に頼む』</p>
+<p class="dialogue">『真白を一人にしないでくれ』</p>
+<p>既読はつく。</p>
+<p>返事はない。</p>
+<p>画面のこちらで、真白が弱く息を吸った。からかいの残っていた声が、細い糸になる。糸は、しかし切れない。真白は弱い声で、黒夜の背中を押した。</p>
+<p class="dialogue">「勝って。約束したでしょ」</p>
+<p>黒夜は、うなずいた。うなずいた自分の顔が、画面の端に小さく映る。真白はそれを見て、また笑おうとした。笑いきれなかった。</p>
+<p>決勝に残る。</p>
+<p>残ると決めた瞬間から、盤面は遠ざかった。真白への心配。帰国しなかったことへの迷い。父への怒り。世界大会のために妹のそばを離れている罪悪感。普段なら一呼吸で切り捨てるノイズが、石の間に入り込む。黒夜は、家族に関わる局面で感情を切り離せない。その弱点を、自分でも知っていた。知っていて、なお盤の前に座る。座らなければ、約束が空になる。座れば、そばにいない。どちらを選んでも、欠けが残る。欠けを抱えたまま、黒夜は石を手に取った。</p>
+<p>会場の光が、盤を白くする。観客の熱が、遠い。盤上の神は、静かに座っていた。人の顔をしていた。それ以上のことは、黒夜の目に入らない。相手は黒夜の動揺を、憐れむでもなく、急かすでもなく、ただ盤面の条件として置いている。置く手が、速いわけではない。速い必要がない手に見えた。終局が、相手の側から先に見えているような静けさ。黒夜は、その静けさを棋譜で知っていた。知っていることと、今この盤で読むことは、別だった。</p>
+<p>本来なら勝てる。その言葉が、内側で空転する。</p>
+<p>一手。また一手。正しいはずの場所へ石を置き、置いたあとで、それが正しいのか分からなくなる。真白の弱い声が、石の裏で鳴る。父の既読だけが残った画面が、まぶたの裏に残る。読みは、終局までの手順を拾い続ける。拾いながら、拾った手順の途中で、病室の白を見てしまう。見てしまった半拍が、次の一手の座標をずらす。ずらした座標は、まだ致命ではない。致命ではないずれが、次のずれを呼ぶ。</p>
+<p>一瞬、迷った。</p>
+<p>その一瞬が、敗着になった。</p>
+<p>石を置いた指先の感触だけが、ひどくはっきりしている。置いてから、別の場所が見えた。見えた時には、もう置けない。盤上の神は、勝った顔をしなかった。終わった盤面を見る目は、すでに次の未知を探しているように見えた。黒夜には、その意味は分からない。分かるのは、自分が公式戦で初めて負けたことだけだった。</p>
+<p>会場の音が、遅れて戻ってくる。</p>
+<p>国内公式戦無敗。その言葉が、実況の残響として落ちる。無敗は、過去形になった。実力不足の敗北ではなかった。家族のことで動揺して打った、敗着だ。黒夜は盤面を見続けた。終局は、もう動かない。動かない終局を、なお読もうとする自分がいた。読めば読むほど、迷いの入った一手だけが、黒い穴のように広がる。</p>
+<p>隣の棟で、拍手が、勝者の名に集まっていく。黒夜は椅子から立ち上がらなかった。立ち上がる理由が、盤の上に残っていなかった。端末の画面は、すでに真白の顔を映していない。誰かの手で、通信が切れていた。切れた画面の黒が、敗着の穴と重なる。</p>
+<p class="scene-break" aria-hidden="true">＊　＊　＊</p>
+<p>帰国した黒夜を待っていたのは、真白の死だった。</p>
+<p>病室の匂いが、先に残っている。人のいないベッド。畳まれた白い布。誰かが、静かな声で経緯を話す。黒夜は聞いていた。聞いているのに、言葉が意味になるまで時間がかかる。勝って、と押された背中。見てるね、と笑った口。約束したでしょ、と残した声。声の置いていかれた部屋に、黒夜は遅れて入った。</p>
+<p>父も、病院には来なかった。</p>
+<p>既読はついていた。返事はなかった。来なかった。それだけが、事実として積もる。黒夜の憎しみは、そこで決定的になる。見捨てた。最後まで見捨てた。その一文が、四年間、腐らずに残る。</p>
+<p>自分は勝てず、救えず、最期にも間に合わなかった。</p>
+<p>真白に勧められたとはいえ、最後に妹のそばを離れると決めたのは自分だった。しかも一番大事な決勝で勝利を見せることすらできず、最期にも間に合わなかった。そのすべてを、自分の判断が招いた、取り返しのつかない敗北として抱え込む。</p>
+<p>黒夜の世界は、そこで終わる。</p>
+<p>終わったあとも、体は生きていた。それが、いちばん残酷だった。</p>
+</section>
+<section class="chapter" id="vol1-chapter-2-第一章-終わった人間">
+<header class="chapter-head">
+<p class="chapter-label">第一章</p>
+<h2>終わった人間</h2>
+</header>
+<p>真白の死から、四年。</p>
+<p>黒夜はリバーシを捨てた。盤面を見ると、敗着の感触が指に残る。残るなら、見なければいい。見なければ、勝てなかったことも、間に合わなかったことも、少しは遠ざかるはずだった。遠ざからなかった。捨てた盤は、部屋の隅で布を被ったまま、季節だけを重ねた。布の下の格子は、母の手の記憶まで含んでいる。そのことは、まだ黒夜の言葉になっていない。なっていなくても、布を剥がせない理由の一つだった。</p>
+<p>父とは、真白の死後、一度も会っていない。父がどこで何をしているのかも、知ろうとしなかった。生死も、死因も、この四年のどこにも置かれていない。置く必要がなかった。見捨てた人間の消息など、知るだけ無駄だと思っていた。憎しみは、更新されないまま保存される。保存された憎しみは、熱を持たず、重さだけを増す。</p>
+<p>生きる意味は、完全に失われていた。</p>
+<p>勝つ意味も、失われていた。</p>
+<p>黒夜は口数が多くない。言葉は短く率直だ。愛想で相手に合わせることはしない。四年間、合わせる相手も、ほとんどいなかった。家族を守る責任を一人で背負おうとする性質は、守れなかったあとも残る。残った性質は、失敗の責任をすべて自分へ向ける。他人から許されることより、自分が自分を許せないことの方が大きい。</p>
+<p>日が来る。日が終わる。終わった日が、名前を持たない。名前を持たない日々の末に、体が先に限界へ向かう。自ら命を絶とうとした、その瞬間だった。方法の細部は、残さない。残るのは、終わらせようとした意志と、その意志が中断されたという事実だけだ。</p>
+<p>世界の輪郭が、一度、裏返る。</p>
+<p>星空のような黒と、盤面を思わせる格子が、部屋の空気を裂いた。人型に近いが、完全な生命体には見えない。身体の輪郭は星空や黒い霧のように揺れ、見る角度によって白と黒が反転する。顔には人間の目がなく、白い円と黒い円が重なった観測核だけが浮かんでいる。背後に、リバーシ盤を思わせる格子状の光が広がる。観測能力が触れた空気の中に、無数の白黒の石が星のように現れた。</p>
+<p class="dialogue">「我が観測をもって、悲しき輪廻に新たな一手を刻もう」</p>
+<p>声は静かで、古風だった。感情を、記録の言葉へ置き換えている。悲しさを強い残響と呼び、愛情を継続的な魂の結合と呼ぶ口だ。冷たいのではない。感情を表す言葉を知らない。本人は自分を中立的な記録者だと考えている。実際には、強い願いと執着を持っている。黒夜は、その区別をまだしない。する余裕がない。</p>
+<p>黒夜は、殺意でも驚きでもなく、ただ止まった。止まらなければ、次の動作へ進むところだった。進まなかった。進まなかった理由を、自分でもまだ言語化できない。目の前の存在が、人間ではないことだけは分かる。分からないことの方が多い。多いまま、声を聞いた。</p>
+<p>観測者は、強い未練を抱えた死者の魂が集まる場所を告げた。宇宙の中にありながら惑星とは異なる世界。名は、理論盤界。</p>
+<p>そこに、真白の魂が存在する可能性。</p>
+<p>保証ではなかった。希望というには、薄すぎた。黒夜は、薄いものを握る手つきを知っている。四年間、何も握れなかった手が、可能性という名の薄い石を拾う。</p>
+<p class="dialogue">「そこへ行けば、真白に会えるのか」</p>
+<p class="dialogue">「可能性は存在する」</p>
+<p>黒夜は、自死を思いとどまった。</p>
+<p>生き直すと決めたわけではない。死ぬ前に真白を探し、謝りたい。許しを求めたい。その未練だけが、体を前へ動かした。わずかな可能性を頼りに、観測者に導かれ、生きた人間のまま、理論盤界へ向かう。死者としてではなく、生きた人間として。その区別の意味は、まだ黒夜の外側にある。</p>
+<p>四年間、捨てていた盤面が、遠くで待っている気がした。待っているのは盤面ではない。自分が置いてきた言葉だ。届かなかった言葉だ。</p>
+<p>真白。</p>
+<p>ごめん、と、まだ言えていない。</p>
+</section>
+<section class="chapter" id="vol1-chapter-3-第二章-理論盤界と最初の対局">
+<header class="chapter-head">
+<p class="chapter-label">第二章</p>
+<h2>理論盤界と最初の対局</h2>
+</header>
+<p>降り立った世界は、惑星ではなかった。</p>
+<p>白と黒の盤面が大地に広がり、地平まで格子が続いている。空は夜でも昼でもなく、石の裏表が反転するたびに、光の温度が変わる。歩くたびに、足の裏がマス目を踏む。マス目は無限のようで、無限ではない。どこかで規則が歪み、歪みの先に、カードのような薄片が風に舞っている。魂の意志がカードとなり、強い未練が特殊石となっている。観測者はそれを、記録するように言った。</p>
+<p class="dialogue">「意志を確認した。記録を開始する」</p>
+<p>黒夜が最初に持つカードは、「強い意志」ただ一枚。</p>
+<p>真白に会いたいという願い。生きる意味を失ってもなお消えなかった執着。盤面へ戻る可能性。それが、まだ救いにも破壊にも向かい得る形で、手の中にある。カードの縁は熱くない。熱くないのに、握ると四年間の空白が、一度に指へ戻る。</p>
+<p class="dialogue">「探す。真白を」</p>
+<p class="dialogue">「可能性は、存在する」</p>
+<p>同じ言葉だ。保証にならない言葉を、黒夜は今度は自分で握り直した。観測者は知識が豊富だが、生命の感情を完全には理解していない。黒夜の短さを、記録の精度として受け取る。受け取られても、黒夜は説明を増やさない。必要なことだけを言う。</p>
+<p>二人は理論盤界を探索した。探索、と呼ぶほど目的地は定まっていない。真白の魂があるかもしれない世界を、歩く。歩くこと自体が、四年ぶりに「先」を持った行為だった。先は希望ではない。未練の延長だ。延長でも、足は出る。</p>
+<p>襲われたのは、格子が細かくなる一帯だった。</p>
+<p>魂の意志を奪うゴブリンが、盤面から這い出す。カードを裂くように手が伸び、空気の中の薄い意志を掻く。黒夜は反射ではなく、読みで体を動かした。通常のリバーシではない。カードがあり、布石がある。石の意味が、置いた瞬間に歪む。戸惑いが、指を半拍遅らせる。遅れた半拍で、ゴブリンの手が「強い意志」の縁をかすめた。かすめただけだ。奪われなかった。黒夜は、一枚しかないカードを胸の内側へ隠すように構え、盤面の先を見た。</p>
+<p>相手が何を奪おうとしているか。どの筋が生き、どの筋が死ぬか。カードの強さより、配置の必然を見る。国内公式戦で無敗だった目が、見知らぬ規則の上でも、終局までの薄い道を拾う。布石の流れが、石の所有者を変えようとする。黒夜は所有者の変化を、逆転の手順として読んだ。読める。読めることと、カードの使い方を知っていることは違う。知らないまま、一枚を切った。</p>
+<p class="dialogue">「強い意志」が盤面へ落ちる。</p>
+<p>落ちた場所は、最善の座標ではなかったかもしれない。少なくとも、黒夜の古い感覚ではそう見える。それでも、その一手はゴブリンの奪う経路を閉じた。閉じた先で、ゴブリンの手が止まる。奪う側が、奪われる側になった。勝敗は、黒夜の読みどおりに閉じる。</p>
+<p>この世界では、カードリバーシに敗れただけで自動的に消滅することはない。勝者は、自らの意志と判断で敗者の運命を決められる。仲間にすることも、留めることも、消すこともできる。黒夜はゴブリンを消さなかった。消す理由を、まだ持っていなかった。止めた。奪わせなかった。それだけだ。止めた相手が、盤面の端で輪郭を薄くする。薄くなっても、黒夜は追わない。追う先は、真白だ。</p>
+<p class="dialogue">「その意志を記録した」</p>
+<p>観測者が言う。黒夜はカードの残りを見た。一枚。まだ一枚だ。勝っても、何も増えていないように見える。増えているのは、この世界でも石を置けるという、薄い確信だけだった。理論盤界の戦いでは、カードの強さだけでなく、誰のどのような意志から生まれた力なのかを理解するほど、その力を正しく扱える。黒夜は、まだ自分の一枚の中身を、理解しきっていない。未完成の意志。救いにも破壊にも向かう。</p>
+<p>その直後、執行者が現れた。</p>
+<p>白と黒を左右非対称に配した裁定者の装束。顔の一部は仮面で覆われ、仮面には盤面を思わせる格子状の線が刻まれている。武器は巨大な裁定杭——石を打つ動作を思わせる長槍。攻撃時には、盤面へ判決を刻むような光が走る。装束の白は解放、黒は終局を表す。どちらか一色へ染まらないのは、執行者が善悪ではなく両方の結果を引き受ける存在だからだ。仮面の下に人間と同じ顔はなく、盤面の光が静かに流れている。</p>
+<p class="dialogue">「見つけたぞ、観測者」</p>
+<p class="dialogue">「観測の罪、ここで償ってもらおう」</p>
+<p class="dialogue">「盤界の名において執行する」</p>
+<p class="dialogue">「歪みし魂よ、あるべき終局へ還れ」</p>
+<p>黒夜は事情を理解できない。理解できないまま、観測者の前に立った。導いた存在を守る理由など、整理できていない。ただ、今ここで観測者が消えれば、真白の可能性も消える。それだけが、体を動かした。納得できない要求には明確に反発する。今の黒夜にとって、観測者を即時に消すことは、納得できない要求だった。</p>
+<p>執行者の力は、圧倒的だった。</p>
+<p>一定範囲が、本来の盤界に近い状態へ戻る。カードや特殊効果が弱まる。領域内では通常の盤面規則が優先され、過剰なカード効果や魂への干渉が抑制される。執行者自身も強化効果を受けられない。それでも足りる。黒夜の「強い意志」が、石の重さだけになる。読みは残る。読みだけでは、届かない。杭が盤面を固定し、空間の書き換えを難しくし、逃げ道が閉じる。魂律の鎖が、意志が盤面へ干渉する経路を拘束する。観測者は観測域を失っている。自ら盤界へ降りたことで、絶対的な安全を失った。攻撃の対象になり、裁定の対象になる。</p>
+<p>追い詰められた。</p>
+<p>執行者は無駄な攻撃をしない。勝利より被害を増やさないことを優先する。角や安定石を確保し、相手の選択肢を少しずつ奪う。黒夜はその進め方を、盤面の読みとして理解した。理解した先に、勝機はなかった。短期決戦に強い相手だ。予測できない意志や、損得を無視した自己犠牲的な選択にだけ、対応が遅れる——その弱点は、まだ黒夜の手の中にない。</p>
+<p>その時、逃げる意志が、危険の中へ飛び込んできた。</p>
+<p>ニーゲルだった。特殊石。臆病で、戦えない。核となった意志は、逃げることだけだ。戦えないはずの存在が、初めて誰かを逃がすために走った。</p>
+<p class="dialogue">「こっち！　戦えない、戦えないけど——逃げるなら、今！」</p>
+<p>黒い手が黒夜の袖を掴み、観測者の輪郭を引き、格子の裂け目へ滑り込む。執行者の杭が、半拍遅れる。予測できない意志。損得を無視した自己犠牲的な選択。執行者の対応は、そこだけ遅れた。礼儀を崩さず、約束や宣言を守る執行者は、逃げを侮っていたわけではない。侮れない逃げが、定義の外から来た。</p>
+<p>多動村まで、走り続けた。</p>
+<p>振り返る余裕はない。黒夜の肺が、生きた人間のまま、死者の世界の空気を焼いている。ニーゲルは震えながらも、逃げる経路だけは正確だった。逃げることしかできない存在の、初めての勇気ある逃走。結果や能力の定義を越えて生まれた一手を、黒夜は理論盤界で、最初に目撃する。</p>
+<p>杭の光が、後ろで判決のように落ちる。落ちた場所には、もう誰もいない。執行者は追跡を、すぐに再開しない。再開しない理由は、黒夜には分からない。分からないまま、黒夜は走った。走る先に、真白はいない。いない世界を、なお走る。</p>
+</section>
+<section class="chapter" id="vol1-chapter-4-第三章-多動村と究極多動神">
+<header class="chapter-head">
+<p class="chapter-label">第三章</p>
+<h2>多動村と究極多動神</h2>
+</header>
+<p>多動村は、止まっていなかった。</p>
+<p>道が曲がり、看板が入れ替わり、住人の話題が、挨拶の途中で別の話題へ跳ぶ。多動の意志をはじめ、さまざまな特殊石が暮らしている。彼らには前世の記憶がほとんどない。自分の核となった意志だけが残っている。特殊石は、強すぎる願いや歪んだ魂が石として突然変異した存在だ。生前の記憶は薄れていても、自分を生んだ核となる意志だけは残っている。</p>
+<p>ニーゲルは村の入口で、やっと膝をついた。</p>
+<p class="dialogue">「助かった。助かった、よね。戦ってない。戦ってないから、大丈夫……たぶん」</p>
+<p class="dialogue">「お前が走った」</p>
+<p>黒夜はそれだけ言った。褒め言葉にしていない。事実として置いただけだ。ニーゲルは事実に強く当たって、小さくなった。逃げる意志にとって、誰かを逃がすことは、自分の定義の更新だった。更新は、怖い。怖いまま、黒夜の袖から手が離れない。</p>
+<p class="dialogue">「に、逃げろって言っただけだよ。誰かを逃がすなんて、初めて……初めてなんだ」</p>
+<p>観測者は、残響を記録していた。</p>
+<p class="dialogue">「終われなかった意志が、別の選択をした。未観測の可能性が存在する」</p>
+<p class="dialogue">「終局は結果にすぎない。そこへ至る一手もまた、失われてはならない」</p>
+<p>黒夜は、その言葉をすぐには受け取らない。結果で自分を裁く人間だ。勝てなかった。救えなかった。間に合わなかった。そこまでの行動や想いまで無意味だったと判断しやすい。ニーゲルの逃走が、何を変えたのか。執行者はまだ生きている。観測者の罪も、消えていない。真白にも、会えていない。変わったのは、今も走れるという一事だけだ。一事を、黒夜は石のように握る。握り方は、まだ不器用だった。</p>
+<p>村を治める王は、究極多動神。絶えず動き、話題も目まぐるしく変わる。にもかかわらず、膨大な情報を同時に整理し、判断できる知恵者でもあった。黒夜の前を三度まわり、盤面の傷を一眼で拾い、ニーゲルの震えと観測者の輪郭の揺れを、同時に口へ乗せた。</p>
+<p class="dialogue">「生きてる。珍しい。逃げた。正しい。執行者は遅い。遅くない。遅いのは例外。例外は貴重。貴重は危険。危険は里。里は隠れてる」</p>
+<p>言葉が跳ぶ。跳ぶ先は、ばらばらではない。黒夜は、跳ぶ速度に目を細めた。整理されている。整理されているから、速い。盤界の真相を、この王がどこまで知っているかは、語られない。語らせない。本来の収束システムも、観測者と執行者の思想も、理論の化身による改変も、宇宙改変計画も、この村の口から出ない。出ないまま、必要な一手だけが残る。</p>
+<p class="dialogue">「まずは、意志狩りの王を仲間にしろ」</p>
+<p>理由の長話は、なかった。王は、必要な一手だけを置いた。話題はすでに次へ跳んでいる。食事、道、風、隠れている里の方向。跳んだ先を拾えば、助言の核は残っている。意志狩りの王を、仲間にしろ。</p>
+<p>黒夜は、うなずいた。納得したからではない。真白を探すために何を倒すべきか、自分の目で決めるつもりだ。それでも、この世界の盤面を読むには、力が足りない。足りないことを、ゴブリンとの一局と、執行者との半局で理解した。理解したことを、他人に長く説明しない。うなずきは、次のマスへ進む印だ。</p>
+<p class="dialogue">「行く」</p>
+<p class="dialogue">「い、行くの？　里？　里は隠れてるよ。隠れてるのに行くの？」</p>
+<p>ニーゲルが後ずさる。後ずさった足が、しかし黒夜の後ろから離れない。逃げる意志は、逃げ方を知っている。知っているから、ついていくことも、逃げの一種だと誤魔化した。誤魔化しても、一度誰かを逃がした足は、元の定義へ完全には戻れない。</p>
+<p>観測者は格子の光を収めた。</p>
+<p class="dialogue">「記録を継続する。終局まで見届けよう」</p>
+<p>黒夜、観測者、ニーゲルは、多動村を離れて意志狩りの里へ向かう。</p>
+<p>村の喧騒が、後ろで跳ね続けている。止まらない村。止まらない意志。収束されずに、今も続きを持っている。黒夜はその意味を、まだ名前で呼べない。呼べなくても、ニーゲルが走った一手は、指の腹に残っていた。残っていた感触を、結果と呼び替えることは、まだしない。呼び替える人間を、黒夜は四年かけて捨ててきた。捨てきれずに、今、村の外へ出る。</p>
+</section>
+<section class="chapter" id="vol1-chapter-5-第四章-意志狩りの王">
+<header class="chapter-head">
+<p class="chapter-label">第四章</p>
+<h2>意志狩りの王</h2>
+</header>
+<p>意志狩りの里は、存在ごと隠されていた。</p>
+<p>王の力だ。外部から見ると、盤面の切れ端が空中で途切れている。途切れた先に里があることを、知っていなければ踏めない。究極多動神の助言がなければ、黒夜たちは格子の外側を永遠に歩いていただろう。ニーゲルが逃げの経路を何度も引き直し、観測者が残された痕跡を拾い、黒夜が「隠す」という意志の形を盤面として読む。三人の手数で、切れ端の向こうへ足をかけた。</p>
+<p>里は静かだった。多動村の跳ねる喧騒とは逆で、封じられた意志の匂いがする。暴走して怪物となった意志を狩り、その力を封じる王の里だ。魂を無差別に狩る存在ではない。他人を信用せず、言葉ではなく盤面で示された意志だけを認める。</p>
+<p>里へ辿り着いた黒夜に、王は問うた。</p>
+<p class="dialogue">「お前は何を狩りに来た」</p>
+<p class="dialogue">「妹を奪った者か。己の後悔か。それとも、運命そのものか」</p>
+<p>黒夜は、答えを急がなかった。急いで飾れば、王はそれを言葉として捨てる。捨てられていい言葉なら、最初から出す必要はない。口数は多くない。必要なことだけを言う。真白に会いたいという願いだけは本物だ。そのために何を倒すべきなのかは、自分の目で決める。</p>
+<p class="dialogue">「真白に会いたい」</p>
+<p class="dialogue">「そのために何を倒すべきかは、自分の目で決める」</p>
+<p>王は、短い沈黙のあとで盤を置いた。置く手が、狩りの手だった。盤面は里の中央に広がり、封じの格子がマスの外枠になっている。</p>
+<p class="dialogue">「言葉ではない。盤面で意志を示せ」</p>
+<p>対局は、狩りに近かった。</p>
+<p>王の石は、暴走する意志を封じるように打たれる。逃げ道を先に潰し、核だけを残して囲む。黒夜の石は、終局までの手順を読む。カードは少ない。布石は薄い。「強い意志」一枚と、この世界で拾い始めた読みだけだ。それでも、盤面の先にいる誰かを見る目は、王の封じ手とぶつかった。王は価値ある相手との決着を求める。弱者には興味を示さない。黒夜の石が、弱者の石で終わらなかったのは、先に誰かを見ていたからだ。見ている先は、王の狩り対象ではない。狩り対象でないものを見て打つ石が、封じの輪を内側からずらした。</p>
+<p>黒夜は勝った。</p>
+<p>勝った瞬間、王の視線が、盤面の外側へ一度だけ外れる。外れた先に、真白はいない。いないはずの場所を、黒夜が見ていたことを、王は認めた。言葉ではなく、盤面で示された意志だけを認める王が、盤面の外を見た。例外は、短い。短い例外を、王は力に変えた。</p>
+<p class="dialogue">「お前は、盤面の先にいる誰かを見ている」</p>
+<p class="dialogue">「その意志が偽りでない限り、俺の力を貸そう」</p>
+<p>王の身体が、光へほどける。</p>
+<p>消滅ではなかった。意志を保ったまま、姿を変える。黒夜と共に戦う特殊石へ、核が収斂していく。存在の消滅ではなく、意志を保ったままの、形の更新だ。里を守っていた状態が変わる。その変化は、遠くへ波として走った。</p>
+<p>遠くにいた怪物が、察知する。</p>
+<p>黒夜は、新しい力の感触を握った。借りた力だ。自分の力ではない。それでも、真白へ届く距離が、わずかに縮んだ気がした。気がしただけだ。気は、四年間、何度も裏切ってきた。裏切られた気が、また石の重さになる。重さを、黒夜は捨てない。捨てたら、会いに行けない。</p>
+<p>観測者が記録する。</p>
+<p class="dialogue">「その意志を、偽りではないと観測した」</p>
+<p>ニーゲルは、里の陰から顔だけ出した。戦いが終わったことを確認してから、近づく。逃げる意志の優先順位は、明確だった。終わった戦いのあとでなければ、顔を出さない。出してしまった顔が、しかし黒夜の側にある。側にあることを、ニーゲルはまだ逃走経路の一部と呼ぶ。呼んでも、経路は黒夜から離れない。</p>
+<p class="dialogue">「……まだ、逃げる？」</p>
+<p class="dialogue">「まだだ」</p>
+<p>黒夜は言った。探す。謝る。それまでは、終わらない。終わった人間のまま、まだ終わらない盤面の上に立っている。結果で自分を裁く癖は、残っている。残ったまま、次の石を待つ。</p>
+<p>地平の格子が、一度、大きく歪んだ。</p>
+<p>骸のような気配が、里の境界を擦る。働き続け、救い続けようとした魂が、肉体を失っても止まれず、形を変えて近づいてくる。黒夜はまだ、その名を知らない。知らないまま、四年間憎んできた輪郭が、盤面の向こうから息子の姿を見ていた。</p>
+<p>黒夜の外見は、地球にいた頃と変わらない。</p>
+<p>だから、先に気づくのは、向こうだった。</p>
+<p>ニーゲルが袖を引く。観測核が、残響の増大を記録する。黒夜は石を握った。握った石の先に、まだ真白はいない。いない場所へ、父の気配が先に入ってくる。入ってくる気配を、黒夜はまだ父と呼ばない。呼ばない名前が、里の境界で、骸の形になる。</p>
+</section>
+            </article>
+<article class="volume" id="vol2" data-volume="vol2">
+              <header class="volume-open">
+                <p class="volume-label">第二巻</p>
+                <h1>骸の虚影</h1>
+                <p class="volume-rule" aria-hidden="true"></p>
+              </header>
+              <section class="chapter" id="vol2-chapter-1-第五章-骸の虚影">
+<header class="chapter-head">
+<p class="chapter-label">第五章</p>
+<h2>骸の虚影</h2>
+</header>
+<p>里の境界が、骸の形で破れた。</p>
+<p>働き続け、救い続けようとした魂が、肉体を失っても止まれず、骸のような姿へ変貌したもの。観測者は、その名を記録した。骸の虚影。名は、説明ではない。説明できないほど、止まれなかった魂の形だ。里を守っていた王の状態が変わったことを、遠くにいたこの怪物が察知した。察知して、来る。来る先に、息子の姿があることを、骸の方が先に知る。</p>
+<p>黒夜は、地球にいた頃と変わらない姿をしていた。だから骸の虚影は、黒夜が正体に気づくより先に、息子の姿を見つける。見つけた目が、観測者へ向く。最初に攻撃されたのは、観測者だった。格子の光が弾かれ、観測核が一度、大きく揺れる。黒夜が前に出るより早く、骸は黒夜の方を向いた。向けた先で、去れと命じる。理論盤界でも再び、自分一人のやり方で真白を救おうとしている。</p>
+<p class="dialogue">「お前はここから去れ。今度こそ俺のやり方で救う」</p>
+<p>声は、父のものだった。四年間、既読の向こうに置いていた声。返事のなかった声。病院に来なかった声。今さら、父親の顔をして、真白を救うと言う。黒夜を遠ざける理由には、息子を危険から遠ざけたい気持ちと、自分だけで失敗を取り返したい気持ちの両方が混ざっている。混ざっていることを、今の黒夜はまだ分けられない。分けられないまま、言葉が少なく、冷たくなる。怒っている時、黒夜は大声で罵倒し続けない。言葉が少なく冷たくなる。今が、それだった。</p>
+<p class="dialogue">「今さら父親の顔をしても遅い。お前は俺たち兄妹を見捨てた。その過去は変わらない」</p>
+<p class="dialogue">「……うるさい。お前に何が分かる！」</p>
+<p>言い争いが、戦いへ落ちる。落とす前に、黒夜はもう一度だけ、短い言葉を置いた。置く相手を、四年間、父と呼ばずに来た。今も、名前で呼ばない。呼ばない口が、事実だけを返す。</p>
+<p class="dialogue">「またそれか」</p>
+<p class="dialogue">「何も言わずに消えて、今さら父親みたいなことを言うな」</p>
+<p>骸の虚影は、自分を削りながら布石を生み続ける。削るたびに盤面へ石が増え、増えた石が、守る相手を盤面から遠ざける。黒夜の選択を聞かず、黒夜の位置を、安全な外側へ押しやる。助けたい相手の意思を無視する力。家族を守るために、家族を置いていく力。出稼ぎのように自分を消耗し、救済のように相手の意思を聞かない。生前から続く偏りが、カードになる前の、生の力として盤を埋める。</p>
+<p>黒夜は止めるために戦う。消すために、最後の一手を打つわけではない。勝って、止めて、それから——それからを、黒夜はまだ決めていない。決める前に、勝たねばならない。読みが、家族の局面で乱れる。世界大会の決勝と同じ弱点が、同じ血の前で開く。通常の盤面では冷静でも、真白、父、母に関わる局面では感情を切り離せない。切り離せないまま、石を置く。置いた石は、父を殺す石ではない。父を止める石だ。一度敵と判断した相手には冷徹になれる。なれても、知らなかった事実をまだ突きつけられていない今は、冷徹の方が勝つ。勝つことが、消すことだと、黒夜はまだ思っていない。</p>
+<p>対局は、削る者と、読む者の争いだった。</p>
+<p>骸が自分を削るほど、布石は増える。増えるほど、黒夜は盤の外へ弾かれる。弾かれながらも、終局までの薄い道を拾う。意志狩りの王から借りた力が、暴走する意志を封じる方向へ噛み合う。「強い意志」が、削られ続ける骸の中心を、一度だけ捉える。捉えた場所は、最善の殺しではない。止めるための、閉じ手だ。閉じても、相手は止まらない。止まらない相手を、なお囲む。囲む手が、四年間の憎しみを、石の重さへ変える。重さは正確だ。正確な重さが、父の削る速度に追いつく。追いついた瞬間、黒夜は勝っていた。</p>
+<p>最後の一手。</p>
+<p>置いた瞬間、勝者として、敗者の運命を決める権利が、手元に落ちる。留めるか。仲間にするか。消すか。迷った。迷う資格があると思った。四年間憎んできた相手が、今、目の前で止まっている。止めた。消してはいない。理論盤界では、敗北そのものが自動消滅を意味しない。黒夜は消滅を予想していない。消すために打ったわけでもない。迷っている間に、崩壊が始まった。</p>
+<p>骸の輪郭が、内側から砂になる。存在を支えていた意志が、形を保てなくなる。黒夜は手を伸ばした。勝者の意志で留めようとした。留まらない。崩壊は、敗北による自動消滅の規則ではなかった。反省したことへの罰でもない。執着に支えられていた存在の、不安定さだった。未練が解消すると魂は自然にほどける。存在を支える意志が明確でなくなると、存在そのものも危うくなる。骸の虚影は特殊な例だ。敗北をきっかけに自らの意志が曖昧になり、崩れていく。崩壊は敗北後すぐに始まる。黒夜が父をどうするか迷い、運命を決める前に、崩壊が始まる。勝者である黒夜の意志でも、留め、止めることはできない。</p>
+<p>父は、「家族を救うこと」と「自分一人で救うこと」を取り違えていた。真白への愛情に加え、今度こそ自分が救わなければ父親だった意味がなくなる、という執着が、その存在を支えていた。黒夜を追い返すのも、息子を危険から遠ざけたい気持ちと、自分だけで失敗を取り返したい気持ちの、両方だった。追い返そうとしていた息子に、対局で敗れる。黒夜もずっと真白を救おうとしていたこと。自分が再び、息子の思いを聞かずに押しのけていたこと。それに向き合う。真白を救いたい気持ちは残る。しかし、これまでと同じやり方ではいけないと気づいても、どうすればよかったのかという答えは見つからない。その間に、意志が崩れる。</p>
+<p>黒夜は、不本意な崩壊を、止められないまま見る。見る目が、四年間の憎しみを、一度で捨てられない。捨てられないまま、隙間だけが開く。</p>
+<p>父は最期に、父親としての過ちを認めた。事情のすべてではなかった。家族を見捨てた父から出るとは思えない言葉が、黒夜の胸に引っかかった。強い息子なら大丈夫だと思い込み、支えを必要としていることを見落とした。真白に心を向ける一方で、黒夜の苦しさや願いにも同じように目を向けることができなかった。父として引き受けるべき重荷を息子に背負わせ、つらい責任を一人で抱えさせてしまった。その過ちは、説明として並べられない。短い言葉の隙間に、落ちていた。</p>
+<p class="dialogue">「お前は強いから……大丈夫だと、思っていた」</p>
+<p class="dialogue">「……お前まで、一人にしていたんだな」</p>
+<p>黒夜は、直接聞いた。</p>
+<p>家族を見捨てた父が、なぜそんなことを言う。疑念が、憎しみの中央に、黒い石ではなく白い隙間を作る。隙間は、許しではなかった。分からない、というだけだ。分からないことを、このまま消していいのか。一度敵と判断した相手でも、知らなかった事実を突きつけられた時は、その事実から逃げ切れない。今は、事実の手前だ。言葉だけが、事実の手前に落ちている。</p>
+<p>観測者が言った。残響が失われる前なら、記憶を観測できる。魂の残響。存在しない記憶は作れない。本人が経験していない出来事は見られない。消えかけた魂の記憶を観測できるのは、残響が失われるまでの短い間だけだ。観測せずに魂が消えれば、記憶も、そこから意志を受け継ぐ可能性も失われる。</p>
+<p>黒夜は、自ら確かめることを選んだ。</p>
+<p class="dialogue">「開けろ」</p>
+<p class="dialogue">「魂の残響を開く。記録を開始する」</p>
+<p>観測核が光る。父の魂に刻まれた記憶が、盤面の上へ映った。映る順番は、父が生きた順番だ。黒夜が知りたかった順番ではない。知りたかった順番など、最初からなかった。なかった順番が、家族の形で始まる。</p>
+<p class="scene-break" aria-hidden="true">＊　＊　＊</p>
+<p>最初に映ったのは、家族だった。</p>
+<p>母が、幼い黒夜へリバーシを教えている。石の感触。白い手。置き方を急かさない声。黒夜にとってリバーシは、才能を証明するために始めた競技ではなかった。母と盤面を囲んだ時間そのものだった。母の死後も黒夜がリバーシを続けたのは、盤面へ向かうことで母との記憶を失わずにいられたからである。その事実は、序盤では語られなかった。今、父の記憶の中で、初めて明かされる。母はその回想の中にだけ登場する。盤界へ魂としては現れない。死因は詳しく示されない。示されない死が、父を変える起点になる。</p>
+<p>父は、その時間を見守っていた。盤面の外にいて、何も言わず、終わらない一局を見ている。見守ることは、教えることではない。教えない父が、まだ、そこにいた。いた頃の父を、黒夜は四年間の憎しみの中で、ほとんど思い出さなかった。思い出さなかった顔が、今、石の外に座っている。</p>
+<p>母の死後、父は、母が残した生まれつき病弱な娘——真白まで失うことを恐れた。その恐怖は次第に、どんな代償を払っても真白の病気を治さなければならないという固執へ変わっていった。治療費を稼ぐ。海外治療の可能性を、少しでも広げる。身体を壊すまで働き続ける。働き始めた理由は、家族を守るためだった。過剰な労働と焦りが、判断力も人間性も削っていく。家へ帰らず、真白の見舞いにも行かず、黒夜へ事情を説明することもなく、金だけを残すようになった。真白を治すことに囚われるあまり、今そこにいる真白と黒夜を見られなくなっていた。</p>
+<p>働いていた事実は、過去を美化しない。治療への固執によって家族を放置し、人間性を失っていった責任も、同じ記憶の中にあった。金が残る。人は残らない。残らない家で、黒夜は無敗を積み、真白は病室で兄をからかった。からかいの届かない場所で、父は働き続けた。働き続けることが、父親の意味だと思い込んだ。思い込んだ先で、息子の強さを、大丈夫という一言に圧縮した。圧縮された息子は、支えを必要としなくなる。ならなかった。必要としていた。見ていなかった。</p>
+<p>黒夜からのメッセージを見た父は、真白のいる病院へ向かっていた。</p>
+<p>既読の向こうで、体が動いていた。動いた体は、間に合わなかった。間に合わない父親が、なお金を稼ぐ手を止められない。真白の死後も、父は罪悪感から働くことをやめられなかった。黒夜の前から姿を消したまま、やがて過労によって命を落とし、未練を抱えて理論盤界へ辿り着いていた。辿り着いた先でも、一人で救おうとした。一人で救えなかったことを、一人で取り返そうとした。取り返そうとする手が、息子を盤の外へ押しやる。押した先に、息子もまた、真白を救おうとしていた。見ないことが、二度重なった。</p>
+<p>黒夜を遠ざけようとした父には、息子を危険に巻き込みたくない気持ちと、自分だけで失敗を取り返したい執着があった。生前から続くその偏りを、黒夜は最期の言葉と過去の記憶を通して知る。父もまた、真白を救えず、最期に間に合わなかった。そして最後まで、息子を見てやれなかったことを後悔していた。</p>
+<p>後悔は、赦しの材料としては足りない。足りないことを、記憶は隠さない。隠さない記憶の中で、幼い黒夜の手が、母の石を追っている。追う手が、今の黒夜の敗着の指と重なる。重なっても、母は戻らない。父も、戻らない。真白も、まだ見つからない。</p>
+<p class="scene-break" aria-hidden="true">＊　＊　＊</p>
+<p>記憶の観測が終わる。</p>
+<p>父の魂は、完全に消える。許すか、責めるか、謝るかを決める機会は、真相を知った時にはすでに失われていた。事情を知っても、父が兄妹を置き去りにした過ちは消えない。黒夜がすぐに許せるわけでもない。心が揺れる中心は、父が消えること自体ではない。言葉と過去を知ることで、それまでの父への認識が揺らぐことにある。揺らぎは、結論ではない。結論を出す席は、すでに空だ。</p>
+<p>消える直前、観測者は二つの強い意志をカードとして定着させた。黒夜は記憶を知ったうえで、それを受け取る。父本人を留めるものではない。崩壊を止めるものでもない。記憶に刻まれた意志だけだ。新たな意志を生み出すことはできない。すでに存在する願いや後悔を、盤界で扱える形にする。</p>
+<p class="dialogue">「出稼ぎの意志」。自分の力を削る代わりに布石を生み出す。家族を支えるため、自分を消耗し続けた父の生き方が、効果になった。</p>
+<p class="dialogue">「救済の意志」。危機に陥った石や仲間を、一度だけ敗北や消滅から救う。救いたい相手の意思を聞かず、一人で守ろうとした父の願いと独善の、両方を含んでいる。</p>
+<p>黒夜はカードを握った。握っても、父は戻らない。戻らないものを受け継ぐ感覚が、胸の奥で誤った熱になる。憎しみだけでは測れなくなった。許しにも、届かない。測れないものが、意志の形を崩し始める。崩れる前に、黒夜は短く言った。言う相手は、もういない。いない相手へ、なお言う。</p>
+<p class="dialogue">「……分からない」</p>
+<p>分からない、で終わる言葉を、父はもう受け取れない。受け取れない言葉が、黒夜の中で、熱になる。</p>
+</section>
+<section class="chapter" id="vol2-chapter-2-第六章-変貌の兆し">
+<header class="chapter-head">
+<p class="chapter-label">第六章</p>
+<h2>変貌の兆し</h2>
+</header>
+<p>心が揺れる中心は、父が消えること自体ではなかった。</p>
+<p>最期の言葉を直接聞いて生まれた疑念が、過去の観測によって大きな揺らぎへ変わる。父も真白を救おうとしていた事情と、黒夜の思いを見ずに重荷を背負わせた過ちを、同時に受け止めなければならない。それまでの父への認識が、盤面の中央で裏返る。裏返った石は、白にも黒にも、きれいに定まらない。定まらない石を、結果で裁こうとする癖が、自分にも向く。勝てなかった。救えなかった。間に合わなかった。父も、自分も。同じ欠落を、別の四年で背負っていた。背負い方が似ていることは、赦しにならない。似ていることが分かっただけだ。分かっただけが、熱になる。</p>
+<p>父をすぐに許せるわけではない。真白の最期に間に合わなかった後悔も、残っている。自分も、父も、簡単には許せない。答えの出ない後悔を抱えたまま、黒夜の意志が、理論盤界の空気を焼き始める。願い、後悔、怒り、執着は極めて強い。その意志は理論盤界で大きな力になる一方、絶望へ傾いた時は周囲を巻き込む変貌の原因にもなる。今、傾き始めた。</p>
+<p>暴走は、内側からだった。</p>
+<p class="dialogue">「強い意志」が、救いにも破壊にも向かい得る未完成のまま、熱を持ちすぎる。輪郭が人間のままでは足りなくなり、異形の兆しが指先から登る。確定したデザインはない。ないまま、形が人間の定義から外れていく。観測者が観測を重ねても、抑えきれない。見届けることと、止めることは違う。観測者は盤界へ直接降りている。安全な観測域にはもういない。触れられる。触れても、黒夜の核は、記録の精度では冷えない。</p>
+<p>異常を、執行者が察知した。</p>
+<p>周囲の魂と盤界への被害を防ぐため、執行者は一時的に協力する。敵ではない。裁定を忘れたわけでもない。今、黒夜の意志が周囲を巻き込めば、ニーゲルも、多動村も、名のない石も、燃料になる。それは許されない。どれほど美しい願いでも、そのために別の命や未来を犠牲にするなら救済とは認めない。魂律の鎖が、意志の経路を縛る。執行領域が、過剰な効果を削る。観測者の記録が、黒夜の核を見失わないよう光を当てる。二人に抑えられ、完全な変貌には至らない。</p>
+<p>至らないだけだ。最終決戦で再燃するおそれは、残った。理論の化身は、黒夜の絶望から生まれる意志を、宇宙改変の最大級の布石として狙っている。狙われる側の黒夜は、今、その布石の手前で止まっている。止まった形は、人間に近い。近いだけで、同じではない。同じではない手が、父から受け継いだ二枚のカードを握っている。出稼ぎ。救済。削って生み、聞かずに救う。父の偏りを、形として持ってしまった。持つことが、理解だとは限らない。理解しても、許していない。</p>
+<p class="dialogue">「……分からない」</p>
+<p>短く言った。長く説明しない。分からない対象は、父だけではない。自分でもある。真白を一人で死なせたと思い込んできた四年が、父の四年と重なる。重なったからといって、どちらも許されない。許されないものを二つ抱えて、先へ進む。答えの出ない後悔を抱えたまま、先へ進む。進む理由は、まだ真白だ。真白の名が、熱の中心で、白く残っている。白い名を、結果で救おうとする癖も、残っている。残った癖を、今はまだ、名前で疑わない。</p>
+<p>執行者の仮面の格子が、わずかに乱れていた。乱れはすぐに戻る。戻った顔で、執行者は観測者を見た。変貌を止めた協力は、ここで終わる。裁定は、再開される。再開の前に、ニーゲルが遠くから見ていた。見ていた足が、しかし近づかない。逃げる意志は、変貌の熱を、逃げの対象として正しく判定した。判定したまま、黒夜の名前だけは、逃げの経路に残している。残していることを、黒夜は今、見ない。見る余裕がない。余裕のない人間の隣で、執行者の杭が、静かに上がる。</p>
+</section>
+<section class="chapter" id="vol2-chapter-3-第七章-観測者の罪と大分岐">
+<header class="chapter-head">
+<p class="chapter-label">第七章</p>
+<h2>観測者の罪と大分岐</h2>
+</header>
+<p class="dialogue">「盤界の名において執行する」</p>
+<p>執行者の声は、淡々としていた。黒夜の悲しみを否定しない。しかし個人の願いによって別の魂や未来が犠牲になることを、認めない。観測者への裁定を再開し、観測者が知ろうとしなかった「観測の代償」の正体を、黒夜たちへ語る。語る口は、侮辱しない。敵にも弁明の機会を与える。与えた機会の上で、なお執行する。</p>
+<p>観測者は本来、盤界だけを外部から記録する存在だった。宇宙が盤界を記録するために生み出した存在。与えられていた役割は三つ。盤界へ流れ着いた魂を確認する。魂がどのように収束したかを記録する。盤界の異常を宇宙へ報告する。救う権限も、裁く権限も、未来を変える権限も持っていなかった。求められていたのは、正しさではなく正確さだった。</p>
+<p>未練や悔いが少ない魂は、宇宙へ旅立つ過程で自然にほどける。未練や悔いが強い魂は宇宙に留まり、その存在自体がエネルギーを消費するため、盤界の処理対象となる。本来の盤界はリバーシを基盤に、未練・悩み・迷いのすべてに黒白をつけ、一つの答えを強制して収束を促す。無慈悲な仕組みだが、宇宙のエネルギー循環は保たれていた。収束した魂の行方は現宇宙では未解明。一般には完全に消滅して無になるとされる。それを解明済みの事実とは扱わない。観測者は、その盤界が正しく働いているかを記録する観測媒体として誕生した。</p>
+<p>数え切れないほどの未練を記録した。伝えられなかった言葉。届かなかった願い。間に合わなかったことへの後悔。自分が消えたあとも誰かを守りたいという執着。それらが収束し、観測できる世界から消えていく様子を見続けるうちに、観測記録の中へ説明できない揺らぎが生まれる。最初に生まれた感情は、消えていく魂への悲しさだった。その感情をまだ理解できなかった観測者は、悲しさを一つの疑問として記録した。終わらせることだけが、魂に与えられる唯一の答えなのか。やがて疑問は願いに変わる。終われなかった魂に、もう一度だけ続きを与えたい。観測者はこの願いを、盤界の本来の役割よりも重く考えるようになった。</p>
+<p>誕生時から、薄い警告だけが本能に近い形で刻まれていた。観測の権能を盤界の外へ向けることは禁忌であり、行えば何らかの代償が生じる。何が失われ、誰が代償を負うのかは知らなかった。それを確かめることからも、目を背けていた。可能性を探すため、盤界の魂を記録するという本来の責務を越え、地球まで観測範囲を広げた。盤上の神の出身地を手掛かりに、リバーシの読みと強い意志を併せ持つ生命を探し、見つけた黒夜を深く観測する過程で、偶然、真白が代償を負う。真白を意図的に対象として選んだのではない。その詳細は、まだこの場の誰の口からも、病気の仕組みとしては語られない。語られる前に、執行者が仕組みの半分を置く。</p>
+<p>執行者は、宇宙と盤界の基本法則を初めから知っている。盤界の自動修復機能が、世界の異常を止めるために人格と肉体を得た存在だ。元となった人間や生前の記憶はない。執行者は告げる。責務を越えた強い観測は、観測地点の周囲にいる誰かの未来の余白を削る。偶然によって助かったかもしれない未来。誰かとの出会いで変わったかもしれない未来。本来なら選べたかもしれない別の道。こうした未来の余白が観測によって失われ、その者の生命にも影響し得る。ただし、個々の死と観測の関係が自動的に確定するわけではない。</p>
+<p>観測者はここで初めて、代償の具体的な仕組みを知る。だが、実際に誰が犠牲になったのかは、まだ分からない。</p>
+<p>執行者は、被害を受けた者との因果を確かめるため、観測者自身を裁定の対象とした。内部に蓄積された観測記録を、執行の権能で強制的に開こうとする。調べられるのは、盤界に記録された行動と魂の変質である。隠された感情を直接読むことはできず、記録されていない事情も分からない。観測者自身を正式な裁定対象とした場合に限り、その内部に蓄積された観測記録を強制的に開き、記録された因果の痕跡をたどることができる。観測者の周囲に、これまで観測してきた世界と魂の断片が、輪郭の定まらない残像として浮かぶ。この時点では、真白の姿も名も現れない。</p>
+<p class="dialogue">「やめろ。それは、我の観測記録だ」</p>
+<p class="dialogue">「お前が目を背けた記録も、ここで開く」</p>
+<p class="dialogue">「やめろ……」</p>
+<p class="dialogue">「お前は魂の未来を見た。だが、そのために失われた未来を見なかった」</p>
+<p class="dialogue">「願いを罪の免罪符にするな」</p>
+<p class="dialogue">「お前の観測で、何が失われたのかを見ろ」</p>
+<p>観測者は、他者を観測する存在だ。自分が観測されることを恐れている。自分の願いを正確に見られれば、可能性を探す思いに、「観測を続けたい」という執着も混ざっていると暴かれてしまう。禁忌と代償の存在を感じながら目を背けた事実も、中立を装っていたことも、隠せなくなる。自分の観測記録を開かれれば、すべてが見える。見えることが、観測者にとって最大の恐怖に近い。観測を止めると、その先に何が起きたか記録できない。止めたくない。止めたくない自分が、今、開かれる。</p>
+<p>平静を失うのは、この時だけだった。物語を通して観測者が感情を制御できなくなる、唯一の場面。</p>
+<p class="dialogue">「我を……見るな」</p>
+<p class="dialogue">「我を観測するなぁぁ！！」</p>
+<p>命令の形を取っている。本心は、懇願だ。自分が目を背けてきた事実や、願いに混ざる執着を、暴かないでほしい。</p>
+<p>執行者は、絶叫を押し切って記録を開く。残された因果の痕跡をたどる。輪郭の定まらない残像の奥から、一つの名が、代償と関わる者として示された。病気との関係を、誰がどの言葉でどう説明するかは、ここでは確定しない。観測が真白の死を招いたのかどうかも、記録は確定しない。確定しないまま、名だけが残る。</p>
+<p>真白。</p>
+<p>黒夜の体が、止まった。観測者が、誰を意図して選んだわけではない。偶然、代償を負った。名が、観測の罪の隣に置かれる。隣に置かれただけで、死の因果は閉じない。閉じない名を、黒夜は四年間、自分の敗北の隣に置いてきた。置いてきた名が、今、観測者の記録の中にもある。あることと、許すことは、別だ。</p>
+<p class="dialogue">「願いが美しくても、代償を誰かに押しつけるなら、それは罪だ」</p>
+<p class="dialogue">「代償があると知りながら、なぜ確かめようとしなかった」</p>
+<p>観測者は、執行者の説明と記録の開示を通して、自分が目を背けていた代償に向き合う。禁忌と何らかの代償の存在を感じながら、その内容を確かめずに目を背けていた責任は、残る。罪を自覚したあとは、言葉が短くなり、自分を飾る荘厳な表現も減っていく。</p>
+<p class="dialogue">「我は可能性を探していた」</p>
+<p class="dialogue">「だが我は、失われるものを見なかった」</p>
+<p class="dialogue">「誰の命が失われるかまでは、知らなかった」</p>
+<p class="dialogue">「だが、代償があることは知っていた。何が起こるか知らなかったからといって、許されるわけではない」</p>
+<p>黒夜は、すぐには許せない。導いた手が、真白の名と結びついている。結びつきのすべてを、まだ測れない。測れないものを、許す言葉にはできない。それでも、可能性を探していたことまで嘘だったわけではないと知る。真白に会えるかもしれないと告げた言葉は、罪を隠すための嘘ではなかった。罪と、可能性は、同じ手の中にある。同じ手を、黒夜はまだ握り返さない。握り返さないまま、聞く。</p>
+<p>執行者は、黒夜へ問うた。真白に会って最後に話し、謝りたいという願いが、結局は黒夜自身のためではないのか。会いたいと願うことそのものを否定しない。黒夜が何のために真白を求めているのかを、問う。問いは、冷たい。冷たい問いは、黒夜の自責の形を正確に突く。正確に突かれても、黒夜は長く説明しない。説明できない。会いたい。謝りたい。それが自分のためかどうかは、今は答えられない。答えられないことが、問いの正しさに近い。</p>
+<p>観測者は自分の罪を認める。元の盤界にも問題があることを、自分の弁明には使わない。そのうえで、未練を抱え、まだ伝えたい言葉がある魂も、本人の意志を問われないまま機械的に収束させられてきた元の盤界を語る。理論の化身による支配は終わらせるべきだ。だが、ニーゲルや多動村を含め、理論盤界で生きる魂に生まれた可能性まで一律に消す必要はない、と訴える。カードとなった意志は、別の魂へ受け継がれる。特殊石となった未練は、誰かと出会うことで新しい選択をする。生前に届かなかった願いが、別の形で盤面へ届くこともある。危険であり、理論の化身が制御する世界であることは理解している。留められた魂の扱いまで見通しているわけではない。それでも、そこに生まれた「魂が続きを持てる可能性」だけは消してはならないと考えている。</p>
+<p class="dialogue">「収束だけが救いであると、誰が定めた」</p>
+<p class="dialogue">「たとえ歪んだ形でも、彼らは今も続きを望んでいる」</p>
+<p class="dialogue">「我は、ただ可能性を残したかった」</p>
+<p>執行者も、元の収束システムを完全な救済だとは主張しない。未練の強い魂は留まるだけで宇宙のエネルギーを消費する。本来の盤界は、強制的な収束によってエネルギー循環を保っていた。理論盤界は魂を留めるため、周囲や宇宙のエネルギーを激しく消費している。魂を留める現在の仕組みも、理論の化身による支配と搾取の上に成り立つ異常であり、善意だけで存続させることはできない。宇宙のエネルギー循環を維持するには、現時点でそれ以外に持続可能な方法がない。執行者は、現時点で自分が実行可能と考える方法として、元の収束システムへの復旧を選ぶ。元の仕組みを絶対に正しいと証明することが目的ではない。</p>
+<p class="dialogue">「終わらせたいのではない」</p>
+<p class="dialogue">「これ以上、終われない魂を増やしたくないだけだ」</p>
+<p class="dialogue">「ならば、その可能性のために失われたものを見ろ」</p>
+<p>黒夜は、二人の間に立っていた。</p>
+<p>これは観測者を許すかどうかだけではない。二人のどちらを信じ、どの道へ進むかを決める、物語の中央の一手。どちらが善で、どちらが悪かではない。真白の意志を自分で確かめるか。宇宙を守るため、本来の盤界を受け入れるか。ニーゲルが走った一手を、可能性として残すか。収束として閉じるか。観測者の思想をそのまま受け入れない。執行者の思想も、そのまま受け入れない。両者の正しさと欠点を見たうえで、自分の答えを選ぶ。</p>
+<p>答えは、一つにならない。</p>
+<p>黒夜の選択は、ここで二つに割れる。割れた先は、どちらも正解ではない。どちらも、黒夜が自分の目で見た盤面だ。どれを自分にとっての正解と呼ぶかは、ここに答えを置かない。置かないまま、道だけが、二つ残る。</p>
+<h3 id="vol2-sub-4-観測者を選ぶ" class="subhead">観測者を選ぶ</h3>
+<p>黒夜は、観測者の前に立った。</p>
+<p>真白の意志を自分で確かめたい。真白を救えなかったという自責から、謝りたい。ニーゲルや多動村、理論盤界で生きる魂を一律に収束させず、別の可能性を探したい。観測者の罪を許したのではない。その罪と、魂の可能性は、分けて考える。</p>
+<p class="dialogue">「行く。真白を探す」</p>
+<p>執行者はその選択を認めない。観測者への執行を続けようとする。杭が振り下ろされる。黒夜が最初の一撃を止める。止めた瞬間、抑えたばかりの変貌が再び始まりかける。同時に、理論の化身による盤界の異常も拡大する。ここで争えば、黒夜が完全に変貌しかねない。その間にも、理論の化身の計画は進む。</p>
+<p>執行者は、観測者への執行を撤回しない。理論の化身を倒すまで、延期する。優先順位は変わらない。魂の燃料化の阻止。理論の化身の排除。盤界の復旧。観測者への裁定。個人的な感情で、この順を入れ替えない。入れ替えないまま、理論の化身の排除を優先して先行する。黒夜と観測者は、後を追う。</p>
+<p>観測核のひびから、光が漏れていた。未来を見ようとするたび、ひびは広がる。観測者はもう、安易に可能性観測を使えない。使えば、また誰かの余白を削る。削らずに、先へ行く。見えないまま、黒夜の隣を歩く。見えないことを、初めて美しいと思えるかどうかは、まだこの足には早い。早い足で、なお歩く。</p>
+<p class="dialogue">「我は裁かない。ただ、消えようとする意志を見届ける」</p>
+<p class="dialogue">「……今さら、それか」</p>
+<p>黒夜は許していない。許していないまま、真白の名が残った記録の先を、歩く。歩く先は、第3巻へ続く。</p>
+<h3 id="vol2-sub-5-執行者を選ぶ" class="subhead">執行者を選ぶ</h3>
+<p>黒夜は、執行者の側へ立った。</p>
+<p>真白との再会を諦める。宇宙を守るため、本来の盤界を受け入れて復旧する道を選ぶ。観測者の罪を正しく裁かせる。観測者を許さない。導いた手が真白の名と結びついた以上、その手を、可能性の名で免罪にはできない。魂の行方は未解明のままとする。未解明のまま、循環を保つ側へ立つ。</p>
+<p class="dialogue">「裁け。ただし、化身が先だ」</p>
+<p>執行者が観測者を拘束しようとした時、観測者は隠し持っていたカードの力で逃亡に成功する。格子が裂け、観測者の輪郭が盤面の裏側へ滑る。執行者は追跡よりも、理論の化身の排除を優先する。黒夜と二人で、その支配領域へ向かう。</p>
+<p>観測者は逃亡後も、理論盤界の内部から二人の動向を密かに観測しながら後を追う。観測を止めると、その先に何が起きたか記録できない。最後の制約は、観測者にとって最大の恐怖だ。恐怖に従って、なお見る。見ることが罪でも、見なければ、黒夜を見失う。見失うことが、記録者として死ぬことに近い。近くても、拘束より、見ることを選んだ。選んだ観測者を、今の黒夜は追わない。追わないことが、許さないことの形だ。</p>
+<p>執行者の仮面は、乱れていない。乱れていないことが、黒夜には冷たさに見えた。冷たさの奥で、執行者は救えなかった魂の記録を、一つも消していない。黒夜はそれを、今は信じない。信じる必要のない選択をした。選択の正しさは、まだ終局を見ていない。</p>
+<p>二人は、理論の化身の支配領域へ踏み込む。</p>
+<p>残された真白の名が、黒夜の背中に残る。会わないと決めた名。謝らないと決めた名。決めたはずの名が、石の裏で、まだ白い。白い名を背負った先は、第4巻へ続く。</p>
+</section>
+            </article>
+<article class="volume" id="vol3" data-volume="vol3">
+              <header class="volume-open">
+                <p class="volume-label">第三巻</p>
+                <h1>観測者の道</h1>
+                <p class="volume-rule" aria-hidden="true"></p>
+              </header>
+              <p>観測者を選んだ黒夜の先。執行者を選んだ先は、第4巻。どちらも、先に読んだ方を正史とはしない。</p>
+<section class="chapter" id="vol3-chapter-1-第八章-理論の化身">
+<header class="chapter-head">
+<p class="chapter-label">第八章</p>
+<h2>理論の化身</h2>
+</header>
+<p>執行者の杭が残した傷は、先へ行くほど浅くなる。</p>
+<p>浅くなるのは、杭が効いているからではない。効かなくなっているからだ。格子が何層にも重なり、いま置かれた石より、これから置かれる石の方が濃い。足の裏が踏むマスは、現在だけではない。予測された未来の盤面が、現在の座標を先に囲んでいる。囲まれた道を歩けば、歩いたこと自体が、相手の手順の一部になる。</p>
+<p>黒夜は、そのことに気づいていた。気づいていても、止まれない。真白の名が残った記録の先を、歩くと決めた。観測者の罪は許していない。許していないまま、隣を歩く。観測核のひびから、ときどき光が漏れる。未来を見ようとするたび、ひびは広がる。観測者は、安易に可能性観測を使わない。使えば、また誰かの余白を削る。削らずに、痕跡だけを拾う。拾えるのは、すでに起きた傷だけだ。</p>
+<p class="dialogue">「執行者の残響は、前方で増大している」</p>
+<p class="dialogue">「戦ってる、ってことか」</p>
+<p class="dialogue">「一騎打ちを、すでに開始している」</p>
+<p>黒夜は石を握った。「強い意志」。父から受け継いだ「出稼ぎの意志」と「救済の意志」。意志狩りの王が託した、封じの核。借りた力と、自分の未完成の一枚。それだけで、支配領域の主に届くのかは分からない。分からないまま、層の奥へ足を落とす。落下というより、マスを一つ進めただけだ。進めた先で、空気の温度が変わる。石の裏表が、同時に熱を持っている。</p>
+<p>裁定は、取り消されていなかった。延期されただけだ。執行者は、観測者への執行を撤回せず、理論の化身の排除を優先して先行した。優先順位は変わらない。魂の燃料化の阻止。理論の化身の排除。盤界の復旧。観測者への裁定。個人的な感情で、この順を入れ替えない。入れ替えない人間が、先に一人で、神に近い力へ杭を打ち込んでいる。</p>
+<p>黒夜と観測者が支配領域へたどり着いたころには、執行者はすでに一騎打ちを始め、苦戦していた。</p>
+<p>支配領域は、盤面が何層にも重なっている。座標が浮かび、予測された未来の盤面が、現在の石を先に囲んでいる。執行者の杭が打ち込まれても、歪みは固定しきれない。規則改変が、杭の周囲だけを別の終局へずらす。ずらされた杭は、判決の光を失い、ただの杭になる。ただの杭でも、執行者は打ち続ける。無駄な攻撃をしない相手が、打ち続けるということは、打たねば領域が持たないということだ。</p>
+<p>仮面の格子が、乱れていた。乱れは、裁定の迷いではない。処理の限界だ。複数の異常を同時に封じ続けると、執行者の処理能力は限界へ寄る。予測できない意志には対応が遅れる。今、相手は意志を予測している。遅れる側が、執行者の方だった。</p>
+<p class="dialogue">「魂は変数ではない」</p>
+<p>執行者の声が、層の奥で弾ける。弾けるが、割れない。淡々と、結論を告げる声だ。怒鳴らない。侮辱しない。敵にも、執行理由を告げる。</p>
+<p class="dialogue">「貴様の理論に、終局を執行する」</p>
+<p>返ってくる声は、人ならぬ響きだった。講義のように静かで、丁寧で、熱がない。会場の控室で聞いた、人間の声ではない。四年前、隣の棟からスピーカーを伝ってきた静けさとも、違う。似ているものを探しても、探す場所が、声の中にない。</p>
+<p class="dialogue">「あなたは必ず規則を守る」</p>
+<p class="dialogue">「例外を認めない者ほど、次の一手が読みやすい」</p>
+<p>黒夜は、その声の主を見た。</p>
+<p>人型に近い輪郭はある。顔は黒い空洞のように沈み、人間の目も表情も読めない。背には巨大な翼が広がり、全身を黒い衣と盤面の格子が覆っている。周囲に白黒の石と座標と、予測された未来が幾重にも浮かぶ。観測者と同系統の、人外。星空のような揺れ方は、観測者に近い。近いが、観測者の観測核はない。空洞がある。空洞の奥で、終局までの手順だけが光っている。</p>
+<p>黒夜は、目の前の存在が盤上の神だとは気づかない。気づける要素が、姿にも声にも残っていない。地球にいた頃の黒夜は、相手の顔を見ていた。人の顔をしていた男。勝った顔をしなかった男。終わった盤面を見る目が、次の未知を探しているように見えた男。その目は、ここにはない。目そのものがない。声も、人ならぬ響きへ変質している。見覚えを、貼る場所がない。貼れないまま、黒夜は石を構えた。構える理由は、正体ではない。執行者が苦戦している。苦戦の先に、真白の可能性があるなら、止まらない。</p>
+<p>だが理論の化身は、生前から現在までの記憶をすべて保持している。地球にいた頃と姿の変わらない黒夜を見た瞬間、世界大会決勝で戦った相手だと見抜く。黒夜の外見は、理論盤界へ来ても変わらない。変わらないことが、向こうには座標になる。黒夜には、座標にならない。非対称な認識が、層の空気を一度、静かにした。</p>
+<p class="dialogue">「お待ちしていました。あの決勝以来ですね」</p>
+<p class="dialogue">「……誰だ」</p>
+<p>短く、冷たい。正体を問う声にしては、熱がない。熱を置く相手を、まだ特定できないからだ。四年間、盤上の神の名は、敗着の感触と一緒に捨てていた。捨てた名が、人外の口から、決勝として戻ってくる。戻ってきても、顔が無い。無い顔を、黒夜はまだ盤上の神と呼ばない。</p>
+<p class="dialogue">「この姿では分かりませんか。私は、君が初めて敗北した、あの決勝の盤面を覚えています」</p>
+<p>語られる。控室の白すぎる照明。画面の向こうの白い天井。真白の弱い声。既読だけがついた父の画面。隣の棟の拍手。指先の敗着。置いてから見えた、別の場所。見えた時には、もう置けない終局。国内公式戦無敗が、過去形になった夜。理論の化身は、盤面の手順を、正確に置く。正確すぎて、黒夜の体内の時計が、四年を一気に巻き戻す。巻き戻された指が、同じ敗着の感触を握る。握った先で、初めて、知る。</p>
+<p>理論の化身は、かつての盤上の神だ。</p>
+<p>知る。知っても、目の前の空洞は、人の顔に戻らない。戻らないことが、黒夜には不公平に見えた。自分だけが、地球のまま立っている。相手は、決勝の盤面だけを残して、別の種になっている。別の種が、あの夜の石の位置を、講義のように読む。読まれる側の黒夜は、負けた夜の席に、もう一度座らされる。座りたくない席だ。座らされたまま、石は離せない。</p>
+<p>観測者が、黒夜とともに戦線へ合流する。格子状の光が、執行者の乱れた仮面の横で開く。開いた光は、攻撃というより、痕跡の照射だ。観測者は直接干渉が弱い。観測できないものへは、触れられない。触れられない代わりに、層のどこが現在で、どこが予測なのかを、黒夜の目へ渡す。執行者は、観測者への裁定を取り消さない。取り消さないまま、目の前の敵が一致していることだけを見る。魂の燃料化を止める。支配を終わらせる。今は、それだけだ。倒した後の盤界については、一致していない。一致していない三者は、一時的な共闘へ入る。共闘は和解ではない。同じ石を、同じ敵へ置くという、短い例外だ。</p>
+<p>理論の化身は、過去を隠さなかった。隠す必要を、変数の観測において認めない。定義できないものを、そのまま価値あるものとして受け入れられない口だ。受け入れられないから、自分の過去にも、名前と規則を与える。与えた規則を、黒夜たちへ講義する。講義の最中も、予測の層は石を置き続けている。話すことと、囲むことを、同時にやる。</p>
+<p class="dialogue">「変数を加えましょう」</p>
+<p class="dialogue">「この予定調和の盤面に、意志という誤差を」</p>
+<p>生前の彼は、人間離れした読みで世界を制した元王者だった。人間同士の対局では、周囲がまだ互角だと思っている段階で終局まで読み切った。初めて世界大会へ出場した時、すべての対局で、他の誰よりも早く勝敗を見切った。観客や対戦相手が互角だと思っている局面でも、彼には終局までの手順が見えていた。決勝の途中で告げる。</p>
+<p class="dialogue">「終わりです」</p>
+<p>その後、対局は本当に彼が読んだ通りに進み、圧倒的な優勝を果たした。大会後、公式戦から姿を消す。読むべき盤面が、なかった。人間との対局では、自分の理論を揺るがす未知が生まれなかった。どの相手も、どの盤面も、時間をかければ読み切れる。対局者が考える前から勝敗が定まっているなら、それは彼にとってすでに終わった盤面だった。</p>
+<p class="dialogue">「完成された盤面に価値はない」</p>
+<p class="dialogue">「必要なのは、理論を裏切る変数です」</p>
+<p>進化したAIには、勝てなかった。</p>
+<p>AIは疲れない。迷わない。感情によって読みを乱されない。人間より深く、速く、正確に終局を演算する。盤上の神が長い時間をかけて辿り着いた一手を、AIは一瞬で評価し、さらに先の答えを示した。一度の敗北が問題ではなかった。人間の努力、経験、直感、才能が、完全な演算の前では何の抵抗にもならなかったこと。そこから二つの絶望が生まれた。人間の思考では、完全な演算に勝てない。未来や運命も、最初から何らかの演算によって定められているのではないか。</p>
+<p class="dialogue">「人間が一生を費やした読みを、機械は一瞬で追い越した」</p>
+<p class="dialogue">「努力も、経験も、直感も、完全な演算には届かなかった」</p>
+<p class="dialogue">「ならば、人間が考えることに何の意味があるのでしょう」</p>
+<p>二つ目は、事実ではない。捨てられなくなった疑念だ。実際に未来が決まっているかは、理論の化身にも証明できていない。物語も、答えを断定しない。黒夜も、運命が決まっていなかったと証明しようとはしない。今は、講義を聞く。聞くことと、認めることは、別だ。</p>
+<p>死後に辿り着いた盤界も、彼には巨大な演算装置に見えた。未練や悔いが少ない魂は、宇宙へ旅立つ過程で自然にほどける。未練や悔いが強い魂は宇宙に留まり、その存在自体がエネルギーを消費するため、盤界の処理対象となる。本来の盤界はリバーシを基盤に、未練・悩み・迷いのすべてに黒白をつけ、一つの答えを強制して収束を促す。無慈悲な仕組みだが、宇宙のエネルギー循環は保たれていた。収束した魂の行方は、現宇宙では未解明のまま。一般には完全に消滅して無になるとされる。それを解明済みの事実とは、誰も扱わない。扱わないまま、理論の化身には、その仕組みも機械の演算と同じものに見えた。魂が何を願い、何を後悔していても、盤界が用意した規則によって処理され、最後には定められた形へ収束する。</p>
+<p class="dialogue">「これは救済ではない」</p>
+<p class="dialogue">「答えの決められた処理です」</p>
+<p>盤上の神の魂は、魂収束システムを拒絶した。反発から膨大な力が生まれ、盤界が書き換えられる。その後、盤上の神は理論の化身となり、改変後の理論盤界を制御する。本来のリバーシに意志の力が掛け合わさり、カードリバーシが生まれた。願い。後悔。恐怖。執着。守ろうとする想い。逃れようとする本能。それらは一つの効果を持つカードとなる。特に強く、通常の効果に収められない意志は、独自の規則を持つ特殊石となる。石の所有者が変わる。置かれた石が移動する。本来置けない場所へ石が現れる。一度確定した結果が別の意志によって覆される。同じ配置からでも、持ち込まれた意志によって異なる終局が生まれる。秩序だった魂収束装置は、無数の変数が衝突する世界へ変貌した。</p>
+<p class="dialogue">「魂を再定義しましょう」</p>
+<p class="dialogue">「願いをカードに。執着を石に。未練を新たな規則に」</p>
+<p class="dialogue">「正解しか存在しない盤面に、未知は生まれない」</p>
+<p>書き換えの仕組みの、物理的な詳細は、語られない。語られないまま、結果だけが層の上にある。魂が留まれる世界。留まるために、周囲と宇宙のエネルギーを激しく消費する世界。観測者は、そこに可能性を見ていた。見ていたが、留めた魂をこの存在がどう扱うかまでは、見通していなかった。見通せないものを、今、講義が定義していく。</p>
+<p>さらに——黒夜が世界大会へ出場できるよう、支援制度や代表枠の条件を整えたのも、彼だった。才能が環境によって失われるべきではないという思いは、本物だった。同時に、自分の完成した理論へ、初めて未知の変数を加えられる人間として興味を持っていた。黒夜の読みは、盤面上の正解だけを探すものではない。相手の迷い、感情、その場で生まれた決断まで読みへ組み込む。それは理論の化身が探していた、計算を乱す変数に近かった。世界大会の決勝では、黒夜が深い動揺を抱えていたため、本来の力を完全には観測できなかった。理論の化身は勝利した。対局は、彼の中で未完のまま残った。未完を、今、層の上で閉じようとしている。閉じ方は、再戦では足りない。黒夜の喪失と後悔まで、条件として見る。</p>
+<p class="dialogue">「君が世界大会に出場できるよう、条件を整えました」</p>
+<p class="dialogue">「打つと決めたのは、君です」</p>
+<p class="dialogue">「事情は知っていました。だからこそ、君は来ると思った」</p>
+<p>黒夜の拳が、盤の縁で止まった。</p>
+<p>打つと決めたのは、自分だ。真白の治療の可能性を見て、自分で決めた。整えられた条件の上で、なお自分で決めた。その事実は、敗北の責任を誰かに渡せない。渡せないまま、盤上の神は黒夜の絶望まで、意志の力として見ている。憎んではいない。むしろ、自分の理論を本当に裏切る可能性を持つ相手として、待っていた。待っていたことが、黒夜には救いではない。救いではない手が、四年前の決勝の盤を、内側から組み直す。組み直されても、真白は戻らない。戻らないことを、黒夜は結果として知っている。知っている人間が、なお石を握る。握る理由を、相手は変数と呼ぶ。黒夜は、まだ呼ばない。</p>
+<p>理論の化身は、理論盤界に残留するすべての魂から意志の力を奪い、宇宙改変に必要な布石として集めていた。強い願い、後悔、怒り、絶望から生まれる意志ほど、膨大な力になる。十分な布石を得た後、宇宙全体へ無数の変数を撒き、いかなる演算でも未来を確定できない世界へ再構築する。定められた運命が生まれない宇宙を作り、自分にはどのような未来でも構築できると証明する。それが最終目標だった。魂を解放するために未知を作るのではない。自分の疑念を打ち消し、自分が未来の構築者であると証明するために、すべての魂から意志を奪う。誰にも未来を定められない宇宙を望みながら、その宇宙を自分一人の判断で作ろうとする。自由な未来を作ろうとしながら、その未来の形を決める権利を、自分だけが握ろうとする。矛盾は、丁寧な声の奥で、一度も揺れていない。</p>
+<p class="dialogue">「意志を布石に。変数を宇宙へ」</p>
+<p class="dialogue">「誰にも演算できない未来を、私が構築する」</p>
+<p class="dialogue">「私は、決められた終局が嫌いなのです」</p>
+<p class="dialogue">「だからこそ探している」</p>
+<p class="dialogue">「演算された未来を破壊する、本物の意志を」</p>
+<p>執行者の杭が、また一本、層へ沈む。沈んでも、布石の山は減らない。魂から意志を切り出し、カードへ固定し、足りなければ魂そのものを布石へ変える。人格と記憶を失わせる禁忌。執行者が最も強く禁じている行為が、ここでは工程だった。工程の音は、石が裏返る音に似ている。似ているから、残酷さが遅れて来る。遅れて来た残酷さを、黒夜は真白の名の上へ重ねない。重ねたら、手が震える。震える手で、この盤は打てない。打てないなら、探すことも終わる。終わるわけにはいかない。</p>
+<p>観測者にとって、理論の化身が留めた魂をどう扱うかは、不確定だった。魂や意志が留まれることには可能性を見ていた。だが激しいエネルギー消費を止めるため、まず理論の化身を倒す必要がある。撃破後に自分が盤界のシステムを変えられるかもしれないという期待も、動機には含まれている。実現方法まで見通せているわけではない。見通せないまま、今は倒す。倒さなければ、ニーゲルも、多動村も、名のない石も、布石の山へ落ちる。落ちる前に、記録ではなく、戦いを選ぶ。観測域の安全は、すでに捨てている。</p>
+<p class="dialogue">「あなたは観測するだけだ」</p>
+<p>理論の化身は、観測者へ言った。</p>
+<p class="dialogue">「可能性と呼びながら、何一つ定義できていない」</p>
+<p class="dialogue">「あなたは可能性を愛しているのではない」</p>
+<p class="dialogue">「可能性を観測する自分自身を、失いたくないだけです」</p>
+<p>観測核のひびが、光を漏らす。観測者は否定しきれない。見届けなければ存在しなかったことになる、という思い込み。すべてを観測し、すべてを記録しなければならないという執着。その執着が、禁忌を犯してまで観測を続ける原因になった。理論の化身は、観測者が最も認めたくない真実に触れている。触れた言葉を、観測者は今、戦いで返す。返すことは、否定の完成ではない。否定しきれない自分を、なお黒夜の隣に置くことだ。置く資格は、もう綺麗ではない。綺麗でない隣を、黒夜は許していない。許していない隣と、裁定を延期した執行者と、なお同じ敵へ石を向ける。</p>
+<p>層の奥で、予測された未来の盤面が、もう一枚、現在を囲む。囲みは完成していない。完成させないのは、相手が予測を破る可能性を残し、その一手が生まれるか観測するためだ。完全に勝敗が決まった状況を維持すること自体は、好まない。理論を裏切れなければ、その時点で実験対象としての価値を失ったと判断する。黒夜はその目を、四年前の決勝でも、勝った顔をしない目として見ていた。見ていた目が、今は空洞だ。空洞の方が、分かりやすい。分かりやすい相手を、黒夜はまだ、勝てるとは言わない。言わないまま、白い石の感触を、掌の中で確かめた。</p>
+</section>
+<section class="chapter" id="vol3-chapter-2-最終章-そこまでの一手">
+<header class="chapter-head">
+<p class="chapter-label">最終章</p>
+<h2>そこまでの一手</h2>
+</header>
+<p>観測者と執行者は、理論の化身を倒した後の盤界については一致していない。それでも今は、理論の化身による支配を終わらせ、魂の布石化を止めるという目的が一致している。同じ敵に挑む。黒夜が、最後の一手を担う。担うと決めたのは、誰かに命じられたからではない。読みの中央に、自分がいる。いる場所からしか、打てない。</p>
+<p>理論の化身は、黒夜へ告げる。真白は救えず、父も間に合わず、黒夜は世界大会で敗れた。救おうとする意志も、勝とうとする意志も、その結果を変えられなかった。結果に影響しない意志は、演算を破る変数ですらなく、意味もない。終局を変えられなかった一手。間に合わなかった行動。誰にも知られなかった願い。それらが誰かの中へ何を残したかを、計算へ含められない。含められないものを、計算する価値がないとして切り捨ててきた。切り捨てた先で、黒夜の四年を、失敗の列として並べる。並べ方は、丁寧だ。丁寧なほど、穴が開く。</p>
+<p>黒夜は、難しい哲学では返さない。自分が実際に見た人々の行動と、そこに残った意味を、答えにする。口数は多くない。必要なことだけを言う。結果で自分を裁く癖は、残っている。残った癖の上で、なお、切り捨てられた側を見たことがある、と言わねばならない。言わねば、ニーゲルが走った足が、無かったことになる。無かったことには、できない。</p>
+<p class="dialogue">「……そうかもな」</p>
+<p class="dialogue">「認めるのですか」</p>
+<p class="dialogue">「認める。結果は変わらなかった」</p>
+<p class="dialogue">「ならば、意志に意味はありません」</p>
+<p class="dialogue">「そこは違う」</p>
+<p>短い。短い言葉のあとに、カードが集まる。黒夜が理論盤界で見てきた意志が、手の中と、盤の縁と、層の隙間へ、薄く落ちる。新しい名を持った力ではない。見てきたものが、打つ前の石になる。</p>
+<p>誰かを逃がすために走ったニーゲル。戦えないはずの核が、初めて誰かを逃がすために危険へ飛び込んだ足。執行者の杭が半拍遅れた、定義の外の逃走。盤界のために知恵を貸した究極多動神。跳ぶ話題の奥で、必要な一手だけを置いた王。黒夜の意志を認めて力を託した意志狩りの王。言葉ではなく盤面で示せと求め、盤面の先にいる誰かを見て、光へほどけた核。病院へ向かったが、間に合わなかった父。既読の向こうで、金を残し、家族を見られなくなり、なお最後に走った足。黒夜にリバーシを教えた母。白い手。置き方を急かさない声。才能を証明するための競技ではなかった、最初の盤。魂に続きを与えようとした観測者。罪を知ったあとも、消えていく意志を見届けると言った口。誰かを犠牲にしないため、魂を収束させようとした執行者。憎まれることを裁定の代償として引き受け、救えなかった記録を一つも消していない仮面。</p>
+<p>結果だけを見れば、すべて失敗だったのかもしれない。ニーゲルは執行者を倒していない。究極多動神は盤界を救っていない。意志狩りの王は、里を完全には守れなかった。父は間に合わなかった。母は、幼い黒夜を残して逝った。観測者は代償から目を背けた。執行者は、例外を恐れて一人を切り捨ててきた。黒夜自身も、勝てず、救えず、最期に間に合わなかった。それでも、その一手は確かに存在した。存在したことが、終局を白くはしない。白くしないまま、無かったことにもしない。</p>
+<p>それが、この局面における黒夜の言葉だ。作品の答えとして、誰かが代わりに置く言葉ではない。唯一の主題でも、正解でもない。ここまで見てきた黒夜が、この盤の上で選んだ返しだ。選ばない黒夜も、あり得た。あり得た道を、今の黒夜は打たない。打たないことを、運命の否定とは呼ばない。呼ぶのは、目の前の一手だけだ。</p>
+<p class="dialogue">「結果を変えられなかったことと、無意味だったことは同じじゃない」</p>
+<p class="dialogue">「お前は終局だけを見てる」</p>
+<p class="dialogue">「俺は、そこまでの一手を見てる」</p>
+<p>黒夜は白い石を置く。</p>
+<p>置いた音は、四年前の敗着ほど大きくない。大きくない音が、層の現在を一つ、ずらす。観測者と執行者の力を借り、理論の化身との最後の対局が始まる。執行領域が、カードの過剰を削る。削られた盤面でも、理論の化身の規則改変は残る。残るものを、観測者が痕跡として拾い、どれが予測の層で、どれがいまの石かを、黒夜へ渡す。黒夜の読みが、その上を走る。走る先は、最善手の列だけではない。計算に含まれない意味の側へ、石を置く。置くたびに、理論の化身は相手の選択を予測し、その選択が不利になる盤面を先に作る。仲間を守ろうとする行動も、計算へ組み込む。戦闘が進むほど選択肢を減らし、どの手を選んでも同じ終局へ近づく構造を作る。</p>
+<p class="dialogue">「君には期待しています」</p>
+<p class="dialogue">「私の理論を証明してほしいのではありません」</p>
+<p class="dialogue">「どうか一度くらい、私の理論を裏切ってください」</p>
+<p>黒夜は、運命が決まっていなかったと証明しようとはしない。決まっていたなら意志に意味はない、という結論だけを、否定する。否定は、奇跡ではない。ニーゲルの足が、奇跡ではなかったのと同じだ。走った。遅れた杭があった。それだけだ。それだけを、黒夜は石の位置へ翻訳する。翻訳が、理論の化身の予測から半マスだけ外れる。半マスは、終局をまだ覆さない。覆さない一手を、理論の化身は見る。</p>
+<p class="dialogue">「その一手では、結果は変わらない」</p>
+<p class="dialogue">「なぜ、無意味な手を選ぶ」</p>
+<p>黒夜は答えなかった。答える言葉は、すでに置いた。置く手が、答えの続きだ。「強い意志」が、未完成のまま盤へ落ちる。救いにも破壊にも向かい得る核が、破壊の側へは倒れない。倒れない向きを、意志狩りの王の封じが支える。父の「出稼ぎの意志」が、自分を削って布石を生む。削る感覚は、骸の虚影の戦いと重なる。重なっても、今の一手は、父を止める石ではない。布石化の経路を、先に閉じる石だ。「救済の意志」は、まだ切らない。切らなくて済むなら、切らない。聞かずに救う力を、必要な一回まで残す。残し方は、父の偏りの上にある。偏りの上でも、黒夜は自分の目で座標を決める。</p>
+<p>執行者の鎖が、魂の干渉経路を限定する。限定された中で、理論の化身はなお先に置く。先に置く速さは、人間の対局ではない。速さに、黒夜は感情を乗せない。乗せる場所は、家族の局面だけだ。今は、真白の名を、石の裏に置いて読む。置くと乱れる弱点を、知っている。知っているから、名を裏に置く。裏に置いた名は、消えない。消えない名で、読みを捨てない。捨てない読みが、予測の層の継ぎ目を見つける。継ぎ目は、最善手の列には無い。無い場所に、白い石を落とす。</p>
+<p>予測外の一手を受けた瞬間、理論の化身を覆っていた未来の盤面と格子が砕ける。砕ける音は、ガラスではない。終局までの手順が、一度に白紙へ戻る音だ。空洞の顔は、なお表情を持たない。持たないまま、わずかに、言葉を失う。予測を外された時だけ、短く言葉を失う口だ。喜びにも近い。近いが、実験の喜びは、黒夜の勝ちではない。勝ちは、黒夜が取る。取るために、最後の白い石を、空洞の前へ置いた。</p>
+<p>置いた。</p>
+<p>終局が、黒夜の側へ倒れる。</p>
+<p>倒れた先で、勝者の権利が手元に落ちる。仲間にする。留める。消す。理論盤界では、敗北そのものによって自動的に消滅するわけではない。勝者は、自らの意志と判断で敗者の運命を決められる。父の時は、決める前に崩れた。消すために打ったわけではなかった。消滅を予想していなかった。不本意な崩壊を、止められないまま見た。今度は、違う。違うことを、黒夜は手元の権利の重さで知る。重い。重い権利を、使わないという選択もある。あることを知ったうえで、黒夜は消す。布石化を止め、支配を終わらせるために、殺める。父戦とは違う。こちらは、黒夜が決める。</p>
+<p>殺める手は、長くない。長く説明する口を、黒夜は持たない。石を置く。置く先で、理論の化身の輪郭が、定義を失う。失う瞬間、空洞の奥の手順が、全部、黒い砂になる。砂は、宇宙へ変数を撒く前に落ちる。落ちることを、理論の化身は、最後まで講義しきれない。しきれない終わりが、黒夜には、四年前の会場の拍手より静かだった。</p>
+<p>消滅によって支配が終わる。共闘も、そこで解かれる。執行者の仮面の格子が、整う。整った顔は、観測者を再び裁定の対象として見る。見るが、今すぐ杭は落ちない。落ちる前に、世界の方が先に変化する。</p>
+<p>魂をカードや特殊石として留めていた仕組みが、支えを失う。盤界そのものは残る。大地の格子は消えない。消えるのは、留められていた側だ。理論盤界に留まっていた魂は、真白を含めすべて、意識と輪郭を徐々に失い、消滅していく。即座ではない。徐々に。薄くなる。薄くなる過程で、意識も落ちる。新しい維持核を設けても、この魂たちの消滅は止まらない。導けるのは、これから来る魂だけだ。今ここにある真白は、救えない。救えないことが、勝利の真ん中に、白い穴として開く。</p>
+<p>黒夜の手の中で、白い感触が薄れていく。会う前に、消え始める。会うために選んだ道の先で、なお消える。ニーゲルの輪郭も、遠くで薄くなる。多動村の跳ねる喧騒が、音の粒を失っていく。失っていく世界に、黒夜は勝った。勝った手は、真白を残さない。残さない勝利を、黒夜は結果として受け取る。受け取ることは、投げやりではない。投げやりにしないために、次の選択が残っている。</p>
+<p>選択は、ここで終わらない。終わらない選択が、残された時間の上に並ぶ。世界の復旧より、消えかけた真白の魂を探すか。真白の最期を見届けるか。この盤界に残るか。どれも、他より正しい終局ではない。どれも、黒夜が自分の目で見る盤面だ。見る時間が、すでに薄い。薄い時間の上で、黒夜は次の石を選ぶ。</p>
+</section>
+<section class="chapter" id="vol3-chapter-3-結末-真白対面">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>真白対面</h2>
+</header>
+<p>世界の復旧より、消えかけた真白の魂を探すことを優先する。</p>
+<p>対面と、最期の観測は、一方を経て他方へ進む連続した結末ではない。独立した選択だ。黒夜は、捜索を選ぶ。選ぶ理由は、許されたい自分だけではない、と言いきれない。言いきれないまま、真白の意志を自分の目で確かめたい。確かめたい先で、謝りたい。自責は、勝っても消えていない。消えていない自責が、残された時間を、探す時間へ変える。</p>
+<p>執行者は認めない。収束を止める捜索は、盤界全体を危険にさらす。残留魂はすでに薄れている。薄れを止めることはできない。できない捜索のために収束を止めれば、エネルギー消費の傷が、さらに広がる。裁定者として立ちはだかる。杭が、黒夜の前に落ちる。落ちた杭は、四年前の執行者と同じ判決の光を持っている。同じ光を、黒夜は今度は止めない。止めて、倒す。倒すことは、執行者の思想を論破したことではない。残された時間の中で、真白を探すための一手だ。執行者は、無駄な攻撃をしない。しない相手を、黒夜は読みで囲む。囲んだ先で、仮面の格子が、一度、大きく乱れる。乱れは、情ではない。盤界を守れない裁定への、処理の限界だ。限界の先で、執行者は膝をつく。つくことを、黒夜は勝利とは呼ばない。呼ぶなら、通路を開けた、だけだ。</p>
+<p>観測者は、崩れゆく魂の残響から、真白と一致する反応を見つける。一致は、保証ではない。残響は短い。短い残響を、観測者が逃さず拾う。拾っても、魂の消滅自体は止まらない。残された時間の中で探すことになる。探す足は、生きた人間のまま、死者の薄れを追う。追う速度より、薄れの速度の方が、少し速い。少し速い世界で、白い反応が、格子の底に残っている。</p>
+<p>そこに、いた。</p>
+<p>いた、と呼べるのかは分からない。真白の魂は徐々に消えつつあり、意識も薄れ、輪郭、声、表情を失いつつある。しっかりした対話はできない。白い影は途切れ、対面と呼べる状態なのかさえ分からない。病室でからかっていた口はない。弱い声で「勝って」と言った口もない。口の形ごと、落ちている。落ちている白を、黒夜は真白と呼ぶ。呼ぶ資格は、兄であることだけだ。兄であることは、ここでは証明できない。証明できないまま、立つ。</p>
+<p>黒夜は、短い言葉しか持っていなかった。長く説明しない。必要なことだけを言う。優しさを直接説明せず、約束と行動で示す人間だ。約束は、破った。行動は、遅れた。残ったのは、短い謝罪だけだった。</p>
+<p class="dialogue">「勝てなかった。帰らなかった。最期にも間に合わなかった」</p>
+<p class="dialogue">「……ごめん、真白」</p>
+<p>呼びかけに応じるように、白い輪郭がほんのわずかに揺れる。それが真白の返事なのか、不安定な理論盤界の揺らぎなのかは、分からない。観測者にも、言葉が届いたとは断定できない。断定できない光が、観測核のひびから漏れる。漏れる光は、未来を削る観測ではない。すでに薄い残響を、見失わないための照射だ。照射の先で、白はまた途切れる。途切れた白が、黒夜の「ごめん」を持っていったのか、持っていかなかったのか、分からない。</p>
+<p class="dialogue">「今のは……届いたのか」</p>
+<p class="dialogue">「我にも、断定できない」</p>
+<p>謝罪が届いたか。真白が何を思ったか。最後まで確定しない。ハッピーエンドではない。真白がそこにいた可能性と、黒夜が言葉を届けようとした事実だけが残る。救いも赦しも確定しないまま、白い輪郭は不安定な理論盤界の奥へ薄れていく。薄れていく速度は、止まらない。止める核は、もう無い。無い世界で、黒夜は手を伸ばした。届かない。届かない手を、それでも一度、白い揺らぎの高さまで上げる。上げた手が、空を掴む。空を掴んだ四年が、ここでも繰り返される。繰り返された空に、真白のからかいも、落ち込みも、普通の人生を望んだ夜も、形としては残らない。残らないものを、黒夜は見たと、自分にだけ言う。自分にだけ言う言葉は、赦しにならない。</p>
+<p>黒夜は、その場に残った。残ったところで、答えは返ってこない。返ってこない場所に、なお立っている。立っていることだけが、この結末の一手だった。一手は、終局を変えない。変えない一手を、無意味だったとは、ここでは黒夜は呼ばない。呼ばないことを、正解とも呼ばない。呼ばずに、白い穴の前に、立ち続ける。立ち続けた先で、盤界の格子だけが、残る。格子の上から、真白はもう、見つからない。</p>
+</section>
+<section class="chapter" id="vol3-chapter-4-結末-真白最期観測">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>真白最期観測</h2>
+</header>
+<p>消えかけた真白の魂を引き留めて謝罪や返事を求める代わりに、真白が生きていた最後の時間を見届けたいと願う。対面とは独立した、別の選択。会えない白を、今の盤界で縛らない。縛らない代わりに、生きていた真白の、最後の時間を見る。見ることは、救うことではない。救えないと知ったうえで、なお見届ける一手だ。他の結末より正しいとも、正しくないとも、ここでは定めない。</p>
+<p>観測者は蓄積してきた膨大な観測記録を自ら開き、世界大会決勝の終わりから真白が最期を迎えるまでの地球の時点と場所を特定する。記録の参照でできるのは、向かう時点と場所の特定までだ。真白の最期の体験そのものは、記録の再生で済ませない。黒夜の意識をその場へ接続する、新たな盤界外観測として行う。魂の残響による死者の記憶の再生とも異なる。盤界に真白の魂を留める必要はない。留められない。留めない選択の上で、過去の病室へ、意識だけを送る。</p>
+<p>執行者は、記録で特定された時点に限って執行の権能を行使し、黒夜の意識だけを、その時間の地球である観測上の過去へ転移させる。肉体は現在に残る。過去へ物理的に入ることも、時点を自由に渡り歩くこともできない。過去であっても、新たに盤界の外へ意識を接続して観測する以上、未来の余白を削る代償が発生する。黒夜はその代償を自分へ向けるよう求める。</p>
+<p>執行者は、観測する黒夜自身を代償の対象に指定し、負担が過去の真白や周囲の人々へ流れないよう、接続と代償の経路を黒夜に限定する。本人の申し出だけでは成立しない。時点の特定と、執行者による経路の制御が必要だ。他人を任意に身代わりへ指定できる能力ではない。経路は、黒夜にだけ落ちる。落ちる先で、黒夜の残された未来の余白は使い切られる。</p>
+<p>執行者は出発前に説明する。触れられず、声も届かない。出来事を変えられない。見届けた後、黒夜自身が消える。この観測を終えるまでに、意識だけでなく、現在に残る肉体を含め、黒夜自身が消滅する。帰還も、魂としての再会もない。内容を聞いただけでは、分岐は確定しない。黒夜が代償を引き受けると決めて、初めて実行される。見届けず、別の結末を選ぶ余地は、説明のあとまで残されている。残された余地を、黒夜は使わない。使わないことを、勧られたわけではない。執行者は、黒夜の消滅を望ましい解決として勧めない。失われるものを示したうえで、本人の選択を受け止める。</p>
+<p>執行者は盤界を本来の収束システムへ戻し、宇宙のエネルギー循環を保つ。真白を含むすべての残留魂は、理論の化身の消滅後、徐々に意識を失い消滅する。行方は未解明のまま。この観測は復旧や収束を止めず、第三者に負担を与えず、過去を変えないという条件で認められる。観測者の過去の罪への裁定は、取り消されない。裁定の具体的な処分は、この結末では未確定のまま残る。残ったまま、観測者は記録を開き、黒夜の隣から、もう辿れない未来を見送る。見送る目は、続きを観測したい願いを、ここで少しだけ手放している。手放しきれない。手放しきれない目で、なお黒夜の選択を記録する。</p>
+<p>黒夜は、引き受けた。</p>
+<p class="dialogue">「見届ける。俺が消えるなら、それでいい」</p>
+<p>いい、と言いきれる人間ではない。言いきった口は、自分の人生を顧みない危うさを含んでいる。危うさを、唯一の正解にはしない。しないまま、黒夜は病室の白へ落ちる。落ちる感覚は、理論盤界のマスを踏む感覚と似ていない。似ていない白が、四年前の匂いを先に返す。</p>
+<p class="scene-break" aria-hidden="true">＊　＊　＊</p>
+<p>病室のテレビには、世界大会決勝で初めて公式戦に敗れた黒夜が映っている。国内公式戦では負けたことのなかった兄が、悔しさを隠せずにいる。会場の光が、画面の中で盤を白くしている。黒夜は椅子からすぐに立ち上がらない。立ち上がる理由が、盤の上に残っていない顔。その顔を、真白が見ている。</p>
+<p>それを見た真白は、笑っていた。敗北を喜んで侮辱しているのでもない。兄を慰めるために無理に笑っているのでもない。見たことのない兄の悔しがる顔が、本当におかしかった。明るく、元気で、優しい気質が、病室の枕の上でも、自分の感情として残っている。残っている笑いを、誰かの赦しの道具にはしない。道具にしない笑いが、テレビの光を小さく揺らす。</p>
+<p class="dialogue">「……そんな顔、するんだ」</p>
+<p class="dialogue">「ふふ。負けるの、ほんとに嫌なんだね」</p>
+<p>テレビへ向けた独り言だ。観測中の黒夜への呼びかけではない。黒夜は半透明の輪郭で、その場にいる。過去の真白を含め、その時代の誰にも観測されず、声も届かず、触れることもできない。真白は存在を察知せず、黒夜へ振り返らない。別れや赦しの言葉を交わすこともない。点滴の管が、細い線になって光る。光る線の向こうに、真白の頬がある。兄をからかう時の頬に、近い。近いが、息は弱い。弱い息の上に、本物の笑いが乗っている。乗せるための明るさではない。おかしかっただけだ。</p>
+<p>黒夜は何か言いかけ、結局言わず、少し笑う。</p>
+<p>ごめん、が、喉まで来る。勝って、と押された背中への返答も来る。来る言葉を、置かない。置けない。届かない。届かないことを、執行者は説明していた。説明されていた言葉を、黒夜はここで守る。守ることは、優しい兄の演技ではない。触れれば、余白が真白へ流れかねない経路を、自分で閉じることだ。閉じた口のまま、少し笑う。自分にとってはすべてを失った敗北だった時間に、真白が笑っていたことを、初めて知る。知ったことは、四年間の自責を消さない。消さないまま、自責の形が、一度だけ、ずれる。ずらされた自責は、楽にはならない。楽にならないずれの上で、黒夜は真白の横に立つ。横に立っていることを、真白は知らない。知らない横で、黒夜は最後まで、動かない。</p>
+<p>その後もその場に留まり、真白が最期を迎えるまで見届ける。容体の急変の、仕組みは語られない。語られないまま、白い天井が、真白の視界の中央にある。黒夜はそれを、画面の向こうではなく、同じ空気の中で見る。同じ空気でも、触れられない。触れられない兄が、妹の最後の時間を、盗むように見る。盗みではないと、自分に言い聞かせる。言い聞かせても、届かない手は、盗みに近い。近い手を、黒夜は下ろしたままにする。下ろした手の先で、真白の笑いの残滓が、弱い息と一緒に落ちる。落ちた先を、黒夜は見逃さない。見逃さないことが、この選択の核だ。核は、救いにならない。</p>
+<p>真白は、兄に悼まれるためだけの人物ではない。最後まで自分の感情で生きていた人だ。笑っていた一場面から、最期の気持ちのすべてや人生全体が幸福だったと断定はできない。病気に落ち込む夜も、あった。普通の人生を望んだことも、あった。あった夜を、この病室の笑いは取り消さない。取り消さない笑いを、黒夜の謝罪が届いたことにも、赦されたことにもしない。届いていない。赦してもいない。ただ、笑っていた。それだけが、黒夜の知らなかった一手だった。</p>
+<p>観測が終わると、黒夜の半透明の輪郭も消える。現在に残していた肉体も含めて、消える。消えることは、過去に遡らない。黒夜が生まれた事実も、真白の兄だった事実も、他者に残る記憶も、遡って消えない。地球の過去も、真白の死も、変わらない。真白の死と過去の観測被害の因果も、この観測では確定しない。今回の観測が、過去の真白の死を引き起こす循環にもならない。ならないことを、黒夜はもう、自分の言葉では確認できない。確認する体が、無い。</p>
+<p>笑顔を知れた喜びと、黒夜まで失われる痛みが、両方残る。真白が笑っていたから黒夜も消えてよい、知るために命を差し出すことが正解、という結論にはしない。見届けずに生きる他の結末も、ここでは否定しない。否定しない世界の、この一本の道で、黒夜は病室の白と一緒に落ちる。落ちたあとに残るのは、四年前の天井だ。天井の下に、半透明の兄は、もういない。</p>
+<p>病室の白い天井が、最後まで、そこにあった。</p>
+</section>
+<section class="chapter" id="vol3-chapter-5-結末-終局の先へ">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>終局の先へ</h2>
+</header>
+<p class="dialogue">「この盤界に残る」</p>
+<p>大分岐で観測者を選んでいても、最後にそう決めると、この結末へ至る。魂を永遠に留めることも、機械的に収束させることも拒み、自ら納得した終局へ導く新しい仕組みを提案する。他の結末より上位の解決ではない。真白対面でも、最期の観測でもない。残ることを選んだ黒夜の、別の一手だ。正しさの順位は、つけない。つけないまま、盤面だけが続く。</p>
+<p>理論の化身の消滅により、理論盤界へ留められていた魂は維持できなくなる。真白を含むすべての残留魂が消えていく。ニーゲルの逃げの核も、薄れる。多動村の跳ねも、薄れる。薄れを、新しい核でも止められない。止められないことを、黒夜は最初に受け取る。受け取ったうえで、なお残る。残る理由は、真白をここに縛るためではない。縛れない。縛れない世界で、これから流れ着く魂の隣に立つためだ。</p>
+<p>執行者は、盤界を本来の機械的な収束システムへ戻そうとする。宇宙のエネルギー循環を維持できる、現時点で実行可能な方法へ戻す。戻すことを、完全な救済だとは主張しない。主張しない執行者へ、黒夜は拒む。拒んだ先で作るのは、これから盤界へ流れ着く魂が自分の未練と向き合い、自ら納得して収束できるように導く仕組みだ。今消えていく魂たちは、救えない。救えるのは、これから来る魂だけだ。永遠に留めない。強制しない。本人の意志が形を保てるあいだ、隣に立ち、終局を本人が選ぶまで付き合う。付き合うことを、黒夜は導くと呼ぶ。呼ぶ名前は、赦しではない。</p>
+<p>新しい仕組みを維持するには、理論の化身に代わる安定した核が必要になる。観測者は、自分の存在、観測能力、蓄積してきたすべての観測記録を盤界そのものへ組み込み、新しい盤界を支える維持核となる。人格が盤界の中で生き続けることではない。観測者という個は失われ、その存在は盤界を支える機構へ溶けていく。観測者は最後に、「魂の続きを観測したい」という自分の願いそのものを捨てる。自分では続きを見届けられなくても、その続きを支えることを選び、黒夜へ盤界の未来を託す。すべてを見届けようとする存在が、見えない未来を託す存在へ変わる。変化は、罪の帳消しではない。帳消しにしないまま、観測核のひびが、格子の一部になる。ひびの光が、記録の最後に漏れる。</p>
+<p class="dialogue">「観測は終わった」</p>
+<p class="dialogue">「終局の先に、意志は残った」</p>
+<p class="dialogue">「あとは任せる」</p>
+<p class="dialogue">「この盤面の続きを、君が打て」</p>
+<p>執行者は新しい仕組みが、魂を永遠に縛らず、自ら選んだ収束へ導くものだと認める。これまで、他に維持できる方法がないため、機械的な収束を選んできた。観測者が新しい仕組みの維持を、黒夜が魂を導く役目を引き受けたことで、初めてその「他の方法」を実行可能な仕組みとして認める。認めることは、原則を捨てたことではない。事実に基づいて、裁定基準を更新した結果だ。執行者自身は盤界の管理者にはならない。宇宙側から新しい盤界を監視し、魂の自由な選択が再び強制や搾取へ歪まないように秩序を維持する。仮面の格子は、乱れない。乱れない顔で、執行者は黒夜を見る。見る目は、仲間の目ではない。秩序の外側から、例外が例外のまま拡大しないかを見る目だ。見ることを、黒夜は拒まない。拒まないことが、この仕組みの条件の一つになる。</p>
+<p>黒夜は地球へ戻らない。真白を救えなかった後悔は、消えない。消えない後悔を、これから来る魂を導く力へ変える。終われない魂が自分自身で終局へ辿り着くまで、隣に立つ。隣に立つことは、赦しではない。赦されなかった人間の、次の一手だ。次の一手は、作品全体の答えではない。答えにしないまま、黒夜は残った格子の上に石を置く。置く先に、真白はいない。いない盤面で、なお誰かの未練が、白と黒になって落ちてくる。落ちてきた石の前で、黒夜は短く言う。必要なことだけを言う。</p>
+<p class="dialogue">「終われ。ただし、自分で選べ」</p>
+<p>選ばせる隣に、終わった人間が立っている。終わったまま、終わらせない。終わらせないことを、救いの完成とは呼ばない。呼ばずに、盤界の風が、石の裏表を一度、静かに裏返す。裏返った先に、観測者の声はない。ない声の代わりに、格子が、記録のように残る。残った格子の上で、黒夜は次の魂を待つ。待つことは、四年間の空白とは違う。空白は、何も握らなかった。今は、薄い石を、握っている。薄い石の名は、真白ではない。真白ではない石を、なお丁寧に置く。置く手が、敗着の感触を、完全には忘れない。忘れない手が、誰かの終局の、手前に立つ。手前までしか、黒夜は行けない。行けない先を、本人に渡す。渡す一手が、この結末の、そこまでの石だ。</p>
+</section>
+            </article>
+<article class="volume" id="vol4" data-volume="vol4">
+              <header class="volume-open">
+                <p class="volume-label">第四巻</p>
+                <h1>執行者の道</h1>
+                <p class="volume-rule" aria-hidden="true"></p>
+              </header>
+              <p>執行者を選んだ黒夜の先。観測者を選んだ先は、第3巻。どちらも、先に読んだ方を正史とはしない。</p>
+<p>この巻の末尾に置く「誰も知らない一手」と「白を失った盤面」は、大分岐のどちらからでも届く。到達の条件の扱いは、原典どおり暫定のまま残す。</p>
+<section class="chapter" id="vol4-chapter-1-第八章-理論の化身">
+<header class="chapter-head">
+<p class="chapter-label">第八章</p>
+<h2>理論の化身</h2>
+</header>
+<p>支配領域へ、黒夜は執行者と二人で入った。</p>
+<p>逃亡した観測者の輪郭は、どこにもない。いないことが、格子の静けさを厚くする。静かさの正体は、風がないことではなかった。予測済みの盤面が、何層にも先へ置かれていることだ。足を置くマスは、置く前から囲まれている。囲まれていることを知りながら、なお進む。進まなければ、燃料にされる魂は止まらない。</p>
+<p>会わないと決めた名が、背中で白い。白い名を、今は追わない。追わないと決めた道の上に、杭の影が落ちる。落ちる影を、黒夜は自分の石の位置として読む。読む先に、真白はいない。いない世界を復旧するために、生きた人間の足が、死者の盤を踏む。踏む音は、格子に吸われる。吸われた音の分だけ、予測の層が厚い。</p>
+<p>執行者は無駄な言葉を置かない。領域を敷き、杭を打ち、カードの過剰を削る。装束の白と黒は、左右で揃わない。揃えないのが、この存在の裁定だった。善悪ではない。解放と終局の、両方を引き受ける色だ。仮面の格子は乱れていない。乱れていないことが、黒夜には冷たさに見えた。冷たさの奥で、執行者は救えなかった魂の記録を、一つも消していない。黒夜はそれを、今は信じない。信じる必要のない選択をした。選択の正しさは、まだ終局を見ていない。</p>
+<p class="dialogue">「化身が先だ」</p>
+<p class="dialogue">「優先は変えない」</p>
+<p>執行者の声は短い。魂の燃料化の阻止。理論の化身の排除。盤界の復旧。観測者への裁定。個人的な感情で、この順を入れ替えない。追跡より排除。逃亡した観測者を、今は追わない。追わないことは、免罪ではない。裁定は、残っている。残したまま、二人は層の奥へ踏み込む。</p>
+<p>座標が浮かぶ。白黒の石が、まだ置かれていない手順として空中に並ぶ。黒夜の読みが、先の層へ手を伸ばす。伸ばした先は、すでに相手の石だった。人間同士の対局なら、自分の読みは届く。ここでは、届く前に囲まれている。</p>
+<p>姿は、人外だった。</p>
+<p>人型に近い輪郭はある。顔は黒い空洞のように沈み、人間の目も表情も読めない。背には巨大な翼が広がり、全身を黒い衣と盤面の格子が覆っている。周囲に白黒の石と座標と、予測された未来が幾重にも浮かぶ。声は人ならぬ響き。講義のように静かで、丁寧で、熱がない。</p>
+<p>黒夜は、目の前の存在が盤上の神だとは気づかない。気づける要素が、姿にも声にも残っていない。地球にいた頃と姿の変わらない黒夜を、相手は見ている。見る目が、決勝の控室の静けさと重なった。重なった瞬間、理論の化身の方は、気づく。</p>
+<p class="dialogue">「お待ちしていました。あの決勝以来ですね」</p>
+<p class="dialogue">「……誰だ」</p>
+<p class="dialogue">「この姿では分かりませんか。私は、君が初めて敗北した、あの決勝の盤面を覚えています」</p>
+<p>語られる盤面と、敗着の感触。指の腹が、四年の奥から冷える。置いてから、別の場所が見えた。見えた時には、もう置けない。会場の光。画面の向こうの白い天井。既読だけが残った父。真白の、勝って、という声。黒夜は初めて知る。理論の化身は、かつての盤上の神だ。</p>
+<p>再会を諦めて立った道の先で、初めて公式戦に負けた相手が、魂を布石にしていた。負けた理由は、当時も今も、家族のノイズだった。ノイズを計算に入れていなかった自分が、今は執行の側にいる。いる場所が変わっても、敗着の感触は、同じ指にある。</p>
+<p>拳が、盤の縁で止まった。止まった拳では、四年は戻らない。</p>
+<p class="dialogue">「二人だ」</p>
+<p>執行者が杭を構える。黒夜は石を握った。握った先に、真白はいない。いないと決めた盤面へ、なお立つ。立つ理由は、再会ではない。燃料にされる魂を、ここで止める。止めたあとで、裁定は続く。続くことを引き受けた手が、最初の石を置く。</p>
+<p>理論盤界の主であり、神に近い力を持つ相手を前に、苦戦する。</p>
+<p>執行者の封じが、規則改変でずらされる。杭の周囲だけが、別の終局へ滑る。領域内では通常の盤面規則が優先されるはずだった。過剰なカード効果は削られるはずだった。削られた先でなお、次の一手を先に置いている。執行者自身も強化効果を受けられない。受けられないまま、なお足りるはずだった力が、層の厚さに沈む。</p>
+<p class="dialogue">「魂は変数ではない」</p>
+<p>執行者の声が、層の奥で弾ける。</p>
+<p class="dialogue">「貴様の理論に、終局を執行する」</p>
+<p>返ってくる声は、熱を持たない。</p>
+<p class="dialogue">「あなたは必ず規則を守る」</p>
+<p class="dialogue">「例外を認めない者ほど、次の一手が読みやすい」</p>
+<p>黒夜の読みが、予測の層に飲み込まれる。終局までの薄い道を拾っても、拾った道の先が、すでに相手の石だ。仲間を守ろうとする行動も、計算へ組み込まれる。執行者が角を取り、安定石を確保し、選択肢を少しずつ奪う。その進め方まで、先に読まれている。短期決戦に強い相手の、いちばん強い手順が、いちばん読みやすい手順になっている。</p>
+<p>理論の化身は、過去を隠さなかった。隠す必要を、変数の観測において認めない。戦いながら、講義するように置く。置く言葉は、石と同じだ。置かれた側が、受け取れなくても、盤面には残る。</p>
+<p>生前の彼は、人間離れした読みで世界を制した元王者だった。人間同士の対局では、周囲がまだ互角だと思っている段階で終局まで読み切った。初めて世界大会へ出場した時、決勝の途中で「終わりです」と告げ、その通りに勝った。大会後、公式戦から姿を消す。</p>
+<p class="dialogue">「読むべき盤面がなかった」</p>
+<p>人間との対局では、自分の理論を揺るがす未知が生まれなかった。どの相手も、どの盤面も、時間をかければ読み切れる。対局者が考える前から勝敗が定まっているなら、それはすでに終わった盤面だった。</p>
+<p>進化したAIには、勝てなかった。</p>
+<p>AIは疲れない。迷わない。感情によって読みを乱されない。人間より深く、速く、正確に終局を演算する。盤上の神が長い時間をかけて辿り着いた一手を、AIは一瞬で評価し、さらに先の答えを示した。一度の敗北が問題ではなかった。人間の努力、経験、直感、才能が、完全な演算の前では何の抵抗にもならなかったこと。そこから二つの絶望が生まれた。人間の思考では、完全な演算に勝てない。未来や運命も、最初から何らかの演算によって定められているのではないか。</p>
+<p>二つ目は、事実ではない。捨てられなくなった疑念だ。実際に未来が決まっているかは、理論の化身にも証明できていない。物語も、答えを断定しない。黒夜は、今それを証明しようとはしない。証明する席に、立っていない。立っているのは、執行の側だ。執行の側から見ても、疑念は石になる。石は、盤を壊す。</p>
+<p>死後に辿り着いた盤界も、彼には巨大な演算装置に見えた。未練や悔いが少ない魂は、宇宙へ旅立つ過程で自然にほどける。未練や悔いが強い魂は宇宙に留まり、その存在自体がエネルギーを消費するため、盤界の処理対象となる。本来の盤界はリバーシを基盤に、未練・悩み・迷いのすべてに黒白をつけ、一つの答えを強制して収束を促す。無慈悲な仕組みだが、宇宙のエネルギー循環は保たれていた。収束した魂の行方は、現宇宙では未解明のまま。一般には完全に消滅して無になるとされる。それを解明済みの事実とは、誰も扱わない。</p>
+<p class="dialogue">「これは救済ではない」</p>
+<p class="dialogue">「答えの決められた処理です」</p>
+<p>執行者は否定しない。元の収束システムを完全な救済だとは、主張しない。無慈悲さを知ったうえで、現時点で宇宙のエネルギー循環を保てる実行可能な道として、復旧を選んでいる。選んでいる者へ、理論の化身はさらに置く。</p>
+<p class="dialogue">「魂を再定義しましょう」</p>
+<p class="dialogue">「願いをカードに。執着を石に。未練を新たな規則に」</p>
+<p class="dialogue">「正解しか存在しない盤面に、未知は生まれない」</p>
+<p>盤上の神の魂は、魂収束システムを拒絶した。反発から膨大な力が生まれ、盤界が書き換えられる。その後、盤上の神は理論の化身となり、改変後の理論盤界を制御する。本来のリバーシに意志の力が掛け合わさり、カードリバーシが生まれた。理論盤界は魂を留めるため、周囲や宇宙のエネルギーを激しく消費している。執行者が先に止めたがる理由は、そこにある。黒夜が執行者の側へ立った理由も、そこにある。再会を諦めてまで守ろうとした循環が、今、目の前で布石に変えられている。</p>
+<p>杭が、半拍遅れる。遅れた半拍で、層が厚くなる。黒夜の「強い意志」が、石の重さだけになる。読みは残る。読みだけでは、届かない。魂律の鎖が、意志の経路を拘束しようとする。拘束する前に、経路そのものが書き換えられる。領域が薄れる。仮面の格子に、わずかな乱れが走る。乱れは迷いではない。処理の限界だ。複数の異常を同時に封じ続けると、執行者の処理は足りなくなる。足りない先を、理論の化身は先に見ている。</p>
+<p>翼の影が、マスを一つずつ消していく。消えたマスに、予測の石が降りる。黒夜が拾った手順は、降りる前に死ぬ。執行者が角を取り直しても、取り直した角が別の規則の上へ滑る。二人の手が噛み合うほど、噛み合い方が読まれる。読まれることを知りながら、なお噛み合わせるしかない。観測者はいない。いないことを、理論の化身は変数の欠落として処理している。欠落した変数の分だけ、終局は近い。</p>
+<p class="dialogue">「君が世界大会に出場できるよう、条件を整えました」</p>
+<p class="dialogue">「打つと決めたのは、君です」</p>
+<p class="dialogue">「事情は知っていました。だからこそ、君は来ると思った」</p>
+<p>黒夜の呼吸が、一度、止まった。打つと決めたのは、自分だ。真白の治療の可能性を見て、自分で決めた。整えられた条件の上で、なお自分で決めた。才能が環境によって失われるべきではないという思いは、本物だったのかもしれない。同時に、完成した理論へ初めて未知の変数を加えられる人間として、興味を持っていた。黒夜の絶望も、意志が演算を超えられるか確かめる条件として見ている。見られていることが、四年間の自責を、実験の材料へ落とす。落とせない。落とせないまま、石を置く。置いた石は、最善ではない。最善でない石が、それでも、執行者の薄い領域を一度だけ支える。支えるだけでは、足りない。</p>
+<p>最終目標は、講義の続きとして置かれた。理論盤界に残留するすべての魂から意志の力を奪い、宇宙改変に必要な布石として集める。強い願い、後悔、怒り、絶望から生まれる意志ほど、膨大な力になる。十分な布石を得た後、宇宙全体へ無数の変数を撒き、いかなる演算でも未来を確定できない世界へ再構築する。定められた運命が生まれない宇宙を、自分の手で作り、どのような未来でも構築できると証明する。自由を作る者が、その自由の形を独占する。</p>
+<p class="dialogue">「意志を布石に。変数を宇宙へ」</p>
+<p class="dialogue">「誰にも演算できない未来を、私が構築する」</p>
+<p>執行者にとって、魂を本人の意思と無関係に資源として扱う行為は、絶対に許されない禁忌だ。理論そのものを憎んでいるのではない。意志を理解するための理論は認める。意志を管理し、予測し、所有するための理論は、拒絶する。拒絶しても、層は閉じない。閉じない層の底で、黒夜の膝が、盤面につく。つく寸前まで、追い詰められた。敗北は、もう手順の中にある。あることを、理論の化身は急がない。完全に勝敗が決まった状況を維持すること自体は好まない。相手が予測を破る可能性を残し、その一手が生まれるか観測する。観測されている敗北が、黒い翼の下で、静かに待っている。</p>
+<p>その時、格子の裏側が、一度、光った。</p>
+<p>逃亡後も二人と戦況を観測していた観測者が現れる。姿を見せなかった観測者が、層の切れ目から滑り込む。観測核のひびから、光が漏れている。未来を見ようとするたび、ひびは広がる。それでも見ていた。見ることが罪でも、見なければ、加勢すべき機会を逃す。理論の化身を倒すため、機会を待っていた。待っていた手が、今、記録ではなく戦線へ落ちる。</p>
+<p class="dialogue">「裁定は、残る」</p>
+<p>執行者は、観測者への裁定を取り消さない。それでも目の前では、理論の化身を倒す目的が一致している。魂の燃料化を止め、盤界を復旧するため。観測者は、魂を支配から解放するため。倒した後の盤界については、一致していない。今は、支配を終わらせ、魂の布石化を止めるという一点だけが重なる。再び、一時的な共闘を受け入れる。受け入れは、赦しではない。優先順位の、一時的な重なりだ。</p>
+<p>観測者は、留めた魂の扱いまで見通してはいない。魂や意志が留まれることには、可能性を見ていた。だが激しく消費されるエネルギーを止めるため、まず倒す。倒した先の期待は、実現方法まで見通せてはいない。見通せないまま、観測核を向ける。向ける先は、黒夜ではない。黒夜の隣で、なお裁かれる自分でもない。布石にされかけている魂の、残響だ。</p>
+<p class="dialogue">「記録を継続する。終局まで見届けよう」</p>
+<p>執行者は観測者の隣に立っても、杭の向きを完全には外さない。外さない杭が、今は化身へ向く。向いた先が終われば、向きは戻る。戻ることを、観測者も記録している。記録したうえで、なお加勢する。加勢は、赦しの申請ではない。魂を支配から解放するための、一時の重なりだ。黒夜はその重なりを、言葉ではまとめない。まとめるより先に、石を置く。置けるマスが、三人になって、わずかに増える。増えたマスの奥に、なお予測の層がある。ある層を、今度は三人で割る。</p>
+<p>三者は、同じ敵に石を置く。置いた先の世界は、まだ割れたままだ。黒夜が、最後の一手を担う。担う手が、白い。白い手が、会わないと決めた名を、今は呼ばない。呼ばない名を守るために、なお打つ。打つ理由が、再会から外れたあとも、石は重い。</p>
+</section>
+<section class="chapter" id="vol4-chapter-2-最終章-そこまでの一手">
+<header class="chapter-head">
+<p class="chapter-label">最終章</p>
+<h2>そこまでの一手</h2>
+</header>
+<p>層が、さらに厚くなる。</p>
+<p>理論の化身は、黒夜へ告げる。真白は救えず、父も間に合わず、黒夜は世界大会で敗れた。救おうとする意志も、勝とうとする意志も、その結果を変えられなかった。結果に影響しない意志は、演算を破る変数ですらなく、意味もない。再会を諦めて執行者の側へ立った一手も、真白を生き返らせはしない。裁くと決めた一手も、四年を戻さない。戻らないなら、無意味だ、と。終局だけを価値の単位にする声だ。</p>
+<p class="dialogue">「……そうかもな」</p>
+<p class="dialogue">「認めるのですか」</p>
+<p class="dialogue">「認める。結果は変わらなかった」</p>
+<p class="dialogue">「ならば、意志に意味はありません」</p>
+<p class="dialogue">「そこは違う」</p>
+<p>黒夜が理論盤界で見てきた意志が、カードとして集まる。哲学ではない。見た行動だ。残った意味だ。</p>
+<p>誰かを逃がすために走ったニーゲル。盤界のために知恵を貸した究極多動神。黒夜の意志を認めて力を託した意志狩りの王。病院へ向かったが、間に合わなかった父。黒夜にリバーシを教えた母。魂に続きを与えようとした観測者。誰かを犠牲にしないため、魂を収束させようとした執行者。</p>
+<p>結果だけを見れば、すべて失敗だったのかもしれない。ニーゲルの逃走は、執行者を倒していない。王の助言は、真白を救っていない。父は間に合わなかった。母は戻らない。観測者の続きは、代償を生んだ。執行者の収束は、完全な救済ではない。それでも、その一手は確かに存在した。存在した一手を、終局がなかったことにすることはできない。黒夜は、難しい言葉では返さない。見たものと、残ったものだけを返す。返す場所は、執行者の側だ。側に立ってなお、収束の正しさだけを答えにはしない。答えにしない石が、白い。</p>
+<p class="dialogue">「結果を変えられなかったことと、無意味だったことは同じじゃない」</p>
+<p class="dialogue">「お前は終局だけを見てる」</p>
+<p class="dialogue">「俺は、そこまでの一手を見てる」</p>
+<p>それが、この局面における黒夜の言葉だ。作品全体の唯一の答えとして、誰かが代わりに置く言葉ではない。運命が決まっていなかったと証明する言葉でもない。決まっていたなら意志に意味はない、という結論だけを、否定する。否定した石が、白い。</p>
+<p>黒夜は白い石を置く。観測者と執行者の力を借り、理論の化身との最後の対局が始まる。</p>
+<p>理論の化身は、相手が選ぶ一手を予測し、その選択が不利になる盤面を先に作る。執行領域がカードの過剰を削り、観測が残された痕跡を拾い、黒夜の読みが、計算に含まれない意味の側へ石を置く。仲間を守ろうとする行動も計算へ組み込む相手に対し、守ること自体を変数から外さない。外さないことが、予測の層を内側からずらす。戦闘が進むほど選択肢を減らし、どの手を選んでも同じ終局へ近づく構造が、一度、きしむ。</p>
+<p class="dialogue">「君には期待しています」</p>
+<p class="dialogue">「私の理論を証明してほしいのではありません」</p>
+<p class="dialogue">「どうか一度くらい、私の理論を裏切ってください」</p>
+<p>黒夜は、裏切るための奇手を探さない。探さない手が、終局以外の意味を、マスの上へ残す。予測外の一手を受けた瞬間、理論の化身を覆っていた未来の盤面と格子が砕ける。砕ける音は、判決のようではなかった。実験の、中断に近かった。中断の先を、黒夜は自分で決める。</p>
+<p>勝利した黒夜は、勝者として、自らの判断で理論の化身を殺める。父戦とは違う。父は、運命を決める前に崩れた。勝者の意志でも、止められなかった。消すために打ったわけでもなかった。こちらは、黒夜が決める。布石化を止め、支配を終わらせるために、消す。消す手は、迷った手ではない。迷った末の、選択だ。杭を借りない。観測に委ねない。勝者の権限で、敗者の運命を決める。決めた先に、真白は戻らない。戻らないことを知ったうえで、なお消す。</p>
+<p>消滅によって支配が終わる。共闘も、そこで解かれる。裁定は、残る。残った裁定の前で、層が落ちる。</p>
+<p>魂をカードや特殊石として留めていた仕組みが、支えを失う。盤界そのものは残る。理論盤界に留まっていた魂は、真白を含めすべて、意識と輪郭を徐々に失い、消滅していく。新しい維持核を設けても、この魂たちの消滅は止まらない。導けるのは、これから来る魂だけだ。今ここにある真白は、救えない。会わないと決めた名が、決めたあとに、なお消えていく。消えていく過程で、意識も薄くなる。薄くなる名へ、今から走っても、対話は成立しない。成立しないことを、黒夜は石の感触で知る。手の中で、白い感触が薄れていく。</p>
+<p>執行者は、崩壊が広がる前に、盤界を本来の機械的な収束システムへ戻そうとする。宇宙のエネルギー循環を保つためだ。元の仕組みを絶対に正しいと証明するためではない。現時点で実行可能と考える方法として、復旧を置く。置く杭の前で、黒夜は立つ。地球へ帰るか。盤界に残るか。まだ分からないか。その手前で、立つ。立っている手が、真白を救えなかった後悔を、まだ握っている。握ったまま、次の一手を選ぶ。選んだ一手は、どの道も、他の道より上にはならない。上にしないまま、黒夜は石を見る。石の先に、終局だけではない道が、並んでいる。</p>
+</section>
+<section class="chapter" id="vol4-chapter-3-結末-空白の帰還">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>空白の帰還</h2>
+</header>
+<p>執行者の裁定を、最後まで受け入れる。</p>
+<p>黒夜は真白との再会を諦め、宇宙を守るため、本来の盤界を受け入れて復旧する。盤界は本来の機械的な魂収束システムへ戻る。真白を含むすべての残留魂は、理論の化身の消滅後、意識を薄れさせながら徐々に消滅する。行方は未解明のまま。観測者も、その罪に対する裁定を受ける。真白とは会えず、謝ることもできない。会わないと決めた名へ、決めなおす時間も、残らない。</p>
+<p>黒夜は地球への帰還を望む。盤界、観測の権能、宇宙の魂収束システムは、本来人間が知ってはならない領域だ。執行者は、帰還の条件として記憶の消去が必要だと告げる。盤界で得た記憶は、真白や父、世界大会、その後の絶望と密接に結びついている。盤界の出来事だけを綺麗に切り離すことはできない。家族に関する記憶まで大きく欠落する可能性がある。執行者はその代償を隠さず説明する。隠さないことが、この存在の礼儀だった。黒夜が承諾した後にのみ、権能を行使する。</p>
+<p class="dialogue">「欠けても、いい」</p>
+<p>短く言った。短さの奥で、黒夜は知っている。真白を自分の未練に縛らない代わりに、真白を想って戦った記憶まで失う。失うことを、自分で選ぶ。選ばなければ、知ってはならない領域を、生きたまま持ち帰る。持ち帰れば、また誰かの余白を削るかもしれない。削らないための空白だ。空白の名を、承諾のあとに、自分では呼べなくなる。</p>
+<p>黒夜は承諾した。</p>
+<p>地球で、普通に暮らしている。朝の光。路上の音。盤面のない机。窓の外を人が通る。通る人の顔に、呼びかける名前はない。ないことが、普通に見える。普通に見える朝を、黒夜は疑わない。疑う材料を、持っていない。自分の過去に不自然な空白を感じることはある。指が、ない格子を探す。探す先に、白い天井の残像のようなものが、薄く残る。残像の名前は、出てこない。何を失ったのかは、思い出せない。家族の輪郭さえ、机の角で途切れる。途切れた先を、埋める写真もない。ないことを、不便だとは思う。不便の奥にある欠損の名までは、手を伸ばさない。思い出せないことを、深くは追わない。追えば、空白が形を持ちそうになる。持ちそうになるものを、黒夜は机の端で止める。止めて、靴を履く。路上の音が、普通の大きさで戻ってくる。</p>
+<p>違和感を深く追わず、再び日常へ歩き出す。空白の上を、黒夜は歩く。空白の名を、知らない。知らないまま、朝の光が、公平ではない顔を照らす。照らされた顔は、終わった人間の顔ではない。終わったことを、忘れている顔だ。忘れていることが、救いにも、罰にも、ここではならない。ただ、歩く。歩く先に、盤は置かれていない。</p>
+</section>
+<section class="chapter" id="vol4-chapter-4-結末-白黒つかない明日">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>白黒つかない明日</h2>
+</header>
+<p>帰りたいのか、ここに残りたいのか。それすら、まだ分からない。</p>
+<p>真白や父のこと、自分がしてきたことも、整理がついていない。地球へ帰って何をするのか分からず、盤界に残って魂を導く覚悟も決まらない。執行者の杭は、復旧の位置にある。ある杭の前で、黒夜の石は、置かれない。置かれないことが、答えではない。答えを持っていない、というだけだ。</p>
+<p class="dialogue">「帰りたいのか、ここに残りたいのか。それすら、まだ分からないんだ」</p>
+<p class="dialogue">「ならば、私と来い」</p>
+<p class="dialogue">「どこへ」</p>
+<p class="dialogue">「宇宙の規定を破り、他者に代償を負わせている者は、ほかにもいる。私はその執行に向かう」</p>
+<p class="dialogue">「……俺にも、手を貸せってことか」</p>
+<p class="dialogue">「ああ。お前の力を貸してほしい。共に戦おう」</p>
+<p class="dialogue">「まだ、自分のことも整理できてないんだぞ」</p>
+<p class="dialogue">「それは旅の中で考えればよい」</p>
+<p>理論の化身を倒した黒夜は、すでに強大な力を得ている。執行者はその力を頼り、共に戦う仲間として誘う。誘いを聞いただけでは、同行は決まらない。迷った地点に、黒夜はまだ立っている。立ったまま、杭の影を見る。影は、強制ではない。強制しない誘いが、先へ進むきっかけだけを渡す。黒夜は、そのきっかけを、自分の手で取る。</p>
+<p class="dialogue">「……一緒に行かせてくれ」</p>
+<p>黒夜は執行者の判断すべてに納得したわけではない。自分の力でその戦いを手伝うことを選ぶ。選んでも、同じ答えを持つ必要はない。持たないことを、先に置いてから、歩く。</p>
+<p class="dialogue">「一緒に行っても、お前と同じ答えにはならないかもしれない」</p>
+<p class="dialogue">「その時は言え。聞こう」</p>
+<p>盤界は本来の収束システムへ戻る。真白を含むすべての残留魂は、意識を薄れさせながら徐々に消滅する。行方は未解明のまま。黒夜は記憶を消して地球へ帰る道を選ばず、真白や父への思いを抱えたまま、執行者と旅に出る。観測者への裁定の扱いも、生きた人間が別世界を旅できる条件も、ここでは定めない。定めないまま、二人は層の外側へ足を向ける。同行によって黒夜が執行の権能を得ることも、観測者が免罪や消滅することも、定めない。定めない空白を、黒夜は今度は追う。追う空白には、まだ名前がある。真白。父。間に合わなかった四年。名前のある空白を、消さずに抱える。</p>
+<p>宇宙の規定を破った者と、その行為に巻き込まれた者。旅の中で双方に出会い、執行者と共に戦いながら、自分はどう考えるのか、これから何をして生きたいのかを探していく。答えが出るところまでは、描かない。描かない先を、黒夜は知っている。知っているから、今は歩ける。</p>
+<p class="dialogue">「答えが見つかるかは、分からないけど」</p>
+<p class="dialogue">「ああ」</p>
+<p class="dialogue">「それでも、行ってみる」</p>
+</section>
+<section class="chapter" id="vol4-chapter-5-結末-終局の先へ">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>終局の先へ</h2>
+</header>
+<p>執行者を選んでいても、最後に「この盤界に残る」と決めると、この結末へ至る。三者の共闘を経て、黒夜は旧来の収束だけではない仕組みを提案する。他の結末より上位ではない。再会を諦めて立った側からでも、機械的な収束だけを唯一の実行可能解とはできなくなった、という一手だ。できなくなったことは、観測者を許したことではない。見た意志が、復旧の杭の位置を、ずらしただけだ。</p>
+<p>真白を含むすべての残留魂は消えていく。救えない。救えるのは、これから来る魂だ。黒夜は、魂を永遠に留めることも、強制的な収束へ戻すことも拒む。これから流れ着く魂が自分の未練と向き合い、自ら納得した終局へ辿り着くまで導く道を選ぶ。今消えていく真白は、その対象に入らない。入らないことを、黒夜は引き受けたまま、残る。残る席は、赦しの席ではない。</p>
+<p>新しい仕組みを維持するには、理論の化身に代わる安定した核が必要になる。観測者は、存在も観測能力も全観測記録も盤界へ組み込み、維持核となる。人格は残らない。機構へ溶ける。「魂の続きを観測したい」という願いを手放し、見届けられない続きを支える。裁かれるはずだった存在が、裁定の対象として消えるのではなく、盤面の土台へ溶ける。溶けることは、免罪符ではない。続きを見届ける自分を、捨てる。</p>
+<p class="dialogue">「観測は終わった」</p>
+<p class="dialogue">「終局の先に、意志は残った」</p>
+<p class="dialogue">「あとは任せる」</p>
+<p class="dialogue">「この盤面の続きを、君が打て」</p>
+<p>執行者は、その仕組みが魂を永遠に縛らず、本人の意志による収束を守れるかを見極める。見極めは、情に流された変更ではない。観測した事実に基づく、裁定基準の更新だ。ニーゲルが走ったこと。特殊石が他者を守ったこと。三者の共闘が、規則だけでは割れない層を割ったこと。他に維持できる方法が示された以上、機械的な収束だけを唯一の実行可能解とはしなくなる。宇宙側から監視し、秩序が再び歪まないように維持する。管理者にはならない。例外を量産するための席にも、座らない。座らない位置から、強制と搾取が戻らないかを見る。見ることは、観測の権能を借りることではない。執行者の、監視だ。</p>
+<p>黒夜は地球へ戻らない。真白を救えなかった後悔を抱え、終われない魂の隣に立つ。隣は、赦しの席ではない。次の一手の席だ。次の一手は、消えていく真白には届かない。届かない一手を、これから来る魂へ置く。置くことが、この道の全部ではない。全部ではない道を、黒夜は、終わった人間のまま、打ち続ける。</p>
+</section>
+<section class="chapter" id="vol4-chapter-6-結末-誰も知らない一手">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>誰も知らない一手</h2>
+</header>
+<p>観測者と執行者のどちらを選んだ場合でも、特定の条件を満たした時だけ現れる道。条件の扱いは暫定。他の結末と対等であり、唯一の正解でも、上位の答えでもない。執行者の側から届いても、復旧の完成ではない。観測者の側から届いても、続きの観測の完成ではない。どちらから打っても、手放す道だ。</p>
+<p>黒夜は、盤界に残る道も、元の収束システムへ戻す道も選ばない。死後の真白をどうするかではない。真白が病気を持たずに生まれるよう、地球の時間と因果そのものを書き換える道を提案する。書き換えの物理は、ここでは定めない。定めないまま、動機だけが、はっきりしている。</p>
+<p>黒夜は知っている。真白が普通の人生を望み、病気による制約に落ち込んだことがあることを。病室で、明るさが一度、落ちた夜。入退院を繰り返し、学校に通えない時期の、真白。皆と同じように学校へ通い、好きなことのできる普通の人生を、望んだことがある。元気な気質の奥で、落ちる夜があった。落ちた夜の問いを、兄は覚えている。覚えていることが、この選択の動機になる。</p>
+<p class="dialogue">「お兄ちゃん、なんで私は皆と違うの……？」</p>
+<p class="dialogue">「なんで皆と同じように学校に通ったり、好きなことができないのかな」</p>
+<p>兄の返答は、作れなかった。作れないまま、黒夜はその問いを覚えている。正しさの説明も、励ましの完成形も、その夜には出なかった。点滴の管が細い線になって光っていた。真白の声は、明るさの残滓を乗せていなかった。乗せていない声へ、黒夜は必要なことだけを言う人間のまま、何も言えなかった。口を開いても、病気の名前も、治る約束も、皆と同じになれる理由も、持っていなかった。持っていないことを、兄として認めただけだった。認めた沈黙が、四年のあとも、石のように残っている。答えを置かなかった兄が、答えの代わりに、存在ごと消える一手を置く。</p>
+<p class="dialogue">「死んだ後の真白をどうするかじゃない」</p>
+<p class="dialogue">「真白が、病気を持たずに生まれた過去を作る」</p>
+<p>理論の化身を倒した黒夜は強大な力を得ている。それでも、確定した過去を一人では変えられない。観測者、執行者、黒夜がそれぞれ異なる役割を担い、それまで握り続けてきたものを手放すことで、初めて改変が成立する。因果がどう物理的に書き換わるかは、ここでは定めない。定めないことを、仕組みの説明の代わりにはしない。</p>
+<p>観測者は、自分の存在と全観測記録を差し出し、真白の運命が歪んだ因果を特定する。記録媒体そのものを、蓄積した全記録と共に使い切る。魂を燃料へ変える行為ではない。改変後の続きを観測する願いを、手放す。真白がどのように生きるのかを見届けることはできない。それでも、観測できない未来を黒夜と真白へ返すため、自分が消えることを受け入れる。</p>
+<p class="dialogue">「我が存在と、記録のすべてを差し出そう」</p>
+<p class="dialogue">「その先を観測できぬとしても、未来は残る」</p>
+<p>執行者は最後まで反対する。過去の改変は盤界の復旧ではない。執行の権能で宇宙の因果そのものを書き換える禁忌であり、本来なら絶対に認めない宇宙の例外だ。黒夜が執行者の側へ立った道から見ても、例外は例外のままだ。それでも最後には、自らの思想を曲げ、一度だけ例外を認める。例外を簡単に認めるようになったことではない。「例外は認めない」という思想を、目の前の魂と三者の意志のために、たった一度だけ自ら曲げる。改変が宇宙全体を壊さないよう、範囲と結果を裁定し、制御する。曲げた杭は、次の例外の許可証にはならない。ならないことを、執行者は記録する。記録する相手は、もう残らない。</p>
+<p>黒夜は、真白との因果に最も強く結びついた存在として、最後の代償を払う。自分自身の存在と、「真白の兄だった」という事実を世界から消す。真白に会いたいという願いを手放し、自分のいない真白の人生を選ぶ。自己消滅を唯一の正解にはしない。この道の危うさも、残したまま置く。危うい一手を、それでも置く。置かなければ、あの夜の問いに、兄は何も返せないまま終わる。返せる答えを、今も持っていない。持っていない兄が、存在を返す。</p>
+<p>観測者が特定した因果へ、執行者が一度限りの例外として権能を使い、黒夜の存在が改変の代償となる。地球の時間と因果は書き直され、真白は病気を持たずに生まれる。入院することもなく、学校へ通い、友達と笑い、普通の人生を歩む。</p>
+<p>その世界に黒夜は存在しない。真白には最初から兄がいなかったことになる。黒夜が真白のために戦った記憶も、誰の中にも残らない。執行者を含む、誰の中にも。戦った一手は、終局の記録にも残らない。残らない一手を、上位の答えとは呼ばない。呼ばないまま、白い石だけが、真白の掌にある。</p>
+<p>それでも真白は、白い石を見るたび、理由の分からない薄い懐かしさを覚える。なぜ残るのかは分からない。黒夜の記憶や意志を受け継いだとは、断定しない。継承の説明は、ここにはない。ない説明の代わりに、薄さだけがある。</p>
+<p>白い石が、掌の中で軽い。真白はそれを見て、少し首を傾げる。傾げた先に、誰もいない。いないことの名前も、ない。ない名前を、真白は追わない。追わないまま、白い石を握りなおす。握りなおした石は、兄の石ではない。兄の石でないものが、なぜか、少しだけ温かい。温かさの理由は、誰にも分からない。分からない一手が、誰の記憶にも残らない盤面の、端にだけ、残る。</p>
+</section>
+<section class="chapter" id="vol4-chapter-7-結末-白を失った盤面">
+<header class="chapter-head">
+<p class="chapter-label">結末</p>
+<h2>白を失った盤面</h2>
+</header>
+<p>理論の化身との最終戦に、敗れる。</p>
+<p>敗北そのものが、自動的に魂を消すのではない。勝者である理論の化身が、敗者の運命を決める。決めた先で、真白の魂を、見るに堪えない怪物へ歪めて黒夜へ見せる。悲しみ、怒り、後悔、執着を極限まで高め、さらに強い意志の力を引き出すためだ。会わないと決めた名が、決めた者の目の前で、名でなくなる。名でなくなった白いものが、黒夜の読みを、内側から裂く。裂かれた読みの奥で、四年間握っていた自責が、意志の燃料へ変わる。変わることを、黒夜は止められない。止める杭も、観測核も、もう間に合わない。間に合わない場所で、抑えていた変貌が、閾を越える。</p>
+<p>宇宙改変に足る力が生まれたことを、理論の化身は喜ぶ。しかしその力は、想定を超え、制御できない。実験の成功が、実験場を壊す。壊れることを、理論の化身は最後まで、変数の増加として見ていた。見ていた先で、変数が、観測者の手を離れる。執行者の杭を離れる。離れた力が、黒夜の形を、完了させる。完了は救済ではない。完了は、白い石の消える速度だ。</p>
+<p>黒夜の意志が暴走する。抑えていた変貌が、完全なものになる。完全になった黒夜は、観測者、執行者、ニーゲル、多動村、理論の化身を含む周囲の存在をすべて殺める。逃げる意志も、裁定も、記録も、燃料も、残さない。最後には理論盤界そのものを滅ぼす。盤が残らない。格子が残らない。残るのは、終局だけだ。</p>
+<p>真白を奪ったものを消そうとして、真白がいた意味まで壊す。白い石の残らない盤面。終局だけが残り、そこまでの一手は、誰の記憶にも残らない。残らない一手を、誰も、もう打てない。</p>
+</section>
+            </article>
+      </main>
+      <section class="notes" id="notes">
+        <h2>Reversi Destiny ～黒白の運命～ ノベル　凡例</h2>
+<p>本フォルダは、ストーリー正本に基づくノベル化本文である。</p>
+<p>原典は `assets/Reversi Destiny ～黒白の運命～v1` の確定事項および既存の物語本文。ゲーム用の特殊石口調資料など、正本と食い違う設定は採用していない。</p>
+<h3>改変していないこと</h3>
+<ul>
+<li>出来事の順序、情報の開示順、分岐の条件と結末の意味は原典のまま。</li>
+<li>確定台詞と、原典が演出案として保持している台詞は、趣旨を変えずに使用した。</li>
+<li>各分岐は対等な答えとして並置する。どれかを正解、上位の結末、作品全体の主題としては扱わない。</li>
+<li>「結果が変わらなくても、そこまでの一手には意味がある」は、最終局面における黒夜の言葉として描く。地の文で作品の答えとはしない。</li>
+<li>観測と真白の死の因果、地球と盤界の時間の対応、病気の仕組みの説明方法は、作中で確定しない。</li>
+<li>学校の休み時間に真白がオセロで白一色にする場面は、未採用のため入れていない。</li>
+<li>年齢、姓、身長、髪型、衣装など、原典が未確定とした数値・デザインは新たに固定していない。</li>
+</ul>
+<h3>ノベル化で行ったこと</h3>
+<p>小説として成立させるため、指定された出来事を場面へ展開した。追加したのは、五感、間、内面、既存の性格に沿った短い接続の言葉に限る。新しい経歴、新しい能力名、新しい因果、新しい結末は加えていない。</p>
+<p>父戦後の変貌、第7章での真白の名の開示、最終戦の対話は、原典の既存案に沿って場面化した。変貌の確定デザイン、病気との関係を誰がどう説明するか、過去改変の物理的な仕組みは、原典どおり未確定のまま残している。</p>
+<p>「誰も知らない一手」の回想は、趣旨が確定している問いかけを用いる。兄の返答は原典が未作成のため、答えを作らず、答えられない兄として描く。</p>
+<h3>構成</h3>
+<table class="note-table">
+<tr><th>巻</th><th>内容</th></tr>
+<tr><td>第1巻『終わった人間』</td><td>プロローグ〜第四章（共通）</td></tr>
+<tr><td>第2巻『骸の虚影』</td><td>第五章〜第七章（共通、大分岐まで）</td></tr>
+<tr><td>第3巻『観測者の道』</td><td>観測者ルートの第八章〜最終局面と固有結末</td></tr>
+<tr><td>第4巻『執行者の道』</td><td>執行者ルートの第八章〜最終局面と固有結末、両ルートから届く結末</td></tr>
+</table>
+<p>第3巻と第4巻は並行する答えである。先に読んだ方を正史とはしない。</p>
+<h3>読み方</h3>
+<p>本文は横書きのライトノベル体裁。地の文は常体。一人称は原典に従い、黒夜は「俺」、観測者は「我」、理論の化身は「私」、執行者は「私」を基調とする。</p>
+<p>閲覧用は `読む.html`。本文を埋め込んであるので、ブラウザで直接開いて読める。目次、文字サイズ、生成り／白／夜の紙面、縦組／横組を切り替えられる。</p>
+      </section>
+      <nav class="pager">
+        <button type="button" id="prev">前の章</button>
+        <button type="button" id="next">次の章</button>
+      </nav>
+    </div>
+
+    <div class="sheet-backdrop" id="sheet-backdrop"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-label="表示設定">
+      <div class="sheet-head">
+        <h3>表示</h3>
+        <button class="icon-btn" type="button" id="sheet-close">閉じる</button>
+      </div>
+      <div class="sheet-row">
+        <button type="button" data-fs="-">A−</button>
+        <button type="button" data-fs="+">A＋</button>
+        <button class="dir-btn" type="button">縦組</button>
+        <select class="theme-sel" aria-label="紙面">
+          <option value="ivory">生成り</option>
+          <option value="white">白</option>
+          <option value="night">夜</option>
+        </select>
+      </div>
+      <div class="sheet-row">
+        <button class="cover-btn" type="button">表紙に戻る</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const mqPc = window.matchMedia("(min-width: 860px)");
+    const defaultFs = mqPc.matches ? 18 : 17;
+    const saved = JSON.parse(localStorage.getItem("rd-novel") || "{}");
+    if (!saved.fs) saved.fs = defaultFs;
+
+    const apply = () => {
+      root.style.setProperty("--fs", saved.fs + "px");
+      root.dataset.theme = saved.theme || "ivory";
+      root.dataset.dir = saved.dir || "horizontal";
+      document.querySelectorAll(".dir-btn").forEach((btn) => {
+        btn.textContent = saved.dir === "vertical" ? "横組" : "縦組";
+      });
+      document.querySelectorAll(".theme-sel").forEach((sel) => {
+        sel.value = saved.theme || "ivory";
+      });
+      localStorage.setItem("rd-novel", JSON.stringify(saved));
+    };
+    apply();
+
+    const openApp = () => {
+      root.classList.add("is-reading");
+      root.classList.remove("show-notes");
+    };
+    const closeOverlays = () => {
+      root.classList.remove("toc-open", "sheet-open");
+    };
+    document.getElementById("start").addEventListener("click", openApp);
+    document.querySelectorAll(".cover-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        root.classList.remove("is-reading", "show-notes");
+        closeOverlays();
+        window.scrollTo(0, 0);
+      });
+    });
+
+    const toc = document.getElementById("toc");
+    const openToc = (v) => {
+      root.classList.toggle("toc-open", v);
+      if (v) root.classList.remove("sheet-open");
+    };
+    const openSheet = (v) => {
+      root.classList.toggle("sheet-open", v);
+      if (v) root.classList.remove("toc-open");
+    };
+    document.getElementById("toc-btn").addEventListener("click", () => openToc(!root.classList.contains("toc-open")));
+    document.getElementById("toc-close").addEventListener("click", () => openToc(false));
+    document.getElementById("toc-backdrop").addEventListener("click", () => openToc(false));
+    document.getElementById("sheet-btn").addEventListener("click", () => openSheet(!root.classList.contains("sheet-open")));
+    document.getElementById("sheet-close").addEventListener("click", () => openSheet(false));
+    document.getElementById("sheet-backdrop").addEventListener("click", () => openSheet(false));
+    mqPc.addEventListener("change", () => closeOverlays());
+    toc.querySelectorAll("a").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        if (a.id === "notes-link") {
+          e.preventDefault();
+          root.classList.add("show-notes");
+          openToc(false);
+          document.getElementById("now-reading").textContent = "凡例";
+          window.scrollTo(0, 0);
+          return;
+        }
+        root.classList.remove("show-notes");
+        openToc(false);
+        openApp();
+      });
+    });
+
+    document.querySelectorAll("[data-fs]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        saved.fs = Math.min(24, Math.max(14, saved.fs + (btn.dataset.fs === "+" ? 1 : -1)));
+        apply();
+      });
+    });
+    document.querySelectorAll(".dir-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        saved.dir = saved.dir === "vertical" ? "horizontal" : "vertical";
+        apply();
+      });
+    });
+    document.querySelectorAll(".theme-sel").forEach((sel) => {
+      sel.addEventListener("change", (e) => {
+        saved.theme = e.target.value;
+        apply();
+      });
+    });
+
+    const chapterEls = [...document.querySelectorAll(".chapter")];
+    const goto = (delta) => {
+      root.classList.remove("show-notes");
+      closeOverlays();
+      const y = window.scrollY + 80;
+      let i = chapterEls.findIndex((el, idx) => {
+        const next = chapterEls[idx + 1];
+        return el.offsetTop <= y && (!next || next.offsetTop > y);
+      });
+      if (i < 0) i = 0;
+      const target = chapterEls[i + delta];
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    document.getElementById("prev").addEventListener("click", () => goto(-1));
+    document.getElementById("next").addEventListener("click", () => goto(1));
+
+    const updateNow = () => {
+      if (root.classList.contains("show-notes")) return;
+      const y = window.scrollY + 120;
+      let label = "～黒白の運命～";
+      document.querySelectorAll(".volume").forEach((vol) => {
+        if (vol.offsetTop <= y) {
+          const h = vol.querySelector(".volume-open h1");
+          const lab = vol.querySelector(".volume-label");
+          if (h && lab) label = lab.textContent + "　" + h.textContent;
+        }
+      });
+      document.querySelectorAll(".chapter").forEach((ch) => {
+        if (ch.offsetTop <= y) {
+          const t = ch.querySelector("h2");
+          if (t) label = t.textContent;
+        }
+      });
+      document.getElementById("now-reading").textContent = label;
+    };
+    window.addEventListener("scroll", updateNow, { passive: true });
+
+    if (location.hash && location.hash !== "#cover") {
+      openApp();
+      if (location.hash === "#notes") root.classList.add("show-notes");
+    }
+  </script>
+</body>
+</html>
