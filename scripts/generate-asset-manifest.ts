@@ -38,6 +38,10 @@ function hashFile(filePath: string): string {
     return h.digest('hex');
 }
 
+// Authoring-only Blender work directories (models, renders, verification frames)
+// live next to the deployable reference sheets but are not game assets.
+const EXCLUDED_DIRECTORY_NAME_PATTERN = /^blender_model/;
+
 function collectFiles(rootDir: string, relDir: string): string[] {
     const results: string[] = [];
     const dir = path.join(rootDir, relDir);
@@ -47,6 +51,7 @@ function collectFiles(rootDir: string, relDir: string): string[] {
         const full = path.join(dir, e.name);
         const rel = path.join(relDir, e.name).replace(/\\/g, '/');
         if (e.isDirectory()) {
+            if (EXCLUDED_DIRECTORY_NAME_PATTERN.test(e.name)) continue;
             results.push(...collectFiles(rootDir, rel));
         } else {
             results.push(rel);

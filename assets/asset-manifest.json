@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-22",
-  "generatedAt": "2026-09-22T05:32:31.429Z",
+  "version": "2026-09-25",
+  "generatedAt": "2026-09-25T13:33:51.549Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -535,12 +535,28 @@
       "sha256": "68dcbaa28ce5f4ab0cf499126aab2133e61c5fdc9921018d26a661b7692768d2"
     },
     {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer-will-articulation-studies.png",
+      "sha256": "fd01b052dae7ecfc7fb3529d7db1a4f22eef1e3d339227427fc785bffbfac170"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer-will-front-standing-reference.png",
+      "sha256": "9cb52ce6051c35fb9426936a7184af85734a7b81b9937948370ab37e9233e970"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/observer-will-humanoid-construction.png",
+      "sha256": "387bb413f0546d18487ab6615509c0bb6fa63f983d1572665804d851e4f6316e"
+    },
+    {
       "path": "assets/images/special-cards/characters/observer_will_reference/observer_will_detail_sheet.png",
       "sha256": "5905a9ae1d359a2cea1ea81eb40ddf55261679a0ab42f523028b80c3be1a2a16"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/observer_will_turnaround.png",
       "sha256": "f40b063eda42132edcfe8ccf6ab5d665ab76ddecf15bbe07560c77479c4dbe88"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/README.md",
+      "sha256": "a92f9de0310a8597ac4a930c39a33214a28f53bb1b36c1e23040d6ed2afcf35f"
     },
     {
       "path": "assets/images/special-cards/characters/theory_incarnation.png",
@@ -760,7 +776,7 @@
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
-      "sha256": "dbd36198717213c2c52e6f452e6e774fc9a53faf6458f6db0bfd595cbd686675"
+      "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
     },
     {
       "path": "assets/images/background-skin/観測の机.png",
@@ -1213,6 +1229,10 @@
     {
       "path": "assets/audio/sound-effect/超引力で石が引き寄せられたタイミング.mp3",
       "sha256": "479f3adb69cde1750c642c07b76030141bf8fab93b7b68a58782159fc75e30f3"
+    },
+    {
+      "path": "assets/audio/sound-effect/転生の意志で転生するタイミング.mp3",
+      "sha256": "febf24c2f9ac2246d3b709bfb74529d79891df0a697c9006f5a1cb6b20ede7b5"
     },
     {
       "path": "assets/audio/sound-effect/進化仮.mp3",
