@@ -381,4 +381,57 @@ describe('pipeline_ui_adapter move metadata', () => {
       targets: [expect.objectContaining({ r: 5, col: 6 })]
     });
   });
+
+  test('極悪多動魔が動かした石への反転は移動の後の段階で再生する', () => {
+    const emptyBoard = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+    const pres = [
+      {
+        type: 'MOVE',
+        prevRow: 5,
+        prevCol: 1,
+        row: 4,
+        col: 2,
+        ownerBefore: 'white',
+        ownerAfter: 'white',
+        cause: 'EXTREME_HYPERACTIVE_WILL',
+        reason: 'extreme_repel_push',
+        meta: { sourceRow: 5, sourceCol: 2 }
+      },
+      { type: 'CHANGE', row: 5, col: 3, ownerBefore: 'white', ownerAfter: 'black', cause: 'EXTREME_HYPERACTIVE_WILL', reason: 'extreme_hyperactive_flip' },
+      { type: 'CHANGE', row: 4, col: 2, ownerBefore: 'white', ownerAfter: 'black', cause: 'EXTREME_HYPERACTIVE_WILL', reason: 'extreme_hyperactive_flip' }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, emptyBoard);
+    const move = out.find((ev) => ev.type === 'move');
+    const flips = out.filter((ev) => ev.type === 'flip');
+
+    expect(flips).toHaveLength(2);
+    expect(flips[0].phase).toBeGreaterThan(move.phase);
+    expect(flips[1].phase).toBe(flips[0].phase);
+  });
+
+  test('移動していないマスへの反転は移動と同じ段階のまま再生する', () => {
+    const emptyBoard = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+    const pres = [
+      {
+        type: 'MOVE',
+        prevRow: 1,
+        prevCol: 1,
+        row: 2,
+        col: 2,
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'HYPERACTIVE',
+        reason: 'hyperactive_move',
+        meta: { special: 'HYPERACTIVE', owner: 'black' }
+      },
+      { type: 'CHANGE', row: 3, col: 3, ownerBefore: 'white', ownerAfter: 'black', cause: 'HYPERACTIVE', reason: 'hyperactive_flip' }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [] }, emptyBoard);
+    const move = out.find((ev) => ev.type === 'move');
+    const flip = out.find((ev) => ev.type === 'flip');
+
+    expect(flip.phase).toBe(move.phase);
+  });
 });

@@ -32,7 +32,9 @@ function createPlaybackPhaseState() {
         gluttonousEatPhase: null,
         gluttonousEatActionId: null,
         willHunterKingSlashPhase: null,
-        prevWasProliferationDestroy: false
+        prevWasProliferationDestroy: false,
+        movePhase: null,
+        movePhaseCells: null
     };
 }
 
@@ -648,13 +650,63 @@ function planDestroyPlayback(phaseState: any, ev: any, destroyMeta: any, playbac
     return { phase, trailingPlaybackEvents };
 }
 
-function planChangePlaybackPhase(phaseState: any, ev: any, deps: BoardEventPlaybackDeps) {
+function movePhaseCellKey(row: any, col: any) {
+    return (Number.isInteger(row) && Number.isInteger(col)) ? `${row},${col}` : null;
+}
+
+function recordMovePhaseCells(phaseState: any, phase: any, moveEvents: any[]) {
+    if (phaseState.movePhase !== phase || !(phaseState.movePhaseCells instanceof Set)) {
+        phaseState.movePhase = phase;
+        phaseState.movePhaseCells = new Set();
+    }
+    for (const moveEv of moveEvents) {
+        for (const key of [
+            movePhaseCellKey(moveEv && moveEv.prevRow, moveEv && moveEv.prevCol),
+            movePhaseCellKey(moveEv && moveEv.row, moveEv && moveEv.col)
+        ]) {
+            if (key) phaseState.movePhaseCells.add(key);
+        }
+    }
+}
+
+// A CHANGE run that would join the current MOVE phase must wait for the move
+// when it recolors a cell that move touches; otherwise the flip plays first
+// and the move's terminal write restores the pre-flip color.
+function shouldDeferChangeRunAfterMovePhase(phaseState: any, presentationEvents: any[], firstIndex: number) {
+    if (
+        phaseState.movePhase === null ||
+        phaseState.movePhase === undefined ||
+        phaseState.movePhase !== phaseState.currentPhase ||
+        !(phaseState.movePhaseCells instanceof Set) ||
+        !Array.isArray(presentationEvents)
+    ) {
+        return false;
+    }
+    for (let index = firstIndex; index < presentationEvents.length; index += 1) {
+        const candidate = presentationEvents[index];
+        if (!candidate || candidate.type !== 'CHANGE') break;
+        const key = movePhaseCellKey(candidate.row, candidate.col);
+        if (key && phaseState.movePhaseCells.has(key)) return true;
+    }
+    return false;
+}
+
+function planChangePlaybackPhase(phaseState: any, ev: any, deps: BoardEventPlaybackDeps, options?: any) {
     phaseState.durationEndRevertPhase = null;
     phaseState.prevDestroyCause = null;
     phaseState.prevBatchDestroyKey = null;
     phaseState.willHunterKingSlashPhase = null;
     const isChainFlip = deps.isChainFlipPresentationEvent(ev);
     const chainFlipLink = isChainFlip ? deps.getChainFlipLink(ev) : null;
+    const deferredAfterMove = !!(
+        options &&
+        Array.isArray(options.presentationEvents) &&
+        Number.isInteger(options.presIndex) &&
+        shouldDeferChangeRunAfterMovePhase(phaseState, options.presentationEvents, options.presIndex)
+    );
+    if (deferredAfterMove) {
+        phaseState.currentPhase++;
+    }
     let phase = phaseState.currentPhase;
     if (deps.isLivingWillRestoreChange(ev)) {
         phaseState.currentPhase++;
@@ -663,7 +715,7 @@ function planChangePlaybackPhase(phaseState: any, ev: any, deps: BoardEventPlayb
         phaseState.prevChainFlipLink = null;
         return phase;
     }
-    if (isChainFlip && (!phaseState.prevWasChainFlip || phaseState.prevChainFlipLink !== chainFlipLink)) {
+    if (!deferredAfterMove && isChainFlip && (!phaseState.prevWasChainFlip || phaseState.prevChainFlipLink !== chainFlipLink)) {
         phaseState.currentPhase++;
         phase = phaseState.currentPhase;
     }
@@ -706,6 +758,7 @@ function planMovePlaybackPhase(phaseState: any, ev: any, deps: BoardEventPlaybac
     phaseState.superCrushPhase = null;
     phaseState.superCrushActionId = null;
     phaseState.willHunterKingSlashPhase = null;
+    recordMovePhaseCells(phaseState, phase, [ev]);
     return phase;
 }
 

@@ -988,11 +988,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         );
     }
 
-    function _planChangePlaybackPhase(phaseState: any, ev: any) {
+    function _planChangePlaybackPhase(phaseState: any, ev: any, options?: any) {
         if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.planChangePlaybackPhase === 'function')) {
             throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        return PipelineUIBoardEventPlaybackModule.planChangePlaybackPhase(phaseState, ev, getPipelineUIBoardEventPlaybackDeps());
+        return PipelineUIBoardEventPlaybackModule.planChangePlaybackPhase(phaseState, ev, getPipelineUIBoardEventPlaybackDeps(), options);
     }
 
     function _planMovePlaybackPhase(phaseState: any, ev: any) {

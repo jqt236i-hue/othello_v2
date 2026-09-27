@@ -16,7 +16,7 @@ type BoardEventMapperDeps = {
     phaseNum: (value: any) => any;
     planSpawnPlayback: (phaseState: any, ev: any, playbackBase: any, followsProliferationDestroy: any) => any;
     planDestroyPlayback: (phaseState: any, ev: any, destroyMeta: any, playbackBase: any) => any;
-    planChangePlaybackPhase: (phaseState: any, ev: any) => any;
+    planChangePlaybackPhase: (phaseState: any, ev: any, options?: { presentationEvents: any[]; presIndex: number }) => any;
     findExtremeForcedSwapMovePairPresentationIndex: (presentationEvents: any[], firstIndex: number) => number;
     planMovePlaybackPhase: (phaseState: any, ev: any) => any;
     createExtremeForcedSwapPlaybackEvent: (playbackBase: any, phase: any, firstEv: any, secondEv: any) => any;
@@ -97,7 +97,10 @@ function mapChange(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps) {
         reason: ctx.ev.reason || null,
         meta: changeMeta
     }];
-    ctx.pEvent.phase = deps.planChangePlaybackPhase(ctx.phaseState, ctx.ev);
+    ctx.pEvent.phase = deps.planChangePlaybackPhase(ctx.phaseState, ctx.ev, {
+        presentationEvents: ctx.presentationEvents,
+        presIndex: ctx.presIndex
+    });
 }
 
 function mapMove(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps) {

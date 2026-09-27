@@ -1812,6 +1812,63 @@ describe('Pixi board playback contract', () => {
   });
 
   test.each([
+    ['animated', false],
+    ['noAnimation', true]
+  ])('極悪多動魔の位置交換後も両マスの石が最終表示に残る (%s)', async (_label, noAnimation) => {
+    const harness = createHarness({
+      frame: makeFrame([
+        [2, 2, stone('black', 'EXTREME_HYPERACTIVE')],
+        [2, 3, stone('white')]
+      ]),
+      noAnimation,
+      timings: { moveMs: 40 }
+    });
+    const swap = {
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' },
+      targets: [
+        {
+          from: { r: 2, col: 2 },
+          to: { r: 2, col: 3 },
+          ownerBefore: 'black',
+          ownerAfter: 'black',
+          cause: 'EXTREME_HYPERACTIVE_WILL',
+          reason: 'extreme_hyperactive_forced_swap',
+          extremeForcedSwapRole: 'lead',
+          before: { owner: 'black', color: 1, special: 'EXTREME_HYPERACTIVE' },
+          after: { owner: 'black', color: 1, special: 'EXTREME_HYPERACTIVE' }
+        },
+        {
+          from: { r: 2, col: 3 },
+          to: { r: 2, col: 2 },
+          ownerBefore: 'white',
+          ownerAfter: 'white',
+          cause: 'EXTREME_HYPERACTIVE_WILL',
+          reason: 'extreme_hyperactive_forced_swap',
+          extremeForcedSwapRole: 'follow',
+          before: { owner: 'white', color: -1 },
+          after: { owner: 'white', color: -1 }
+        }
+      ]
+    };
+
+    const pending = harness.playback.playPhase([swap], context(false, [swap]));
+    await flushMicrotasks();
+    for (let index = 0; index < 10; index += 1) {
+      harness.application.tick(40);
+      await flushMicrotasks();
+    }
+    await pending;
+
+    const lastWriteAt = (row: number, col: number) => harness.log.filter((entry) => (
+      entry === `scene:hide:${row},${col}` || entry.startsWith(`scene:ghost-acquire:${row},${col}:`)
+    )).pop();
+    expect(lastWriteAt(2, 3)).toBe('scene:ghost-acquire:2,3:black');
+    expect(lastWriteAt(2, 2)).toBe('scene:ghost-acquire:2,2:white');
+    expect(harness.playback.getDiagnostics()).toMatchObject({ retainedFinalGhostCount: 2 });
+  });
+
+  test.each([
     ['extreme_target_vacate', null],
     ['extreme_repel_push', null]
   ])('does not hide 極悪多動魔 when a settled %s plays from its cell', async (reason, metaSpecial) => {

@@ -516,13 +516,17 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
         continue;
       }
       if (type === 'move') {
-        for (const rawTarget of event.targets || []) {
-          const target: any = rawTarget;
+        const moveTargets: any[] = Array.from(event.targets || []);
+        // Clear every vacated source before writing destinations, so a swap
+        // (A->B plus B->A) cannot erase the stone that just arrived at B.
+        for (const target of moveTargets) {
           const fromKey = coordinateKeyOf(target?.from);
-          const toKey = coordinateKeyOf(target?.to);
           countMutation(fromKey);
-          countMutation(toKey);
           if (fromKey && target?.clone !== true) terminalWrites.set(fromKey, null);
+        }
+        for (const target of moveTargets) {
+          const toKey = coordinateKeyOf(target?.to);
+          countMutation(toKey);
           if (toKey) terminalWrites.set(toKey, resolveAfterVisual(event, target));
         }
         continue;
