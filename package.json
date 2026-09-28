@@ -144,6 +144,7 @@
     "generate:catalog": "node scripts/generate-catalog.js",
     "generate:observation-gacha-catalog": "node scripts/generate-observation-gacha-catalog.js",
     "generate:gacha-hand-catalog": "node scripts/generate-observation-gacha-catalog.js",
+    "record:card-demo-videos": "npm run build:ts && node dist/scripts/record-card-demo-videos.js",
     "generate:asset-manifest": "node scripts/generate-asset-manifest.js",
     "generate:card-art-map": "node scripts/generate-card-art-map.js",
     "test:visual": "node tests/visual-regression/run-visual-check.js",

@@ -63,6 +63,7 @@ let PlayerSlotElementsModule: any = _resolveCardRendererModule('../ui/player-slo
 let CardLogicModule: any = _resolveCardRendererModule('../game/logic/cards', 'CardLogic');
 let SpecialCardRegistryModule: any = _resolveCardRendererModule('../shared/special-card-registry', 'SpecialCardRegistry');
 let CardArtMapModule: any = _resolveCardRendererModule('./card-art-map.generated', 'CardArtMap');
+let CardDemoVideoModule: any = _resolveCardRendererModule('./card-demo-video', 'CardDemoVideo');
 function getCardCostTier(cost: number): string {
     const safeCost = Number.isFinite(cost) ? cost : 0;
     if (safeCost === 0)
@@ -648,6 +649,15 @@ try {
     }
 }
 catch (e) { /* ignore */ }
+function _syncCardDemoVideoButtonForRender(cardEl: any, cardId: any) {
+    if (!CardDemoVideoModule) CardDemoVideoModule = _resolveCardRendererModule('./card-demo-video', 'CardDemoVideo');
+    if (!CardDemoVideoModule || typeof CardDemoVideoModule.syncCardDemoVideoButton !== 'function') return;
+    if (_isSpecialCardFace(cardId)) return;
+    try {
+        CardDemoVideoModule.syncCardDemoVideoButton(cardEl, cardId);
+    }
+    catch (e) { /* ignore */ }
+}
 function _createCardCostBadge(cost: any, tierClass: any) {
     const costBadge = document.createElement('div');
     costBadge.className = 'card-cost-badge';
@@ -2202,6 +2212,7 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
         else {
             const canClick = entryState.canInspectOwnerHand && canInteract;
             _syncCardCostBadgeForRender(cardEl, entryState.cost);
+            _syncCardDemoVideoButtonForRender(cardEl, entryState.cardId);
             _setHandCardClickHandler(cardEl, canClick, entryState.cardId, ownerKey, entryState.actualIndex);
             cardEl.classList.toggle('clickable', canClick);
             cardEl.classList.toggle('affordable', entryState.canAfford);

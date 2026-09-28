@@ -47,6 +47,8 @@ function createHandCardSwipeGestureAdapter(options: any) {
         const targetEl = rawTarget && rawTarget.nodeType === 1
             ? rawTarget
             : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        // The demo video button handles its own click; pointer capture on the card would swallow it.
+        if (targetEl && typeof targetEl.closest === 'function' && targetEl.closest('.card-demo-video-btn')) return null;
         const cardEl = targetEl && typeof targetEl.closest === 'function'
             ? targetEl.closest('.card-item.visible.clickable[data-card-id]')
             : null;
