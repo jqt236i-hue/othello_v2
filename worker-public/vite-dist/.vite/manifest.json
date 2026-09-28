@@ -136,8 +136,8 @@
     "file": "assets/ViewableBuffer-CObpe3su.js",
     "name": "ViewableBuffer"
   },
-  "_bridge-C6UbLmjQ.js": {
-    "file": "assets/bridge-C6UbLmjQ.js",
+  "_bridge-_Rp43jNz.js": {
+    "file": "assets/bridge-_Rp43jNz.js",
     "name": "bridge"
   },
   "_canvasUtils-C8xQnZmC.js": {
@@ -185,12 +185,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-CHTGH0oK.js",
+    "file": "assets/cpu-worker-diagnostics-CiufFyMR.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-C6UbLmjQ.js"
+      "_bridge-_Rp43jNz.js"
     ]
   },
   "browser-vite/generated-assets/optional-commentary.mjs": {
@@ -235,14 +235,14 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-C3QJcdsJ.js",
+    "file": "assets/index.vite-CL9cMNmy.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_bridge-C6UbLmjQ.js"
+      "_bridge-_Rp43jNz.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",

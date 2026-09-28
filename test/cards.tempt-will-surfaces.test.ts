@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '意志の反転',
   type: 'TEMPT_WILL',
   cost: 34,
-  desc_ja: '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。',
+  desc_ja: '相手の特殊石を1つ選び、自分の石にする。罠石・時限爆弾・生きる意志付きの石も選べる。効果のない通常石は選べない。',
   display_type_ja: '執行'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '意志の反転',
-  desc: '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。'
+  desc: '相手の特殊石を1つ選び、自分の石にする。罠石・時限爆弾・生きる意志付きの石も選べる。効果のない通常石は選べない。'
 });
 
-const EXPECTED_QUICK_TEXT = '相手の誘惑可能な石効果を1つ選んで自分の色に変える。特殊石・罠石・時限爆弾・生きる意志が対象。';
-const EXPECTED_DETAIL_TEXT = '対象は相手の誘惑可能な石効果。\n特殊石、罠石、時限爆弾、生きる意志を対象に含む。\n弱い石・強い石・幽体石は特殊石として対象に含まれる。\n完全保護中の石、顕現石、盤面マーカー、配置時効果は対象外。\n残りターンなどの状態を維持したまま自分側になる。';
+const EXPECTED_QUICK_TEXT = '相手の特殊石を1つ選び、自分の石にする。罠石・時限爆弾・生きる意志付きの石も選べる。効果のない通常石は選べない。';
+const EXPECTED_DETAIL_TEXT = '相手の特殊石を1つ選び、自分の石にする。\n罠石・時限爆弾・弱い石・強い石・幽体石も選べる。\n生きる意志が付いた石も選べる。\n効果のない通常石、完全保護中の石、顕現石は選べない。\n残りターンなどはそのまま引き継ぐ。\n出稼ぎ石は奪うと効果が消え、通常石になる。\nこの色の変化は反転枚数に数えない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
