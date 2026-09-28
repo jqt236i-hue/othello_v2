@@ -559,6 +559,15 @@ function _readUsableClientRect(el: any) {
 }
 
 function _resolvePlacementHandOriginCenter(playerKey: any) {
+    const originRect = _resolvePlacementHandOriginRect(playerKey);
+    if (!originRect) return null;
+    return {
+        x: originRect.left + ((originRect.right - originRect.left) / 2),
+        y: originRect.top + ((originRect.bottom - originRect.top) / 2)
+    };
+}
+
+function _resolvePlacementHandOriginRect(playerKey: any) {
     const handEl = _resolveHandElementByOwner(playerKey);
     if (!handEl) return null;
     const handRect = _readUsableClientRect(handEl);
@@ -588,12 +597,7 @@ function _resolvePlacementHandOriginCenter(playerKey: any) {
             bottom: Math.max(unionRect.bottom, rect.bottom)
         }))
         : handRect;
-    if (!originRect) return null;
-
-    return {
-        x: originRect.left + ((originRect.right - originRect.left) / 2),
-        y: originRect.top + ((originRect.bottom - originRect.top) / 2)
-    };
+    return originRect || null;
 }
 
 function _playEffectByKeySafe(soundKey: any) {
@@ -1708,6 +1712,241 @@ function animateStrongWillApply(row: any, col: any) {
     });
 }
 
+const THROWN_STONE_CLASS = 'thrown-stone';
+const THROWN_STONE_WINDUP_MS = 110;
+const THROWN_STONE_FLIGHT_MS = 360;
+const THROWN_STONE_LANDING_RING_MS = 260;
+const THROWN_STONE_ARC_SAMPLES = 12;
+const THROWN_STONE_CLEANUP_FALLBACK_MS = THROWN_STONE_WINDUP_MS + THROWN_STONE_FLIGHT_MS + 800;
+// Hidden traps look like normal stones until their reveal timing.
+const THROWN_STONE_HIDDEN_TYPES = new Set(['TRAP', 'TRAP_WILL']);
+
+function _readPlaceAnimationStyle() {
+    const rootRef = _getHandAnimationRootRef();
+    if (__hand_animation_preferences_utils && typeof __hand_animation_preferences_utils.readPlaceAnimationStyle === 'function') {
+        return __hand_animation_preferences_utils.readPlaceAnimationStyle(rootRef);
+    }
+    return 'hand';
+}
+
+function _getVisualEffectsMapForThrownStone() {
+    try {
+        if (typeof window !== 'undefined' && window && (window as any).GameVisualEffectsMap
+            && (window as any).GameVisualEffectsMap.STONE_VISUAL_EFFECTS) {
+            return (window as any).GameVisualEffectsMap;
+        }
+    } catch (e: any) { /* ignore */ }
+    try {
+        const mod = _require('../game/visual-effects-map');
+        if (mod && mod.STONE_VISUAL_EFFECTS) return mod;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+/**
+ * Resolve the stone visual for a thrown placement.
+ * After commit the placed special stone is already a marker on the target cell;
+ * before commit (network input-time feedback) the owner's pending effect names it.
+ */
+function _resolveThrownStoneVisual(playerKey: any, row: any, col: any) {
+    const ownerKey = _normalizeHandOwnerKey(playerKey);
+    const ownerValue = ownerKey === 'white' ? -1 : 1;
+    const normal = {
+        ownerKey,
+        baseImage: ownerKey === 'white' ? 'var(--normal-stone-white-image)' : 'var(--normal-stone-black-image)',
+        overlayImage: null as string | null,
+        renderMode: 'base-only',
+        effectKey: null as string | null
+    };
+    const map = _getVisualEffectsMapForThrownStone();
+    const cs = _resolveCardStateForHandAnimations();
+    if (!map || !cs) return normal;
+
+    let effectKey: string | null = null;
+    const markers = Array.isArray(cs.markers) ? cs.markers : [];
+    for (const marker of markers) {
+        if (!marker || marker.row !== row || marker.col !== col) continue;
+        const type = String((marker.data && marker.data.type) || marker.type || '');
+        if (!type || THROWN_STONE_HIDDEN_TYPES.has(type)) continue;
+        const markerOwner = marker.owner != null ? marker.owner : (marker.data && marker.data.owner);
+        if (markerOwner != null && _normalizeHandOwnerKey(markerOwner) !== ownerKey) continue;
+        const key = map.SPECIAL_TYPE_TO_EFFECT_KEY && map.SPECIAL_TYPE_TO_EFFECT_KEY[type];
+        if (key) {
+            effectKey = key;
+            break;
+        }
+    }
+    if (!effectKey) {
+        const pending = cs.pendingEffectByPlayer && cs.pendingEffectByPlayer[ownerKey];
+        const pendingType = pending && typeof pending.type === 'string' ? pending.type : '';
+        if (pendingType && !THROWN_STONE_HIDDEN_TYPES.has(pendingType)) {
+            effectKey = (map.PENDING_TYPE_TO_EFFECT_KEY && map.PENDING_TYPE_TO_EFFECT_KEY[pendingType]) || null;
+        }
+    }
+    const effect = effectKey && map.STONE_VISUAL_EFFECTS ? map.STONE_VISUAL_EFFECTS[effectKey] : null;
+    if (!effect || typeof map.resolveEffectImagePath !== 'function') return normal;
+    const imagePath = map.resolveEffectImagePath(effect, { owner: ownerValue, player: ownerValue });
+    if (!imagePath) return normal;
+    let resolvedPath = String(imagePath);
+    try {
+        if (typeof document !== 'undefined' && document.baseURI) resolvedPath = new URL(resolvedPath, document.baseURI).href;
+    } catch (e: any) { /* keep relative path */ }
+    return Object.assign({}, normal, {
+        overlayImage: `url('${resolvedPath}')`,
+        renderMode: effect.renderMode === 'overlay' ? 'overlay' : 'replace',
+        effectKey
+    });
+}
+
+function _resolveThrownStoneOrigin(playerKey: any, fromBottom: boolean) {
+    const originRect = _resolvePlacementHandOriginRect(playerKey);
+    if (originRect) {
+        return {
+            x: originRect.left + ((originRect.right - originRect.left) / 2),
+            y: fromBottom ? originRect.bottom : originRect.top
+        };
+    }
+    const viewportWidth = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 0;
+    const viewportHeight = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 0;
+    return { x: viewportWidth / 2, y: fromBottom ? viewportHeight : 0 };
+}
+
+function _createThrownStoneElement(layerEl: any, visual: any, size: number) {
+    const stoneEl = document.createElement('div');
+    stoneEl.className = `${THROWN_STONE_CLASS} ${visual.ownerKey}`;
+    stoneEl.setAttribute('aria-hidden', 'true');
+    if (visual.effectKey) stoneEl.setAttribute('data-thrown-stone-effect', visual.effectKey);
+    const layers = visual.renderMode === 'replace'
+        ? [visual.overlayImage]
+        : (visual.renderMode === 'overlay' ? [visual.overlayImage, visual.baseImage] : [visual.baseImage]);
+    stoneEl.style.width = `${size}px`;
+    stoneEl.style.height = `${size}px`;
+    stoneEl.style.setProperty('--thrown-stone-image', layers.join(', '));
+    stoneEl.style.opacity = '0';
+    layerEl.appendChild(stoneEl);
+    return stoneEl;
+}
+
+function _spawnThrownStoneLandingRing(layerEl: any, centerX: number, centerY: number, size: number) {
+    if (!layerEl || typeof document === 'undefined') return;
+    const ringEl = document.createElement('div');
+    ringEl.className = 'thrown-stone-landing-ring';
+    ringEl.setAttribute('aria-hidden', 'true');
+    ringEl.style.width = `${size}px`;
+    ringEl.style.height = `${size}px`;
+    const at = (scale: number) => `translate(${centerX - (size / 2)}px, ${centerY - (size / 2)}px) scale(${scale})`;
+    ringEl.style.transform = at(0.7);
+    layerEl.appendChild(ringEl);
+    const remove = () => { try { if (ringEl.parentNode) ringEl.parentNode.removeChild(ringEl); } catch (e: any) { /* ignore */ } };
+    _animateCompat(ringEl, [
+        { transform: at(0.7), opacity: 0.85 },
+        { transform: at(1.45), opacity: 0 }
+    ], { duration: THROWN_STONE_LANDING_RING_MS, easing: 'ease-out', fill: 'forwards' }, null).then(remove, remove);
+}
+
+/**
+ * 石を投げて配置する演出。手札の下端（相手側は上端）中央から着手点へ放物線で飛ばし、
+ * 着地の瞬間を手置き演出の接触タイミングと同じ扱いにする。
+ */
+function _playThrownStonePlacement(ctx: any) {
+    const {
+        player, row, col, cellRect, layerEl, visualOptions, placementApproval, signal,
+        syncCardAnimating, unlockProcessing, refreshCardUi, onComplete, releaseQueue
+    } = ctx;
+    const requestedOwnerKey = (visualOptions && typeof visualOptions === 'object' && visualOptions.ownerKey != null)
+        ? visualOptions.ownerKey
+        : player;
+    const playerKey = _normalizeHandOwnerKey(requestedOwnerKey);
+    const fromBottom = _isOwnerOnBottomSlot(playerKey);
+    const origin = _resolveThrownStoneOrigin(playerKey, fromBottom);
+    const targetX = cellRect.left + (cellRect.width / 2);
+    const targetY = cellRect.top + (cellRect.height / 2);
+    const size = Math.max(12, Math.min(cellRect.width, cellRect.height) * 0.86);
+    const visual = _resolveThrownStoneVisual(playerKey, row, col);
+
+    syncCardAnimating(true);
+    _ensureHandAnimationLayerMounted(layerEl);
+    const stoneEl = _createThrownStoneElement(layerEl, visual, size);
+    const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
+
+    const distance = Math.hypot(targetX - origin.x, targetY - origin.y);
+    const arcHeight = Math.min(220, 60 + (distance * 0.35));
+    const startScale = 1.35;
+    const peakScale = 1.7;
+    const spinDeg = (fromBottom ? 1 : -1) * 540;
+    const frameAt = (t: number) => {
+        const x = origin.x + ((targetX - origin.x) * t) - (size / 2);
+        const y = origin.y + ((targetY - origin.y) * t) - (arcHeight * 4 * t * (1 - t)) - (size / 2);
+        const lift = 4 * t * (1 - t);
+        const scale = startScale + ((1 - startScale) * t) + ((peakScale - startScale) * lift);
+        return `translate(${x}px, ${y}px) rotate(${spinDeg * t}deg) scale(${scale})`;
+    };
+
+    let completed = false;
+    let cleanupStarted = false;
+    let clearCleanupFallback = function () {};
+    const completeMove = () => {
+        if (completed) return;
+        completed = true;
+        try { if (typeof onComplete === 'function') onComplete(); } catch (e: any) { /* ignore */ }
+    };
+    const cleanup = () => {
+        if (cleanupStarted) return;
+        cleanupStarted = true;
+        signal?.removeEventListener('abort', cleanup);
+        clearCleanupFallback();
+        completeMove();
+        _cancelElementAnimations(stoneEl);
+        try { if (stoneEl.parentNode) stoneEl.parentNode.removeChild(stoneEl); } catch (e: any) { /* ignore */ }
+        syncCardAnimating(false);
+        unlockProcessing();
+        refreshCardUi();
+        releaseQueue();
+    };
+    clearCleanupFallback = _installAnimationResolveFallback(cleanup, THROWN_STONE_CLEANUP_FALLBACK_MS);
+    signal?.addEventListener('abort', cleanup, { once: true });
+
+    (async () => {
+        // 1. Wind-up: the stone pops out at the hand edge.
+        stoneEl.style.transform = frameAt(0);
+        await _animateCompat(stoneEl, [
+            { transform: `${frameAt(0)} scale(0.4)`, opacity: 0 },
+            { transform: frameAt(0), opacity: 1 }
+        ], { duration: THROWN_STONE_WINDUP_MS, easing: 'ease-out', fill: 'forwards' }, sc);
+        if (cleanupStarted) return;
+
+        // Never land a stone before the matching authoritative placement is ready.
+        if (placementApproval) {
+            clearCleanupFallback();
+            if (await placementApproval !== true || signal?.aborted || cleanupStarted) return;
+            clearCleanupFallback = _installAnimationResolveFallback(cleanup, THROWN_STONE_CLEANUP_FALLBACK_MS);
+        }
+
+        // 2. Flight along a parabola; the stone grows toward the arc peak as if lifted toward the viewer.
+        const keyframes = [];
+        for (let i = 0; i <= THROWN_STONE_ARC_SAMPLES; i += 1) {
+            const t = i / THROWN_STONE_ARC_SAMPLES;
+            keyframes.push({ transform: frameAt(t), opacity: 1, offset: t });
+        }
+        await _animateCompat(stoneEl, keyframes, {
+            duration: THROWN_STONE_FLIGHT_MS,
+            easing: 'cubic-bezier(0.35, 0.1, 0.65, 1)',
+            fill: 'forwards'
+        }, sc);
+        if (cleanupStarted) return;
+
+        // 3. Landing: same contact timing as the hand placement.
+        try { stoneEl.style.opacity = '0'; } catch (e: any) { /* ignore */ }
+        _playStonePlaceSoundSafe();
+        completeMove();
+        _spawnThrownStoneLandingRing(layerEl, targetX, targetY, size);
+    })().catch(() => {
+        completeMove();
+    }).finally(() => {
+        cleanup();
+    });
+}
+
 /**
  * 石配置アニメーション
  * Play hand animation for stone placement
@@ -1775,6 +2014,24 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         }
 
         const { layerEl, wrapperEl, heldStoneEl } = _resolveHandLayerElements();
+        if (_readPlaceAnimationStyle() === 'throw' && layerEl) {
+            _playThrownStonePlacement({
+                player,
+                row,
+                col,
+                cellRect,
+                layerEl,
+                visualOptions,
+                placementApproval,
+                signal,
+                syncCardAnimating,
+                unlockProcessing,
+                refreshCardUi,
+                onComplete,
+                releaseQueue
+            });
+            return;
+        }
         if (!layerEl || !wrapperEl || !heldStoneEl || !boardRoot) {
             completeImmediately();
             return;

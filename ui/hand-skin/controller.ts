@@ -271,6 +271,35 @@ function createHandAnimationToggle(
   return label;
 }
 
+function createPlaceAnimationStyleSelect(docRef: Document, rootRef: any): HTMLLabelElement {
+  const label = docRef.createElement('label');
+  label.className = 'hand-animation-style';
+
+  const text = docRef.createElement('span');
+  text.textContent = '配置方法';
+  label.appendChild(text);
+
+  const select = docRef.createElement('select');
+  select.id = 'handAnimationPlaceStyle';
+  [['hand', '手で置く'], ['throw', '石を投げる']].forEach(([value, optionLabel]) => {
+    const option = docRef.createElement('option');
+    option.value = value;
+    option.textContent = optionLabel;
+    select.appendChild(option);
+  });
+  const readStyle = HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.readPlaceAnimationStyle === 'function'
+    ? HandAnimationPreferencesModule.readPlaceAnimationStyle
+    : () => 'hand';
+  select.value = readStyle(rootRef);
+  select.addEventListener('change', function () {
+    if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.writePlaceAnimationStyle === 'function') {
+      select.value = HandAnimationPreferencesModule.writePlaceAnimationStyle(rootRef, select.value);
+    }
+  });
+  label.appendChild(select);
+  return label;
+}
+
 function ensureHandAnimationControls(docRef: Document, rootRef: any, handSection: any, optionsEl: any): void {
   if (!handSection || !optionsEl || docRef.getElementById('handAnimationDrawToggle')) {
     syncHandAnimationFlags(rootRef);
@@ -280,6 +309,7 @@ function ensureHandAnimationControls(docRef: Document, rootRef: any, handSection
   group.className = 'hand-animation-controls';
   group.appendChild(createHandAnimationToggle(docRef, rootRef, 'draw', 'ドロー演出'));
   group.appendChild(createHandAnimationToggle(docRef, rootRef, 'place', '配置演出'));
+  group.appendChild(createPlaceAnimationStyleSelect(docRef, rootRef));
   handSection.insertBefore(group, optionsEl);
   syncHandAnimationFlags(rootRef);
 }

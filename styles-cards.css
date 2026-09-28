@@ -2723,6 +2723,33 @@
     background: radial-gradient(circle at 35% 35%, #fffdf0 0%, #e0e0d0 40%, #b0b0a0 100%);
 }
 
+/* 配置方法「石を投げる」: 手札端から着手点へ飛ぶ石 */
+.thrown-stone {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    background-image: var(--thrown-stone-image);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 calc(6px * var(--layout-stage-scale, 1)) calc(6px * var(--layout-stage-scale, 1)) rgba(0, 0, 0, 0.55));
+    transform-origin: center center;
+    will-change: transform, opacity;
+    pointer-events: none;
+}
+
+.thrown-stone-landing-ring {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 244, 214, 0.85);
+    box-shadow: 0 0 10px rgba(255, 236, 190, 0.55);
+    transform-origin: center center;
+    pointer-events: none;
+}
+
 .held-draw-card {
     position: absolute;
     width: calc(58px * var(--layout-stage-scale));

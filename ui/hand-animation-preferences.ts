@@ -7,6 +7,11 @@ const HAND_ANIMATION_STORAGE_KEYS = {
 
 type HandAnimationKind = keyof typeof HAND_ANIMATION_STORAGE_KEYS;
 
+const PLACE_ANIMATION_STYLE_STORAGE_KEY = 'othello.handAnimation.placeStyle';
+const PLACE_ANIMATION_STYLES = ['hand', 'throw'] as const;
+type PlaceAnimationStyle = typeof PLACE_ANIMATION_STYLES[number];
+const DEFAULT_PLACE_ANIMATION_STYLE: PlaceAnimationStyle = 'hand';
+
 function isIphoneEnvironment(rootRef: any): boolean {
   try {
     const nav = rootRef && rootRef.navigator
@@ -68,8 +73,37 @@ function syncHandAnimationFlags(rootRef: any): { draw: boolean; place: boolean }
   return prefs;
 }
 
+function normalizePlaceAnimationStyle(rawValue: any): PlaceAnimationStyle | null {
+  const raw = String(rawValue || '').trim().toLowerCase();
+  return (PLACE_ANIMATION_STYLES as readonly string[]).includes(raw) ? raw as PlaceAnimationStyle : null;
+}
+
+function readPlaceAnimationStyle(rootRef: any): PlaceAnimationStyle {
+  try {
+    const storage = getStorage(rootRef);
+    if (storage) {
+      const stored = normalizePlaceAnimationStyle(storage.getItem(PLACE_ANIMATION_STYLE_STORAGE_KEY));
+      if (stored) return stored;
+    }
+  } catch (e) { /* ignore */ }
+  return DEFAULT_PLACE_ANIMATION_STYLE;
+}
+
+function writePlaceAnimationStyle(rootRef: any, style: any): PlaceAnimationStyle {
+  const normalized = normalizePlaceAnimationStyle(style) || DEFAULT_PLACE_ANIMATION_STYLE;
+  try {
+    const storage = getStorage(rootRef);
+    if (storage) storage.setItem(PLACE_ANIMATION_STYLE_STORAGE_KEY, normalized);
+  } catch (e) { /* ignore */ }
+  return normalized;
+}
+
 const HandAnimationPreferencesModule = {
   HAND_ANIMATION_STORAGE_KEYS,
+  PLACE_ANIMATION_STYLE_STORAGE_KEY,
+  PLACE_ANIMATION_STYLES,
+  readPlaceAnimationStyle,
+  writePlaceAnimationStyle,
   isIphoneEnvironment,
   readHandAnimationPreference,
   writeHandAnimationPreference,

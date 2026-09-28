@@ -2155,4 +2155,61 @@ describe('animation-utils hand fallback', () => {
 
     await expect(promise).resolves.toBeUndefined();
   });
+  describe('thrown stone placement style', () => {
+    async function runThrow(row = 0, col = 0) {
+      window.localStorage.setItem('othello.handAnimation.placeStyle', 'throw');
+      const layer = document.getElementById('handLayer');
+      const appended = [];
+      const originalAppend = layer.appendChild.bind(layer);
+      layer.appendChild = (el) => {
+        appended.push(el);
+        return originalAppend(el);
+      };
+      const mod = require('../ui/animation-utils.js');
+      await new Promise((resolve, reject) => {
+        const to = setTimeout(() => reject(new Error('timeout')), 2500);
+        mod.playHandAnimation(global.BLACK, row, col, () => {
+          clearTimeout(to);
+          resolve();
+        });
+      });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return appended.find((el) => el.classList && el.classList.contains('thrown-stone'));
+    }
+
+    test('throws a normal stone without moving the hand and lands with one place sound', async () => {
+      const stone = await runThrow();
+      expect(stone).toBeTruthy();
+      expect(stone.classList.contains('black')).toBe(true);
+      expect(stone.style.getPropertyValue('--thrown-stone-image')).toContain('--normal-stone-black-image');
+      expect(stone.hasAttribute('data-thrown-stone-effect')).toBe(false);
+      expect(document.getElementById('handWrapper').style.opacity).not.toBe('1');
+      expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
+      expect(document.querySelector('#handLayer .thrown-stone')).toBeNull();
+    });
+
+    test('throws the placed special stone visual from the target cell marker', async () => {
+      global.cardState = {
+        markers: [{ row: 0, col: 0, kind: 'specialStone', owner: 'black', data: { type: 'GOLD' } }]
+      };
+      const stone = await runThrow();
+      expect(stone.getAttribute('data-thrown-stone-effect')).toBe('goldStone');
+      expect(stone.style.getPropertyValue('--thrown-stone-image')).toContain('gold_stone.png');
+    });
+
+    test('uses the pending special stone before the placement is committed', async () => {
+      global.cardState = { markers: [], pendingEffectByPlayer: { black: { type: 'GOLD_STONE' }, white: null } };
+      const stone = await runThrow();
+      expect(stone.getAttribute('data-thrown-stone-effect')).toBe('goldStone');
+    });
+
+    test('keeps hidden trap stones looking normal while thrown', async () => {
+      global.cardState = {
+        markers: [{ row: 0, col: 0, kind: 'specialStone', owner: 'black', data: { type: 'TRAP', hidden: true } }]
+      };
+      const stone = await runThrow();
+      expect(stone.hasAttribute('data-thrown-stone-effect')).toBe(false);
+      expect(stone.style.getPropertyValue('--thrown-stone-image')).toContain('--normal-stone-black-image');
+    });
+  });
 });
