@@ -14,6 +14,12 @@ export const CROP_WIDE: Crop = { x: 355, y: 90, w: 570, h: 610 };
 export const SPECIAL_CARD_IDS = new Set(['theory_incarnation_01', 'board_executor_01', 'observer_will_01']);
 // Cards whose effect shows in the opponent hand or a centered overlay need the wider crop.
 const WIDE_CROP_CARDS = new Set(['condemn_01', 'execution_01', 'reveal_hand_01', 'heaven_01', 'trap_01', 'rebuild_01', 'gluttonous_will_01', 'loss_will_01', 'equality_will_01']);
+// Cards whose effect happens during the card use animation, so that animation stays in the clip.
+export const SHOW_USE_CARD_IDS = new Set([
+    'chest_01', 'ribo_01', 'equality_will_01', 'rebuild_01', 'reveal_hand_01', 'execution_01', 'gluttonous_will_01',
+    'reinforcement_01', 'support_troops_01', 'chaos_summon_01', 'salvation_01', 'loss_will_01', 'mass_freeze_will_01',
+    'time_stop_god_01', 'time_stop_deity_01'
+]);
 export function cropForCard(cardId: string): Crop { return WIDE_CROP_CARDS.has(cardId) ? CROP_WIDE : CROP_BOARD; }
 
 const DIRS: Cell[] = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
@@ -838,6 +844,7 @@ export const SCENARIOS: Readonly<Record<string, Scenario>> = S;
 export async function runScenario(rec: Recorder, cardId: string) {
     const fn = S[cardId];
     if (!fn) throw new Error('no demo scenario for ' + cardId);
+    rec.showUseFor = SHOW_USE_CARD_IDS;
     await setHands(rec.page, { black: [cardId], white: [], chargeBlack: 99, chargeWhite: 99 });
     await fn(rec, rec.page);
 }

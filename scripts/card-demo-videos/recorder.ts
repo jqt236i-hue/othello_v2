@@ -151,14 +151,37 @@ export class Recorder {
         await this.clickAt(b.x + b.width / 2, b.y + b.height / 2);
     }
 
-    // Select the hand card with the cursor, then press 使用 in place (the button is outside the crop).
+    // Cards whose use animation itself shows the effect; every other card is used off camera.
+    showUseFor: Set<string> = new Set();
+
     async useCard(cardId: string) {
-        await this.clickSel(`.card-item.clickable[data-card-id="${cardId}"]`);
-        await this.hold(350);
-        await this.page.evaluate(() => { const b = document.getElementById('use-card-btn'); if (b) b.click(); });
-        await this.hold(800);
-        await this.quiet(() => this.idle(null));
-        await this.hold(200);
+        if (this.showUseFor.has(cardId)) {
+            // Select the hand card with the cursor, then press 使用 in place (the button is outside the crop).
+            await this.clickSel(`.card-item.clickable[data-card-id="${cardId}"]`);
+            await this.hold(350);
+            await this.page.evaluate(() => { const b = document.getElementById('use-card-btn'); if (b) b.click(); });
+            await this.hold(800);
+            await this.quiet(() => this.idle(null));
+            await this.hold(200);
+            return;
+        }
+        // Use the card off camera; the kept segment restarts from the state after the use animation.
+        const segId = this.cur ? this.cur.id : null;
+        await this.quiet(async () => {
+            await this.page.evaluate((id: string) => {
+                const el = document.querySelector(`.card-item.clickable[data-card-id="${id}"]`) as HTMLElement | null;
+                if (!el) throw new Error('card not clickable: ' + id);
+                el.click();
+            }, cardId);
+            await this.page.waitForTimeout(250);
+            await this.page.evaluate(() => { const b = document.getElementById('use-card-btn'); if (b) b.click(); });
+            await this.page.waitForTimeout(300);
+            await this.idle(null);
+            await this.page.mouse.move(PARK[0], PARK[1]);
+            this.mouse = PARK;
+        });
+        if (segId !== null) this.frames = this.frames.filter((f) => f.seg !== segId);
+        await this.hold(450);
     }
 
     async park() { await this.moveTo(PARK[0], PARK[1], 10); }

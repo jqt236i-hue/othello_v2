@@ -66,8 +66,8 @@ export function encodeClip(input: EncodeInput, outFile: string, options: EncodeO
     fs.rmSync(work, { recursive: true, force: true });
     fs.mkdirSync(work, { recursive: true });
     const thumbs = frameThumbs(input.frames, crop);
-    const indexOf = new Map(input.frames.map((f, i) => [f.file, i]));
-    const thumbOf = (f: RecordedFrame) => thumbs[indexOf.get(f.file) as number];
+    // Thumbnails follow the on-disk frame numbering (frames may have been dropped from the list).
+    const thumbOf = (f: RecordedFrame) => thumbs[parseInt(path.basename(f.file, '.jpg'), 10)];
     const still = (a: RecordedFrame, b: RecordedFrame) => {
         const ta = thumbOf(a), tb = thumbOf(b);
         return !!(ta && tb && meanDiff(ta, tb) < STATIC_DIFF);
