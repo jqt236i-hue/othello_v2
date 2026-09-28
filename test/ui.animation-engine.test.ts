@@ -317,7 +317,7 @@ describe('animation-engine public playback contract', () => {
     delete global.document;
   });
 
-  test('spawn の直後 phase に多動系 move がある network playback でも追加ギャップなしで再生する', async () => {
+  test('spawn の直後 phase に躍動系 move がある network playback でも追加ギャップなしで再生する', async () => {
     const timer = installAnimationClock();
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`

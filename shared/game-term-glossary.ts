@@ -52,7 +52,7 @@ export const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.
   Object.freeze({ id: 'condition-after-18-turns', label: '18手後使用可能', category: 'resource', description: '18手以上経過した後に使える。' }),
   Object.freeze({ id: 'turn-start', label: 'ターン開始', category: 'resource', description: '手番開始時に効果や持続管理を処理するタイミング。' }),
   Object.freeze({ id: 'time-stop', label: '時間停止', category: 'resource', description: '発動したプレイヤーが2ターン連続で行動する。' }),
-  Object.freeze({ id: 'multi-move-state', label: '多動状態', category: 'stone', description: '両者ターン開始時マス移動する、基本ランダム移動。' })
+  Object.freeze({ id: 'multi-move-state', label: '躍動状態', category: 'stone', description: '両者ターン開始時マス移動する、基本ランダム移動。' })
 ]);
 
 export function getBaseGameTermGlossary(): readonly GameTermGlossaryEntry[] {

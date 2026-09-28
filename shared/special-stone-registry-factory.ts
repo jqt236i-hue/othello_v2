@@ -300,13 +300,13 @@ function createSpecialStoneRegistry(
             timerClass: 'dragon-timer'
         }),
         HYPERACTIVE: Object.freeze({
-            name: '多動石',
+            name: '躍動石',
             desc: 'ターン開始時に移動し、移動後に反転する。',
             mobility: true,
             tagFlipEvadeDefault: readFlipDefault('HYPERACTIVE')
         }),
         EXTREME_HYPERACTIVE: Object.freeze({
-            name: '極悪多動魔',
+            name: '極悪躍動魔',
             desc: 'ターン開始時に移動し、周囲の石を押しのける。',
             mobility: true,
             tagFlipEvadeDefault: readFlipDefault('EXTREME_HYPERACTIVE'),
@@ -329,7 +329,7 @@ function createSpecialStoneRegistry(
             flipProtected: true
         }),
         ULTIMATE_HYPERACTIVE: Object.freeze({
-            name: '究極多動神',
+            name: '究極躍動神',
             desc: 'ターン開始時に大きく移動し、移動後に反転する。',
             mobility: true,
             tagFlipEvadeDefault: readFlipDefault('ULTIMATE_HYPERACTIVE'),
@@ -499,8 +499,8 @@ function createSpecialStoneRegistry(
         ULTIMATE_REVERSE_DRAGON: Object.freeze({ cardId: 'udr_01', cardNameJa: '究極反転龍', cardType: 'ULTIMATE_REVERSE_DRAGON', markerType: 'DRAGON' }),
         BREEDING_WILL: Object.freeze({ cardId: 'breeding_01', cardNameJa: '繁殖の意志', cardType: 'BREEDING_WILL', markerType: 'BREEDING' }),
         PROLIFERATION_WILL: Object.freeze({ cardId: 'proliferation_01', cardNameJa: '増殖の意志', cardType: 'PROLIFERATION_WILL', markerType: 'PROLIFERATION' }),
-        HYPERACTIVE_WILL: Object.freeze({ cardId: 'hyperactive_01', cardNameJa: '多動の意志', cardType: 'HYPERACTIVE_WILL', markerType: 'HYPERACTIVE' }),
-        EXTREME_HYPERACTIVE_WILL: Object.freeze({ cardId: 'extreme_hyperactive_01', cardNameJa: '極悪多動魔', cardType: 'EXTREME_HYPERACTIVE_WILL', markerType: 'EXTREME_HYPERACTIVE' }),
+        HYPERACTIVE_WILL: Object.freeze({ cardId: 'hyperactive_01', cardNameJa: '躍動の意志', cardType: 'HYPERACTIVE_WILL', markerType: 'HYPERACTIVE' }),
+        EXTREME_HYPERACTIVE_WILL: Object.freeze({ cardId: 'extreme_hyperactive_01', cardNameJa: '極悪躍動魔', cardType: 'EXTREME_HYPERACTIVE_WILL', markerType: 'EXTREME_HYPERACTIVE' }),
         ESCAPE_WILL: Object.freeze({ cardId: 'escape_01', cardNameJa: '逃げる意志', cardType: 'ESCAPE_WILL', markerType: 'ESCAPE_HYPERACTIVE' }),
         ROBOT_VACUUM_WILL: Object.freeze({ cardId: 'robot_vacuum_01', cardNameJa: 'ロボット掃除機', cardType: 'ROBOT_VACUUM_WILL', markerType: 'ROBOT_VACUUM' }),
         GLUTTONOUS_WILL: Object.freeze({ cardId: 'gluttonous_will_01', cardNameJa: '悪食の意志', cardType: 'GLUTTONOUS_WILL', markerType: 'GLUTTONOUS' }),
@@ -514,7 +514,7 @@ function createSpecialStoneRegistry(
         WATER_WILL: Object.freeze({ cardId: 'water_will_01', cardNameJa: '水の意志', cardType: 'WATER_WILL', markerType: 'WATER' }),
         GRASS_WILL: Object.freeze({ cardId: 'grass_will_01', cardNameJa: '草の意志', cardType: 'GRASS_WILL', markerType: 'GRASS' }),
         ULTIMATE_DESTROY_GOD: Object.freeze({ cardId: 'udg_01', cardNameJa: '究極破壊神', cardType: 'ULTIMATE_DESTROY_GOD', markerType: 'ULTIMATE_DESTROY_GOD' }),
-        ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極多動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
+        ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極躍動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
         METEOR_GOD: Object.freeze({ cardId: 'meteor_god_01', cardNameJa: '因果抹消神', cardType: 'METEOR_GOD', markerType: 'METEOR_GOD' })
     });
 

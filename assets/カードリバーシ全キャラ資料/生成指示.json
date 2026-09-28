@@ -90,7 +90,7 @@
     },
     {
       "id": "EXTREME_HYPERACTIVE_WILL",
-      "name": "極悪多動魔",
+      "name": "極悪躍動魔",
       "sourceFiles": [
         "EXTREME_HYPERACTIVE_WILL-black.png",
         "EXTREME_HYPERACTIVE_WILL-white.png"
@@ -162,7 +162,7 @@
     },
     {
       "id": "ULTIMATE_HYPERACTIVE_GOD",
-      "name": "究極多動神",
+      "name": "究極躍動神",
       "sourceFiles": [
         "ULTIMATE_HYPERACTIVE_GOD-black.png",
         "ULTIMATE_HYPERACTIVE_GOD-white.png"
@@ -234,7 +234,7 @@
     },
     {
       "id": "HYPERACTIVE_WILL",
-      "name": "多動石",
+      "name": "躍動石",
       "sourceFiles": [
         "HYPERACTIVE_WILL-white.png"
       ],

@@ -805,7 +805,7 @@ Non-goals: ゲームルール、盤面描画、ネットワーク契約、PC/iPa
   - 393x673: パネル下端563.66px、操作・タグ下端557.84px、内側余白5.81px。タグ `clientWidth=263` / `scrollWidth=263`
   - 393x852: パネル下端672.17px、操作・タグ下端663.50px、内側余白8.67px。タグ `clientWidth=256` / `scrollWidth=256`
   - 盤面はそれぞれ `331.83x327.48px`、`376.36x370.88px` で既存寸法を維持し、ページ全体の縦横overflowなし
-- `究極多動神` の4タグ状態: タグ `clientWidth=256` / `scrollWidth=265` / `overflow-x:auto`、タグ下端662.97pxはパネル下端669.44px以内
+- `究極躍動神` の4タグ状態: タグ `clientWidth=256` / `scrollWidth=265` / `overflow-x:auto`、タグ下端662.97pxはパネル下端669.44px以内
 
 ### スマホカード詳細下段の見切れ解消 Self-review
 

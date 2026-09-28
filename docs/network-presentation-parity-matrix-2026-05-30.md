@@ -116,5 +116,5 @@
 - artifact: `tmp-live-check-1780094071565-deployed-super-attraction-proof/summary.json`
   - scenario pass: 超引力
 - artifact: `tmp-live-check-1780094402998-deployed-hyperactive-proof/summary.json`
-  - scenario pass: 多動の意志
+  - scenario pass: 躍動の意志
 - all listed artifacts: `passed: true`

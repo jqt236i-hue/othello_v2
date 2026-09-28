@@ -776,7 +776,7 @@
           "sha256": "1cc6ed272ba8aa355838e6bd7fe51e72e0d618421f2b0b251b0a1d3dd2e2684c"
         },
         {
-          "path": "assets/audio/sound-effect/多動系の石が移動したタイミング.mp3",
+          "path": "assets/audio/sound-effect/躍動系の石が移動したタイミング.mp3",
           "sha256": "0e2151110386270b5e45f1857d0195f5c758e1b4d2f97491ee0652e9cf1014ca"
         },
         {
@@ -1456,11 +1456,11 @@
           "sha256": "d3ace35e555d6fa05a43d386c08ccbddfa6b08dc02e77efcb6bcdd67578a8fdf"
         },
         {
-          "path": "assets/images/card/39_多動の意志.png",
+          "path": "assets/images/card/39_躍動の意志.png",
           "sha256": "96929f62bf6d54c29151d8b743f2a041e8e1c27c13eeb05b9b70a05a7b198f59"
         },
         {
-          "path": "assets/images/card/40_極悪多動魔.png",
+          "path": "assets/images/card/40_極悪躍動魔.png",
           "sha256": "12bdad0bbe582aae4b4f6e112e1f14f63fc3f315a905d611e0b9960283d81cda"
         },
         {
@@ -1480,7 +1480,7 @@
           "sha256": "0f4ba11549982d5e685a0d22dc283721c534317d369d8816776678181acb9088"
         },
         {
-          "path": "assets/images/card/45_瞬間多動.png",
+          "path": "assets/images/card/45_瞬間躍動.png",
           "sha256": "5591ae9e6bff78b3f7b246b17cc25d2b2fe6127ce70a88ade7e899ce0aa87397"
         },
         {
@@ -1596,7 +1596,7 @@
           "sha256": "d712c0ab693e75bbad3d8b2f9e1fd01e761fa07fa9d8fcfdd420923361f05c6b"
         },
         {
-          "path": "assets/images/card/77_究極多動神.png",
+          "path": "assets/images/card/77_究極躍動神.png",
           "sha256": "c4f3309fcd62d5a52a2beed87abb686967d6aca837316be91d4862a1d0f8a92f"
         },
         {

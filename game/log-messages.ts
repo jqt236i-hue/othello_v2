@@ -22,9 +22,9 @@ const LOG_MESSAGES = {
     dragonPlaced: (ownerName: any) => `🐉 ${ownerName}: 究極反転龍を配置`,
     destroyDragonPlaced: (ownerName: any) => `🔥 ${ownerName}: 破壊龍を配置`,
     udgPlaced: (ownerName: any) => `💥 ${ownerName}: 究極破壊神を配置`,
-    ultimateHyperactivePlaced: (ownerName: any) => `${ownerName}: 究極多動神を配置`,
-    hyperactivePlaced: (ownerName: any) => `${ownerName}: 多動の意志を配置`,
-    extremeHyperactivePlaced: (ownerName: any) => `${ownerName}: 極悪多動魔を配置`,
+    ultimateHyperactivePlaced: (ownerName: any) => `${ownerName}: 究極躍動神を配置`,
+    hyperactivePlaced: (ownerName: any) => `${ownerName}: 躍動の意志を配置`,
+    extremeHyperactivePlaced: (ownerName: any) => `${ownerName}: 極悪躍動魔を配置`,
     escapeHyperactivePlaced: (ownerName: any) => `${ownerName}: 逃げる意志を配置`,
 
     doublePlaceActivated: (label: any, remaining: any, infinite: any) => {
@@ -64,21 +64,21 @@ const LOG_MESSAGES = {
     breedingSpawnedImmediate: (playerName: any, count: any) => `🌱 ${playerName}の繁殖の意志が即時に${count}個の石を生成！`,
     udgDestroyed: (playerName: any, count: any) => `💥 ${playerName}の究極破壊神が周囲${count}個の石を破壊！`,
     udgDestroyedImmediate: (playerName: any, count: any) => `💥 ${playerName}の究極破壊神が即時に周囲${count}個の石を破壊！`,
-    hyperactiveMoved: (count: any) => `多動の意志が${count}回移動`,
-    hyperactiveDestroyed: (count: any) => `多動の意志が${count}個消滅`,
-    extremeHyperactiveMoved: (count: any) => `極悪多動魔が${count}回移動`,
-    extremeHyperactiveDestroyed: (count: any) => `極悪多動魔が${count}個消滅`,
-    extremeHyperactiveRepelled: (count: any) => `極悪多動魔が隣接石を${count}個退避`,
+    hyperactiveMoved: (count: any) => `躍動の意志が${count}回移動`,
+    hyperactiveDestroyed: (count: any) => `躍動の意志が${count}個消滅`,
+    extremeHyperactiveMoved: (count: any) => `極悪躍動魔が${count}回移動`,
+    extremeHyperactiveDestroyed: (count: any) => `極悪躍動魔が${count}個消滅`,
+    extremeHyperactiveRepelled: (count: any) => `極悪躍動魔が隣接石を${count}個退避`,
     escapeHyperactiveMoved: (count: any) => `逃げる意志が${count}回移動`,
     escapeHyperactiveDestroyed: (count: any) => `逃げる意志が${count}個消滅`,
     gluttonousMoved: (count: any) => `悪食石が${count}回移動`,
     gluttonousDestroyed: (count: any) => `悪食石が${count}個消滅`,
     zombieMoved: (count: any) => `ゾンビの意志が${count}回移動`,
-    ultimateHyperactiveMoved: (count: any) => `究極多動神が${count}回移動`,
-    ultimateHyperactiveDestroyed: (count: any) => `究極多動神が${count}個消滅`,
-    ultimateHyperactiveFlipped: (count: any) => `究極多動神が${count}枚反転`,
-    hyperactiveMovedImmediate: () => '多動の意志が即時に移動',
-    hyperactiveDestroyedImmediate: () => '多動の意志が即時に消滅'
+    ultimateHyperactiveMoved: (count: any) => `究極躍動神が${count}回移動`,
+    ultimateHyperactiveDestroyed: (count: any) => `究極躍動神が${count}個消滅`,
+    ultimateHyperactiveFlipped: (count: any) => `究極躍動神が${count}枚反転`,
+    hyperactiveMovedImmediate: () => '躍動の意志が即時に移動',
+    hyperactiveDestroyedImmediate: () => '躍動の意志が即時に消滅'
 };
 
 if (typeof module === 'object' && module.exports) {

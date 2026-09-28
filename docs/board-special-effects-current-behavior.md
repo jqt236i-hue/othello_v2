@@ -210,7 +210,7 @@
 ## 石を移動する系
 
 **代表カード**
-- 多動の意志、瞬間多動、逃げる意志、極悪多動魔、究極多動神、究極反転龍、究極破壊神、悪食、意志狩りの王、ロボット掃除機、強風、テレポート、マステレポート、位置交換。
+- 躍動の意志、瞬間躍動、逃げる意志、極悪躍動魔、究極躍動神、究極反転龍、究極破壊神、悪食、意志狩りの王、ロボット掃除機、強風、テレポート、マステレポート、位置交換。
 
 **仕様上の説明**
 - `01-rulebook.md` では、移動系は空きマスへの移動、敵石マスへの進入前破壊、位置交換、移動元穴化など複数パターンがある。石移動は通常は布石獲得を伴わず、カードにより移動後反転するものとしないものがある。
@@ -235,7 +235,7 @@
 - `pipeline_ui_adapter.ts`: `_planMovePlaybackPhase()`。
 - 悪食・超浮力/超重力・意志狩りは直前 destroy phase と同じ phase に寄せる特例がある。
 - その他 move は基本的に phase を進める。
-- 極悪多動魔の forced swap は `_findExtremeForcedSwapMovePairPresentationIndex()` が 2 個の `MOVE` を 1 つの `move` playback にまとめる。
+- 極悪躍動魔の forced swap は `_findExtremeForcedSwapMovePairPresentationIndex()` が 2 個の `MOVE` を 1 つの `move` playback にまとめる。
 
 **アニメーションの扱い**
 - 通常Pixi laneは `ui/pixi/effects/move.ts` がbackend内ghostをdestinationへsettleする。DOM compatibility laneだけが`ui/board-dom-compat/runtime.ts`経由でDOM ghostを使う。
@@ -246,7 +246,7 @@
 **効果音の扱い**
 - `strong_wind_move`, `teleport_select`, `super_buoyancy_move`, `super_gravity_move`, `ultimate_anchor_move`, `hyperactive_move` など。
 - 究極反転龍/究極破壊神/意志狩りの anchor move は `ultimate_anchor_move`。
-- 多動・ロボ掃除機・悪食など hyperactive-like は `hyperactive_move`。
+- 躍動・ロボ掃除機・悪食など hyperactive-like は `hyperactive_move`。
 
 **Event Sequence 例: 悪食の意志が敵石を捕食**
 1. `DESTROY`
@@ -290,7 +290,7 @@
 ## 石を反転する / 所有者を変える系
 
 **代表カード**
-- 通常リバーシ反転、究極反転龍、繁殖/多動系の移動後反転、連鎖系、禁忌の反転、意志の反転、交換の意志、再生/復活系の反転。
+- 通常リバーシ反転、究極反転龍、繁殖/躍動系の移動後反転、連鎖系、禁忌の反転、意志の反転、交換の意志、再生/復活系の反転。
 
 **仕様上の説明**
 - `01-rulebook.md` は「反転」を石の色変更と定義し、破壊とは別扱いにしている。誘惑は特殊石を自分色に変え、付帯状態を維持する。
@@ -435,7 +435,7 @@
 ## 特殊石 / 状態を付与・解除する系
 
 **代表カード**
-- 弱い意志、強い意志、守る意志、守護神、救済神、幽霊の意志、避ける意志、時限爆弾、時間停石、狙撃/雷撃/破壊龍/各種多動/ロボ掃除機/悪食/意志狩り/リビングウィル系。
+- 弱い意志、強い意志、守る意志、守護神、救済神、幽霊の意志、避ける意志、時限爆弾、時間停石、狙撃/雷撃/破壊龍/各種躍動/ロボ掃除機/悪食/意志狩り/リビングウィル系。
 
 **仕様上の説明**
 - 特殊石は marker として盤面上の石またはセルに付く。持続ターンを持つ特殊石は、期限切れで原則同色通常石に戻る。破壊とは異なる。
@@ -501,7 +501,7 @@
 ## ターン開始・持続・アンカー発動系
 
 **代表カード**
-- 狙撃の意志、雷撃の意志、破壊龍、究極破壊神、究極反転龍、繁殖、多動系、ロボット掃除機、悪食、意志狩りの王、観測、出稼ぎ、時間停石、時限爆弾、罠、救済神の持続切れ。
+- 狙撃の意志、雷撃の意志、破壊龍、究極破壊神、究極反転龍、繁殖、躍動系、ロボット掃除機、悪食、意志狩りの王、観測、出稼ぎ、時間停石、時限爆弾、罠、救済神の持続切れ。
 
 **仕様上の説明**
 - `01-rulebook.md` はターン開始処理を最初に固定し、複数 marker は `createdSeq` 昇順、同ターン開始中に生成された marker はそのターン開始では発動しない、と定める。
@@ -509,7 +509,7 @@
 **実装上の処理順**
 - `turn_pipeline.ts`: `applyTurn()` の最初に `applyTurnStartPhase()`。
 - `turn_pipeline_phases.ts`: `applyTurnStartPhase()` は pending cache sync、round bonus、`CardLogic.onTurnStart()`、marker snapshot、marker `createdSeq` sort の順で進む。
-- marker loop は `createdSeq` 昇順の各 marker について type を判定し、爆弾、究極破壊神、破壊龍、狙撃、雷撃、意志狩り、観測、時間停石、究極反転龍、繁殖、多動系、ロボ掃除機、悪食、究極多動神などの処理へ dispatch する。
+- marker loop は `createdSeq` 昇順の各 marker について type を判定し、爆弾、究極破壊神、破壊龍、狙撃、雷撃、意志狩り、観測、時間停石、究極反転龍、繁殖、躍動系、ロボ掃除機、悪食、究極躍動神などの処理へ dispatch する。
 - loop 後、hyperactive flip による Regen/Living Will、trap、observer/work/special stone bubble、timer tick を処理する。
 
 **主な BoardOps API**

@@ -59,14 +59,14 @@ Do not replace the whole `### 6.8 特殊石分類` section. That section current
 Replace only the opening `特殊石` classification bullet and adjust the existing `石状態` / `爆弾` / `隠し罠` / `盤面マーカー` / `配置時効果` bullets. The following is the logical classification content, not an instruction to move or delete the existing `顕現石` / presentation bullets that are currently interleaved in this section:
 
 ```markdown
-- `特殊石本体` は、通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石を指す。`弱い石（PROTECTED）`、`強い石（PERMA_PROTECTED）`、`絶対保護石（ABSOLUTE_PROTECTED）`、`幽体石（GHOST）`、`残像石（AFTERIMAGE_WILL）`、`復活石（REGEN）`、`狙撃石（SNIPER）`、`龍系`、`多動系`、`意志狩りの王（WILL_HUNTER_KING）`、`救済神（STONE_SALVATION_GOD）` などを含める。
+- `特殊石本体` は、通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石を指す。`弱い石（PROTECTED）`、`強い石（PERMA_PROTECTED）`、`絶対保護石（ABSOLUTE_PROTECTED）`、`幽体石（GHOST）`、`残像石（AFTERIMAGE_WILL）`、`復活石（REGEN）`、`狙撃石（SNIPER）`、`龍系`、`躍動系`、`意志狩りの王（WILL_HUNTER_KING）`、`救済神（STONE_SALVATION_GOD）` などを含める。
 - `特殊石扱い` は、特殊石本体に加えて、`罠石（TRAP）` と `時限爆弾（TIME_BOMB）` を含む効果対象用の分類とする。
 - `石状態` は、石に重なる継続状態を指す。完全保護（GUARD）、生きる意志（LIVING_WILL）などが含まれる。幽体石・残像石・復活石は石状態ではなく特殊石本体として扱う。
 - `誘惑可能な石効果` は、相手の特殊石本体、罠石、時限爆弾、生きる意志（LIVING_WILL）を指す。完全保護（GUARD）、絶対保護石（ABSOLUTE_PROTECTED）、顕現石、盤面マーカー、配置時効果は含めない。
 - `爆弾` は `TIME_BOMB` のような爆発予約。内部処理では爆弾系として扱うが、特殊石扱いには含める。
 - `隠し罠` は `TRAP_WILL` のような反応予約。内部処理では罠系として扱うが、特殊石扱いには含める。
 - `盤面マーカー` は `BLOCKADE` / `METEOR_HOLE` / `FREEZE` / `SEED` のようなマス効果。
-- `配置時効果` は、次に置く石に1回だけ効果を付けるものを指す。`瞬間多動` / `十字爆弾` / `クロス爆弾` / `金` / `銀` / `虹` が含まれる。
+- `配置時効果` は、次に置く石に1回だけ効果を付けるものを指す。`瞬間躍動` / `十字爆弾` / `クロス爆弾` / `金` / `銀` / `虹` が含まれる。
 - `配置時効果` は配置解決中に完結し、特殊石の持続ターン管理、ターン開始ライフサイクル、誘惑、捕獲、延命、腐食、意志の喪失の対象に含めない。
 - `意志の喪失（LOSS_WILL）` は、特殊石本体、罠石、時限爆弾を通常石へ戻す。`ABSOLUTE_PROTECTED` は特殊石本体だが絶対保護により通常石化しない。顕現石、石状態、盤面マーカー、配置時効果は対象外。
 ```
@@ -308,8 +308,8 @@ Add:
         ULTIMATE_REVERSE_DRAGON: Object.freeze({ cardId: 'udr_01', cardNameJa: '究極反転龍', cardType: 'ULTIMATE_REVERSE_DRAGON', markerType: 'DRAGON' }),
         BREEDING_WILL: Object.freeze({ cardId: 'breeding_01', cardNameJa: '繁殖の意志', cardType: 'BREEDING_WILL', markerType: 'BREEDING' }),
         PROLIFERATION_WILL: Object.freeze({ cardId: 'proliferation_01', cardNameJa: '増殖の意志', cardType: 'PROLIFERATION_WILL', markerType: 'PROLIFERATION' }),
-        HYPERACTIVE_WILL: Object.freeze({ cardId: 'hyperactive_01', cardNameJa: '多動の意志', cardType: 'HYPERACTIVE_WILL', markerType: 'HYPERACTIVE' }),
-        EXTREME_HYPERACTIVE_WILL: Object.freeze({ cardId: 'extreme_hyperactive_01', cardNameJa: '極悪多動魔', cardType: 'EXTREME_HYPERACTIVE_WILL', markerType: 'EXTREME_HYPERACTIVE' }),
+        HYPERACTIVE_WILL: Object.freeze({ cardId: 'hyperactive_01', cardNameJa: '躍動の意志', cardType: 'HYPERACTIVE_WILL', markerType: 'HYPERACTIVE' }),
+        EXTREME_HYPERACTIVE_WILL: Object.freeze({ cardId: 'extreme_hyperactive_01', cardNameJa: '極悪躍動魔', cardType: 'EXTREME_HYPERACTIVE_WILL', markerType: 'EXTREME_HYPERACTIVE' }),
         ESCAPE_WILL: Object.freeze({ cardId: 'escape_01', cardNameJa: '逃げる意志', cardType: 'ESCAPE_WILL', markerType: 'ESCAPE_HYPERACTIVE' }),
         ROBOT_VACUUM_WILL: Object.freeze({ cardId: 'robot_vacuum_01', cardNameJa: 'ロボット掃除機', cardType: 'ROBOT_VACUUM_WILL', markerType: 'ROBOT_VACUUM' }),
         GLUTTONOUS_WILL: Object.freeze({ cardId: 'gluttonous_will_01', cardNameJa: '悪食の意志', cardType: 'GLUTTONOUS_WILL', markerType: 'GLUTTONOUS' }),
@@ -319,7 +319,7 @@ Add:
         DESTROY_DRAGON_WILL: Object.freeze({ cardId: 'destroy_dragon_01', cardNameJa: '破壊龍', cardType: 'DESTROY_DRAGON_WILL', markerType: 'DESTROY_DRAGON' }),
         LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '落雷', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
         ULTIMATE_DESTROY_GOD: Object.freeze({ cardId: 'udg_01', cardNameJa: '究極破壊神', cardType: 'ULTIMATE_DESTROY_GOD', markerType: 'ULTIMATE_DESTROY_GOD' }),
-        ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極多動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
+        ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極躍動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
         METEOR_GOD: Object.freeze({ cardId: 'meteor_god_01', cardNameJa: '因果抹消神', cardType: 'METEOR_GOD', markerType: 'METEOR_GOD' })
     });
 ```

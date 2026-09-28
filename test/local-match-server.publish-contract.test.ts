@@ -260,7 +260,7 @@ describe('local match server publish contract', () => {
               stateVersion: 2,
               operationId: 'op_playback_recovery',
               playbackEvents: [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }],
-              effectLogs: ['黒: 多動石が移動'],
+              effectLogs: ['黒: 躍動石が移動'],
               snapshot: room.snapshot
             },
             white: {
@@ -268,7 +268,7 @@ describe('local match server publish contract', () => {
               roomId,
               stateVersion: 2,
               playbackEvents: [],
-              effectLogs: ['黒: 多動石が移動'],
+              effectLogs: ['黒: 躍動石が移動'],
               snapshot: room.snapshot
             }
           }
@@ -287,7 +287,7 @@ describe('local match server publish contract', () => {
       expect(state.data.playbackEvents).toEqual([
         expect.objectContaining({ type: 'move' })
       ]);
-      expect(state.data.effectLogs).toEqual(['黒: 多動石が移動']);
+      expect(state.data.effectLogs).toEqual(['黒: 躍動石が移動']);
     } finally {
       await closeServer(server);
     }

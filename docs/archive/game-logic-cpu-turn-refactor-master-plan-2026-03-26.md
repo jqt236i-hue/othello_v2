@@ -77,7 +77,7 @@
   7. ボード操作補助（flip 検出, 配置バリデーション）
   8. Hyperactive 分岐（instant / extreme / ultimate / gluttonous の大量 if 分岐）
 - `docs/card-logic-modularization-implementation-runbook-2026-03-14.md` に記録された Phase 0〜2 のスライスは完了済み。
-- その後の進捗として、`collectRandomBoardSpawnablePositions()` / `resolveRandomBoardSpawnEffectUsage()` により Equality / Salvation 系のランダム盤面 spawn は共有 helper 化されている。また `applyHyperactiveInheritWill` の marker payload には `remainingOwnerTurns`, `flipEvadeRemaining`, `destroyEvadeRemaining`, `hyperactiveSeq` が揃って入り、継承多動の状態 shape は整理が進んでいる。
+- その後の進捗として、`collectRandomBoardSpawnablePositions()` / `resolveRandomBoardSpawnEffectUsage()` により Equality / Salvation 系のランダム盤面 spawn は共有 helper 化されている。また `applyHyperactiveInheritWill` の marker payload には `remainingOwnerTurns`, `flipEvadeRemaining`, `destroyEvadeRemaining`, `hyperactiveSeq` が揃って入り、継承躍動の状態 shape は整理が進んでいる。
 - ただし `applyHyperactiveInheritWill` 自体や主要 entrypoint は依然として cards.js 本体に残っており、Phase 1 の「委譲完了」は未達である。shared helper の存在は Phase 1 の着手点が前進したことを意味するが、完了扱いにはしない。
 
 ### 1.2 game/cpu-decision.js の現状
@@ -150,7 +150,7 @@ game/cpu-decision-board-utils.js
 - inherited hyperactive と UI 側表示については、`test/game.hyperactive-inherit-will.test.js`, `test/ui.animation-engine.inherited-hyperactive-timer.test.js`, `test/ui.animation-engine.guard-timer.test.js`, `test/ui.long-press-info.test.js`, `test/ui.card-detail-effect-tags.test.js`, `test/ui.network-snapshot.hyperactive-source-empty.test.js` が追加されている。Phase 1 / 3 / 4 の検証束はこれらを落とさない前提で更新する。
 - モジュール責務の整理では、`game/logic/effects/dragon.js`, `game/logic/cards/breeding.js`, `game/logic/cards/udg.js`, `game/logic/cards/sniper.js`, `game/logic/cards/lightning.js`, `game/logic/cards/will_hunter_king.js`, `game/logic/effects/destroy_one_stone.js`, `game/logic/effects/swap_with_enemy.js` が既に存在し、anchor-effect および destroy/swap 系の委譲は一部実装されている。Phase 1 Step 3 での anchor-effects 委譲は、既存 delegation module を活用する前提で残作業を定義する。`processObserverWillEffectsAtTurnStartAnchor` は依然として不明瞭なため、引き続き対象に含める。
 - 再評価時に追加発見されたテストカバレッジ: `test/game.cards.markers-duration-module.test.js`, `test/game.cards.effect-timing-module.test.js`, `test/game.cards.hand-manager-module.test.js`, `test/game.cards.reshuffle-cycle.test.js`, `test/index.destroy-outcome-contract-load.test.js`, `test/index.sniper-module-load.test.js` を含め、検証束の精度を高める。
-- `01-rulebook.md` には、継承多動 (`HYPERACTIVE_INHERIT_WILL`) の反転回避 / 破壊回避を含む現行の効果タイミングが既に明記されている。本 master plan は挙動維持リファクタが前提であり、この再評価のための追加 rulebook 更新は不要である。将来的に効果タイミング仕様の変更を含む phase を追加する場合は、その phase 着手前に `01-rulebook.md` を更新する。
+- `01-rulebook.md` には、継承躍動 (`HYPERACTIVE_INHERIT_WILL`) の反転回避 / 破壊回避を含む現行の効果タイミングが既に明記されている。本 master plan は挙動維持リファクタが前提であり、この再評価のための追加 rulebook 更新は不要である。将来的に効果タイミング仕様の変更を含む phase を追加する場合は、その phase 着手前に `01-rulebook.md` を更新する。
 
 ---
 

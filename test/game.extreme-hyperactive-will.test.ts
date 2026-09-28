@@ -3,7 +3,7 @@ import * as BoardOps from '../game/logic/board_ops.js';
 import * as Core from '../game/logic/core.js';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 
-describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
+describe('EXTREME_HYPERACTIVE_WILL（極悪躍動魔）', () => {
   function makePrng() {
     return {
       shuffle: (arr) => arr,
@@ -11,7 +11,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
     };
   }
 
-  test('applyPlacementEffects で極悪多動魔マーカーを付与する', () => {
+  test('applyPlacementEffects で極悪躍動魔マーカーを付与する', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };

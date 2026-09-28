@@ -75,7 +75,7 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
     expect(CardInteractionEffects.quickCardEffectByType.ZOMBIE_WILL).toBe(EXPECTED_QUICK_TEXT);
     expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('屍石');
     expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('感染カウントを4へ戻して');
-    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('多動の意志と同じ隣接1マス');
+    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('躍動の意志と同じ隣接1マス');
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).toBe(EXPECTED_QUICK_TEXT);
     const tagLabels = CardInteractionEffects.resolveCardEffectTags(cardDef).map((tag) => tag.label);
     expect(tagLabels).toEqual(['特殊石', '復活1回']);
@@ -96,6 +96,6 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
     expect(rulebook).toContain('次に置く石を屍石化する');
     expect(rulebook).toContain('所有者ターン開始を4回');
     expect(rulebook).toContain('感染カウントを4へ戻して');
-    expect(rulebook).toContain('多動の意志と同じく隣接1マス');
+    expect(rulebook).toContain('躍動の意志と同じく隣接1マス');
   });
 });

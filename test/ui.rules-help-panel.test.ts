@@ -296,7 +296,7 @@ describe('rules help panel', () => {
       </div>
     </body></html>`);
     window.CardInteractionEffects = {
-      getQuickCardEffect: () => '多動状態 と 反転回避',
+      getQuickCardEffect: () => '躍動状態 と 反転回避',
       getDetailCardEffect: () => '詳細: 特殊石'
     };
     window.GameVisualEffectsMap = {

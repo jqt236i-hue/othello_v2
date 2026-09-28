@@ -15,8 +15,8 @@
 - `/api/match/publish` の `OUT_OF_TURN` は、ユーザー操作の通常経路では発生しない
 - `/state`、SSE、publish response、reconnect replay のどの同期経路でも playback が欠落しない
 - 同一 `stateVersion` の playback が二重再生されない
-- 強風、重力/引力、多動、破壊龍、雷、狙撃、ロボット掃除機、赤/紫ハイライトがネット対戦でもローカル対戦相当に表示される
-- 多動系の石が一時的にも 2 個に分裂して見えない
+- 強風、重力/引力、躍動、破壊龍、雷、狙撃、ロボット掃除機、赤/紫ハイライトがネット対戦でもローカル対戦相当に表示される
+- 躍動系の石が一時的にも 2 個に分裂して見えない
 - Worker と local server の response shape と authority 判定が一致する
 
 ## 現在確認済みの問題
@@ -44,10 +44,10 @@
 現象:
 
 - 強風などの移動が瞬間移動になる
-- 多動系の移動が瞬間移動になる
+- 躍動系の移動が瞬間移動になる
 - 破壊龍など turn-start 特殊石演出が欠落する
 - 赤/紫ハイライトが出ない場面がある
-- 多動石が分裂したように 2 個見える
+- 躍動石が分裂したように 2 個見える
 
 根本原因:
 
@@ -55,13 +55,13 @@
 - publish response と SSE は `playbackEvents` を持てるが、`/api/match/state` force sync は最終 snapshot 中心だった
 - force sync が先に来た後、同じ `stateVersion` の playback を復旧できないケースがあった
 - self shadow 判定が「ローカルで実際に playback を再生したか」ではなく「自分の操作だから再生済みのはず」という仮定に寄っていた
-- 多動系の後追い playback で、移動元が空かつ移動先に実石がある状態を UI 側が十分に防御していなかった
+- 躍動系の後追い playback で、移動元が空かつ移動先に実石がある状態を UI 側が十分に防御していなかった
 
 現在の状態:
 
 - `/state` からの playback recovery は実装済み
 - self shadow 判定を `localPlaybackEmitted` ベースへ修正済み
-- 多動系の source-empty move に UI 側 ghost 防御を追加済み
+- 躍動系の source-empty move に UI 側 ghost 防御を追加済み
 
 ### 3. カード使用が OUT_OF_TURN で失敗する
 
@@ -132,7 +132,7 @@ npm run test:jest -- test/ui.network-client.reconnect-sync.test.ts test/ui.netwo
 
 完了条件:
 
-- 部屋作成 400、演出欠落、`OUT_OF_TURN`、多動分裂の再現条件が文書とテストで追える
+- 部屋作成 400、演出欠落、`OUT_OF_TURN`、躍動分裂の再現条件が文書とテストで追える
 - 失敗時にどの契約が壊れたかをログから判断できる
 
 ## Phase 1: ネット対戦入力権限の一本化
@@ -344,7 +344,7 @@ npm run test:network:parity
 
 追加テスト:
 
-- 多動/究極多動/極悪多動魔で cell 内 `.disc` が 2 個残らない
+- 躍動/究極躍動/極悪躍動魔で cell 内 `.disc` が 2 個残らない
 - ghost は overlay 上だけに存在する
 - source cell は空のまま
 - playback 中の board render skip が維持される
@@ -357,7 +357,7 @@ npm run test:jest -- test/ui.network-snapshot.hyperactive-source-empty.test.ts t
 
 完了条件:
 
-- 多動分裂表示が再現しない
+- 躍動分裂表示が再現しない
 - Single Visual Writer 契約が破られない
 
 ## Phase 6: ハイライトと代表カード演出の parity 固定
@@ -371,7 +371,7 @@ npm run test:jest -- test/ui.network-snapshot.hyperactive-source-empty.test.ts t
 - 強風
 - 重力/浮力/超引力
 - テレポート/マステレポート
-- 多動系、究極多動神、逃亡石、極悪多動魔
+- 躍動系、究極躍動神、逃亡石、極悪躍動魔
 - 破壊龍
 - 雷
 - 狙撃
@@ -455,7 +455,7 @@ npm run worker:prepare
 6. 黒側で白手番の盤面クリックを試し、publish が出ないことを確認する
 7. 白側でカード使用を行い、`OUT_OF_TURN` が出ないことを確認する
 8. debug 許可 room を作成し、debug ON でも HvH ログが出ないことを確認する
-9. 強風/多動/破壊龍/雷/狙撃/ロボット掃除機の代表演出を確認する
+9. 強風/躍動/破壊龍/雷/狙撃/ロボット掃除機の代表演出を確認する
 10. 再読み込み、SSE 切断、再接続後に playback 欠落や二重再生がないことを確認する
 
 記録するもの:
@@ -520,7 +520,7 @@ npm run checkall
 - 同一 `stateVersion` の playback は 1 回だけ再生される
 - 代表カードの local/network playback event sequence が同等
 - 赤/紫ハイライトが経路差なく表示される
-- 多動系の分裂表示が自動テストと手動 smoke で再現しない
+- 躍動系の分裂表示が自動テストと手動 smoke で再現しない
 - Worker/local server の contract tests が通る
 - `worker-public/` は `npm run worker:prepare` で同期されている
 - 公開 Worker で 2 クライアント smoke が成功している

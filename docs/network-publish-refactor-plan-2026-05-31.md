@@ -268,7 +268,7 @@ npm run test:jest -- test/e2e/network_special_cards.e2e.test.ts
 - `金の意志`
 - `十字爆弾`
 - `クロス爆弾`
-- 多動系特殊石
+- 躍動系特殊石
 
 完了条件:
 

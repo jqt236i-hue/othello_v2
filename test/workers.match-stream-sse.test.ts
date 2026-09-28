@@ -333,8 +333,8 @@ function runStatePlaybackRecoveryScenario() {
     "    id: 'SSE3_2_2',",
     "    event: 'snapshot',",
     "    payloadByViewer: {",
-    "      black: { ok: true, roomId: 'SSE3', stateVersion: 2, operationId: 'op_state_recovery', playbackEvents: [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }], effectLogs: ['黒: 多動石が移動'], snapshot: room.snapshot },",
-    "      white: { ok: true, roomId: 'SSE3', stateVersion: 2, playbackEvents: [], effectLogs: ['黒: 多動石が移動'], snapshot: room.snapshot }",
+    "      black: { ok: true, roomId: 'SSE3', stateVersion: 2, operationId: 'op_state_recovery', playbackEvents: [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }], effectLogs: ['黒: 躍動石が移動'], snapshot: room.snapshot },",
+    "      white: { ok: true, roomId: 'SSE3', stateVersion: 2, playbackEvents: [], effectLogs: ['黒: 躍動石が移動'], snapshot: room.snapshot }",
     "    }",
     "  }];",
     "  durableObject.room = room;",
@@ -596,7 +596,7 @@ describe('match worker stream SSE', () => {
     expect(result.statePayload.playbackEvents).toEqual([
       expect.objectContaining({ type: 'move' })
     ]);
-    expect(result.statePayload.effectLogs).toEqual(['黒: 多動石が移動']);
+    expect(result.statePayload.effectLogs).toEqual(['黒: 躍動石が移動']);
   });
 
   test('top-level create と state が seatHandSkins を維持する', () => {

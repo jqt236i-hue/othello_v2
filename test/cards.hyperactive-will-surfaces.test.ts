@@ -4,20 +4,20 @@ const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-cat
 
 const EXPECTED_BASE_CARD = Object.freeze({
   id: 'hyperactive_01',
-  name_ja: '多動の意志',
+  name_ja: '躍動の意志',
   type: 'HYPERACTIVE_WILL',
   cost: 5,
-  desc_ja: '次に置く石を多動化。両者ターン開始時に1マス移動、反転回避を1回持つ。',
+  desc_ja: '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。',
   display_type_ja: '戦闘'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
-  name: '多動の意志',
-  desc: '次に置く石を多動化。両者ターン開始時に1マス移動、反転回避を1回持つ。'
+  name: '躍動の意志',
+  desc: '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を多動化。両者ターン開始時に1マス移動、反転回避を1回持つ。';
+const EXPECTED_QUICK_TEXT = '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。';
 const EXPECTED_DETAIL_TEXT = 'ターン開始移動の移動先は周囲の空きマスから選ばれる。\nターン開始移動で空きが無い場合は同色の通常石に戻る。\n移動後に挟める列があれば反転する。\n反転対象時は、盤面上の最も近い有効な空きマスへ1回だけ移動して回避する。\n回避移動後、移動先で挟める列があればその石の色で反転する。\n有効な空きマスが1つも無い場合だけ回避不成立となり、回数は消費しない。';
 
 function getCardById(catalog, cardId) {
@@ -92,7 +92,7 @@ describe('HYPERACTIVE_WILL catalog/help surfaces', () => {
       cost: EXPECTED_BASE_CARD.cost,
       desc: EXPECTED_QUICK_TEXT
     }));
-    expect(rulebook).toContain('### 10.17 HYPERACTIVE_WILL（多動の意志）');
+    expect(rulebook).toContain('### 10.17 HYPERACTIVE_WILL（躍動の意志）');
     expect(rulebook).toContain(EXPECTED_QUICK_TEXT);
   });
 });

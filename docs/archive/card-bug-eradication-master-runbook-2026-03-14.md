@@ -105,7 +105,7 @@
 - CLONE_WILL
 - TELEPORT_WILL
 
-### Wave 4: 爆弾・多動・移動特殊
+### Wave 4: 爆弾・躍動・移動特殊
 
 - CELL_TELEPORT_WILL
 - CROSS_BOMB

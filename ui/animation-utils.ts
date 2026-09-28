@@ -2919,7 +2919,7 @@ function playCardUseHandAnimation(payload: any) {
 
 
 /**
- * 多動石の移動アニメーション
+ * 躍動石の移動アニメーション
  * Smoothly translate a disc from source cell to target cell.
  * @param {{row:number,col:number}} from
  * @param {{row:number,col:number}} to

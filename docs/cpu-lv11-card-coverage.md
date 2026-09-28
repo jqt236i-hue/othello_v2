@@ -58,13 +58,13 @@
 | マステレポート | `CELL_TELEPORT_WILL` | 30/30 | [cell_teleport_01](../data/cpu-lv11/card-browser-v3/cell_teleport_01-black.json.gz) |
 | 十字爆弾 | `CROSS_BOMB` | 29/29 | [cross_bomb_01](../data/cpu-lv11/card-browser-v3/cross_bomb_01-black.json.gz) |
 | クロス爆弾 | `X_BOMB` | 29/29 | [x_bomb_01](../data/cpu-lv11/card-browser-v3/x_bomb_01-black.json.gz) |
-| 多動の意志 | `HYPERACTIVE_WILL` | 29/29 | [hyperactive_01](../data/cpu-lv11/card-browser-v3/hyperactive_01-black.json.gz) |
-| 極悪多動魔 | `EXTREME_HYPERACTIVE_WILL` | 29/29 | [extreme_hyperactive_01](../data/cpu-lv11/card-browser-v3/extreme_hyperactive_01-black.json.gz) |
+| 躍動の意志 | `HYPERACTIVE_WILL` | 29/29 | [hyperactive_01](../data/cpu-lv11/card-browser-v3/hyperactive_01-black.json.gz) |
+| 極悪躍動魔 | `EXTREME_HYPERACTIVE_WILL` | 29/29 | [extreme_hyperactive_01](../data/cpu-lv11/card-browser-v3/extreme_hyperactive_01-black.json.gz) |
 | 逃げる意志 | `ESCAPE_WILL` | 29/29 | [escape_01](../data/cpu-lv11/card-browser-v3/escape_01-black.json.gz) |
 | ロボット掃除機 | `ROBOT_VACUUM_WILL` | 29/29 | [robot_vacuum_01](../data/cpu-lv11/card-browser-v3/robot_vacuum_01-black.json.gz) |
 | 悪食の意志 | `GLUTTONOUS_WILL` | 29/29 | [gluttonous_will_01](../data/cpu-lv11/card-browser-v3/gluttonous_will_01-black.json.gz) |
 | 意志狩りの王 | `WILL_HUNTER_KING` | 29/29 | [will_hunter_king_01](../data/cpu-lv11/card-browser-v3/will_hunter_king_01-black.json.gz) |
-| 瞬間多動 | `INSTANT_HYPERACTIVE_WILL` | 29/29 | [instant_hyperactive_01](../data/cpu-lv11/card-browser-v3/instant_hyperactive_01-black.json.gz) |
+| 瞬間躍動 | `INSTANT_HYPERACTIVE_WILL` | 29/29 | [instant_hyperactive_01](../data/cpu-lv11/card-browser-v3/instant_hyperactive_01-black.json.gz) |
 | 再構築の意志 | `REBUILD_WILL` | 29/29 | [rebuild_01](../data/cpu-lv11/card-browser-v3/rebuild_01-black.json.gz) |
 | 出稼ぎの意志 | `WORK_WILL` | 29/29 | [work_01](../data/cpu-lv11/card-browser-v3/work_01-black.json.gz) |
 | 究極労働神 | `ULTIMATE_WORK_GOD` | 29/29 | [ultimate_work_god_01](../data/cpu-lv11/card-browser-v3/ultimate_work_god_01-black.json.gz) |
@@ -95,7 +95,7 @@
 | 破壊龍 | `DESTROY_DRAGON_WILL` | 29/29 | [destroy_dragon_01](../data/cpu-lv11/card-browser-v3/destroy_dragon_01-black.json.gz) |
 | 雷の意志 | `LIGHTNING_WILL` | 29/29 | [lightning_01](../data/cpu-lv11/card-browser-v3/lightning_01-black.json.gz) |
 | 究極破壊神 | `ULTIMATE_DESTROY_GOD` | 29/29 | [udg_01](../data/cpu-lv11/card-browser-v3/udg_01-black.json.gz) |
-| 究極多動神 | `ULTIMATE_HYPERACTIVE_GOD` | 29/29 | [ultimate_hyperactive_01](../data/cpu-lv11/card-browser-v3/ultimate_hyperactive_01-black.json.gz) |
+| 究極躍動神 | `ULTIMATE_HYPERACTIVE_GOD` | 29/29 | [ultimate_hyperactive_01](../data/cpu-lv11/card-browser-v3/ultimate_hyperactive_01-black.json.gz) |
 | 盤面拡張 | `BOARD_EXPANSION_WILL` | 30/30 | [board_expand_01](../data/cpu-lv11/card-browser-v3/board_expand_01-black.json.gz) |
 | 盤面拡張神 | `BOARD_EXPANSION_GOD` | 31/31 | [board_expand_god_01](../data/cpu-lv11/card-browser-v3/board_expand_god_01-black.json.gz) |
 | 盤面縮小 | `BOARD_SHRINK_WILL` | 32/32 | [board_shrink_01](../data/cpu-lv11/card-browser-v3/board_shrink_01-black.json.gz) |
@@ -138,12 +138,12 @@
 | 草石 (`GRASS`) | true_special_stone | [grass_will_01](../data/cpu-lv11/card-browser-v3/grass_will_01-black.json.gz) |
 | 森羅万象神 (`SHINRA_BANSHO_GOD`) | true_special_stone | [shinra-fusion](../data/cpu-lv11/card-browser-v3/shinra-fusion-black.json.gz) |
 | 因果抹消神石 (`METEOR_GOD`) | true_special_stone | [theory_incarnation_01](../data/cpu-lv11/card-browser-v3/theory_incarnation_01-black.json.gz) |
-| 多動石 (`HYPERACTIVE`) | true_special_stone | [hyperactive_01](../data/cpu-lv11/card-browser-v3/hyperactive_01-black.json.gz) |
-| 極悪多動魔 (`EXTREME_HYPERACTIVE`) | true_special_stone | [extreme_hyperactive_01](../data/cpu-lv11/card-browser-v3/extreme_hyperactive_01-black.json.gz) |
+| 躍動石 (`HYPERACTIVE`) | true_special_stone | [hyperactive_01](../data/cpu-lv11/card-browser-v3/hyperactive_01-black.json.gz) |
+| 極悪躍動魔 (`EXTREME_HYPERACTIVE`) | true_special_stone | [extreme_hyperactive_01](../data/cpu-lv11/card-browser-v3/extreme_hyperactive_01-black.json.gz) |
 | 逃亡石 (`ESCAPE_HYPERACTIVE`) | true_special_stone | [escape_01](../data/cpu-lv11/card-browser-v3/escape_01-black.json.gz) |
 | ロボット掃除機石 (`ROBOT_VACUUM`) | true_special_stone | [robot_vacuum_01](../data/cpu-lv11/card-browser-v3/robot_vacuum_01-black.json.gz) |
 | 悪食石 (`GLUTTONOUS`) | true_special_stone | [gluttonous_will_01](../data/cpu-lv11/card-browser-v3/gluttonous_will_01-black.json.gz) |
-| 究極多動神 (`ULTIMATE_HYPERACTIVE`) | true_special_stone | [ultimate_hyperactive_01](../data/cpu-lv11/card-browser-v3/ultimate_hyperactive_01-black.json.gz) |
+| 究極躍動神 (`ULTIMATE_HYPERACTIVE`) | true_special_stone | [ultimate_hyperactive_01](../data/cpu-lv11/card-browser-v3/ultimate_hyperactive_01-black.json.gz) |
 | 復活石 (`REGEN`) | true_special_stone | [regen_01](../data/cpu-lv11/card-browser-v3/regen_01-black.json.gz) |
 | 屍石 (`ZOMBIE`) | true_special_stone | [zombie_will_01](../data/cpu-lv11/card-browser-v3/zombie_will_01-black.json.gz) |
 | 生きる意志 (`LIVING_WILL`) | stone_status | [living_will_01](../data/cpu-lv11/card-browser-v3/living_will_01-black.json.gz) |

@@ -56,7 +56,7 @@
 - 全26種へ `place` / `destroy` / `living_will_restored` を各5文用意する。
 - 行列で必要な `duration_end` / `normal_revert` / 専用シナリオを各5文用意する。
 - 労働収入はstep 1～5の固定文を用意する。
-- 絶対保護石、継承多動石、罠、爆弾、石状態、配置時効果、顕現石のセリフを含めない。
+- 絶対保護石、継承躍動石、罠、爆弾、石状態、配置時効果、顕現石のセリフを含めない。
 - 既存文は「いっぱい食べる俺が好き」を明示採用する場合を除き再利用しない。
 
 ### 執筆チェック
@@ -74,7 +74,7 @@
 
 ```powershell
 git diff --check
-rg -n "絶対保護石|継承多動石|罠石|時限爆弾|十字爆弾|クロス爆弾|理論の化身|盤界の執行者|盤理の観測者" special-stone-speech-draft.md
+rg -n "絶対保護石|継承躍動石|罠石|時限爆弾|十字爆弾|クロス爆弾|理論の化身|盤界の執行者|盤理の観測者" special-stone-speech-draft.md
 ```
 
 除外名は冒頭の「除外対象」記述以外のセリフ見出し・本文に存在しないことを確認する。
@@ -208,7 +208,7 @@ npm run test:jest -- --runTestsByPath test\game.turn-pipeline-phase-helpers.spec
 
 - 弱い石、究極反転龍、復活石、時間停神、屍石の配置
 - 時限付き石の期限終了
-- 多動系とロボット掃除機石の `no_candidates_revert -> normal_revert`
+- 躍動系とロボット掃除機石の `no_candidates_revert -> normal_revert`
 - 屍石感染は感染元だけ1回
 - 屍石復活は `zombie_revived` だけ
 - 復活石復活は `regen_triggered` だけ

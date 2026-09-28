@@ -3125,7 +3125,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('多動系は移動1回ごとに hyperactive_move を追加する（瞬間/究極含む）', () => {
+  test('躍動系は移動1回ごとに hyperactive_move を追加する（瞬間/究極含む）', () => {
     const base = [
       {
         type: 'move',

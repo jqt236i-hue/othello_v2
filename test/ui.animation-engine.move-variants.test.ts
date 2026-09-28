@@ -919,7 +919,7 @@ describe('animation-engine extreme hyperactive vacate playback', () => {
     }
   });
 
-  test('keeps 極悪多動魔 visible while a same-color surrounding stone is pushed off its settled cell', async () => {
+  test('keeps 極悪躍動魔 visible while a same-color surrounding stone is pushed off its settled cell', async () => {
     const board = document.getElementById('board');
     const fromCell = document.createElement('div');
     const toCell = document.createElement('div');

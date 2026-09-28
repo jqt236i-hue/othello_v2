@@ -47,11 +47,11 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'FIRE') return '火石';
     if (s === 'GRASS') return '草石';
     if (s === 'METEOR_GOD') return '因果抹消神石';
-    if (s === 'HYPERACTIVE') return '多動石';
-    if (s === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
+    if (s === 'HYPERACTIVE') return '躍動石';
+    if (s === 'EXTREME_HYPERACTIVE') return '極悪躍動魔';
     if (s === 'ESCAPE_HYPERACTIVE') return '逃亡石';
     if (s === 'GLUTTONOUS') return '悪食石';
-    if (s === 'ULTIMATE_HYPERACTIVE') return '究極多動神';
+    if (s === 'ULTIMATE_HYPERACTIVE') return '究極躍動神';
     if (s === 'REGEN') return '復活石';
     if (s === 'WORK') return '労働石';
     if (s === 'CROSS_BOMB') return '十字爆弾';
@@ -77,7 +77,7 @@ function _hyperactiveLabel(ev: any, fallback: any) {
     const details = (ev && Array.isArray(ev.details)) ? ev.details : null;
     const first = details && details[0] ? details[0] : null;
     const markerType = String(first && (first.specialType || first.type) ? (first.specialType || first.type) : '').toUpperCase();
-    if (markerType === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
+    if (markerType === 'EXTREME_HYPERACTIVE') return '極悪躍動魔';
     if (markerType === 'ESCAPE_HYPERACTIVE') return '逃亡石';
     if (markerType === 'GLUTTONOUS') return '悪食石';
     return fallback;
@@ -185,19 +185,19 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 break;
             case 'hyperactive_moved_start':
             case 'hyperactive_moved_immediate':
-                push(`${_hyperactiveLabel(ev, '多動石')}: ${_detailCount(ev)}回移動`);
+                push(`${_hyperactiveLabel(ev, '躍動石')}: ${_detailCount(ev)}回移動`);
                 break;
             case 'hyperactive_destroyed_start':
             case 'hyperactive_destroyed_immediate':
-                _pushSplitDestroyedVsRevertedLog(push, ev, `${_hyperactiveLabel(ev, '多動石')}: `);
+                _pushSplitDestroyedVsRevertedLog(push, ev, `${_hyperactiveLabel(ev, '躍動石')}: `);
                 break;
             case 'hyperactive_flipped_start':
             case 'hyperactive_flipped_immediate':
-                push(`${_hyperactiveLabel(ev, '多動石')}: ${_detailCount(ev)}枚を反転`);
+                push(`${_hyperactiveLabel(ev, '躍動石')}: ${_detailCount(ev)}枚を反転`);
                 break;
             case 'extreme_hyperactive_repelled_start':
             case 'extreme_hyperactive_repelled_immediate':
-                push(`極悪多動魔: 隣接石を${_detailCount(ev)}個退避`);
+                push(`極悪躍動魔: 隣接石を${_detailCount(ev)}個退避`);
                 break;
             case 'robot_vacuum_moved_start':
             case 'robot_vacuum_moved_immediate':
@@ -220,15 +220,15 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 break;
             case 'ultimate_hyperactive_moved_start':
             case 'ultimate_hyperactive_moved_immediate':
-                push(`究極多動神: ${_detailCount(ev)}回移動`);
+                push(`究極躍動神: ${_detailCount(ev)}回移動`);
                 break;
             case 'ultimate_hyperactive_destroyed_start':
             case 'ultimate_hyperactive_destroyed_immediate':
-                _pushSplitDestroyedVsRevertedLog(push, ev, '究極多動神: ');
+                _pushSplitDestroyedVsRevertedLog(push, ev, '究極躍動神: ');
                 break;
             case 'ultimate_hyperactive_flipped_start':
             case 'ultimate_hyperactive_flipped_immediate':
-                push(`究極多動神: ${_detailCount(ev)}枚を反転`);
+                push(`究極躍動神: ${_detailCount(ev)}枚を反転`);
                 break;
             case 'regen_triggered_start':
             case 'regen_triggered':
@@ -454,13 +454,13 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.timeStopDeityPlaced) push('時間停神を設置');
                     if (e.dragonPlaced) push('究極反転龍を設置');
                     if (e.ultimateDestroyGodPlaced) push('究極破壊神を設置');
-                    if (e.ultimateHyperactivePlaced) push('究極多動神を設置');
-                    if (e.instantHyperactivePlaced) push('瞬間多動石を設置');
+                    if (e.ultimateHyperactivePlaced) push('究極躍動神を設置');
+                    if (e.instantHyperactivePlaced) push('瞬間躍動石を設置');
                     if (e.escapeHyperactivePlaced) push('逃亡石を設置');
-                    if (e.extremeHyperactivePlaced) push('極悪多動魔を設置');
+                    if (e.extremeHyperactivePlaced) push('極悪躍動魔を設置');
                     if (e.robotVacuumPlaced) push('ロボット掃除機石を設置');
                     if (e.gluttonousPlaced) push('悪食石を設置');
-                    if (e.hyperactivePlaced && !e.instantHyperactivePlaced && !e.escapeHyperactivePlaced && !e.extremeHyperactivePlaced && !e.robotVacuumPlaced && !e.gluttonousPlaced) push('多動石を設置');
+                    if (e.hyperactivePlaced && !e.instantHyperactivePlaced && !e.escapeHyperactivePlaced && !e.extremeHyperactivePlaced && !e.robotVacuumPlaced && !e.gluttonousPlaced) push('躍動石を設置');
                     if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を爆破`);
                     if (e.xBombExploded) push(`クロス爆弾: ${e.xBombDestroyed || 0}個を爆破`);
                 }

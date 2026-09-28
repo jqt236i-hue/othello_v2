@@ -108,7 +108,7 @@ describe('BLOCKADE_WILL（封鎖の意志）', () => {
     expect(res.to).toEqual({ row: 3, col: 4 });
   });
 
-  test('多動石は封鎖マスへ移動できない', () => {
+  test('躍動石は封鎖マスへ移動できない', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),

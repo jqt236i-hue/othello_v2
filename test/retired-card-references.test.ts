@@ -80,8 +80,8 @@ describe('retired card source references', () => {
       'hyperactive_inherit_selected',
       'inherited_hyperactive',
       'inherited-hyperactive',
-      '継承多動',
-      '多動の継承'
+      '継承躍動',
+      '躍動の継承'
     ];
     const scanTargets = [
       '01-rulebook.md',

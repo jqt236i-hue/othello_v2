@@ -3,7 +3,7 @@ import * as Core from '../game/logic/core.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as PipelineUiAdapter from '../game/turn/pipeline_ui_adapter.js';
 
-describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
+describe('INSTANT_HYPERACTIVE_WILL（瞬間躍動）', () => {
   function makePrng() {
     return {
       shuffle: (arr) => arr,
@@ -11,7 +11,7 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     };
   }
 
-  test('applyPlacementEffects で瞬間多動フラグと多動石マーカーを付与する', () => {
+  test('applyPlacementEffects で瞬間躍動フラグと躍動石マーカーを付与する', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
@@ -224,7 +224,7 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     expect(stoneDestroy).toBeUndefined();
   });
 
-  test('通常の多動の意志は配置ターンで即時移動しない', () => {
+  test('通常の躍動の意志は配置ターンで即時移動しない', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = Core.createGameState();

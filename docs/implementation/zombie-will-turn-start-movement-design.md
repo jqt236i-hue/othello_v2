@@ -11,7 +11,7 @@
 
 ## 問題と期待結果
 
-ゾンビの意志は、所有者ターン開始時に多動の意志と同じ候補規則で隣接1マスのランダム移動を先に解決する。感染間隔は3回ごとから4回ごとへ変更する。
+ゾンビの意志は、所有者ターン開始時に躍動の意志と同じ候補規則で隣接1マスのランダム移動を先に解決する。感染間隔は3回ごとから4回ごとへ変更する。
 
 移動先は canonical board topology 上の、8方向にある有効な空きマスに限定する。候補がない場合は乱数を消費せず、屍石を現在位置に残したまま感染カウント処理へ進む。感染成立時の source は移動後の位置とし、移動イベントと感染イベントの順序を canonical presentation event の順序にも反映する。
 
@@ -19,7 +19,7 @@
 
 - `ZOMBIE_INFECTION_INTERVAL` を3から4へ変更
 - `ZOMBIE` の所有者ターン開始移動を canonical headless logic に追加
-- 多動の意志がすでに使っている board shape、blocked-cell、BoardOps.moveAt、決定的PRNGの経路を再利用
+- 躍動の意志がすでに使っている board shape、blocked-cell、BoardOps.moveAt、決定的PRNGの経路を再利用
 - 移動後位置からの感染、移動先がない場合の非移動、同一ターンに生成されたゾンビを処理しない既存契約の維持
 - `MOVE` presentation event、ターン開始 raw event、ログ・効果音・Pixi/DOM互換の既存移動表示経路への接続
 - 01-rulebook、カード正本、ターン進行正本、演出正本、カードカタログ・ヘルプ文言、focused tests、生成物と Worker mirror の同期
@@ -36,10 +36,10 @@
 
 1. 「自ターン開始」はゾンビ所有者のターン開始だけを指す。相手ターン開始では移動も感染カウント減算も行わない既存条件を維持する。
 2. 1回の所有者ターン開始内では、`移動 → 感染カウント更新・感染判定` の順に処理する。感染元座標、噛みつき演出の発射元、感染 `CHANGE` event の `sourceRow/sourceCol` は移動後座標を使う。
-3. 移動候補は多動の意志と同じ `getNeighborEmptyCandidates` の順序とする。候補がある場合だけ canonical PRNG を1回消費し、候補がない場合は乱数を消費しない。
+3. 移動候補は躍動の意志と同じ `getNeighborEmptyCandidates` の順序とする。候補がある場合だけ canonical PRNG を1回消費し、候補がない場合は乱数を消費しない。
 4. 移動先には通常石・特殊石・爆弾・blocked cellを選ばない。移動元が凍結されている場合は既存のターン開始ゲートで処理自体を止める。最終的な移動可否は既存の `BoardOps.moveAt` にも通し、移動失敗時は移動結果を出さず感染処理を現在位置から続ける。
-5. 既存のゾンビ感染コアは感染・カウント・マーカー生成を担い、移動の topology/BoardOps 実装は多動モジュールの小さな再利用可能な helper に置く。ゾンビモジュールから多動モジュールを直接 require せず、`CardLogic` の境界で移動関数を依存注入して循環依存を避ける。
-6. 移動の表示は `BoardOps.moveAt` が出す標準 `MOVE` event を正本とする。`meta.moveIntent = hyperactive_move` と新しい `zombie_move` cause/reason を付け、既存の多動移動の single visual writer / sound cue 経路を再利用する。raw event は互換 fallback とログ用に `zombie_moved_start` を追加する。
+5. 既存のゾンビ感染コアは感染・カウント・マーカー生成を担い、移動の topology/BoardOps 実装は躍動モジュールの小さな再利用可能な helper に置く。ゾンビモジュールから躍動モジュールを直接 require せず、`CardLogic` の境界で移動関数を依存注入して循環依存を避ける。
+6. 移動の表示は `BoardOps.moveAt` が出す標準 `MOVE` event を正本とする。`meta.moveIntent = hyperactive_move` と新しい `zombie_move` cause/reason を付け、既存の躍動移動の single visual writer / sound cue 経路を再利用する。raw event は互換 fallback とログ用に `zombie_moved_start` を追加する。
 
 ## 現在の構造と再利用
 
@@ -54,11 +54,11 @@
 
 ### ゾンビモジュール内に移動処理を複製する
 
-候補列挙、board shape、blocked cell、marker移送、移動 presentation の実装が多動と二重化し、盤面拡張・凍結・Worker mirrorで差分が生まれるため採用しない。
+候補列挙、board shape、blocked cell、marker移送、移動 presentation の実装が躍動と二重化し、盤面拡張・凍結・Worker mirrorで差分が生まれるため採用しない。
 
-### 既存の多動本体を `ZOMBIE` として呼び出す
+### 既存の躍動本体を `ZOMBIE` として呼び出す
 
-多動本体は候補なしで通常石化し、移動後に反転を解決する。ゾンビは候補なしでその場に残り、移動後の噛みつきだけを行うため、そのまま流用すると結果が異なる。移動だけを担う helper を再利用する。
+躍動本体は候補なしで通常石化し、移動後に反転を解決する。ゾンビは候補なしでその場に残り、移動後の噛みつきだけを行うため、そのまま流用すると結果が異なる。移動だけを担う helper を再利用する。
 
 ### raw eventだけで移動表示を実装する
 
@@ -71,7 +71,7 @@ canonical presentation event と raw event の二重実装になり、Pixi/DOM/n
 3. helperが移動に成功したら、移動先へ marker と石を移し、`MOVE(cause=ZOMBIE, reason=zombie_move)` を発行する。
 4. ゾンビ感染コアを移動先座標で実行する。カウントが1以上残る場合は移動だけで終了し、4回目なら移動後位置に隣接する敵通常石を選んで `CHANGE/STATUS_APPLIED` を発行する。
 5. ターン開始 phase は `zombie_moved_start`、必要なら `zombie_infected_start` をこの順で raw event に追加する。同じターン開始中に感染で生まれた marker は固定 anchor 集合へ追加しない既存契約を維持する。
-6. UI adapter は標準 `MOVE`/`CHANGE` の順序を playbackへ変換する。通常経路は既存多動相当の移動音・滑らかな1マス移動を使用し、感染時だけ既存ゾンビ噛みつき音・軌道を続けて再生する。
+6. UI adapter は標準 `MOVE`/`CHANGE` の順序を playbackへ変換する。通常経路は既存躍動相当の移動音・滑らかな1マス移動を使用し、感染時だけ既存ゾンビ噛みつき音・軌道を続けて再生する。
 
 ## 失敗時・互換性
 
@@ -101,6 +101,6 @@ canonical presentation event と raw event の二重実装になり、Pixi/DOM/n
 
 - [x] 移動と感染の順序を明示した
 - [x] 候補なし時の「移動しない」と感染カウント継続を分離した
-- [x] 多動の既存候補・移動経路を再利用し、ゾンビ専用の盤面移動実装を増やしていない
+- [x] 躍動の既存候補・移動経路を再利用し、ゾンビ専用の盤面移動実装を増やしていない
 - [x] root sourceを先に変更し、生成物とWorker mirrorは既存scriptで同期する方針にした
 - [x] UIはcanonical `MOVE`を消費し、raw eventを盤面描画のauthorityにしない方針にした

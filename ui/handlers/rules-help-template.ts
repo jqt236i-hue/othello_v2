@@ -42,7 +42,7 @@ export const RULES_HELP_INNER_HTML = `
             <section id="rules-help-page-effects" class="rules-help-page" data-help-page="effects" aria-hidden="true">
                 <dl id="rules-help-effects-list">
                     <div class="rules-help-effect-item">
-                        <dt>多動状態</dt>
+                        <dt>躍動状態</dt>
                         <dd>両者ターン開始時マス移動する、基本ランダム移動。</dd>
                     </div>
                     <div class="rules-help-effect-item">

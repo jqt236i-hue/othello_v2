@@ -316,7 +316,7 @@ export function isCardEffectOnlyLogLine(text?: string) {
         '究極反転龍',
         '繁殖石',
         '究極破壊神',
-        '多動石',
+        '躍動石',
         '復活石',
         '生贄',
         '売却',

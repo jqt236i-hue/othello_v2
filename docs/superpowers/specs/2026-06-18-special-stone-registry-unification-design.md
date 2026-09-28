@@ -24,8 +24,8 @@
 | 究極反転龍 | `udr_01` | `ULTIMATE_REVERSE_DRAGON` | `DRAGON` |
 | 繁殖の意志 | `breeding_01` | `BREEDING_WILL` | `BREEDING` |
 | 増殖の意志 | `proliferation_01` | `PROLIFERATION_WILL` | `PROLIFERATION` |
-| 多動の意志 | `hyperactive_01` | `HYPERACTIVE_WILL` | `HYPERACTIVE` |
-| 極悪多動魔 | `extreme_hyperactive_01` | `EXTREME_HYPERACTIVE_WILL` | `EXTREME_HYPERACTIVE` |
+| 躍動の意志 | `hyperactive_01` | `HYPERACTIVE_WILL` | `HYPERACTIVE` |
+| 極悪躍動魔 | `extreme_hyperactive_01` | `EXTREME_HYPERACTIVE_WILL` | `EXTREME_HYPERACTIVE` |
 | 逃げる意志 | `escape_01` | `ESCAPE_WILL` | `ESCAPE_HYPERACTIVE` |
 | ロボット掃除機 | `robot_vacuum_01` | `ROBOT_VACUUM_WILL` | `ROBOT_VACUUM` |
 | 悪食の意志 | `gluttonous_will_01` | `GLUTTONOUS_WILL` | `GLUTTONOUS` |
@@ -35,14 +35,14 @@
 | 破壊龍 | `destroy_dragon_01` | `DESTROY_DRAGON_WILL` | `DESTROY_DRAGON` |
 | 雷の意志 | `lightning_01` | `LIGHTNING_WILL` | `LIGHTNING` |
 | 究極破壊神 | `udg_01` | `ULTIMATE_DESTROY_GOD` | `ULTIMATE_DESTROY_GOD` |
-| 究極多動神 | `ultimate_hyperactive_01` | `ULTIMATE_HYPERACTIVE_GOD` | `ULTIMATE_HYPERACTIVE` |
+| 究極躍動神 | `ultimate_hyperactive_01` | `ULTIMATE_HYPERACTIVE_GOD` | `ULTIMATE_HYPERACTIVE` |
 | 因果抹消神 | `meteor_god_01` | `METEOR_GOD` | `METEOR_GOD` |
 
 `PERMA_PROTECT_NEXT_STONE` は `PERMA_PROTECTED` だけを生成し、所有者ターン開始回数による別 marker への変化は行わない。
 
 ## 用語
 
-- `special_stone_body`: 盤面の石そのものが特殊石になっている状態。弱い石、強い石、幽体、残像、復活、龍、多動、救済神など。
+- `special_stone_body`: 盤面の石そのものが特殊石になっている状態。弱い石、強い石、幽体、残像、復活、龍、躍動、救済神など。
 - `special_stone_effect`: 広義の特殊石扱い。`special_stone_body` に加え、罠と時限爆弾を含む。
 - `stone_status`: 既存の石に重なる継続状態。`GUARD` と `LIVING_WILL`。
 - `manifest_stone`: 顕現石。`THEORY_INCARNATION`、`BOARD_EXECUTOR`、`OBSERVER_WILL`。

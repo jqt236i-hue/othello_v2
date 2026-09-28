@@ -382,7 +382,7 @@ describe('pipeline_ui_adapter move metadata', () => {
     });
   });
 
-  test('極悪多動魔が動かした石への反転は移動の後の段階で再生する', () => {
+  test('極悪躍動魔が動かした石への反転は移動の後の段階で再生する', () => {
     const emptyBoard = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
     const pres = [
       {

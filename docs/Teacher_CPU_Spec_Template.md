@@ -133,10 +133,10 @@
 | CLONE_WILL | 複製の意志 | 16 | 展開 |
 | CROSS_BOMB | 十字爆弾 | 18 | 攻撃 |
 | X_BOMB | クロス爆弾 | 18 | 攻撃 |
-| HYPERACTIVE_WILL | 多動の意志 | 8 | 展開 |
+| HYPERACTIVE_WILL | 躍動の意志 | 8 | 展開 |
 | ESCAPE_WILL | 逃げる意志 | 12 | 攻撃/攪乱 |
 | ROBOT_VACUUM_WILL | ロボット掃除機 | 17 | 攻撃/経済 |
-| INSTANT_HYPERACTIVE_WILL | 瞬間多動 | 5 | 攻撃 |
+| INSTANT_HYPERACTIVE_WILL | 瞬間躍動 | 5 | 攻撃 |
 | WORK_WILL | 出稼ぎの意志 | 11 | 経済 |
 | DOUBLE_PLACE | 二連投石 | 24 | 展開 |
 | HEAVEN_BLESSING | 天の恵み | 3 | 手札補充 |
@@ -147,7 +147,7 @@
 | EXTEND_LIFE_GOD | 延命神 | 10 | 防御 |
 | GUARD_WILL | 守る意志 | 2 | 防御 |
 | ULTIMATE_DESTROY_GOD | 究極破壊神 | 30 | 攻撃 |
-| ULTIMATE_HYPERACTIVE_GOD | 究極多動神 | 28 | 展開/攪乱 |
+| ULTIMATE_HYPERACTIVE_GOD | 究極躍動神 | 28 | 展開/攪乱 |
 | BOARD_EXPANSION_WILL | 盤面拡張 | 19 | 盤面操作 |
 | BLOCKADE_WILL | 封鎖の意志 | 1 | 防御/盤面操作 |
 

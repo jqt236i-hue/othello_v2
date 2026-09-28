@@ -12,11 +12,11 @@ const stones = [
   ['SACRIFICE', '犠牲石'], ['AFTERIMAGE_WILL', '残像石'], ['TIME_STOP', '時間停石'],
   ['TIME_STOP_DEITY', '時間停神'], ['REGEN', '復活石'], ['ZOMBIE', '屍石'],
   ['DRAGON', '究極反転龍'], ['BREEDING', '繁殖石'], ['PROLIFERATION', '増殖石'],
-  ['HYPERACTIVE', '多動石'], ['EXTREME_HYPERACTIVE', '極悪多動魔'],
+  ['HYPERACTIVE', '躍動石'], ['EXTREME_HYPERACTIVE', '極悪躍動魔'],
   ['ESCAPE_HYPERACTIVE', '逃亡石'], ['ROBOT_VACUUM', 'ロボット掃除機石'],
   ['GLUTTONOUS', '悪食石'], ['WILL_HUNTER_KING', '意志狩りの王'], ['WORK', '労働石'],
   ['STONE_SALVATION_GOD', '救済神'], ['DESTROY_DRAGON', '破壊龍'], ['LIGHTNING', '落雷石'],
-  ['ULTIMATE_DESTROY_GOD', '究極破壊神'], ['ULTIMATE_HYPERACTIVE', '究極多動神'],
+  ['ULTIMATE_DESTROY_GOD', '究極破壊神'], ['ULTIMATE_HYPERACTIVE', '究極躍動神'],
   ['METEOR_GOD', '因果抹消神石']
 ];
 

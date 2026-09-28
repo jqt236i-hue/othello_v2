@@ -309,7 +309,7 @@ const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, Evasi
         else if (displayTimer !== null) tags.push(`残り${displayTimer}T`);
         if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
-        if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('多動状態');
+        if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('躍動状態');
         if (flipEvadeTotal !== null) tags.push(`反転回避 残り${flipEvadeTotal}回`);
         else if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
         if (destroyEvadeTotal !== null) tags.push(`破壊回避 残り${destroyEvadeTotal}回`);

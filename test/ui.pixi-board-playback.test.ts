@@ -1814,7 +1814,7 @@ describe('Pixi board playback contract', () => {
   test.each([
     ['animated', false],
     ['noAnimation', true]
-  ])('極悪多動魔の位置交換後も両マスの石が最終表示に残る (%s)', async (_label, noAnimation) => {
+  ])('極悪躍動魔の位置交換後も両マスの石が最終表示に残る (%s)', async (_label, noAnimation) => {
     const harness = createHarness({
       frame: makeFrame([
         [2, 2, stone('black', 'EXTREME_HYPERACTIVE')],
@@ -1871,7 +1871,7 @@ describe('Pixi board playback contract', () => {
   test.each([
     ['extreme_target_vacate', null],
     ['extreme_repel_push', null]
-  ])('does not hide 極悪多動魔 when a settled %s plays from its cell', async (reason, metaSpecial) => {
+  ])('does not hide 極悪躍動魔 when a settled %s plays from its cell', async (reason, metaSpecial) => {
     const harness = createHarness({
       frame: makeFrame([
         [2, 2, stone('black', 'EXTREME_HYPERACTIVE')],
@@ -1899,7 +1899,7 @@ describe('Pixi board playback contract', () => {
     expect(harness.log.some((entry) => entry.startsWith('scene:ghost-acquire:2,2:black'))).toBe(true);
   });
 
-  test('source-empty 極悪多動魔 MOVE still hides the already-settled destination', async () => {
+  test('source-empty 極悪躍動魔 MOVE still hides the already-settled destination', async () => {
     const harness = createHarness({
       frame: makeFrame([[4, 3, stone('black', 'EXTREME_HYPERACTIVE')]]),
       noAnimation: true

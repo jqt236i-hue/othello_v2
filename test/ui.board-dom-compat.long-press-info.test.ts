@@ -249,7 +249,7 @@ describe('board cell information separation', () => {
     const mod = require('../ui/board-dom-compat/renderer');
     expect(mod.showSpecialStoneInfoAt('2', '4')).toBe(true);
 
-    expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
+    expect(document.getElementById('stone-info-name').textContent).toBe('究極躍動神');
   });
 
   test('detail resolution accepts ULTIMATE_HYPERACTIVE_GOD alias and shows updated description', () => {
@@ -264,7 +264,7 @@ describe('board cell information separation', () => {
     const mod = require('../ui/board-dom-compat/renderer');
     expect(mod.showSpecialStoneInfoAt(3, 5)).toBe(true);
 
-    expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
+    expect(document.getElementById('stone-info-name').textContent).toBe('究極躍動神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に大きく移動し、移動後に反転する。');
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り12T');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転無効');
@@ -331,13 +331,13 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-tag-body').textContent).toContain('ターン数');
   });
 
-  test('detail popup adds 多動状態/反転回避 tags for hyperactive-family stones', () => {
+  test('detail popup adds 躍動状態/反転回避 tags for hyperactive-family stones', () => {
     const mod = require('../ui/board-dom-compat/renderer');
     const cases = [
-      { type: 'HYPERACTIVE', name: '多動石' },
-      { type: 'EXTREME_HYPERACTIVE', name: '極悪多動魔' },
+      { type: 'HYPERACTIVE', name: '躍動石' },
+      { type: 'EXTREME_HYPERACTIVE', name: '極悪躍動魔' },
       { type: 'ESCAPE_HYPERACTIVE', name: '逃亡石' },
-      { type: 'ULTIMATE_HYPERACTIVE', name: '究極多動神' }
+      { type: 'ULTIMATE_HYPERACTIVE', name: '究極躍動神' }
     ];
 
     cases.forEach((target, index) => {
@@ -357,7 +357,7 @@ describe('board cell information separation', () => {
       expect(shown).toBe(true);
       expect(document.getElementById('stone-info-name').textContent).toBe(target.name);
       expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-      expect(document.getElementById('stone-info-meta').textContent).toContain('多動状態');
+      expect(document.getElementById('stone-info-meta').textContent).toContain('躍動状態');
       expect(document.getElementById('stone-info-meta').textContent).toContain('残り10T');
       expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
     });
@@ -403,12 +403,12 @@ describe('board cell information separation', () => {
     const mod = require('../ui/board-dom-compat/renderer');
     const shown = mod.showSpecialStoneInfoAt(5, 4);
     expect(shown).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('極悪多動魔');
+    expect(document.getElementById('stone-info-name').textContent).toBe('極悪躍動魔');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り5回');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り5回');
   });
 
-  test('showSpecialStoneInfoAt shows afterimage tags without 多動状態', () => {
+  test('showSpecialStoneInfoAt shows afterimage tags without 躍動状態', () => {
     global.gameState.board[5][6] = global.BLACK;
     global.cardState.markers = [{
       kind: 'specialStone',
@@ -430,7 +430,7 @@ describe('board cell information separation', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り3回');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り3回');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('多動状態');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('躍動状態');
   });
 
   test('showSpecialStoneInfoAt hides trap info from the owner seat while hidden', () => {

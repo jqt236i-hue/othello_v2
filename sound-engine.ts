@@ -159,7 +159,7 @@ const SoundEngine = {
         living_will_restored: '生きる意志で復活するタイミング.mp3',
         extend_life: '特殊石の持続ターンが延長されたタイミング.mp3',
         corrosion_tick: '特殊石の持続ターンが減少したタイミング.mp3',
-        hyperactive_move: '多動系の石が移動したタイミング.mp3',
+        hyperactive_move: '躍動系の石が移動したタイミング.mp3',
         ultimate_anchor_move: '究極反転龍・究極破壊神・意志狩りの王が移動したタイミング.mp3',
         robot_vacuum_suck: 'ロボット掃除機で敵石を吸い込んだタイミング.mp3',
         breeding_spawn: 'カード効果で石が生成されたタイミング.mp3',

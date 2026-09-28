@@ -474,7 +474,7 @@
 4. ぼくらがまた広がったよ！
 5. ぼくらがまたひとり生まれた！
 
-## 多動石（HYPERACTIVE）
+## 躍動石（HYPERACTIVE）
 
 ### 登場（place）
 
@@ -508,7 +508,7 @@
 4. 助けに戻れなかった友のため、止まらない。
 5. 助けに戻れなかった友のため、もう一周だ。
 
-## 極悪多動魔（EXTREME_HYPERACTIVE）
+## 極悪躍動魔（EXTREME_HYPERACTIVE）
 
 ### 登場（place）
 
@@ -864,7 +864,7 @@
 4. 忘れられた名を刻むため、幕を上げます。
 5. 忘れられた名を刻むため、終われません。
 
-## 究極多動神（ULTIMATE_HYPERACTIVE）
+## 究極躍動神（ULTIMATE_HYPERACTIVE）
 
 ### 登場（place）
 

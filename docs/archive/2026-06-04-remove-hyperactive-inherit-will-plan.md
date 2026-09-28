@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove `多動の継承` (`hyperactive_inherit_01` / `HYPERACTIVE_INHERIT_WILL`) and its `INHERITED_HYPERACTIVE` board state completely, including player-facing text.
+**Goal:** Remove `躍動の継承` (`hyperactive_inherit_01` / `HYPERACTIVE_INHERIT_WILL`) and its `INHERITED_HYPERACTIVE` board state completely, including player-facing text.
 
 **Architecture:** Treat this as a card retirement plus state retirement, not a compatibility migration. Root files are source of truth; generated catalog/browser assets and `worker-public/` are refreshed only through existing scripts. Shared multi-card hyperactive behavior remains; only the inherit-specific card, pending flow, status, UI, CPU policy, docs, and tests are removed.
 
@@ -12,11 +12,11 @@
 
 ## Document Role
 
-This is an implementation plan, not a gameplay spec. The gameplay source of truth must be changed in `01-rulebook.md` during implementation. Non-goal: preserving old snapshots or replays that contain `INHERITED_HYPERACTIVE`; the product decision is that `多動の継承` is never used again.
+This is an implementation plan, not a gameplay spec. The gameplay source of truth must be changed in `01-rulebook.md` during implementation. Non-goal: preserving old snapshots or replays that contain `INHERITED_HYPERACTIVE`; the product decision is that `躍動の継承` is never used again.
 
 ## File Map
 
-- `01-rulebook.md`: remove `10.17.5 HYPERACTIVE_INHERIT_WILL（多動の継承）` and all player-facing references to `継承多動` / `多動の継承`.
+- `01-rulebook.md`: remove `10.17.5 HYPERACTIVE_INHERIT_WILL（躍動の継承）` and all player-facing references to `継承躍動` / `躍動の継承`.
 - `正本/カード仕様正本.md`, `正本/演出正本.md`, `正本/効果音対応表.md`: remove normative references to the retired card/state.
 - `cards/catalog.json`: remove the `hyperactive_inherit_01` catalog entry.
 - `cards/card-interaction-effects.ts`, `cards/card-interaction-detail-actions.ts`: remove retired detail text, effect tags, and target prompt.
@@ -25,7 +25,7 @@ This is an implementation plan, not a gameplay spec. The gameplay source of trut
 - `game/logic/cards-internal/pending-selection-registry.ts`, `game/turn/action-phase/pre-placement-selection.ts`, `ui/bootstrap.ts`: remove pending dispatch/action plumbing for `hyperactive_inherit`.
 - `game/logic/cards-internal/hand-manager.ts`, `game/logic/cards-internal/card-usage-prechecks.ts`, `game/cpu-decision.ts`, `game/cpu-decision-pending-score.ts`, `game/cpu-decision-plan-pressure.ts`, `game/ai/cpu-policy-*.ts`, `game/ai/commentary-data.ts`: remove CPU and usage policy references.
 - `shared/evasion-status.ts`, `shared/special-stone-registry.ts`, `game/logic/cards-internal/capture-source.ts`, `game/logic/board_ops.ts`, `game/turn/presentation-helpers.ts`, `game/turn/pipeline-ui/log-mappers.ts`, `game/turn/pipeline-ui/selection-sound-cues.ts`, `game/turn/pipeline-ui/sound-cues.ts`, `ui/animation-engine.ts`, `ui/animation-move-events.ts`, `game/visual-effects-map.runtime.js`: remove `INHERITED_HYPERACTIVE` status/event/presentation support.
-- `test/*hyperactive-inherit*`, pending/network/sound/UI tests containing `hyperactive_inherit_01`, `HYPERACTIVE_INHERIT_WILL`, `INHERITED_HYPERACTIVE`, `hyperactiveInheritTarget`, `hyperactive_inherit_selected`, `継承多動`, or `多動の継承`: delete retired-card tests or remove retired fixtures from broader tests.
+- `test/*hyperactive-inherit*`, pending/network/sound/UI tests containing `hyperactive_inherit_01`, `HYPERACTIVE_INHERIT_WILL`, `INHERITED_HYPERACTIVE`, `hyperactiveInheritTarget`, `hyperactive_inherit_selected`, `継承躍動`, or `躍動の継承`: delete retired-card tests or remove retired fixtures from broader tests.
 - Generated/mirror outputs: `cards/catalog.ts`, `cards/catalog.js`, `cards/catalog.generated.js`, `public/module-registry.js`, `worker-public/*` are updated by scripts, not hand-edited first.
 
 ---
@@ -61,7 +61,7 @@ Expected: A dirty tree may already exist. Classify existing changes as user/WIP,
 Run:
 
 ```powershell
-rg -n "hyperactive_inherit_01|HYPERACTIVE_INHERIT_WILL|INHERITED_HYPERACTIVE|hyperactiveInheritTarget|hyperactive_inherit|hyperactive_inherit_selected|継承多動|多動の継承" cards game shared ui workers test scripts docs 正本 01-rulebook.md --glob "!worker-public/**" --glob "!dist/**"
+rg -n "hyperactive_inherit_01|HYPERACTIVE_INHERIT_WILL|INHERITED_HYPERACTIVE|hyperactiveInheritTarget|hyperactive_inherit|hyperactive_inherit_selected|継承躍動|躍動の継承" cards game shared ui workers test scripts docs 正本 01-rulebook.md --glob "!worker-public/**" --glob "!dist/**"
 ```
 
 Expected: Output identifies every root-source reference to remove or update.
@@ -71,7 +71,7 @@ Expected: Output identifies every root-source reference to remove or update.
 Run:
 
 ```powershell
-rg -n "HYPERACTIVE_WILL|INSTANT_HYPERACTIVE_WILL|EXTREME_HYPERACTIVE_WILL|ESCAPE_WILL|ULTIMATE_HYPERACTIVE_GOD|多動の意志|瞬間多動|極悪多動魔|逃げる意志|究極多動神" cards game shared ui workers test scripts docs 正本 01-rulebook.md --glob "!worker-public/**" --glob "!dist/**"
+rg -n "HYPERACTIVE_WILL|INSTANT_HYPERACTIVE_WILL|EXTREME_HYPERACTIVE_WILL|ESCAPE_WILL|ULTIMATE_HYPERACTIVE_GOD|躍動の意志|瞬間躍動|極悪躍動魔|逃げる意志|究極躍動神" cards game shared ui workers test scripts docs 正本 01-rulebook.md --glob "!worker-public/**" --glob "!dist/**"
 ```
 
 Expected: These references remain unless a line also specifically names the retired card/state.
@@ -85,7 +85,7 @@ Expected: These references remain unless a line also specifically names the reti
 
 - [ ] **Step 1: Write the failing test**
 
-Create or update `test/retired-card-references.test.ts` with this complete test. If the file already exists, replace only the `多動の継承` block with the same identifier list and path filters.
+Create or update `test/retired-card-references.test.ts` with this complete test. If the file already exists, replace only the `躍動の継承` block with the same identifier list and path filters.
 
 ```typescript
 import fs from 'fs';
@@ -100,8 +100,8 @@ const RETIRED_HYPERACTIVE_INHERIT_PATTERNS = [
   'hyperactiveInheritTarget',
   'hyperactive_inherit',
   'hyperactive_inherit_selected',
-  '継承多動',
-  '多動の継承'
+  '継承躍動',
+  '躍動の継承'
 ];
 
 const SCAN_DIRS = [
@@ -137,7 +137,7 @@ function isScannable(file: string): boolean {
 }
 
 describe('retired card reference guard', () => {
-  test('多動の継承 identifiers are removed from active source and specs', () => {
+  test('躍動の継承 identifiers are removed from active source and specs', () => {
     const hits: string[] = [];
     for (const target of SCAN_DIRS) {
       for (const file of walk(target).filter(isScannable)) {
@@ -162,7 +162,7 @@ Run:
 npm run test:jest -- --runTestsByPath test/retired-card-references.test.ts
 ```
 
-Expected: FAIL with hits for current `hyperactive_inherit_01`, `HYPERACTIVE_INHERIT_WILL`, `INHERITED_HYPERACTIVE`, `継承多動`, and `多動の継承` references.
+Expected: FAIL with hits for current `hyperactive_inherit_01`, `HYPERACTIVE_INHERIT_WILL`, `INHERITED_HYPERACTIVE`, `継承躍動`, and `躍動の継承` references.
 
 ---
 
@@ -176,20 +176,20 @@ Expected: FAIL with hits for current `hyperactive_inherit_01`, `HYPERACTIVE_INHE
 
 - [ ] **Step 1: Remove the retired card section from the rulebook**
 
-Delete the whole `### 10.17.5 HYPERACTIVE_INHERIT_WILL（多動の継承）` section in `01-rulebook.md`. Keep surrounding sections in order and renumber only if this rulebook already uses manual sequential numbering consistently in the touched range.
+Delete the whole `### 10.17.5 HYPERACTIVE_INHERIT_WILL（躍動の継承）` section in `01-rulebook.md`. Keep surrounding sections in order and renumber only if this rulebook already uses manual sequential numbering consistently in the touched range.
 
 - [ ] **Step 2: Remove retired state wording from rulebook lists**
 
-Edit each active rulebook line containing `継承多動` or `多動の継承`:
+Edit each active rulebook line containing `継承躍動` or `躍動の継承`:
 
 ```text
-封鎖マス / 穴マス / 多動系 lists: remove 継承多動石 only.
-追加トリガー専用シチュエーション: remove the 継承多動石 clause.
-数字UI tab: remove 継承多動の残りターン from the list.
-石上カウント / メタタグ: remove 継承多動-specific bullets.
-移動音: remove 継承多動石 from the 多動系 examples.
-guard_select mapping: remove 多動の継承 from the shared-use parenthetical.
-Lv6 CPU policy: remove HYPERACTIVE_INHERIT_WILL and 多動の継承 from examples.
+封鎖マス / 穴マス / 躍動系 lists: remove 継承躍動石 only.
+追加トリガー専用シチュエーション: remove the 継承躍動石 clause.
+数字UI tab: remove 継承躍動の残りターン from the list.
+石上カウント / メタタグ: remove 継承躍動-specific bullets.
+移動音: remove 継承躍動石 from the 躍動系 examples.
+guard_select mapping: remove 躍動の継承 from the shared-use parenthetical.
+Lv6 CPU policy: remove HYPERACTIVE_INHERIT_WILL and 躍動の継承 from examples.
 pending selfplay: remove HYPERACTIVE_INHERIT_WILL from the explicit pending examples.
 ```
 
@@ -198,9 +198,9 @@ pending selfplay: remove HYPERACTIVE_INHERIT_WILL from the explicit pending exam
 Make these exact removals:
 
 ```text
-正本/カード仕様正本.md: delete the 多動の継承 row.
-正本/演出正本.md: remove 多動の継承 from the 滑らかな1マス移動 examples.
-正本/効果音対応表.md: remove 多動の継承 from guard_select examples and hyperactive_move examples.
+正本/カード仕様正本.md: delete the 躍動の継承 row.
+正本/演出正本.md: remove 躍動の継承 from the 滑らかな1マス移動 examples.
+正本/効果音対応表.md: remove 躍動の継承 from guard_select examples and hyperactive_move examples.
 ```
 
 - [ ] **Step 4: Run the guard test**
@@ -211,7 +211,7 @@ Run:
 npm run test:jest -- --runTestsByPath test/retired-card-references.test.ts
 ```
 
-Expected: Still FAIL, but active spec/正本 hits for `多動の継承` and `継承多動` are gone.
+Expected: Still FAIL, but active spec/正本 hits for `躍動の継承` and `継承躍動` are gone.
 
 ---
 
@@ -229,7 +229,7 @@ Delete this object from `cards/catalog.json`:
 ```json
 {
   "id": "hyperactive_inherit_01",
-  "name_ja": "多動の継承",
+  "name_ja": "躍動の継承",
   "type": "HYPERACTIVE_INHERIT_WILL"
 }
 ```
@@ -241,8 +241,8 @@ Preserve valid JSON and the order of the remaining cards.
 Remove these `HYPERACTIVE_INHERIT_WILL` properties from `cards/card-interaction-effects.ts`:
 
 ```typescript
-HYPERACTIVE_INHERIT_WILL: '自分の石1つに多動を継承。10ターン、反転・破壊を各1回回避'
-HYPERACTIVE_INHERIT_WILL: '対象は自分の通常石・特殊石。\n10ターンの間、両者ターン開始時に周囲の空きへ1マス移動する。\nターン開始移動で空きが無い場合は継承多動状態を解除して通常石に戻る。\n移動後に挟める列があれば反転する。\n反転対象時と破壊対象時に、それぞれ1回だけ空きマスへ移動して回避する。'
+HYPERACTIVE_INHERIT_WILL: '自分の石1つに躍動を継承。10ターン、反転・破壊を各1回回避'
+HYPERACTIVE_INHERIT_WILL: '対象は自分の通常石・特殊石。\n10ターンの間、両者ターン開始時に周囲の空きへ1マス移動する。\nターン開始移動で空きが無い場合は継承躍動状態を解除して通常石に戻る。\n移動後に挟める列があれば反転する。\n反転対象時と破壊対象時に、それぞれ1回だけ空きマスへ移動して回避する。'
 HYPERACTIVE_INHERIT_WILL: freezeCardEffectTags([flipEvasionTag(1), destroyEvasionTag(1), durationTurnsTag(10)])
 ```
 
@@ -251,7 +251,7 @@ HYPERACTIVE_INHERIT_WILL: freezeCardEffectTags([flipEvasionTag(1), destroyEvasio
 Remove this property from `cards/card-interaction-detail-actions.ts`:
 
 ```typescript
-HYPERACTIVE_INHERIT_WILL: '多動を継承する自分の石を選んでください'
+HYPERACTIVE_INHERIT_WILL: '躍動を継承する自分の石を選んでください'
 ```
 
 - [ ] **Step 4: Run catalog/help tests**
@@ -403,7 +403,7 @@ Expected: Retired inherited cases fail until removed; remaining hyperactive test
 
 - [ ] **Step 1: Remove CPU target chooser**
 
-Delete the `多動の継承 対象選択` helper in `game/cpu-decision.ts` and every call path that builds:
+Delete the `躍動の継承 対象選択` helper in `game/cpu-decision.ts` and every call path that builds:
 
 ```typescript
 { hyperactiveInheritTarget: { row: target.row, col: target.col } }
@@ -464,7 +464,7 @@ from `game/turn/presentation-helpers.ts`.
 Remove:
 
 ```typescript
-INHERITED_HYPERACTIVE -> 継承多動石
+INHERITED_HYPERACTIVE -> 継承躍動石
 hyperactive_inherit_selected -> guard_select
 ```
 
@@ -480,8 +480,8 @@ Remove test cases that expect:
 
 ```typescript
 'inherited_hyperactive_move'
-'継承多動石'
-'継承多動の残りターン'
+'継承躍動石'
+'継承躍動の残りターン'
 ```
 
 from UI/presentation tests.
@@ -549,7 +549,7 @@ Expected: `worker-public/` mirrors root output and no longer contains retired id
 Run:
 
 ```powershell
-rg -n "hyperactive_inherit_01|HYPERACTIVE_INHERIT_WILL|INHERITED_HYPERACTIVE|hyperactiveInheritTarget|hyperactive_inherit|hyperactive_inherit_selected|継承多動|多動の継承" . --glob "!node_modules/**" --glob "!dist/**" --glob "!docs/archive/**"
+rg -n "hyperactive_inherit_01|HYPERACTIVE_INHERIT_WILL|INHERITED_HYPERACTIVE|hyperactiveInheritTarget|hyperactive_inherit|hyperactive_inherit_selected|継承躍動|躍動の継承" . --glob "!node_modules/**" --glob "!dist/**" --glob "!docs/archive/**"
 ```
 
 Expected: No active-source hits. Hits in this plan file are acceptable until the guard test excludes it. If generated or worker hits remain, rerun Task 9.
@@ -611,7 +611,7 @@ Run targeted diffs for intended files:
 git diff -- 01-rulebook.md cards game shared ui workers test 正本 public worker-public
 ```
 
-Expected: Diffs remove only `多動の継承` / `HYPERACTIVE_INHERIT_WILL` / `INHERITED_HYPERACTIVE` behavior and generated fallout. No unrelated behavior is added.
+Expected: Diffs remove only `躍動の継承` / `HYPERACTIVE_INHERIT_WILL` / `INHERITED_HYPERACTIVE` behavior and generated fallout. No unrelated behavior is added.
 
 - [ ] **Step 3: Stage only the retirement changes**
 
@@ -657,4 +657,4 @@ Expected: Commit succeeds. Report any unrelated dirty files that remain unstaged
 
 - Spec coverage: The plan removes the catalog card, behavior, pending flow, CPU policy, presentation/sound/UI text, rulebook/正本 text, tests, generated browser assets, and worker mirror.
 - Placeholder scan: No task contains unresolved placeholder wording; commands and exact identifiers are listed.
-- Type consistency: The retired identifiers are consistently `hyperactive_inherit_01`, `HYPERACTIVE_INHERIT_WILL`, `INHERITED_HYPERACTIVE`, `hyperactiveInheritTarget`, `hyperactive_inherit`, `hyperactive_inherit_selected`, `継承多動`, and `多動の継承`.
+- Type consistency: The retired identifiers are consistently `hyperactive_inherit_01`, `HYPERACTIVE_INHERIT_WILL`, `INHERITED_HYPERACTIVE`, `hyperactiveInheritTarget`, `hyperactive_inherit`, `hyperactive_inherit_selected`, `継承躍動`, and `躍動の継承`.
