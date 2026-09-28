@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-25",
-  "generatedAt": "2026-09-25T13:33:51.549Z",
+  "version": "2026-09-28",
+  "generatedAt": "2026-09-28T01:54:35.555Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -1091,10 +1091,6 @@
       "sha256": "53cafdd90ea51e4e090360886a57d591048fe23ade7dc3a569ab536a1efa60a2"
     },
     {
-      "path": "assets/audio/sound-effect/躍動系の石が移動したタイミング.mp3",
-      "sha256": "4d27590399e789e1f7b3b1f8498772baa2a064554e98b45848e0d60ee91808f4"
-    },
-    {
       "path": "assets/audio/sound-effect/宝箱・天の恵みで獲得したタイミング.mp3",
       "sha256": "a286cb6e04ffbe2e5df0f3e1e8a87070d788ded142c9b5952056ce2fd57e6dc9"
     },
@@ -1229,6 +1225,10 @@
     {
       "path": "assets/audio/sound-effect/超引力で石が引き寄せられたタイミング.mp3",
       "sha256": "479f3adb69cde1750c642c07b76030141bf8fab93b7b68a58782159fc75e30f3"
+    },
+    {
+      "path": "assets/audio/sound-effect/躍動系の石が移動したタイミング.mp3",
+      "sha256": "4d27590399e789e1f7b3b1f8498772baa2a064554e98b45848e0d60ee91808f4"
     },
     {
       "path": "assets/audio/sound-effect/転生の意志で転生するタイミング.mp3",
