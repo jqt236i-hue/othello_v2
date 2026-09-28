@@ -1716,7 +1716,7 @@ const THROWN_STONE_CLASS = 'thrown-stone';
 const THROWN_STONE_WINDUP_MS = 110;
 const THROWN_STONE_FLIGHT_MS = 360;
 const THROWN_STONE_LANDING_RING_MS = 260;
-const THROWN_STONE_ARC_SAMPLES = 12;
+const THROWN_STONE_PATH_SAMPLES = 12;
 const THROWN_STONE_CLEANUP_FALLBACK_MS = THROWN_STONE_WINDUP_MS + THROWN_STONE_FLIGHT_MS + 800;
 // Hidden traps look like normal stones until their reveal timing.
 const THROWN_STONE_HIDDEN_TYPES = new Set(['TRAP', 'TRAP_WILL']);
@@ -1845,7 +1845,7 @@ function _spawnThrownStoneLandingRing(layerEl: any, centerX: number, centerY: nu
 }
 
 /**
- * 石を投げて配置する演出。手札の下端（相手側は上端）中央から着手点へ放物線で飛ばし、
+ * 石を投げて配置する演出。手札の下端（相手側は上端）中央から着手点へ直線で飛ばし、
  * 着地の瞬間を手置き演出の接触タイミングと同じ扱いにする。
  */
 function _playThrownStonePlacement(ctx: any) {
@@ -1869,16 +1869,12 @@ function _playThrownStonePlacement(ctx: any) {
     const stoneEl = _createThrownStoneElement(layerEl, visual, size);
     const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
 
-    const distance = Math.hypot(targetX - origin.x, targetY - origin.y);
-    const arcHeight = Math.min(220, 60 + (distance * 0.35));
-    const startScale = 1.35;
-    const peakScale = 1.7;
+    const startScale = 1.2;
     const spinDeg = (fromBottom ? 1 : -1) * 540;
     const frameAt = (t: number) => {
         const x = origin.x + ((targetX - origin.x) * t) - (size / 2);
-        const y = origin.y + ((targetY - origin.y) * t) - (arcHeight * 4 * t * (1 - t)) - (size / 2);
-        const lift = 4 * t * (1 - t);
-        const scale = startScale + ((1 - startScale) * t) + ((peakScale - startScale) * lift);
+        const y = origin.y + ((targetY - origin.y) * t) - (size / 2);
+        const scale = startScale + ((1 - startScale) * t);
         return `translate(${x}px, ${y}px) rotate(${spinDeg * t}deg) scale(${scale})`;
     };
 
@@ -1922,15 +1918,15 @@ function _playThrownStonePlacement(ctx: any) {
             clearCleanupFallback = _installAnimationResolveFallback(cleanup, THROWN_STONE_CLEANUP_FALLBACK_MS);
         }
 
-        // 2. Flight along a parabola; the stone grows toward the arc peak as if lifted toward the viewer.
+        // 2. Straight flight toward the target cell; the stone shrinks slightly as it travels away.
         const keyframes = [];
-        for (let i = 0; i <= THROWN_STONE_ARC_SAMPLES; i += 1) {
-            const t = i / THROWN_STONE_ARC_SAMPLES;
+        for (let i = 0; i <= THROWN_STONE_PATH_SAMPLES; i += 1) {
+            const t = i / THROWN_STONE_PATH_SAMPLES;
             keyframes.push({ transform: frameAt(t), opacity: 1, offset: t });
         }
         await _animateCompat(stoneEl, keyframes, {
             duration: THROWN_STONE_FLIGHT_MS,
-            easing: 'cubic-bezier(0.35, 0.1, 0.65, 1)',
+            easing: 'cubic-bezier(0.25, 0.6, 0.45, 1)',
             fill: 'forwards'
         }, sc);
         if (cleanupStarted) return;
