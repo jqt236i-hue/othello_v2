@@ -7,7 +7,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '幽霊の意志',
   type: 'GHOST_WILL',
   cost: 5,
-  desc_ja: '次に置く石を幽体化する。反転・破壊の対象にはなるがその石自身は受けない。誘惑・捕獲など、対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。',
+  desc_ja: '次に置く石を幽体化する。反転・破壊の対象にはなるがその石自身は受けない。意志の反転・捕獲の意志など、対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。',
   display_type_ja: '守護'
 });
 
@@ -18,7 +18,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
 });
 
 const EXPECTED_QUICK_TEXT = '次に置く石を幽体石化。反転・破壊だけを受け流す';
-const EXPECTED_DETAIL_TEXT = '持続する特殊石。\n反転・石破壊の対象にはなるが、その石自身は受けない。\n誘惑・捕獲など、対象条件を満たす反転・破壊以外の効果は通常どおり受ける。\n交換の意志は相手通常石のみ対象のため対象外。\n意志の喪失で通常石に戻る。';
+const EXPECTED_DETAIL_TEXT = '持続する特殊石。\n反転・石破壊の対象にはなるが、その石自身は受けない。\n意志の反転・捕獲の意志など、対象条件を満たす反転・破壊以外の効果は通常どおり受ける。\n交換の意志は相手通常石のみ対象のため対象外。\n意志の喪失で通常石に戻る。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

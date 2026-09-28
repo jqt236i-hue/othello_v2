@@ -28,7 +28,7 @@ export const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.
   Object.freeze({ id: 'normal-stone', label: '通常石', category: 'stone', description: '特殊効果を持たない通常の石。' }),
   Object.freeze({ id: 'special-stone', label: '特殊石', category: 'stone', description: '通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。' }),
   Object.freeze({ id: 'manifest-stone', label: '顕現石', category: 'stone', description: '特殊カードから出現する専用石。通常カード効果の対象外になる場合がある。' }),
-  Object.freeze({ id: 'ghost-stone', label: '幽体', category: 'stone', description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、誘惑・捕獲・入替など対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。', aliases: Object.freeze(['幽体石']) }),
+  Object.freeze({ id: 'ghost-stone', label: '幽体', category: 'stone', description: '反転・破壊の対象にはなるが、その石自身は受けない。反転列の成立は無効化せず、意志の反転・捕獲の意志・入替など対象条件を満たす反転・破壊以外の効果は通常どおり受ける。交換の意志は通常石のみ対象のため対象外。', aliases: Object.freeze(['幽体石']) }),
   Object.freeze({ id: 'afterimage-stone', label: '残像石', category: 'stone', description: '反転回避と破壊回避を持つ特殊石。' }),
   Object.freeze({ id: 'regen-stone', label: '復活石', category: 'stone', description: '反転または破壊されると復活回数を消費して戻る特殊石。' }),
   Object.freeze({ id: 'trap-stone', label: '罠石', category: 'stone', description: '相手の反転などに反応して発動する特殊石。' }),
