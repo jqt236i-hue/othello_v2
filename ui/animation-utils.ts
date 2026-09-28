@@ -1798,16 +1798,17 @@ function _resolveThrownStoneVisual(playerKey: any, row: any, col: any) {
     });
 }
 
+// Horizontally the stone starts at the screen center; vertically at the middle of the owner's hand cards.
 function _resolveThrownStoneOrigin(playerKey: any, fromBottom: boolean) {
+    const viewportWidth = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 0;
+    const viewportHeight = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 0;
     const originRect = _resolvePlacementHandOriginRect(playerKey);
     if (originRect) {
         return {
-            x: originRect.left + ((originRect.right - originRect.left) / 2),
-            y: fromBottom ? originRect.bottom : originRect.top
+            x: viewportWidth > 0 ? viewportWidth / 2 : originRect.left + ((originRect.right - originRect.left) / 2),
+            y: originRect.top + ((originRect.bottom - originRect.top) / 2)
         };
     }
-    const viewportWidth = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 0;
-    const viewportHeight = (typeof window !== 'undefined' && window.innerHeight) ? window.innerHeight : 0;
     return { x: viewportWidth / 2, y: fromBottom ? viewportHeight : 0 };
 }
 
@@ -1845,7 +1846,7 @@ function _spawnThrownStoneLandingRing(layerEl: any, centerX: number, centerY: nu
 }
 
 /**
- * 石を投げて配置する演出。手札の下端（相手側は上端）中央から着手点へ直線で飛ばし、
+ * 石を投げて配置する演出。画面の横中央・手札カードの縦中央から着手点へ直線で飛ばし、
  * 着地の瞬間を手置き演出の接触タイミングと同じ扱いにする。
  */
 function _playThrownStonePlacement(ctx: any) {
