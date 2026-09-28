@@ -64,7 +64,7 @@ function getSupportTroopsFlipEvents(result) {
 describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
   const supportTroopsDef = getSupportTroopsDef();
 
-  test('候補条件は増援の意志と同じで、角辺を含めて石に隣接する空きマスだけを候補にする', () => {
+  test('候補条件は増援の意志と同じで、石との隣接を問わず盤面の全空きマスを候補にする', () => {
     expect(supportTroopsDef).toBeTruthy();
 
     const board = createBoard();
@@ -73,22 +73,23 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     const gameState = createGameState(board);
     const cardState = createCardState(createPrng([0]), supportTroopsDef.id, supportTroopsDef.cost);
 
-    expect(CardLogic.getSupportTroopsWillTargets(cardState, gameState, 'black')).toEqual([
+    const targets = CardLogic.getSupportTroopsWillTargets(cardState, gameState, 'black');
+    expect(targets).toHaveLength(63);
+    expect(targets).toEqual(expect.arrayContaining([
       { row: 0, col: 0 },
-      { row: 0, col: 2 },
-      { row: 1, col: 0 },
-      { row: 1, col: 1 },
-      { row: 1, col: 2 }
-    ]);
-    expect(CardLogic.getSupportTroopsWillTargetCount(cardState, gameState, 'black')).toBe(5);
+      { row: 4, col: 4 },
+      { row: 7, col: 7 }
+    ]));
+    expect(targets).not.toContainEqual({ row: 0, col: 1 });
+    expect(CardLogic.getSupportTroopsWillTargetCount(cardState, gameState, 'black')).toBe(63);
     expect(CardLogic.canUseSupportTroopsWillForPlayer(cardState, gameState, 'black')).toBe(true);
     expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain(supportTroopsDef.id);
   });
 
-  test('候補が無い局面では使用できない', () => {
+  test('空きマスが無い局面では使用できない', () => {
     expect(supportTroopsDef).toBeTruthy();
 
-    const board = createBoard();
+    const board = createBoard().map((row) => row.fill(Shared.BLACK));
     const gameState = createGameState(board);
     const cardState = createCardState(createPrng([0]), supportTroopsDef.id, supportTroopsDef.cost);
 
@@ -113,7 +114,7 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     expect(cardState.selectedCardOwnerKey).toBeNull();
   });
 
-  test('use_cardで即時解決し、候補が十分あれば通常石を3個配置できる', () => {
+  test('use_cardで即時解決し、既存の石から離れた空きマスにも通常石を3個配置できる', () => {
     expect(supportTroopsDef).toBeTruthy();
 
     const board = createBoard();
@@ -144,16 +145,16 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
         spawnedCount: 3,
         flippedCount: 0
       });
-      expect((resolveEvent.spawned || []).map((entry) => [entry.row, entry.col])).toEqual([[2, 2], [2, 3], [2, 4]]);
+      expect((resolveEvent.spawned || []).map((entry) => [entry.row, entry.col])).toEqual([[0, 0], [0, 1], [0, 2]]);
 
       expect(spawnSpy).toHaveBeenCalledTimes(3);
       expect(spawnEvents).toHaveLength(3);
-      expect(spawnEvents.map((event) => [event.row, event.col])).toEqual([[2, 2], [2, 3], [2, 4]]);
+      expect(spawnEvents.map((event) => [event.row, event.col])).toEqual([[0, 0], [0, 1], [0, 2]]);
       expect(spawnEvents.map((event) => event.meta && event.meta.spawnIndex)).toEqual([1, 2, 3]);
       expect(spawnEvents.every((event) => event.meta && event.meta.requestedCount === 3)).toBe(true);
-      expect(gameState.board[2][2]).toBe(Shared.BLACK);
-      expect(gameState.board[2][3]).toBe(Shared.BLACK);
-      expect(gameState.board[2][4]).toBe(Shared.BLACK);
+      expect(gameState.board[0][0]).toBe(Shared.BLACK);
+      expect(gameState.board[0][1]).toBe(Shared.BLACK);
+      expect(gameState.board[0][2]).toBe(Shared.BLACK);
     } finally {
       spawnSpy.mockRestore();
     }
@@ -271,7 +272,7 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     const prng = createPrng([0, 0, 0]);
     const cardState = createCardState(prng, supportTroopsDef.id, supportTroopsDef.cost);
     cardState.charge.black = supportTroopsDef.cost;
-    cardState.boardBonusByCell = { '2,2': 4, '2,3': 5, '2,4': 6 };
+    cardState.boardBonusByCell = { '0,0': 4, '0,1': 5, '0,2': 6 };
     const gameState = createGameState(board);
 
     const result = TurnPipeline.applyTurn(
@@ -297,9 +298,9 @@ describe('SUPPORT_TROOPS_WILL（援軍の意志）', () => {
     expect(bonusEvents).toEqual([]);
     expect(numberCellChargeBubbles).toEqual([]);
     expect(cardState.charge.black).toBe(0);
-    expect(cardState.boardBonusConsumedByCell['2,2']).toBe(true);
-    expect(cardState.boardBonusConsumedByCell['2,3']).toBe(true);
-    expect(cardState.boardBonusConsumedByCell['2,4']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['0,0']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['0,1']).toBe(true);
+    expect(cardState.boardBonusConsumedByCell['0,2']).toBe(true);
     expect(cardState.numberCellCollectedTotalByPlayer.black || 0).toBe(0);
   });
 

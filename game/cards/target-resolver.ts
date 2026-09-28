@@ -415,19 +415,6 @@ const Flips = CardFlips || {};
         return requireBoardUtils().resolveExpansionSide(side, row, col, context.gameState);
     }
 
-    function isAdjacentToAnyStoneForReinforcement(cardState: any, gameState: any, row: any, col: any) {
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                if (dr === 0 && dc === 0) continue;
-                const nextRow = row + dr;
-                const nextCol = col + dc;
-                if (!hasBoardShapeCell(cardState, gameState, nextRow, nextCol)) continue;
-                if (getCellValue(cardState, gameState, nextRow, nextCol) !== EMPTY) return true;
-            }
-        }
-        return false;
-    }
-
     // ---- 29 Target Functions ----
 
     function getTrapTargets(cardState: any, gameState: any, playerKey: any) {
@@ -984,12 +971,10 @@ const Flips = CardFlips || {};
     function getReinforcementTargets(cardState: any, gameState: any, playerKey: any) {
         if (!gameState || !Array.isArray(gameState.board)) return [];
         return getEmptyBoardShapeCells(cardState, gameState)
-            .filter((cell: any) => {
-                const row = Number(cell && cell.row);
-                const col = Number(cell && cell.col);
-                if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-                return isAdjacentToAnyStoneForReinforcement(cardState, gameState, row, col);
-            });
+            .filter((cell: any) => (
+                Number.isInteger(Number(cell && cell.row)) &&
+                Number.isInteger(Number(cell && cell.col))
+            ));
     }
 
     function getPoisonTargets(cardState: any, gameState: any, playerKey: any) {
