@@ -1,0 +1,462 @@
+{
+  "title": "カードリバーシ 第一進化特殊石",
+  "status": "想像による進化デザイン案（既存の正本設定ではありません）",
+  "sourceDirectories": [
+    "../デフォルト立ち絵/",
+    "../三面図/"
+  ],
+  "viewOrder": [
+    "正面",
+    "右側面",
+    "背面"
+  ],
+  "sharedRequirements": [
+    "元キャラの色・モチーフ・個性を引き継ぐ",
+    "装飾を少し足すだけではなく、体格・輪郭・生物構造を変えて進化段階を表す",
+    "1枚に全身の3方向を並べ、白背景、文字・余分なキャラなし",
+    "将来の3D化を意識したコンセプト資料として作る"
+  ],
+  "note": "画像生成によるデザイン資料です。三方向の描写はモデリングの出発点であり、寸法保証や完全な投影図ではありません。",
+  "assets": [
+    {
+      "file": "DESTROY_DRAGON.png",
+      "name": "破壊龍",
+      "evolutionDirection": "Transform the small baby dragon into a much larger adolescent fire-battle dragon with a long powerful neck, broad fully developed wings, strong digitigrade legs, heavier plated green scales, branching ivory horns, a longer armored tail, and a crown of orange-red flame spines. Retain the unmistakable emerald green body, cream belly, orange wing membranes, amber eyes, and friendly dragon face. This should read as the next growth stage, not the same baby with extra decoration.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/DESTROY_DRAGON.png",
+        "../三面図/DESTROY_DRAGON.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for a future 3D model\nInput images: Image 1 is the original standing artwork for 破壊龍; Image 2 is its original three-view reference. These define the identity and motifs, not a requirement to keep the original body plan.\nPrimary request: Create a bold, unmistakable first evolution of 破壊龍. Evolution direction: Transform the small baby dragon into a much larger adolescent fire-battle dragon with a long powerful neck, broad fully developed wings, strong digitigrade legs, heavier plated green scales, branching ivory horns, a longer armored tail, and a crown of orange-red flame spines. Retain the unmistakable emerald green body, cream belly, orange wing membranes, amber eyes, and friendly dragon face. This should read as the next growth stage, not the same baby with extra decoration.\nEvolution test: compared with the source, change the silhouette, body proportions, scale, and anatomy substantially so it clearly feels like a new growth stage. Preserve only the most recognizable identity cues and palette; do not settle for extra trim, small ornaments, or a glow effect. Make it feel like a satisfying creature evolution in a monster-collecting RPG, while inventing an original design that does not copy any existing franchise creature, logo, or character. It is stage one, not an ultimate/final form.\nStyle/medium: polished original game creature illustration matching the source's colorful, readable finish.\nComposition/framing: one wide horizontal model sheet with exactly three full-body views of the same evolved creature, left to right: straight front, exact right profile, exact back. Strict orthographic projection, no perspective, no 3/4 angles. Same design, scale, proportions, and neutral pose in all three views, aligned to one baseline. Keep limbs and appendages separated enough for modeling.\nScene/backdrop: plain pure white.\nConstraints: show the complete silhouette and all appendages in every view; clear front, side, and back anatomy. Exactly three views. No captions, labels, callouts, scenery, floor line, shadows, frame, extra subjects, watermark, or copied franchise design."
+    },
+    {
+      "file": "BREEDING_WILL.png",
+      "name": "繁殖石",
+      "evolutionDirection": "Transform the small ornamental tree into a tall, living orchard guardian: a thick trunk-bodied forest creature with four visible root-legs, two branch-like arms, a broad layered canopy forming a crown, and many large glowing golden seed-fruits. Retain the source's golden-green leaves, braided bark, and seed motif. Make the change from static tree to mature guardian unmistakable, warm and benevolent, not a final god.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/BREEDING_WILL.png",
+        "../三面図/BREEDING_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for a future 3D model\nInput images: Image 1 is the original standing artwork for 繁殖石; Image 2 is its original three-view reference. These define the identity and motifs, not a requirement to keep the original body plan.\nPrimary request: Create a bold, unmistakable first evolution of 繁殖石. Evolution direction: Transform the small ornamental tree into a tall, living orchard guardian: a thick trunk-bodied forest creature with four visible root-legs, two branch-like arms, a broad layered canopy forming a crown, and many large glowing golden seed-fruits. Retain the source's golden-green leaves, braided bark, and seed motif. Make the change from static tree to mature guardian unmistakable, warm and benevolent, not a final god.\nEvolution test: compared with the source, change the silhouette, body proportions, scale, and anatomy substantially so it clearly feels like a new growth stage. Preserve only the most recognizable identity cues and palette; do not settle for extra trim, small ornaments, or a glow effect. Make it feel like a satisfying creature evolution in a monster-collecting RPG, while inventing an original design that does not copy any existing franchise creature, logo, or character. It is stage one, not an ultimate/final form.\nStyle/medium: polished original game creature illustration matching the source's colorful, readable finish.\nComposition/framing: one wide horizontal model sheet with exactly three full-body views of the same evolved creature, left to right: straight front, exact right profile, exact back. Strict orthographic projection, no perspective, no 3/4 angles. Same design, scale, proportions, and neutral pose in all three views, aligned to one baseline. Keep limbs and appendages separated enough for modeling.\nScene/backdrop: plain pure white.\nConstraints: show the complete silhouette and all appendages in every view; clear front, side, and back anatomy. Exactly three views. No captions, labels, callouts, scenery, floor line, shadows, frame, extra subjects, watermark, or copied franchise design."
+    },
+    {
+      "file": "CROSS_BOMB.png",
+      "name": "十字爆弾",
+      "evolutionDirection": "Turn the flat orange X bomb emblem into a squat, living blast guardian: a compact dark-red spherical core protected by four huge angular orange X-shaped limbs that form the unmistakable cross silhouette, two short armored legs, a small fuse crest, and a bright golden ignition heart. It should look like the bomb has awakened and grown into a creature, not like a flat symbol with bevels. Keep orange, red, and gold as the identity palette.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/CROSS_BOMB.png",
+        "../三面図/CROSS_BOMB.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for a future 3D model\nInput images: Image 1 is the original default art for 十字爆弾; Image 2 is its source turnaround. Treat them as identity and motif references, not a restriction to the old body plan.\nPrimary request: Invent a bold first evolution of 十字爆弾. Evolution direction: Turn the flat orange X bomb emblem into a squat, living blast guardian: a compact dark-red spherical core protected by four huge angular orange X-shaped limbs that form the unmistakable cross silhouette, two short armored legs, a small fuse crest, and a bright golden ignition heart. It should look like the bomb has awakened and grown into a creature, not like a flat symbol with bevels. Keep orange, red, and gold as the identity palette.\nMake the evolution immediately obvious in a side-by-side comparison: transform the silhouette, anatomy, proportions, and growth stage substantially. Preserve the original theme and a few unmistakable signature cues, but do not merely add trim, a gem, markings, or glow. Give it the dramatic, satisfying stage change of an original monster-collecting RPG creature. Do not imitate any existing franchise design or character. This is an original first stage, not an ultimate/final form.\nStyle/medium: polished, appealing original game-creature illustration, cohesive with the source art.\nComposition/framing: one wide horizontal 3-view model sheet with exactly three complete views of this same evolved creature, arranged left to right: straight front, exact right-facing profile, exact back. Strict orthographic views, no perspective or 3/4 angle; same scale, proportions, design, and neutral pose in all three, aligned to one baseline. Separate limbs and appendages so their shapes are readable.\nScene/backdrop: pure white, empty.\nConstraints: clear front, side, and back anatomy; entire silhouette inside the frame. No text, labels, scenery, floor, shadows, extra characters, border, or watermark."
+    },
+    {
+      "file": "ESCAPE_WILL.png",
+      "name": "逃亡石",
+      "evolutionDirection": "Evolve the single crying white boot into a swift little wind-runner familiar: the boot grows into a nimble upright creature with a tall boot-shaped torso and the original expressive face, long springing legs ending in matching white boot-feet, large feathered wing-arms, a swept-back feather crest, and pale-blue wind ribbons integrated into its body. Change the expression to bright, determined confidence. Preserve the simple black-outline white-boot identity, but make the new body plan and silhouette unmistakably different.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ESCAPE_WILL.png",
+        "../三面図/ESCAPE_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for a future 3D model\nInput images: Image 1 is the original default art for 逃亡石; Image 2 is its source turnaround. Treat them as identity and motif references, not a restriction to the old body plan.\nPrimary request: Invent a bold first evolution of 逃亡石. Evolution direction: Evolve the single crying white boot into a swift little wind-runner familiar: the boot grows into a nimble upright creature with a tall boot-shaped torso and the original expressive face, long springing legs ending in matching white boot-feet, large feathered wing-arms, a swept-back feather crest, and pale-blue wind ribbons integrated into its body. Change the expression to bright, determined confidence. Preserve the simple black-outline white-boot identity, but make the new body plan and silhouette unmistakably different.\nMake the evolution immediately obvious in a side-by-side comparison: transform the silhouette, anatomy, proportions, and growth stage substantially. Preserve the original theme and a few unmistakable signature cues, but do not merely add trim, a gem, markings, or glow. Give it the dramatic, satisfying stage change of an original monster-collecting RPG creature. Do not imitate any existing franchise design or character. This is an original first stage, not an ultimate/final form.\nStyle/medium: polished, appealing original game-creature illustration, cohesive with the source art.\nComposition/framing: one wide horizontal 3-view model sheet with exactly three complete views of this same evolved creature, arranged left to right: straight front, exact right-facing profile, exact back. Strict orthographic views, no perspective or 3/4 angle; same scale, proportions, design, and neutral pose in all three, aligned to one baseline. Separate limbs and appendages so their shapes are readable.\nScene/backdrop: pure white, empty.\nConstraints: clear front, side, and back anatomy; entire silhouette inside the frame. No text, labels, scenery, floor, shadows, extra characters, border, or watermark."
+    },
+    {
+      "file": "EXTREME_HYPERACTIVE_WILL.png",
+      "name": "極悪躍動魔",
+      "evolutionDirection": "Evolve the single black devil boot into a tall, aggressive boot-fiend: the boot becomes a bulky armored torso with two long clawed legs, two thin leather-arms, much larger bat wings, a spiked red ankle mantle, swept horns, glowing red eyes and a long arrow tail. Preserve the original black leather, red cuff/sole, toothy grin and recognizable boot-shaped body, but make the new demon anatomy and silhouette dramatically larger.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/EXTREME_HYPERACTIVE_WILL.png",
+        "../三面図/EXTREME_HYPERACTIVE_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for future 3D modeling\nInput images: Image 1 is the original default art for 極悪躍動魔; Image 2 is its matching original three-view reference. Preserve the character's identity cues and palette, but allow the body plan to evolve.\nPrimary request: Invent a bold, unmistakable first evolution of 極悪躍動魔. Evolution direction: Evolve the single black devil boot into a tall, aggressive boot-fiend: the boot becomes a bulky armored torso with two long clawed legs, two thin leather-arms, much larger bat wings, a spiked red ankle mantle, swept horns, glowing red eyes and a long arrow tail. Preserve the original black leather, red cuff/sole, toothy grin and recognizable boot-shaped body, but make the new demon anatomy and silhouette dramatically larger.\nThe evolved stage must look substantially different from the source in silhouette, proportions, anatomy, and scale. Retain a few iconic traits so it is clearly the same lineage. Small ornaments or added glow alone are not an evolution. Aim for the satisfying visual jump of an original monster-collecting RPG, without copying any existing franchise creature, logo, or character. This is stage one, not a final ultimate form.\nStyle/medium: polished colorful original game-creature illustration consistent with the supplied design.\nComposition/framing: one wide horizontal technical turnaround sheet, exactly three full-body views of the same evolved creature arranged left to right: straight front, exact right-facing profile, exact back. Strict orthographic projection, no perspective and no 3/4 angles. Keep scale, anatomy, stance, and design consistent in every view, aligned to one baseline. Neutral relaxed pose with limbs and appendages visibly separated.\nScene/backdrop: empty pure white.\nConstraints: full silhouette and all appendages visible in all three views; accurate profile and back anatomy. No text, labels, callouts, scenery, floor, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "fire-will.png",
+      "name": "火石",
+      "evolutionDirection": "Transform the flat flame emblem into a living ember salamander: a low four-legged red-orange fire creature with a long curling tail made of three flame tongues, a bright yellow-white belly core, flame crest, and small glowing eyes. Its back silhouette and chest retain the original three-point flame motif. Clearly change from a flat icon into a creature while preserving the red-orange-yellow palette.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/fire-will.png",
+        "../三面図/fire-will.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for future 3D modeling\nInput images: Image 1 is the original default art for 火石; Image 2 is its matching original three-view reference. Preserve the character's identity cues and palette, but allow the body plan to evolve.\nPrimary request: Invent a bold, unmistakable first evolution of 火石. Evolution direction: Transform the flat flame emblem into a living ember salamander: a low four-legged red-orange fire creature with a long curling tail made of three flame tongues, a bright yellow-white belly core, flame crest, and small glowing eyes. Its back silhouette and chest retain the original three-point flame motif. Clearly change from a flat icon into a creature while preserving the red-orange-yellow palette.\nThe evolved stage must look substantially different from the source in silhouette, proportions, anatomy, and scale. Retain a few iconic traits so it is clearly the same lineage. Small ornaments or added glow alone are not an evolution. Aim for the satisfying visual jump of an original monster-collecting RPG, without copying any existing franchise creature, logo, or character. This is stage one, not a final ultimate form.\nStyle/medium: polished colorful original game-creature illustration consistent with the supplied design.\nComposition/framing: one wide horizontal technical turnaround sheet, exactly three full-body views of the same evolved creature arranged left to right: straight front, exact right-facing profile, exact back. Strict orthographic projection, no perspective and no 3/4 angles. Keep scale, anatomy, stance, and design consistent in every view, aligned to one baseline. Neutral relaxed pose with limbs and appendages visibly separated.\nScene/backdrop: empty pure white.\nConstraints: full silhouette and all appendages visible in all three views; accurate profile and back anatomy. No text, labels, callouts, scenery, floor, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "GHOST_WILL-black.png",
+      "name": "幽体石・黒",
+      "evolutionDirection": "Evolve the small hooded black wraith into a much taller shadow reaper: elongated upper body, broad ragged cloak like two large smoke-wings, four long tapering mist arms with cyan claws, a deeper pointed hood and streaming lower-body smoke instead of legs. Preserve the charcoal-black palette, hollow face and icy cyan eyes; the silhouette should feel like a stronger new ghost species.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/GHOST_WILL-black.png",
+        "../三面図/GHOST_WILL-black.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for future 3D modeling\nInput images: Image 1 is the original default art for 幽体石・黒; Image 2 is its matching original three-view reference. Preserve the character's identity cues and palette, but allow the body plan to evolve.\nPrimary request: Invent a bold, unmistakable first evolution of 幽体石・黒. Evolution direction: Evolve the small hooded black wraith into a much taller shadow reaper: elongated upper body, broad ragged cloak like two large smoke-wings, four long tapering mist arms with cyan claws, a deeper pointed hood and streaming lower-body smoke instead of legs. Preserve the charcoal-black palette, hollow face and icy cyan eyes; the silhouette should feel like a stronger new ghost species.\nThe evolved stage must look substantially different from the source in silhouette, proportions, anatomy, and scale. Retain a few iconic traits so it is clearly the same lineage. Small ornaments or added glow alone are not an evolution. Aim for the satisfying visual jump of an original monster-collecting RPG, without copying any existing franchise creature, logo, or character. This is stage one, not a final ultimate form.\nStyle/medium: polished colorful original game-creature illustration consistent with the supplied design.\nComposition/framing: one wide horizontal technical turnaround sheet, exactly three full-body views of the same evolved creature arranged left to right: straight front, exact right-facing profile, exact back. Strict orthographic projection, no perspective and no 3/4 angles. Keep scale, anatomy, stance, and design consistent in every view, aligned to one baseline. Neutral relaxed pose with limbs and appendages visibly separated.\nScene/backdrop: empty pure white.\nConstraints: full silhouette and all appendages visible in all three views; accurate profile and back anatomy. No text, labels, callouts, scenery, floor, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "GHOST_WILL-white.png",
+      "name": "幽体石・白",
+      "evolutionDirection": "Transform the small pale hooded ghost into a towering glacier wraith with a long tapering mist-body, broad icicle-like cloak-wings, two elongated skeletal arms, crystalline shoulder ridges, and a crown of pale-blue ice shards. Keep the white/icy-blue colors, dark hollow hood and cyan eyes; clearly a larger evolved phantom, not just a decorated version.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/GHOST_WILL-white.png",
+        "../三面図/GHOST_WILL-white.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original default art for 幽体石・白; Image 2 is the original turnaround. Preserve the recognizable lineage and its signature palette, while allowing a substantial new body plan.\nPrimary request: Invent a bold, original first evolution of 幽体石・白. Evolution direction: Transform the small pale hooded ghost into a towering glacier wraith with a long tapering mist-body, broad icicle-like cloak-wings, two elongated skeletal arms, crystalline shoulder ridges, and a crown of pale-blue ice shards. Keep the white/icy-blue colors, dark hollow hood and cyan eyes; clearly a larger evolved phantom, not just a decorated version.\nThe evolved form must read as a real next stage: noticeably different silhouette, scale, body proportions, and anatomy. Retain the source's strongest identity cues. Do not merely add small accessories, markings, or glow. Make it feel like a satisfying original monster-collecting RPG evolution, without copying any existing franchise creature or character. This is stage one, not an ultimate form.\nStyle/medium: polished and appealing game-character illustration, clearly related to the source art.\nComposition/framing: exactly three complete orthographic views of the same evolved subject on one wide horizontal sheet, left to right: straight front, exact right profile, exact back. No perspective or 3/4 angles. Same design, pose, scale, proportions, and baseline in all views.\nScene/backdrop: pure white, empty.\nConstraints: show every appendage clearly and keep full silhouette in frame. No text, labels, scenery, floor, shadows, border, extra characters, or watermark."
+    },
+    {
+      "file": "GLUTTONOUS_WILL.png",
+      "name": "悪食石",
+      "evolutionDirection": "Grow the squat tiny ogre into a much taller, hugely broad feast-ogre: thick arms and legs, massive round plated belly, larger curled horns, pronounced tusks, and a heavy red-brown cook-warrior apron. Keep its peach-pink mottled skin, greedy friendly grin, and the original hamburger and drumstick in its hands. Change the body proportions and stance dramatically while keeping it cute rather than frightening.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/GLUTTONOUS_WILL.png",
+        "../三面図/GLUTTONOUS_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original default art for 悪食石; Image 2 is the original turnaround. Preserve the recognizable lineage and its signature palette, while allowing a substantial new body plan.\nPrimary request: Invent a bold, original first evolution of 悪食石. Evolution direction: Grow the squat tiny ogre into a much taller, hugely broad feast-ogre: thick arms and legs, massive round plated belly, larger curled horns, pronounced tusks, and a heavy red-brown cook-warrior apron. Keep its peach-pink mottled skin, greedy friendly grin, and the original hamburger and drumstick in its hands. Change the body proportions and stance dramatically while keeping it cute rather than frightening.\nThe evolved form must read as a real next stage: noticeably different silhouette, scale, body proportions, and anatomy. Retain the source's strongest identity cues. Do not merely add small accessories, markings, or glow. Make it feel like a satisfying original monster-collecting RPG evolution, without copying any existing franchise creature or character. This is stage one, not an ultimate form.\nStyle/medium: polished and appealing game-character illustration, clearly related to the source art.\nComposition/framing: exactly three complete orthographic views of the same evolved subject on one wide horizontal sheet, left to right: straight front, exact right profile, exact back. No perspective or 3/4 angles. Same design, pose, scale, proportions, and baseline in all views.\nScene/backdrop: pure white, empty.\nConstraints: show every appendage clearly and keep full silhouette in frame. No text, labels, scenery, floor, shadows, border, extra characters, or watermark."
+    },
+    {
+      "file": "gold_stone.png",
+      "name": "金の石",
+      "evolutionDirection": "Transform the single polished gold reversi disk into a compact sun-gilded stone golem: its thick convex disk becomes a round armored torso, with a small faceless crowned head, powerful articulated gold arms, short sturdy legs, and a circular sunburst relief on the chest. Retain the exact warm polished-gold material and disk silhouette as its core; make it a clear living guardian rather than a floating coin.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/gold_stone.png",
+        "../三面図/gold_stone.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original default art for 金の石; Image 2 is the original turnaround. Preserve the recognizable lineage and its signature palette, while allowing a substantial new body plan.\nPrimary request: Invent a bold, original first evolution of 金の石. Evolution direction: Transform the single polished gold reversi disk into a compact sun-gilded stone golem: its thick convex disk becomes a round armored torso, with a small faceless crowned head, powerful articulated gold arms, short sturdy legs, and a circular sunburst relief on the chest. Retain the exact warm polished-gold material and disk silhouette as its core; make it a clear living guardian rather than a floating coin.\nThe evolved form must read as a real next stage: noticeably different silhouette, scale, body proportions, and anatomy. Retain the source's strongest identity cues. Do not merely add small accessories, markings, or glow. Make it feel like a satisfying original monster-collecting RPG evolution, without copying any existing franchise creature or character. This is stage one, not an ultimate form.\nStyle/medium: polished and appealing game-character illustration, clearly related to the source art.\nComposition/framing: exactly three complete orthographic views of the same evolved subject on one wide horizontal sheet, left to right: straight front, exact right profile, exact back. No perspective or 3/4 angles. Same design, pose, scale, proportions, and baseline in all views.\nScene/backdrop: pure white, empty.\nConstraints: show every appendage clearly and keep full silhouette in frame. No text, labels, scenery, floor, shadows, border, extra characters, or watermark."
+    },
+    {
+      "file": "grass-will.png",
+      "name": "草石",
+      "evolutionDirection": "Transform the flat green leaf-and-vine emblem into a four-legged young leaf-stag spirit: a slender vine body, long spring legs, a leafy mane, branching antlers shaped from the original curling vines, and broad green leaves with the same clear white veins. Its tail and crown echo the source emblem. Make it a living plant creature, not a flat logo.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/grass-will.png",
+        "../三面図/grass-will.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for future 3D modeling\nInput images: Image 1 is the original standing art for 草石; Image 2 is its matching original three-view reference. Use both as lineage references.\nPrimary request: Invent a bold first evolution of 草石. Evolution direction: Transform the flat green leaf-and-vine emblem into a four-legged young leaf-stag spirit: a slender vine body, long spring legs, a leafy mane, branching antlers shaped from the original curling vines, and broad green leaves with the same clear white veins. Its tail and crown echo the source emblem. Make it a living plant creature, not a flat logo.\nThe new stage must be immediately recognizable as evolution: substantially alter silhouette, anatomy, size, proportions, and stance while retaining signature motifs and palette. Do not just add decorations, armor trim, or glow. Aim for a strong, satisfying original monster-collecting RPG stage change, without copying any existing franchise creature or character. This is stage one, not a final form.\nStyle/medium: polished colorful original game-art creature design, compatible with the source's rendering.\nComposition/framing: one wide horizontal turnaround sheet with exactly three full-body views of the same evolved creature, left to right: straight front, exact right profile, exact back. Strict orthographic projection, no perspective or 3/4 views. Same scale, anatomy, design, and neutral pose in each, aligned to one baseline. Separate limbs and appendages for clear modeling.\nScene/backdrop: pure white empty background.\nConstraints: full silhouette visible in all views. No text, labels, callouts, scenery, ground, cast shadow, frame, extra characters, or watermark."
+    },
+    {
+      "file": "HYPERACTIVE_WILL.png",
+      "name": "躍動石",
+      "evolutionDirection": "Evolve the single smiling white boot into a lively speed-sprite: the boot grows into a lanky upright runner with a large boot-shaped torso and face, two long spring legs with broad sneaker-like feet, small gloved arms, a swept-back black-and-white crest, and a dramatically extended heel fin. Keep the cheerful expression and monochrome line-art identity, but clearly change from one boot into a full creature.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/HYPERACTIVE_WILL.png",
+        "../三面図/HYPERACTIVE_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for future 3D modeling\nInput images: Image 1 is the original standing art for 躍動石; Image 2 is its matching original three-view reference. Use both as lineage references.\nPrimary request: Invent a bold first evolution of 躍動石. Evolution direction: Evolve the single smiling white boot into a lively speed-sprite: the boot grows into a lanky upright runner with a large boot-shaped torso and face, two long spring legs with broad sneaker-like feet, small gloved arms, a swept-back black-and-white crest, and a dramatically extended heel fin. Keep the cheerful expression and monochrome line-art identity, but clearly change from one boot into a full creature.\nThe new stage must be immediately recognizable as evolution: substantially alter silhouette, anatomy, size, proportions, and stance while retaining signature motifs and palette. Do not just add decorations, armor trim, or glow. Aim for a strong, satisfying original monster-collecting RPG stage change, without copying any existing franchise creature or character. This is stage one, not a final form.\nStyle/medium: polished colorful original game-art creature design, compatible with the source's rendering.\nComposition/framing: one wide horizontal turnaround sheet with exactly three full-body views of the same evolved creature, left to right: straight front, exact right profile, exact back. Strict orthographic projection, no perspective or 3/4 views. Same scale, anatomy, design, and neutral pose in each, aligned to one baseline. Separate limbs and appendages for clear modeling.\nScene/backdrop: pure white empty background.\nConstraints: full silhouette visible in all views. No text, labels, callouts, scenery, ground, cast shadow, frame, extra characters, or watermark."
+    },
+    {
+      "file": "METEOR_GOD.png",
+      "name": "因果抹消神石",
+      "evolutionDirection": "Transform the floating compact purple deity into a towering void-beast oracle: a broad angular obsidian body with four long articulated arms, crescent horns, a huge vertical violet eye embedded in the chest, a smaller floating skull-crown above it, and a split pointed cloak-tail. Preserve the purple-black cosmic palette and eye/skull motifs, but make it a new, larger creature-like stage.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/METEOR_GOD.png",
+        "../三面図/METEOR_GOD.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution monster turnaround sheet for future 3D modeling\nInput images: Image 1 is the original standing art for 因果抹消神石; Image 2 is its matching original three-view reference. Use both as lineage references.\nPrimary request: Invent a bold first evolution of 因果抹消神石. Evolution direction: Transform the floating compact purple deity into a towering void-beast oracle: a broad angular obsidian body with four long articulated arms, crescent horns, a huge vertical violet eye embedded in the chest, a smaller floating skull-crown above it, and a split pointed cloak-tail. Preserve the purple-black cosmic palette and eye/skull motifs, but make it a new, larger creature-like stage.\nThe new stage must be immediately recognizable as evolution: substantially alter silhouette, anatomy, size, proportions, and stance while retaining signature motifs and palette. Do not just add decorations, armor trim, or glow. Aim for a strong, satisfying original monster-collecting RPG stage change, without copying any existing franchise creature or character. This is stage one, not a final form.\nStyle/medium: polished colorful original game-art creature design, compatible with the source's rendering.\nComposition/framing: one wide horizontal turnaround sheet with exactly three full-body views of the same evolved creature, left to right: straight front, exact right profile, exact back. Strict orthographic projection, no perspective or 3/4 views. Same scale, anatomy, design, and neutral pose in each, aligned to one baseline. Separate limbs and appendages for clear modeling.\nScene/backdrop: pure white empty background.\nConstraints: full silhouette visible in all views. No text, labels, callouts, scenery, ground, cast shadow, frame, extra characters, or watermark."
+    },
+    {
+      "file": "perma_protect_next_stone.png",
+      "name": "強い石",
+      "evolutionDirection": "A lavender-gray calligraphy emblem becomes a compact living stone guardian. Its broad chest is a convex shield carrying the single exact kanji 強 from the reference; add a small helmet, stout arms and legs, and layered silver-lavender stone plates. The original character shape remains the dominant shield motif, while the full guardian silhouette is a clearly new stage.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/perma_protect_next_stone.png",
+        "../三面図/perma_protect_next_stone.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution three-view model reference\nInput images: Image 1 is the original default art for 強い石; Image 2 is its matching original turnaround. Keep the lineage recognizable through the central motif and palette.\nPrimary request: Create an imaginative, bold first evolution of 強い石. Design direction: A lavender-gray calligraphy emblem becomes a compact living stone guardian. Its broad chest is a convex shield carrying the single exact kanji 強 from the reference; add a small helmet, stout arms and legs, and layered silver-lavender stone plates. The original character shape remains the dominant shield motif, while the full guardian silhouette is a clearly new stage.\nMake a clear stage transition: noticeably change the subject's silhouette, scale, anatomy, or body proportions. A few signature traits should remain. Do not rely only on small ornaments or color effects. Keep the design original and distinct from existing franchise characters.\nStyle/medium: clean polished game illustration, readable shapes and materials.\nComposition/framing: one wide horizontal sheet with exactly three complete views of the same evolved design, left to right: straight front, exact right profile, exact back. Orthographic views, no perspective or 3/4 angles. Same proportions, pose, and scale in all three; align them to one baseline.\nScene/backdrop: pure white.\nConstraints: show all body parts in each view; no labels, extra text, scenery, floor, shadow, frame, extra subjects, or watermark. Preserve the referenced kanji 強 exactly if it appears."
+    },
+    {
+      "file": "PROLIFERATION_WILL.png",
+      "name": "増殖石",
+      "evolutionDirection": "Transform the round white bud mascot into a tall, upright colony creature about three times taller than it is wide. Give it a pear-shaped segmented body, a large friendly face near the top, two long flexible arms, four short legs, and a mane of rounded white growth-nodes connected by visible stalks. Keep its gray outlines, blush spots, shiny eyes, and cheerful smile, but eliminate the simple ball-shaped body so the evolved silhouette is unmistakably different. One creature only.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/PROLIFERATION_WILL.png",
+        "../三面図/PROLIFERATION_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution three-view creature reference for future 3D modeling\nInput images: Image 1 is the original default art for 増殖石; Image 2 is its matching original turnaround. Use these to retain the identity motif and material.\nPrimary request: Create a bold fantasy-creature evolution of 増殖石. Design: Transform the round white bud mascot into a tall, upright colony creature about three times taller than it is wide. Give it a pear-shaped segmented body, a large friendly face near the top, two long flexible arms, four short legs, and a mane of rounded white growth-nodes connected by visible stalks. Keep its gray outlines, blush spots, shiny eyes, and cheerful smile, but eliminate the simple ball-shaped body so the evolved silhouette is unmistakably different. One creature only.\nChange the body plan and silhouette enough that this is clearly a later growth stage, not the same source with added accessories. Preserve the central theme, material, and palette; invent the new anatomy freely. Original design only.\nStyle/medium: polished readable game illustration.\nComposition/framing: one wide horizontal sheet with exactly three complete views of the same evolved creature, left to right: straight front, exact side profile, exact back. Strict orthographic, no perspective or three-quarter view. Same scale, stance, anatomy, and design in all three, aligned to one baseline.\nScene/backdrop: pure white, empty.\nConstraints: show the complete silhouette in each view. No text, labels, scenery, floor, shadow, border, other characters, or watermark."
+    },
+    {
+      "file": "rainbow_stone.png",
+      "name": "虹の石",
+      "evolutionDirection": "The smooth rainbow reversi disk evolves into a sleek prismatic sky-dragon. Its body is a long arcing crystal-serpent with four small limbs, faceted rainbow scales, broad translucent crystal wings, and the original convex rainbow disk set as a brilliant chest core. Keep the full seven-color iridescence; change the object into a recognizable living creature.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/rainbow_stone.png",
+        "../三面図/rainbow_stone.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution three-view creature model sheet\nInput images: Image 1 is the original default art for 虹の石; Image 2 is its matching turnaround. Use their central motif and palette as the creature's lineage.\nPrimary request: Invent a bold, visually distinct first evolution of 虹の石. Design direction: The smooth rainbow reversi disk evolves into a sleek prismatic sky-dragon. Its body is a long arcing crystal-serpent with four small limbs, faceted rainbow scales, broad translucent crystal wings, and the original convex rainbow disk set as a brilliant chest core. Keep the full seven-color iridescence; change the object into a recognizable living creature.\nThe evolved design should clearly change silhouette, anatomy, and proportions from the original object or emblem. Retain the most recognizable motif, but do not merely extrude it or add a glow. Make it read as an original fantasy creature at its next growth stage; avoid copying recognizable existing characters or franchises.\nStyle/medium: clean polished game-creature illustration with readable forms and materials.\nComposition/framing: one wide horizontal orthographic sheet, exactly three complete views of the same evolved creature left to right: straight front, exact right profile, exact back. No perspective or 3/4 angle. Same design, scale, pose, and anatomy across views, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show all limbs and appendages; full silhouette in frame. No text, labels, scenery, ground, shadows, border, extra creatures, or watermark."
+    },
+    {
+      "file": "rakurai.png",
+      "name": "落雷石",
+      "evolutionDirection": "Transform the blue lightning emblem into a swift thunderbird creature with a sharp angular beak, two broad zigzag wings, a forked bolt-shaped tail, and layered blue-cyan feathers edged in white. The head crest and wing silhouette retain the original lightning zigzag. Keep the palette cool blue and make a clear change from a flat symbol into a flying animal.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/rakurai.png",
+        "../三面図/rakurai.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution three-view creature model sheet\nInput images: Image 1 is the original default art for 落雷石; Image 2 is its matching turnaround. Use their central motif and palette as the creature's lineage.\nPrimary request: Invent a bold, visually distinct first evolution of 落雷石. Design direction: Transform the blue lightning emblem into a swift thunderbird creature with a sharp angular beak, two broad zigzag wings, a forked bolt-shaped tail, and layered blue-cyan feathers edged in white. The head crest and wing silhouette retain the original lightning zigzag. Keep the palette cool blue and make a clear change from a flat symbol into a flying animal.\nThe evolved design should clearly change silhouette, anatomy, and proportions from the original object or emblem. Retain the most recognizable motif, but do not merely extrude it or add a glow. Make it read as an original fantasy creature at its next growth stage; avoid copying recognizable existing characters or franchises.\nStyle/medium: clean polished game-creature illustration with readable forms and materials.\nComposition/framing: one wide horizontal orthographic sheet, exactly three complete views of the same evolved creature left to right: straight front, exact right profile, exact back. No perspective or 3/4 angle. Same design, scale, pose, and anatomy across views, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show all limbs and appendages; full silhouette in frame. No text, labels, scenery, ground, shadows, border, extra creatures, or watermark."
+    },
+    {
+      "file": "regen_stone.png",
+      "name": "復活石",
+      "evolutionDirection": "Grow the simple hollow heart outline into a small winged renewal spirit: a large black-outlined heart forms its chest, a tapered seed-like head rises above it, leafy feather-wings spread from its sides, and two root-like legs support it. Preserve the empty white center of the heart and the original black line-art simplicity, but make a new living silhouette.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/regen_stone.png",
+        "../三面図/regen_stone.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution three-view creature model sheet\nInput images: Image 1 is the original default art for 復活石; Image 2 is its matching turnaround. Use their central motif and palette as the creature's lineage.\nPrimary request: Invent a bold, visually distinct first evolution of 復活石. Design direction: Grow the simple hollow heart outline into a small winged renewal spirit: a large black-outlined heart forms its chest, a tapered seed-like head rises above it, leafy feather-wings spread from its sides, and two root-like legs support it. Preserve the empty white center of the heart and the original black line-art simplicity, but make a new living silhouette.\nThe evolved design should clearly change silhouette, anatomy, and proportions from the original object or emblem. Retain the most recognizable motif, but do not merely extrude it or add a glow. Make it read as an original fantasy creature at its next growth stage; avoid copying recognizable existing characters or franchises.\nStyle/medium: clean polished game-creature illustration with readable forms and materials.\nComposition/framing: one wide horizontal orthographic sheet, exactly three complete views of the same evolved creature left to right: straight front, exact right profile, exact back. No perspective or 3/4 angle. Same design, scale, pose, and anatomy across views, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show all limbs and appendages; full silhouette in frame. No text, labels, scenery, ground, shadows, border, extra creatures, or watermark."
+    },
+    {
+      "file": "ROBOT_VACUUM_WILL.png",
+      "name": "ロボット掃除機石",
+      "evolutionDirection": "Transform the low round white robotic vacuum into a sleek four-legged vacuum hound robot. Its circular chassis becomes a forward-leaning armored body, the lidar turret becomes a raised sensor head with cyan eyes, four articulated mechanical legs lift it off the floor, and the side brushes become rotating wheel-claws. Preserve the black bumper, white shell and cyan sensor ring; it must look like a mature mobile robot, not a flat cleaner.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ROBOT_VACUUM_WILL.png",
+        "../三面図/ROBOT_VACUUM_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy-creature turnaround sheet for a future 3D model\nInput images: Image 1 is the original default art for ロボット掃除機石; Image 2 is its original three-view reference. Use them to preserve the lineage, signature motifs, and palette.\nPrimary request: Invent a bold first evolution of ロボット掃除機石. Design direction: Transform the low round white robotic vacuum into a sleek four-legged vacuum hound robot. Its circular chassis becomes a forward-leaning armored body, the lidar turret becomes a raised sensor head with cyan eyes, four articulated mechanical legs lift it off the floor, and the side brushes become rotating wheel-claws. Preserve the black bumper, white shell and cyan sensor ring; it must look like a mature mobile robot, not a flat cleaner.\nMake the stage change dramatic and obvious in silhouette, scale, body plan, and proportions. Preserve a few important original cues; do not merely add extra decoration or glow. Create an original fantasy creature/construct, not a copy of any existing franchise design.\nStyle/medium: polished readable game-character illustration consistent with the source.\nComposition/framing: one wide horizontal technical turnaround with exactly three complete views of the same evolved design, left to right: front, exact right-facing profile, back. Strict orthographic, no perspective or 3/4 angle. Same scale, pose, proportions, and appendage placement in all views, aligned to a baseline.\nScene/backdrop: pure white.\nConstraints: full silhouette visible in all three views; clear anatomy for modeling. No text, labels, scenery, ground, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "SACRIFICE_WILL.png",
+      "name": "犠牲石",
+      "evolutionDirection": "Grow the short olive-green goblin into a taller, broad-shouldered sacrifice guardian with long pointed ears, stronger limbs, a bone-plated shoulder mantle, layered brown leather armor, and an amber ritual mark on its forehead. Keep the original expressive goblin face, small fangs, patch of hair, and dagger; change its proportions and stance into a mature warrior while staying chibi and approachable.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/SACRIFICE_WILL.png",
+        "../三面図/SACRIFICE_WILL.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy-creature turnaround sheet for a future 3D model\nInput images: Image 1 is the original default art for 犠牲石; Image 2 is its original three-view reference. Use them to preserve the lineage, signature motifs, and palette.\nPrimary request: Invent a bold first evolution of 犠牲石. Design direction: Grow the short olive-green goblin into a taller, broad-shouldered sacrifice guardian with long pointed ears, stronger limbs, a bone-plated shoulder mantle, layered brown leather armor, and an amber ritual mark on its forehead. Keep the original expressive goblin face, small fangs, patch of hair, and dagger; change its proportions and stance into a mature warrior while staying chibi and approachable.\nMake the stage change dramatic and obvious in silhouette, scale, body plan, and proportions. Preserve a few important original cues; do not merely add extra decoration or glow. Create an original fantasy creature/construct, not a copy of any existing franchise design.\nStyle/medium: polished readable game-character illustration consistent with the source.\nComposition/framing: one wide horizontal technical turnaround with exactly three complete views of the same evolved design, left to right: front, exact right-facing profile, back. Strict orthographic, no perspective or 3/4 angle. Same scale, pose, proportions, and appendage placement in all views, aligned to a baseline.\nScene/backdrop: pure white.\nConstraints: full silhouette visible in all three views; clear anatomy for modeling. No text, labels, scenery, ground, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "SHINRA_BANSHO_GOD.png",
+      "name": "森羅万象神",
+      "evolutionDirection": "Transform the thin four-element emblem into a large four-headed elemental guardian dragon. Give it a strong ivory central body, four distinct heads formed from the source motifs—red flame, blue water, green leaf, and golden lightning—four matching wing or crest shapes, and a long branching tail. Keep the ornate ivory filigree and four-element color order recognizable, but create a dramatically new creature silhouette.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/SHINRA_BANSHO_GOD.png",
+        "../三面図/SHINRA_BANSHO_GOD.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy-creature turnaround sheet for a future 3D model\nInput images: Image 1 is the original default art for 森羅万象神; Image 2 is its original three-view reference. Use them to preserve the lineage, signature motifs, and palette.\nPrimary request: Invent a bold first evolution of 森羅万象神. Design direction: Transform the thin four-element emblem into a large four-headed elemental guardian dragon. Give it a strong ivory central body, four distinct heads formed from the source motifs—red flame, blue water, green leaf, and golden lightning—four matching wing or crest shapes, and a long branching tail. Keep the ornate ivory filigree and four-element color order recognizable, but create a dramatically new creature silhouette.\nMake the stage change dramatic and obvious in silhouette, scale, body plan, and proportions. Preserve a few important original cues; do not merely add extra decoration or glow. Create an original fantasy creature/construct, not a copy of any existing franchise design.\nStyle/medium: polished readable game-character illustration consistent with the source.\nComposition/framing: one wide horizontal technical turnaround with exactly three complete views of the same evolved design, left to right: front, exact right-facing profile, back. Strict orthographic, no perspective or 3/4 angle. Same scale, pose, proportions, and appendage placement in all views, aligned to a baseline.\nScene/backdrop: pure white.\nConstraints: full silhouette visible in all three views; clear anatomy for modeling. No text, labels, scenery, ground, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "silver.stone.png",
+      "name": "銀の石",
+      "evolutionDirection": "Transform the single convex silver disk into a broad-winged lunar manta spirit. The original disk becomes a bright circular core in its chest; a smooth silver body extends into two huge crescent fins, a small faceless crest, and a long tapering tail with polished metallic plates. Keep the cool silver material and rounded disk identity, but make it an elegant living flying creature rather than another humanoid golem.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/silver.stone.png",
+        "../三面図/silver.stone.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution character turnaround sheet for future 3D modeling\nInput images: Image 1 is the original standing art for 銀の石; Image 2 is its matching source turnaround. Preserve the character's lineage and signature equipment or motifs.\nPrimary request: Create a bold first evolution of 銀の石. Design direction: Transform the single convex silver disk into a broad-winged lunar manta spirit. The original disk becomes a bright circular core in its chest; a smooth silver body extends into two huge crescent fins, a small faceless crest, and a long tapering tail with polished metallic plates. Keep the cool silver material and rounded disk identity, but make it an elegant living flying creature rather than another humanoid golem.\nThe evolved form must differ clearly in silhouette, scale, proportions, or anatomy; it should look like a new stage, not the source with extra decoration. Retain a few defining identity cues and palette. Create an original design without copying an existing franchise character or creature.\nStyle/medium: polished high-quality game-character illustration matching the source's finish.\nComposition/framing: exactly three full-body orthographic views of the same evolved character on one wide horizontal sheet, left to right: straight front, exact right profile, exact back. No perspective, no 3/4 views. Same pose, design, scale, and proportions in each view, aligned on one baseline.\nScene/backdrop: pure white, empty.\nConstraints: complete silhouette and equipment visible in every view; clear side and back anatomy for modeling. No text, labels, callouts, scenery, ground, shadows, frame, other characters, or watermark."
+    },
+    {
+      "file": "sna.png",
+      "name": "狙撃石",
+      "evolutionDirection": "Evolve the crouching skull-masked sniper into a tall standing ghillie ranger with a much broader layered camouflage mantle that breaks into leaf-like shoulder fins, a longer armored coat, reinforced limbs, and an elongated precision rifle with a clear scope. Preserve the skull mask, tan-olive camouflage, tactical pouches, and sniper role; change the crouched compact silhouette into a mature upright hunter.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/sna.png",
+        "../三面図/sna.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution character turnaround sheet for future 3D modeling\nInput images: Image 1 is the original standing art for 狙撃石; Image 2 is its matching source turnaround. Preserve the character's lineage and signature equipment or motifs.\nPrimary request: Create a bold first evolution of 狙撃石. Design direction: Evolve the crouching skull-masked sniper into a tall standing ghillie ranger with a much broader layered camouflage mantle that breaks into leaf-like shoulder fins, a longer armored coat, reinforced limbs, and an elongated precision rifle with a clear scope. Preserve the skull mask, tan-olive camouflage, tactical pouches, and sniper role; change the crouched compact silhouette into a mature upright hunter.\nThe evolved form must differ clearly in silhouette, scale, proportions, or anatomy; it should look like a new stage, not the source with extra decoration. Retain a few defining identity cues and palette. Create an original design without copying an existing franchise character or creature.\nStyle/medium: polished high-quality game-character illustration matching the source's finish.\nComposition/framing: exactly three full-body orthographic views of the same evolved character on one wide horizontal sheet, left to right: straight front, exact right profile, exact back. No perspective, no 3/4 views. Same pose, design, scale, and proportions in each view, aligned on one baseline.\nScene/backdrop: pure white, empty.\nConstraints: complete silhouette and equipment visible in every view; clear side and back anatomy for modeling. No text, labels, callouts, scenery, ground, shadows, frame, other characters, or watermark."
+    },
+    {
+      "file": "STONE_SALVATION_GOD.png",
+      "name": "救済神",
+      "evolutionDirection": "Transform the white-red robed winged deity into a taller avian guardian champion: broaden the shoulders, add a pair of long layered feather-wings extending below the knees, a crown-like rose-pink halo, larger red armor plates, and brighter green chest gems. Keep the smooth dark metal face mask and white-red robe palette; make it a stronger, more imposing stage without losing its benevolent identity.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/STONE_SALVATION_GOD.png",
+        "../三面図/STONE_SALVATION_GOD.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution character turnaround sheet for future 3D modeling\nInput images: Image 1 is the original standing art for 救済神; Image 2 is its matching source turnaround. Preserve the character's lineage and signature equipment or motifs.\nPrimary request: Create a bold first evolution of 救済神. Design direction: Transform the white-red robed winged deity into a taller avian guardian champion: broaden the shoulders, add a pair of long layered feather-wings extending below the knees, a crown-like rose-pink halo, larger red armor plates, and brighter green chest gems. Keep the smooth dark metal face mask and white-red robe palette; make it a stronger, more imposing stage without losing its benevolent identity.\nThe evolved form must differ clearly in silhouette, scale, proportions, or anatomy; it should look like a new stage, not the source with extra decoration. Retain a few defining identity cues and palette. Create an original design without copying an existing franchise character or creature.\nStyle/medium: polished high-quality game-character illustration matching the source's finish.\nComposition/framing: exactly three full-body orthographic views of the same evolved character on one wide horizontal sheet, left to right: straight front, exact right profile, exact back. No perspective, no 3/4 views. Same pose, design, scale, and proportions in each view, aligned on one baseline.\nScene/backdrop: pure white, empty.\nConstraints: complete silhouette and equipment visible in every view; clear side and back anatomy for modeling. No text, labels, callouts, scenery, ground, shadows, frame, other characters, or watermark."
+    },
+    {
+      "file": "TIME_BOMB.png",
+      "name": "時限爆弾",
+      "evolutionDirection": "Transform the orange warning triangle into a small three-legged bomb sentinel. The triangular sign becomes its broad armored chest and head, with the exact orange exclamation mark as a clear raised emblem; add three articulated legs, two small gripping arms, a short glowing fuse crest, and a dark iron underside. Keep the orange-white warning-sign palette, but change from a flat sign into a compact walking construct.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/TIME_BOMB.png",
+        "../三面図/TIME_BOMB.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution mechanical creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original art for 時限爆弾; Image 2 is its source turnaround. Preserve the recognizable motif, material, and palette while evolving its form.\nPrimary request: Invent a bold first evolution of 時限爆弾. Design direction: Transform the orange warning triangle into a small three-legged bomb sentinel. The triangular sign becomes its broad armored chest and head, with the exact orange exclamation mark as a clear raised emblem; add three articulated legs, two small gripping arms, a short glowing fuse crest, and a dark iron underside. Keep the orange-white warning-sign palette, but change from a flat sign into a compact walking construct.\nMake the evolution obvious: substantially change silhouette, body plan, proportions, and scale. Do not stop at adding decorative parts to the old object. Keep defining source details visible and create an original design.\nStyle/medium: polished game-art concept with crisp readable mechanical forms.\nComposition/framing: one wide horizontal sheet with exactly three complete orthographic views of the same evolved design, left to right: straight front, exact side profile, exact back. No perspective or 3/4 angle. Same design, scale, anatomy, and neutral standing pose in every view, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show all legs, gears, and appendages; full silhouette in frame. No text other than the exact source exclamation mark if required by the design, no labels, scenery, floor, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "TIME_STOP_DEITY.png",
+      "name": "時間停神",
+      "evolutionDirection": "Evolve the slender clockwork deity into a towering four-armed chronos guardian. Give it longer black-and-white layered robes, four articulated gold mechanical arms, a large rotating double-dial halo behind the shoulders, a pendulum-like lower robe ornament, and a more substantial chest clock. Preserve the faceless split black-white head, antique gold trim, and clock motif; change the silhouette and anatomy clearly.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/TIME_STOP_DEITY.png",
+        "../三面図/TIME_STOP_DEITY.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution mechanical creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original art for 時間停神; Image 2 is its source turnaround. Preserve the recognizable motif, material, and palette while evolving its form.\nPrimary request: Invent a bold first evolution of 時間停神. Design direction: Evolve the slender clockwork deity into a towering four-armed chronos guardian. Give it longer black-and-white layered robes, four articulated gold mechanical arms, a large rotating double-dial halo behind the shoulders, a pendulum-like lower robe ornament, and a more substantial chest clock. Preserve the faceless split black-white head, antique gold trim, and clock motif; change the silhouette and anatomy clearly.\nMake the evolution obvious: substantially change silhouette, body plan, proportions, and scale. Do not stop at adding decorative parts to the old object. Keep defining source details visible and create an original design.\nStyle/medium: polished game-art concept with crisp readable mechanical forms.\nComposition/framing: one wide horizontal sheet with exactly three complete orthographic views of the same evolved design, left to right: straight front, exact side profile, exact back. No perspective or 3/4 angle. Same design, scale, anatomy, and neutral standing pose in every view, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show all legs, gears, and appendages; full silhouette in frame. No text other than the exact source exclamation mark if required by the design, no labels, scenery, floor, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "TIME_STOP.png",
+      "name": "時間停石",
+      "evolutionDirection": "Turn the antique bronze clock into a walking clockwork beetle automaton. Its large ivory Roman-numeral dial becomes a domed shell, with six articulated bronze legs, two gear-tipped feelers, a visible orange mechanism under the shell, and layered toothed gear plates along its back. Preserve the exact clock face, bronze material, and warm orange core; make it an active mechanical creature rather than a standalone clock.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/TIME_STOP.png",
+        "../三面図/TIME_STOP.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution mechanical creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original art for 時間停石; Image 2 is its source turnaround. Preserve the recognizable motif, material, and palette while evolving its form.\nPrimary request: Invent a bold first evolution of 時間停石. Design direction: Turn the antique bronze clock into a walking clockwork beetle automaton. Its large ivory Roman-numeral dial becomes a domed shell, with six articulated bronze legs, two gear-tipped feelers, a visible orange mechanism under the shell, and layered toothed gear plates along its back. Preserve the exact clock face, bronze material, and warm orange core; make it an active mechanical creature rather than a standalone clock.\nMake the evolution obvious: substantially change silhouette, body plan, proportions, and scale. Do not stop at adding decorative parts to the old object. Keep defining source details visible and create an original design.\nStyle/medium: polished game-art concept with crisp readable mechanical forms.\nComposition/framing: one wide horizontal sheet with exactly three complete orthographic views of the same evolved design, left to right: straight front, exact side profile, exact back. No perspective or 3/4 angle. Same design, scale, anatomy, and neutral standing pose in every view, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show all legs, gears, and appendages; full silhouette in frame. No text other than the exact source exclamation mark if required by the design, no labels, scenery, floor, shadows, frame, extra subjects, or watermark."
+    },
+    {
+      "file": "trap_stone.png",
+      "name": "罠石",
+      "evolutionDirection": "The open rusty bear trap evolves into a low iron trap-spider. Its serrated jaws become a huge snapping mandible at the front, the round pressure plate becomes a plated body, six jointed iron legs carry it, and its original short chain becomes a segmented trailing tail. Preserve the rusty metal and exact bear-trap mechanics, but change from a flat ground trap into a mobile mechanical beast. No victim or gore.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/trap_stone.png",
+        "../三面図/trap_stone.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy creature turnaround for future 3D modeling\nInput images: Image 1 is the original art for 罠石; Image 2 is its original three-view reference. Keep its signature motif and palette as the lineage.\nPrimary request: Create a bold and clearly evolved first stage of 罠石. Design direction: The open rusty bear trap evolves into a low iron trap-spider. Its serrated jaws become a huge snapping mandible at the front, the round pressure plate becomes a plated body, six jointed iron legs carry it, and its original short chain becomes a segmented trailing tail. Preserve the rusty metal and exact bear-trap mechanics, but change from a flat ground trap into a mobile mechanical beast. No victim or gore.\nThe new form must have a strongly changed silhouette, anatomy, and proportions compared with the source. Preserve defining motifs so it is still recognizable, but do not settle for extra trim or small additions. Keep the design original.\nStyle/medium: polished game concept art matching the reference's readability.\nComposition/framing: a single wide horizontal sheet with exactly three full-body views of the same evolved subject, left to right: front, exact right side, back. Strict orthographic projection, no perspective or 3/4 angle. Same pose, proportions, scale, and design across all three, aligned to the same baseline.\nScene/backdrop: clean pure white.\nConstraints: full silhouette and appendages visible. No text, labels, scenery, floor, shadows, border, extra subjects, or watermark."
+    },
+    {
+      "file": "ULTIMATE_DESTROY_GOD.png",
+      "name": "究極破壊神",
+      "evolutionDirection": "Transform the simple hooded monochrome deity into a towering disk-wreathed execution spirit. Give it a much broader layered robe with long split sleeves, elongated floating arms, a large black faceless hood, and a wide orbit-cage halo of many white-and-black reversi disks around its whole upper body. Keep the original black-and-white line-art style and faceless identity, but make the silhouette monumental and different.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ULTIMATE_DESTROY_GOD.png",
+        "../三面図/ULTIMATE_DESTROY_GOD.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy creature turnaround for future 3D modeling\nInput images: Image 1 is the original art for 究極破壊神; Image 2 is its original three-view reference. Keep its signature motif and palette as the lineage.\nPrimary request: Create a bold and clearly evolved first stage of 究極破壊神. Design direction: Transform the simple hooded monochrome deity into a towering disk-wreathed execution spirit. Give it a much broader layered robe with long split sleeves, elongated floating arms, a large black faceless hood, and a wide orbit-cage halo of many white-and-black reversi disks around its whole upper body. Keep the original black-and-white line-art style and faceless identity, but make the silhouette monumental and different.\nThe new form must have a strongly changed silhouette, anatomy, and proportions compared with the source. Preserve defining motifs so it is still recognizable, but do not settle for extra trim or small additions. Keep the design original.\nStyle/medium: polished game concept art matching the reference's readability.\nComposition/framing: a single wide horizontal sheet with exactly three full-body views of the same evolved subject, left to right: front, exact right side, back. Strict orthographic projection, no perspective or 3/4 angle. Same pose, proportions, scale, and design across all three, aligned to the same baseline.\nScene/backdrop: clean pure white.\nConstraints: full silhouette and appendages visible. No text, labels, scenery, floor, shadows, border, extra subjects, or watermark."
+    },
+    {
+      "file": "ULTIMATE_HYPERACTIVE_GOD.png",
+      "name": "究極躍動神",
+      "evolutionDirection": "Evolve the single black-violet armored boot into a boot-warlord beast: the boot shaft becomes a massive armored torso and head with cyan eyes, the toothed sole becomes a broad chest-jaw, two powerful clawed legs and two short plated arms emerge, and a blue-white flame mane streams from the cuff. Preserve violet-black armor, cyan cracks, eye motif, and boot-shaped core; change the single boot into a new creature body plan.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ULTIMATE_HYPERACTIVE_GOD.png",
+        "../三面図/ULTIMATE_HYPERACTIVE_GOD.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy creature turnaround for future 3D modeling\nInput images: Image 1 is the original art for 究極躍動神; Image 2 is its original three-view reference. Keep its signature motif and palette as the lineage.\nPrimary request: Create a bold and clearly evolved first stage of 究極躍動神. Design direction: Evolve the single black-violet armored boot into a boot-warlord beast: the boot shaft becomes a massive armored torso and head with cyan eyes, the toothed sole becomes a broad chest-jaw, two powerful clawed legs and two short plated arms emerge, and a blue-white flame mane streams from the cuff. Preserve violet-black armor, cyan cracks, eye motif, and boot-shaped core; change the single boot into a new creature body plan.\nThe new form must have a strongly changed silhouette, anatomy, and proportions compared with the source. Preserve defining motifs so it is still recognizable, but do not settle for extra trim or small additions. Keep the design original.\nStyle/medium: polished game concept art matching the reference's readability.\nComposition/framing: a single wide horizontal sheet with exactly three full-body views of the same evolved subject, left to right: front, exact right side, back. Strict orthographic projection, no perspective or 3/4 angle. Same pose, proportions, scale, and design across all three, aligned to the same baseline.\nScene/backdrop: clean pure white.\nConstraints: full silhouette and appendages visible. No text, labels, scenery, floor, shadows, border, extra subjects, or watermark."
+    },
+    {
+      "file": "ultimate_reverse_dragon.png",
+      "name": "究極反転龍",
+      "evolutionDirection": "Transform the elegant flat black dragon silhouette into a larger two-headed sky-serpent with a long coiling body, two distinct horned heads, four broad crescent wings, and a spiraling tail. Preserve the original pure-black silhouette, white negative-space details, and serpentine dragon identity; the new twin-neck body plan should be dramatically different.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ultimate_reverse_dragon.png",
+        "../三面図/ultimate_reverse_dragon.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy-creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original art for 究極反転龍; Image 2 is its matching turnaround. Retain the source's identity cues and art language.\nPrimary request: Invent a bold first evolution of 究極反転龍. Design direction: Transform the elegant flat black dragon silhouette into a larger two-headed sky-serpent with a long coiling body, two distinct horned heads, four broad crescent wings, and a spiraling tail. Preserve the original pure-black silhouette, white negative-space details, and serpentine dragon identity; the new twin-neck body plan should be dramatically different.\nThe evolved design should be unmistakably a new growth stage through major silhouette, anatomy, and proportion changes. Keep the defining motif, palette, and role. Do not make a minor ornament-only upgrade. Original design, no copying of existing franchise characters.\nStyle/medium: polished, clear game-art concept with readable forms.\nComposition/framing: one wide horizontal model sheet with exactly three complete views of the same evolved subject, arranged left to right: straight front, exact right side, exact back. Strict orthographic projection, no perspective or 3/4 views. Same design, stance, scale, and proportions across views, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show the whole silhouette and all appendages in every view; precise side and back forms. Any kanji mentioned must match the reference exactly. No text, labels, scenery, floor, shadows, frame, other subjects, or watermark."
+    },
+    {
+      "file": "ULTIMATE_WORK_GOD.png",
+      "name": "究極労働神",
+      "evolutionDirection": "Evolve the simple stick-figure miner deity into a compact powerful black-silhouette mining golem: a broad-shouldered humanoid body with angular limbs, a large round white head displaying the exact black kanji 神, a blue-white pickaxe grown to nearly its full height, and a compact ore-like chest plate. Keep the minimal monochrome graphic style and original 神 head/pickaxe identity, but change from stick figure into a sturdy worker guardian.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ULTIMATE_WORK_GOD.png",
+        "../三面図/ULTIMATE_WORK_GOD.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy-creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original art for 究極労働神; Image 2 is its matching turnaround. Retain the source's identity cues and art language.\nPrimary request: Invent a bold first evolution of 究極労働神. Design direction: Evolve the simple stick-figure miner deity into a compact powerful black-silhouette mining golem: a broad-shouldered humanoid body with angular limbs, a large round white head displaying the exact black kanji 神, a blue-white pickaxe grown to nearly its full height, and a compact ore-like chest plate. Keep the minimal monochrome graphic style and original 神 head/pickaxe identity, but change from stick figure into a sturdy worker guardian.\nThe evolved design should be unmistakably a new growth stage through major silhouette, anatomy, and proportion changes. Keep the defining motif, palette, and role. Do not make a minor ornament-only upgrade. Original design, no copying of existing franchise characters.\nStyle/medium: polished, clear game-art concept with readable forms.\nComposition/framing: one wide horizontal model sheet with exactly three complete views of the same evolved subject, arranged left to right: straight front, exact right side, exact back. Strict orthographic projection, no perspective or 3/4 views. Same design, stance, scale, and proportions across views, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show the whole silhouette and all appendages in every view; precise side and back forms. Any kanji mentioned must match the reference exactly. No text, labels, scenery, floor, shadows, frame, other subjects, or watermark."
+    },
+    {
+      "file": "water-will.png",
+      "name": "水石",
+      "evolutionDirection": "Turn the flat blue wave emblem into a flowing water-dragon: a long serpentine body made from curling blue waves, a crested dragon head, two small finned forelimbs, broad foam-edged fins, and a ribbon tail that echoes the source's wave curls. Keep the cyan-blue palette, white foam, and droplets, but make a clear living creature silhouette.",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/water-will.png",
+        "../三面図/water-will.png"
+      ],
+      "prompt": "Use case: stylized-concept\nAsset type: first-evolution fantasy-creature turnaround sheet for future 3D modeling\nInput images: Image 1 is the original art for 水石; Image 2 is its matching turnaround. Retain the source's identity cues and art language.\nPrimary request: Invent a bold first evolution of 水石. Design direction: Turn the flat blue wave emblem into a flowing water-dragon: a long serpentine body made from curling blue waves, a crested dragon head, two small finned forelimbs, broad foam-edged fins, and a ribbon tail that echoes the source's wave curls. Keep the cyan-blue palette, white foam, and droplets, but make a clear living creature silhouette.\nThe evolved design should be unmistakably a new growth stage through major silhouette, anatomy, and proportion changes. Keep the defining motif, palette, and role. Do not make a minor ornament-only upgrade. Original design, no copying of existing franchise characters.\nStyle/medium: polished, clear game-art concept with readable forms.\nComposition/framing: one wide horizontal model sheet with exactly three complete views of the same evolved subject, arranged left to right: straight front, exact right side, exact back. Strict orthographic projection, no perspective or 3/4 views. Same design, stance, scale, and proportions across views, aligned to one baseline.\nScene/backdrop: pure white.\nConstraints: show the whole silhouette and all appendages in every view; precise side and back forms. Any kanji mentioned must match the reference exactly. No text, labels, scenery, floor, shadows, frame, other subjects, or watermark."
+    },
+    {
+      "file": "protected_next_stone.png",
+      "name": "守護石",
+      "evolutionDirection": "平たい銀灰色の円盤を、円盤模様の甲羅を持つ四足の石の守護獣へ変える。顔・脚・甲羅で生物としての輪郭を作り、淡い青の鉱脈を残す。",
+      "referenceImagesUsed": false,
+      "referenceFiles": [
+        "../デフォルト立ち絵/protected_next_stone.png",
+        "../三面図/protected_next_stone.png"
+      ],
+      "prompt": "Design an original first-evolution creature concept inspired by a plain round silver-gray stone token. Transform the flat circular token into a squat four-legged stone shell guardian with a domed circular back, a small expressive head, sturdy feet, and subtle pale-blue mineral seams. The disk motif should become the creature's shell; make the silhouette clearly more alive and substantial than a flat coin. Create a single clean wide horizontal 3D character turnaround sheet with exactly three full-body views from left to right: straight front, exact right profile, exact back. Orthographic technical concept, matching scale and anatomy, neutral pose, pure white background, no text, labels, extra objects, extra figures, perspective, or cropping."
+    },
+    {
+      "file": "WILL_HUNTER_KING-black.png",
+      "name": "黒の意志狩王",
+      "evolutionDirection": "小柄な黒い狩人を、長い四肢と大きな羽衣状の翼を持つ烏型の死神獣へ成長させる。黒・赤・シアンの配色を残し、輪郭を大きく変える。",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/WILL_HUNTER_KING-black.png",
+        "../三面図/WILL_HUNTER_KING-black.png"
+      ],
+      "prompt": "Create an original creature-RPG first-evolution concept based on the two references. Transform the small black hunter king into a tall, imposing raven-reaper beast: much longer limbs, a sweeping feather mantle that becomes broad black wings, a sharp beaked mask with vivid red eyes, and an elegant cyan-edged scythe integrated into one arm. The silhouette should be dramatically larger and more avian than the source, while retaining its black, crimson, and cyan palette and hunter identity. This must feel like a true evolutionary transformation, not extra decoration. Make one clean wide horizontal character-model turnaround sheet with EXACTLY THREE full-body views left to right: straight front, exact right-side profile, exact back. Orthographic, matching scale and anatomy across all views, neutral stance, pure white background, no text, no labels, no extra figures, no perspective, no cropped limbs. Clear readable forms suitable as a 3D modeling concept."
+    },
+    {
+      "file": "WILL_HUNTER_KING-white.png",
+      "name": "白の意志狩王",
+      "evolutionDirection": "小柄な白い狩人を、氷羽の外套を広げた大型の霜烏の守護者へ変える。白・銀・シアンの系統と黒版との対を保つ。",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/WILL_HUNTER_KING-white.png",
+        "../三面図/WILL_HUNTER_KING-white.png"
+      ],
+      "prompt": "Create an original creature-RPG first-evolution concept based on the two references. Transform the small pale hunter king into a towering frost raven guardian: a much larger upright body, broad layered feather mantle shaped like icy wings, a long pale beaked mask with bright ice-blue eyes, silver-blue scythe-arm, and feathered talons. Dramatically change the silhouette and anatomy from the source, while retaining the white, silver, and cool cyan identity; it should visually pair with a dark hunter evolution but remain clearly distinct. True evolution, not small accessories. One clean wide horizontal character-model turnaround sheet with EXACTLY THREE full-body views left to right: straight front, exact right-side profile, exact back. Orthographic, matching scale and anatomy, neutral stance, pure white background, no text, labels, extra figures, perspective, or cropped parts. Readable 3D modeling concept."
+    },
+    {
+      "file": "work_stone.png",
+      "name": "仕事石",
+      "evolutionDirection": "銀色のつるはし記号を、鉱石を背負う四足の採掘ゴーレムへ変える。つるはしの形を頭部の大きな結晶冠と採掘用の腕に組み込む。",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/work_stone.png",
+        "../三面図/work_stone.png"
+      ],
+      "prompt": "Create an original creature-RPG first-evolution concept based on the two references. Evolve the simple silver pickaxe emblem into a sturdy quadruped mining golem: the old pickaxe becomes a massive angular crystalline helmet crest, its two arms are asymmetrical stone-and-metal mining tools, and its broad torso is layered like a compact ore cart with cyan mineral seams; add short powerful legs and a heavy counterweight tail. Make a striking new creature silhouette while keeping the source's silver pickaxe identity and cool metallic palette. Do not merely ornament a floating pickaxe. One clean wide horizontal model turnaround sheet with EXACTLY THREE full-body views left to right: straight front, exact right profile, exact back. Orthographic, identical scale and design across views, neutral stance, white background, no text, labels, shadows, extra objects or figures, no perspective or cropping. Suitable for 3D modeling."
+    },
+    {
+      "file": "X_BOMB.png",
+      "name": "X爆弾",
+      "evolutionDirection": "平面のオレンジ色の十字印を、四方に張り出す腕と脚を持つ自立型の爆弾精霊へ変える。発火場面ではなく胸の核を中心としたキャラクターにする。",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/X_BOMB.png",
+        "../三面図/X_BOMB.png"
+      ],
+      "prompt": "Create an original first-evolution creature concept from the two reference images. The simple orange plus-sign bomb emblem evolves into a lively four-directional blast guardian: a compact bright-orange body with four oversized arm-like radial extensions forming a clear upright plus silhouette, a distinct head and expressive eyes, sturdy little legs, and a glowing round core set in the chest; small fuse-like crest echoes the bomb source. Dramatically turn a flat symbol into a complete creature with readable anatomy, retaining the orange and yellow palette. This is a harmless fantasy character, no explosion scene. One clean wide horizontal character turnaround sheet with exactly three full-body views left to right: straight front, exact right-side profile, exact back. Orthographic, same design and scale across views, neutral stance, plain white background, no text, labels, extra characters, props, perspective, or cropping. Useful as a 3D modeling concept."
+    },
+    {
+      "file": "ZAN.png",
+      "name": "斬",
+      "evolutionDirection": "淡い青灰色の残像記号を、黒い菱形面と長い冠羽、肩や腰から伸びる複数の残像ひれを持つ細身の高速精霊へ変える。",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ZAN.png",
+        "../三面図/ZAN.png"
+      ],
+      "prompt": "Create an original first-evolution creature concept from the two references. Transform the small pale blue-gray abstract afterimage mark into a nimble layered echo-spirit: a central dark diamond-like mask with two luminous eyes, long swept-back head crest, a compact athletic body, elongated arms and legs, and several broad translucent ribbon-fins trailing from shoulders and hips to suggest multiple afterimages. Make the whole creature's silhouette dramatically more complex and dynamic than the flat source emblem, while preserving its cool gray, ice-blue, and charcoal palette and sharp angular identity. The ribbons are anatomical appendages attached to the body, not separate ghost duplicates. One clean wide horizontal character turnaround sheet with exactly three full-body views left to right: straight front, exact right profile, exact back. Orthographic, identical anatomy and scale, calm neutral model pose, white background, no text, labels, duplicate figures, speed lines, perspective, or cropping. 3D concept turnaround."
+    },
+    {
+      "file": "ZOMBIE.png",
+      "name": "ゾンビ",
+      "evolutionDirection": "小さなつぎはぎゾンビを、長い上着と太い手足を持つ大型の歩くぬいぐるみ風の守り手へ成長させる。白黒の縫い合わせ顔と縫い目を残す。",
+      "referenceImagesUsed": true,
+      "referenceFiles": [
+        "../デフォルト立ち絵/ZOMBIE.png",
+        "../三面図/ZOMBIE.png"
+      ],
+      "prompt": "Create an original creature-RPG first-evolution concept from the two references. Evolve the little patchwork zombie into a much larger and broader shambling garden guardian: taller torso, long heavy arms with oversized stitched mitt-like hands, thick uneven legs, a torn long coat grown from layered cloth and patchwork skin, prominent stitches and mismatched patches, and a small pale glowing eye in the familiar black-and-white stitched face. Keep the same recognizable mascot face, muted brown, charcoal and ivory palette, and playful spooky tone, but change the silhouette and proportions substantially so it reads as the next species stage rather than the same small zombie. One clean wide horizontal 3D character turnaround sheet with exactly three full-body views left to right: straight front, exact right profile, exact back. Orthographic, matching scale and anatomy, neutral standing pose, plain white background, no text, labels, props, extra characters, perspective, or cropped limbs."
+    }
+  ]
+}
