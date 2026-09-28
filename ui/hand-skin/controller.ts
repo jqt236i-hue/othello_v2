@@ -289,7 +289,7 @@ function createPlaceAnimationStyleSelect(docRef: Document, rootRef: any): HTMLLa
   });
   const readStyle = HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.readPlaceAnimationStyle === 'function'
     ? HandAnimationPreferencesModule.readPlaceAnimationStyle
-    : () => 'hand';
+    : () => 'throw';
   select.value = readStyle(rootRef);
   select.addEventListener('change', function () {
     if (HandAnimationPreferencesModule && typeof HandAnimationPreferencesModule.writePlaceAnimationStyle === 'function') {

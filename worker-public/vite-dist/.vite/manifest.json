@@ -202,7 +202,7 @@
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
-    "file": "assets/optional-cosmetic-DROcErS9.mjs",
+    "file": "assets/optional-cosmetic-CUtRFjbM.mjs",
     "src": "browser-vite/generated-assets/optional-cosmetic.mjs"
   },
   "browser-vite/generated-assets/optional-cpu.mjs": {
@@ -235,7 +235,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-D2tD6rjR.js",
+    "file": "assets/index.vite-C928RAh_.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -252,7 +252,7 @@
     ],
     "assets": [
       "assets/optional-gacha-D54pooCd.mjs",
-      "assets/optional-cosmetic-DROcErS9.mjs",
+      "assets/optional-cosmetic-CUtRFjbM.mjs",
       "assets/optional-leaderboard-CGmOMtI6.mjs",
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",

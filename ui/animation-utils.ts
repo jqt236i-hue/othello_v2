@@ -1726,7 +1726,7 @@ function _readPlaceAnimationStyle() {
     if (__hand_animation_preferences_utils && typeof __hand_animation_preferences_utils.readPlaceAnimationStyle === 'function') {
         return __hand_animation_preferences_utils.readPlaceAnimationStyle(rootRef);
     }
-    return 'hand';
+    return 'throw';
 }
 
 function _getVisualEffectsMapForThrownStone() {

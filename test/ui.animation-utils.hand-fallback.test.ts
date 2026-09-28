@@ -138,6 +138,8 @@ describe('animation-utils hand fallback', () => {
     `, { url: 'https://example.test/' });
     global.window = dom.window;
     global.document = dom.window.document;
+    // Hand-motion tests pin the hand style; the thrown-stone tests below opt into throw.
+    window.localStorage.setItem('othello.handAnimation.placeStyle', 'hand');
 
     global.BLACK = 1;
     global.WHITE = -1;
@@ -2176,6 +2178,14 @@ describe('animation-utils hand fallback', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       return appended.find((el) => el.classList && el.classList.contains('thrown-stone'));
     }
+
+    test('throws by default when no placement style is stored', async () => {
+      window.localStorage.removeItem('othello.handAnimation.placeStyle');
+      const mod = require('../ui/animation-utils.js');
+      await new Promise((resolve) => mod.playHandAnimation(global.BLACK, 0, 0, resolve));
+      expect(document.getElementById('handWrapper').style.opacity).not.toBe('1');
+      expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
+    });
 
     test('throws a normal stone without moving the hand and lands with one place sound', async () => {
       const stone = await runThrow();

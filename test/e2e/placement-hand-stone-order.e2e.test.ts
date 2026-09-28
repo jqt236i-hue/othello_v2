@@ -97,6 +97,7 @@ function changedPixelRatio(
 async function openAnimatedPixiBoard(page: Page, serverPort: number): Promise<void> {
   await page.addInitScript(() => {
     localStorage.setItem('othello.handAnimation.place', 'on');
+    localStorage.setItem('othello.handAnimation.placeStyle', 'hand');
   });
   await page.goto(
     `http://127.0.0.1:${serverPort}/?debug=1&boardRenderer=pixi`,

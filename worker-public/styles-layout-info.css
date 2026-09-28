@@ -1824,6 +1824,32 @@
     opacity: 0.42;
 }
 
+.hand-animation-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+    margin: 0 0 8px;
+    font-size: 12px;
+}
+
+.hand-animation-toggle,
+.hand-animation-style {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hand-animation-style select {
+    min-height: 24px;
+    padding: 2px 6px;
+    border: 1px solid rgba(242, 201, 95, 0.45);
+    border-radius: 4px;
+    background: rgba(12, 30, 32, 0.9);
+    color: #f3e6c4;
+    font: inherit;
+}
+
 .hand-skin-option,
 .background-skin-option,
 .board-skin-option,
