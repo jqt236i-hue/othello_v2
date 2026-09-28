@@ -182,11 +182,12 @@ describe('hand card swipe gesture leaves the demo video button alone', () => {
     const dom = installDom(`<!doctype html><html><body><div id="hand-black"><div class="card-item visible clickable" data-card-id="c1" data-owner-key="black" data-hand-index="0"><button class="card-demo-video-btn"><span class="card-demo-video-icon"></span></button><span class="card-name">C1</span></div></div></body></html>`);
     jest.resetModules();
     const { createHandCardSwipeGestureAdapter } = require('../cards/hand-card-swipe-gesture');
+    jest.useFakeTimers();
     const createHandCardSwipeGesture = jest.fn(() => ({}));
     const adapter = createHandCardSwipeGestureAdapter({
       getDocumentRef: () => dom.window.document,
       getWindowRef: () => dom.window,
-      actionModule: { createHandCardSwipeGesture },
+      actionModule: { createHandCardSwipeGesture, updateHandCardSwipeGesture: jest.fn(() => ({ cancelled: true })) },
       isAutoModeActive: () => false,
       normalizeOwnerKey: (k: any) => k
     });
@@ -201,6 +202,9 @@ describe('hand card swipe gesture leaves the demo video button alone', () => {
     // the card body itself still starts a swipe gesture
     dom.window.document.querySelector('.card-name').dispatchEvent(new PointerCtor('pointerdown', { bubbles: true, button: 0, clientX: 10, clientY: 10 }));
     expect(createHandCardSwipeGesture).toHaveBeenCalledTimes(1);
+    // Settle the pending long-press timer before the DOM is torn down.
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
     dom.window.close();
   });
 });

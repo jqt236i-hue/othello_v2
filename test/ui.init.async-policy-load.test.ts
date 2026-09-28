@@ -109,8 +109,8 @@ describe('initializeUI async policy loading', () => {
     expect(global.resetGame).toHaveBeenCalledTimes(1);
     expect(opening.charge).toEqual({black:99,white:99});
     expect(opening.chargeGainMultiplierByPlayer).toEqual({black:2,white:2});
-    expect(opening.decks.black).toHaveLength(93);
-    expect(opening.decks.white).toHaveLength(93);
+    expect(opening.decks.black).toHaveLength(94);
+    expect(opening.decks.white).toHaveLength(94);
   });
 
   test('saved network session restore runs after bootstrap reset', async () => {

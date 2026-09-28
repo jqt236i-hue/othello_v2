@@ -73,11 +73,11 @@ describe('special-stone playback phase batching', () => {
     const result = runHeadlessFixtureTurnStart(fixture);
 
     expect(playbackContract(result.playbackEvents)).toEqual({
-      eventCount: 42,
+      eventCount: 43,
       phaseCount: 9,
       durationMs: 12400,
-      playbackDigest: 'fnv1a32:0743f7b1',
-      soundDigest: 'fnv1a32:fb5bcb1a'
+      playbackDigest: 'fnv1a32:810666ff',
+      soundDigest: 'fnv1a32:27c8cbd2'
     });
   });
 

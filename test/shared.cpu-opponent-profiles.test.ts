@@ -17,7 +17,7 @@ describe('cpu opponent profiles', () => {
       const { profileId: _ten, ...baseline } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
       const { profileId: _eleven, ...candidate } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11, player);
       expect(candidate).toEqual(baseline);
-      expect(candidate.deckCardIds).toHaveLength(93);
+      expect(candidate.deckCardIds).toHaveLength(94);
       expect(candidate).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
     }
   });
@@ -30,7 +30,7 @@ describe('cpu opponent profiles', () => {
       const { profileId: _nine, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
       const { profileId: _ten, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
       expect(b).toEqual(a);
-      expect(b.deckCardIds).toHaveLength(93);
+      expect(b.deckCardIds).toHaveLength(94);
       expect(b).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
     }
   });
@@ -335,7 +335,7 @@ test('Lv12 keeps every evaluated Lv11 startup condition for both colors',()=>{
     const {profileId:_old,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11,side);
     const {profileId:_new,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
     expect(candidate).toEqual(baseline);
-    expect(candidate.deckCardIds).toHaveLength(93);
+    expect(candidate.deckCardIds).toHaveLength(94);
     expect(candidate).toMatchObject({initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6});
   }
 });

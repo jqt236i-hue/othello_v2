@@ -2,7 +2,7 @@
 
 exports[`card scores preserve the pre-refactor decision matrix 1`] = `
 {
-  "decisions": 9504,
-  "sha256": "74e3cc875322d050f961132ebdf9c535c2a6128bd3c02313ae6fedcc86f1c134",
+  "decisions": 9600,
+  "sha256": "3ae8765cc2203169db71c0915d32397bdd4e339e7246fe2d7b956593b5d17509",
 }
 `;

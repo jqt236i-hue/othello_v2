@@ -85,6 +85,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     PROTECTED_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
     REBUILD_WILL: makePlanPressureProfile(1, 2, 1, 2),
     CAUSAL_REPLAY_WILL: makePlanPressureProfile(1, 2, 1, 2),
+    REINCARNATION_WILL: makePlanPressureProfile(1, 2, 1, 2),
     REGEN_WILL: makePlanPressureProfile(0, 0, 0, 1),
     REVERSE_WILL: makePlanPressureProfile(2, 3, 2, 2),
     RIBO_WILL: makePlanPressureProfile(1, 2, 0, 2),

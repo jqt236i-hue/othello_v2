@@ -2158,7 +2158,7 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
   describe('thrown stone placement style', () => {
-    async function runThrow(row = 0, col = 0) {
+    async function runThrow(row = 0, col = 0, player = global.BLACK) {
       window.localStorage.setItem('othello.handAnimation.placeStyle', 'throw');
       const layer = document.getElementById('handLayer');
       const appended = [];
@@ -2170,7 +2170,7 @@ describe('animation-utils hand fallback', () => {
       const mod = require('../ui/animation-utils.js');
       await new Promise((resolve, reject) => {
         const to = setTimeout(() => reject(new Error('timeout')), 2500);
-        mod.playHandAnimation(global.BLACK, row, col, () => {
+        mod.playHandAnimation(player, row, col, () => {
           clearTimeout(to);
           resolve();
         });
@@ -2196,6 +2196,14 @@ describe('animation-utils hand fallback', () => {
       expect(document.getElementById('handWrapper').style.opacity).not.toBe('1');
       expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
       expect(document.querySelector('#handLayer .thrown-stone')).toBeNull();
+    });
+
+    test('throws the opponent stone instead of moving the opponent hand', async () => {
+      const stone = await runThrow(0, 0, global.WHITE);
+      expect(stone.classList.contains('white')).toBe(true);
+      expect(stone.style.getPropertyValue('--thrown-stone-image')).toContain('--normal-stone-white-image');
+      expect(document.getElementById('handWrapper').style.opacity).not.toBe('1');
+      expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
     });
 
     test('throws the placed special stone visual from the target cell marker', async () => {

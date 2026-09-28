@@ -414,8 +414,8 @@ export function verifyDirectEntryDeclarations(repoRoot: string): readonly string
 }
 
 export const FACADE_IDENTITY_BASELINE = Object.freeze({
-  ownKeyCount: 289,
-  functionCount: 263,
+  ownKeyCount: 291,
+  functionCount: 265,
   symbolCount: 0,
   prototype: 'Object.prototype',
   descriptor: Object.freeze({ enumerable: true, configurable: true, writable: true }),

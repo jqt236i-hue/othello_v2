@@ -26,8 +26,8 @@ describe('card runtime Gate B characterization', () => {
     const directCount = Object.values(DIRECT_RUNTIME_FUNCTION_EXPORTS)
       .reduce((total, names) => total + names.length, 0);
 
-    expect(facadeFunctions).toHaveLength(263);
-    expect(manifest).toHaveLength(263 + directCount);
+    expect(facadeFunctions).toHaveLength(265);
+    expect(manifest).toHaveLength(265 + directCount);
     expect(new Set(manifest.map((entry) => entry.entryId)).size).toBe(manifest.length);
 
     for (const entry of manifest) {
@@ -159,11 +159,11 @@ describe('card runtime Gate B characterization', () => {
       edges: graph.edges.length,
       lookups: graph.lookups.length,
       unresolved: graph.unresolvedEdges.length
-    }).toEqual({ roots: 20, nodes: 197, edges: 866, lookups: 586, unresolved: 32 });
+    }).toEqual({ roots: 20, nodes: 198, edges: 874, lookups: 586, unresolved: 32 });
     // Reviewed against 976fc9cf9: CPU advisor imports, static catalog composition,
     // and the WebSocket controller replace the retired rated-match dependencies.
     expect(crypto.createHash('sha256').update(JSON.stringify(graph)).digest('hex')).toBe(
-      '3aae95fac13043dd8a873ae57d29d1a1601a73fd813a4896834a486a0e37d8a4'
+      '65ecd58d371415e35c5336a85276b088d9b11a78cd7527228cedc312e40ebbe5'
     );
     expect(verifyCardRuntimeGraphNegativeFixtures()).toEqual([
       'aliasRequire', 'aliasedComputedGlobal', 'bareGlobalReference', 'castComputedGlobal',

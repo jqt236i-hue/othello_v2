@@ -61,7 +61,7 @@ describe('CardLogic facade identity contract', () => {
     const schemaHash = crypto.createHash('sha256')
       .update(JSON.stringify(descriptorSchema(first)))
       .digest('hex');
-    expect(schemaHash).toBe('2e905842becba7eabe082a7f95be2b326a4cfb5b6e0a59f450cda26fe549b4be');
+    expect(schemaHash).toBe('82c79782644f00b6663bb52634a70311f765f5d27d682291a938b5780c760e52');
   });
 
   test('fresh module reconstruction is a new facade with the same schema and no function alias drift', () => {
@@ -123,7 +123,7 @@ describe('CardLogic facade identity contract', () => {
     expect(owners).toHaveLength(87);
     expect(owners.find((owner) => owner.id === 'game/cpu-turn-handler.ts#advisedTurnInFlight'))
       .toMatchObject({ resetOwner: 'game/cpu-turn-handler.ts module/isolate/page reconstruction' });
-    expect(inventoryHash).toBe('d5ff6e61529094a1099241a520894949fb8d4964dd4a06224ec6e08d868b1f1f');
+    expect(inventoryHash).toBe('cb0cdeee212579d329144b57bd947e9488631de5bc0467c20b83a1994998d13e');
   });
 
   test('pins classic registration/global installation cardinality and ordering', () => {

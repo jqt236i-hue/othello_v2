@@ -90,7 +90,7 @@ const FACADE_PURE_QUERY = Object.freeze([
   'getCellTeleportTargets', 'getCloneTargets', 'getBreedingTargets', 'getBoardExpansionTargets',
   'getBoardExpansionGodTargets', 'getBoardShrinkTargets', 'getBoardShrinkGodTargets',
   'getBlockadeTargets', 'getPoisonTargets', 'getScorchTargets', 'getHealingCellTargets',
-  'getMeteorTargets', 'getCausalReplayTargets', 'getFreezeTargets', 'getSeedTargets',
+  'getMeteorTargets', 'getCausalReplayTargets', 'getReincarnationTargets', 'getFreezeTargets', 'getSeedTargets',
   'getSniperTargets', 'getLightningTargets', 'getCrossBombTargets', 'getXBombTargets',
   'getReinforcementTargets', 'getEqualityTargets', 'getLastResortTargets',
   'getCurrentCornerCellsForCard', 'countOccupiedCornersForPlayer', 'isBlockedCell',
@@ -150,7 +150,7 @@ const FACADE_COLD_CACHE_CANONICAL_EVENT_MUTATION = Object.freeze([
 ]);
 
 const FACADE_CANONICAL_RNG_EVENT_MUTATION = Object.freeze([
-  'processTheoryIncarnationMarkerAtPlacement',
+  'processTheoryIncarnationMarkerAtPlacement', 'applyReincarnationWill',
   'processTheoryIncarnationMarkerAtTurnStart', 'processTheoryIncarnationMarkerAfterOwnerPlacement',
   'processTheoryIncarnationOwnerPass', 'processBoardExecutorMarkerAtTurnStart',
   'processBoardExecutorHandTaxAtTurnStart', 'processObserverWillMarkerAtTurnStart',

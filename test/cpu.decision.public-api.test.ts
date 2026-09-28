@@ -35,6 +35,7 @@ describe('cpu-decision public api', () => {
       'cpuSelectObserverWillWithPolicy',
       'cpuSelectPoisonWillWithPolicy',
       'cpuSelectPositionSwapWillWithPolicy',
+      'cpuSelectReincarnationWithPolicy',
       'cpuSelectReverseWillWithPolicy',
       'cpuSelectSeedWillWithPolicy',
       'cpuSelectStrongWindWillWithPolicy',

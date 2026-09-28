@@ -1,9 +1,9 @@
 {
   "fixtureVersion": "card-runtime-parity-v1",
-  "overallDigest": "b5057647f5541562184b9b9e267fce5595522db2cc42421a91c646974d31d221",
+  "overallDigest": "32eaedf1cd242c331c0b7036292b662e2736c79b1a7f8dd611ed7f51c2d2eb43",
   "canonicalDigest": "924fa6147bcd9c1a282f739fee785189357eb5b2291e90357e93c03a1e76a576",
   "prngLedgerDigest": "7689826231285861f7c2f042574eff906a4b5fb1516aca81a89120e15e4fdd18",
-  "resultDigest": "1aba6e3e92fbb83565028b296af022309619d1806f913e839042e815e3d18bd8",
+  "resultDigest": "c05c5c309ae8f9ac5674cf607065b67417f16f6d08c0143f0f62adc577106923",
   "pendingDigest": "96348d55f0d98ae52bab59586cb7a449eba8eac13e1cfdc4461021d106aa0c5d",
   "scenarioDigest": "fe345ae29e81254a2c4dedac02b9fb2e8f8f5dd3bae3472d06d763161447ab34",
   "runtimeProjectionInventory": [
@@ -18,7 +18,7 @@
     "calls": 98
   },
   "eventTypes": ["CARD_USED"],
-  "heavenOffers": ["condemn_01", "crystal_stone", "equality_will_01", "tempt_01", "super_gravity_01"],
+  "heavenOffers": ["execution_01", "extend_life_01", "fate_will_01", "capture_01", "super_gravity_01"],
   "pending": {
     "type": "DESTROY_ONE_STONE",
     "cardId": "destroy_01",
