@@ -178,7 +178,7 @@ describe('CPU level difference E2E', () => {
     });
 
     expect(whiteDraw).toBeTruthy();
-    expect(whiteDraw.src).toContain('assets/images/hand-skin/lv4.png');
+    expect(whiteDraw.src).toContain('assets/images/hand-skin/cpu-lv04.png');
     expect(whiteDraw.mirroredCpuSmartness).toBeNull();
 
     await page.close();

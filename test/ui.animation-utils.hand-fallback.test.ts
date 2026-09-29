@@ -228,8 +228,8 @@ describe('animation-utils hand fallback', () => {
     const actorImage = wrapper.querySelector('.hand-animation-actor-image');
     expect(selectedImage.getAttribute('src')).toBe('assets/images/hand-skin/selected-local.png');
     expect(selectedImage.getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
-    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/lv3-5.png');
-    expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv3-5');
+    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv03.png');
+    expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv3');
     expect(actorImage?.getAttribute('data-hand-animation-active')).toBe('true');
 
     await expect(contactPromise).resolves.toBeUndefined();
@@ -673,7 +673,7 @@ describe('animation-utils hand fallback', () => {
 
     const actorImage = wrapper.querySelector('.hand-animation-actor-image');
     expect(selectedImage.getAttribute('src')).toBe('assets/images/hand-skin/selected-local.png');
-    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv04.png');
     expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
 
     await expect(promise).resolves.toBeUndefined();
@@ -715,7 +715,7 @@ describe('animation-utils hand fallback', () => {
     await Promise.resolve();
 
     const actorImage = wrapper.querySelector('.hand-animation-actor-image');
-    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv04.png');
     expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
 
     await expect(promise).resolves.toBeUndefined();

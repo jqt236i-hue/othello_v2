@@ -1,6 +1,6 @@
 {
   "version": "2026-09-29",
-  "generatedAt": "2026-09-29T05:19:25.624Z",
+  "generatedAt": "2026-09-29T05:45:23.521Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -821,6 +821,54 @@
     {
       "path": "assets/images/background-skin/観測の机.png",
       "sha256": "f7d0fd366f7414fbd93bd5ea3979fea420f95735ba119cf731a64da7ac5ea940"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv01.png",
+      "sha256": "ee90ae04d64f5d97a880daf0628876c7a31dd43c572c5dd362674fde2c834e8b"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv02.png",
+      "sha256": "6d4d8b267fafe8dd9698dbec44859676abe3d687d2e23278e59037ca4be309c5"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv03.png",
+      "sha256": "ca19e9314dba215c4471d4c109833139060de2950a415c8f4ec1bd7815b299b7"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv04.png",
+      "sha256": "331b007dd5037608b7959c13325e3282cb96c9efad705079c99a02636d297e44"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv05.png",
+      "sha256": "72a02f88695828a94a1d6d5c21c7a913e82ee81bc197ec21549c3ff8889cf8cb"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv06.png",
+      "sha256": "f2acae70a391adf657fa40ff09aa6aba7fba6111f16efe3e5473ca3da0fa90d4"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv07.png",
+      "sha256": "58e0eb086edefb13d6c365d7f6bb6af78d5c71b189760037982b07711656a676"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv08.png",
+      "sha256": "022a1d3331a02fd66b1c60c44e961a956b1371063750a228646826a401ef0e1b"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv09.png",
+      "sha256": "7c2a66da2d547eb277ae0ff4451dd2bce25cab70b800c438f0534937800b74e6"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv10.png",
+      "sha256": "e4b7a3ac69690805985253a8a3524c1e8187b413dcf88c35f2f59c4e768ee8af"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv11.png",
+      "sha256": "4ba1da2029e7f3058e7e6a42a5df52da4c9e449f219a3859729b47c120b93896"
+    },
+    {
+      "path": "assets/images/hand-skin/cpu-lv12.png",
+      "sha256": "b5dd95781ec15859eb0488b62578f227c99b3cf2edc3aab5e72793f40838d050"
     },
     {
       "path": "assets/images/hand-skin/lv1-2.png",

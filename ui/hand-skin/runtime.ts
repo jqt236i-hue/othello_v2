@@ -13,50 +13,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 let CpuOpponentProfiles: any = null;
 try { CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles'); } catch (e) { CpuOpponentProfiles = null; }
 
-const CPU_HAND_SKINS = Object.freeze([
-  Object.freeze({
-    id: 'cpu-lv1-2',
-    label: 'CPU Lv1-2',
+const CPU_HAND_SKINS = Object.freeze(Array.from({ length: 12 }, (_, index) => {
+  const level = index + 1;
+  const levelFileNumber = String(level).padStart(2, '0');
+  return Object.freeze({
+    id: `cpu-lv${level}`,
+    label: `CPU Lv${level}`,
     note: 'CPU 固定',
-    imagePath: 'assets/images/hand-skin/lv1-2.png'
-  }),
-  Object.freeze({
-    id: 'cpu-lv3-5',
-    label: 'CPU Lv3-5',
-    note: 'CPU 固定',
-    imagePath: 'assets/images/hand-skin/lv3-5.png'
-  }),
-  Object.freeze({
-    id: 'cpu-lv4',
-    label: 'CPU Lv4',
-    note: 'CPU 固定',
-    imagePath: 'assets/images/hand-skin/lv4.png'
-  }),
-  Object.freeze({
-    id: 'cpu-lv6-9',
-    label: 'CPU Lv6-9',
-    note: 'CPU 固定',
-    imagePath: 'assets/images/hand-skin/lv6-9.png'
-  })
-]);
-const CPU_HAND_SKIN_BY_ID = Object.freeze((CPU_HAND_SKINS as any).reduce((acc: any, skin: any) => {
-  acc[skin.id] = skin;
-  return acc;
-}, {}));
-const CPU_HAND_SKIN_BY_LEVEL = Object.freeze({
-  1: 'cpu-lv1-2',
-  2: 'cpu-lv1-2',
-  3: 'cpu-lv3-5',
-  4: 'cpu-lv4',
-  5: 'cpu-lv3-5',
-  6: 'cpu-lv6-9',
-  7: 'cpu-lv6-9',
-  8: 'cpu-lv6-9',
-  9: 'cpu-lv6-9',
-  10: 'cpu-lv6-9',
-  11: 'cpu-lv6-9',
-  12: 'cpu-lv6-9'
-} as any);
+    imagePath: `assets/images/hand-skin/cpu-lv${levelFileNumber}.png`
+  });
+}));
 
 function resolveCatalogModule(rootRef: any): any {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
@@ -323,8 +289,7 @@ function isCpuMatchMode(rootRef: any): boolean {
 
 function getCpuHandSkinDefinition(level: number): any {
   const normalizedLevel = clampCpuLevel(level);
-  const id = CPU_HAND_SKIN_BY_LEVEL[normalizedLevel] || CPU_HAND_SKIN_BY_LEVEL[1];
-  return CPU_HAND_SKIN_BY_ID[id] || CPU_HAND_SKIN_BY_ID['cpu-lv1-2'];
+  return CPU_HAND_SKINS[normalizedLevel - 1] || CPU_HAND_SKINS[0];
 }
 
 function shouldUseCpuHandSkin(rootRef: any, ownerKey: any): boolean {

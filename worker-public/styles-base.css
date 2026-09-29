@@ -6216,7 +6216,7 @@
 }
 
 body {
-    --app-background-image: url("assets/images/background/デフォルト25.png");
+    --app-background-image: url("assets/images/background/デフォルト25.webp");
     --selected-app-font-family: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif;
     --selected-app-font-accent-family: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif;
     --selected-app-font-readable-family: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif;

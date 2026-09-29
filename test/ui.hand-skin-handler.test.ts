@@ -619,7 +619,7 @@ describe('hand skin handler', () => {
     expect(document.getElementById('handImage').getAttribute('src')).toBe(manifestOnlySkinPath);
   });
 
-  test.each([6, 11, 12])('CPU Lv%i preview uses its fixed hand image and explicit black owner restores selected skin', (level) => {
+  test.each(Array.from({ length: 12 }, (_, index) => index + 1))('CPU Lv%i preview uses its individual hand image and explicit black owner restores selected skin', (level) => {
     window.gameState = { currentPlayer: 1 };
     window.cardState = { fateWillControllerByTurnOwner: {} };
     window.cpuSmartness = { white: level };
@@ -628,10 +628,12 @@ describe('hand skin handler', () => {
     const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     const handImage = document.getElementById('handImage');
+    const cpuHandImagePath = `assets/images/hand-skin/cpu-lv${String(level).padStart(2, '0')}.png`;
+    const cpuHandSkinId = `cpu-lv${level}`;
 
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6-9.png');
-    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6-9');
+    expect(handImage.getAttribute('src')).toBe(cpuHandImagePath);
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe(cpuHandSkinId);
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
 
     mod.syncDisplayedHandSkin(window, api.getSelectedSkinId(), handImage, { ownerKey: 'black' });
@@ -641,8 +643,8 @@ describe('hand skin handler', () => {
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
 
     api.syncDisplayedSkin();
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6-9.png');
-    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6-9');
+    expect(handImage.getAttribute('src')).toBe(cpuHandImagePath);
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe(cpuHandSkinId);
   });
 
   test('CPU preview resolves from CPU LEVEL selects when cpuSmartness is not mirrored on window', () => {
@@ -668,14 +670,14 @@ describe('hand skin handler', () => {
       cpuLevel: 4,
       selectedSkinId: ALT_GACHA_HAND_SKIN_ID,
       renderedSkinId: 'cpu-lv4',
-      renderedImagePath: 'assets/images/hand-skin/lv4.png'
+      renderedImagePath: 'assets/images/hand-skin/cpu-lv04.png'
     });
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv04.png');
     expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 
-  test('CPU preview resolves named CPU profiles from selects into the Lv6-9 fixed hand image', () => {
+  test('CPU preview resolves named CPU profiles from selects into the individual Lv9 hand image', () => {
     window.MATCH_MODE = 'cpu';
     window.gameState = { currentPlayer: 1 };
     window.cardState = { fateWillControllerByTurnOwner: {} };
@@ -697,11 +699,11 @@ describe('hand skin handler', () => {
       cpu: true,
       cpuLevel: 9,
       selectedSkinId: ALT_GACHA_HAND_SKIN_ID,
-      renderedSkinId: 'cpu-lv6-9',
-      renderedImagePath: 'assets/images/hand-skin/lv6-9.png'
+      renderedSkinId: 'cpu-lv9',
+      renderedImagePath: 'assets/images/hand-skin/cpu-lv09.png'
     });
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv6-9.png');
-    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv6-9');
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv09.png');
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv9');
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 
@@ -737,8 +739,8 @@ describe('hand skin handler', () => {
     });
 
     const handImage = document.getElementById('handImage');
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv3-5.png');
-    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv3-5');
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv03.png');
+    expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv3');
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 
@@ -755,7 +757,7 @@ describe('hand skin handler', () => {
     mod.setupHandSkinControls({ root: window });
 
     const handImage = document.getElementById('handImage');
-    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(handImage.getAttribute('src')).toBe('assets/images/hand-skin/cpu-lv04.png');
     expect(handImage.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
     expect(handImage.getAttribute('data-hand-selected-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });

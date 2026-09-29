@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "codec": "webp-lossless",
+  "codecs": [
+    "webp-lossless",
+    "webp-lossy"
+  ],
   "minimumSavingsRatio": 0.1,
   "policy": "scripts/assets/optimized-ui-images.policy.json",
   "images": [
@@ -9,6 +13,8 @@
       "candidateOutput": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
       "output": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
       "criticalPath": true,
+      "codec": "webp-lossless",
+      "quality": null,
       "admission": {
         "status": "admitted",
         "reason": "headful hardware desktop Chromium median decode improved by 1.25ms and passed the +2ms/+10% threshold"
@@ -45,53 +51,383 @@
     {
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
       "candidateOutput": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
-      "output": null,
+      "output": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
       "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
       "admission": {
-        "status": "rejected",
-        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
       },
       "measurement": {
-        "investigation": "rejected before formal admission because decode regressed",
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       },
       "width": 1254,
       "height": 1254,
       "hasAlpha": false,
       "sourceBytes": 3062722,
-      "outputBytes": 2195210,
-      "savedBytes": 867512,
-      "savingsRatio": 0.28324869184992957,
+      "outputBytes": 582126,
+      "savedBytes": 2480596,
+      "savingsRatio": 0.8099318188199909,
       "sourceSha256": "d1e9239f16c618f08e33ce1ef6af2b11bf7a186bb87d60f3acfc586742818eba",
-      "outputSha256": "df65e846b7d6201f372d0d77c53cbe052f5dc3e08af1cbd80331afcf860d00cd",
-      "visiblePixelsEqual": true
+      "outputSha256": "fad18bac79639bd7d41c935491cd08518572abf61239481ab7bdccccc21c0f62",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-submerged-wood-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-submerged-wood-v1.webp",
+      "output": "assets/images/board/board-frame-submerged-wood-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1288714,
+      "outputBytes": 136932,
+      "savedBytes": 1151782,
+      "savingsRatio": 0.8937452375003297,
+      "sourceSha256": "5c761761da47bed74c9951be1078e397904a781f6819c1388c1a28679c8d6a14",
+      "outputSha256": "06c3df6fe9d8b5be400c637e5fffad536b7b6044c75e971d6922196ec679211f",
+      "visiblePixelsEqual": false
     },
     {
       "source": "assets/images/background/デフォルト25.png",
       "candidateOutput": "assets/images/background/デフォルト25.webp",
-      "output": null,
-      "criticalPath": false,
+      "output": "assets/images/background/デフォルト25.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
       "admission": {
-        "status": "rejected",
-        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
       },
       "measurement": {
-        "investigation": "rejected before formal admission because decode regressed",
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       },
       "width": 1920,
       "height": 1080,
       "hasAlpha": true,
       "sourceBytes": 3035061,
-      "outputBytes": 2225684,
-      "savedBytes": 809377,
-      "savingsRatio": 0.26667569449180756,
+      "outputBytes": 302678,
+      "savedBytes": 2732383,
+      "savingsRatio": 0.9002728445985105,
       "sourceSha256": "1bd8be6d6cf7b0f29c37a6c2e0ab3d35279b5f261270ccf577f07464b647da43",
-      "outputSha256": "9fbf8bc13d9ff8c95c7f02a6d6463c8c1d29e50a9fb951ab101931bb79ddc475",
-      "visiblePixelsEqual": true
+      "outputSha256": "3edea2fad2d858ed9f29d94738dcd5661aab5566ba6546a20308aa935ae10671",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/card-back-deck-v1.png",
+      "candidateOutput": "assets/images/other/card-back-deck-v1.webp",
+      "output": "assets/images/other/card-back-deck-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 590,
+      "height": 780,
+      "hasAlpha": false,
+      "sourceBytes": 898218,
+      "outputBytes": 177818,
+      "savedBytes": 720400,
+      "savingsRatio": 0.8020324687325349,
+      "sourceSha256": "af74fdf4c5a3da8055c8b091353758480763c02e3eea0428355dafb5d8fa1630",
+      "outputSha256": "50d0d88d6ef8db7323bc4b7a6d91091d45126c204f744f5bb3b3d6e4e9ce9c6e",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/card-back-hand-v1.png",
+      "candidateOutput": "assets/images/other/card-back-hand-v1.webp",
+      "output": "assets/images/other/card-back-hand-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 910,
+      "height": 1200,
+      "hasAlpha": false,
+      "sourceBytes": 1927280,
+      "outputBytes": 302714,
+      "savedBytes": 1624566,
+      "savingsRatio": 0.8429320078037441,
+      "sourceSha256": "84613863ee21b7a4cfff3454b59b64c7c10e602700065f2fdceaf277fc77680f",
+      "outputSha256": "f6eb8e9122ab85b43cb612688423f2895759f548bc06a4860c2f033a34729fc1",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-table-player-v6.png",
+      "candidateOutput": "assets/images/ui/card-area-table-player-v6.webp",
+      "output": "assets/images/ui/card-area-table-player-v6.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 913,
+      "height": 648,
+      "hasAlpha": true,
+      "sourceBytes": 845342,
+      "outputBytes": 81466,
+      "savedBytes": 763876,
+      "savingsRatio": 0.9036295369211514,
+      "sourceSha256": "676183c1e9260097505ad2624d498c5afa8f178c44e75442767bca0c2a887aa7",
+      "outputSha256": "f63e8c399570963ab0a7a0df61a0b628baff19e2215b38d13763ef0486f8486c",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-table-opponent-v6.png",
+      "candidateOutput": "assets/images/ui/card-area-table-opponent-v6.webp",
+      "output": "assets/images/ui/card-area-table-opponent-v6.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 679,
+      "height": 812,
+      "hasAlpha": true,
+      "sourceBytes": 804705,
+      "outputBytes": 80672,
+      "savedBytes": 724033,
+      "savingsRatio": 0.8997495976786525,
+      "sourceSha256": "04a2f704b4be7d29a519e1fb61e5ad60da9c42a12244ca57c5075b506ff040d7",
+      "outputSha256": "0d491006885a9288d0c69de8e7d390d90819d0d6aa9c1f69cb9f167aa1fb6aea",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/charge-counter-wafu-v1.png",
+      "candidateOutput": "assets/images/other/charge-counter-wafu-v1.webp",
+      "output": "assets/images/other/charge-counter-wafu-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 1703,
+      "height": 386,
+      "hasAlpha": true,
+      "sourceBytes": 769336,
+      "outputBytes": 78044,
+      "savedBytes": 691292,
+      "savingsRatio": 0.8985566774465253,
+      "sourceSha256": "5ed84ef6406537f3e97d114c6573092173224b12c0d0fa0574d03a40ba3e7b31",
+      "outputSha256": "44c640a537c2ddfafb15ca488070e961c3968199ca3eb1b120d28cf9851591d5",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/charge-delta-increase-wafu-v1.png",
+      "candidateOutput": "assets/images/other/charge-delta-increase-wafu-v1.webp",
+      "output": "assets/images/other/charge-delta-increase-wafu-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 1192,
+      "height": 385,
+      "hasAlpha": true,
+      "sourceBytes": 594636,
+      "outputBytes": 56662,
+      "savedBytes": 537974,
+      "savingsRatio": 0.9047114537296767,
+      "sourceSha256": "252e88bb83d06ee6688228ed177037d2fe05ca1342cac694f2c3cd74e8b84390",
+      "outputSha256": "06adef839da0759321615ffd99e43f2f9675d7866b3fce8619c1cbe0959187b1",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/charge-delta-decrease-wafu-v1.png",
+      "candidateOutput": "assets/images/other/charge-delta-decrease-wafu-v1.webp",
+      "output": "assets/images/other/charge-delta-decrease-wafu-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 1192,
+      "height": 385,
+      "hasAlpha": true,
+      "sourceBytes": 669448,
+      "outputBytes": 106796,
+      "savedBytes": 562652,
+      "savingsRatio": 0.8404715526822099,
+      "sourceSha256": "8409588607951720f2288417a7e4f23f806c579ef372da3c3a05028a2dbbe4cc",
+      "outputSha256": "e1ff791aff5669475a81848b7c6dbf4e54e4d02671c1918045431d3dc12b94d2",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/turn-banner-your-v1.png",
+      "candidateOutput": "assets/images/other/turn-banner-your-v1.webp",
+      "output": "assets/images/other/turn-banner-your-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 720,
+      "height": 139,
+      "hasAlpha": true,
+      "sourceBytes": 170701,
+      "outputBytes": 30226,
+      "savedBytes": 140475,
+      "savingsRatio": 0.8229301527231826,
+      "sourceSha256": "c9e9461a5fa5b9327e72d095a0eed42826c2b9d2ac6f3df0f6445c1e8e730634",
+      "outputSha256": "2dfe7e6bb25934e893a44fc9493c53632025eb8160326cbf216330308e119f9b",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/turn-banner-your-white-v1.png",
+      "candidateOutput": "assets/images/other/turn-banner-your-white-v1.webp",
+      "output": "assets/images/other/turn-banner-your-white-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 720,
+      "height": 139,
+      "hasAlpha": true,
+      "sourceBytes": 158934,
+      "outputBytes": 24586,
+      "savedBytes": 134348,
+      "savingsRatio": 0.845306856934325,
+      "sourceSha256": "7bc9a18acdf5ae17858dae0ddd6662b0abede04862c8f6be712690543ba51be6",
+      "outputSha256": "40c3e35b6daf03a1de1d8dcc1227492d3d52e15aa0b99d8dff9a1b70ec9feb5c",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/turn-banner-enemy-v1.png",
+      "candidateOutput": "assets/images/other/turn-banner-enemy-v1.webp",
+      "output": "assets/images/other/turn-banner-enemy-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 720,
+      "height": 158,
+      "hasAlpha": true,
+      "sourceBytes": 182587,
+      "outputBytes": 29158,
+      "savedBytes": 153429,
+      "savingsRatio": 0.8403062649586225,
+      "sourceSha256": "8f9d64aceb11340f07811d4a94431e9eda224a0c2a0e06f8921f8e8ac077ed7a",
+      "outputSha256": "bd016173c179183f8c6e1513262d1891a2821cc0167a4df70dc62f643879a04c",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/other/turn-banner-enemy-black-v1.png",
+      "candidateOutput": "assets/images/other/turn-banner-enemy-black-v1.webp",
+      "output": "assets/images/other/turn-banner-enemy-black-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      },
+      "width": 720,
+      "height": 158,
+      "hasAlpha": true,
+      "sourceBytes": 182110,
+      "outputBytes": 35214,
+      "savedBytes": 146896,
+      "savingsRatio": 0.8066333534676844,
+      "sourceSha256": "4b87688dc79d22c5ca5795f35fa89d11771f6f624f8e3a21eb98f9ecdbcb2bb6",
+      "outputSha256": "144f8e3a1ec5c4e48ef1f8c5fa43aaf696e0608c33a88874bd4301923aeff719",
+      "visiblePixelsEqual": false
     }
   ],
   "admittedMapping": {
-    "assets/images/board/board-frame-marsh-forged-iron-v1.png": "assets/images/board/board-frame-marsh-forged-iron-v1.webp"
+    "assets/images/board/board-frame-marsh-forged-iron-v1.png": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
+    "assets/images/board/board-surface-bluegreen-felt-v1.png": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
+    "assets/images/board/board-frame-submerged-wood-v1.png": "assets/images/board/board-frame-submerged-wood-v1.webp",
+    "assets/images/background/デフォルト25.png": "assets/images/background/デフォルト25.webp",
+    "assets/images/other/card-back-deck-v1.png": "assets/images/other/card-back-deck-v1.webp",
+    "assets/images/other/card-back-hand-v1.png": "assets/images/other/card-back-hand-v1.webp",
+    "assets/images/ui/card-area-table-player-v6.png": "assets/images/ui/card-area-table-player-v6.webp",
+    "assets/images/ui/card-area-table-opponent-v6.png": "assets/images/ui/card-area-table-opponent-v6.webp",
+    "assets/images/other/charge-counter-wafu-v1.png": "assets/images/other/charge-counter-wafu-v1.webp",
+    "assets/images/other/charge-delta-increase-wafu-v1.png": "assets/images/other/charge-delta-increase-wafu-v1.webp",
+    "assets/images/other/charge-delta-decrease-wafu-v1.png": "assets/images/other/charge-delta-decrease-wafu-v1.webp",
+    "assets/images/other/turn-banner-your-v1.png": "assets/images/other/turn-banner-your-v1.webp",
+    "assets/images/other/turn-banner-your-white-v1.png": "assets/images/other/turn-banner-your-white-v1.webp",
+    "assets/images/other/turn-banner-enemy-v1.png": "assets/images/other/turn-banner-enemy-v1.webp",
+    "assets/images/other/turn-banner-enemy-black-v1.png": "assets/images/other/turn-banner-enemy-black-v1.webp"
   }
 }
