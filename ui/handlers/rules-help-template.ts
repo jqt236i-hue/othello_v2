@@ -16,6 +16,8 @@ export const RULES_HELP_INNER_HTML = `
                 aria-selected="false" aria-controls="rules-help-page-protection-map" data-help-tab="protection-map">耐性貫通表</button>
             <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
                 aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">石マーカー</button>
+            <button id="rules-help-tab-credits" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-credits" data-help-tab="credits">クレジット</button>
         </div>
         <div id="rules-help-pages">
             <section id="rules-help-page-catalog" class="rules-help-page is-active" data-help-page="catalog"
@@ -351,6 +353,15 @@ export const RULES_HELP_INNER_HTML = `
                         </div>
                     </div>
                 </div>
+            </section>
+            <section id="rules-help-page-credits" class="rules-help-page" data-help-page="credits"
+                aria-hidden="true">
+                <dl id="rules-help-credits-list">
+                    <div class="rules-help-effect-item">
+                        <dt>効果音</dt>
+                        <dd>Springin' Sound Stock / イワシロ音楽素材</dd>
+                    </div>
+                </dl>
             </section>
         </div>
 `;

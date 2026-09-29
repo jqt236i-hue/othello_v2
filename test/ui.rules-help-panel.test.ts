@@ -1322,6 +1322,9 @@ describe('rules help panel', () => {
     expect(template).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
     expect(template).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
     expect(template).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
+    expect(template).toMatch(/data-help-tab="credits">クレジット<\/button>/);
+    expect(template.indexOf('data-help-tab="credits"')).toBeGreaterThan(template.indexOf('data-help-tab="counters"'));
+    expect(template).toMatch(/Springin' Sound Stock \/ イワシロ音楽素材/);
     expect(template).toMatch(/id="rules-help-guide-slide-img"/);
     expect(template).toMatch(/完全保護の残りターン/);
     expect(template).toMatch(/特殊石本体の持続ターン/);

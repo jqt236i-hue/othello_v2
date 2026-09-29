@@ -665,7 +665,8 @@
     font-size: calc(12px * var(--layout-stage-scale));
 }
 
-#rules-help-effects-list {
+#rules-help-effects-list,
+#rules-help-credits-list {
     margin: 0;
     display: flex;
     flex-direction: column;
