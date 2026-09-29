@@ -591,6 +591,10 @@ const _cardInteractionHandDomModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-hand-dom'
 });
 
+const _cardInteractionCardUseOutcomeModule = _resolveCardInteractionModule({
+    requirePath: './card-interaction-card-use-outcome'
+});
+
 const _cardRendererModule = _resolveCardInteractionModule({
     requirePath: './card-renderer'
 });
@@ -2058,12 +2062,32 @@ function _armBoardTargetSelectionEntryPlaybackContext(runResult: any, ownerKey: 
     }
 }
 
+function _isCardUseNullifiedBySacrificeWillForRunResult(runResult: any, ownerKey: any, cardId: any) {
+    const outcomeModule = _cardInteractionCardUseOutcomeModule;
+    if (!outcomeModule || typeof outcomeModule.isCardUseNullifiedBySacrificeWill !== 'function') return false;
+    try {
+        return outcomeModule.isCardUseNullifiedBySacrificeWill({
+            playbackEvents: _getRunResultPlaybackEvents(runResult),
+            nextCardState: _getRunResultNextCardState(runResult),
+            ownerKey,
+            cardId,
+            normalizeOwnerKey: _normalizeOwnerKeyOptional
+        }) === true;
+    } catch (e) {
+        return false;
+    }
+}
+
 function _ensureBoardPendingSelectionAfterCardUse(runResult: any, ownerKey: any, cardId: any, cardDef: any) {
     const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey || !cardDef || typeof cardDef.type !== 'string') return false;
 
     const pendingType = String(cardDef.type || '').trim().toUpperCase();
     if (!pendingType || _isHandOverlayPendingTypeForCardUi(pendingType)) return false;
+
+    // 犠牲の意志 が使用を無効化した場合、headless 側は pending を閉じている。
+    // ここで対象選択を作り直すと、無効化されたカードの効果が使えてしまう。
+    if (_isCardUseNullifiedBySacrificeWillForRunResult(runResult, normalizedOwnerKey, cardId)) return false;
 
     const pendingStateManager = _getPendingStateManagerForCardUi();
     if (!pendingStateManager || typeof pendingStateManager.requiresTargetSelection !== 'function') return false;

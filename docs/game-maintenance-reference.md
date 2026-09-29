@@ -12,6 +12,7 @@
 | 効果・対象判定 | `game/logic/cards.ts`, `game/cards/target-resolver.ts` | 設計資料 §6.5–6.6、§10。保護・回避・復活によって低水準操作の成否と最終結果が異なる場合がある。 |
 | 盤面形状・穴・拡張 | `shared/board/state-kernel.ts`, `shared/board/topology.ts` | 設計資料 §6.1.1。 |
 | 対象選択・複数段階・ターン移行 | `game/logic/cards-internal/pending-selection-registry.ts`, `game/turn/pending-coordinator.ts` | 設計資料 §6.3、§7.2.1–7.2.2。 |
+| カード使用後の対象選択の開始（ブラウザ） | `cards/card-interaction.ts` の `_ensureBoardPendingSelectionAfterCardUse`, `cards/card-interaction-card-use-outcome.ts` | pending の正本は headless 側。犠牲の意志で無効化された使用は run result の `nullifiedBySacrificeWill` で判別し、UI が対象選択を作り直さない。 |
 | CPU・AUTO | `game/cpu-decision.ts`, `game/cpu-network-command-planner.ts`, `utils/match-auto-command.ts` | 設計資料 §4.5、§8.4.1、§8.6。人間向け対象判定との共有箇所を追える。 |
 | 特殊石・進化 | `shared/special-stone-registry-factory.ts`, `shared/special-stone-registry-static.ts`, `game/logic/cards-internal/progression.ts` | 設計資料 §6.2.1、§10。 |
 | 演出・音・盤面描画 | `ui/presentation/dispatcher.ts`, `ui/animation-feedback-events.ts`, `ui/board-visual/effect-branch-inventory.ts` | 設計資料 §7.3。盤面内の演出と手札・HUD からの演出で所有者が異なる。 |

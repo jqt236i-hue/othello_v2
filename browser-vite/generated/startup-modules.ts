@@ -9,6 +9,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "cards/card-demo-video": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-demo-video.js"),
   "cards/card-demo-videos.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-demo-videos.generated.js"),
   "cards/card-interaction": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-interaction.js"),
+  "cards/card-interaction-card-use-outcome": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-interaction-card-use-outcome.js"),
   "cards/card-interaction-click-buffer": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-interaction-click-buffer.js"),
   "cards/card-interaction-detail-actions": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-interaction-detail-actions.js"),
   "cards/card-interaction-detail-panel": () => require("../../dist/browser-vite-bridge-src/startup/modules/cards/card-interaction-detail-panel.js"),
@@ -788,6 +789,7 @@ installBootModuleMetadata({
     "cards/card-demo-video",
     "cards/card-demo-videos.generated",
     "cards/card-interaction",
+    "cards/card-interaction-card-use-outcome",
     "cards/card-interaction-click-buffer",
     "cards/card-interaction-detail-actions",
     "cards/card-interaction-detail-panel",
@@ -1652,4 +1654,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 774;
+export const startupModuleCount = 775;
