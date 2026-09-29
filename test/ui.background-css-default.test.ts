@@ -6,7 +6,7 @@ describe('background skin first paint CSS default', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-base.css'), 'utf8');
     const bodyRule = css.match(/body\s*\{[\s\S]*?\n\}/)?.[0] || '';
 
-    expect(bodyRule).toContain('--app-background-image: url("assets/images/background/デフォルト25.png");');
+    expect(bodyRule).toContain('--app-background-image: url("assets/images/background/デフォルト25.webp");');
     expect(bodyRule).not.toContain('--app-background-image: url("assets/images/background/default.png");');
   });
 });

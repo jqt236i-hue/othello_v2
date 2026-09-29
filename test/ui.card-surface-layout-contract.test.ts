@@ -289,8 +289,8 @@ describe('card surface layout contract', () => {
   test('card backs and deck stacks use image assets without readable CARD text', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
 
-    expect(cardsCss).toMatch(/--card-back-deck-image:\s*url\("assets\/images\/other\/card-back-deck-v1\.png"\)/);
-    expect(cardsCss).toMatch(/--card-back-hand-image:\s*url\("assets\/images\/other\/card-back-hand-v1\.png"\)/);
+    expect(cardsCss).toMatch(/--card-back-deck-image:\s*url\("assets\/images\/other\/card-back-deck-v1\.webp"\)/);
+    expect(cardsCss).toMatch(/--card-back-hand-image:\s*url\("assets\/images\/other\/card-back-hand-v1\.webp"\)/);
     expect(readPngSize('assets/images/other/card-back-deck-v1.png')).toEqual({ width: 590, height: 780 });
     expect(readPngSize('assets/images/other/card-back-hand-v1.png')).toEqual({ width: 910, height: 1200 });
     expect(cardsCss).toMatch(/\.card-item\.hidden\s*\{[\s\S]*font-size:\s*0/);

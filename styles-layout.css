@@ -292,7 +292,7 @@
     top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)) - 10px);
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-table-opponent-v6.png");
+    background-image: url("assets/images/ui/card-area-table-opponent-v6.webp");
     background-position: bottom center;
     background-size: 100% 100%;
     background-repeat: no-repeat;
@@ -312,7 +312,7 @@
     top: calc(-13px * var(--layout-stage-scale));
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-table-player-v6.png");
+    background-image: url("assets/images/ui/card-area-table-player-v6.webp");
     background-position: top center;
     background-size: 100% 100%;
     background-repeat: no-repeat;

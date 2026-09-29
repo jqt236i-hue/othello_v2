@@ -1,6 +1,6 @@
 {
-  "version": "2026-09-28",
-  "generatedAt": "2026-09-28T01:54:35.555Z",
+  "version": "2026-09-29",
+  "generatedAt": "2026-09-29T05:19:25.624Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -359,20 +359,40 @@
       "sha256": "af74fdf4c5a3da8055c8b091353758480763c02e3eea0428355dafb5d8fa1630"
     },
     {
+      "path": "assets/images/other/card-back-deck-v1.webp",
+      "sha256": "50d0d88d6ef8db7323bc4b7a6d91091d45126c204f744f5bb3b3d6e4e9ce9c6e"
+    },
+    {
       "path": "assets/images/other/card-back-hand-v1.png",
       "sha256": "84613863ee21b7a4cfff3454b59b64c7c10e602700065f2fdceaf277fc77680f"
+    },
+    {
+      "path": "assets/images/other/card-back-hand-v1.webp",
+      "sha256": "f6eb8e9122ab85b43cb612688423f2895759f548bc06a4860c2f033a34729fc1"
     },
     {
       "path": "assets/images/other/charge-counter-wafu-v1.png",
       "sha256": "5ed84ef6406537f3e97d114c6573092173224b12c0d0fa0574d03a40ba3e7b31"
     },
     {
+      "path": "assets/images/other/charge-counter-wafu-v1.webp",
+      "sha256": "44c640a537c2ddfafb15ca488070e961c3968199ca3eb1b120d28cf9851591d5"
+    },
+    {
       "path": "assets/images/other/charge-delta-decrease-wafu-v1.png",
       "sha256": "8409588607951720f2288417a7e4f23f806c579ef372da3c3a05028a2dbbe4cc"
     },
     {
+      "path": "assets/images/other/charge-delta-decrease-wafu-v1.webp",
+      "sha256": "e1ff791aff5669475a81848b7c6dbf4e54e4d02671c1918045431d3dc12b94d2"
+    },
+    {
       "path": "assets/images/other/charge-delta-increase-wafu-v1.png",
       "sha256": "252e88bb83d06ee6688228ed177037d2fe05ca1342cac694f2c3cd74e8b84390"
+    },
+    {
+      "path": "assets/images/other/charge-delta-increase-wafu-v1.webp",
+      "sha256": "06adef839da0759321615ffd99e43f2f9675d7866b3fce8619c1cbe0959187b1"
     },
     {
       "path": "assets/images/other/gacha-crystal-cluster-v1.png",
@@ -475,16 +495,32 @@
       "sha256": "4b87688dc79d22c5ca5795f35fa89d11771f6f624f8e3a21eb98f9ecdbcb2bb6"
     },
     {
+      "path": "assets/images/other/turn-banner-enemy-black-v1.webp",
+      "sha256": "144f8e3a1ec5c4e48ef1f8c5fa43aaf696e0608c33a88874bd4301923aeff719"
+    },
+    {
       "path": "assets/images/other/turn-banner-enemy-v1.png",
       "sha256": "8f9d64aceb11340f07811d4a94431e9eda224a0c2a0e06f8921f8e8ac077ed7a"
+    },
+    {
+      "path": "assets/images/other/turn-banner-enemy-v1.webp",
+      "sha256": "bd016173c179183f8c6e1513262d1891a2821cc0167a4df70dc62f643879a04c"
     },
     {
       "path": "assets/images/other/turn-banner-your-v1.png",
       "sha256": "c9e9461a5fa5b9327e72d095a0eed42826c2b9d2ac6f3df0f6445c1e8e730634"
     },
     {
+      "path": "assets/images/other/turn-banner-your-v1.webp",
+      "sha256": "2dfe7e6bb25934e893a44fc9493c53632025eb8160326cbf216330308e119f9b"
+    },
+    {
       "path": "assets/images/other/turn-banner-your-white-v1.png",
       "sha256": "7bc9a18acdf5ae17858dae0ddd6662b0abede04862c8f6be712690543ba51be6"
+    },
+    {
+      "path": "assets/images/other/turn-banner-your-white-v1.webp",
+      "sha256": "40c3e35b6daf03a1de1d8dcc1227492d3d52e15aa0b99d8dff9a1b70ec9feb5c"
     },
     {
       "path": "assets/images/other/X.png",
@@ -705,6 +741,10 @@
     {
       "path": "assets/images/background/デフォルト25.png",
       "sha256": "1bd8be6d6cf7b0f29c37a6c2e0ab3d35279b5f261270ccf577f07464b647da43"
+    },
+    {
+      "path": "assets/images/background/デフォルト25.webp",
+      "sha256": "3edea2fad2d858ed9f29d94738dcd5661aab5566ba6546a20308aa935ae10671"
     },
     {
       "path": "assets/images/background/デフォルト26.png",

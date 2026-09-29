@@ -34,7 +34,7 @@ describe('Pixi appearance resolver', () => {
     });
 
     expect(first.descriptor.boardImageUrl).toBe(
-      'https://example.test/game/assets/images/board/board-surface-bluegreen-felt-v1.png'
+      'https://example.test/game/assets/images/board/board-surface-bluegreen-felt-v1.webp'
     );
     expect(first.descriptor.blackStoneImageUrl).toBe(
       'https://example.test/game/assets/images/stone-skin/jade-rim/black.png'

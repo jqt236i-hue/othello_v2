@@ -89,7 +89,7 @@ describe('board skin controller', () => {
       ['brushed-lacquer', 'assets/images/board/board-surface-brushed-lacquer-v1.png'],
       ['mica-washi', 'assets/images/board/board-surface-mica-washi-v1.png'],
       ['aged-board', 'assets/images/board/board-surface-aged-board-v1.png'],
-      ['bluegreen-felt', 'assets/images/board/board-surface-bluegreen-felt-v1.png'],
+      ['bluegreen-felt', 'assets/images/board/board-surface-bluegreen-felt-v1.webp'],
       ['celadon-stone', 'assets/images/board/board-surface-celadon-stone-v1.png'],
       ['teal-lacquer', 'assets/images/board/board-surface-teal-lacquer-v1.png'],
       ['quiet-cosmos', 'assets/images/board/board-surface-quiet-cosmos-v1.png']
@@ -113,7 +113,7 @@ describe('board skin controller', () => {
     expect(window.localStorage.getItem('othello.boardSkin')).toBeNull();
     expect(window.localStorage.getItem('reversi.boardSkin')).toBeNull();
     expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
-    expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-bluegreen-felt-v1.png")');
+    expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-bluegreen-felt-v1.webp")');
   });
 
   test('persists and applies the generated board frame skin', () => {
@@ -123,7 +123,7 @@ describe('board skin controller', () => {
 
     expect(api.getSelectedFrameSkinId()).toBe('submerged-wood');
     expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
-    expect(document.getElementById('board-frame')!.style.getPropertyValue('--board-frame-image')).toBe('url("assets/images/board/board-frame-submerged-wood-v1.png")');
+    expect(document.getElementById('board-frame')!.style.getPropertyValue('--board-frame-image')).toBe('url("assets/images/board/board-frame-submerged-wood-v1.webp")');
     expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('submerged-wood');
     expect(catalog.getAllBoardFrameSkins().find((skin: { id: string }) => skin.id === 'marsh-forged-iron')?.label).toBe('既定');
     expect(catalog.getAllBoardFrameSkins().map((skin: { id: string }) => skin.id)).toEqual([
@@ -213,7 +213,7 @@ describe('board skin controller', () => {
     const expected: Array<[string, string]> = [
       ['compact-iron-clean-corners', 'assets/images/board/board-frame-compact-iron-clean-corners-v3.png'],
       ['compact-gold-clean-corners', 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png'],
-      ['submerged-wood', 'assets/images/board/board-frame-submerged-wood-v1.png'],
+      ['submerged-wood', 'assets/images/board/board-frame-submerged-wood-v1.webp'],
       ['swamp-ruin-stone', 'assets/images/board/board-frame-swamp-ruin-stone-v1.png'],
       ['shadow-vine-lacquer', 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png'],
       ['thin-ebony-gold', 'assets/images/board/board-frame-thin-ebony-gold-v1.png'],

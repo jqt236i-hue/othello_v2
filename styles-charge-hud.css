@@ -23,7 +23,7 @@
     padding: 0 calc(20px * var(--layout-stage-scale));
     border: 0;
     border-radius: 0;
-    background-image: url("assets/images/other/charge-counter-wafu-v1.png");
+    background-image: url("assets/images/other/charge-counter-wafu-v1.webp");
     background-position: center;
     background-repeat: no-repeat;
     background-size: 100% 100%;
@@ -303,11 +303,11 @@
 }
 
 .charge-delta.is-increase {
-    background-image: url("assets/images/other/charge-delta-increase-wafu-v1.png");
+    background-image: url("assets/images/other/charge-delta-increase-wafu-v1.webp");
     color: #eefbff;
 }
 
 .charge-delta.is-decrease {
-    background-image: url("assets/images/other/charge-delta-decrease-wafu-v1.png");
+    background-image: url("assets/images/other/charge-delta-decrease-wafu-v1.webp");
     color: #fff1f4;
 }

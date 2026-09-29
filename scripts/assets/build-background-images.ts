@@ -13,6 +13,7 @@ const GENERATED_MODULE_PATH = path.join(ROOT, 'ui', 'assets', 'optimized-backgro
 const MIN_SOURCE_BYTES = Math.floor(1.25 * 1024 * 1024);
 const MIN_SAVED_BYTES = 256 * 1024;
 const MIN_SAVINGS_RATIO = 0.15;
+const UI_IMAGE_POLICY_PATH = path.join(ROOT, 'scripts', 'assets', 'optimized-ui-images.policy.json');
 
 type ManifestEntry = {
   source: string;
@@ -86,8 +87,25 @@ function renderGeneratedModule(entries: ManifestEntry[]): string {
   ].join('\n');
 }
 
+// Backgrounds admitted through the UI image policy (lossy start-up assets) own
+// their own .webp output next to the PNG; this pipeline must not reconcile them.
+function readUiImagePolicyOutputs(): Set<string> {
+  try {
+    const policy = JSON.parse(fs.readFileSync(UI_IMAGE_POLICY_PATH, 'utf8')) as {
+      images?: Array<{ source?: string }>;
+    };
+    return new Set((policy.images || [])
+      .map((image) => String(image.source || '').split('\\').join('/'))
+      .filter((source) => source.toLowerCase().endsWith('.png'))
+      .map((source) => path.resolve(ROOT, source.replace(/\.png$/i, '.webp')).toLowerCase()));
+  } catch (_error) {
+    return new Set();
+  }
+}
+
 function reconcileGeneratedOutputs(entries: ManifestEntry[], checkOnly: boolean): void {
   const expectedOutputs = new Set(entries.map((entry) => path.resolve(ROOT, entry.output).toLowerCase()));
+  readUiImagePolicyOutputs().forEach((outputPath) => expectedOutputs.add(outputPath));
   const unexpectedOutputs = fs.readdirSync(BACKGROUND_DIR, { withFileTypes: true })
     .filter((item) => item.isFile() && item.name.toLowerCase().endsWith('.webp'))
     .map((item) => path.join(BACKGROUND_DIR, item.name))

@@ -23,7 +23,7 @@
     --board-legal-ring-highlight: rgba(230, 255, 249, 0.20);
     --board-legal-ring-glow: rgba(105, 255, 222, 0.10);
     --board-surface-base-color: #07110f;
-    --board-surface-texture-image: url("assets/images/board/board-surface-bluegreen-felt-v1.png");
+    --board-surface-texture-image: url("assets/images/board/board-surface-bluegreen-felt-v1.webp");
     --board-surface-base-image:
         var(--board-surface-texture-image),
         linear-gradient(180deg, rgba(9, 18, 16, 0.98), rgba(3, 8, 8, 0.98));

@@ -17,7 +17,7 @@ describe('charge delta style contract', () => {
     const chargeDeltaIncreaseBody = extractRuleBody(layoutCss, '\\.charge-delta\\.is-increase');
     const chargeDeltaDecreaseBody = extractRuleBody(layoutCss, '\\.charge-delta\\.is-decrease');
 
-    expect(chargeDisplayBody).toMatch(/background-image:\s*url\("assets\/images\/other\/charge-counter-wafu-v1\.png"\)/);
+    expect(chargeDisplayBody).toMatch(/background-image:\s*url\("assets\/images\/other\/charge-counter-wafu-v1\.webp"\)/);
     expect(chargeDisplayBody).toMatch(/background-size:\s*100%\s*100%/);
     expect(variablesCss).toMatch(/--layout-size-charge-delta-font:\s*calc\(13px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-delta-height:\s*calc\(28px\s*\*\s*var\(--layout-stage-scale\)\)/);
@@ -31,8 +31,8 @@ describe('charge delta style contract', () => {
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*overflow:\s*visible/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*z-index:\s*var\(--layout-z-charge-delta\)/);
     expect(chargeDeltaBody).toMatch(/filter:\s*drop-shadow/);
-    expect(chargeDeltaIncreaseBody).toMatch(/background-image:\s*url\("assets\/images\/other\/charge-delta-increase-wafu-v1\.png"\)/);
-    expect(chargeDeltaDecreaseBody).toMatch(/background-image:\s*url\("assets\/images\/other\/charge-delta-decrease-wafu-v1\.png"\)/);
+    expect(chargeDeltaIncreaseBody).toMatch(/background-image:\s*url\("assets\/images\/other\/charge-delta-increase-wafu-v1\.webp"\)/);
+    expect(chargeDeltaDecreaseBody).toMatch(/background-image:\s*url\("assets\/images\/other\/charge-delta-decrease-wafu-v1\.webp"\)/);
     expect(layoutCss).toMatch(/\.charge-delta[\s\S]*transform:\s*translate3d\(var\(--charge-delta-drift-x,\s*0px\),\s*var\(--layout-size-charge-delta-shift-y-start\),\s*0\)\s*scale\(0\.88\)/);
     expect(layoutCss).toMatch(/\.charge-delta\.is-visible[\s\S]*scale\(1\)/);
     expect(chargeDeltaFadeoutBody).not.toMatch(/^\s*filter:/m);

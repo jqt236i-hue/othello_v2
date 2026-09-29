@@ -178,8 +178,20 @@ describe('background image codec fallback', () => {
     expect(fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
       .some((name) => name.endsWith('.avif'))).toBe(false);
     const mappedOutputs = new Set(manifest.images.map((image: any) => path.basename(image.output)));
+    // Start-up backgrounds admitted through the UI image policy (lossy WebP) own
+    // their own paired output and are referenced directly, not through this mapping.
+    const uiImagePolicy = JSON.parse(fs.readFileSync(
+      path.join(root, 'scripts', 'assets', 'optimized-ui-images.policy.json'),
+      'utf8'
+    ));
+    const policyOwnedOutputs = new Set(uiImagePolicy.images
+      .map((image: any) => String(image.source))
+      .filter((source: string) => source.startsWith('assets/images/background/'))
+      .map((source: string) => path.basename(source).replace(/\.png$/i, '.webp')));
+    expect(policyOwnedOutputs.has('デフォルト25.webp')).toBe(true);
     const pairedWebpOutputs = fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
       .filter((name) => name.endsWith('.webp'))
+      .filter((name) => !policyOwnedOutputs.has(name))
       .filter((name) => fs.existsSync(path.join(
         root,
         'assets',

@@ -51,7 +51,7 @@ describe('board frame optimized image runtime', () => {
     expect(resolveOptimizedImagePath).toHaveBeenCalledWith(
       window,
       DEFAULT_FRAME_PNG,
-      { [DEFAULT_FRAME_PNG]: DEFAULT_FRAME_WEBP }
+      expect.objectContaining({ [DEFAULT_FRAME_PNG]: DEFAULT_FRAME_WEBP })
     );
     expect(document.documentElement.style.getPropertyValue('--board-frame-image'))
       .toBe('url("blob:admitted-frame-webp")');
@@ -86,7 +86,7 @@ describe('board frame optimized image runtime', () => {
     expect(document.documentElement.getAttribute('data-board-frame-skin-id'))
       .toBe('submerged-wood');
     expect(document.getElementById('board-frame')!.style.getPropertyValue('--board-frame-image'))
-      .toBe('url("assets/images/board/board-frame-submerged-wood-v1.png")');
+      .toBe('url("assets/images/board/board-frame-submerged-wood-v1.webp")');
   });
 
   test('invalidates an optimized completion when display leases are released', async () => {

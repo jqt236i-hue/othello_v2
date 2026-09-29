@@ -121,7 +121,7 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
     id: 'bluegreen-felt',
     label: '既定',
     note: '青みを帯びた静かな布目の下地',
-    imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.png'
+    imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp'
   }),
   Object.freeze({
     id: 'celadon-stone',
@@ -251,7 +251,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
     id: 'submerged-wood',
     label: '沈木枠',
     note: '濡れた沈木色のCSS外周フレーム',
-    imagePath: 'assets/images/board/board-frame-submerged-wood-v1.png',
+    imagePath: 'assets/images/board/board-frame-submerged-wood-v1.webp',
     layout: Object.freeze({
       paddingTop: 15,
       paddingRight: 20,

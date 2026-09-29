@@ -10,7 +10,7 @@ describe('charge HUD position contract', () => {
     const indexHtml = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
 
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*width:\s*calc\(154px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(layoutCss).toMatch(/\.charge-display[\s\S]*background-image:\s*url\("assets\/images\/other\/charge-counter-wafu-v1\.png"\)/);
+    expect(layoutCss).toMatch(/\.charge-display[\s\S]*background-image:\s*url\("assets\/images\/other\/charge-counter-wafu-v1\.webp"\)/);
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*background-size:\s*100%\s*100%/);
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*font-size:\s*var\(--layout-size-charge-font\)/);
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*z-index:\s*var\(--layout-z-charge-display\)/);

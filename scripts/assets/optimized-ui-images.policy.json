@@ -31,24 +31,224 @@
     {
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
       "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
       "admission": {
-        "status": "rejected",
-        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
       },
       "measurement": {
-        "investigation": "rejected before formal admission because decode regressed",
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-submerged-wood-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       }
     },
     {
       "source": "assets/images/background/デフォルト25.png",
-      "criticalPath": false,
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
       "admission": {
-        "status": "rejected",
-        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
       },
       "measurement": {
-        "investigation": "rejected before formal admission because decode regressed",
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/card-back-deck-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/card-back-hand-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-table-player-v6.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-table-opponent-v6.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/charge-counter-wafu-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/charge-delta-increase-wafu-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/charge-delta-decrease-wafu-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/turn-banner-your-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/turn-banner-your-white-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/turn-banner-enemy-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/other/turn-banner-enemy-black-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "referenced directly from the start-up stylesheet/catalog as .webp to cut first-load transfer"
+      },
+      "measurement": {
+        "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       }
     }

@@ -1169,20 +1169,20 @@
 
 .turn-arrival-toast.is-self,
 .turn-arrival-toast.is-self.is-black-turn {
-    background-image: url("assets/images/other/turn-banner-your-v1.png");
+    background-image: url("assets/images/other/turn-banner-your-v1.webp");
 }
 
 .turn-arrival-toast.is-self.is-white-turn {
-    background-image: url("assets/images/other/turn-banner-your-white-v1.png");
+    background-image: url("assets/images/other/turn-banner-your-white-v1.webp");
 }
 
 .turn-arrival-toast.is-enemy,
 .turn-arrival-toast.is-enemy.is-white-turn {
-    background-image: url("assets/images/other/turn-banner-enemy-v1.png");
+    background-image: url("assets/images/other/turn-banner-enemy-v1.webp");
 }
 
 .turn-arrival-toast.is-enemy.is-black-turn {
-    background-image: url("assets/images/other/turn-banner-enemy-black-v1.png");
+    background-image: url("assets/images/other/turn-banner-enemy-black-v1.webp");
 }
 
 @keyframes turn-arrival-toast-enter {

@@ -1,8 +1,8 @@
 /* ===== Card Items, Hands, Deck, Card Detail Panel, Card Styling ===== */
 
 :root {
-    --card-back-deck-image: url("assets/images/other/card-back-deck-v1.png");
-    --card-back-hand-image: url("assets/images/other/card-back-hand-v1.png");
+    --card-back-deck-image: url("assets/images/other/card-back-deck-v1.webp");
+    --card-back-hand-image: url("assets/images/other/card-back-hand-v1.webp");
 }
 
 .deck-stack {

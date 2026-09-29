@@ -20,6 +20,26 @@ export interface LosslessWebpPipelineOptions {
   readonly effort?: number;
 }
 
+export interface LossyWebpAnalysis {
+  readonly encoded: Buffer;
+  readonly width: number;
+  readonly height: number;
+  readonly hasAlpha: boolean;
+  readonly quality: number;
+  readonly sourceBytes: number;
+  readonly outputBytes: number;
+  readonly savedBytes: number;
+  readonly savingsRatio: number;
+  readonly sourceSha256: string;
+  readonly outputSha256: string;
+  readonly visiblePixelsEqual: false;
+}
+
+export interface LossyWebpPipelineOptions {
+  readonly quality: number;
+  readonly effort?: number;
+}
+
 export function sha256Buffer(value: Buffer): string {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
@@ -88,6 +108,56 @@ export async function analyzeLosslessWebp(
     sourceSha256: sha256Buffer(source),
     outputSha256: sha256Buffer(encoded),
     visiblePixelsEqual: true as const
+  });
+}
+
+// Lossy WebP for large photographic textures (board surfaces, table cloths,
+// backgrounds). Download size dominates start-up time on real connections, so
+// these trade invisible pixel differences for a 5-20x smaller transfer.
+export async function analyzeLossyWebp(
+  sourcePath: string,
+  options: LossyWebpPipelineOptions
+): Promise<LossyWebpAnalysis> {
+  const quality = Number(options.quality);
+  if (!(Number.isInteger(quality) && quality >= 50 && quality <= 100)) {
+    throw new Error(`lossy WebP quality must be an integer between 50 and 100: ${sourcePath}`);
+  }
+  const source = fs.readFileSync(sourcePath);
+  const encoded = await sharp(source, { failOn: 'error' })
+    .webp({
+      lossless: false,
+      quality,
+      alphaQuality: 100,
+      effort: options.effort ?? 6,
+      smartSubsample: true
+    })
+    .toBuffer();
+  const [sourceMetadata, outputMetadata] = await Promise.all([
+    sharp(source, { failOn: 'error' }).metadata(),
+    sharp(encoded, { failOn: 'error' }).metadata()
+  ]);
+  if (
+    sourceMetadata.width !== outputMetadata.width
+    || sourceMetadata.height !== outputMetadata.height
+  ) {
+    throw new Error(`lossy WebP dimension mismatch: ${sourcePath}`);
+  }
+  const sourceBytes = source.length;
+  const outputBytes = encoded.length;
+  const savedBytes = sourceBytes - outputBytes;
+  return Object.freeze({
+    encoded,
+    width: sourceMetadata.width || 0,
+    height: sourceMetadata.height || 0,
+    hasAlpha: sourceMetadata.hasAlpha === true,
+    quality,
+    sourceBytes,
+    outputBytes,
+    savedBytes,
+    savingsRatio: sourceBytes > 0 ? savedBytes / sourceBytes : 0,
+    sourceSha256: sha256Buffer(source),
+    outputSha256: sha256Buffer(encoded),
+    visiblePixelsEqual: false as const
   });
 }
 

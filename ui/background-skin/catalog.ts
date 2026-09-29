@@ -187,7 +187,7 @@ const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
     id: 'default-25',
     label: '既定',
     note: '初期所持',
-    imagePath: 'assets/images/background/デフォルト25.png'
+    imagePath: 'assets/images/background/デフォルト25.webp'
   }),
   Object.freeze({
     id: 'default-26',

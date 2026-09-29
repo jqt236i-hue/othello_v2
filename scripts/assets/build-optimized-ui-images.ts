@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   analyzeLosslessWebp,
+  analyzeLossyWebp,
   materializeLosslessWebp
 } from './lossless-webp-pipeline';
 
@@ -12,10 +13,15 @@ const GENERATED_MODULE_PATH = path.join(ROOT, 'ui', 'assets', 'optimized-ui-imag
 const ASSET_IMAGE_ROOT = path.resolve(ROOT, 'assets', 'images');
 
 type AdmissionStatus = 'pending-hardware' | 'admitted' | 'rejected';
+type ImageCodec = 'webp-lossless' | 'webp-lossy';
 
 interface PolicyImage {
   source: string;
   criticalPath: boolean;
+  encoding?: {
+    codec: ImageCodec;
+    quality?: number;
+  };
   admission: {
     status: AdmissionStatus;
     reason: string;
@@ -105,10 +111,16 @@ async function run(): Promise<void> {
     if (!fs.existsSync(sourcePath)) throw new Error(`missing optimized UI image source: ${source}`);
     const candidateOutput = outputPathForSource(source);
     const outputPath = path.resolve(ROOT, candidateOutput);
-    const analysis = await analyzeLosslessWebp(sourcePath);
+    const codec: ImageCodec = image.encoding?.codec ?? 'webp-lossless';
+    if (codec !== 'webp-lossless' && codec !== 'webp-lossy') {
+      throw new Error(`invalid optimized UI image codec: ${source}`);
+    }
+    const analysis = codec === 'webp-lossy'
+      ? await analyzeLossyWebp(sourcePath, { quality: Number(image.encoding?.quality) })
+      : await analyzeLosslessWebp(sourcePath);
     if (analysis.savingsRatio < policy.minimumSavingsRatio) {
       throw new Error(
-        `lossless WebP savings below ${policy.minimumSavingsRatio}: ${source} (${analysis.savingsRatio})`
+        `${codec} savings below ${policy.minimumSavingsRatio}: ${source} (${analysis.savingsRatio})`
       );
     }
     const materialized = image.admission.status !== 'rejected';
@@ -126,6 +138,8 @@ async function run(): Promise<void> {
       candidateOutput,
       output: materialized ? candidateOutput : null,
       criticalPath: image.criticalPath === true,
+      codec,
+      quality: codec === 'webp-lossy' ? (analysis as { quality: number }).quality : null,
       admission: image.admission,
       measurement: image.measurement,
       width: analysis.width,
@@ -144,6 +158,7 @@ async function run(): Promise<void> {
   const manifest = {
     schemaVersion: 1,
     codec: 'webp-lossless',
+    codecs: ['webp-lossless', 'webp-lossy'],
     minimumSavingsRatio: policy.minimumSavingsRatio,
     policy: browserPath(POLICY_PATH),
     images,
