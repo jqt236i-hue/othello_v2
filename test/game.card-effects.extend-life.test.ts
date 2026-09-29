@@ -26,8 +26,8 @@ describe('extend-life', () => {
         const callArg = mockExecutePendingSelection.mock.calls[0][0];
         expect(callArg.pendingTypes).toEqual(['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD']);
         expect(callArg.actionPayload).toEqual({ extendTarget: { row: 1, col: 1 } });
-        expect(callArg.invalidMessage({ pendingType: 'EXTEND_LIFE_WILL' })).toBe('延命の対象となる自分の特殊石を選んでください');
-        expect(callArg.invalidMessage({ pendingType: 'EXTEND_LIFE_GOD' })).toBe('延命神の対象となる自分の特殊石を選んでください');
+        expect(callArg.invalidMessage({ pendingType: 'EXTEND_LIFE_WILL' })).toBe('延命の対象となる自分の特殊石または完全保護中の石を選んでください');
+        expect(callArg.invalidMessage({ pendingType: 'EXTEND_LIFE_GOD' })).toBe('延命神の対象となる自分の特殊石または完全保護中の石を選んでください');
         expect(callArg.buildPlaybackMeta({ pendingType: 'EXTEND_LIFE_GOD' })).toEqual({ cause: 'EXTEND_LIFE_GOD', target: { row: 1, col: 1 } });
     });
 

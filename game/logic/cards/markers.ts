@@ -934,8 +934,10 @@ function applyExtendLifeSelection(cardState: CardState, gameState: GameState, pl
 
     const specialsAtCell = getSpecialMarkers(cardState).filter((marker: any) => (
         marker &&
-        isTrueSpecialStoneMarker(marker) &&
-        isDurationAffectableMarker(marker) &&
+        (
+            getNormalizedMarkerType(marker) === 'GUARD' ||
+            (isTrueSpecialStoneMarker(marker) && isDurationAffectableMarker(marker))
+        ) &&
         markerOccupiesCell(marker, row, col) &&
         marker.owner === playerKey &&
         marker.data &&
@@ -981,7 +983,7 @@ function applyExtendLifeWill(cardState: CardState, gameState: GameState, playerK
 function applyExtendLifeGod(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: ExtendLifeDeps): { applied: boolean; reason?: string; row?: number; col?: number; previousRemainingOwnerTurns?: number; newRemainingOwnerTurns?: number; multiplier?: number; cardType?: string } {
     return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, deps, {
         pendingType: 'EXTEND_LIFE_GOD',
-        multiplier: 4
+        multiplier: 3
     });
 }
 

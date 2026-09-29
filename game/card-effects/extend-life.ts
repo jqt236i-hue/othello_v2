@@ -33,8 +33,8 @@ async function handleExtendLifeSelection(row: number, col: number, playerKey: st
         pendingTypes: ['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD'],
         actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['EXTEND_LIFE_WILL', 'EXTEND_LIFE_GOD'], row, col),
         invalidMessage: ({ pendingType }: any) => pendingType === 'EXTEND_LIFE_GOD'
-            ? '延命神の対象となる自分の特殊石を選んでください'
-            : '延命の対象となる自分の特殊石を選んでください',
+            ? '延命神の対象となる自分の特殊石または完全保護中の石を選んでください'
+            : '延命の対象となる自分の特殊石または完全保護中の石を選んでください',
         validateResult: ({ result }: any) => {
             const selected = getExtendLifeSelectedEvent(result);
             return !!(selected && selected.applied);

@@ -974,7 +974,7 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
-  test('extend life target selection doubles only the authoritative special-stone body duration', () => {
+  test('extend life target selection doubles the authoritative special-stone body and GUARD durations', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'extend_life_01',
       pendingType: 'EXTEND_LIFE_WILL',
@@ -1020,7 +1020,7 @@ describe('worker pendingEffectId contract', () => {
         row: 2,
         col: 2,
         owner: 'black',
-        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 3 })
+        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 6 })
       })
     ]));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([

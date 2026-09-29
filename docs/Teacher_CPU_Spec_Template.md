@@ -143,7 +143,7 @@
 | CONDEMN_WILL | 断罪の意志 | 8 | 手札干渉 |
 | GOLD_STONE | 金の意志 | 6 | 経済 |
 | SILVER_STONE | 銀の意志 | 3 | 経済 |
-| EXTEND_LIFE_WILL | 延命の意志 | 4 | 防御 |
+| EXTEND_LIFE_WILL | 延命の意志 | 6 | 防御 |
 | EXTEND_LIFE_GOD | 延命神 | 10 | 防御 |
 | GUARD_WILL | 守る意志 | 2 | 防御 |
 | ULTIMATE_DESTROY_GOD | 究極破壊神 | 30 | 攻撃 |

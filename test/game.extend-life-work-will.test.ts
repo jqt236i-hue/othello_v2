@@ -31,7 +31,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
         row: 1,
         col: 1,
         owner: 'black',
-        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+        data: { type: 'GUARD', remainingOwnerTurns: 0 }
       },
       {
         id: 9007,
@@ -47,7 +47,27 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(usable).toEqual([]);
   });
 
-  test('getSelectableTargets returns own timed special stones while EXTEND_LIFE_WILL is pending', () => {
+  test('getUsableCardIds は完全保護が付いた自分の石だけがある場合も EXTEND_LIFE_WILL を使用可能にする', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_WILL');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = createStates();
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    gameState.board[1][1] = SharedConstants.BLACK;
+    cardState.markers.push({
+      id: 9008,
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      owner: 'black',
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
+    });
+
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([def.id]);
+  });
+
+  test('getSelectableTargets returns own timed special stones and guarded stones while EXTEND_LIFE_WILL is pending', () => {
     const { cardState, gameState } = createStates();
 
     gameState.board[2][2] = SharedConstants.BLACK;
@@ -108,7 +128,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     cardState.pendingEffectByPlayer.black = { type: 'EXTEND_LIFE_WILL', stage: 'selectTarget' };
 
     const targets = CardLogic.getSelectableTargets(cardState, gameState, 'black');
-    expect(targets).toEqual([{ row: 2, col: 2 }]);
+    expect(targets).toEqual([{ row: 2, col: 2 }, { row: 5, col: 5 }]);
   });
 
   test('getSelectableTargets returns own timed special stones while EXTEND_LIFE_GOD is pending', () => {
@@ -170,7 +190,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(work.data.remainingOwnerTurns).toBe(2);
   });
 
-  test('applyExtendLifeWill doubles the special-stone body but leaves GUARD unchanged on the same cell', () => {
+  test('applyExtendLifeWill doubles both the special-stone body and GUARD on the same cell', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_WILL');
     expect(def).toBeTruthy();
 
@@ -210,10 +230,99 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     expect(work).toBeTruthy();
     expect(guard).toBeTruthy();
     expect(work.data.remainingOwnerTurns).toBe(4);
-    expect(guard.data.remainingOwnerTurns).toBe(3);
+    expect(guard.data.remainingOwnerTurns).toBe(6);
   });
 
-  test('applyExtendLifeGod quadruples remainingOwnerTurns on own WORK stone', () => {
+  test('applyExtendLifeWill doubles GUARD on a normal stone that has no special-stone body', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_WILL');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = createStates();
+    gameState.board[2][2] = SharedConstants.BLACK;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    cardState.markers.push({
+      id: 9013,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
+    });
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', def.id)).toBe(true);
+
+    const res = CardLogic.applyExtendLifeWill(cardState, gameState, 'black', 2, 2);
+    expect(res && res.applied).toBe(true);
+    expect(res.previousRemainingOwnerTurns).toBe(3);
+    expect(res.newRemainingOwnerTurns).toBe(6);
+
+    const guard = (cardState.markers || []).find((m) => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'GUARD');
+    expect(guard.data.remainingOwnerTurns).toBe(6);
+  });
+
+  test('applyExtendLifeGod triples both the special-stone body and GUARD on the same cell', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_GOD');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = createStates();
+    gameState.board[2][2] = SharedConstants.BLACK;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    cardState.markers.push(
+      {
+        id: 9014,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'WORK', ownerColor: 'black', workStage: 4, remainingOwnerTurns: 2 }
+      },
+      {
+        id: 9015,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 10 }
+      }
+    );
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', def.id)).toBe(true);
+
+    const res = CardLogic.applyExtendLifeGod(cardState, gameState, 'black', 2, 2);
+    expect(res && res.applied).toBe(true);
+    expect(res.multiplier).toBe(3);
+    expect(res.previousRemainingOwnerTurns).toBe(2);
+    expect(res.newRemainingOwnerTurns).toBe(6);
+
+    const work = (cardState.markers || []).find((m) => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'WORK');
+    const guard = (cardState.markers || []).find((m) => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'GUARD');
+    expect(work.data.remainingOwnerTurns).toBe(6);
+    expect(guard.data.remainingOwnerTurns).toBe(30);
+  });
+
+  test('applyExtendLifeWill does not extend GUARD owned by the opponent', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_WILL');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = createStates();
+    gameState.board[2][2] = SharedConstants.WHITE;
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    cardState.markers.push({
+      id: 9016,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'white',
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
+    });
+
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toEqual([]);
+  });
+
+  test('applyExtendLifeGod triples remainingOwnerTurns on own WORK stone', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((d) => d && d.type === 'EXTEND_LIFE_GOD');
     expect(def).toBeTruthy();
 
@@ -236,12 +345,12 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     const res = CardLogic.applyExtendLifeGod(cardState, gameState, 'black', 2, 2);
     expect(res && res.applied).toBe(true);
     expect(res.previousRemainingOwnerTurns).toBe(2);
-    expect(res.newRemainingOwnerTurns).toBe(8);
-    expect(res.multiplier).toBe(4);
+    expect(res.newRemainingOwnerTurns).toBe(6);
+    expect(res.multiplier).toBe(3);
 
     const work = (cardState.markers || []).find((m) => m && m.row === 2 && m.col === 2 && m.data && m.data.type === 'WORK');
     expect(work).toBeTruthy();
-    expect(work.data.remainingOwnerTurns).toBe(8);
+    expect(work.data.remainingOwnerTurns).toBe(6);
   });
 
   test('EXTEND_LIFE_GOD で持続5超になった WORK stone は 1→2→4→8→16 を繰り返す', () => {
@@ -268,16 +377,16 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
     const extended = CardLogic.applyExtendLifeGod(cardState, gameState, 'black', 3, 3);
     expect(extended && extended.applied).toBe(true);
     expect(extended.previousRemainingOwnerTurns).toBe(5);
-    expect(extended.newRemainingOwnerTurns).toBe(20);
+    expect(extended.newRemainingOwnerTurns).toBe(15);
 
     const gains = [];
     const uncappedChargeGain = (_cardState, _playerKey, amount) => amount;
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 15; i += 1) {
       const one = CardWork.processWorkEffects(cardState, gameState, 'black', { addChargeWithTotal: uncappedChargeGain });
       gains.push(one.gained);
-      expect(one.removed).toBe(i === 19);
+      expect(one.removed).toBe(i === 14);
     }
-    expect(gains).toEqual([1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16]);
+    expect(gains).toEqual([1, 2, 4, 8, 16, 1, 2, 4, 8, 16, 1, 2, 4, 8, 16]);
   });
 
   test('EXTEND_LIFE_WILL で持続5超になった WORK stone は 1→2→4→8→16 を繰り返す', () => {

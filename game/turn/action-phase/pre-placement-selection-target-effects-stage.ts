@@ -150,7 +150,7 @@ function resolveExtendLifeSelection(options: TargetEffectsStageOptions): any {
     const result = applyExtendLife(options.cardState, options.gameState, options.playerKey, selection.target.row, selection.target.col);
     options.events.push({
         type: 'extend_life_selected', player: options.playerKey, target: selection.target, applied: !!(result && result.applied), cardType: options.pending.type,
-        multiplier: result && Number.isFinite(result.multiplier) ? Number(result.multiplier) : (options.pending.type === 'EXTEND_LIFE_GOD' ? 4 : 2),
+        multiplier: result && Number.isFinite(result.multiplier) ? Number(result.multiplier) : (options.pending.type === 'EXTEND_LIFE_GOD' ? 3 : 2),
         details: result ? { previous: result.previousRemainingOwnerTurns, current: result.newRemainingOwnerTurns } : null
     });
     if (result && result.applied) options.emitDurationSelectionStatusTick(selection.target, 'extend_life_applied', 'positive');

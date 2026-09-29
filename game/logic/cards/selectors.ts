@@ -782,8 +782,9 @@ function getExtendLifeTargets(cardState: CardState, _gameState: GameState, playe
     const seen = new Set<string>();
     for (const marker of markers) {
         if (!marker || marker.kind !== 'specialStone') continue;
-        if (!isTrueSpecialStoneMarker(marker)) continue;
-        if (!isDurationAffectableMarker(marker)) continue;
+        const isGuardStatus = !!(marker.data && marker.data.type === 'GUARD');
+        if (!isGuardStatus && !isTrueSpecialStoneMarker(marker)) continue;
+        if (!isGuardStatus && !isDurationAffectableMarker(marker)) continue;
         if (marker.owner !== ownerKey) continue;
         const remaining = (marker.data && Number.isFinite(marker.data.remainingOwnerTurns))
             ? Number(marker.data.remainingOwnerTurns)
