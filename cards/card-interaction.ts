@@ -591,10 +591,6 @@ const _cardInteractionHandDomModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-hand-dom'
 });
 
-const _cardInteractionCardUseOutcomeModule = _resolveCardInteractionModule({
-    requirePath: './card-interaction-card-use-outcome'
-});
-
 const _cardRendererModule = _resolveCardInteractionModule({
     requirePath: './card-renderer'
 });
@@ -2062,32 +2058,12 @@ function _armBoardTargetSelectionEntryPlaybackContext(runResult: any, ownerKey: 
     }
 }
 
-function _isCardUseNullifiedBySacrificeWillForRunResult(runResult: any, ownerKey: any, cardId: any) {
-    const outcomeModule = _cardInteractionCardUseOutcomeModule;
-    if (!outcomeModule || typeof outcomeModule.isCardUseNullifiedBySacrificeWill !== 'function') return false;
-    try {
-        return outcomeModule.isCardUseNullifiedBySacrificeWill({
-            playbackEvents: _getRunResultPlaybackEvents(runResult),
-            nextCardState: _getRunResultNextCardState(runResult),
-            ownerKey,
-            cardId,
-            normalizeOwnerKey: _normalizeOwnerKeyOptional
-        }) === true;
-    } catch (e) {
-        return false;
-    }
-}
-
 function _ensureBoardPendingSelectionAfterCardUse(runResult: any, ownerKey: any, cardId: any, cardDef: any) {
     const normalizedOwnerKey = _normalizeOwnerKeyOptional(ownerKey);
     if (!normalizedOwnerKey || !cardDef || typeof cardDef.type !== 'string') return false;
 
     const pendingType = String(cardDef.type || '').trim().toUpperCase();
     if (!pendingType || _isHandOverlayPendingTypeForCardUi(pendingType)) return false;
-
-    // 犠牲の意志 が使用を無効化した場合、headless 側は pending を閉じている。
-    // ここで対象選択を作り直すと、無効化されたカードの効果が使えてしまう。
-    if (_isCardUseNullifiedBySacrificeWillForRunResult(runResult, normalizedOwnerKey, cardId)) return false;
 
     const pendingStateManager = _getPendingStateManagerForCardUi();
     if (!pendingStateManager || typeof pendingStateManager.requiresTargetSelection !== 'function') return false;
@@ -2108,17 +2084,12 @@ function _ensureBoardPendingSelectionAfterCardUse(runResult: any, ownerKey: any,
     const nextPending = (nextCardState && nextCardState.pendingEffectByPlayer)
         ? nextCardState.pendingEffectByPlayer[normalizedOwnerKey]
         : null;
-    let pendingToApply = currentPending && currentPending.stage === 'selectTarget'
+    // pending の正本は headless 側（pipeline の結果）。pipeline が対象選択を
+    // 残していない場合（犠牲の意志による無効化など）は、UI 側で作り直さない。
+    // ここでは既存の pending に pendingEffectId を割り当てる同期だけを行う。
+    const pendingToApply = currentPending && currentPending.stage === 'selectTarget'
         ? currentPending
         : (nextPending && nextPending.stage === 'selectTarget' ? nextPending : null);
-
-    if (!pendingToApply && typeof pendingStateManager.createPendingEffectState === 'function') {
-        pendingToApply = pendingStateManager.createPendingEffectState({
-            cardType: pendingType,
-            cardId,
-            needsSelection: true
-        });
-    }
     if (!pendingToApply || pendingToApply.stage !== 'selectTarget') return false;
 
     if (
