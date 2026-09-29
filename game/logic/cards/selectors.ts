@@ -309,10 +309,111 @@ interface BoardShrinkGodLineDescriptor {
     key?: string;
 }
 
+// 盤面縮小神の辺1列は、拡張マスの張り出しで途切れさせない。
+// 共有の角-辺列は「外周セル（隣接に欠けがある）」だけを辿るため、辺の途中に拡張マスが付くと
+// その根元のマスで列が終わり、拡張マスも根元付近も縮小できなくなる。
+// 辺方向の外側に接する拡張マスは、その辺と一体のものとして列に含める。
+// 拡張マスが絡まない列は共有の結果をそのまま使う。
+function extendBoardShrinkGodLineForExpansion(
+    cardState: CardState,
+    gameState: GameState,
+    board: any,
+    line: BoardShrinkGodLineDescriptor,
+    expansionKeys: Set<string>
+): BoardShrinkGodLineDescriptor {
+    const direction = line.direction;
+    if (!direction || !line.corner || !Array.isArray(line.cells)) return line;
+    const normals = direction.row === 0
+        ? [{ row: -1, col: 0 }, { row: 1, col: 0 }]
+        : [{ row: 0, col: -1 }, { row: 0, col: 1 }];
+    const openNormals = normals.filter((normal) => !hasBoardShapeCell(
+        cardState,
+        gameState,
+        line.corner.row + normal.row,
+        line.corner.col + normal.col
+    ));
+    // 幅1の突起の先端など、外側が一意に決まらない角は共有の列のままにする
+    if (openNormals.length !== 1) return line;
+    const outward = openNormals[0];
+
+    const cells: Array<{ row: number; col: number }> = [];
+    const seen = new Set<string>();
+    const pushCell = (row: number, col: number) => {
+        const key = toTargetKey(row, col);
+        if (seen.has(key)) return;
+        seen.add(key);
+        cells.push({ row, col });
+    };
+
+    let usesExpansion = false;
+    const absorbed: Array<{ row: number; col: number }> = [];
+    const absorbedKeys = new Set<string>();
+    const isBeyondLine = (row: number, col: number) => (
+        (row - line.corner.row) * outward.row + (col - line.corner.col) * outward.col >= 1
+    );
+    const absorbExpansionFrom = (startRow: number, startCol: number) => {
+        const queue = [{ row: startRow, col: startCol }];
+        while (queue.length > 0) {
+            const current = queue.pop()!;
+            const key = toTargetKey(current.row, current.col);
+            if (absorbedKeys.has(key)) continue;
+            if (!expansionKeys.has(key) || !isBeyondLine(current.row, current.col)) continue;
+            absorbedKeys.add(key);
+            absorbed.push(current);
+            queue.push(
+                { row: current.row - 1, col: current.col },
+                { row: current.row + 1, col: current.col },
+                { row: current.row, col: current.col - 1 },
+                { row: current.row, col: current.col + 1 }
+            );
+        }
+    };
+
+    let row = line.corner.row;
+    let col = line.corner.col;
+    let isFirst = true;
+    while (hasBoardShapeCell(cardState, gameState, row, col)) {
+        const outerRow = row + outward.row;
+        const outerCol = col + outward.col;
+        if (hasBoardShapeCell(cardState, gameState, outerRow, outerCol)) {
+            // 拡張マス以外（穴で欠けた結果の段差など）は従来どおり列の終端とする
+            if (!expansionKeys.has(toTargetKey(outerRow, outerCol))) break;
+            usesExpansion = true;
+            absorbExpansionFrom(outerRow, outerCol);
+        }
+        pushCell(row, col);
+        if (!isFirst && SharedBoardUtils.isCornerCell(row, col, board)) break;
+        isFirst = false;
+        row += direction.row;
+        col += direction.col;
+    }
+    if (!usesExpansion) return line;
+
+    // 従来の列を必ず含める（拡張対応で対象が減ることはない）
+    for (const cell of line.cells) pushCell(cell.row, cell.col);
+    for (const cell of absorbed) pushCell(cell.row, cell.col);
+
+    const keys = cells.map((cell) => toTargetKey(cell.row, cell.col));
+    return {
+        ...line,
+        cells,
+        canonicalKey: keys.slice().sort().join('|'),
+        key: keys.join('|')
+    };
+}
+
 function getBoardShrinkGodLineDescriptors(cardState: CardState, gameState: GameState, playerKey: PlayerKey): BoardShrinkGodLineDescriptor[] {
     const board = getShapeAwareBoard(cardState, gameState);
     if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getCornerEdgeLineDescriptors !== 'function') return [];
-    const lines = SharedBoardUtils.getCornerEdgeLineDescriptors(board);
+    const sharedLines: BoardShrinkGodLineDescriptor[] = SharedBoardUtils.getCornerEdgeLineDescriptors(board);
+    const expansionKeys = new Set<string>(
+        getExpansionCells(cardState, gameState)
+            .filter((cell) => cell && Number.isInteger(cell.row) && Number.isInteger(cell.col))
+            .map((cell) => toTargetKey(cell.row, cell.col))
+    );
+    const lines = expansionKeys.size === 0
+        ? sharedLines
+        : sharedLines.map((line) => extendBoardShrinkGodLineForExpansion(cardState, gameState, board, line, expansionKeys));
     const rawLineCountByCorner = new Map<string, number>();
     for (const line of lines) {
         if (!line || !line.corner || !Number.isInteger(line.corner.row) || !Number.isInteger(line.corner.col)) continue;

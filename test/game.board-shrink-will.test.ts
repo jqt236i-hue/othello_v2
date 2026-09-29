@@ -419,4 +419,110 @@ describe('盤面縮小 / 盤面縮小神', () => {
       expect.objectContaining({ row: 8, col: 7 })
     ]));
   });
+
+  function createShrinkGodExpansionScenario(cells) {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    gameState.boardExpansion = {
+      active: true,
+      side: cells[0].side,
+      row: cells[0].row,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: cells.map((cell) => ({ ...cell, owner: Core.EMPTY }))
+    };
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01'
+    };
+    return { cardState, gameState };
+  }
+
+  function getShrinkGodLineKeys(cardState, gameState, corner, directionTarget) {
+    cardState.pendingEffectByPlayer.black.firstTarget = { row: corner.row, col: corner.col };
+    const target = CardLogic.getBoardShrinkGodTargets(cardState, gameState, 'black')
+      .find((candidate) => candidate.row === directionTarget.row && candidate.col === directionTarget.col);
+    expect(target).toBeTruthy();
+    return target.lineCells.map((cell) => `${cell.row},${cell.col}`).sort();
+  }
+
+  test('盤面縮小神の辺は、途中に付いた拡張マスで途切れず、拡張マスも一緒に縮小される', () => {
+    const { cardState, gameState } = createShrinkGodExpansionScenario([
+      { side: 'left', row: 3, col: -1 }
+    ]);
+
+    const firstTargets = CardLogic.getBoardShrinkGodTargets(cardState, gameState, 'black');
+    expect(firstTargets.some((target) => target.row === 0 && target.col === 0)).toBe(true);
+    // 拡張マス単体は角候補にならない（真の外角だけが角候補）
+    expect(firstTargets.some((target) => target.row === 3 && target.col === -1)).toBe(false);
+
+    const expected = ['3,-1'];
+    for (let row = 0; row < 8; row++) expected.push(`${row},0`);
+    expect(getShrinkGodLineKeys(cardState, gameState, { row: 0, col: 0 }, { row: 1, col: 0 })).toEqual(expected.sort());
+
+    delete cardState.pendingEffectByPlayer.black.firstTarget;
+    expect(CardLogic.applyBoardShrinkGod(cardState, gameState, 'black', 0, 0)).toEqual(expect.objectContaining({ completed: false }));
+    const finalRes = CardLogic.applyBoardShrinkGod(cardState, gameState, 'black', 1, 0);
+    expect(finalRes).toEqual(expect.objectContaining({ applied: true, completed: true }));
+    expect(finalRes.changedTargets).toHaveLength(9);
+    for (const key of expected) {
+      const [row, col] = key.split(',').map(Number);
+      expect(CardLogic.isBlockedCell(cardState, row, col, gameState)).toBe(true);
+    }
+    expect(CardLogic.isBlockedCell(cardState, 3, 1, gameState)).toBe(false);
+  });
+
+  test('盤面縮小神の辺は、上辺の拡張マスも同じ辺として縮小できる', () => {
+    const { cardState, gameState } = createShrinkGodExpansionScenario([
+      { side: 'top', row: -1, col: 3 }
+    ]);
+
+    const expected = ['-1,3'];
+    for (let col = 0; col < 8; col++) expected.push(`0,${col}`);
+    expect(getShrinkGodLineKeys(cardState, gameState, { row: 0, col: 7 }, { row: 0, col: 6 })).toEqual(expected.sort());
+  });
+
+  test('盤面縮小神の辺は、盤面拡張神のL字拡張を含む辺全体を縮小する', () => {
+    const { cardState, gameState } = createShrinkGodExpansionScenario([
+      { side: 'right', row: 7, col: 8 },
+      { side: 'bottom', row: 8, col: 8 },
+      { side: 'bottom', row: 8, col: 7 }
+    ]);
+
+    const rightSide = ['7,8', '8,8', '8,7'];
+    for (let row = 0; row < 8; row++) rightSide.push(`${row},7`);
+    expect(getShrinkGodLineKeys(cardState, gameState, { row: 0, col: 7 }, { row: 1, col: 7 })).toEqual(rightSide.sort());
+
+    const bottomSide = ['7,8', '8,8', '8,7'];
+    for (let col = 0; col < 8; col++) bottomSide.push(`7,${col}`);
+    expect(getShrinkGodLineKeys(cardState, gameState, { row: 7, col: 0 }, { row: 7, col: 1 })).toEqual(bottomSide.sort());
+
+    // 外角そのものからの短い辺は従来どおり
+    expect(getShrinkGodLineKeys(cardState, gameState, { row: 8, col: 8 }, { row: 7, col: 8 })).toEqual(['7,8', '8,8']);
+  });
+
+  test('拡張マスがない盤面の辺は従来どおり（穴による段差では延長しない）', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01'
+    };
+    for (const col of [5, 6, 7]) {
+      cardState.markers.push({
+        id: `hole_0_${col}`,
+        kind: 'specialStone',
+        row: 0,
+        col,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      });
+    }
+
+    expect(getShrinkGodLineKeys(cardState, gameState, { row: 1, col: 7 }, { row: 1, col: 6 })).toEqual(['1,5', '1,6', '1,7']);
+  });
 });
