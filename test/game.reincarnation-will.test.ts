@@ -33,6 +33,61 @@ function chooseType(type: string) {
 }
 
 describe('転生の意志', () => {
+    test('転生候補は正のコストを持つ理論召喚対象を漏らさず含む', () => {
+        const expected = Shared.CARD_DEFS.filter((card: any) => {
+            const type = Registry.getMarkerTypeForSpecialStoneCard(card.type);
+            return card.cost > 0 && type && Registry.isTheoryIncarnationSpawnCandidate(type);
+        }).map((card: any) => card.id).sort();
+        const actual = Factory.buildTheoryIncarnationSpawnTable(Shared.CARD_DEFS, { SpecialStoneRegistry: Registry })
+            .map((entry: any) => entry.cardId).sort();
+        expect(actual).toEqual(expected);
+    });
+
+    test.each(['black', 'white'])('屍石に転生すると感染カウント4・復活1回で始まり、付与状態とマス効果を維持する: %s', (owner) => {
+        const s = setup(owner);
+        const guard = CardLogic.addMarker(s.cardState, 'specialStone', s.row, s.col, owner, { type: 'GUARD', destroyEvadeRemaining: 2 });
+        const aura = CardLogic.addMarker(s.cardState, 'specialStone', s.row, s.col, owner, { type: 'LIVING_WILL' });
+        const cell = CardLogic.addMarker(s.cardState, 'specialStone', s.row, s.col, owner, { type: 'HEALING_CELL', remainingTurns: 2 });
+        const preservedBefore = JSON.parse(JSON.stringify([guard, aura, cell]));
+        const boardBefore = JSON.stringify(s.gameState.board);
+        s.cardState.stoneIdMap[s.row][s.col] = 's55';
+        const stoneIdBefore = s.cardState.stoneIdMap[s.row][s.col];
+        use(s);
+        const result = TurnPipeline.applyTurn(s.cardState, s.gameState, owner, { type: 'place', reincarnationTarget: { row: s.row, col: s.col } }, chooseType('ZOMBIE'), { skipTurnStart: true });
+        expect(result).toBeTruthy();
+        const zombie = s.cardState.markers.find((marker: any) => marker.data.type === 'ZOMBIE');
+        expect(zombie).toMatchObject({ row: s.row, col: s.col, owner, data: {
+            ownerColor: owner === 'white' ? Shared.WHITE : Shared.BLACK,
+            turnsUntilInfection: 4, regenRemaining: 1, sourceType: 'REINCARNATION_WILL'
+        } });
+        expect(zombie.data.remainingOwnerTurns).toBeUndefined();
+        expect(s.cardState.markers).toEqual(expect.arrayContaining(preservedBefore));
+        expect(JSON.stringify(s.gameState.board)).toBe(boardBefore);
+        expect(s.cardState.stoneIdMap[s.row][s.col]).toBe(stoneIdBefore);
+        expect(s.cardState.charge[owner]).toBe(13);
+        expect(s.cardState.pendingEffectByPlayer[owner]).toBeNull();
+        expect(s.gameState.currentPlayer).toBe(owner === 'white' ? Shared.WHITE : Shared.BLACK);
+        const roulette = result.presentationEvents.find((event: any) => event.meta?.reincarnationRoulette)?.meta.reincarnationRoulette;
+        expect(roulette.after).toMatchObject({ timer: 4, regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
+        expect(roulette.previews.find((preview: any) => preview.special === 'REGEN')).toMatchObject({ timer: 3, regenRemaining: 3, destroyEvadeRemaining: 2, livingWillAura: true });
+        expect(roulette.previews.find((preview: any) => preview.special === 'ZOMBIE')).toMatchObject({ timer: 4, regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
+        expect(roulette.previews.find((preview: any) => preview.special === 'EXTREME_HYPERACTIVE')).toMatchObject({ flipEvadeRemaining: 5, destroyEvadeRemaining: 7, livingWillAura: true });
+    });
+
+    test.each(['EXTREME_HYPERACTIVE_WILL', 'ULTIMATE_HYPERACTIVE_GOD'])('旧形式の特殊石名でも元の種類へ再転生しない: %s', (alias) => {
+        const s = setup();
+        s.marker.data.type = alias;
+        use(s);
+        const canonical = Registry.normalizeSpecialStoneType(alias);
+        const table = Factory.buildTheoryIncarnationSpawnTable(Shared.CARD_DEFS, { SpecialStoneRegistry: Registry });
+        const index = table.findIndex((entry: any) => entry.markerData.type === canonical);
+        const result = CardLogic.applyReincarnationWill(s.cardState, s.gameState, 'black', s.row, s.col, { random: () => (index + 0.1) / table.length });
+        expect(result.applied).toBe(true);
+        expect(result.type).not.toBe(canonical);
+        const roulette = s.cardState.presentationEvents.find((event: any) => event.meta?.reincarnationRoulette)?.meta.reincarnationRoulette;
+        expect(roulette.previews.every((preview: any) => preview.special !== canonical)).toBe(true);
+    });
+
     test('コスト7、対象なし・布石不足なら消費しない', () => {
         const s = setup();
         s.cardState.markers = [];

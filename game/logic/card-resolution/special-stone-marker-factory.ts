@@ -3,6 +3,8 @@
  * @description Builds marker payloads for special stones spawned from card definitions.
  */
 
+import CardZombieWill = require('../cards/zombie_will');
+
 const FALLBACK_TURNS = Object.freeze({
     PROTECTED_NEXT_STONE: 1,
     GHOST_WILL: 8,
@@ -86,6 +88,8 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
                 type: readRegistryMarkerType(type, deps) || 'REGEN',
                 regenRemaining: 3
             };
+        case 'ZOMBIE_WILL':
+            return CardZombieWill.createZombieMarkerData(deps.ownerKey === 'white' ? 'white' : 'black');
         case 'BREEDING_WILL':
             return {
                 type: readRegistryMarkerType(type, deps) || 'BREEDING',
