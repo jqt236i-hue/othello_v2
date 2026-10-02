@@ -970,7 +970,7 @@ describe('card use source element selection', () => {
   test.each([
     ['seed_01', 'SEED_WILL'],
     ['cell_teleport_01', 'CELL_TELEPORT_WILL']
-  ])('useSelectedCard restores %s board pending when adapter snapshot misses it', (cardId, cardType) => {
+  ])('useSelectedCard assigns an identity to pipeline-owned %s board pending', (cardId, cardType) => {
     global.cardState.selectedCardId = cardId;
     global.cardState.selectedCardOwnerKey = 'black';
     global.cardState.hands.black = [cardId];
@@ -983,7 +983,9 @@ describe('card use source element selection', () => {
       charge: { black: 9, white: 10 },
       hands: { black: [], white: ['dup_card'] },
       hasUsedCardThisTurnByPlayer: { black: true, white: false },
-      pendingEffectByPlayer: { black: null, white: null }
+      pendingEffectByPlayer: {
+        black: { type: cardType, cardId, stage: 'selectTarget' }, white: null
+      }
     };
     global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
       ok: true,
@@ -1011,7 +1013,7 @@ describe('card use source element selection', () => {
   test.each([
     ['seed_01', 'SEED_WILL'],
     ['cell_teleport_01', 'CELL_TELEPORT_WILL']
-  ])('debug useSelectedCard restores %s board pending when adapter snapshot misses it', (cardId, cardType) => {
+  ])('debug useSelectedCard assigns an identity to pipeline-owned %s board pending', (cardId, cardType) => {
     window.DEBUG_UNLIMITED_USAGE = true;
     global.cardState.selectedCardId = cardId;
     global.cardState.selectedCardOwnerKey = 'black';
@@ -1022,7 +1024,9 @@ describe('card use source element selection', () => {
     };
     const nextCardState = {
       ...global.cardState,
-      pendingEffectByPlayer: { black: null, white: null }
+      pendingEffectByPlayer: {
+        black: { type: cardType, cardId, stage: 'selectTarget' }, white: null
+      }
     };
     global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
       ok: true,
@@ -1044,7 +1048,44 @@ describe('card use source element selection', () => {
     }));
   });
 
-  test('local board pending regeneration assigns a fresh identity across A to B', () => {
+  test.each([
+    ['seed_01', 'SEED_WILL', false],
+    ['cell_teleport_01', 'CELL_TELEPORT_WILL', false],
+    ['seed_01', 'SEED_WILL', true],
+    ['cell_teleport_01', 'CELL_TELEPORT_WILL', true]
+  ])('useSelectedCard does not recreate cancelled %s pending (%s, debug=%s)', (cardId, cardType, debug) => {
+    window.DEBUG_UNLIMITED_USAGE = debug;
+    global.cardState.selectedCardId = cardId;
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.cardState.hands.black = [cardId];
+    global.cardState.pendingEffectSeq = 4;
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: cardType, name: cardType, desc: 'd', cost: 1 })
+    };
+    const nextCardState = {
+      ...global.cardState,
+      charge: { black: 9, white: 10 },
+      hands: { black: [], white: ['dup_card'] },
+      hasUsedCardThisTurnByPlayer: { black: true, white: false },
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true, nextCardState, nextGameState: global.gameState, playbackEvents: []
+    }));
+    require('../cards/card-interaction.js');
+
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(nextCardState.pendingEffectByPlayer.black).toBeNull();
+    expect(global.cardState.pendingEffectSeq).toBe(4);
+    expect(global.cardState.hands.black).toEqual([]);
+    expect(global.cardState.charge.black).toBe(9);
+    expect(global.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+  });
+
+  test('pipeline-owned board pending gets a fresh identity across A to B', () => {
     window.DEBUG_UNLIMITED_USAGE = true;
     let activeCard = { id: 'seed_01', type: 'SEED_WILL' };
     global.CardLogic = {
@@ -1060,7 +1101,9 @@ describe('card use source element selection', () => {
       ok: true,
       nextCardState: {
         ...global.cardState,
-        pendingEffectByPlayer: { black: null, white: null }
+        pendingEffectByPlayer: {
+          black: { type: activeCard.type, cardId: activeCard.id, stage: 'selectTarget' }, white: null
+        }
       },
       nextGameState: global.gameState,
       playbackEvents: []

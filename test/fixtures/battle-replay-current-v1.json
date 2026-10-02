@@ -1,7 +1,7 @@
 {
   "sourceCommit": "bfd7ee62691436731abd9ba5bd1b38ce4a7bee5c",
   "rulesVersion": "card-reversi.rules.v1",
-  "contentVersion": "fnv1a32:068d90fd",
+  "contentVersion": "fnv1a32:b9a25d73",
   "scope": "Default catalog opening, rejected pass, deterministic first legal placements and canonical consecutive-pass ending. All-card and pending behavior are covered by the Godot case corpus and battle.session tests.",
   "config": {
     "version": 1,

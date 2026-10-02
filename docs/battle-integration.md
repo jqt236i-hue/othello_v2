@@ -53,7 +53,7 @@ view.dispose();
 
 初版fixture [battle-before-refactor.json](../test/fixtures/battle-before-refactor.json) と [battle-save-v1.json](../test/fixtures/battle-save-v1.json) は転生の意志追加前の歴史資料として保持する。新カードで標準デッキのシャッフルと乱数消費が変わるため、現在版の比較基準は [battle-replay-current-v1.json](../test/fixtures/battle-replay-current-v1.json) と [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json)。旧内容hash `fnv1a32:fce6c0f5` は現在明示拒否する。
 
-内容識別は表示名・説明・表示分類・画像パスを除いた全runtimeカード定義（ゲーム中に生成する派生カードを含む）で行う。検査済みの旧全文hash `fnv1a32:f89cfb79` だけは同一の内容hash `fnv1a32:068d90fd` へ識別子を移行する。この既知旧版のブラウザがlastUsedCardByPlayerへ保存した表示descriptorは、既知のshapeと正式card IDを検査して正本IDへ移す。現在版のdescriptorは拒否する。詳細と根拠は [移植用データ契約](godot-port-data-contract.md)。今後ルールを変える場合は `BATTLE_RULES_VERSION` を更新し、旧保存fixtureへの移行または明示拒否テストを追加する。未知の形式／ルール／内容は明示的に拒否し、空の新規対戦として読み込まない。JSONは8 Mi文字、300,000ノード、深さ80、乱数checkpointは10,000,000 calls以内。チェックサムは破損検出であり不正改ざん防止ではない。
+内容識別は表示名・説明・表示分類・画像パスを除いた全runtimeカード定義（ゲーム中に生成する派生カードを含む）で行う。検査済みの旧全文hash `fnv1a32:f89cfb79` と内容hash `fnv1a32:068d90fd` の対応は、延命の意志のコストが4だった旧ルール同士に限定する。コスト6の現行版は `fnv1a32:b9a25d73` で、これら旧保存と現在版の表示descriptorを明示拒否する。旧ルールでのdescriptor移行と現行版での拒否をそれぞれ検査する。詳細と根拠は [移植用データ契約](godot-port-data-contract.md)。今後ルールを変える場合は `BATTLE_RULES_VERSION` を更新し、旧保存fixtureへの移行または明示拒否テストを追加する。未知の形式／ルール／内容は明示的に拒否し、空の新規対戦として読み込まない。JSONは8 Mi文字、300,000ノード、深さ80、乱数checkpointは10,000,000 calls以内。チェックサムは破損検出であり不正改ざん防止ではない。
 
 `createBattleStorage(port, prefix)` のportはread/writeと全writerを覆うexclusive lockを必須とする。各キーのwriteはatomicであること。2スロットとmanifestで確定し、破損時は直前の互換世代へ戻り `recovered` を返す。未知の将来版を古い版で上書きしない。容量不足やアクセス拒否は失敗として返す。ブラウザadapterはWeb LocksとlocalStorageを使用する。
 

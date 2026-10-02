@@ -2,7 +2,7 @@
   "nodeWorkerEventTypes": ["SPAWN", "CARD_USED"],
   "browserEventTypes": ["SPAWN", "STATUS_APPLIED", "CARD_USED"],
   "boardDigest": "cd7f17726ae8d857cd30fa924cb2aa0731b1f72d31617f137154bef3ee559cf9",
-  "markerDigest": "b2384de60c7d2d59babe8d3ad3a75011000e88290c69f8750b86b7e3f1d715a9",
+  "markerDigest": "9fe07a42daf404daa502ff547eaee572854b75e7e69a50acabab5421ece8df55",
   "prng": { "state": 1119202330, "calls": 91 },
-  "nodeWorkerDigest": "97b83e855aede2b85e817d90fccc35cc011269c5ecd02c480f0f934d965624b2"
+  "nodeWorkerDigest": "30949061f987f9a2090d981fa8e1b23e0b112bee3edb089a73aeb26eaaefa064"
 }

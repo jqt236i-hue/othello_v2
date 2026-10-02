@@ -4,11 +4,13 @@
 
 ## 保存された比較対象
 
+現行基準は `godot-conformance-2026-10-03` です。既存の転生候補修正に合わせて、理論の化身・カオス召喚・転生の意志の出力と転生候補ベクトルを更新しました。211ケースの入力と706ステップの操作列は旧基準と一致し、専用のカード意味テストと仕様オラクルを通しています。以前の [比較基準](../test/fixtures/godot-conformance) は履歴として保持し、保存形式の互換テストでも引き続き検査します。
+
 | ファイル | 内容 |
 | --- | --- |
-| [cases.json](../test/fixtures/godot-conformance/cases.json) | 211 ケースの初期 `gameState` / `cardState` / `prngState` と具体的な操作列 |
-| [expected.json](../test/fixtures/godot-conformance/expected.json) | 706 ステップの全状態、全ルールイベント、受理結果、終局結果、補助ハッシュ |
-| [vectors.json](../test/fixtures/godot-conformance/vectors.json) | PRNG、復元、shuffle、合法手列挙、転生候補順、同値 marker 順、文字列化とハッシュの正解例 |
+| [cases.json](../test/fixtures/godot-conformance-2026-10-03/cases.json) | 211 ケースの初期 `gameState` / `cardState` / `prngState` と具体的な操作列 |
+| [expected.json](../test/fixtures/godot-conformance-2026-10-03/expected.json) | 706 ステップの全状態、全ルールイベント、受理結果、終局結果、補助ハッシュ |
+| [vectors.json](../test/fixtures/godot-conformance-2026-10-03/vectors.json) | PRNG、復元、shuffle、合法手列挙、転生候補順、同値 marker 順、文字列化とハッシュの正解例 |
 | [実行コード](../scripts/godot-conformance.ts) / [検証](../test/godot.conformance.test.ts) | 公開 `BattleMatch` を使う再生・比較・収録漏れ検査・仕様オラクル |
 
 `card/<cardId>/basic` と `card/<cardId>/rejected` を全100種に保存しています。94種の有効カードに加え、派生専用の三連鎖・四連鎖・無限連鎖、三連投石・四連投石・無限投石も含みます。`enabled:false` のこの6種を「使えないカード」として移植から落としてはいけません。

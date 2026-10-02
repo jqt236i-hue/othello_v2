@@ -4,6 +4,6 @@
   "stateVersionAfter": 1,
   "playerKey": "black",
   "placedCell": 1,
-  "exactProjectionDigest": "1b228b263033f3c833b361b04d09dafc10f237597844cf46f82625c8db3d7644",
+  "exactProjectionDigest": "929a47784b365e5b41eb61df44f2d617acfaeeb9d7eb386eb7c4ef8faae84422",
   "eventTypes": ["place_hand_animation", "spawn", "flip", "observer_bubble", "hand_add"]
 }

@@ -136,6 +136,9 @@ function bindNetworkLobbyInputs(options: any): void {
         if (!inputRef || inputRef.dataset.networkBoardSizeBound === '1') return;
         const onBoardSizeInput = (event: any) => {
             if (inputRef.disabled) return;
+            // A two-digit dimension starts with an out-of-range digit; allow that draft.
+            if (event && event.type === 'input'
+                && (!String(inputRef.value || '').trim() || inputRef.validity?.valid === false)) return;
             if (typeof config.syncNetworkCircleBoardSizeInputs === 'function'
                 && !config.syncNetworkCircleBoardSizeInputs(inputRef, event && event.type === 'change')) return;
             config.updatePendingRoomBoardConfigFromInputs();

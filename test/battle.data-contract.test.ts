@@ -7,10 +7,23 @@ import Cards = require('../game/logic/cards');
 import { runBattleDataContractCli } from '../scripts/godot-data-contract';
 import currentSave from './fixtures/battle-save-current-v1.json';
 import { comparableProductionState } from '../src/engine/production-match';
+// Historical saves remain part of the compatibility contract after new goldens are adopted.
 import corpus from './fixtures/godot-conformance/expected.json';
 import inputs from './fixtures/godot-conformance/cases.json';
 
 const saved = () => JSON.parse(JSON.stringify(currentSave));
+
+// The inspected legacy identifier predates the EXTEND_LIFE_WILL cost change.
+// Keep testing its migration under those exact rules, alongside current rejection.
+function withInspectedLegacyRules(run: (save: any, battle: any) => void): void {
+    const cards = getBattleRuntimeCardDefinitions().map(card => card.id === 'extend_life_01' ? { ...card, cost: 4 } : card);
+    expect(computeBattleContentVersion(cards)).toBe('fnv1a32:068d90fd');
+    jest.isolateModules(() => {
+        jest.doMock('../shared-constants', () => ({ ...jest.requireActual('../shared-constants'), CARD_DEFS: cards }));
+        try { run(require('../shared/battle/save'), require('../game/battle')); }
+        finally { jest.dontMock('../shared-constants'); }
+    });
+}
 
 const reservationCases = [
     ['observer_will_01', 'nextObserverWillStoneByPlayer', 'OBSERVER_WILL', 1],
@@ -171,12 +184,21 @@ test('content identity ignores only declared presentation fields; rules fields a
     expect(computeBattleContentVersion(cards.map((card: any) => ({ ...card, futureRuleField: true })))).not.toBe(BATTLE_CONTENT_VERSION);
 });
 
-test('only the inspected identical-rules legacy digest migrates, without mutating saved input', () => {
+test('inspected legacy rules migrate without mutation, but cannot migrate across the life-extension cost change', () => {
     const input = saved(); input.contentVersion = 'fnv1a32:f89cfb79';
-    const migrated = validateBattleSave(input);
-    expect(migrated.contentVersion).toBe(BATTLE_CONTENT_VERSION);
-    expect(migrated.position).toEqual(input.position);
-    expect(input.contentVersion).toBe('fnv1a32:f89cfb79');
+    for (const contentVersion of ['fnv1a32:f89cfb79', 'fnv1a32:068d90fd']) {
+        expect(() => validateBattleSave({ ...input, contentVersion })).toThrow('Incompatible');
+    }
+    withInspectedLegacyRules(legacy => {
+        const migrated = legacy.validateBattleSave(input);
+        expect(migrated.contentVersion).toBe('fnv1a32:068d90fd');
+        expect(migrated.position).toEqual(input.position);
+        expect(input.contentVersion).toBe('fnv1a32:f89cfb79');
+        for (const contentVersion of ['fnv1a32:fce6c0f5', 'fnv1a32:ffffffff']) {
+            expect(() => legacy.validateBattleSave({ ...input, contentVersion })).toThrow('Incompatible');
+        }
+        expect(() => legacy.validateBattleSave({ ...input, rulesVersion: 'future' })).toThrow('Incompatible');
+    });
     for (const contentVersion of ['fnv1a32:fce6c0f5', 'fnv1a32:ffffffff']) expect(() => validateBattleSave({ ...input, contentVersion })).toThrow('Incompatible');
     expect(() => validateBattleSave({ ...input, rulesVersion: 'future' })).toThrow('Incompatible');
 });
@@ -185,19 +207,23 @@ test('known legacy browser descriptors migrate to canonical IDs; current and mal
     const input = saved(); input.contentVersion = 'fnv1a32:f89cfb79';
     const descriptor = { id: 'reincarnation_will_01', name: '転生の意志', desc: '保存時の表示説明' };
     input.position.cardState.lastUsedCardByPlayer.black = descriptor;
-    const migrated = validateBattleSave(input);
-    expect(migrated.contentVersion).toBe(BATTLE_CONTENT_VERSION);
-    expect(migrated.position.cardState.lastUsedCardByPlayer.black).toBe('reincarnation_will_01');
-    expect(restoreBattle(input).exportSave()).toEqual(migrated);
-    expect(input.position.cardState.lastUsedCardByPlayer.black).toEqual(descriptor);
+    expect(() => validateBattleSave(input)).toThrow('Incompatible');
     expect(() => validateBattleSave({ ...input, contentVersion: BATTLE_CONTENT_VERSION })).toThrow('last-used card');
-    for (const invalid of [
-        { ...descriptor, id: 'unknown_01' }, { id: descriptor.id, name: descriptor.name },
-        { ...descriptor, name: 123 }, { ...descriptor, desc: null }, { ...descriptor, futureField: true }, [descriptor]
-    ]) {
-        const corrupt = JSON.parse(JSON.stringify(input)); corrupt.position.cardState.lastUsedCardByPlayer.black = invalid;
-        expect(() => validateBattleSave(corrupt)).toThrow('legacy last-used card descriptor');
-    }
+    withInspectedLegacyRules((legacy, battle) => {
+        const migrated = legacy.validateBattleSave(input);
+        expect(migrated.contentVersion).toBe('fnv1a32:068d90fd');
+        expect(migrated.position.cardState.lastUsedCardByPlayer.black).toBe('reincarnation_will_01');
+        expect(battle.restoreBattle(input).exportSave()).toEqual(migrated);
+        expect(input.position.cardState.lastUsedCardByPlayer.black).toEqual(descriptor);
+        expect(() => legacy.validateBattleSave({ ...input, contentVersion: 'fnv1a32:068d90fd' })).toThrow('last-used card');
+        for (const invalid of [
+            { ...descriptor, id: 'unknown_01' }, { id: descriptor.id, name: descriptor.name },
+            { ...descriptor, name: 123 }, { ...descriptor, desc: null }, { ...descriptor, futureField: true }, [descriptor]
+        ]) {
+            const corrupt = JSON.parse(JSON.stringify(input)); corrupt.position.cardState.lastUsedCardByPlayer.black = invalid;
+            expect(() => legacy.validateBattleSave(corrupt)).toThrow('legacy last-used card descriptor');
+        }
+    });
     expect(() => validateBattleSave({ ...input, contentVersion: 'fnv1a32:ffffffff' })).toThrow('Incompatible');
 });
 

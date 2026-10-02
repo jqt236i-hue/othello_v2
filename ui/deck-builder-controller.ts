@@ -1653,6 +1653,9 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                         renderBoardSizeControls();
                         return;
                     }
+                    // Keep incomplete digits editable; normalize only when the edit is committed.
+                    if (event && event.type === 'input'
+                        && (!String(inputRef.value || '').trim() || inputRef.validity?.valid === false)) return;
                     if (!syncCircleBoardSizeInputs(inputRef, event && event.type === 'change')) return;
                     updateLocalBoardConfigFromInputs();
                 };

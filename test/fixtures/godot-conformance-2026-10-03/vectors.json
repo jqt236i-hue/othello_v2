@@ -1,0 +1,344 @@
+{
+  "schema": "godot-determinism.v1",
+  "sequences": [
+    {
+      "seed": 0,
+      "uint32": [
+        1013904223,
+        1196435762,
+        3519870697,
+        2868466484,
+        1649599747,
+        2670642822,
+        1476291629,
+        2748932008
+      ],
+      "checkpoint": {
+        "seed": 0,
+        "calls": 8
+      },
+      "resumed": 0.5077781022991985,
+      "shuffled": [
+        "E",
+        "A",
+        "C",
+        "D",
+        "F",
+        "B"
+      ],
+      "shuffleCheckpoint": {
+        "seed": 0,
+        "calls": 5
+      }
+    },
+    {
+      "seed": 1,
+      "uint32": [
+        1015568748,
+        1586005467,
+        2165703038,
+        3027450565,
+        217083232,
+        1587069247,
+        3327581586,
+        2388811721
+      ],
+      "checkpoint": {
+        "seed": 1,
+        "calls": 8
+      },
+      "resumed": 0.0164932357147336,
+      "shuffled": [
+        "E",
+        "A",
+        "D",
+        "C",
+        "F",
+        "B"
+      ],
+      "shuffleCheckpoint": {
+        "seed": 1,
+        "calls": 5
+      }
+    },
+    {
+      "seed": 4294967295,
+      "uint32": [
+        1012239698,
+        806866057,
+        579071060,
+        2709482403,
+        3082116262,
+        3754216397,
+        3919968968,
+        3109052295
+      ],
+      "checkpoint": {
+        "seed": 4294967295,
+        "calls": 8
+      },
+      "resumed": 0.9990629688836634,
+      "shuffled": [
+        "D",
+        "C",
+        "F",
+        "E",
+        "A",
+        "B"
+      ],
+      "shuffleCheckpoint": {
+        "seed": 4294967295,
+        "calls": 5
+      }
+    }
+  ],
+  "directions": [
+    [
+      -1,
+      -1
+    ],
+    [
+      -1,
+      0
+    ],
+    [
+      -1,
+      1
+    ],
+    [
+      0,
+      -1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      -1
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      1,
+      1
+    ]
+  ],
+  "legalMoves": [
+    {
+      "row": 2,
+      "col": 3
+    },
+    {
+      "row": 3,
+      "col": 2
+    },
+    {
+      "row": 4,
+      "col": 5
+    },
+    {
+      "row": 5,
+      "col": 4
+    }
+  ],
+  "markerInput": [
+    {
+      "id": "z",
+      "markerId": "z",
+      "kind": "specialStone",
+      "createdSeq": 4,
+      "data": {
+        "type": "WORK"
+      }
+    },
+    {
+      "id": "b",
+      "markerId": "b",
+      "kind": "specialStone",
+      "createdSeq": 2,
+      "data": {
+        "type": "WORK"
+      }
+    },
+    {
+      "id": "a",
+      "markerId": "a",
+      "kind": "specialStone",
+      "createdSeq": 2,
+      "data": {
+        "type": "WORK"
+      }
+    }
+  ],
+  "markerOrder": [
+    {
+      "markerId": "b",
+      "createdSeq": 2,
+      "sourceIndex": 1
+    },
+    {
+      "markerId": "a",
+      "createdSeq": 2,
+      "sourceIndex": 2
+    },
+    {
+      "markerId": "z",
+      "createdSeq": 4,
+      "sourceIndex": 0
+    }
+  ],
+  "reincarnationFromGhost": [
+    {
+      "cardId": "sniper_01",
+      "type": "SNIPER"
+    },
+    {
+      "cardId": "hard_01",
+      "type": "PROTECTED"
+    },
+    {
+      "cardId": "sacrifice_will_01",
+      "type": "SACRIFICE"
+    },
+    {
+      "cardId": "zombie_will_01",
+      "type": "ZOMBIE"
+    },
+    {
+      "cardId": "afterimage_will_01",
+      "type": "AFTERIMAGE_WILL"
+    },
+    {
+      "cardId": "perma_01",
+      "type": "PERMA_PROTECTED"
+    },
+    {
+      "cardId": "regen_01",
+      "type": "REGEN"
+    },
+    {
+      "cardId": "udr_01",
+      "type": "DRAGON"
+    },
+    {
+      "cardId": "breeding_01",
+      "type": "BREEDING"
+    },
+    {
+      "cardId": "proliferation_01",
+      "type": "PROLIFERATION"
+    },
+    {
+      "cardId": "hyperactive_01",
+      "type": "HYPERACTIVE"
+    },
+    {
+      "cardId": "extreme_hyperactive_01",
+      "type": "EXTREME_HYPERACTIVE"
+    },
+    {
+      "cardId": "escape_01",
+      "type": "ESCAPE_HYPERACTIVE"
+    },
+    {
+      "cardId": "robot_vacuum_01",
+      "type": "ROBOT_VACUUM"
+    },
+    {
+      "cardId": "gluttonous_will_01",
+      "type": "GLUTTONOUS"
+    },
+    {
+      "cardId": "will_hunter_king_01",
+      "type": "WILL_HUNTER_KING"
+    },
+    {
+      "cardId": "work_01",
+      "type": "WORK"
+    },
+    {
+      "cardId": "ultimate_work_god_01",
+      "type": "ULTIMATE_WORK_GOD"
+    },
+    {
+      "cardId": "stone_salvation_god_01",
+      "type": "STONE_SALVATION_GOD"
+    },
+    {
+      "cardId": "destroy_dragon_01",
+      "type": "DESTROY_DRAGON"
+    },
+    {
+      "cardId": "lightning_01",
+      "type": "LIGHTNING"
+    },
+    {
+      "cardId": "udg_01",
+      "type": "ULTIMATE_DESTROY_GOD"
+    },
+    {
+      "cardId": "ultimate_hyperactive_01",
+      "type": "ULTIMATE_HYPERACTIVE"
+    },
+    {
+      "cardId": "fire_will_01",
+      "type": "FIRE"
+    },
+    {
+      "cardId": "water_will_01",
+      "type": "WATER"
+    },
+    {
+      "cardId": "grass_will_01",
+      "type": "GRASS"
+    },
+    {
+      "cardId": "meteor_god_01",
+      "type": "METEOR_GOD"
+    }
+  ],
+  "hashes": [
+    {
+      "value": null,
+      "text": "null",
+      "hash": "fnv1a32:77074ba4"
+    },
+    {
+      "value": {
+        "b": 2,
+        "a": 1
+      },
+      "text": "{\"a\":1,\"b\":2}",
+      "hash": "fnv1a32:5314055b"
+    },
+    {
+      "value": {
+        "japanese": "転生の意志",
+        "astral": "😀",
+        "escaped": "\n\"\\"
+      },
+      "text": "{\"astral\":\"😀\",\"escaped\":\"\\n\\\"\\\\\",\"japanese\":\"転生の意志\"}",
+      "hash": "fnv1a32:36d11bd8"
+    },
+    {
+      "value": {
+        "min": 0,
+        "fraction": 0.125,
+        "integer": 4294967295
+      },
+      "text": "{\"fraction\":0.125,\"integer\":4294967295,\"min\":0}",
+      "hash": "fnv1a32:43c10b82"
+    },
+    {
+      "value": [
+        "white",
+        "black"
+      ],
+      "text": "[\"white\",\"black\"]",
+      "hash": "fnv1a32:571f6967"
+    }
+  ]
+}

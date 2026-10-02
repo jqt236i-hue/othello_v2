@@ -84,7 +84,7 @@ async function readLane(page: Page, url: string, lane: string): Promise<any> {
   try {
     await page.waitForFunction(() => {
       const root = globalThis as any;
-      return !!root.CardLogic && Reflect.ownKeys(root.CardLogic).length === 289;
+      return !!root.CardLogic && Reflect.ownKeys(root.CardLogic).length === 291;
     }, null, { timeout: 30_000 });
   } catch (error) {
     const diagnostics = await page.evaluate(() => {

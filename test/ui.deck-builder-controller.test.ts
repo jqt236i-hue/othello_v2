@@ -1349,6 +1349,30 @@ describe('deck builder controller', () => {
     expect(options.chargeGainMultiplierByPlayer).toEqual({ white: 2 });
   });
 
+  test.each(['boardSizeRowsInput', 'boardSizeColsInput'])('%s は入力途中の空欄や1を補正せず10まで入力できる', (inputId) => {
+    const controller = createController();
+    const input = document.getElementById(inputId) as HTMLInputElement;
+    const axis = inputId === 'boardSizeRowsInput' ? 'rows' : 'cols';
+
+    for (const value of ['', '1']) {
+      input.value = value;
+      input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+      expect(input.value).toBe(value);
+      expect(controller.getLocalBoardConfig()[axis]).toBe(8);
+    }
+    input.value = '10';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    expect(input.value).toBe('10');
+    expect(controller.getLocalBoardConfig()[axis]).toBe(10);
+
+    input.value = '3';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    expect(controller.getLocalBoardConfig()[axis]).toBe(10);
+    input.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(input.value).toBe('4');
+    expect(controller.getLocalBoardConfig()[axis]).toBe(4);
+  });
+
   test('円形を選ぶと偶数の正方形サイズへ同期する', () => {
     const controller = createController();
     const shapeSelect = document.getElementById('boardShapeSelect');

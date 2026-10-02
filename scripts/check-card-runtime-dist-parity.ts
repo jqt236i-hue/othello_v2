@@ -17,7 +17,8 @@ const SelfplayExpected = require(path.join(ROOT, 'test', 'fixtures', 'card-runti
 const CpuDecision = require('../game/cpu-decision');
 const CpuExpected = require(path.join(ROOT, 'test', 'fixtures', 'card-runtime-cpu-expected.v1.json'));
 
-const EXPECTED_DESCRIPTOR_SCHEMA_HASH = '2e905842becba7eabe082a7f95be2b326a4cfb5b6e0a59f450cda26fe549b4be';
+// Match the reviewed facade baseline in game.cards-api-identity.test.ts.
+const EXPECTED_DESCRIPTOR_SCHEMA_HASH = '82c79782644f00b6663bb52634a70311f765f5d27d682291a938b5780c760e52';
 
 function descriptorSchema(value: Record<string, unknown>) {
   return Reflect.ownKeys(value).map((key) => {
@@ -153,6 +154,31 @@ async function runBuiltLocalAuthorityScenario(): Promise<any> {
     if (sha256(directProjection) !== sha256(httpProjection)) {
       throw new Error(`built local authority exact parity drift direct=${sha256(directProjection)} http=${sha256(httpProjection)}`);
     }
+    // The current public projection exposes deck counts and hides deck order/RNG.
+    // Assert that contract directly before comparing its fixed-seed digest.
+    const publicSnapshot = published.snapshot;
+    for (const state of [publicSnapshot, publicSnapshot.gameState, publicSnapshot.cardState]) {
+      if (Object.prototype.hasOwnProperty.call(state, 'prngState')) {
+        throw new Error('built local authority exposed a private random checkpoint');
+      }
+    }
+    const publicCards = publicSnapshot.cardState;
+    for (const field of ['decks', 'deck', '_deckCopyIdsByPlayer', '_handCopyIdsByPlayer']) {
+      if (Object.prototype.hasOwnProperty.call(publicCards, field)) {
+        throw new Error(`built local authority exposed private card state: ${field}`);
+      }
+    }
+    const canonicalCards = directRuntime.getSnapshot().cardState;
+    for (const owner of ['black', 'white']) {
+      if (publicCards.deckRemainingByPlayer?.[owner] !== canonicalCards.decks[owner].length) {
+        throw new Error(`built local authority deck count mismatch: ${owner}`);
+      }
+    }
+    const opponent = playerKey === 'black' ? 'white' : 'black';
+    if (publicCards.hands[opponent].length !== canonicalCards.hands[opponent].length
+      || publicCards.hands[opponent].some((card: unknown, index: number) => card !== `__hidden_hand__:${opponent}:${index}`)) {
+      throw new Error('built local authority exposed an unrevealed opponent hand');
+    }
     return {
       seed,
       stateVersionBefore: initialVersion,
@@ -183,7 +209,7 @@ async function runBuiltLocalAuthorityScenario(): Promise<any> {
 async function main(): Promise<void> {
   const schema = descriptorSchema(CardLogic);
   const schemaHash = sha256(schema);
-  if (schema.length !== 289 || schemaHash !== EXPECTED_DESCRIPTOR_SCHEMA_HASH) {
+  if (schema.length !== 291 || schemaHash !== EXPECTED_DESCRIPTOR_SCHEMA_HASH) {
     throw new Error(`built CardLogic facade drift keys=${schema.length} schemaHash=${schemaHash}`);
   }
   const legacyWrapper = require(path.join(ROOT, 'game', 'logic', 'cards.js'));

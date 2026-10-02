@@ -19,7 +19,7 @@ const Cards: any = require('../game/logic/cards');
 const Prng: any = require('../game/schema/prng');
 
 export const CONFORMANCE_SCHEMA = 'godot-conformance.v1';
-export const FIXTURE_DIRECTORY = path.resolve(__dirname, '../../test/fixtures/godot-conformance');
+export const FIXTURE_DIRECTORY = path.resolve(__dirname, '../../test/fixtures/godot-conformance-2026-10-03');
 export type Operation = { kind: 'turn_start' } | { kind: 'action'; action: BattleAction };
 export type ConformanceCase = { id: string; cardId?: string; tags: string[]; spec: string;
     initial: CompleteBattlePosition; operations: Operation[] };
@@ -400,7 +400,7 @@ export function deterministicVectors(): any {
 
 function fixtureDirectory(): string {
     // The source is also imported by Jest; __dirname then lacks /dist.
-    return fs.existsSync(path.join(FIXTURE_DIRECTORY, 'cases.json')) ? FIXTURE_DIRECTORY : path.resolve(__dirname, '../test/fixtures/godot-conformance');
+    return fs.existsSync(path.join(FIXTURE_DIRECTORY, 'cases.json')) ? FIXTURE_DIRECTORY : path.resolve(__dirname, '../test/fixtures/godot-conformance-2026-10-03');
 }
 export function loadConformance(): { cases: ConformanceCase[]; expected: any; vectors: any } {
     const directory = fixtureDirectory();

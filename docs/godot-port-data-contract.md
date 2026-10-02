@@ -16,7 +16,7 @@ node dist/scripts/godot-data-contract.js validate save test/fixtures/battle-cont
 
 最後のコマンドは意図的に失敗する異常例（未知の効果名）。成功は終了コード0と `ok:true`、失敗は1と `error`。`schema` の出力は本プロジェクト固有の契約カタログであり、JSON Schema規格のスキーマではない。検証の正本は同じAPIを使う `validate`。Godotからは任意の完成状態JSONを `validate position <file>`、遷移を `validate transition <file>` で検査できる。状態到達可能性の証明ではなく、以下の構造・列挙・参照・盤面整合性を検査する。
 
-正常・異常実例は [battle-contract](../test/fixtures/battle-contract)、完全な正常保存は [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json)。`config` / `save` / `position` / `transition` / `action` / `result` / `events` / `playbackEvents` が入力種別。テストは [battle.data-contract.test.ts](../test/battle.data-contract.test.ts) が同じCLI入口で実例を検証し、[Godot比較ケース](../test/fixtures/godot-conformance/expected.json) の全境界状態を保存契約で検査する。
+正常・異常実例は [battle-contract](../test/fixtures/battle-contract)、完全な正常保存は [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json)。`config` / `save` / `position` / `transition` / `action` / `result` / `events` / `playbackEvents` が入力種別。テストは [battle.data-contract.test.ts](../test/battle.data-contract.test.ts) が同じCLI入口で実例を検証し、[Godot比較ケース](../test/fixtures/godot-conformance-2026-10-03/expected.json) の全境界状態を保存契約で検査する。
 
 ## JSON共通条件と版
 
@@ -28,7 +28,7 @@ UTF-8のJSONファイルを用いる。文字列の内容はUnicode、JS側ハ�
 | `config.version` | 設定版 `1` |
 | `formatVersion` | 保存形式 `1` |
 | `rulesVersion` | `card-reversi.rules.v1`。効果実装・順序などの意味変更時は明示更新が必要 |
-| `contentVersion` | `fnv1a32:068d90fd`。全100種のruntimeカード定義を下記の方法で識別 |
+| `contentVersion` | `fnv1a32:b9a25d73`。全100種のruntimeカード定義を下記の方法で識別 |
 | PRNG checkpoint | `{seed:uint32,calls:整数0..10000000}`。seedは設定と一致 |
 
 保存文字列は8 Mi文字、300,000ノード、深さ80以内。整数は特記がなければ0〜`9007199254740991`（JS safe integer）。量の上限とゲーム内で実際に到達する値は同じ意味ではない。ルール上の布石は0〜99、倍率は1〜100。未知の形式・ルール・内容は拒否し、新規対局へ置き換えない。
@@ -132,7 +132,7 @@ pendingは `{type,cardId,stage,...}`。typeは `schema.pendingEffectTypes`、sta
 | [battle-save-v1.json](../test/fixtures/battle-save-v1.json) | 旧内容 `fnv1a32:fce6c0f5`。現在は明示拒否。移行方式を捏造しない |
 | [battle-save-current-v1.json](../test/fixtures/battle-save-current-v1.json) | 現在全カード定義で作った保存。開始済みターンを二重処理しないことを固定 |
 | [battle-replay-current-v1.json](../test/fixtures/battle-replay-current-v1.json) | 現在の通常初期化から133境界。拒否pass、合法手列、連続pass終局。全状態・乱数・ロジックeventsを保存 |
-| [godot-conformance](../test/fixtures/godot-conformance) | 全カード基本/拒否、対象選択、重要な組合せ・盤面変化。旧goldenの不足を別ケースで補う |
+| [godot-conformance](../test/fixtures/godot-conformance-2026-10-03) | 全カード基本/拒否、対象選択、重要な組合せ・盤面変化。旧goldenの不足を別ケースで補う |
 
 実不具合として、従来保存検査が初期デッキ用enabled IDだけを許可し、対局中に生成される派生カードを拒否していた。保存用ID集合をruntime全定義へ直し、初期デッキの制限は維持した。新しい検査の適用時には理論の数字マスや観測/断罪の手札offerを正本実装に合わせ、正常な671状態を拒否しないことを確認した。
 
@@ -140,7 +140,7 @@ pendingは `{type,cardId,stage,...}`。typeは `schema.pendingEffectTypes`、sta
 
 続くレビューでは、観測で奪ったカードを合法的に手札破壊した後の保存を、現手札への参照条件が誤って拒否することと、理論の配置待ちpendingが残っているのに予約をnullへ置き換えた状態を受け入れることを各1件再現した。前者は返済recordの履歴参照として検査し、後者はpendingから予約への逆整合を追加した。正常な手札破壊→保存→復元→同じ配置での顕現と、理論の矛盾状態の拒否を回帰に追加。修正前ログは同ディレクトリの `observer-destroy-before-fix.txt` / `theory-null-before-fix.txt`、修正後は `save-final-recheck-tests.txt`。
 
-旧方式は表示説明まで含むカード全文hashだった。新方式ではruntime定義のname/desc/display_type_ja/card_face_art_pathだけ除外し、全100カード（派生を含む）のid/type/cost/enabled、配列順、その他の定義項目をhashに含める。同じ仕様と確認した既知の旧全文hash `fnv1a32:f89cfb79` だけを `fnv1a32:068d90fd` へ識別子移行する。この既知旧版でブラウザがlastUsedCardByPlayerへ誤保存した表示descriptorは、ちょうど{id,name,desc}の3項目・正式card ID・文字列の表示項目であることを検査してIDへ移行する。現在semantic版のdescriptorや、未知hash・将来版は受けない。今後意味が変わった版へこの固定対応を流用しない。
+旧方式は表示説明まで含むカード全文hashだった。新方式ではruntime定義のname/desc/display_type_ja/card_face_art_pathだけ除外し、全100カード（派生を含む）のid/type/cost/enabled、配列順、その他の定義項目をhashに含める。同じ仕様と確認した既知の旧全文hash `fnv1a32:f89cfb79` から `fnv1a32:068d90fd` への対応は、延命の意志のコストが4だった旧ルールに限定する。この既知旧版でブラウザがlastUsedCardByPlayerへ誤保存した表示descriptorは、ちょうど{id,name,desc}の3項目・正式card ID・文字列の表示項目を検査してIDへ移す。現在のコスト6の内容hashは `fnv1a32:b9a25d73` で、両旧hashの保存を明示拒否する。現在semantic版のdescriptorや、未知hash・将来版も受けない。意味が変わった版へ固定対応を流用しない。
 
 現在のgolden再生成は次の明示コマンドで行う。履歴2ファイルを上書きしない。ルール検査が失敗したまま期待値だけ更新する手順ではない。
 
@@ -153,6 +153,6 @@ npm run test:jest -- --runTestsByPath test/battle.compatibility.test.ts test/bat
 
 ## 乱数・ハッシュの他言語実装
 
-PRNGは `state=(state*1664525+1013904223) mod 2^32`、戻り値はstate/4294967296。uint32のseedからcalls回進めた位置を復元する。Fisher–Yatesは末尾indexから1まで、毎回 `j=floor(random()*(i+1))`、そのi/jを交換する。並べ替え、候補除外、同点順、乱数を呼ぶ回数を独自に変えない。正解列と転生候補順は [決定性の比較値](../test/fixtures/godot-conformance/vectors.json) を使う。
+PRNGは `state=(state*1664525+1013904223) mod 2^32`、戻り値はstate/4294967296。uint32のseedからcalls回進めた位置を復元する。Fisher–Yatesは末尾indexから1まで、毎回 `j=floor(random()*(i+1))`、そのi/jを交換する。並べ替え、候補除外、同点順、乱数を呼ぶ回数を独自に変えない。正解列と転生候補順は [決定性の比較値](../test/fixtures/godot-conformance-2026-10-03/vectors.json) を使う。
 
 状態hashはキーをJSのUTF-16辞書順でsortするstable JSON→FNV-1a32。初期値2166136261、文字列の各UTF-16 code unitとxor、16777619を掛け下位32bitにする。`fnv1a32:` + 小文字8桁hex。UnicodeをUTF-8 bytesとしてhashすると一致しない。数値はJS `String(number)`、-0は0、非有限値はhash helperではnullになるが、公開入力検査では拒否する。配列の順と未指定/nullの差を保持する。途中hashのみで原因を隠さず、比較ケースの完全stateと最初に違ったフィールドを併用する。

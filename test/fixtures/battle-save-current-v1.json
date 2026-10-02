@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "rulesVersion": "card-reversi.rules.v1",
-  "contentVersion": "fnv1a32:068d90fd",
+  "contentVersion": "fnv1a32:b9a25d73",
   "config": {
     "version": 1,
     "battleId": "format1-current-fixture",

@@ -13,7 +13,7 @@
 | ゲーム設計とルール | [全100カード対応表](godot-port-rules.md) | 正本・実装・検証・演出の対応、処理順・寿命・保護・盤形状 |
 | 言語非依存JSON | [データ契約](godot-port-data-contract.md) | schema出力、正常/異常JSON、設定/保存/状態/操作/遷移/結果/event検証 |
 | 自動比較 | [決定論比較](godot-port-conformance.md) | 211ケース706手順、全状態・イベント・結果、差のcase/step/path。時間停止の発動から交代と遅延効果を追加 |
-| 乱数・保存・互換 | [比較vectors](../test/fixtures/godot-conformance/vectors.json)、[保存テスト](../test/battle.data-contract.test.ts) | PRNG/shuffle/UTF-16 hash正解例、正常復元継続と異常拒否。予約と選択進行の整合を検査 |
+| 乱数・保存・互換 | [比較vectors](../test/fixtures/godot-conformance-2026-10-03/vectors.json)、[保存テスト](../test/battle.data-contract.test.ts) | PRNG/shuffle/UTF-16 hash正解例、正常復元継続と異常拒否。予約と選択進行の整合を検査 |
 | 演出・音・画面 | [演出と証拠](godot-port-presentation-lifecycle.md) | 実入力、動画・音声・同期動画・PNG・event時系列 |
 | 戦闘ライフサイクル | [退出・再開・結果契約](godot-port-presentation-lifecycle.md) | CPU/演出中の保存・退出、pending再開、遅延結果破棄、報酬重複防止 |
 | CPU | [CPU仕様と比較](godot-port-cpu.md) | 固定128遷移×3局面×Lv10–12、モデル実推論、別建ての100ms計測 |
