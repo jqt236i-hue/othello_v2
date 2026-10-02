@@ -42,3 +42,11 @@ GPT生成画像をゲームに収録する場合、Steamのコンテンツアン
 | ファイル | 制作元・配布元 | 制作記録 | 利用・加工 |
 | --- | --- | --- | --- |
 | `CPU_LV1.glb`〜`CPU_LV3.glb` | Hunyuan3D-2.1（ローカル標準2mvモデル） | 入力は上記CPUレベル1〜3の三面図。編集元・生成ログは各ローカル制作フォルダーに保管。 | Blenderでメートル単位に調整し、ボーン・アニメーション・テクスチャを設定。モデルの利用条件は配布前に別途確認する。 |
+
+## 人型変貌の究極労働神の採用モデル（2026年10月3日）
+
+ユーザー指定により、人型変貌セットの `ULTIMATE_WORK_GOD` は `D:/3D_models/labor_god_ultra_20261002/labor_god_final.glb` を採用する。編集元は同じフォルダーの `labor_god_final.blend`。制作元の `README.txt` と `generation_info.json` によると、Hunyuan3D-2mv標準版とHunyuan3D-2.1 Paint-PBRで生成し、Blenderで高密度形状・材質・顔の「神」の補正を仕上げたモデル。
+
+`F:/素材置き場/人型変貌_3Dモデル/モデル/ULTIMATE_WORK_GOD.glb`、同セットの `ボーン付き/ULTIMATE_WORK_GOD.glb`、`E:/作曲系/Blender/カードリバーシ人型変貌/ULTIMATE_WORK_GOD/exports/` の `ULTIMATE_WORK_GOD.glb` と `ULTIMATE_WORK_GOD_rigged.glb` を指定ファイルそのままに差し替えた。4ファイルのSHA-256一致を確認済み（`2e63846bc987a885ed7caaafff52f8131b8b98e24efc585af3c48af511f7ca8a`）。旧版は各セット内の `work/replacement-backups/` に保管する。
+
+採用GLBは548,994三角形で、ボーン・アニメーション・外部画像参照を含まない。「ボーン付き」フォルダーと `_rigged.glb` の名前は既存参照を保つための保存名であり、この1体には従来の22本ボーンとDance/Idleを適用しない。人型変貌セットの台帳・確認画像とローカル3Dビュワーを更新し、旧計測値を現在のモデルの値として扱わない。旧Blender編集元と旧検証資料は旧版の記録で、今後の編集は上記の指定制作フォルダーから行う。ブラウザゲームの描画には組み込んでいない。
