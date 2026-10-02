@@ -63,4 +63,3 @@ describe.each([['Chromium', chromium], ['Firefox', firefox], ['WebKit', webkit]]
     }
   }, 30000);
 });
-
