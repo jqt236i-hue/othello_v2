@@ -67,6 +67,10 @@ def main():
     validation = []
     feature_sets = {'base': list(range(10)), 'board-and-tempo': list(range(20)),
                     'all': list(range(x.shape[1]))}
+    # Stone supply (rulebook 7.3) features are zero when the rule is off; offer them with board-and-tempo.
+    stone_supply = [index for index, name in enumerate(data['featureNames']) if name.startswith('stonePlacement')]
+    if stone_supply:
+        feature_sets['board-tempo-stone-supply'] = list(range(20)) + stone_supply
     for feature_set, active in feature_sets.items():
         for regularization in [.003, .01, .03, .1, .3, 1.0]:
             reports = []

@@ -6,6 +6,7 @@
  */
 import StoneSupply = require('../../shared/stone-supply');
 import { estimatePlacementLeadFromCounts } from './cpu-policy-lookahead-stone-supply';
+import { getCardMultiPlacementCount } from './cpu-policy-card-stone-supply';
 
 export type SearchStoneSupply = Readonly<{ own: number; opp: number }>;
 
@@ -30,6 +31,26 @@ export function resolveSearchRemainingPlacements(empty: number, supply: SearchSt
 export function estimateStonePlacementLead(empty: number, supply: SearchStoneSupply | null): number {
     if (!supply) return 0;
     return estimatePlacementLeadFromCounts(empty, supply.own, supply.opp);
+}
+
+/**
+ * 手札の石を置く前提のカードの価値係数（0〜1）。石を置かずに効くカードは 1。
+ * 持ち石切れでは使えないため 0、残りが少ないほど・連続配置の回数に足りないほど下げる。
+ * 持ち石が空きより先に尽きる局面の連続配置は総配置数を増やさないため割り引く。
+ */
+export function resolveStonePlacementCardValueFactor(cardType: unknown, ownRemaining: number, oppRemaining: number, empty: number): number {
+    if (!StoneSupply.isStonePlacementCardType(cardType)) return 1;
+    const own = Math.max(0, Math.floor(Number(ownRemaining) || 0));
+    const opp = Math.max(0, Math.floor(Number(oppRemaining) || 0));
+    if (own <= 0) return 0;
+    let factor = 1;
+    const placements = getCardMultiPlacementCount(cardType);
+    if (placements > 1) {
+        if (String(cardType).toUpperCase() !== 'INFINITE_PLACE') factor *= Math.min(1, own / placements);
+        if (own + opp <= Math.max(0, Math.floor(Number(empty) || 0))) factor *= .6;
+    }
+    if (own <= 5) factor *= (own + 1) / 7;
+    return factor;
 }
 
 /** どちらかが持ち石切れなら、合法手 0 は機動力の差ではない（終局まで置けないだけ）。 */

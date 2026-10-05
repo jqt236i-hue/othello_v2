@@ -8,6 +8,7 @@ import {
     estimateStonePlacementLead,
     isSearchStoneSupplyBlockingMobility,
     readSearchStoneSupply,
+    resolveStonePlacementCardValueFactor,
     resolveSearchRemainingPlacements
 } from './cpu-search-stone-supply';
 
@@ -91,7 +92,9 @@ export const LV12_VALUE_FEATURE_NAMES = Object.freeze([
     'stonePlacementLead','stonePlacementLeadEnd'
 ]);
 export const LV12_PRIOR_VALUE_WEIGHTS = Object.freeze([1.2,2.3,.65,-.3,2,-1,1,.65,.18,.7,
-    ...Array(LV12_VALUE_FEATURE_NAMES.length-10).fill(0)] as number[]);
+    ...Array(LV12_VALUE_FEATURE_NAMES.length-12).fill(0),
+    // stonePlacementLead / stonePlacementLeadEnd: 1 回多く置ける ≒ 置いた石 + 反転ぶん。
+    1,2] as number[]);
 
 /** Feature extraction reads an isolated sampled world, never a live private
  * state. Training calls this same function on projected public observations. */
@@ -163,10 +166,17 @@ export function extractLv12ValueFeatures(state: Lv10Position, player: Lv10Player
         }
     }
     const mobility = (side: Lv10Player) => moves[side].length;
+    // 持ち石ルールでは各側の残り持ち石（自分, 相手）。無効時は null。
+    const sideSupply = (side: Lv10Player) => stoneSupply
+        ? (side === player ? [stoneSupply.own, stoneSupply.opp] : [stoneSupply.opp, stoneSupply.own])
+        : null;
     const hand = (side: Lv10Player) => {
         const charge = Math.max(0, cs.charge?.[side] || 0);
+        const supply = sideSupply(side);
         const values = (cs.hands?.[side] || []).map((id: string) => lv12CardPotential(id)
-            * ((CARDS.get(id)?.cost || 0) <= charge ? 1 : .5)).sort((a: number,b: number) => b-a);
+            * ((CARDS.get(id)?.cost || 0) <= charge ? 1 : .5)
+            * (supply ? resolveStonePlacementCardValueFactor(CARDS.get(id)?.type, supply[0], supply[1], empty) : 1))
+            .sort((a: number,b: number) => b-a);
         return values.reduce((sum: number, value: number, index: number) => sum + value * (index < 3 ? 1 : .25), 0);
     };
     const charge = (side: Lv10Player) => Math.sqrt(Math.max(0, Math.min(99, cs.charge?.[side] || 0)));
@@ -192,12 +202,17 @@ export function extractLv12ValueFeatures(state: Lv10Position, player: Lv10Player
     const tempo=sign*(turnOwner==='black'?1:-1)*Math.min(1,mobility(turnOwner)/3);
     const difference=(field:string,cap:number)=>(Math.min(cap,Math.max(0,Number(cs[field]?.[player])||0))
         -Math.min(cap,Math.max(0,Number(cs[field]?.[opponent])||0)));
+    // 残り追加配置は持ち石の範囲でしか使えない（持ち石ルール無効時は従来どおり）。
+    const extraPlacements=stoneSupply
+        ? Math.min(4,stoneSupply.own,Math.max(0,Number(cs.extraPlaceRemainingByPlayer?.[player])||0))
+            -Math.min(4,stoneSupply.opp,Math.max(0,Number(cs.extraPlaceRemainingByPlayer?.[opponent])||0))
+        : difference('extraPlaceRemainingByPlayer',4);
     return [material,material*end,geometry,frontier*(1-end),mobile,mobile*end,
         survival(player)-survival(opponent),lasting*(1-end*.55),
         (hand(player)-hand(opponent))*(1-closure*.75),(charge(player)-charge(opponent))*(1-closure*.75),
         material*16/(counts.black+counts.white+4),mobile*8/(moves.black.length+moves.white.length+2),
         potentialMobility,inviolable,protectedCount,tempo,tempo*end,
-        difference('extraPlaceRemainingByPlayer',4),difference('infinitePlaceActiveByPlayer',1),
+        extraPlacements,difference('infinitePlaceActiveByPlayer',1),
         difference('timeStopConsecutiveTurnsRemainingByPlayer',4),
         ...LV12_MARKER_FEATURE_TYPES.map(type=>markerFeatures[type]||0),
         placementLead,placementLead*end];

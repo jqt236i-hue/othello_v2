@@ -5,7 +5,8 @@ import { evaluateLv12Position, extractLv12ValueFeatures, LV12_VALUE_FEATURE_NAME
 import {
     estimateStonePlacementLead,
     readSearchStoneSupply,
-    resolveSearchRemainingPlacements
+    resolveSearchRemainingPlacements,
+    resolveStonePlacementCardValueFactor
 } from '../game/ai/cpu-search-stone-supply';
 
 function positions() {
@@ -50,5 +51,25 @@ describe('Lv10-12 evaluation with stone supply (rulebook 7.3)', () => {
         const lead = LV12_VALUE_FEATURE_NAMES.indexOf('stonePlacementLead');
         expect(black[lead]).toBeLessThan(0);
         expect(black[lead] + white[lead]).toBe(0);
+    });
+
+    test('placement cards in hand lose value as stones run out', () => {
+        expect(resolveStonePlacementCardValueFactor('DESTROY_ONE_STONE', 0, 10, 20)).toBe(1);
+        expect(resolveStonePlacementCardValueFactor('GOLD_STONE', 0, 10, 20)).toBe(0);
+        expect(resolveStonePlacementCardValueFactor('GOLD_STONE', 20, 20, 20)).toBe(1);
+        expect(resolveStonePlacementCardValueFactor('TRIPLE_PLACE', 10, 10, 30)).toBeCloseTo(.6);
+        expect(resolveStonePlacementCardValueFactor('TRIPLE_PLACE', 2, 10, 20)).toBeLessThan(.6);
+        const { on } = positions();
+        on.cardState.hands = { black: ['double_01'], white: [] };
+        const handIndex = LV12_VALUE_FEATURE_NAMES.indexOf('hand');
+        on.cardState.stoneSupply.remainingByPlayer = { black: 25, white: 25 };
+        const full = extractLv12ValueFeatures(on, 'black')[handIndex];
+        on.cardState.stoneSupply.remainingByPlayer = { black: 0, white: 25 };
+        expect(extractLv12ValueFeatures(on, 'black')[handIndex]).toBe(0);
+        expect(full).toBeGreaterThan(0);
+        const { off } = positions();
+        off.cardState.hands = { black: ['double_01'], white: [] };
+        // 25 + 25 < 空き 60 で持ち石が先に尽きるため、二連投石は 0.6 倍に割り引く。
+        expect(full).toBeCloseTo(extractLv12ValueFeatures(off, 'black')[handIndex] * .6, 10);
     });
 });
