@@ -1,5 +1,6 @@
 import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
 import {
+    estimateLookaheadPlacementLead,
     isLookaheadStoneSupplyExhausted,
     resolveLookaheadRemainingPlacements,
     type CpuLookaheadStoneSupply
@@ -237,6 +238,10 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
         const parityFeature = supply
             ? resolveLookaheadParityFeature(board, empties, supply, playerValue)
             : resolveLookaheadParityFeature(board, empties);
+        // 持ち石の差で相手より多く置ける回数。1 回 ≒ 置いた石 + 反転 2〜3 個ぶんとして石差の重みで換算する。
+        const placementLeadScore = supply
+            ? estimateLookaheadPlacementLead(boardEmpties, supply, playerValue) * discWeight * 3
+            : 0;
 
         return (
             (cornerDiff * 3400) +
@@ -249,7 +254,8 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
             (discDiff * discWeight) +
             parityFeature.score +
             ((oppRisk.x - ownRisk.x) * 520) +
-            ((oppRisk.c - ownRisk.c) * 230)
+            ((oppRisk.c - ownRisk.c) * 230) +
+            placementLeadScore
         );
     }
 

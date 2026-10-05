@@ -3,6 +3,12 @@ import Board = require('../../shared/shared-board-utils');
 import Registry = require('../../shared/special-stone-registry-static');
 import DeckSpec = require('../../shared/deck-spec');
 import { lv10PlacementMoves, type Lv10Position, type Lv10Player } from './cpu-lv10-position';
+import {
+    estimateStonePlacementLead,
+    isSearchStoneSupplyBlockingMobility,
+    readSearchStoneSupply,
+    resolveSearchRemainingPlacements
+} from './cpu-search-stone-supply';
 
 const CARDS = DeckSpec.getEnabledCardDefMap();
 /** Development coefficients, evaluated on public sampled worlds only.
@@ -83,8 +89,11 @@ export function evaluateLv11Position(state: Lv10Position, player: Lv10Player): n
     // make present material more important than distant marker production.
     // This remains a heuristic; only Core's consecutive passes end a game.
     const closure = Math.max(0, 1 - (moves.black.length + moves.white.length) / 8);
-    const end = Math.max(closure, 1 - empty / Math.max(1, cells.length * .3));
-    const horizon = Math.max(1, Math.min(8, empty / 2 + 1, 1 + 7 * (1 - closure)));
+    // 持ち石ルールでは、終盤度と見通しを空きマスではなく実際に置ける残り回数で測る。
+    const stoneSupply = readSearchStoneSupply(cs, player);
+    const remaining = resolveSearchRemainingPlacements(empty, stoneSupply);
+    const end = Math.max(closure, 1 - remaining / Math.max(1, cells.length * .3));
+    const horizon = Math.max(1, Math.min(8, remaining / 2 + 1, 1 + 7 * (1 - closure)));
     let geometry = 0, frontier = 0, lasting = 0;
     for (const corner of Board.getCornerCells(board)) {
         const owner = owners.get(`${corner.row},${corner.col}`) || 0;
@@ -136,8 +145,10 @@ export function evaluateLv11Position(state: Lv10Position, player: Lv10Player): n
         return -24 / (Math.max(0, counts[side]) + .5)
             -24 / (Math.max(0, counts[side] - mostFlips) + .5);
     };
+    // 持ち石切れの合法手 0 は機動力差ではなく、置ける回数の差（placement lead）として数える。
+    const mobilityDifference = isSearchStoneSupplyBlockingMobility(stoneSupply) ? 0 : mobility(player) - mobility(opponent);
     return material * (.35 + end * 3.15) + geometry - frontier * .45 * (1-end)
-        + (mobility(player) - mobility(opponent)) * (2 - end)
+        + mobilityDifference * (2 - end) + estimateStonePlacementLead(empty, stoneSupply) * 2.5
         + survival(player) - survival(opponent)
         + lasting * .4 * (1 - end * .55) + (hand(player) - hand(opponent)) * .18 * (1 - closure * .75)
         + (charge(player) - charge(opponent)) * .7 * (1 - closure * .75);

@@ -4,7 +4,8 @@
  * Fit SHA256: 0e4987d8c2e0b897e74658a82096772d92332ca590ea1d854f9a162f02a7e4df
  * Four grouped folds selected board-and-tempo features, regularization 0.3.
  * Tempo is scaled by available legal placements.
- * This fit is development evidence, not a match-strength qualification. */
+ * This fit is development evidence, not a match-strength qualification.
+ * The two trailing stone-supply coefficients are hand-set priors (see below). */
 export const LV12_VALUE_WEIGHTS:readonly number[]=Object.freeze([
     1.0918106317551999,
     2.2730892394028843,
@@ -41,5 +42,9 @@ export const LV12_VALUE_WEIGHTS:readonly number[]=Object.freeze([
     0,
     0,
     0,
-    0
+    0,
+    // stonePlacementLead / stonePlacementLeadEnd（持ち石ルール時のみ非 0 の特徴量）。
+    // 1 回多く置ける ≒ 石 1 個 + 反転ぶん。持ち石 ON の自己対戦データで再調整するまでの初期値。
+    1,
+    2
 ]);

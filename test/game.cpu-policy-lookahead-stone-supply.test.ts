@@ -102,7 +102,8 @@ describe('lookahead stone supply (rulebook 7.3)', () => {
         });
         const value = evaluation.evaluateBoardForLookahead([] as any, 1, { black: 3, white: 0 });
         expect(resolveForcedPassFeature).not.toHaveBeenCalled();
-        expect(value).toBe(0);
+        // 機動力・強制パス圧は 0。残るのは「相手が尽きた後に単独で置ける 3 回」ぶん（残り 3 回 → 石差重み 34 × 3）。
+        expect(value).toBe(3 * 34 * 3);
         expect(parityCalls[0].slice(1)).toEqual([3, { black: 3, white: 0 }, 1]);
         evaluation.evaluateBoardForLookahead([] as any, 1);
         expect(resolveForcedPassFeature).toHaveBeenCalledWith(2, 2, 30);

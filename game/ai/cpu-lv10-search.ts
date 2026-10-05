@@ -3,6 +3,12 @@ import Board = require('../../shared/shared-board-utils');
 import DeckSpec = require('../../shared/deck-spec');
 import StoneRegistry = require('../../shared/special-stone-registry-static');
 import {
+    estimateStonePlacementLead,
+    isSearchStoneSupplyBlockingMobility,
+    readSearchStoneSupply,
+    resolveSearchRemainingPlacements
+} from './cpu-search-stone-supply';
+import {
     applyLv10Action, currentLv10Player, lv10DecisionPlayer, enumerateLv10Actions, lv10PlacementMoves, lv10ActionKey,
     sampleLv10Position, startLv10Turn,
     type Lv10Action, type Lv10Observation, type Lv10Player, type Lv10Position
@@ -63,7 +69,9 @@ export function evaluateLv10Position(state: Lv10Position, player: Lv10Player): n
     const board = Board.prepareBoardForSearch(Board.createBoardContext(gs, cs));
     const coordinates = Board.collectBoardCoordinates(board).filter((cell: any) => Board.hasPlayableCell(board, cell.row, cell.col));
     const size = Math.max(1, coordinates.length), empty = size - counts.black - counts.white;
-    const end = Math.max(0, 1 - empty / (size * .3));
+    // 持ち石ルールでは、終盤度を空きマスではなく実際に置ける残り回数で測る。
+    const stoneSupply = readSearchStoneSupply(cs, player);
+    const end = Math.max(0, 1 - resolveSearchRemainingPlacements(empty, stoneSupply) / (size * .3));
     let corners = 0, frontier = 0, cornerRisk = 0, stableEdge = 0;
     for (const cell of Board.getCornerCells(board)) corners += sign * (Board.getCellValue(board, cell.row, cell.col) || 0);
     const owners = new Map<string, number>(coordinates.map((cell: any) => [`${cell.row},${cell.col}`, Board.getCellValue(board, cell.row, cell.col) || 0]));
@@ -112,8 +120,10 @@ export function evaluateLv10Position(state: Lv10Position, player: Lv10Player): n
         const cost = Number(card?.cost) || 0;
         return total + Math.min(12, cost) * (cost <= (cs.charge?.[key] || 0) ? 1 : .35);
     }, 0);
+    // 持ち石切れの合法手 0 は機動力差ではなく、置ける回数の差（placement lead）として数える。
+    const mobilityDifference = isSearchStoneSupplyBlockingMobility(stoneSupply) ? 0 : ownMobility - enemyMobility;
     return material * (.25 + end * 2.75) + corners * 8 + stableEdge * 1.2 - cornerRisk * (2.5 - end)
-        + (ownMobility - enemyMobility) * (2 - end)
+        + mobilityDifference * (2 - end) + estimateStonePlacementLead(empty, stoneSupply) * 2.5
         - frontier * .45 * (1-end) + lasting * .4 + (chargeValue(player) - chargeValue(opponent)) * .8
         + (handValue(player) - handValue(opponent)) * .18;
 }

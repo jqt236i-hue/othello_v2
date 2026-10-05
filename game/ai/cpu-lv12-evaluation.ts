@@ -4,6 +4,12 @@ import Registry = require('../../shared/special-stone-registry-static');
 import SharedConstants = require('../../shared-constants');
 import { lv10PlacementMoves, type Lv10Position, type Lv10Player } from './cpu-lv10-position';
 import { LV12_VALUE_WEIGHTS } from './cpu-lv12-model';
+import {
+    estimateStonePlacementLead,
+    isSearchStoneSupplyBlockingMobility,
+    readSearchStoneSupply,
+    resolveSearchRemainingPlacements
+} from './cpu-search-stone-supply';
 
 // Generated progression cards are legitimate hand cards even though they
 // are excluded from initial deck construction. Value the complete catalog;
@@ -73,13 +79,16 @@ export function lv12CardPotential(id: string): number {
     return tactical[card.type] ?? (3 + Math.min(18, Number(card.cost) || 0) * .2);
 }
 
+const LV12_MARKER_FEATURE_TYPES = Object.freeze(['DRAGON','ULTIMATE_DESTROY_GOD','BREEDING','WILL_HUNTER_KING','LIGHTNING','METEOR_GOD',
+    'ROBOT_VACUUM','GLUTTONOUS','ULTIMATE_HYPERACTIVE','HYPERACTIVE','EXTREME_HYPERACTIVE',
+    'ZOMBIE','GRASS','STONE_SALVATION_GOD','SHINRA_BANSHO_GOD','THEORY_INCARNATION']);
 export const LV12_VALUE_FEATURE_NAMES = Object.freeze([
     'material','materialEnd','geometry','frontier','mobility','mobilityEnd','survival','lasting','hand','charge',
     'materialShare','mobilityShare','potentialMobility','inviolable','protected','tempo','tempoEnd','extraPlacements',
     'infinitePlacement','timeStopTurns',
-    ...['DRAGON','ULTIMATE_DESTROY_GOD','BREEDING','WILL_HUNTER_KING','LIGHTNING','METEOR_GOD',
-        'ROBOT_VACUUM','GLUTTONOUS','ULTIMATE_HYPERACTIVE','HYPERACTIVE','EXTREME_HYPERACTIVE',
-        'ZOMBIE','GRASS','STONE_SALVATION_GOD','SHINRA_BANSHO_GOD','THEORY_INCARNATION'].map(type=>'marker:'+type)
+    ...LV12_MARKER_FEATURE_TYPES.map(type=>'marker:'+type),
+    // 持ち石ルール（01-rulebook.md §7.3）。ルール無効時は常に 0。
+    'stonePlacementLead','stonePlacementLeadEnd'
 ]);
 export const LV12_PRIOR_VALUE_WEIGHTS = Object.freeze([1.2,2.3,.65,-.3,2,-1,1,.65,.18,.7,
     ...Array(LV12_VALUE_FEATURE_NAMES.length-10).fill(0)] as number[]);
@@ -102,8 +111,11 @@ export function extractLv12ValueFeatures(state: Lv10Position, player: Lv10Player
     // make present material more important than distant marker production.
     // This remains a heuristic; only Core's consecutive passes end a game.
     const closure = Math.max(0, 1 - (moves.black.length + moves.white.length) / 8);
-    const end = Math.max(closure, 1 - empty / Math.max(1, cells.length * .3));
-    const horizon = Math.max(1, Math.min(8, empty / 2 + 1, 1 + 7 * (1 - closure)));
+    // 持ち石ルールでは、終盤度と見通しを空きマスではなく実際に置ける残り回数で測る。
+    const stoneSupply = readSearchStoneSupply(cs, player);
+    const remaining = resolveSearchRemainingPlacements(empty, stoneSupply);
+    const end = Math.max(closure, 1 - remaining / Math.max(1, cells.length * .3));
+    const horizon = Math.max(1, Math.min(8, remaining / 2 + 1, 1 + 7 * (1 - closure)));
     let geometry = 0, frontier = 0, lasting = 0, potentialMobility = 0, inviolable = 0, protectedCount = 0;
     const markerFeatures:Record<string,number>={};
     for (const corner of Board.getCornerCells(board)) {
@@ -170,7 +182,10 @@ export function extractLv12ValueFeatures(state: Lv10Position, player: Lv10Player
         return -24 / (Math.max(0, counts[side]) + .5)
             -24 / (Math.max(0, counts[side] - mostFlips) + .5);
     };
-    const mobile=mobility(player)-mobility(opponent);
+    // 持ち石切れの合法手 0 は機動力差ではなく、置ける回数の差（stonePlacementLead）として数える。
+    const mobilityBlocked=isSearchStoneSupplyBlockingMobility(stoneSupply);
+    const mobile=mobilityBlocked?0:mobility(player)-mobility(opponent);
+    const placementLead=estimateStonePlacementLead(empty,stoneSupply);
     const turnOwner=gs.currentPlayer===1||gs.currentPlayer==='black'?'black':'white';
     // A nominal turn with no legal placement is not a tempo advantage. Cards
     // that restore placement remain valued and are settled by normal search.
@@ -184,7 +199,8 @@ export function extractLv12ValueFeatures(state: Lv10Position, player: Lv10Player
         potentialMobility,inviolable,protectedCount,tempo,tempo*end,
         difference('extraPlaceRemainingByPlayer',4),difference('infinitePlaceActiveByPlayer',1),
         difference('timeStopConsecutiveTurnsRemainingByPlayer',4),
-        ...LV12_VALUE_FEATURE_NAMES.slice(20).map(name=>markerFeatures[name.slice(7)]||0)];
+        ...LV12_MARKER_FEATURE_TYPES.map(type=>markerFeatures[type]||0),
+        placementLead,placementLead*end];
 }
 
 export function evaluateLv12Position(state:Lv10Position,player:Lv10Player):number{

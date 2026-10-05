@@ -55,6 +55,34 @@ export function resolveLookaheadRemainingPlacements(empties: number, supply: Cpu
     return Math.min(safeEmpties, supply.black + supply.white);
 }
 
+/**
+ * 交互に置いた場合に自分が相手より多く置ける回数の見積もり（ownRemaining − oppRemaining 側から見た値）。
+ * 持ち石の少ない側が先に尽きると、多い側は空きが残る限り単独で置き続けられる。
+ * 両者の持ち石が空きに対して十分なら 0（従来の空きマス基準の局面と同じ扱い）。
+ */
+export function estimatePlacementLeadFromCounts(empties: number, ownRemaining: number, oppRemaining: number): number {
+    const safeEmpties = Number.isFinite(empties) ? Math.max(0, Math.floor(empties)) : 0;
+    const own = Number.isFinite(ownRemaining) ? Math.max(0, Math.floor(ownRemaining)) : 0;
+    const opp = Number.isFinite(oppRemaining) ? Math.max(0, Math.floor(oppRemaining)) : 0;
+    const shared = Math.min(own, opp);
+    if (shared * 2 >= safeEmpties) return 0;
+    const solo = Math.min(safeEmpties - shared * 2, Math.abs(own - opp));
+    return Math.sign(own - opp) * solo;
+}
+
+export function estimateLookaheadPlacementLead(
+    empties: number,
+    supply: CpuLookaheadStoneSupply | null | undefined,
+    playerValue: number
+): number {
+    if (!supply) return 0;
+    return estimatePlacementLeadFromCounts(
+        empties,
+        getLookaheadStoneSupplyRemaining(supply, playerValue) || 0,
+        getLookaheadStoneSupplyRemaining(supply, -playerValue) || 0
+    );
+}
+
 /** 置換表キーへ付ける持ち石の識別子。ルール無効時は空文字でキーを変えない。 */
 export function encodeLookaheadStoneSupplyKey(supply: CpuLookaheadStoneSupply | null | undefined): string {
     if (!supply) return '';
