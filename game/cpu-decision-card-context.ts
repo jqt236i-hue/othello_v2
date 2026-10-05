@@ -1,4 +1,5 @@
 const MovementCornerSwing = require('./cpu-decision-movement-corner-swing');
+import StoneSupply = require('../shared/stone-supply');
 const TemptValue = require('./cpu-decision-tempt-value');
 import {
     measureCpuTurnSync,
@@ -49,7 +50,15 @@ type CpuDecisionCardContextConfig = {
     resolvePendingType: (playerKey: any) => any;
 };
 
-export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfig): any {
+export /** 持ち石ルール有効時だけ自分・相手の残り持ち石をカード判断へ渡す。 */
+function readStoneSupplyContext(cardState: any, playerKey: any, opponentKey: any): { ownStoneSupply?: number; oppStoneSupply?: number } {
+    const ownStoneSupply = StoneSupply.getStoneSupplyRemaining(cardState, playerKey);
+    const oppStoneSupply = StoneSupply.getStoneSupplyRemaining(cardState, opponentKey);
+    if (ownStoneSupply === null || oppStoneSupply === null) return {};
+    return { ownStoneSupply, oppStoneSupply };
+}
+
+function createCpuDecisionCardContext(config: CpuDecisionCardContextConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionCardContextConfig;
 
     function readGameState(): any {
@@ -493,7 +502,10 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             handCardIds,
             deckRemaining,
             hasDestroyedCardThisTurn,
-            forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
+            // 持ち石切れの合法手 0 はカードで手を作れないため、強制使用にしない（01-rulebook.md §7.3）。
+            forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0
+                && !StoneSupply.isStoneSupplyExhausted(cs, playerKey),
+            ...readStoneSupplyContext(cs, playerKey, opponentKey),
             ownCorners: planState.ownCorners,
             oppCorners: planState.oppCorners,
             swapEnemyNormalCornerTargetCount,

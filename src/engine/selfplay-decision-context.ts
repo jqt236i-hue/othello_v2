@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import StoneSupply = require('../../shared/stone-supply');
+
 type SelfplayDecisionContextConfig = {
     Core?: any;
     CardLogic?: any;
@@ -13,6 +15,14 @@ type SelfplayDecisionContextConfig = {
     countEmpties?: (board: any) => number;
     getSelfplayBoard?: (gameState: any, cardState: any) => any;
 };
+
+/** 持ち石ルール有効時だけ自分・相手の残り持ち石をカード判断へ渡す。 */
+function readStoneSupplyContext(cardState: any, ownKey: string, oppKey: string): { ownStoneSupply?: number; oppStoneSupply?: number } {
+    const ownStoneSupply = StoneSupply.getStoneSupplyRemaining(cardState, ownKey);
+    const oppStoneSupply = StoneSupply.getStoneSupplyRemaining(cardState, oppKey);
+    if (ownStoneSupply === null || oppStoneSupply === null) return {};
+    return { ownStoneSupply, oppStoneSupply };
+}
 
 export function createSelfplayDecisionContext(config?: SelfplayDecisionContextConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as SelfplayDecisionContextConfig;
@@ -148,7 +158,10 @@ export function createSelfplayDecisionContext(config?: SelfplayDecisionContextCo
             handSize: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].length : 0,
             handCardIds: cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey].slice() : [],
             hasDestroyedCardThisTurn,
-            forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
+            // 持ち石切れの合法手 0 はカードで手を作れないため、強制使用にしない（01-rulebook.md §7.3）。
+            forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0
+                && !StoneSupply.isStoneSupplyExhausted(cardState, ownKey),
+            ...readStoneSupplyContext(cardState, ownKey, oppKey),
             ownCorners: planState.ownCorners,
             oppCorners: planState.oppCorners,
             ownEdges: planState.ownEdges,

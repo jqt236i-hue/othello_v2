@@ -13,6 +13,7 @@ import type {
 } from './cpu-policy-core-types';
 import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
 import type { CpuCandidateScoringBoardShape } from './cpu-candidate-scoring';
+import { scoreCardStoneSupplyRetentionAdjustment } from './cpu-policy-card-stone-supply';
 /**
  * @file cpu-policy-core.js
  * @description Pure CPU policy helpers (no UI/DOM/global side effects).
@@ -1214,7 +1215,7 @@ function scoreCardRetentionPriority(
             isHighVarianceCard
         },
         cardCost
-    });
+    }) + scoreCardStoneSupplyRetentionAdjustment(cardType, ctx);
 
     return {
         cardId,

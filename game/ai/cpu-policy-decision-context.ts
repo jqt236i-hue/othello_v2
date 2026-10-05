@@ -18,6 +18,9 @@ function fallbackIsFiniteNumber(value: unknown): boolean {
     return Number.isFinite(Number(value));
 }
 
+/** 持ち石切れで合法手 0 の手番は機動力の指標にしないため、低機動力の補正が働かない中立値に置き換える。 */
+const STONE_SUPPLY_EXHAUSTED_NEUTRAL_LEGAL_MOVES = 3;
+
 const MOVEMENT_CORNER_SWING_CARD_TYPES = [
     'BUOYANCY_WILL',
     'GRAVITY_WILL',
@@ -85,7 +88,13 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         const playerValue = isFiniteNumber(ctx.playerValue)
             ? (Number(ctx.playerValue) >= 0 ? 1 : -1)
             : 1;
-        const legalMovesCount = isFiniteNumber(ctx.legalMovesCount) ? Math.max(0, Math.floor(Number(ctx.legalMovesCount))) : 0;
+        // 持ち石ルール（01-rulebook.md §7.3）。無効時は null。
+        const ownStoneSupply = isFiniteNumber(ctx.ownStoneSupply) ? Math.max(0, Math.floor(Number(ctx.ownStoneSupply))) : null;
+        const oppStoneSupply = isFiniteNumber(ctx.oppStoneSupply) ? Math.max(0, Math.floor(Number(ctx.oppStoneSupply))) : null;
+        const stoneSupplyExhausted = ownStoneSupply !== null && oppStoneSupply !== null && ownStoneSupply <= 0;
+        const rawLegalMovesCount = isFiniteNumber(ctx.legalMovesCount) ? Math.max(0, Math.floor(Number(ctx.legalMovesCount))) : 0;
+        // 持ち石切れの合法手 0 は通常の手詰まりではない。カードで手を作る強制使用や低機動力の補正を働かせない。
+        const legalMovesCount = stoneSupplyExhausted ? STONE_SUPPLY_EXHAUSTED_NEUTRAL_LEGAL_MOVES : rawLegalMovesCount;
 
         let discDiff = isFiniteNumber(ctx.discDiff) ? Number(ctx.discDiff) : 0;
         let empties: number | null = isFiniteNumber(ctx.empties) ? Math.max(0, Math.floor(Number(ctx.empties))) : null;
@@ -143,7 +152,7 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         const usableCardIds = Array.isArray(ctx.usableCardIds)
             ? ctx.usableCardIds.map((id: unknown) => String(id || '').trim()).filter((id) => id.length > 0)
             : [];
-        const forceUseCard = !!ctx.forceUseCard || legalMovesCount <= 0;
+        const forceUseCard = !stoneSupplyExhausted && (!!ctx.forceUseCard || legalMovesCount <= 0);
         const ownCorners = isFiniteNumber(ctx.ownCorners) ? Number(ctx.ownCorners) : 0;
         const oppCorners = isFiniteNumber(ctx.oppCorners) ? Number(ctx.oppCorners) : 0;
         const swapEnemyNormalCornerTargetCount = Object.prototype.hasOwnProperty.call(ctx, 'swapEnemyNormalCornerTargetCount') && isFiniteNumber(ctx.swapEnemyNormalCornerTargetCount)
@@ -254,6 +263,9 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             level,
             playerValue,
             legalMovesCount,
+            ...(ownStoneSupply !== null && oppStoneSupply !== null
+                ? { ownStoneSupply, oppStoneSupply, stoneSupplyExhausted, rawLegalMovesCount }
+                : {}),
             discDiff,
             empties: normalizedEmpties,
             ownDiscs: normalizedOwnDiscs,

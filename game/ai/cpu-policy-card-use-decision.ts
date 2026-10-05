@@ -1,4 +1,5 @@
 import { applyCpuCardScoreRules } from './cpu-policy-card-score-rules';
+import { scoreCardStoneSupplyUseAdjustment } from './cpu-policy-card-stone-supply';
 import type { createCpuPolicyDecisionContext } from './cpu-policy-decision-context';
 import type { createCpuPolicyCardTypeFlags } from './cpu-policy-card-type-flags';
 import type { createCpuPolicyCardUseState } from './cpu-policy-card-use-state';
@@ -626,6 +627,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isLastResort,
             lowDiscEmergency,
         }, score);
+        score += scoreCardStoneSupplyUseAdjustment(cardType, ctx);
 
         return {
             cardId,

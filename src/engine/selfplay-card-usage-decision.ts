@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import StoneSupply = require('../../shared/stone-supply');
 
 type SelfplayCardUsageDecisionConfig = {
     selectDestroyHandCardId?: (cardState: any, gameState: any, playerKey: any, context: any) => any;
@@ -98,7 +99,9 @@ export function createSelfplayCardUsageDecision(config?: SelfplayCardUsageDecisi
                 decisionContext
             );
             const cardId = cardDecision && cardDecision.cardId ? cardDecision.cardId : null;
-            const mustUseCardToCreateMove = Array.isArray(legalMoves) ? legalMoves.length === 0 : true;
+            // 持ち石切れの合法手 0 はカードで手を作れないため、強制使用の理由にしない（01-rulebook.md §7.3）。
+            const mustUseCardToCreateMove = !StoneSupply.isStoneSupplyExhausted(activeCardState, playerKey)
+                && (Array.isArray(legalMoves) ? legalMoves.length === 0 : true);
             let adjustedRate = Number.isFinite(options.cardUsageRate) ? options.cardUsageRate : 0;
             let forceUseByRiskScore = false;
             let preferUseByRiskScore = false;
