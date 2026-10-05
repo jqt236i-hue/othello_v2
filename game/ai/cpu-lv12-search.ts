@@ -7,6 +7,7 @@ import {
     startLv10Turn, lv10PlacementMoves,
     type Lv10Action, type Lv10Observation, type Lv10Player, type Lv10Position
 } from './cpu-lv10-position';
+import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-search-stone-supply';
 
 /** Independently developed Lv12 policy. The starting Lv11 remains frozen.
  * Canonical actions and turn starts share the same accounting and rules. */
@@ -21,6 +22,17 @@ export const LV12_SEARCH_CONFIG = Object.freeze({
 });
 
 type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie?: number };
+
+/** Endgame reading reads the opponent's later turns as well. With the stone
+ * supply rule (01-rulebook.md 7.3) the game can end by exhausted supplies
+ * while many cells are still empty, so the threshold uses the placements that
+ * can still be made. Without the rule this is exactly the empty-cell count. */
+export function shouldDeepenLv12Search(state: Lv10Position, player: Lv10Player, ownStones: number, empty: number,
+    totalMobility: number, cfg: Pick<typeof LV12_SEARCH_CONFIG, 'sparseStoneThreshold' | 'endgameEmptyThreshold' | 'endgameMobilityThreshold'> = LV12_SEARCH_CONFIG): boolean {
+    const remaining = resolveSearchRemainingPlacements(empty, readSearchStoneSupply(state.cardState, player));
+    return ownStones <= cfg.sparseStoneThreshold || remaining <= cfg.endgameEmptyThreshold
+        || totalMobility <= cfg.endgameMobilityThreshold;
+}
 
 // A deterministic tie order avoids always retaining the upper-left portion
 // of a multi-stage selection whose first choice has not changed the board.
@@ -158,8 +170,8 @@ function searchLv12Scoped(observation: Lv10Observation, options: Lv12SearchOptio
     // Legal-line count can be high immediately before a multi-placement card
     // wipes out a small army. Read the opponent's next card turn as well as
     // their first attack when the public army is sparse.
-    const deepen = initialCounts[player]<=cfg.sparseStoneThreshold || initialEmpty<=cfg.endgameEmptyThreshold
-        || lv10PlacementMoves(initial,'black').length+lv10PlacementMoves(initial,'white').length<=cfg.endgameMobilityThreshold;
+    const deepen = shouldDeepenLv12Search(initial, player, initialCounts[player], initialEmpty,
+        lv10PlacementMoves(initial,'black').length+lv10PlacementMoves(initial,'white').length, cfg);
     const completed = (state: Lv10Position, owner: Lv10Player, turn: number) => Core.isGameOver(state.gameState)
         || currentLv10Player(state) !== owner || state.gameState.turnNumber > turn;
     const rank = (plans: Plan[], owner: Lv10Player, limit: number) => plans.sort((a,b) => (

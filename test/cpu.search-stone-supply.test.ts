@@ -1,5 +1,6 @@
 import { createProductionPosition } from '../src/engine/production-match';
 import { evaluateLv10Position } from '../game/ai/cpu-lv10-search';
+import { shouldDeepenLv12Search } from '../game/ai/cpu-lv12-search';
 import { evaluateLv11Position } from '../game/ai/cpu-lv11-evaluation';
 import { evaluateLv12Position, extractLv12ValueFeatures, LV12_VALUE_FEATURE_NAMES } from '../game/ai/cpu-lv12-evaluation';
 import {
@@ -71,5 +72,17 @@ describe('Lv10-12 evaluation with stone supply (rulebook 7.3)', () => {
         off.cardState.hands = { black: ['double_01'], white: [] };
         // 25 + 25 < 空き 60 で持ち石が先に尽きるため、二連投石は 0.6 倍に割り引く。
         expect(full).toBeCloseTo(extractLv12ValueFeatures(off, 'black')[handIndex] * .6, 10);
+    });
+
+    test('Lv12 endgame reading starts by remaining placements under the stone supply rule', () => {
+        const { off, on } = positions();
+        // 空き 30 は通常なら終盤読みの対象外。
+        expect(shouldDeepenLv12Search(off, 'black', 20, 30, 20)).toBe(false);
+        on.cardState.stoneSupply.remainingByPlayer = { black: 20, white: 20 };
+        expect(shouldDeepenLv12Search(on, 'black', 20, 30, 20)).toBe(false);
+        // 黒白合わせて置ける残りが 16 以下なら終盤読みに入る。
+        on.cardState.stoneSupply.remainingByPlayer = { black: 7, white: 8 };
+        expect(shouldDeepenLv12Search(on, 'black', 20, 30, 20)).toBe(true);
+        expect(shouldDeepenLv12Search(off, 'black', 20, 16, 20)).toBe(true);
     });
 });
