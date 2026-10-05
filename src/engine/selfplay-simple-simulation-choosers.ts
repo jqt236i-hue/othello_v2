@@ -202,6 +202,70 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
         );
     }
 
+    function scorePositionFallback(target: any, sourceGameState: any, sourceCardState: any) {
+        return evaluatePositionValue(
+            target.row,
+            target.col,
+            getSelfplayBoard(sourceGameState, sourceCardState)
+        );
+    }
+
+    function chooseReverseWillTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseTargetBySimulation(
+            gameState,
+            cardState,
+            playerKey,
+            rng,
+            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
+                cardLogic.applyReverseWill(simCardState, simGameState, onePlayerKey, row, col),
+            scorePositionFallback,
+            null,
+            'getReverseWillTargets'
+        );
+    }
+
+    function chooseReincarnationTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseTargetBySimulation(
+            gameState,
+            cardState,
+            playerKey,
+            rng,
+            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
+                cardLogic.applyReincarnationWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+            scorePositionFallback,
+            null,
+            'getReincarnationTargets'
+        );
+    }
+
+    function choosePoisonTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseTargetBySimulation(
+            gameState,
+            cardState,
+            playerKey,
+            rng,
+            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
+                cardLogic.applyPoisonWill(simCardState, simGameState, onePlayerKey, row, col),
+            scorePositionFallback,
+            null,
+            'getPoisonTargets'
+        );
+    }
+
+    function chooseCausalReplayTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseTargetBySimulation(
+            gameState,
+            cardState,
+            playerKey,
+            rng,
+            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
+                cardLogic.applyCausalReplayWill(simCardState, simGameState, onePlayerKey, row, col),
+            scorePositionFallback,
+            null,
+            'getCausalReplayTargets'
+        );
+    }
+
     return {
         chooseGuardTarget,
         chooseLivingWillTarget,
@@ -209,6 +273,10 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
         chooseBoardShrinkTarget,
         chooseBlockadeTarget,
         chooseFreezeTarget,
-        chooseSeedTarget
+        chooseSeedTarget,
+        chooseReverseWillTarget,
+        chooseReincarnationTarget,
+        choosePoisonTarget,
+        chooseCausalReplayTarget
     };
 }

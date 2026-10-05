@@ -35,6 +35,7 @@ function parseArgs(argv: string[]) {
         workers: 10,
         seedStride: 1000003,
         allowCardUsage: true,
+        stoneSupplyEnabled: false,
         cardUsageRate: 0.2,
         policyMixRate: teacherDefaults.policyMixRate,
         cardUsageRateJitter: 0,
@@ -75,6 +76,8 @@ function parseArgs(argv: string[]) {
         if (a === '--seed-stride') { args.seedStride = Number(argv[++i]); continue; }
         if (a === '--with-cards') { args.allowCardUsage = true; continue; }
         if (a === '--no-cards') { args.allowCardUsage = false; continue; }
+        if (a === '--stone-supply') { args.stoneSupplyEnabled = true; continue; }
+        if (a === '--no-stone-supply') { args.stoneSupplyEnabled = false; continue; }
         if (a === '--card-usage-rate') { args.cardUsageRate = Number(argv[++i]); continue; }
         if (a === '--black-deck-code') { args.blackDeckCode = String(argv[++i] || '').trim() || null; continue; }
         if (a === '--white-deck-code') { args.whiteDeckCode = String(argv[++i] || '').trim() || null; continue; }
@@ -143,6 +146,7 @@ function printHelp() {
         '      --seed-stride <n>      Seed step per worker (default: 1000003)',
         '      --with-cards           Enable card usage in self-play (default: on)',
         '      --no-cards             Disable card usage in self-play',
+        '      --stone-supply         Enable the stone supply rule (rulebook 7.3; default: off)',
         '      --card-usage-rate <r>  Probability of using card if legal (default: 0.2)',
         '      --white-deck-code <c>  Fixed deckCode for white/CPU self-play (default: CPU white deck)',
         '      --no-white-deck-code   Use the standard random default deck for white too',
@@ -215,6 +219,7 @@ function runShard(index: any, shard: any, args: any, partDir: any) {
         } else {
             cmdArgs.push('--no-cards', '--card-usage-rate', '0');
         }
+        if (args.stoneSupplyEnabled === true) cmdArgs.push('--stone-supply');
         cmdArgs.push(...buildDeckCodeArgs(args));
         cmdArgs.push(
             '--policy-mix-rate', String(args.policyMixRate),
@@ -314,6 +319,7 @@ function buildMergedSummary(parts: any, args: any, elapsedMs: any) {
             seed: args.seed,
             maxPlies: args.maxPlies,
             allowCardUsage: args.allowCardUsage,
+            stoneSupplyEnabled: args.stoneSupplyEnabled === true,
             cardUsageRate: args.allowCardUsage ? args.cardUsageRate : 0,
             policyMixRate: args.policyMixRate,
             cardUsageRateJitter: args.cardUsageRateJitter,

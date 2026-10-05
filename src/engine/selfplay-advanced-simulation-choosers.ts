@@ -21,7 +21,13 @@ type SelfplayAdvancedSimulationChoosersConfig = {
     isEdge?: (row: any, col: any, board?: any) => boolean;
     isXSquare?: (row: any, col: any, board?: any) => boolean;
     getBoardBonusAtCell?: (cardState: any, row: any, col: any) => number;
+    evaluateBoardForPlayer?: (gameState: any, cardState: any, playerKey: any) => number;
+    copyGameState?: (gameState: any) => any;
+    copyCardState?: (cardState: any) => any;
+    clonePrng?: (rng: any) => any;
 };
+
+const SUPER_ATTRACTION_DESTINATION_SCAN_LIMIT = 64;
 
 function getExtendLifeMarkerPriority(marker: any) {
     if (!marker || !marker.data || typeof marker.data.type !== 'string') return 0;
@@ -78,6 +84,18 @@ export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvanc
     const getBoardBonusAtCell = typeof cfg.getBoardBonusAtCell === 'function'
         ? cfg.getBoardBonusAtCell
         : (() => 0);
+    const evaluateBoardForPlayer = typeof cfg.evaluateBoardForPlayer === 'function'
+        ? cfg.evaluateBoardForPlayer
+        : (() => 0);
+    const copyGameState = typeof cfg.copyGameState === 'function'
+        ? cfg.copyGameState
+        : ((value: any) => value);
+    const copyCardState = typeof cfg.copyCardState === 'function'
+        ? cfg.copyCardState
+        : ((value: any) => value);
+    const clonePrng = typeof cfg.clonePrng === 'function'
+        ? cfg.clonePrng
+        : ((value: any) => value);
 
     function isExpansionCell(board: any, row: any, col: any) {
         if (
@@ -127,69 +145,118 @@ export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvanc
         );
     }
 
-    function chooseSuperBuoyancyTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+    function scoreVerticalMovementFallback(target: any, sourceGameState: any, sourceCardState: any, onePlayerKey: any) {
+        const board = getSelfplayBoard(sourceGameState, sourceCardState);
+        const selfVal = toPlayerValue(onePlayerKey);
+        const occupant = getCellOwnerValueForSelfplay(sourceGameState, sourceCardState, target.row, target.col);
+        const isEnemy = occupant === -selfVal;
+        const base = evaluatePositionValue(target.row, target.col, board);
+        return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
+    }
+
+    function scoreVerticalMovementResult(_target: any, result: any, simGameState: any, simCardState: any, _sourceGameState: any, sourceCardState: any) {
+        const board = getSelfplayBoard(simGameState, simCardState);
+        let extra = 0;
+        const destroyedCount = Number(result && result.destroyedCount);
+        if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
+            extra += destroyedCount * 520;
+        }
+        if (result && result.to) {
+            if (isCorner(result.to.row, result.to.col, board)) extra += 5600;
+            if (isEdge(result.to.row, result.to.col, board) && !isCorner(result.to.row, result.to.col, board)) extra += 1400;
+            extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
+        }
+        return extra;
+    }
+
+    function chooseVerticalMovementTarget(gameState: any, cardState: any, playerKey: any, rng: any, applyMethodName: string, targetGetterName: any) {
         return chooseTargetBySimulation(
             gameState,
             cardState,
             playerKey,
             rng,
             (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
-                cardLogic.applySuperBuoyancyWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any, sourceGameState: any, sourceCardState: any, onePlayerKey: any) => {
-                const board = getSelfplayBoard(sourceGameState, sourceCardState);
-                const selfVal = toPlayerValue(onePlayerKey);
-                const occupant = getCellOwnerValueForSelfplay(sourceGameState, sourceCardState, target.row, target.col);
-                const isEnemy = occupant === -selfVal;
-                const base = evaluatePositionValue(target.row, target.col, board);
-                return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
-            },
-            (_target: any, result: any, simGameState: any, simCardState: any, _sourceGameState: any, sourceCardState: any) => {
-                const board = getSelfplayBoard(simGameState, simCardState);
-                let extra = 0;
-                const destroyedCount = Number(result && result.destroyedCount);
-                if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
-                    extra += destroyedCount * 520;
-                }
-                if (result && result.to) {
-                    if (isCorner(result.to.row, result.to.col, board)) extra += 5600;
-                    if (isEdge(result.to.row, result.to.col, board) && !isCorner(result.to.row, result.to.col, board)) extra += 1400;
-                    extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
-                }
-                return extra;
-            }
+                cardLogic[applyMethodName](simCardState, simGameState, onePlayerKey, row, col),
+            scoreVerticalMovementFallback,
+            scoreVerticalMovementResult,
+            targetGetterName
         );
     }
 
+    function chooseSuperBuoyancyTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseVerticalMovementTarget(gameState, cardState, playerKey, rng, 'applySuperBuoyancyWill', null);
+    }
+
     function chooseSuperGravityTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseVerticalMovementTarget(gameState, cardState, playerKey, rng, 'applySuperGravityWill', null);
+    }
+
+    function chooseBuoyancyTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseVerticalMovementTarget(gameState, cardState, playerKey, rng, 'applyBuoyancyWill', 'getBuoyancyTargets');
+    }
+
+    function chooseGravityTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        return chooseVerticalMovementTarget(gameState, cardState, playerKey, rng, 'applyGravityWill', 'getGravityTargets');
+    }
+
+    function readSuperAttractionPending(cardState: any, playerKey: any) {
+        const pending = cardState && cardState.pendingEffectByPlayer
+            ? cardState.pendingEffectByPlayer[playerKey]
+            : null;
+        return pending && pending.type === 'SUPER_ATTRACTION_WILL' ? pending : null;
+    }
+
+    function getSuperAttractionTargetsForPending(cardState: any, gameState: any, playerKey: any) {
+        return cardLogic.getSuperAttractionTargets(
+            cardState,
+            gameState,
+            playerKey,
+            readSuperAttractionPending(cardState, playerKey)
+        );
+    }
+
+    /** 超引力の1段目（引き寄せる石）は盤面を変えないため、2段目の到達先まで読んだ最善値で比べる。 */
+    function scoreBestSuperAttractionDestination(simGameState: any, simCardState: any, playerKey: any, rng: any) {
+        const destinations = getSuperAttractionTargetsForPending(simCardState, simGameState, playerKey);
+        let best = Number.NEGATIVE_INFINITY;
+        const limit = Math.min(destinations.length, SUPER_ATTRACTION_DESTINATION_SCAN_LIMIT);
+        for (let index = 0; index < limit; index += 1) {
+            const destination = destinations[index];
+            const nextGameState = copyGameState(simGameState);
+            const nextCardState = copyCardState(simCardState);
+            const result = cardLogic.applySuperAttractionWill(
+                nextCardState,
+                nextGameState,
+                playerKey,
+                destination.row,
+                destination.col,
+                clonePrng(rng)
+            );
+            if (!result || result.applied !== true) continue;
+            best = Math.max(best, evaluateBoardForPlayer(nextGameState, nextCardState, playerKey));
+        }
+        return best;
+    }
+
+    function chooseSuperAttractionTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
+        const pending = readSuperAttractionPending(cardState, playerKey);
+        const selectingDestination = !!(pending && pending.firstTarget);
         return chooseTargetBySimulation(
             gameState,
             cardState,
             playerKey,
             rng,
-            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
-                cardLogic.applySuperGravityWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any, sourceGameState: any, sourceCardState: any, onePlayerKey: any) => {
-                const board = getSelfplayBoard(sourceGameState, sourceCardState);
-                const selfVal = toPlayerValue(onePlayerKey);
-                const occupant = getCellOwnerValueForSelfplay(sourceGameState, sourceCardState, target.row, target.col);
-                const isEnemy = occupant === -selfVal;
-                const base = evaluatePositionValue(target.row, target.col, board);
-                return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
-            },
-            (_target: any, result: any, simGameState: any, simCardState: any, _sourceGameState: any, sourceCardState: any) => {
-                const board = getSelfplayBoard(simGameState, simCardState);
-                let extra = 0;
-                const destroyedCount = Number(result && result.destroyedCount);
-                if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
-                    extra += destroyedCount * 520;
-                }
-                if (result && result.to) {
-                    if (isCorner(result.to.row, result.to.col, board)) extra += 5600;
-                    if (isEdge(result.to.row, result.to.col, board) && !isCorner(result.to.row, result.to.col, board)) extra += 1400;
-                    extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
-                }
-                return extra;
-            }
+            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
+                cardLogic.applySuperAttractionWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
+            scoreVerticalMovementFallback,
+            selectingDestination
+                ? scoreVerticalMovementResult
+                : (_target: any, _result: any, simGameState: any, simCardState: any, _sourceGameState: any, _sourceCardState: any, onePlayerKey: any) => {
+                    const best = scoreBestSuperAttractionDestination(simGameState, simCardState, onePlayerKey, rng);
+                    if (!Number.isFinite(best)) return Number.NEGATIVE_INFINITY;
+                    return best - evaluateBoardForPlayer(simGameState, simCardState, onePlayerKey);
+                },
+            getSuperAttractionTargetsForPending
         );
     }
 
@@ -341,6 +408,9 @@ export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvanc
         chooseStrongWindTarget,
         chooseSuperBuoyancyTarget,
         chooseSuperGravityTarget,
+        chooseBuoyancyTarget,
+        chooseGravityTarget,
+        chooseSuperAttractionTarget,
         chooseMeteorTarget,
         chooseTrapTarget,
         chooseCloneTarget,

@@ -32,9 +32,12 @@ export function productionStateKey(state: Lv10Position): string {
     return StateHash.stableStringify(comparableProductionState(state));
 }
 
-export function createProductionPosition(seed: number, profiles: Record<Lv10Player, string | number>, boardConfig?: any): ProductionPosition {
+/** stoneSupplyEnabled enables the stone supply rule (01-rulebook.md 7.3). Omitted keeps the historical OFF condition. */
+export function createProductionPosition(seed: number, profiles: Record<Lv10Player, string | number>, boardConfig?: any,
+    rules: { stoneSupplyEnabled?: boolean } = {}): ProductionPosition {
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error('Expected uint32 match seed');
     const options: any = { boardConfig, initialDeckCardIdsByPlayer: {}, initialChargeByPlayer: {}, chargeGainMultiplierByPlayer: {} };
+    if (rules.stoneSupplyEnabled === true) options.stoneSupplyEnabled = true;
     for (const player of ['black', 'white'] as const) {
         const startup = Startup.getCpuOpponentStartupOptions(profiles[player], player);
         if (!startup.deckCardIds) throw new Error(`Production selfplay requires an explicit deck recipe: ${profiles[player]}`);

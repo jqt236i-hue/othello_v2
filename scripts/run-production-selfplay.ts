@@ -19,6 +19,8 @@ export type ProductionGameSpec = {
     policies: Record<Lv10Player, ProductionPolicySpec>;
     maxDecisions?: number; timeoutMs?: number; stopFile?: string;
     resumeFrom?: string;
+    /** Stone supply rule (01-rulebook.md 7.3). Omitted keeps the historical OFF condition and identity. */
+    stoneSupplyEnabled?: boolean;
 };
 const hash = (value: string | Buffer) => crypto.createHash('sha256').update(value).digest('hex');
 
@@ -106,7 +108,8 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
         policies: Object.fromEntries((['black', 'white'] as const).map(player => [player, {
             spec: spec.policies[player], config: policies[player].config, sha256: policies[player].manifest.sha256
         }])), runtimeSha256: currentManifest.sha256, node: process.version,
-        limits: { maxDecisions: spec.maxDecisions || 2000, timeoutMs: spec.timeoutMs || 1200000 } };
+        limits: { maxDecisions: spec.maxDecisions || 2000, timeoutMs: spec.timeoutMs || 1200000 },
+        ...(spec.stoneSupplyEnabled === true ? { rules: { stoneSupplyEnabled: true } } : {}) };
     const identityHash = hash(JSON.stringify(identity));
     const publicRecipes = Object.fromEntries((['black', 'white'] as const).map(player => [player, Startup.getCpuOpponentDeckCardIds(spec.profiles[player])!])) as Record<Lv10Player, string[]>;
     let stopped = false, elapsedBefore = 0;
@@ -122,7 +125,7 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
             throw new Error('Journal and checkpoint disagree; preserve and recover the durable last step before resuming');
         }
     }
-    const initial = resume?.state || createProductionPosition(spec.seed, spec.profiles);
+    const initial = resume?.state || createProductionPosition(spec.seed, spec.profiles, undefined, { stoneSupplyEnabled: spec.stoneSupplyEnabled === true });
     if (resume) {
         cpus.black.memory = resume.memories.black; cpus.white.memory = resume.memories.white;
         elapsedBefore = resume.elapsedMs;

@@ -1278,7 +1278,11 @@ const {
     chooseBoardShrinkTarget,
     chooseBlockadeTarget,
     chooseFreezeTarget,
-    chooseSeedTarget
+    chooseSeedTarget,
+    chooseReverseWillTarget,
+    chooseReincarnationTarget,
+    choosePoisonTarget,
+    chooseCausalReplayTarget
 } = SelfplaySimpleSimulationChoosers.createSelfplaySimpleSimulationChoosers({
     CardLogic,
     chooseTargetBySimulation,
@@ -1295,6 +1299,9 @@ const {
     chooseStrongWindTarget,
     chooseSuperBuoyancyTarget,
     chooseSuperGravityTarget,
+    chooseBuoyancyTarget,
+    chooseGravityTarget,
+    chooseSuperAttractionTarget,
     chooseMeteorTarget,
     chooseTrapTarget,
     chooseCloneTarget,
@@ -1313,7 +1320,11 @@ const {
     isCorner,
     isEdge,
     isXSquare,
-    getBoardBonusAtCell
+    getBoardBonusAtCell,
+    evaluateBoardForPlayer,
+    copyGameState: (gameState: any) => Core.copyGameState(gameState),
+    copyCardState: (cardState: any) => CardLogic.copyCardState(cardState),
+    clonePrng
 });
 
 const {
@@ -1363,37 +1374,46 @@ const {
     scorePlacementCandidates
 });
 
+const SELFPLAY_PENDING_TARGET_SELECTORS = Object.freeze({
+    chooseSwapTarget,
+    choosePositionSwapTarget,
+    chooseDestroyTarget,
+    chooseStrongWindTarget,
+    chooseSuperBuoyancyTarget,
+    chooseSuperGravityTarget,
+    chooseSellCardTarget,
+    chooseTemptTarget,
+    chooseCaptureTarget,
+    chooseTimeBombTarget,
+    chooseGuardTarget,
+    chooseLivingWillTarget,
+    chooseBoardExpansionTarget,
+    chooseBoardShrinkTarget,
+    chooseBlockadeTarget,
+    chooseMeteorTarget,
+    chooseFreezeTarget,
+    chooseSeedTarget,
+    chooseTrapTarget,
+    chooseCloneTarget,
+    chooseHyperactiveInheritTarget,
+    chooseTeleportTarget,
+    chooseCellTeleportTarget,
+    chooseExtendLifeTarget,
+    chooseCorrosionTarget,
+    chooseReverseWillTarget,
+    chooseReincarnationTarget,
+    choosePoisonTarget,
+    chooseCausalReplayTarget,
+    chooseBuoyancyTarget,
+    chooseGravityTarget,
+    chooseSuperAttractionTarget
+});
+
 const {
     buildPendingSelectionAction
 } = SelfplayPendingSelectionBridge.createSelfplayPendingSelectionBridge({
     PendingTargetSelector,
-    selectors: {
-        chooseSwapTarget,
-        choosePositionSwapTarget,
-        chooseDestroyTarget,
-        chooseStrongWindTarget,
-        chooseSuperBuoyancyTarget,
-        chooseSuperGravityTarget,
-        chooseSellCardTarget,
-        chooseTemptTarget,
-        chooseCaptureTarget,
-        chooseTimeBombTarget,
-        chooseGuardTarget,
-        chooseLivingWillTarget,
-        chooseBoardExpansionTarget,
-        chooseBoardShrinkTarget,
-        chooseBlockadeTarget,
-        chooseMeteorTarget,
-        chooseFreezeTarget,
-        chooseSeedTarget,
-        chooseTrapTarget,
-        chooseCloneTarget,
-        chooseHyperactiveInheritTarget,
-        chooseTeleportTarget,
-        chooseCellTeleportTarget,
-        chooseExtendLifeTarget,
-        chooseCorrosionTarget
-    },
+    selectors: SELFPLAY_PENDING_TARGET_SELECTORS,
     getLegalMovesForAction,
     buildCardDecisionContext,
     CpuPolicyCore,
@@ -1513,7 +1533,7 @@ const {
     applyActionSafe
 });
 
-function applyDecisionWithRetry(state: any, gameIndex: any, ply: any, playerKey: any, options: any, actionCounterRef: any) {
+function applyDecisionWithRetry(state: any, gameIndex: any, ply: any, playerKey: any, options: any, actionCounterRef: any, decide: typeof decideAction = decideAction) {
     const firstSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
     if (firstSnapshot && firstSnapshot.turnStartStoppedAction === true) {
         const nextStateVersion = (Number.isFinite(state.stateVersion) ? Number(state.stateVersion) : 0) + 1;
@@ -1532,7 +1552,7 @@ function applyDecisionWithRetry(state: any, gameIndex: any, ply: any, playerKey:
             decisionContext: firstSnapshot
         };
     }
-    const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
+    const firstDecision = decide(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
     actionCounterRef.value += 1;
     const first = createAction(firstDecision, gameIndex, actionCounterRef.value, state.stateVersion);
     applyDecisionSnapshotBaseline(state, firstSnapshot, state.stateVersion);
@@ -1563,7 +1583,7 @@ function applyDecisionWithRetry(state: any, gameIndex: any, ply: any, playerKey:
     if (first.actionType === 'use_card') retryOpts.allowCardUsage = false;
     if (first.actionType === 'destroy_hand_card') retryOpts.allowHandDestroy = false;
     const retrySnapshot = firstSnapshot;
-    const retryDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, retryOpts, retrySnapshot);
+    const retryDecision = decide(state.gameState, state.cardState, playerKey, state.prng, retryOpts, retrySnapshot);
     actionCounterRef.value += 1;
     const retry = createAction(retryDecision, gameIndex, actionCounterRef.value, state.stateVersion);
     applyDecisionSnapshotBaseline(state, retrySnapshot, state.stateVersion);
@@ -1710,7 +1730,18 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
         const playerPolicy = getPolicyForPlayer(normalizedOptions, playerKey);
         const preDecisionCardState = state.cardState;
 
-        const execution = applyDecisionWithRetry(state, gameIndex, ply, playerKey, playerPolicy, actionCounterRef);
+        const decisionProvider = normalizedOptions.decisionProviderByPlayer
+            ? normalizedOptions.decisionProviderByPlayer[playerKey]
+            : null;
+        const execution = applyDecisionWithRetry(
+            state,
+            gameIndex,
+            ply,
+            playerKey,
+            playerPolicy,
+            actionCounterRef,
+            typeof decisionProvider === 'function' ? decisionProvider : decideAction
+        );
         if (execution && execution.skippedByTurnStart === true) {
             continue;
         }
@@ -2014,6 +2045,11 @@ const {
     runSingleGameWithRetries
 });
 
+/** 自己対戦が pending 対象選択で解決できる policyMethod 名（registry との対応確認用）。 */
+function listSelfplayPendingTargetSelectorNames(): string[] {
+    return Object.keys(SELFPLAY_PENDING_TARGET_SELECTORS).sort();
+}
+
 export {
     SELFPLAY_SCHEMA_VERSION,
     LEGACY_SELFPLAY_SCHEMA_VERSION,
@@ -2026,5 +2062,6 @@ export {
     selectPlacementMove,
     getPolicyActionScoreByKey,
     encodeBoard,
-    getPolicyForPlayer
+    getPolicyForPlayer,
+    listSelfplayPendingTargetSelectorNames
 };

@@ -67,6 +67,10 @@ export function createSelfplayPendingTargetSelection(config?: SelfplayPendingTar
     }
 
     function resolvePendingTargetList(cardState: any, gameState: any, playerKey: any, targetGetterNames: any) {
+        if (typeof targetGetterNames === 'function') {
+            const targets = targetGetterNames(cardState, gameState, playerKey);
+            return Array.isArray(targets) ? targets : [];
+        }
         const getterNames = Array.isArray(targetGetterNames)
             ? targetGetterNames
             : [targetGetterNames];

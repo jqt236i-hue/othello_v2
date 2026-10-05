@@ -80,10 +80,14 @@ export function createSelfplayBootstrapHelpers(config?: SelfplayBootstrapHelpers
         const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(
             options && options.initialDeckCardIdsByPlayer
         );
-        const init = cardLogic.initGame(
-            prng,
-            initialDeckCardIdsByPlayer ? { initialDeckCardIdsByPlayer } : undefined
-        );
+        const stoneSupplyEnabled = !!(options && options.stoneSupplyEnabled === true);
+        const initOptions = (initialDeckCardIdsByPlayer || stoneSupplyEnabled)
+            ? {
+                ...(initialDeckCardIdsByPlayer ? { initialDeckCardIdsByPlayer } : {}),
+                ...(stoneSupplyEnabled ? { stoneSupplyEnabled: true } : {})
+            }
+            : undefined;
+        const init = cardLogic.initGame(prng, initOptions);
         return {
             gameState: core.createGameState(),
             cardState: init.cardState,

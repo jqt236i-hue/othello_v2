@@ -25,6 +25,17 @@ test('production initialization preserves identical black/white privileges and d
     expect(productionStateKey(match.snapshot())).toBe(productionStateKey(after));
 });
 
+test('stone supply rule is opt-in and leaves the deal unchanged', () => {
+    const off = initial();
+    const on = createProductionPosition(914001, profiles, undefined, { stoneSupplyEnabled: true });
+    expect(off.cardState.stoneSupply).toBeUndefined();
+    expect(on.cardState.stoneSupply).toEqual({ initial: 30, remainingByPlayer: { black: 30, white: 30 } });
+    const { stoneSupply: _supply, ...onWithoutSupply } = on.cardState as any;
+    expect(onWithoutSupply).toEqual(off.cardState);
+    expect(on.gameState).toEqual(off.gameState);
+    expect(on.prngState).toEqual(off.prngState);
+});
+
 test('the same public request and fixed calculation budget use the normal turn judgment', async () => {
     const match = new ProductionMatch(initial()); match.startTurn();
     const before = match.snapshot();

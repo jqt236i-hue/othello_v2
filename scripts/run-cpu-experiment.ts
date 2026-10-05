@@ -274,6 +274,7 @@ export async function runCpuExperiment(directoryInput: string, resume = false) {
                     white: candidateBlack ? spec.opponentProfile ?? 10 : spec.candidateProfile ?? 10 },
                 policies: { black: candidateBlack ? spec.candidate : spec.opponent, white: candidateBlack ? spec.opponent : spec.candidate },
                 maxDecisions: spec.maxDecisions, timeoutMs: spec.timeoutMs, stopFile,
+                ...(spec.stoneSupplyEnabled === true ? { stoneSupplyEnabled: true } : {}),
                 ...(previous.path ? { resumeFrom: path.join(previous.path, 'checkpoint.json') } : {}) };
             const specFile = path.join(previous.root, `attempt-${previous.number + 1}-spec.json`); writeNew(specFile, game);
             const stdout = fs.openSync(path.join(previous.root, `attempt-${previous.number + 1}.stdout.log`), 'wx');

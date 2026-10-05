@@ -42,6 +42,19 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
         return Math.max(0, Math.min(100_000, Math.floor(Number(value))));
     }
 
+    function normalizeDecisionProviderByPlayer(value: any) {
+        if (!value || typeof value !== 'object') return null;
+        const providers: Record<string, any> = {};
+        let hasProvider = false;
+        for (const playerKey of ['black', 'white']) {
+            if (typeof value[playerKey] === 'function') {
+                providers[playerKey] = value[playerKey];
+                hasProvider = true;
+            }
+        }
+        return hasProvider ? providers : null;
+    }
+
     function normalizeOptions(options: any) {
         const opts = options || {};
         const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(opts.initialDeckCardIdsByPlayer);
@@ -145,7 +158,11 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
             onRecord: typeof opts.onRecord === 'function' ? opts.onRecord : null,
             onGameEnd: typeof opts.onGameEnd === 'function' ? opts.onGameEnd : null,
             onGameRetryHardcase: typeof opts.onGameRetryHardcase === 'function' ? opts.onGameRetryHardcase : null,
-            initialDeckCardIdsByPlayer
+            initialDeckCardIdsByPlayer,
+            // 持ち石ルール（01-rulebook.md §7.3）。学習データ互換のため自己対戦の既定は OFF。
+            stoneSupplyEnabled: opts.stoneSupplyEnabled === true,
+            // CPU 比較用: プレイヤー別に decideAction 相当の関数を差し替える（未指定は通常の自己対戦方針）。
+            decisionProviderByPlayer: normalizeDecisionProviderByPlayer(opts.decisionProviderByPlayer)
         };
     }
 

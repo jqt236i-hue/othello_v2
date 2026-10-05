@@ -94,6 +94,10 @@ function applySelfplayArgsFromResolvedConfig(target: any, specified: any, resolv
         if (hasFlag(argMap, '--with-cards')) target.allowCardUsage = true;
         else if (hasFlag(argMap, '--no-cards')) target.allowCardUsage = false;
     }
+    if (!specified || !specified.has('stoneSupplyEnabled')) {
+        if (hasFlag(argMap, '--stone-supply')) target.stoneSupplyEnabled = true;
+        else if (hasFlag(argMap, '--no-stone-supply')) target.stoneSupplyEnabled = false;
+    }
 
     const bootstrapPath = resolved && resolved.bootstrap ? resolved.bootstrap.bootstrapPolicyModelPath : null;
     if (!specified || !specified.has('policyModelPath')) {

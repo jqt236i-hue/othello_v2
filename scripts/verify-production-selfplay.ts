@@ -31,7 +31,8 @@ export function verifyProductionSelfplay(directory: string, seen = new Set<strin
             throw new Error('Resume changed state or runtime identity');
         }
     } else {
-        const initial = createProductionPosition(manifest.identity.seed, manifest.identity.profiles);
+        const initial = createProductionPosition(manifest.identity.seed, manifest.identity.profiles, undefined,
+            { stoneSupplyEnabled: manifest.identity.rules?.stoneSupplyEnabled === true });
         if (productionStateKey(initial) !== productionStateKey(rows[0].state)) throw new Error('Recorded initial deal differs from its declared seed/profiles');
     }
     if (hash(productionStateKey(manifest.initial)) !== manifest.initialSha256

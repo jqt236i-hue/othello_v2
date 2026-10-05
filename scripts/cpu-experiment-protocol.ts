@@ -13,6 +13,8 @@ export type ExperimentSpec = {
     developmentSet?: { path: string; sha256: string };
     acceptance?: 'lv11' | 'lv12' | 'lv13';
     maxDecisions?: number; timeoutMs?: number;
+    /** Stone supply rule (01-rulebook.md 7.3) for every scheduled game. Omitted keeps the historical OFF condition. */
+    stoneSupplyEnabled?: boolean;
 };
 export type ExperimentCondition = { id: number; seed: number; kind: 'paired' | 'black' | 'white' };
 export type ExperimentSlot = { id: string; condition: number; seed: number; candidateColor: 'black' | 'white' };

@@ -71,6 +71,7 @@ function parseArgs(argv) {
         out: path.resolve(process.cwd(), 'data', 'selfplay.ndjson'),
         hardcaseOut: null,
         allowCardUsage: true,
+        stoneSupplyEnabled: false,
         cardUsageRate: 0.2,
         policyMixRate: teacherDefaults.policyMixRate,
         cardUsageRateJitter: 0,
@@ -146,6 +147,16 @@ function parseArgs(argv) {
         if (a === '--with-cards') {
             args.allowCardUsage = true;
             specified.add('allowCardUsage');
+            continue;
+        }
+        if (a === '--stone-supply') {
+            args.stoneSupplyEnabled = true;
+            specified.add('stoneSupplyEnabled');
+            continue;
+        }
+        if (a === '--no-stone-supply') {
+            args.stoneSupplyEnabled = false;
+            specified.add('stoneSupplyEnabled');
             continue;
         }
         if (a === '--card-usage-rate') {
@@ -370,6 +381,8 @@ function printHelp() {
         '      --hardcase-out <path> Optional hardcase-only NDJSON path',
         '      --with-cards          Enable card usage in self-play (default: on)',
         '      --no-cards            Disable card usage in self-play',
+        '      --stone-supply        Enable the stone supply rule (rulebook 7.3; default: off)',
+        '      --no-stone-supply     Disable the stone supply rule',
         '      --card-usage-rate <r> Probability of using a card if legal moves exist (default: 0.2)',
         '      --white-deck-code <c> Fixed deckCode for white/CPU self-play (default: CPU white deck)',
         '      --no-white-deck-code  Use the standard random default deck for white too',
@@ -754,6 +767,7 @@ function runSelfPlayShard(options) {
         gameIndexOffset: Number(opts.gameIndexOffset || 0),
         maxPlies: Number(opts.maxPlies),
         allowCardUsage: !!opts.allowCardUsage,
+        stoneSupplyEnabled: opts.stoneSupplyEnabled === true,
         cardUsageRate: Number(opts.cardUsageRate),
         policyMixRate: Number(opts.policyMixRate),
         cardUsageRateJitter: Number(opts.cardUsageRateJitter),
@@ -1193,6 +1207,7 @@ function createWorkerTask(args, shard, shardOutPath, hardcaseOutPath) {
         outPath: shardOutPath,
         hardcaseOutPath,
         allowCardUsage: args.allowCardUsage,
+        stoneSupplyEnabled: args.stoneSupplyEnabled === true,
         cardUsageRate: args.cardUsageRate,
         policyMixRate: args.policyMixRate,
         cardUsageRateJitter: args.cardUsageRateJitter,
@@ -1358,6 +1373,7 @@ function buildSummaryPayload(args, summary, policyModelPaths, policyModelCount, 
             maxPlies: args.maxPlies,
             hardcaseOut: args.hardcaseOut,
             allowCardUsage: args.allowCardUsage,
+            stoneSupplyEnabled: args.stoneSupplyEnabled === true,
             cardUsageRate: args.cardUsageRate,
             policyMixRate: args.policyMixRate,
             cardUsageRateJitter: args.cardUsageRateJitter,
