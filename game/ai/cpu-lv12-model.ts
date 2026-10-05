@@ -5,7 +5,7 @@
  * Four grouped folds selected board-and-tempo features, regularization 0.3.
  * Tempo is scaled by available legal placements.
  * This fit is development evidence, not a match-strength qualification.
- * The two trailing stone-supply coefficients are hand-set priors (see below). */
+ * The two trailing stone-supply coefficients were selected by stone-supply match comparisons (see below). */
 export const LV12_VALUE_WEIGHTS:readonly number[]=Object.freeze([
     1.0918106317551999,
     2.2730892394028843,
@@ -44,7 +44,8 @@ export const LV12_VALUE_WEIGHTS:readonly number[]=Object.freeze([
     0,
     0,
     // stonePlacementLead / stonePlacementLeadEnd（持ち石ルール時のみ非 0 の特徴量）。
-    // 1 回多く置ける ≒ 石 1 個 + 反転ぶん。持ち石 ON の自己対戦データで再調整するまでの初期値。
-    1,
-    2
+    // 持ち石 ON の対旧 Lv12 比較（縮小予算）で 1/2・4/6・10/10・20/20・30/30 を比べ、
+    // 10/10 が最良（得点率 0.58〜0.63）。持ち石 ON 240 局の値関数学習も 8.5 / 8.9 を選んだ。
+    10,
+    10
 ]);
