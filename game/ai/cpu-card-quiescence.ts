@@ -75,6 +75,8 @@ export interface CpuCardQuiescenceRequest {
     priorScoreByCell: Record<string, number> | null;
     priorWeight: number | null;
     searchWeight: number | null;
+    /** 持ち石ルール有効時だけ持つ黒白の残り持ち石（01-rulebook.md §7.3）。 */
+    stoneSupply?: { black: number; white: number };
     inputDigest: string;
 }
 
@@ -112,6 +114,7 @@ export interface CreateCpuCardQuiescenceRequestInput {
     priorScoreByCell?: unknown;
     priorWeight?: unknown;
     searchWeight?: unknown;
+    stoneSupply?: unknown;
 }
 
 export type CpuCardQuiescenceLookahead = (
@@ -386,6 +389,15 @@ function readOptionalFiniteWeight(value: unknown, label: string): number | null 
     return Object.is(number, -0) ? 0 : number;
 }
 
+function readStoneSupply(value: unknown): { black: number; white: number } | null {
+    if (value === null || typeof value === 'undefined') return null;
+    if (!isRecord(value)) fail('stoneSupply must be an object or null');
+    return {
+        black: readSafeNonNegativeInteger(value.black, 'stoneSupply.black') as number,
+        white: readSafeNonNegativeInteger(value.white, 'stoneSupply.white') as number
+    };
+}
+
 function readSearchOptions(value: unknown): CpuCardQuiescenceSearchOptions {
     if (!isRecord(value)) fail('search must be an object');
     return {
@@ -419,6 +431,7 @@ function normalizeRequestInput(value: Record<string, any>): Omit<CpuCardQuiescen
     const level = readSearchLimit(value.level, 'level', 1);
     const playerValue = readPlayerValue(value.playerValue);
     const boardShape = readBoardShape(value.boardShape);
+    const stoneSupply = readStoneSupply(value.stoneSupply);
     return {
         protocolVersion: CPU_CARD_QUIESCENCE_PROTOCOL_VERSION,
         requestId: readBoundedString(value.requestId, 'requestId', MAX_REQUEST_ID_LENGTH),
@@ -436,7 +449,9 @@ function normalizeRequestInput(value: Record<string, any>): Omit<CpuCardQuiescen
         boardBonusConsumedByCell: readNumberMap(value.boardBonusConsumedByCell, 'boardBonusConsumedByCell', true),
         priorScoreByCell: readNumberMap(value.priorScoreByCell, 'priorScoreByCell') as Record<string, number> | null,
         priorWeight: readOptionalFiniteWeight(value.priorWeight, 'priorWeight'),
-        searchWeight: readOptionalFiniteWeight(value.searchWeight, 'searchWeight')
+        searchWeight: readOptionalFiniteWeight(value.searchWeight, 'searchWeight'),
+        // 持ち石ルール無効時は項目自体を持たず、要求・digest を従来と同一に保つ。
+        ...(stoneSupply ? { stoneSupply } : {})
     };
 }
 
@@ -544,7 +559,8 @@ export function executeCpuCardQuiescenceRequest(
         ...(request.priorWeight !== null ? { priorWeight: request.priorWeight } : {}),
         ...(request.searchWeight !== null ? { searchWeight: request.searchWeight } : {}),
         boardBonusByCell: request.boardBonusByCell,
-        boardBonusConsumedByCell: request.boardBonusConsumedByCell
+        boardBonusConsumedByCell: request.boardBonusConsumedByCell,
+        ...(request.stoneSupply ? { stoneSupply: request.stoneSupply } : {})
     });
     const response = parseCpuCardQuiescenceResponse({
         protocolVersion: CPU_CARD_QUIESCENCE_PROTOCOL_VERSION,

@@ -19,6 +19,7 @@ type CpuDecisionCardRiskConfig = {
 };
 
 import { createCpuCardQuiescenceRequest } from './ai/cpu-card-quiescence';
+import StoneSupply = require('../shared/stone-supply');
 import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 
 const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
@@ -105,7 +106,8 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
                 : null,
             boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
                 ? cardState.boardBonusConsumedByCell
-                : null
+                : null,
+            stoneSupply: StoneSupply.readStoneSupplyRemainingByPlayer(cardState)
         };
     }
 
@@ -131,7 +133,8 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
             legalMoves,
             search: inputs.search,
             boardBonusByCell: inputs.boardBonusByCell,
-            boardBonusConsumedByCell: inputs.boardBonusConsumedByCell
+            boardBonusConsumedByCell: inputs.boardBonusConsumedByCell,
+            ...(inputs.stoneSupply ? { stoneSupply: inputs.stoneSupply } : {})
         });
     }
 
@@ -175,7 +178,8 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
             ...inputs.search,
             onSearchMeta,
             boardBonusByCell: inputs.boardBonusByCell,
-            boardBonusConsumedByCell: inputs.boardBonusConsumedByCell
+            boardBonusConsumedByCell: inputs.boardBonusConsumedByCell,
+            ...(inputs.stoneSupply ? { stoneSupply: inputs.stoneSupply } : {})
         });
         return buildCardQuiescenceSnapshotFromBestMove(playerKey, context, bestMove);
     }

@@ -1,9 +1,16 @@
 import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
+import {
+    areAllLookaheadStoneSuppliesExhausted,
+    consumeLookaheadStoneSupply,
+    encodeLookaheadStoneSupplyKey,
+    isLookaheadStoneSupplyExhausted,
+    type CpuLookaheadStoneSupply
+} from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyBonusConsumedMap = Record<string, boolean | number>;
 
 type CpuPolicyLookaheadNegamaxDeps = {
-    evaluateBoardForLookahead?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => number;
+    evaluateBoardForLookahead?: (board: CpuPolicyBoard | null | undefined, playerValue: number, stoneSupply?: CpuLookaheadStoneSupply | null) => number;
     evaluateTerminalBoardForLookahead?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => number;
     buildBoardSearchKey?: (
         board: CpuPolicyBoard,
@@ -85,21 +92,23 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
             alpha: number,
             beta: number,
             passed: boolean,
-            consumedMap: CpuPolicyBonusConsumedMap
+            consumedMap: CpuPolicyBonusConsumedMap,
+            // 持ち石ルール有効時だけ渡す。null は従来どおり盤面だけで読む。
+            stoneSupply: CpuLookaheadStoneSupply | null = null
         ): number {
             if (stopped || (typeof input.shouldStop === 'function' && input.shouldStop())) {
                 stopped = true;
-                return evaluateBoardForLookahead(boardNode, currentPlayer);
+                return evaluateBoardForLookahead(boardNode, currentPlayer, stoneSupply);
             }
             if (input.deadlineMs !== null && input.readNowMs() >= input.deadlineMs) {
                 stopped = true;
                 input.markTimeHit();
-                return evaluateBoardForLookahead(boardNode, currentPlayer);
+                return evaluateBoardForLookahead(boardNode, currentPlayer, stoneSupply);
             }
             if (input.readVisited() >= input.nodeBudget) {
                 stopped = true;
                 input.markBudgetHit();
-                return evaluateBoardForLookahead(boardNode, currentPlayer);
+                return evaluateBoardForLookahead(boardNode, currentPlayer, stoneSupply);
             }
             input.incrementVisited();
             const originalAlpha = alpha;
@@ -108,27 +117,37 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
                 score > originalAlpha && score < beta ? storeTransposition(key, score) : score
             );
 
-            if (depthLeft <= 0) {
-                return evaluateBoardForLookahead(boardNode, currentPlayer);
+            // 黒白とも持ち石 0 は、その配置の直後に確定する終局（01-rulebook.md §7.3 / §8.2）。
+            if (areAllLookaheadStoneSuppliesExhausted(stoneSupply)) {
+                return evaluateTerminalBoardForLookahead(boardNode, currentPlayer);
             }
 
-            const transpositionKey = buildBoardSearchKey(boardNode, currentPlayer, depthLeft, passed, consumedMap);
+            if (depthLeft <= 0) {
+                return evaluateBoardForLookahead(boardNode, currentPlayer, stoneSupply);
+            }
+
+            const transpositionKey = buildBoardSearchKey(boardNode, currentPlayer, depthLeft, passed, consumedMap)
+                + encodeLookaheadStoneSupplyKey(stoneSupply);
             if (input.transposition.has(transpositionKey)) {
                 const cached = input.transposition.get(transpositionKey);
                 if (cached !== undefined) return cached;
             }
 
-            const legal = getLegalMovesBasic(boardNode, currentPlayer);
+            // 持ち石切れの手番は通常合法手 0 として扱う。
+            const legal = isLookaheadStoneSupplyExhausted(stoneSupply, currentPlayer)
+                ? []
+                : getLegalMovesBasic(boardNode, currentPlayer);
             if (!Array.isArray(legal) || legal.length <= 0) {
                 if (passed) {
                     const terminalScore = input.endgameMode
                         ? evaluateTerminalBoardForLookahead(boardNode, currentPlayer)
-                        : evaluateBoardForLookahead(boardNode, currentPlayer);
+                        : evaluateBoardForLookahead(boardNode, currentPlayer, stoneSupply);
                     return storeTransposition(transpositionKey, terminalScore);
                 }
-                const passedScore: number = -negamax(boardNode, -currentPlayer, depthLeft - 1, -beta, -alpha, true, consumedMap);
+                const passedScore: number = -negamax(boardNode, -currentPlayer, depthLeft - 1, -beta, -alpha, true, consumedMap, stoneSupply);
                 return storeExact(transpositionKey, passedScore);
             }
+            const nextStoneSupply = consumeLookaheadStoneSupply(stoneSupply, currentPlayer);
 
             const ordered = buildSearchMoveOrder(legal, {
                 level: input.level,
@@ -148,7 +167,7 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
                     : consumedMap;
                 const nextBoard = applyMoveToBoard(boardNode, move, currentPlayer);
                 // Parent score = immediate - child, so both child bounds include immediate.
-                const child = -negamax(nextBoard, -currentPlayer, depthLeft - 1, immediate - beta, immediate - alpha, false, nextConsumed);
+                const child = -negamax(nextBoard, -currentPlayer, depthLeft - 1, immediate - beta, immediate - alpha, false, nextConsumed, nextStoneSupply);
                 const score = immediate + child;
                 if (score > best) best = score;
                 if (score > alpha) alpha = score;

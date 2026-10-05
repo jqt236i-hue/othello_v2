@@ -1,4 +1,8 @@
 import type { CpuPolicyBoard, CpuPolicyPosition } from './cpu-policy-core-types';
+import {
+    resolveLookaheadSupplyLastPlacementSignal,
+    type CpuLookaheadStoneSupply
+} from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyLookaheadParityDeps = {
     SharedBoardUtils?: any;
@@ -121,17 +125,42 @@ export function createCpuPolicyLookaheadParity(deps?: CpuPolicyLookaheadParityDe
         return out;
     }
 
-    function resolveLookaheadParityFeature(board: CpuPolicyBoard | null | undefined, empties: number): CpuPolicyParityFeature {
+    /**
+     * @param empties 残り配置回数。持ち石ルール無効時は空きマス数。
+     * @param stoneSupply 持ち石ルール有効時の黒白残り持ち石。持ち石が空きマスより先に尽きる局面では、
+     *   空き領域の偶奇ではなく「持ち石の多い側が最後に置く」ことを偶奇シグナルにする。
+     */
+    function resolveLookaheadParityFeature(
+        board: CpuPolicyBoard | null | undefined,
+        empties: number,
+        stoneSupply?: CpuLookaheadStoneSupply | null,
+        playerValue?: number
+    ): CpuPolicyParityFeature {
         const parity = collectEmptyRegionParity(board);
-        if (!Number.isFinite(empties) || empties <= 0 || empties > 20 || parity.regionCount <= 0) {
+        const supplySignal = stoneSupply
+            ? resolveLookaheadSupplyLastPlacementSignal(
+                parity.oddEmptyCount + parity.evenEmptyCount,
+                stoneSupply,
+                Number(playerValue) >= 0 ? 1 : -1
+            )
+            : null;
+        if (!Number.isFinite(empties) || empties <= 0 || empties > 20 || (supplySignal === null && parity.regionCount <= 0)) {
             return Object.assign(parity, {
                 signal: 0,
                 score: 0
             });
         }
 
-        const signal = (parity.oddRegionCount % 2 === 1) ? 1 : -1;
+        const signal = supplySignal !== null
+            ? supplySignal
+            : ((parity.oddRegionCount % 2 === 1) ? 1 : -1);
         const baseWeight = empties <= 8 ? 960 : (empties <= 12 ? 720 : (empties <= 16 ? 520 : 320));
+        if (supplySignal !== null) {
+            return Object.assign(parity, {
+                signal,
+                score: signal * baseWeight
+            });
+        }
         const oddRegionBias = Math.min(180, parity.oddRegionCount * 45);
         return Object.assign(parity, {
             signal,

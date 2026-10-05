@@ -1,4 +1,5 @@
 import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
+import { isLookaheadStoneSupplyExhausted, type CpuLookaheadStoneSupply } from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyLookaheadGuardsDeps = {
     isCorner?: (row: number, col: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number | null) => boolean;
@@ -26,6 +27,7 @@ type CpuPolicyLookaheadGuardInput = {
     priorFn: ((move: CpuPolicyMove) => number) | null;
     priorWeight: number;
     rankedAllMoves?: CpuPolicyMove[];
+    stoneSupply?: CpuLookaheadStoneSupply | null;
 };
 
 export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDeps) {
@@ -69,6 +71,11 @@ export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDe
             });
         let nextBestMove = bestMove;
         const ownAnchoredEdgesBefore = countAnchoredEdgeDiscsFromCorners(board, playerValue);
+        // 相手が持ち石切れなら次手で角を取られないため、角献上の回避は不要。
+        const opponentCannotPlace = isLookaheadStoneSupplyExhausted(input.stoneSupply, -playerValue);
+        const donatesCornerNow = (move: CpuPolicyMove): boolean => (
+            !opponentCannotPlace && evaluateImmediateCornerDonation(board, move, playerValue).donatesCornerNow
+        );
 
         if (!isCorner(nextBestMove.row, nextBestMove.col, board)) {
             const cornerMove = rankedAllMoves.find((move) => move && isCorner(move.row, move.col, board));
@@ -78,12 +85,10 @@ export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDe
         }
 
         if (!isCorner(nextBestMove.row, nextBestMove.col, board)) {
-            const selectedRisk = evaluateImmediateCornerDonation(board, nextBestMove, playerValue);
-            if (selectedRisk.donatesCornerNow) {
+            if (donatesCornerNow(nextBestMove)) {
                 for (const move of rankedAllMoves) {
                     if (!move || sameMove(move, nextBestMove)) continue;
-                    const altRisk = evaluateImmediateCornerDonation(board, move, playerValue);
-                    if (altRisk.donatesCornerNow) continue;
+                    if (donatesCornerNow(move)) continue;
                     nextBestMove = move;
                     break;
                 }
@@ -99,8 +104,7 @@ export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDe
                     if (!move) continue;
                     if (isCorner(move.row, move.col, board)) continue;
                     if (!isEdge(move.row, move.col, board)) continue;
-                    const altRisk = evaluateImmediateCornerDonation(board, move, playerValue);
-                    if (altRisk.donatesCornerNow) continue;
+                    if (donatesCornerNow(move)) continue;
                     const altProfile = evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdgesBefore);
                     const meaningfullyMoreStable = (
                         altProfile.anchoredEdgeDelta > selectedProfile.anchoredEdgeDelta ||
@@ -120,8 +124,7 @@ export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDe
                     if (!move) continue;
                     if (isCorner(move.row, move.col, board)) continue;
                     if (!isEdge(move.row, move.col, board)) continue;
-                    const altRisk = evaluateImmediateCornerDonation(board, move, playerValue);
-                    if (altRisk.donatesCornerNow) continue;
+                    if (donatesCornerNow(move)) continue;
                     const altProfile = evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdgesBefore);
                     const meaningfullySaferEdge = altProfile.anchoredEdgeDelta > 0;
                     if (!meaningfullySaferEdge) continue;

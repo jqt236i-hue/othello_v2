@@ -26,6 +26,7 @@ const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile.
 const SharedBoardUtils = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-board-utils.js'));
 const SharedCardHeuristics = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-card-heuristics.js'));
 const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector.js');
+const StoneSupply = require('../../shared/stone-supply');
 const PendingCoordinator = require('../../game/turn/pending-coordinator.js');
 const SelfplayBoardPrimitives = require('./selfplay-board-primitives.js');
 const SelfplayRecordMetadata = require('./selfplay-record-metadata.js');
@@ -645,6 +646,7 @@ function choosePlacementMoveByBrowserParity(
                 options && options.lookaheadEndgameMaxTimeMs,
                 normalizeLookaheadTimeBudget(lookaheadOptions.endgameMaxTimeMs, 12000)
             );
+        const stoneSupply = StoneSupply.readStoneSupplyRemainingByPlayer(context.cardState);
         const looked = CpuPolicyCore.chooseMoveByLookahead(candidateMoves, {
             board: runtimeBoard,
             playerValue: toPlayerValue(context.playerKey),
@@ -668,7 +670,8 @@ function choosePlacementMoveByBrowserParity(
                 : null,
             boardBonusConsumedByCell: (context.cardState && context.cardState.boardBonusConsumedByCell && typeof context.cardState.boardBonusConsumedByCell === 'object')
                 ? context.cardState.boardBonusConsumedByCell
-                : null
+                : null,
+            ...(stoneSupply ? { stoneSupply } : {})
         });
         if (looked) {
             selectedMove = CpuLv6LookaheadProfile.maybeOverrideWithStrictPendingPlacement(

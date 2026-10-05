@@ -1,4 +1,11 @@
 import { createCpuCardQuiescenceRequest } from './ai/cpu-card-quiescence';
+import StoneSupply = require('../shared/stone-supply');
+
+/** 持ち石ルール有効時だけ先読みへ黒白の残り持ち石を渡す（無効時は項目を足さない）。 */
+function withStoneSupply(cardState: any): { stoneSupply?: { black: number; white: number } } {
+    const stoneSupply = StoneSupply.readStoneSupplyRemainingByPlayer(cardState);
+    return stoneSupply ? { stoneSupply } : {};
+}
 
 type CpuDecisionMoveSelectionConfig = {
     buildLv6LookaheadOptions: (level: any, board: any, legalMovesCount: any, playerKey: any) => any;
@@ -255,7 +262,8 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
                 : null,
             boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
                 ? cardState.boardBonusConsumedByCell
-                : null
+                : null,
+            ...withStoneSupply(cardState)
         });
     }
 
@@ -362,7 +370,8 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
                         : null,
                     boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
                         ? cardState.boardBonusConsumedByCell
-                        : null
+                        : null,
+                    ...withStoneSupply(cardState)
                 });
             if (looked) {
                 const stabilized = cfg.maybeOverrideWithStrictPendingPlacement(looked, prioritizedCandidateMoves, playerKey, movePlanScoreFn);

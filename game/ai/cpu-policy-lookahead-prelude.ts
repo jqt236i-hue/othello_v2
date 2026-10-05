@@ -1,18 +1,29 @@
 import type { CpuPolicyBoard, CpuPolicyLookaheadSearchMeta, CpuPolicyMoveOptions } from './cpu-policy-core-types';
+import {
+    isLookaheadStoneSupplyExhausted,
+    normalizeLookaheadStoneSupply,
+    resolveLookaheadRemainingPlacements,
+    type CpuLookaheadStoneSupply
+} from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyLookaheadPreludeDeps = {
     isFiniteNumber?: (value: unknown) => boolean;
     countBoardDiscsForPlayer?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => { empties: number };
     resolveLookaheadEndgameDepth?: (options: CpuPolicyMoveOptions | null | undefined, empties: number) => number;
-    resolveLookaheadDepth?: (board: CpuPolicyBoard | null | undefined, level: number, preferredDepth?: number | null) => number;
-    resolveLookaheadBranch?: (board: CpuPolicyBoard | null | undefined, preferredBranch?: number | null) => number;
+    resolveLookaheadDepth?: (board: CpuPolicyBoard | null | undefined, level: number, preferredDepth?: number | null, remainingPlacements?: number | null) => number;
+    resolveLookaheadBranch?: (board: CpuPolicyBoard | null | undefined, preferredBranch?: number | null, remainingPlacements?: number | null) => number;
     resolveLookaheadNodeBudget?: (preferredBudget: number | null | undefined, depth: number, branchLimit: number | null, endgameMode: boolean) => number;
     resolveLookaheadTimeBudgetMs?: (options: CpuPolicyMoveOptions | null | undefined, level: number, endgameMode: boolean) => number | null;
     resolveLookaheadVirtualTimePerNodeMs?: (options: CpuPolicyMoveOptions | null | undefined) => number | null;
     createConsumedBonusMap?: (boardBonusConsumedByCell: Record<string, boolean> | Record<string, boolean | number> | null | undefined) => Record<string, boolean | number>;
     resolveLookaheadMixWeights?: (level: number, empties: number, priorWeight: number | null | undefined, searchWeight: number | null | undefined) => { priorWeight: number; searchWeight: number };
     getLegalMovesBasic?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => Array<unknown>;
-    resolveLookaheadParityFeature?: (board: CpuPolicyBoard | null | undefined, empties: number) => { oddRegionCount: number; evenRegionCount: number; signal: number };
+    resolveLookaheadParityFeature?: (
+        board: CpuPolicyBoard | null | undefined,
+        empties: number,
+        stoneSupply?: CpuLookaheadStoneSupply | null,
+        playerValue?: number
+    ) => { oddRegionCount: number; evenRegionCount: number; signal: number };
     resolveForcedPassFeature?: (ownMoves: number, oppMoves: number, empties: number) => { signal: number; score: number };
     resolveLookaheadTranspositionLimit?: (nodeBudget: number, endgameMode: boolean) => number;
 };
@@ -45,6 +56,10 @@ type CpuPolicyLookaheadPreludeOutput = {
     rootParity: { oddRegionCount: number; evenRegionCount: number; signal: number };
     rootPassPressure: { signal: number; score: number };
     transpositionLimit: number;
+    /** 持ち石ルール有効時の黒白残り持ち石。無効時は null。 */
+    stoneSupply: CpuLookaheadStoneSupply | null;
+    /** 実際に置ける残り回数（ルール無効時は empties と同じ）。 */
+    remainingPlacements: number;
 };
 
 function fallbackIsFiniteNumber(value: unknown): boolean {
@@ -98,14 +113,23 @@ export function createCpuPolicyLookaheadPrelude(deps?: CpuPolicyLookaheadPrelude
         const opts = input.opts || {};
         const boardStat = countBoardDiscsForPlayer(input.board, input.playerValue);
         const empties = Number.isFinite(boardStat.empties) ? boardStat.empties : 0;
+        const stoneSupply = normalizeLookaheadStoneSupply(opts.stoneSupply);
+        // 持ち石ルールでは、終盤判定・深さ・偶奇を「空きマス」ではなく「実際に置ける残り回数」で測る。
+        const remainingPlacements = resolveLookaheadRemainingPlacements(empties, stoneSupply);
         const endgameSolveEmpties = isFiniteNumber(opts.endgameSolveEmpties)
             ? Math.max(4, Math.min(48, Math.floor(Number(opts.endgameSolveEmpties))))
             : 30;
-        const endgameMode = input.level >= 6 && opts.disableEndgameSolve !== true && empties <= endgameSolveEmpties;
+        const endgameMode = input.level >= 6 && opts.disableEndgameSolve !== true && remainingPlacements <= endgameSolveEmpties;
         const depth = endgameMode
-            ? resolveLookaheadEndgameDepth(opts, empties)
-            : resolveLookaheadDepth(input.board, input.level, opts.depth as number | null | undefined);
-        const branchLimit = endgameMode ? null : resolveLookaheadBranch(input.board, opts.maxBranch as number | null | undefined);
+            ? resolveLookaheadEndgameDepth(opts, remainingPlacements)
+            : (stoneSupply
+                ? resolveLookaheadDepth(input.board, input.level, opts.depth as number | null | undefined, remainingPlacements)
+                : resolveLookaheadDepth(input.board, input.level, opts.depth as number | null | undefined));
+        const branchLimit = endgameMode
+            ? null
+            : (stoneSupply
+                ? resolveLookaheadBranch(input.board, opts.maxBranch as number | null | undefined, remainingPlacements)
+                : resolveLookaheadBranch(input.board, opts.maxBranch as number | null | undefined));
         const nodeBudget = resolveLookaheadNodeBudget(
             endgameMode ? opts.endgameNodeBudget as number | null | undefined : opts.nodeBudget as number | null | undefined,
             depth,
@@ -131,14 +155,21 @@ export function createCpuPolicyLookaheadPrelude(deps?: CpuPolicyLookaheadPrelude
         const priorFn = typeof opts.scoreMove === 'function' ? opts.scoreMove : null;
         const mixWeights = resolveLookaheadMixWeights(
             input.level,
-            empties,
+            remainingPlacements,
             Number.isFinite(opts.priorWeight) ? Number(opts.priorWeight) : 120,
             Number.isFinite(opts.searchWeight) ? Number(opts.searchWeight) : 1
         );
-        const rootOwnMoves = getLegalMovesBasic(input.board, input.playerValue).length;
-        const rootOppMoves = getLegalMovesBasic(input.board, -input.playerValue).length;
-        const rootParity = resolveLookaheadParityFeature(input.board, empties);
-        const rootPassPressure = resolveForcedPassFeature(rootOwnMoves, rootOppMoves, empties);
+        const ownSupplyExhausted = isLookaheadStoneSupplyExhausted(stoneSupply, input.playerValue);
+        const oppSupplyExhausted = isLookaheadStoneSupplyExhausted(stoneSupply, -input.playerValue);
+        const rootOwnMoves = ownSupplyExhausted ? 0 : getLegalMovesBasic(input.board, input.playerValue).length;
+        const rootOppMoves = oppSupplyExhausted ? 0 : getLegalMovesBasic(input.board, -input.playerValue).length;
+        const rootParity = stoneSupply
+            ? resolveLookaheadParityFeature(input.board, remainingPlacements, stoneSupply, input.playerValue)
+            : resolveLookaheadParityFeature(input.board, empties);
+        // 持ち石切れによる合法手 0 は通常の手詰まり（強制パス圧）として扱わない。
+        const rootPassPressure = (ownSupplyExhausted || oppSupplyExhausted)
+            ? { signal: 0, score: 0 }
+            : resolveForcedPassFeature(rootOwnMoves, rootOppMoves, remainingPlacements);
         const transpositionLimit = resolveLookaheadTranspositionLimit(nodeBudget, endgameMode);
 
         return {
@@ -160,7 +191,9 @@ export function createCpuPolicyLookaheadPrelude(deps?: CpuPolicyLookaheadPrelude
             rootOppMoves,
             rootParity,
             rootPassPressure,
-            transpositionLimit
+            transpositionLimit,
+            stoneSupply,
+            remainingPlacements
         };
     }
 

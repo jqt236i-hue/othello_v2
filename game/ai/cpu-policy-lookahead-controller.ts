@@ -4,6 +4,7 @@ import type {
     CpuPolicyMove,
     CpuPolicyMoveOptions
 } from './cpu-policy-core-types';
+import type { CpuLookaheadStoneSupply } from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyBonusConsumedMap = Record<string, boolean | number>;
 
@@ -26,6 +27,8 @@ type CpuPolicyLookaheadPreludeOutput = {
     rootParity: { oddRegionCount: number; evenRegionCount: number; signal: number };
     rootPassPressure: { signal: number; score: number };
     transpositionLimit: number;
+    stoneSupply?: CpuLookaheadStoneSupply | null;
+    remainingPlacements?: number;
 };
 
 type CpuPolicyLookaheadNegamaxInput = {
@@ -52,7 +55,8 @@ type CpuPolicyRootNegamax = (
     alpha: number,
     beta: number,
     passed: boolean,
-    consumedMap: CpuPolicyBonusConsumedMap
+    consumedMap: CpuPolicyBonusConsumedMap,
+    stoneSupply?: CpuLookaheadStoneSupply | null
 ) => number;
 
 type CpuPolicyLookaheadRootSearchInput = {
@@ -68,6 +72,7 @@ type CpuPolicyLookaheadRootSearchInput = {
     searchWeight: number;
     negamax: CpuPolicyRootNegamax;
     shouldStop: () => boolean;
+    stoneSupply?: CpuLookaheadStoneSupply | null;
 };
 
 type CpuPolicyLookaheadControllerDeps = {
@@ -98,6 +103,7 @@ type CpuPolicyLookaheadControllerDeps = {
         priorFn: ((move: CpuPolicyMove) => number) | null;
         priorWeight: number;
         rankedAllMoves?: CpuPolicyMove[];
+        stoneSupply?: CpuLookaheadStoneSupply | null;
     }) => CpuPolicyMove | null;
 };
 
@@ -246,7 +252,8 @@ export function createCpuPolicyLookaheadController(deps?: CpuPolicyLookaheadCont
             priorWeight: prelude.priorWeight,
             searchWeight: prelude.searchWeight,
             negamax,
-            shouldStop: () => budgetHit || timeHit
+            shouldStop: () => budgetHit || timeHit,
+            ...(prelude.stoneSupply ? { stoneSupply: prelude.stoneSupply } : {})
         });
         let bestMove = rootSearch.bestMove;
 
@@ -265,7 +272,8 @@ export function createCpuPolicyLookaheadController(deps?: CpuPolicyLookaheadCont
                 baseConsumedMap: prelude.baseConsumedMap,
                 priorFn: prelude.priorFn,
                 priorWeight: prelude.priorWeight,
-                rankedAllMoves
+                rankedAllMoves,
+                ...(prelude.stoneSupply ? { stoneSupply: prelude.stoneSupply } : {})
             }) || bestMove;
         }
 

@@ -24,6 +24,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 import type { CpuTurnPerformanceScope } from './cpu-turn-performance';
 import { normalizeBoardPositions } from '../shared/board/move-codec';
 import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
+import StoneSupply = require('../shared/stone-supply');
 
 /**
  * @file cpu-decision.ts
@@ -1593,6 +1594,7 @@ function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, 
     const lv6Lookahead = buildLv6LookaheadOptions(level, board, candidateMoves.length, playerKey);
     const onSearchMeta = createLookaheadMetaLogger(playerKey, level, 'onnx-lookahead');
     const weightConfig = resolveCpuLv6LookaheadWeights();
+    const stoneSupply = StoneSupply.readStoneSupplyRemainingByPlayer(cs);
 
     return CpuPolicyCore.chooseMoveByLookahead(candidateMoves, {
         board,
@@ -1615,7 +1617,8 @@ function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, 
             : null,
         boardBonusConsumedByCell: (cs && cs.boardBonusConsumedByCell && typeof cs.boardBonusConsumedByCell === 'object')
             ? cs.boardBonusConsumedByCell
-            : null
+            : null,
+        ...(stoneSupply ? { stoneSupply } : {})
     });
 }
 

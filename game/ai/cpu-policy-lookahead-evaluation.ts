@@ -1,4 +1,9 @@
 import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
+import {
+    isLookaheadStoneSupplyExhausted,
+    resolveLookaheadRemainingPlacements,
+    type CpuLookaheadStoneSupply
+} from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyLookaheadEvaluationDeps = {
     SharedBoardUtils?: any;
@@ -12,7 +17,12 @@ type CpuPolicyLookaheadEvaluationDeps = {
     resolveForcedPassFeature?: (ownMoves: number, oppMoves: number, empties: number) => { signal: number; score: number };
     countCornerMovesFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => number;
     countXsAndCsFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => { x: number; c: number };
-    resolveLookaheadParityFeature?: (board: CpuPolicyBoard | null | undefined, empties: number) => { score: number };
+    resolveLookaheadParityFeature?: (
+        board: CpuPolicyBoard | null | undefined,
+        empties: number,
+        stoneSupply?: CpuLookaheadStoneSupply | null,
+        playerValue?: number
+    ) => { score: number };
 };
 
 function fallbackInBoard(board: CpuPolicyBoard | null | undefined, row: number, col: number): boolean {
@@ -176,10 +186,19 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
         return anchored.size;
     }
 
-    function evaluateBoardForLookahead(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
+    /**
+     * @param stoneSupply 持ち石ルール有効時の黒白残り持ち石（null / 未指定は従来どおり盤面だけで評価）。
+     *   有効時は空きマス数の代わりに実際に置ける残り回数を使い、持ち石切れの合法手 0 を機動力の差として数えない。
+     */
+    function evaluateBoardForLookahead(board: CpuPolicyBoard | null | undefined, playerValue: number, stoneSupply?: CpuLookaheadStoneSupply | null): number {
         const disc = countBoardDiscsForPlayer(board, playerValue);
         const discDiff = disc.own - disc.opp;
-        const empties = Number.isFinite(disc.empties) ? disc.empties : 0;
+        const boardEmpties = Number.isFinite(disc.empties) ? disc.empties : 0;
+        const supply = stoneSupply || null;
+        const empties = supply ? resolveLookaheadRemainingPlacements(boardEmpties, supply) : boardEmpties;
+        const ownSupplyExhausted = isLookaheadStoneSupplyExhausted(supply, playerValue);
+        const oppSupplyExhausted = isLookaheadStoneSupplyExhausted(supply, -playerValue);
+        const supplyBlocksMobility = ownSupplyExhausted || oppSupplyExhausted;
         const discWeight = empties <= 10 ? 34 : (empties <= 22 ? 16 : 8);
 
         const ownCorners = countCornersFor(board, playerValue);
@@ -190,12 +209,15 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
         const oppEdges = countEdgesFor(board, -playerValue);
         const edgeDiff = ownEdges - oppEdges;
 
-        const ownLegal = getLegalMovesBasic(board, playerValue);
-        const oppLegal = getLegalMovesBasic(board, -playerValue);
+        const ownLegal = ownSupplyExhausted ? [] : getLegalMovesBasic(board, playerValue);
+        const oppLegal = oppSupplyExhausted ? [] : getLegalMovesBasic(board, -playerValue);
         const ownMoves = ownLegal.length;
         const oppMoves = oppLegal.length;
-        const mobilityDiff = ownMoves - oppMoves;
-        const passPressure = resolveForcedPassFeature(ownMoves, oppMoves, empties);
+        // 持ち石切れによる合法手 0 は通常の手詰まりではないため、機動力差・強制パス圧には数えない。
+        const mobilityDiff = supplyBlocksMobility ? 0 : (ownMoves - oppMoves);
+        const passPressure = supplyBlocksMobility
+            ? { signal: 0, score: 0 }
+            : resolveForcedPassFeature(ownMoves, oppMoves, empties);
         const ownCornerMoves = isCorner
             ? ownLegal.filter((move) => move && isCorner(move.row, move.col, board)).length
             : countCornerMovesFor(board, playerValue);
@@ -212,7 +234,9 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
 
         const ownRisk = countXsAndCsFor(board, playerValue);
         const oppRisk = countXsAndCsFor(board, -playerValue);
-        const parityFeature = resolveLookaheadParityFeature(board, empties);
+        const parityFeature = supply
+            ? resolveLookaheadParityFeature(board, empties, supply, playerValue)
+            : resolveLookaheadParityFeature(board, empties);
 
         return (
             (cornerDiff * 3400) +

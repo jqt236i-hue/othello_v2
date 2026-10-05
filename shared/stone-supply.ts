@@ -171,6 +171,14 @@ function areAllStoneSuppliesExhausted(cardState: unknown): boolean {
     return isStoneSupplyExhausted(cardState, 'black') && isStoneSupplyExhausted(cardState, 'white');
 }
 
+/** 黒白の残り持ち石。ルール無効時は null（CPU 先読みなど cardState を持たない計算へ渡す用）。 */
+function readStoneSupplyRemainingByPlayer(cardState: unknown): Record<StoneSupplyPlayerKey, number> | null {
+    const black = getStoneSupplyRemaining(cardState, 'black');
+    const white = getStoneSupplyRemaining(cardState, 'white');
+    if (black === null || white === null) return null;
+    return { black, white };
+}
+
 /** 持ち石切れで配置できないプレイヤーキー一覧。 */
 function listStoneSupplyExhaustedPlayerKeys(cardState: unknown): StoneSupplyPlayerKey[] {
     const keys: StoneSupplyPlayerKey[] = [];
@@ -190,5 +198,6 @@ export = {
     getStoneSupplyRemaining,
     isStoneSupplyExhausted,
     consumeStoneSupply,
+    readStoneSupplyRemainingByPlayer,
     listStoneSupplyExhaustedPlayerKeys
 };

@@ -1,4 +1,5 @@
 import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
+import { consumeLookaheadStoneSupply, type CpuLookaheadStoneSupply } from './cpu-policy-lookahead-stone-supply';
 
 type CpuPolicyBonusConsumedMap = Record<string, boolean | number>;
 
@@ -22,7 +23,8 @@ type CpuPolicyRootNegamax = (
     alpha: number,
     beta: number,
     passed: boolean,
-    consumedMap: CpuPolicyBonusConsumedMap
+    consumedMap: CpuPolicyBonusConsumedMap,
+    stoneSupply?: CpuLookaheadStoneSupply | null
 ) => number;
 
 type CpuPolicyLookaheadRootSearchInput = {
@@ -38,6 +40,8 @@ type CpuPolicyLookaheadRootSearchInput = {
     searchWeight: number;
     negamax: CpuPolicyRootNegamax;
     shouldStop: () => boolean;
+    /** 手番側が置く前の黒白の残り持ち石。持ち石ルール無効時は null / 未指定。 */
+    stoneSupply?: CpuLookaheadStoneSupply | null;
 };
 
 function fallbackNormalizePriorScore(score: unknown): number {
@@ -75,6 +79,7 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
     }
 
     function searchRootAtDepth(depthToUse: number, rootMoves: CpuPolicyMove[], input: CpuPolicyLookaheadRootSearchInput): { move: CpuPolicyMove | null; score: number; completed: boolean } {
+        const nextStoneSupply = input.stoneSupply ? consumeLookaheadStoneSupply(input.stoneSupply, input.playerValue) : null;
         let localBestMove: CpuPolicyMove | null = null;
         let localBestScore = Number.NEGATIVE_INFINITY;
         for (const move of rootMoves) {
@@ -85,15 +90,26 @@ export function createCpuPolicyLookaheadRootSearch(deps?: CpuPolicyLookaheadRoot
                 ? consumeBonusCell(input.baseConsumedMap, Number(move.row), Number(move.col))
                 : input.baseConsumedMap;
             const nextBoard = applyMoveToBoard(input.board, move, input.playerValue);
-            const childScore = -input.negamax(
-                nextBoard,
-                -input.playerValue,
-                depthToUse - 1,
-                Number.NEGATIVE_INFINITY,
-                Number.POSITIVE_INFINITY,
-                false,
-                nextConsumed
-            );
+            const childScore = nextStoneSupply
+                ? -input.negamax(
+                    nextBoard,
+                    -input.playerValue,
+                    depthToUse - 1,
+                    Number.NEGATIVE_INFINITY,
+                    Number.POSITIVE_INFINITY,
+                    false,
+                    nextConsumed,
+                    nextStoneSupply
+                )
+                : -input.negamax(
+                    nextBoard,
+                    -input.playerValue,
+                    depthToUse - 1,
+                    Number.NEGATIVE_INFINITY,
+                    Number.POSITIVE_INFINITY,
+                    false,
+                    nextConsumed
+                );
             // A budget-limited child is a partial estimate, not a comparable search result.
             if (input.shouldStop()) return { move: localBestMove, score: localBestScore, completed: false };
             const prior = input.priorFn ? (normalizePriorScore(input.priorFn(move)) * input.priorWeight) : 0;

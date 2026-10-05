@@ -21,12 +21,18 @@ export function createCpuPolicyLookaheadConfig(deps?: CpuPolicyLookaheadConfigDe
     const asRecord = typeof deps?.asRecord === 'function' ? deps.asRecord : fallbackAsRecord;
     const isFiniteNumber = typeof deps?.isFiniteNumber === 'function' ? deps.isFiniteNumber : fallbackIsFiniteNumber;
 
-    function resolveLookaheadDepth(board: CpuPolicyBoard | null | undefined, level: number, preferredDepth?: number | null): number {
+    function resolveRemainingOrEmpties(board: CpuPolicyBoard | null | undefined, remainingPlacements?: number | null): number {
+        if (isFiniteNumber(remainingPlacements)) return Math.max(0, Math.floor(Number(remainingPlacements)));
+        const stat = countBoardDiscsForPlayer(board, 1);
+        return Number.isFinite(stat && stat.empties) ? Number(stat && stat.empties) : 24;
+    }
+
+    /** remainingPlacements は持ち石ルール有効時の「実際に置ける残り回数」。未指定は盤面の空きマス数。 */
+    function resolveLookaheadDepth(board: CpuPolicyBoard | null | undefined, level: number, preferredDepth?: number | null, remainingPlacements?: number | null): number {
         if (isFiniteNumber(preferredDepth)) {
             return Math.max(1, Math.min(64, Math.floor(Number(preferredDepth))));
         }
-        const stat = countBoardDiscsForPlayer(board, 1);
-        const empties = Number.isFinite(stat && stat.empties) ? Number(stat && stat.empties) : 24;
+        const empties = resolveRemainingOrEmpties(board, remainingPlacements);
         if (level >= 6) {
             if (empties <= 14) return 5;
             if (empties <= 30) return 4;
@@ -45,12 +51,11 @@ export function createCpuPolicyLookaheadConfig(deps?: CpuPolicyLookaheadConfigDe
         return Math.max(30, Math.min(64, remaining + 2));
     }
 
-    function resolveLookaheadBranch(board: CpuPolicyBoard | null | undefined, preferredBranch?: number | null): number {
+    function resolveLookaheadBranch(board: CpuPolicyBoard | null | undefined, preferredBranch?: number | null, remainingPlacements?: number | null): number {
         if (isFiniteNumber(preferredBranch)) {
             return Math.max(2, Math.min(24, Math.floor(Number(preferredBranch))));
         }
-        const stat = countBoardDiscsForPlayer(board, 1);
-        const empties = Number.isFinite(stat && stat.empties) ? Number(stat && stat.empties) : 24;
+        const empties = resolveRemainingOrEmpties(board, remainingPlacements);
         if (empties >= 40) return 7;
         if (empties >= 24) return 9;
         if (empties >= 14) return 11;
