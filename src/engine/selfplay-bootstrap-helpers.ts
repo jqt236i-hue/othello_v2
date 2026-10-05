@@ -81,10 +81,14 @@ export function createSelfplayBootstrapHelpers(config?: SelfplayBootstrapHelpers
             options && options.initialDeckCardIdsByPlayer
         );
         const stoneSupplyEnabled = !!(options && options.stoneSupplyEnabled === true);
-        const initOptions = (initialDeckCardIdsByPlayer || stoneSupplyEnabled)
+        const initialChargeByPlayer = options && options.initialChargeByPlayer ? options.initialChargeByPlayer : null;
+        const chargeGainMultiplierByPlayer = options && options.chargeGainMultiplierByPlayer ? options.chargeGainMultiplierByPlayer : null;
+        const initOptions = (initialDeckCardIdsByPlayer || stoneSupplyEnabled || initialChargeByPlayer || chargeGainMultiplierByPlayer)
             ? {
                 ...(initialDeckCardIdsByPlayer ? { initialDeckCardIdsByPlayer } : {}),
-                ...(stoneSupplyEnabled ? { stoneSupplyEnabled: true } : {})
+                ...(stoneSupplyEnabled ? { stoneSupplyEnabled: true } : {}),
+                ...(initialChargeByPlayer ? { initialChargeByPlayer: { ...initialChargeByPlayer } } : {}),
+                ...(chargeGainMultiplierByPlayer ? { chargeGainMultiplierByPlayer: { ...chargeGainMultiplierByPlayer } } : {})
             }
             : undefined;
         const init = cardLogic.initGame(prng, initOptions);

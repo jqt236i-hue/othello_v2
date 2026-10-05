@@ -117,4 +117,20 @@ describe('selfplay pending target selector coverage', () => {
         expect(on.cardState.decks).toEqual(off.cardState.decks);
         expect(on.prng.getState()).toEqual(off.prng.getState());
     });
+
+    test('CPU match charge conditions can be reproduced in selfplay', () => {
+        const helpers = SelfplayBootstrapHelpers.createSelfplayBootstrapHelpers({
+            SeededPRNG,
+            deepClone,
+            TurnPipelinePhases,
+            CardLogic,
+            Core
+        });
+        const state = helpers.createInitialState(7, {
+            initialChargeByPlayer: { black: 99, white: 99 },
+            chargeGainMultiplierByPlayer: { black: 2, white: 2 }
+        });
+        expect(state.cardState.charge).toEqual({ black: 99, white: 99 });
+        expect(state.cardState.chargeGainMultiplierByPlayer).toEqual({ black: 2, white: 2 });
+    });
 });

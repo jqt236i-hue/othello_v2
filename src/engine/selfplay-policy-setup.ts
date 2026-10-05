@@ -42,6 +42,19 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
         return Math.max(0, Math.min(100_000, Math.floor(Number(value))));
     }
 
+    function normalizePlayerNumberMap(value: any) {
+        if (!value || typeof value !== 'object') return null;
+        const out: Record<string, number> = {};
+        let has = false;
+        for (const playerKey of ['black', 'white']) {
+            if (Number.isFinite(value[playerKey])) {
+                out[playerKey] = Number(value[playerKey]);
+                has = true;
+            }
+        }
+        return has ? out : null;
+    }
+
     function normalizeDecisionProviderByPlayer(value: any) {
         if (!value || typeof value !== 'object') return null;
         const providers: Record<string, any> = {};
@@ -161,6 +174,9 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
             initialDeckCardIdsByPlayer,
             // 持ち石ルール（01-rulebook.md §7.3）。学習データ互換のため自己対戦の既定は OFF。
             stoneSupplyEnabled: opts.stoneSupplyEnabled === true,
+            // CPU 対戦条件（例: Lv9〜12 の初期チャージ 99・獲得 2 倍）を再現する場合だけ指定する。
+            initialChargeByPlayer: normalizePlayerNumberMap(opts.initialChargeByPlayer),
+            chargeGainMultiplierByPlayer: normalizePlayerNumberMap(opts.chargeGainMultiplierByPlayer),
             // CPU 比較用: プレイヤー別に decideAction 相当の関数を差し替える（未指定は通常の自己対戦方針）。
             decisionProviderByPlayer: normalizeDecisionProviderByPlayer(opts.decisionProviderByPlayer)
         };
