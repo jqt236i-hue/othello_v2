@@ -21,6 +21,7 @@ interface MatchEntryPayloadOptions {
   playerName?: unknown;
   deckCode?: unknown;
   roomBoardConfig?: unknown;
+  stoneSupplyEnabled?: unknown;
   networkDebugEnabled?: unknown;
   networkAutoEnabled?: unknown;
   allCardsDeckEnabled?: unknown;
@@ -190,6 +191,10 @@ function buildCreateRoomPayload(
   }
   if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
     payload.roomBoardConfig = cloneData(opts.roomBoardConfig, h);
+  }
+  // 持ち石ルールは既定 ON。OFF にしたときだけ明示して送る。
+  if (opts.stoneSupplyEnabled === false) {
+    payload.stoneSupplyEnabled = false;
   }
   appendSelectedHandSkinId(payload, h);
   appendOptionalPlayerIdentity(payload, h);

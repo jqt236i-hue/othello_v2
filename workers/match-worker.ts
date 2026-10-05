@@ -36,6 +36,7 @@ import type {
 const ModuleExportUtils = require('../shared/module-export-utils');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
+const StoneSupply = require('../shared/stone-supply');
 const TurnPipelineFactory = require('../game/turn/turn_pipeline_factory');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
@@ -1237,7 +1238,8 @@ function buildInitialDeckSnapshotOptions(value: unknown): Record<string, unknown
         initialDeckSpecByPlayer,
         initialDeckSpec: (source.initialDeckSpec && typeof source.initialDeckSpec === 'object')
             ? source.initialDeckSpec
-            : null
+            : null,
+        stoneSupplyEnabled: source.stoneSupplyEnabled
     }, boardConfig && typeof boardConfig === 'object' ? boardConfig : null);
     return { ...options };
 }
@@ -1507,6 +1509,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
     const roomName = MatchRoomLobby.resolveRoomName(opts.roomName);
     const roomPassword = MatchRoomLobby.normalizeRoomPassword(opts.roomPassword);
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(opts.roomBoardConfig);
+    const stoneSupplyEnabled = StoneSupply.resolveStoneSupplyEnabledOption(opts.stoneSupplyEnabled);
     const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
     const allCardsDeckSelection = allCardsDeckEnabled ? await resolveAllCardsDeckSelection() : null;
     if (allCardsDeckSelection && !allCardsDeckSelection.ok) {
@@ -1562,7 +1565,8 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
         const snapshot = await makeInitialSnapshot(seed, {
             initialDeckCardIdsByPlayer,
             initialDeckSpecByPlayer,
-            roomBoardConfig
+            roomBoardConfig,
+            stoneSupplyEnabled
         });
         const stub = getRoomStub(env, roomId);
         const req = new Request('https://room/internal/create', {
@@ -1585,6 +1589,7 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
                 initialDeckSpecByPlayer,
                 roomDeck,
                 roomBoardConfig,
+                stoneSupplyEnabled,
                 playerId: opts.playerId
             })
         });
@@ -2542,6 +2547,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             opts.roomBoardConfig,
             asRecord(snapshot && snapshot.gameState).board
         );
+        const stoneSupplyEnabled = StoneSupply.resolveStoneSupplyEnabledOption(opts.stoneSupplyEnabled);
         const networkDebugEnabled = false;
         const allCardsDeckEnabled = opts.allCardsDeckEnabled === true;
         const networkAutoEnabled = opts.networkAutoEnabled === true;
@@ -2560,6 +2566,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomName,
             roomPassword,
             roomBoardConfig,
+            stoneSupplyEnabled,
             networkDebugEnabled,
             allCardsDeckEnabled,
             networkAutoEnabled,
@@ -2694,6 +2701,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             initialDeckSpecByPlayer,
             roomDeck,
             roomBoardConfig,
+            stoneSupplyEnabled: StoneSupply.resolveStoneSupplyEnabledOption(payload.stoneSupplyEnabled),
             networkDebugEnabled,
             allCardsDeckEnabled,
             networkAutoEnabled,

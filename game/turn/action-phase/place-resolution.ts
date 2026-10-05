@@ -21,6 +21,7 @@ type ResolvePlacementActionOptions = {
 };
 
 import TheorySpawnResolutionModule = require('../theory-spawn-resolution');
+import StoneSupply = require('../../../shared/stone-supply');
 
 type ResolvePlacementActionResult = {
     boardBonusGained?: number;
@@ -79,14 +80,6 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     const p = opts.prng || undefined;
     const pendingType = opts.pendingType;
 
-    if (
-        opts.CardLogic &&
-        typeof opts.CardLogic.isPlacementLockedForPlayer === 'function' &&
-        opts.CardLogic.isPlacementLockedForPlayer(opts.cardState, opts.playerKey) === true
-    ) {
-        throw new Error('Illegal move: placement locked');
-    }
-
     const ctx = opts.resolveSafeCardContext(opts.CardLogic, opts.cardState);
     const playerValue = opts.playerKey === 'black' ? opts.Core.BLACK : opts.Core.WHITE;
 
@@ -126,6 +119,15 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
             return { completedSelectionOnly: true };
         }
         throw new Error('SWAP_WITH_ENEMY requires selecting an enemy stone before placement');
+    }
+
+    // 交換の意志は石を置かない選択なので、配置ロック（持ち石切れを含む）はここから判定する。
+    if (
+        opts.CardLogic &&
+        typeof opts.CardLogic.isPlacementLockedForPlayer === 'function' &&
+        opts.CardLogic.isPlacementLockedForPlayer(opts.cardState, opts.playerKey) === true
+    ) {
+        throw new Error('Illegal move: placement locked');
     }
 
     let flips: any[] = [];
@@ -215,6 +217,10 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     });
     if (!boardPlacement || boardPlacement.spawned !== true) {
         throw new Error('Illegal move: placement spawn failed');
+    }
+    StoneSupply.consumeStoneSupply(opts.cardState, opts.playerKey);
+    if (StoneSupply.areAllStoneSuppliesExhausted(opts.cardState)) {
+        opts.gameState.endedByStoneSupply = true;
     }
     flipEvadeResult = boardPlacement.flipEvadeResult || null;
     flips = Array.isArray(boardPlacement.appliedFlips) ? boardPlacement.appliedFlips.slice() : [];

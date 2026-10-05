@@ -13,6 +13,7 @@ import {
     type CardRuntimeServices
 } from './card-runtime-contracts';
 import Core = require('./core');
+import StoneSupply = require('../../shared/stone-supply');
 
 function createCardLogicRuntime(CardRuntimeServices: CardRuntimeServices): CardLogicApi {
 assertCardRuntimeServices(CardRuntimeServices);
@@ -86,7 +87,8 @@ const {
         resolveCardBoardConfig,
         createStoneIdBoard,
         getOpeningPlacementsForState,
-        getOpeningCellsForState
+        getOpeningCellsForState,
+        getMainBoardCellCountForState
     } = CardBoardConfiguration;
 
     const DestroyOutcomeContract = CardRuntimeServices.marker.destroyOutcome;
@@ -1065,6 +1067,7 @@ const {
                 buildInitialBoardBonusMap,
                 createStoneIdBoard,
                 getOpeningPlacementsForState,
+                getMainBoardCellCountForState,
                 cloneSalvationDestroyedLedger,
                 ensureCardCopyState,
                 ensureHandDestroyFlags: _ensureHandDestroyFlags,
@@ -1466,6 +1469,7 @@ const {
     }
 
     function isPlacementLockedForPlayer(cardState: any, playerKey: any) {
+        if (StoneSupply.isStoneSupplyExhausted(cardState, playerKey)) return true;
         return requireCardMarkersMethod('isPlacementLockedForPlayer')(cardState, playerKey);
     }
 
@@ -4834,7 +4838,7 @@ const {
         if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardContext !== 'function') {
             throw new Error('[cards.js] CardEffectResolver.getCardContext not available');
         }
-        return CardEffectResolverModule.getCardContext(cardState, {
+        const context = CardEffectResolverModule.getCardContext(cardState, {
             createMarkerContextIndex,
             getSpecialMarkers,
             getManifestMarkers,
@@ -4842,6 +4846,11 @@ const {
             getBlockingMarkers,
             isFrozenCellForCard
         });
+        const exhaustedKeys = StoneSupply.listStoneSupplyExhaustedPlayerKeys(cardState);
+        if (exhaustedKeys.length > 0 && context && typeof context === 'object') {
+            context.placementBlockedPlayers = exhaustedKeys.map((key: string) => (key === 'white' ? WHITE : BLACK));
+        }
+        return context;
     }
 
     /**

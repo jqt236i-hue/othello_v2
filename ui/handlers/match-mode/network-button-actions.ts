@@ -90,6 +90,9 @@ async function createNetworkRoom(options: any): Promise<any> {
     const requestedTurnTimeSeconds = typeof options.readNetworkTurnTimeSeconds === 'function'
         ? options.readNetworkTurnTimeSeconds()
         : 120;
+    const requestedStoneSupplyEnabled = typeof options.readNetworkStoneSupplyEnabled === 'function'
+        ? options.readNetworkStoneSupplyEnabled() !== false
+        : true;
     options.notifyInvalidCustomDeckFallback(localDeckSelection);
     try {
         if (options.client && typeof options.client.setServerUrl === 'function') {
@@ -105,7 +108,8 @@ async function createNetworkRoom(options: any): Promise<any> {
             networkDebugEnabled: requestedNetworkDebugEnabled,
             networkAutoEnabled: requestedNetworkAutoEnabled,
             allCardsDeckEnabled: requestedAllCardsDeckEnabled,
-            turnTimeSeconds: requestedTurnTimeSeconds
+            turnTimeSeconds: requestedTurnTimeSeconds,
+            stoneSupplyEnabled: requestedStoneSupplyEnabled
         });
         if (result && result.ok && options.roomInput) {
             options.roomInput.value = result.roomName || options.readNetworkRoomName() || '無名部屋';

@@ -8,6 +8,7 @@ import {
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require) as NodeRequire;
+const StoneSupply = _require('../shared/stone-supply');
 
 let portraitSpeechHideTimer: any = null;
 let portraitSpeechViewportHandlersBound = false;
@@ -764,6 +765,7 @@ function ensureBattleStatusPanel(): any {
         '  <span class="battle-status-score-separator">/</span>',
         '  <span class="battle-status-count battle-status-count--white"></span>',
         '</div>',
+        '<div class="battle-status-supply" hidden></div>',
         '<div class="battle-status-turn"></div>',
         '<div class="battle-status-latest"></div>'
     ].join('');
@@ -789,6 +791,30 @@ function setBattleStatusTextIfChanged(el: any, text: string): void {
     if (el && el.textContent !== text) el.textContent = text;
 }
 
+function renderBattleStatusStoneSupply(el: any): void {
+    if (!el) return;
+    const cs = getCardStateForStatusDisplay();
+    const black = StoneSupply.getStoneSupplyRemaining(cs, 'black');
+    const white = StoneSupply.getStoneSupplyRemaining(cs, 'white');
+    const signature = (black === null || white === null) ? 'off' : `${black}/${white}`;
+    if (el.getAttribute('data-stone-supply') === signature) return;
+    el.setAttribute('data-stone-supply', signature);
+    if (black === null || white === null) {
+        el.hidden = true;
+        el.textContent = '';
+        el.removeAttribute('aria-label');
+        return;
+    }
+    el.hidden = false;
+    el.setAttribute('aria-label', `持ち石 黒 ${black} 白 ${white}`);
+    el.innerHTML = [
+        '<span class="battle-status-supply-label">持ち石</span>',
+        `<span class="battle-status-supply-count"><span class="battle-status-stone battle-status-stone--black" aria-hidden="true"></span>${black}</span>`,
+        '<span class="battle-status-score-separator">/</span>',
+        `<span class="battle-status-supply-count"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span>${white}</span>`
+    ].join('');
+}
+
 function updateBattleStatusPanel(): void {
     const panel = ensureBattleStatusPanel();
     if (!panel) return;
@@ -796,6 +822,7 @@ function updateBattleStatusPanel(): void {
     const timerEl = panel.querySelector('.battle-status-network-timer');
     const blackEl = panel.querySelector('.battle-status-count--black');
     const whiteEl = panel.querySelector('.battle-status-count--white');
+    const supplyEl = panel.querySelector('.battle-status-supply');
     const turnEl = panel.querySelector('.battle-status-turn');
     const latestEl = panel.querySelector('.battle-status-latest');
     const counts = countBoardStonesForBattleStatus();
@@ -804,6 +831,7 @@ function updateBattleStatusPanel(): void {
     renderBattleStatusStoneCount(blackEl, 'black', counts.black);
     renderBattleStatusStoneCount(whiteEl, 'white', counts.white);
     setBattleStatusTextIfChanged(turnEl, resolveBattleStatusTurnLabel());
+    renderBattleStatusStoneSupply(supplyEl);
     renderBattleStatusLatestText(latestEl, resolveBattleStatusLatestText());
     syncTurnArrivalToast();
 }

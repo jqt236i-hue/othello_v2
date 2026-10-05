@@ -148,6 +148,7 @@ const MODE_OTHELLO = 'othello';
         networkEnableDebugCheckbox: null,
         networkEnableAutoCheckbox: null,
         networkAllCardsDeckCheckbox: null,
+        networkStoneSupplyCheckbox: null,
         networkCopyRoomBtn: null,
         networkRoomSettingsBtn: null,
         networkRoomSettingsBackdrop: null,
@@ -198,6 +199,7 @@ const MODE_OTHELLO = 'othello';
         networkEnableDebugCheckbox: 'networkEnableDebugCheckbox',
         networkEnableAutoCheckbox: 'networkEnableAutoCheckbox',
         networkAllCardsDeckCheckbox: 'networkAllCardsDeckCheckbox',
+        networkStoneSupplyCheckbox: 'networkStoneSupplyCheckbox',
         networkCopyRoomBtn: 'networkCopyRoomBtn',
         networkRoomSettingsBtn: 'networkRoomSettingsBtn',
         networkRoomSettingsBackdrop: 'networkRoomSettingsBackdrop',
@@ -894,6 +896,10 @@ const MODE_OTHELLO = 'othello';
         return !!(uiRefs.networkAllCardsDeckCheckbox && uiRefs.networkAllCardsDeckCheckbox.checked);
     }
 
+    function readNetworkStoneSupplyEnabled() {
+        return !uiRefs.networkStoneSupplyCheckbox || uiRefs.networkStoneSupplyCheckbox.checked === true;
+    }
+
     let networkRoomListController: any = null;
 
     function createNetworkRoomListControllerContext() {
@@ -1138,6 +1144,7 @@ const MODE_OTHELLO = 'othello';
             if (uiRefs.networkEnableDebugCheckbox) uiRefs.networkEnableDebugCheckbox.checked = false;
             if (uiRefs.networkEnableAutoCheckbox) uiRefs.networkEnableAutoCheckbox.checked = false;
             if (uiRefs.networkAllCardsDeckCheckbox) uiRefs.networkAllCardsDeckCheckbox.checked = false;
+            if (uiRefs.networkStoneSupplyCheckbox) uiRefs.networkStoneSupplyCheckbox.checked = true;
             if (uiRefs.networkTurnTimeSecondsInput) uiRefs.networkTurnTimeSecondsInput.value = '120';
             bindNetworkButtons();
             bindNetworkOverlayControls();
@@ -1846,6 +1853,7 @@ const MODE_OTHELLO = 'othello';
             readNetworkRoomName,
         readNetworkRoomPassword,
         readNetworkAllCardsDeckEnabled,
+        readNetworkStoneSupplyEnabled,
         refreshNetworkRoomList,
             setNetworkRoomSettingsPopupVisible,
             setMode,
@@ -1901,6 +1909,7 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;
         uiRefs.networkEnableAutoCheckbox = opts.networkEnableAutoCheckbox || null;
         uiRefs.networkAllCardsDeckCheckbox = opts.networkAllCardsDeckCheckbox || null;
+        uiRefs.networkStoneSupplyCheckbox = opts.networkStoneSupplyCheckbox || null;
         uiRefs.networkCopyRoomBtn = opts.networkCopyRoomBtn || null;
         uiRefs.networkRoomSettingsBtn = opts.networkRoomSettingsBtn || null;
         uiRefs.networkRoomSettingsBackdrop = opts.networkRoomSettingsBackdrop || null;
@@ -1941,7 +1950,6 @@ const MODE_OTHELLO = 'othello';
         if (!networkSurfaceUsesLazyDom) {
             hydrateNetworkUiRefs(opts);
         }
-
         if (!matchModeControlsBound) {
             if (uiRefs.modeCpuBtn) {
                 uiRefs.modeCpuBtn.addEventListener('click', () => {

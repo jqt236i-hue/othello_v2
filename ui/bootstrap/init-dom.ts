@@ -64,6 +64,7 @@ interface InitDomElements {
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
   boardSizeEditorNote: HTMLElement | null;
+  stoneSupplyCheckbox: HTMLInputElement | null;
   networkPanel: HTMLElement | null;
   networkAdvancedSettings: HTMLElement | null;
   networkServerInput: HTMLInputElement | null;
@@ -78,6 +79,7 @@ interface InitDomElements {
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
   networkAllCardsDeckCheckbox: HTMLInputElement | null;
+  networkStoneSupplyCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
   networkRoomSettingsBtn: HTMLElement | null;
   networkRoomSettingsBackdrop: HTMLElement | null;
@@ -139,6 +141,7 @@ function getInitDomElements(): InitDomElements {
     boardSizeControlSummary: $('boardSizeControlSummary'), boardSizeEditor: $('boardSizeEditor'),
     boardShapeSelect: $('boardShapeSelect') as HTMLSelectElement | null, boardSizeRowsInput: $('boardSizeRowsInput') as HTMLInputElement | null, boardSizeColsInput: $('boardSizeColsInput') as HTMLInputElement | null,
     boardSizeCloseBtn: $('boardSizeCloseBtn'), boardSizeEditorNote: $('boardSizeEditorNote'),
+    stoneSupplyCheckbox: $('stoneSupplyCheckbox') as HTMLInputElement | null,
     networkPanel: null, networkAdvancedSettings: null,
     networkServerInput: null, networkPlayerNameInput: null,
     networkRoomIdInput: null, networkBoardShapeSelect: null, networkBoardSizeRowsInput: null,
@@ -146,6 +149,7 @@ function getInitDomElements(): InitDomElements {
     networkBoardSizeNote: null, networkTurnTimeSecondsInput: null, networkEnableDebugCheckbox: null,
     networkEnableAutoCheckbox: null,
     networkAllCardsDeckCheckbox: null,
+    networkStoneSupplyCheckbox: null,
     networkCopyRoomBtn: null, networkRoomSettingsBtn: null,
     networkRoomSettingsBackdrop: null, networkRoomSettingsPopup: null, networkRoomSettingsCloseBtn: null,
     networkCreateBtn: null,

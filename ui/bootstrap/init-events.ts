@@ -69,6 +69,7 @@ interface InitDomElements {
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
   boardSizeEditorNote: HTMLElement | null;
+  stoneSupplyCheckbox: HTMLInputElement | null;
   networkPanel: HTMLElement | null;
   networkAdvancedSettings: HTMLElement | null;
   networkServerInput: HTMLInputElement | null;
@@ -83,6 +84,7 @@ interface InitDomElements {
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
   networkAllCardsDeckCheckbox: HTMLInputElement | null;
+  networkStoneSupplyCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
   networkRoomSettingsBtn: HTMLElement | null;
   networkRoomSettingsBackdrop: HTMLElement | null;
@@ -368,6 +370,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       networkEnableDebugCheckbox: refs.networkEnableDebugCheckbox,
       networkEnableAutoCheckbox: refs.networkEnableAutoCheckbox,
       networkAllCardsDeckCheckbox: refs.networkAllCardsDeckCheckbox,
+      networkStoneSupplyCheckbox: refs.networkStoneSupplyCheckbox,
       networkCopyRoomBtn: refs.networkCopyRoomBtn,
       networkRoomSettingsBtn: refs.networkRoomSettingsBtn,
       networkRoomSettingsBackdrop: refs.networkRoomSettingsBackdrop,
@@ -458,7 +461,8 @@ function prepareInitialGameOptions(refs: InitDomElements): void {
     boardSizeOpenBtn: refs.boardSizeOpenBtn, boardSizeControlSummary: refs.boardSizeControlSummary,
     boardSizeEditor: refs.boardSizeEditor, boardShapeSelect: refs.boardShapeSelect, boardSizeRowsInput: refs.boardSizeRowsInput,
     boardSizeColsInput: refs.boardSizeColsInput, boardSizeCloseBtn: refs.boardSizeCloseBtn,
-    boardSizeEditorNote: refs.boardSizeEditorNote
+    boardSizeEditorNote: refs.boardSizeEditorNote,
+    stoneSupplyCheckbox: refs.stoneSupplyCheckbox
   });
 }
 

@@ -1042,6 +1042,47 @@ describe('turn-manager scheduling', () => {
     expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
+  test('onTurnStart skips turn-start processing when both stone supplies ran out on placement', async () => {
+    global.MATCH_MODE = 'cpu';
+    global.showResult = jest.fn();
+    global.gameState = {
+      currentPlayer: global.BLACK,
+      turnNumber: 60,
+      consecutivePasses: 0,
+      endedByStoneSupply: true,
+      board: Array.from({ length: 8 }, () => Array(8).fill(global.BLACK))
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: [],
+      _presentationEventsPersist: [],
+      hands: { black: [], white: [] },
+      decks: { black: ['hard_01'], white: [] },
+      turnCountByPlayer: { black: 3, white: 3 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      infinitePlaceActiveByPlayer: { black: false, white: false },
+      multiPlaceSourceTypeByPlayer: { black: null, white: null },
+      stoneSupply: { initial: 30, remainingByPlayer: { black: 0, white: 0 } }
+    };
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key) => global[key],
+      writeRuntimeValue: (key, value) => { global[key] = value; },
+      showResult: () => global.showResult()
+    });
+
+    await rm.onTurnStart(global.BLACK);
+
+    expect(global.showResult).toHaveBeenCalledTimes(1);
+    expect(global.cardState.turnCountByPlayer.black).toBe(3);
+    expect(global.cardState.hands.black).toEqual([]);
+  });
+
+
   test('onTurnStart restores deterministic PRNG from cardState.prngState for gluttonous salvation revive', async () => {
     const CardLogic = require('../game/logic/cards.js');
     const SeededPRNG = require('../game/schema/prng.js');

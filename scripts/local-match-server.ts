@@ -350,7 +350,8 @@ function buildInitialDeckSnapshotOptions(room: any) {
         initialDeckSpecByPlayer,
         initialDeckSpec: source.initialDeckSpec && typeof source.initialDeckSpec === 'object'
             ? source.initialDeckSpec
-            : null
+            : null,
+        stoneSupplyEnabled: source.stoneSupplyEnabled
     }, boardConfig && typeof boardConfig === 'object' ? boardConfig : null);
 }
 
@@ -1290,6 +1291,7 @@ function makeRoom(options: any) {
             : null,
         roomDeck: opts.roomDeck && typeof opts.roomDeck === 'object' ? deepClone(opts.roomDeck) : null,
         roomBoardConfig: initialSnapshotOptions.boardConfig || MatchAuthority.normalizeRoomBoardConfig(null),
+        stoneSupplyEnabled: initialSnapshotOptions.stoneSupplyEnabled,
         networkDebugEnabled: false,
         networkAutoEnabled: opts.networkAutoEnabled === true,
         allCardsDeckEnabled: opts.allCardsDeckEnabled === true,
@@ -1623,6 +1625,7 @@ async function handleCreate(req: any, res: any) {
         initialDeckCardIdsByPlayer: allCardsDeckCardIdsByPlayer,
         roomDeck,
         roomBoardConfig,
+        stoneSupplyEnabled: body.stoneSupplyEnabled,
         roomName,
         roomPassword,
         publishResponseMode,

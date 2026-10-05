@@ -54,6 +54,8 @@ export interface MatchRoomDeckInitialSource {
     initialDeckCardIdsByPlayer: MatchRoomDeckSeatMap<readonly string[] | null>;
     initialDeckSpecByPlayer: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null>;
     initialDeckSpec: MatchRoomDeckSpec | null;
+    /** 部屋の持ち石ルール設定。明示 false 以外は有効として扱う。 */
+    stoneSupplyEnabled?: unknown;
 }
 
 export interface MatchRoomDeckInitialOptions {
@@ -61,6 +63,7 @@ export interface MatchRoomDeckInitialOptions {
     initialDeckSpecByPlayer?: MatchRoomDeckSeatMap<MatchRoomDeckSpec | null>;
     initialDeckSpec?: MatchRoomDeckSpec;
     boardConfig?: unknown;
+    stoneSupplyEnabled: boolean;
 }
 
 export interface MatchRoomDeckSnapshotSizeFacts {
@@ -281,7 +284,10 @@ export function buildInitialDeckSnapshotOptions(
     assertNormalizedDeckSpec(source.initialDeckSpec, 'initialDeckSpec');
     if (boardConfig !== null && !isObjectRecord(boardConfig)) fail('boardConfig must be an object or null');
 
-    const options: MatchRoomDeckInitialOptions = {};
+    const options: MatchRoomDeckInitialOptions = {
+        // 持ち石ルールは既定 ON（shared/stone-supply の resolveStoneSupplyEnabledOption と同じ規則）。
+        stoneSupplyEnabled: source.stoneSupplyEnabled !== false
+    };
     const cardIdsByPlayer = cloneRoomDeckCardIdsByPlayer(source.initialDeckCardIdsByPlayer);
     if (cardIdsByPlayer.black !== null || cardIdsByPlayer.white !== null) {
         options.initialDeckCardIdsByPlayer = cardIdsByPlayer;

@@ -44,7 +44,7 @@
     <meta data-card-reversi-feature-style-slot="deck-builder"
         data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=230986042292973"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
-    <link rel="stylesheet" href="styles-layout-info.css?v=212451883981459">
+    <link rel="stylesheet" href="styles-layout-info.css?v=216265661492938">
     <meta data-card-reversi-feature-style-slot="network"
         data-card-reversi-feature-style-href="styles-feature-network.css?v=41267236501823"
         data-card-reversi-feature-style-after="styles-layout-info.css">
@@ -339,6 +339,7 @@
                     <span class="battle-status-score-separator">/</span>
                     <span class="battle-status-count battle-status-count--white" aria-label="白石 2"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span><span class="battle-status-count-label" aria-hidden="true">白</span><span class="battle-status-count-value">2</span></span>
                 </div>
+                <div class="battle-status-supply" hidden></div>
                 <div class="battle-status-turn">あなたのターン</div>
                 <div class="battle-status-latest">直近 -</div>
             </div>
@@ -419,6 +420,10 @@
                 <label class="board-size-editor-label" for="boardSizeColsInput">横</label>
                 <input id="boardSizeColsInput" class="compact-number-input" type="number" min="4" max="16" step="1" inputmode="numeric" value="8">
                 <button id="boardSizeCloseBtn" class="btn-small" type="button">閉じる</button>
+                <label id="stoneSupplyOptionRow" class="board-size-editor-label" for="stoneSupplyCheckbox">
+                    <input id="stoneSupplyCheckbox" type="checkbox" checked />
+                    持ち石ルール
+                </label>
                 <div id="boardSizeEditorNote" class="board-size-editor-note">次のリセット / 新規対局で反映</div>
             </div>
             <div id="networkTimerStatus" aria-live="polite" aria-atomic="true"></div>
@@ -560,7 +565,7 @@
     <script src="public/vendor/pixi-8.18.1.min.js"></script>
     <script src="public/vendor/pixi-unsafe-eval-8.18.1.min.js"></script>
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=111010779876991"></script>
+    <script src="public/module-registry.js?v=140092167610478"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=69147873209178"></script>
 </body>

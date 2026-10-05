@@ -62,6 +62,10 @@ export const NETWORK_MODAL_INNER_HTML = `
                     </span>
                     <span id="networkTurnTimeNote">3〜1800秒 / ホイールは10秒刻み</span>
                 </label>
+                <label id="networkStoneSupplyOptionRow" for="networkStoneSupplyCheckbox">
+                    <input id="networkStoneSupplyCheckbox" type="checkbox" checked />
+                    持ち石ルール
+                </label>
                 <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
                     <input id="networkEnableDebugCheckbox" type="checkbox" />
                     デバッグモードを有効化

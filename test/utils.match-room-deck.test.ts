@@ -82,7 +82,8 @@ describe('match-room-deck pure contract', () => {
     expect(options).toEqual({
       initialDeckCardIdsByPlayer: { black: [], white: null },
       initialDeckSpecByPlayer: { black: {}, white: null },
-      boardConfig
+      boardConfig,
+      stoneSupplyEnabled: true
     });
     expect(options.initialDeckCardIdsByPlayer.black).not.toBeNull();
     expect(options.initialDeckSpecByPlayer.black).not.toBe(emptySpec);

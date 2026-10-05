@@ -1504,6 +1504,13 @@ async function onTurnStart(player: number) {
     const playerKey = getPlayerKey(player);
     ensureTurnManagerCardStateShape(getTurnManagerCardStateRef());
 
+    // 配置で終局（両者の持ち石切れ）した場合は、次手番の開始処理を走らせず終局表示を優先する。
+    if (isGameOver(gameState)) {
+        showTurnManagerResultIfAvailable();
+        setTurnManagerBusyState({ processing: false });
+        return { playbackEvents: [], stopAction: false };
+    }
+
     const safeIsProcessing = readTurnManagerProcessing();
     const safeIsCardAnimating = readTurnManagerCardAnimating();
     logTurnManagerDebug('[DEBUG][onTurnStart] enter', 'debug', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });

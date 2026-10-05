@@ -33,6 +33,7 @@ interface DeckBuilderRefs {
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
   boardSizeEditorNote: HTMLElement | null;
+  stoneSupplyCheckbox: HTMLInputElement | null;
 }
 
 interface DeckBuilderOptions {
@@ -50,6 +51,7 @@ interface DeckBuilderOptions {
   boardSizeColsInput?: HTMLInputElement | null;
   boardSizeCloseBtn?: HTMLElement | null;
   boardSizeEditorNote?: HTMLElement | null;
+  stoneSupplyCheckbox?: HTMLInputElement | null;
 }
 
 interface DeckBuilderController {
@@ -214,7 +216,8 @@ function setupDeckBuilderControls(options: DeckBuilderOptions): DeckBuilderContr
     boardSizeRowsInput: opts.boardSizeRowsInput || null,
     boardSizeColsInput: opts.boardSizeColsInput || null,
     boardSizeCloseBtn: opts.boardSizeCloseBtn || null,
-    boardSizeEditorNote: opts.boardSizeEditorNote || null
+    boardSizeEditorNote: opts.boardSizeEditorNote || null,
+    stoneSupplyCheckbox: opts.stoneSupplyCheckbox || null
   };
 
   let controller: DeckBuilderController | null = null;

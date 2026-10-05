@@ -94,6 +94,7 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 buildInitialBoardBonusMap: helpers.buildInitialBoardBonusMap,
                 createStoneIdBoard: helpers.createStoneIdBoard,
                 getOpeningPlacementsForState: helpers.getOpeningPlacementsForState,
+                getMainBoardCellCountForState: helpers.getMainBoardCellCountForState,
                 cloneSalvationDestroyedLedger: helpers.cloneSalvationDestroyedLedger,
                 ensureCardCopyState: helpers.ensureCardCopyState
             };

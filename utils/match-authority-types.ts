@@ -153,6 +153,7 @@ export interface MatchAuthorityRoomState extends MatchAuthorityJsonObject {
     authoritativeStateHash?: unknown;
     networkAutoEnabled?: boolean | null;
     allCardsDeckEnabled?: boolean | null;
+    stoneSupplyEnabled?: boolean | null;
     initialDeckCardIdsByPlayer?: unknown;
 }
 

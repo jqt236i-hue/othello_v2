@@ -3,6 +3,8 @@
  * @description Card state factory shared between Browser and Headless.
  */
 
+import StoneSupply = require('../../../shared/stone-supply');
+
 
 interface PRNG {
     shuffle: (array: any[]) => any[];
@@ -17,6 +19,7 @@ interface Context {
     buildInitialBoardBonusMap?: (prng: PRNG, boardConfig: any) => any;
     createStoneIdBoard?: (boardConfig: any) => string[][];
     getOpeningPlacementsForState?: (boardConfig: any) => { row: number; col: number }[];
+    getMainBoardCellCountForState?: (boardConfig: any) => number;
     ensureCardCopyState?: (cardState: any) => void;
     cloneSalvationDestroyedLedger?: (source: any) => any;
 }
@@ -253,6 +256,12 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
     openingPlacements.forEach((stone: any, index: number) => {
         stoneIdMap[stone.row][stone.col] = 's' + String(index + 1);
     });
+    const stoneSupply = options && options.stoneSupplyEnabled === true
+        ? StoneSupply.createStoneSupplyState(StoneSupply.computeInitialStoneSupply(
+            requireContextFunction(context, 'getMainBoardCellCountForState')(boardConfig),
+            openingPlacements.length
+        ))
+        : null;
 
     const cardState: any = {
         boardConfig,
@@ -329,7 +338,9 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         _breedingSproutClearedTokenByOwner: { black: null, white: null },
         prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },
         pendingStoneSalvationGodRevivesByPlayer: { black: [], white: [] },
-        fateWillControllerByTurnOwner: { black: null, white: null }
+        fateWillControllerByTurnOwner: { black: null, white: null },
+        // 持ち石ルール無効時は項目自体を持たず、既存の状態形と一致させる。
+        ...(stoneSupply ? { stoneSupply } : {})
     };
     ensureCardCopyState(cardState);
     return cardState;
@@ -519,6 +530,7 @@ function copyCardState(cs: any, context: Context): any {
             white: Number.isFinite(Number(cardState.charge && cardState.charge.white)) ? Number(cardState.charge.white) : 0
         },
         chargeGainMultiplierByPlayer: normalizeChargeGainMultiplierByPlayer(cardState),
+        ...(cardState.stoneSupply ? { stoneSupply: StoneSupply.cloneStoneSupplyState(cardState.stoneSupply) } : {}),
         chargeGainedTotal: {
             black: Number.isFinite(Number(cardState.chargeGainedTotal && cardState.chargeGainedTotal.black)) ? Number(cardState.chargeGainedTotal.black) : 0,
             white: Number.isFinite(Number(cardState.chargeGainedTotal && cardState.chargeGainedTotal.white)) ? Number(cardState.chargeGainedTotal.white) : 0

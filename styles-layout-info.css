@@ -547,6 +547,38 @@
     line-height: 1;
 }
 
+.battle-status-supply {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(7px * var(--layout-stage-scale));
+    margin-bottom: calc(8px * var(--layout-stage-scale));
+    color: var(--left-hud-text-body);
+    font-size: max(calc(12px * var(--layout-stage-scale)), 12px);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.battle-status-supply[hidden] {
+    display: none;
+}
+
+.battle-status-supply-count {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(4px * var(--layout-stage-scale));
+    color: var(--left-hud-text-value);
+}
+
+.battle-status-supply .battle-status-stone {
+    width: calc(11px * var(--layout-stage-scale));
+    height: calc(11px * var(--layout-stage-scale));
+}
+
 .battle-status-turn {
     position: relative;
     z-index: 1;

@@ -298,6 +298,7 @@ export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     roomDeck?: unknown;
     roomName?: unknown;
     roomBoardConfig?: unknown;
+    stoneSupplyEnabled?: unknown;
     networkDebugEnabled?: unknown;
     allCardsDeckEnabled?: unknown;
     networkAutoEnabled?: unknown;

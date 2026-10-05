@@ -6,6 +6,7 @@
 
 import SharedConstantsImport = require('../../shared-constants');
 import SharedBoardUtilsImport = require('../../shared/shared-board-utils');
+import StoneSupply = require('../../shared/stone-supply');
 
 const SharedConstants: any = SharedConstantsImport;
 const SharedBoardUtils: any = SharedBoardUtilsImport;
@@ -297,7 +298,8 @@ function copyGameState(state: any): any {
         roundNumber: normalizeRoundNumber(state && state.roundNumber),
         roundCompletionByPlayer: createRoundCompletionByPlayer(state && state.roundCompletionByPlayer),
         pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
-        boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig)
+        boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig),
+        ...(state && state.endedByStoneSupply === true ? { endedByStoneSupply: true } : {})
     };
     return nextState;
 }
@@ -341,6 +343,8 @@ interface FlipContext {
     blockedCells?: { row: number; col: number }[];
     perfCounters?: { flipContextCompiles?: number };
     cardState?: unknown;
+    /** 持ち石切れなどで石を置けないプレイヤー値（BLACK / WHITE） */
+    placementBlockedPlayers?: number[];
 }
 
 const COMPILED_FLIP_CONTEXT: unique symbol = Symbol('compiledFlipContext');
@@ -381,6 +385,14 @@ function compileFlipContext(context: FlipContext | CompiledFlipContext = {}): Co
             : null,
         [COMPILED_FLIP_CONTEXT]: true
     };
+}
+
+function isPlacementBlockedForPlayer(player: number, compiled: CompiledFlipContext): boolean {
+    const source = compiled.source || {};
+    const blocked = Array.isArray(source.placementBlockedPlayers) ? source.placementBlockedPlayers : null;
+    if (blocked && blocked.indexOf(player) >= 0) return true;
+    // cardState を直接渡す呼び出し元（CPU 探索など）でも持ち石切れを反映する。
+    return !!(source.cardState && StoneSupply.isStoneSupplyExhausted(source.cardState, player === WHITE ? 'white' : 'black'));
 }
 
 function getFlipsWithContext(state: any, row: number, col: number, player: number, context: FlipContext | CompiledFlipContext = {}): [number, number][] {
@@ -432,7 +444,8 @@ function applyPass(state: any): any {
 }
 
 function isGameOver(state: any): boolean {
-    return state.consecutivePasses >= 2;
+    // 持ち石ルールでは、両者の持ち石切れも終局条件になる。
+    return state.consecutivePasses >= 2 || state.endedByStoneSupply === true;
 }
 
 function countDiscs(stateOrContext: any, cardState?: unknown): DiscCount {
@@ -445,6 +458,7 @@ function countDiscs(stateOrContext: any, cardState?: unknown): DiscCount {
 
 function getLegalMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
     const compiled = compileFlipContext(context);
+    if (isPlacementBlockedForPlayer(player, compiled)) return [];
     if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
         throw new Error('SharedBoardUtils.createBoardView is required by GameCore');
     }
@@ -465,6 +479,7 @@ function getLegalMoves(state: any, player: number, context: FlipContext | Compil
 
 function getFreePlacementMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
     const compiled = compileFlipContext(context);
+    if (isPlacementBlockedForPlayer(player, compiled)) return [];
     const blockedSet = compiled.blockedSet;
     if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
         throw new Error('SharedBoardUtils.createBoardView is required by GameCore');

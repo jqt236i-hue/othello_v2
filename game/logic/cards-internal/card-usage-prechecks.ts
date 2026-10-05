@@ -5,6 +5,7 @@ import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-reg
 import SpecialCardRegistryImport = require('../../../shared/special-card-registry');
 import CardMarkersImport = require('../cards/markers');
 import BoardExecutorResolutionImport = require('../card-resolution/board-executor');
+import StoneSupply = require('../../../shared/stone-supply');
 
 const ManifestStoneRegistry: any = ManifestStoneRegistryImport;
 const SpecialCardRegistry: any = SpecialCardRegistryImport;
@@ -122,6 +123,9 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
     if (!cardType)
         return result;
     if (isInviolableSpecialCardId(context && context.cardId) && hasActiveManifestStone(context && context.cardState)) {
+        return buildFailureResult();
+    }
+    if (StoneSupply.isStonePlacementCardType(cardType) && StoneSupply.isStoneSupplyExhausted(context.cardState, context.playerKey)) {
         return buildFailureResult();
     }
     if (cardType === 'THEORY_INCARNATION') {

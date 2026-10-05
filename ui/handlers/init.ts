@@ -215,6 +215,7 @@ interface InitDomElements {
   networkEnableDebugCheckbox: HTMLInputElement | null;
   networkEnableAutoCheckbox: HTMLInputElement | null;
   networkAllCardsDeckCheckbox: HTMLInputElement | null;
+  networkStoneSupplyCheckbox: HTMLInputElement | null;
   networkCopyRoomBtn: HTMLElement | null;
   networkRoomSettingsBtn: HTMLElement | null;
   networkRoomSettingsBackdrop: HTMLElement | null;

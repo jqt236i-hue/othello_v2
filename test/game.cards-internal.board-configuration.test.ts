@@ -6,7 +6,8 @@ describe('card board configuration adapter', () => {
       resolveBoardConfig: jest.fn((value) => ({ resolved: value })),
       createEmptyBoard: jest.fn((config, empty) => ({ config, empty })),
       getOpeningPlacements: jest.fn((value) => [{ placement: value }]),
-      getOpeningCells: jest.fn((value) => [{ cell: value }])
+      getOpeningCells: jest.fn((value) => [{ cell: value }]),
+      collectMainBoardCoordinates: jest.fn(() => [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 0 }])
     };
     const adapter = createCardBoardConfiguration({ boardUtils });
 
@@ -14,6 +15,8 @@ describe('card board configuration adapter', () => {
     expect(adapter.createStoneIdBoard('board')).toEqual({ config: { resolved: 'board' }, empty: null });
     expect(adapter.getOpeningPlacementsForState('opening')).toEqual([{ placement: 'opening' }]);
     expect(adapter.getOpeningCellsForState('cells')).toEqual([{ cell: 'cells' }]);
+    expect(adapter.getMainBoardCellCountForState('shape')).toBe(3);
+    expect(boardUtils.collectMainBoardCoordinates).toHaveBeenCalledWith('shape');
     expect(boardUtils.resolveBoardConfig).toHaveBeenCalledWith('config');
     expect(boardUtils.resolveBoardConfig).toHaveBeenCalledWith('board');
   });

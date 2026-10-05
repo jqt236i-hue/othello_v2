@@ -9,7 +9,8 @@ export function createCardBoardConfiguration(config: CardBoardConfigurationConfi
         'resolveBoardConfig',
         'createEmptyBoard',
         'getOpeningPlacements',
-        'getOpeningCells'
+        'getOpeningCells',
+        'collectMainBoardCoordinates'
     ];
 
     for (const method of requiredMethods) {
@@ -24,7 +25,8 @@ export function createCardBoardConfiguration(config: CardBoardConfigurationConfi
             boardUtils.createEmptyBoard(boardUtils.resolveBoardConfig(boardOrConfig), null)
         ),
         getOpeningPlacementsForState: (boardOrConfig: any) => boardUtils.getOpeningPlacements(boardOrConfig),
-        getOpeningCellsForState: (boardOrConfig: any) => boardUtils.getOpeningCells(boardOrConfig)
+        getOpeningCellsForState: (boardOrConfig: any) => boardUtils.getOpeningCells(boardOrConfig),
+        getMainBoardCellCountForState: (boardOrConfig: any) => boardUtils.collectMainBoardCoordinates(boardOrConfig).length
     };
 }
 

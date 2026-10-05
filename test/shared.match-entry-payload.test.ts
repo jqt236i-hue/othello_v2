@@ -38,6 +38,17 @@ describe('MatchEntryPayload', () => {
     expect(result.payload.deckCode).toBeUndefined();
   });
 
+  test('create payload sends stoneSupplyEnabled only when the room disables it', () => {
+    const helpers = { normalizePlayerName: (value: any) => String(value || '').trim() };
+    const defaultResult = MatchEntryPayload.buildCreateRoomPayload({ playerName: 'A' }, helpers);
+    const enabledResult = MatchEntryPayload.buildCreateRoomPayload({ playerName: 'A', stoneSupplyEnabled: true }, helpers);
+    const disabledResult = MatchEntryPayload.buildCreateRoomPayload({ playerName: 'A', stoneSupplyEnabled: false }, helpers);
+
+    expect(defaultResult.payload).not.toHaveProperty('stoneSupplyEnabled');
+    expect(enabledResult.payload).not.toHaveProperty('stoneSupplyEnabled');
+    expect(disabledResult.payload.stoneSupplyEnabled).toBe(false);
+  });
+
   test('create payload generates fallback player name and keeps deck and skin state', () => {
     const sanitizeDeckCode = jest.fn(() => ({ value: 'D1C1:A', invalid: false }));
     const readSelectedHandSkinId = jest.fn(() => 'default');

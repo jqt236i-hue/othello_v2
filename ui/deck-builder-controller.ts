@@ -52,7 +52,8 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             boardSizeRowsInput: null,
             boardSizeColsInput: null,
             boardSizeCloseBtn: null,
-            boardSizeEditorNote: null
+            boardSizeEditorNote: null,
+            stoneSupplyCheckbox: null
         }, opts.refs || {});
 
         const state = {
@@ -68,6 +69,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             networkDeckSyncLatestDeckCode: null as any,
             networkDeckSyncLatestPromise: null as any,
             localBoardConfig: SharedBoardUtils.buildBoardConfig(),
+            localStoneSupplyEnabled: true,
             editor: {
                 presetId: '',
                 sourceName: '',
@@ -796,6 +798,10 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 refs.boardSizeColsInput.value = String(editableBoardConfig.cols);
                 refs.boardSizeColsInput.disabled = locked;
             }
+            if (refs.stoneSupplyCheckbox) {
+                refs.stoneSupplyCheckbox.checked = state.localStoneSupplyEnabled;
+                refs.stoneSupplyCheckbox.disabled = locked;
+            }
             if (refs.boardSizeEditorNote) {
                 refs.boardSizeEditorNote.textContent = buildBoardSizeNoteText();
                 refs.boardSizeEditorNote.classList.toggle('is-room-override', resolveBoardConfigLockReason() === 'room');
@@ -1003,7 +1009,8 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         function buildCardInitOptions() {
             const roomDeck = getRoomDeckMetadata();
             const baseOptions = {
-                boardConfig: readBoardConfig()
+                boardConfig: readBoardConfig(),
+                stoneSupplyEnabled: state.localStoneSupplyEnabled
             };
             if (roomDeck) {
                 return Object.assign(baseOptions, resolveRoomDeckInitOptions(roomDeck) || {});
@@ -1694,6 +1701,16 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 });
                 refs.boardShapeSelect.dataset.boardShapeBound = '1';
                 context?.recordListenerBinding?.();
+            }
+
+            if (refs.stoneSupplyCheckbox && refs.stoneSupplyCheckbox.dataset.boardSizeBound !== '1') {
+                refs.stoneSupplyCheckbox.addEventListener('change', () => {
+                    if (!resolveBoardConfigLockReason()) {
+                        state.localStoneSupplyEnabled = refs.stoneSupplyCheckbox.checked === true;
+                    }
+                    renderBoardSizeControls();
+                });
+                refs.stoneSupplyCheckbox.dataset.boardSizeBound = '1';
             }
 
             if (rootRef && typeof rootRef.addEventListener === 'function' && !rootRef.__deckBuilderEscBound) {

@@ -71,7 +71,7 @@
     <meta name="card-reversi-classic-style" content="styles-layout.css?v=114483888733766">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=202479173618870">
     <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=39721011214991">
-    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=212451883981459">
+    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=216265661492938">
     <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=13825693058453">
     <meta name="card-reversi-classic-style" content="styles-board.css?v=239463805794209">
     <meta name="card-reversi-classic-style" content="styles-cards.css?v=204829707719953">
@@ -79,7 +79,7 @@
     <meta name="card-reversi-classic-style" content="styles-responsive.css?v=176910485244926">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=50154902815750">
     <meta name="card-reversi-classic-style" content="styles-mobile-command-surface.css?v=161330156685431">
-    <meta name="card-reversi-startup-version" content="111010779876991">
+    <meta name="card-reversi-startup-version" content="140092167610478">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -98,10 +98,10 @@
         })();
     </script>
     <meta name="card-reversi-browser-lane" content="vite">
-  <script type="module" crossorigin src="./vite-dist/assets/index.vite-CMVhR2Ce.js"></script>
+  <script type="module" crossorigin src="./vite-dist/assets/index.vite-DgDrKiow.js"></script>
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/rolldown-runtime-aKtaBQYM.js">
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/preload-helper-HclGiUj8.js">
-  <link rel="modulepreload" crossorigin href="./vite-dist/assets/bridge-DVyvOnQJ.js">
+  <link rel="modulepreload" crossorigin href="./vite-dist/assets/bridge-JRB0NW-0.js">
 </head>
 
 <body>
@@ -363,6 +363,7 @@
                     <span class="battle-status-score-separator">/</span>
                     <span class="battle-status-count battle-status-count--white" aria-label="白石 2"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span><span class="battle-status-count-label" aria-hidden="true">白</span><span class="battle-status-count-value">2</span></span>
                 </div>
+                <div class="battle-status-supply" hidden></div>
                 <div class="battle-status-turn">あなたのターン</div>
                 <div class="battle-status-latest">直近 -</div>
             </div>
@@ -443,6 +444,10 @@
                 <label class="board-size-editor-label" for="boardSizeColsInput">横</label>
                 <input id="boardSizeColsInput" class="compact-number-input" type="number" min="4" max="16" step="1" inputmode="numeric" value="8">
                 <button id="boardSizeCloseBtn" class="btn-small" type="button">閉じる</button>
+                <label id="stoneSupplyOptionRow" class="board-size-editor-label" for="stoneSupplyCheckbox">
+                    <input id="stoneSupplyCheckbox" type="checkbox" checked />
+                    持ち石ルール
+                </label>
                 <div id="boardSizeEditorNote" class="board-size-editor-note">次のリセット / 新規対局で反映</div>
             </div>
             <div id="networkTimerStatus" aria-live="polite" aria-atomic="true"></div>
