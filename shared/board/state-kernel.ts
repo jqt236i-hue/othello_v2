@@ -578,20 +578,24 @@ export function createStateKernel(deps: StateKernelDependencies) {
   ): { cacheable: boolean; signature: string } {
     const config = deps.resolveBoardConfig(gameState);
     const board = Array.isArray(gameState.board) ? gameState.board : [];
-    const boardValues: Array<Array<{ valid: boolean; owner: unknown }> | null> = [];
+    // The signature is compared only for equality against this process's
+    // cache. Encode each cell as a compact token (owner number or "x" for an
+    // invalid value) instead of serializing one object per cell.
+    const rowTokens: string[] = [];
     for (let rowIndex = 0; rowIndex < board.length; rowIndex += 1) {
       const row = board[rowIndex];
       if (!Array.isArray(row)) {
-        boardValues.push(null);
+        rowTokens.push("~");
         continue;
       }
-      const rowValues: Array<{ valid: boolean; owner: unknown }> = [];
+      let rowToken = "";
       for (let colIndex = 0; colIndex < row.length; colIndex += 1) {
         const value = row[colIndex];
-        const valid = isOwner(value, deps.empty, deps.black, deps.white);
-        rowValues.push({ valid, owner: valid ? value : null });
+        rowToken += isOwner(value, deps.empty, deps.black, deps.white)
+          ? `${value as number},`
+          : "x,";
       }
-      boardValues.push(rowValues);
+      rowTokens.push(rowToken);
     }
     const signatureErrors: string[] = [];
     const expansion = parseExpansionCells(
@@ -605,21 +609,18 @@ export function createStateKernel(deps: StateKernelDependencies) {
     ).sort();
     return {
       cacheable: signatureErrors.length === 0,
-      signature: JSON.stringify({
-        config: {
-          rows: config.rows,
-          cols: config.cols,
-          shape: typeof config.shape === "string" ? config.shape : null,
-        },
-        board: boardValues,
-        expansion: expansion.map((cell) => [
+      signature: JSON.stringify([
+        config.rows,
+        config.cols,
+        typeof config.shape === "string" ? config.shape : null,
+        expansion.map((cell) => [
           cell.row,
           cell.col,
           cell.side,
           cell.owner,
         ]),
         holes,
-      }),
+      ]) + "|" + rowTokens.join("|"),
     };
   }
 
