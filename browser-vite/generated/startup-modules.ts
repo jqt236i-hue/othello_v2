@@ -55,6 +55,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-policy-card-profiles": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-profiles.js"),
   "game/ai/cpu-policy-card-retention-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-retention-state.js"),
   "game/ai/cpu-policy-card-score-rules": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-score-rules.js"),
+  "game/ai/cpu-policy-card-stone-supply": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-stone-supply.js"),
   "game/ai/cpu-policy-card-taxonomy": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-taxonomy.js"),
   "game/ai/cpu-policy-card-type-flags": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-type-flags.js"),
   "game/ai/cpu-policy-card-use-decision": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-card-use-decision.js"),
@@ -74,6 +75,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-policy-lookahead-parity": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-parity.js"),
   "game/ai/cpu-policy-lookahead-prelude": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-prelude.js"),
   "game/ai/cpu-policy-lookahead-root-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-root-search.js"),
+  "game/ai/cpu-policy-lookahead-stone-supply": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-stone-supply.js"),
   "game/ai/cpu-policy-lookahead-worker-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-worker-runtime.js"),
   "game/ai/cpu-policy-move-plan-scoring": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-move-plan-scoring.js"),
   "game/ai/cpu-policy-move-selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-move-selection.js"),
@@ -85,6 +87,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-policy-search-key": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-search-key.js"),
   "game/ai/cpu-policy-search-order": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-search-order.js"),
   "game/ai/cpu-policy-time-bomb-targets": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-time-bomb-targets.js"),
+  "game/ai/cpu-search-stone-supply": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-search-stone-supply.js"),
   "game/ai/cpu-tactical-safety": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-tactical-safety.js"),
   "game/ai/endgame-solver": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/endgame-solver.js"),
   "game/ai/fixed-commentary-engine": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/fixed-commentary-engine.js"),
@@ -830,6 +833,7 @@ installBootModuleMetadata({
     "game/ai/cpu-policy-card-profiles",
     "game/ai/cpu-policy-card-retention-state",
     "game/ai/cpu-policy-card-score-rules",
+    "game/ai/cpu-policy-card-stone-supply",
     "game/ai/cpu-policy-card-taxonomy",
     "game/ai/cpu-policy-card-type-flags",
     "game/ai/cpu-policy-card-use-decision",
@@ -849,6 +853,7 @@ installBootModuleMetadata({
     "game/ai/cpu-policy-lookahead-parity",
     "game/ai/cpu-policy-lookahead-prelude",
     "game/ai/cpu-policy-lookahead-root-search",
+    "game/ai/cpu-policy-lookahead-stone-supply",
     "game/ai/cpu-policy-lookahead-worker-runtime",
     "game/ai/cpu-policy-move-plan-scoring",
     "game/ai/cpu-policy-move-selection",
@@ -860,6 +865,7 @@ installBootModuleMetadata({
     "game/ai/cpu-policy-search-key",
     "game/ai/cpu-policy-search-order",
     "game/ai/cpu-policy-time-bomb-targets",
+    "game/ai/cpu-search-stone-supply",
     "game/ai/cpu-tactical-safety",
     "game/ai/endgame-solver",
     "game/ai/fixed-commentary-engine",
@@ -1644,4 +1650,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 770;
+export const startupModuleCount = 773;
