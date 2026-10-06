@@ -45,3 +45,25 @@ test('destroying a hand card must beat the best root that keeps it by the margin
         expect(candidate.score).toBeCloseTo(deep(lv12)[index].score-marginOf(candidate.action),10);
     });
 },120000);
+
+test('Lv13 features equal the Lv12 extraction on sampled public worlds',()=>{
+    const {extractLv12ValueFeatures}=require('../game/ai/cpu-lv12-evaluation');
+    const {extractLv13ValueFeatures}=require('../game/ai/cpu-lv13-evaluation');
+    const {createLv13ScenarioSampler}=require('../game/ai/cpu-lv13-scenarios');
+    const Board=require('../shared/shared-board-utils');
+    let compared=0;
+    Board.withTopologyMemo(()=>{
+        for(const fixture of [opening,cardChoice,handDestroy]){
+            const sampler=createLv13ScenarioSampler(fixture.observation,[100901,100909,100913],fixture.publicRecipes);
+            for(let scenario=0;scenario<3;scenario++){
+                const state=sampler.sample(scenario);
+                Board.markImmutableBoardSource(state.gameState);
+                for(const player of ['black','white'] as const){
+                    expect(extractLv13ValueFeatures(state,player)).toEqual(extractLv12ValueFeatures(state,player));
+                    compared++;
+                }
+            }
+        }
+    });
+    expect(compared).toBe(18);
+},120000);

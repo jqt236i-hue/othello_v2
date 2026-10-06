@@ -96,18 +96,33 @@ export const LV13_PRIOR_VALUE_WEIGHTS = Object.freeze([1.2,2.3,.65,-.3,2,-1,1,.6
     // stonePlacementLead / stonePlacementLeadEnd: 1 回多く置ける ≒ 置いた石 + 反転ぶん。
     1,2] as number[]);
 
+// Corner cells depend only on the board shape. Within a search the shape
+// topology is memoized, so most positions share one entry.
+const cornerCellsByTopology = new WeakMap<object, readonly { row: number; col: number }[]>();
+function lv13CornerCells(view: any): readonly { row: number; col: number }[] {
+    const cached = cornerCellsByTopology.get(view.topology);
+    if (cached) return cached;
+    const keys = Board.computeCornerKeySetForCoordinates(view.coordinates);
+    const corners = Object.freeze(view.coordinates
+        .filter((cell: any) => keys.has(`${cell.row},${cell.col}`))
+        .map((cell: any) => ({ row: cell.row, col: cell.col }))
+        .sort((a: any, b: any) => a.row - b.row || a.col - b.col));
+    cornerCellsByTopology.set(view.topology, corners);
+    return corners;
+}
+
 /** Feature extraction reads an isolated sampled world, never a live private
  * state. Training calls this same function on projected public observations. */
 export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player): number[] {
     const gs = state.gameState, cs = state.cardState, sign = player === 'black' ? 1 : -1;
     const opponent = player === 'black' ? 'white' : 'black';
     const counts = Core.countDiscs(gs, cs), material = sign * (counts.black - counts.white);
-    // This evaluation never mutates its position. Project the complete board
-    // (including holes and expansions) once instead of rebuilding a checked
-    // board view for every coordinate/owner/corner lookup below.
-    const board = Board.prepareBoardForSearch(Board.createBoardContext(gs, cs));
-    const cells = Board.collectBoardCoordinates(board).filter((cell: any) => Board.hasPlayableCell(board, cell.row, cell.col));
-    const owners = new Map<string, number>(cells.map((cell: any) => [`${cell.row},${cell.col}`, Board.getCellValue(board, cell.row, cell.col) || 0]));
+    // This evaluation never mutates its position. Read the complete board
+    // (including holes and expansions) through one shared view; the search
+    // marks its positions immutable so the view is built once per position.
+    const view: any = Board.createBoardView(gs, { cardState: cs, strict: false });
+    const cells: { row: number; col: number }[] = view.coordinates;
+    const owners = new Map<string, number>(cells.map(cell => [`${cell.row},${cell.col}`, view.get(cell.row, cell.col) || 0]));
     const empty = cells.length - counts.black - counts.white;
     const moves = { black: lv10PlacementMoves(state, 'black'), white: lv10PlacementMoves(state, 'white') };
     // Card reversi can end with a mostly empty board. Dwindling legal lines
@@ -121,7 +136,7 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
     const horizon = Math.max(1, Math.min(8, remaining / 2 + 1, 1 + 7 * (1 - closure)));
     let geometry = 0, frontier = 0, lasting = 0, potentialMobility = 0, inviolable = 0, protectedCount = 0;
     const markerFeatures:Record<string,number>={};
-    for (const corner of Board.getCornerCells(board)) {
+    for (const corner of lv13CornerCells(view)) {
         const owner = owners.get(`${corner.row},${corner.col}`) || 0;
         geometry += sign * owner * 8;
         if (owner) {

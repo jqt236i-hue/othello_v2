@@ -17,6 +17,8 @@ export interface CornerDependencies {
     maybeCols?: unknown,
   ) => BoardBounds | null;
   getShapeCacheKey?: (board: unknown) => object | null;
+  /** One playability lookup for a whole board read, when the board supports it. */
+  resolvePlayableChecker?: (board: unknown) => ((row: number, col: number) => boolean) | null;
 }
 
 export function createBoardCorners(deps: CornerDependencies) {
@@ -141,9 +143,21 @@ export function createBoardCorners(deps: CornerDependencies) {
       );
   }
   function getPerimeterCells(board: unknown): CellCoord[] {
-    return deps
-      .collectBoardCoordinates(board)
-      .filter((cell) => isEdgeCell(cell.row, cell.col, board));
+    const coordinates = deps.collectBoardCoordinates(board);
+    // Same rule as isEdgeCell for board objects: a playable cell with a
+    // non-playable orthogonal neighbour. Resolve the board once instead of
+    // once per neighbour lookup.
+    const playable = board && typeof board === "object" && !Array.isArray(board)
+      ? deps.resolvePlayableChecker?.(board) ?? null
+      : null;
+    if (!playable) return coordinates.filter((cell) => isEdgeCell(cell.row, cell.col, board));
+    return coordinates.filter((cell) =>
+      playable(cell.row, cell.col) && (
+        !playable(cell.row - 1, cell.col) ||
+        !playable(cell.row + 1, cell.col) ||
+        !playable(cell.row, cell.col - 1) ||
+        !playable(cell.row, cell.col + 1)
+      ));
   }
   function isEffectiveCornerCell(
     row: number,

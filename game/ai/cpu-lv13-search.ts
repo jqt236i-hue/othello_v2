@@ -156,7 +156,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
         if (!available()) return null;
         transitions++;
         const result = applyLv10Action(state, action);
-        if (result.ok && !result.selectionFailed) return result.state;
+        if (result.ok && !result.selectionFailed) { Board.markImmutableBoardSource(result.state.gameState); return result.state; }
         const reason = result.ok ? 'TARGET_SELECTION_NO_EFFECT' : result.reason;
         rejectedCount++;
         if (rejected.length < 12) rejected.push({ action, reason });
@@ -166,9 +166,14 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     function start(state: Lv10Position): Lv10Position | null {
         if (!available()) return null;
         transitions++;
-        return startLv10Turn(state);
+        const next = startLv10Turn(state);
+        Board.markImmutableBoardSource(next.gameState);
+        return next;
     }
-    const sampler=createLv13ScenarioSampler(observation,cfg.scenarioSeeds,options.publicRecipes);
+    const rawSampler=createLv13ScenarioSampler(observation,cfg.scenarioSeeds,options.publicRecipes);
+    // Hypothetical positions are never mutated after creation; let the board
+    // view cache skip re-reading them (shared/board/state-kernel.ts).
+    const sampler={...rawSampler,sample(index:number){const state=rawSampler.sample(index);Board.markImmutableBoardSource(state.gameState);return state;}};
     const initial = sampler.sample(0);
     const initialOwner = currentLv10Player(initial);
     const initialTurn = initial.gameState.turnNumber;
