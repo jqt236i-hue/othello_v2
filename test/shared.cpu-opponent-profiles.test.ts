@@ -47,7 +47,8 @@ describe('cpu opponent profiles', () => {
       { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' },
       { value: '10-observed-dark-dragon', label: 'Lv10: 観測ダークドラゴン' },
       { value: '11-execution-chaos-dragon', label: 'Lv11: 執行エグゼキューションカオスドラゴン' },
-      { value: '12-strategy-cpu', label: 'Lv12: 理論カオスロジカルエンペラービースト' }
+      { value: '12-strategy-cpu', label: 'Lv12: 理論カオスロジカルエンペラービースト' },
+      { value: '13-truth-chaos-emperor-beast', label: 'Lv13: 真理カオスロジカルエンペラービースト' }
     ]);
   });
 
@@ -337,5 +338,20 @@ test('Lv12 keeps every evaluated Lv11 startup condition for both colors',()=>{
     expect(candidate).toEqual(baseline);
     expect(candidate.deckCardIds).toHaveLength(94);
     expect(candidate).toMatchObject({initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6});
+  }
+});
+
+test('Lv13 keeps every Lv12 startup condition for both colors and has its own decision level',()=>{
+  expect(CpuOpponentProfiles.getCpuOpponentProfile(13)).toMatchObject({
+    id:'13-truth-chaos-emperor-beast',
+    name:'真理カオスロジカルエンペラービースト'
+  });
+  expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(13)).toBe(13);
+  expect(CpuOpponentProfiles.getCpuOpponentProfileId(13)).toBe('13-truth-chaos-emperor-beast');
+  expect(CpuOpponentProfiles.getCpuOpponentLevel(99)).toBe(13);
+  for(const side of ['black','white']){
+    const {profileId:_old,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
+    const {profileId:_new,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(13,side);
+    expect(candidate).toEqual(baseline);
   }
 });

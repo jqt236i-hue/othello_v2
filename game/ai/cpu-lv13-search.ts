@@ -7,22 +7,36 @@ import {
     startLv10Turn, lv10PlacementMoves,
     type Lv10Action, type Lv10Observation, type Lv10Player, type Lv10Position
 } from './cpu-lv10-position';
+import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-search-stone-supply';
 
-/** Lv13 candidate derived from the fixed Lv12 policy.
- * Canonical actions and turn starts share the same accounting and rules. */
+/** Lv13 policy: the Lv12 search, except that a root which spends a card must
+ * beat the best root that keeps the hand by cardUseMargin. The clock keeps a
+ * judgment within 5 s. Canonical actions and turn starts share the same
+ * accounting and rules. */
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-c01-adverse-screen', maxTransitions: 4096, maxMs: 5500,
-    returnReserveMs: 150,
-    screeningScenario: 2,
+    version: 'lv13-card-use-margin', maxTransitions: 4096, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
     endgameExtraTurns: 2, endgameEmptyThreshold: 16, endgameMobilityThreshold: 6, sparseStoneThreshold: 10,
     lateReplyCandidates: 1,
-    maxAdditionalDeepCandidates: 1, maxDeepCandidates: 3, shallowBudgetFraction: .3, repairBudgetFraction: .25
+    maxAdditionalDeepCandidates: 1, maxDeepCandidates: 3, shallowBudgetFraction: .3, repairBudgetFraction: .25,
+    // Score margin (aggregated scale -1..1) a card-using root must win by.
+    cardUseMargin: .1
 });
 
 type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie?: number };
+
+/** Endgame reading reads the opponent's later turns as well. With the stone
+ * supply rule (01-rulebook.md 7.3) the game can end by exhausted supplies
+ * while many cells are still empty, so the threshold uses the placements that
+ * can still be made. Without the rule this is exactly the empty-cell count. */
+export function shouldDeepenLv13Search(state: Lv10Position, player: Lv10Player, ownStones: number, empty: number,
+    totalMobility: number, cfg: Pick<typeof LV13_SEARCH_CONFIG, 'sparseStoneThreshold' | 'endgameEmptyThreshold' | 'endgameMobilityThreshold'> = LV13_SEARCH_CONFIG): boolean {
+    const remaining = resolveSearchRemainingPlacements(empty, readSearchStoneSupply(state.cardState, player));
+    return ownStones <= cfg.sparseStoneThreshold || remaining <= cfg.endgameEmptyThreshold
+        || totalMobility <= cfg.endgameMobilityThreshold;
+}
 
 // A deterministic tie order avoids always retaining the upper-left portion
 // of a multi-stage selection whose first choice has not changed the board.
@@ -107,7 +121,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     }
     const cap = Math.min(cfg.maxTransitions, Math.max(1, Math.floor(options.maxTransitions ?? cfg.maxTransitions)));
     const started = options.now?.();
-    const maxMs = Math.max(1, Math.min(cfg.maxMs, options.maxMs ?? cfg.maxMs) - cfg.returnReserveMs);
+    const maxMs = Math.min(cfg.maxMs, Math.max(1, options.maxMs ?? cfg.maxMs));
     const evaluationCache=new WeakMap<Lv10Position,Partial<Record<Lv10Player,number>>>();
     let evaluationCalls=0,evaluationCacheHits=0;
     function evaluate(state:Lv10Position,viewer:Lv10Player):number {
@@ -160,8 +174,8 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     // Legal-line count can be high immediately before a multi-placement card
     // wipes out a small army. Read the opponent's next card turn as well as
     // their first attack when the public army is sparse.
-    const deepen = initialCounts[player]<=cfg.sparseStoneThreshold || initialEmpty<=cfg.endgameEmptyThreshold
-        || lv10PlacementMoves(initial,'black').length+lv10PlacementMoves(initial,'white').length<=cfg.endgameMobilityThreshold;
+    const deepen = shouldDeepenLv13Search(initial, player, initialCounts[player], initialEmpty,
+        lv10PlacementMoves(initial,'black').length+lv10PlacementMoves(initial,'white').length, cfg);
     const completed = (state: Lv10Position, owner: Lv10Player, turn: number) => Core.isGameOver(state.gameState)
         || currentLv10Player(state) !== owner || state.gameState.turnNumber > turn;
     const rank = (plans: Plan[], owner: Lv10Player, limit: number) => plans.sort((a,b) => (
@@ -454,13 +468,10 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
         }
     }
     function runPhase(pool:typeof allScored,phase:'prepare'|'deepen',nodeEnd:number,timeEnd:number,scenarioCount=cfg.scenarioSeeds.length){
-      for (let offset=0; offset<scenarioCount && available(); offset++) {
-        // Screen all retained roots against the same adverse public prior.
-        // Subsequent comparison still uses the unchanged three isolated worlds.
-        const scenario = phase==='prepare' && scenarioCount===1 ? cfg.screeningScenario : offset;
+      for (let scenario=0; scenario<scenarioCount && available(); scenario++) {
         for (let index=0; index<pool.length && available(); index++) {
             const candidate = pool[index];
-            const slotsLeft = Math.max(1, pool.length*(scenarioCount-offset)-index);
+            const slotsLeft = Math.max(1, pool.length*(scenarioCount-scenario)-index);
             const quota = Math.max(12, Math.floor((nodeEnd-transitions)/slotsLeft));
             sliceNodeEnd = Math.min(cap, transitions + quota);
             if (started !== undefined && options.now) {
@@ -492,7 +503,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     }
     const scored=allScored.slice().sort((a,b)=>b.value-a.value).slice(0,cfg.maxDeepCandidates);
     const missing:{candidate:typeof scored[number];scenario:number}[]=[];
-    for(const scenario of [cfg.screeningScenario])for(const candidate of scored){
+    for(let scenario=0;scenario<1;scenario++)for(const candidate of scored){
         if(candidate.layers[scenario][0]===null)missing.push({candidate,scenario});
     }
     const repairStarted=options.now?.()??0;
@@ -541,6 +552,11 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     const examined = comparison.eligible.map(index => scored[index]);
     for (const index of comparison.eligible) scored[index].value = comparison.scores[index]!;
     const comparable = examined.length ? examined : scored;
+    // Spending a card (its charge and the turn's card use) must beat the best
+    // compared root that keeps the hand by a clear margin, not by search noise.
+    if(comparable.some(candidate=>candidate.plan.actions[0]?.type!=='use_card')){
+        for(const candidate of comparable)if(candidate.plan.actions[0]?.type==='use_card')candidate.value-=cfg.cardUseMargin;
+    }
     comparable.sort((a,b)=>b.value-a.value);
     // A terminal win caused by this immediate action is known, unlike a
     // terminal result in a hypothetical later draw sequence.

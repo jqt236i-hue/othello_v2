@@ -1,6 +1,6 @@
 const runtime:Record<string,any>=globalThis;
 
-describe.each([10,11,12])('Lv%s uses the controlling CPU under the will of fate',level=>{
+describe.each([10,11,12,13])('Lv%s uses the controlling CPU under the will of fate',level=>{
     let handler:any;
     afterEach(()=>{
         handler?.resetCpuTurnHandlerState();handler?.setTimers(null);handler?.setCpuUIImpl({});
@@ -11,7 +11,7 @@ describe.each([10,11,12])('Lv%s uses the controlling CPU under the will of fate'
         jest.resetModules();
         const Core=require('../game/logic/core'),Cards=require('../game/logic/cards');
         const owner=viewer==='black'?'white':'black';
-        const profile=level===12?'12-strategy-cpu':level===11?'11-execution-chaos-dragon':'10-observed-dark-dragon';
+        const profile=level===13?'13-truth-chaos-emperor-beast':level===12?'12-strategy-cpu':level===11?'11-execution-chaos-dragon':'10-observed-dark-dragon';
         Object.assign(runtime,{BLACK:1,WHITE:-1,MATCH_MODE:'cpu',
             cpuSmartness:{[viewer]:profile,[owner]:'9-ending-ash'},
             isProcessing:false,isCardAnimating:false,VisualPlaybackActive:false,
@@ -29,7 +29,7 @@ describe.each([10,11,12])('Lv%s uses the controlling CPU under the will of fate'
         handler.setCpuUIImpl({
             resolveRuntimeValue:(key:string)=>runtime[key],
             getCpuCardLogic:()=>Cards,setProcessing:(next:boolean)=>{runtime.isProcessing=next;},
-            adviseLv10InWorker:other,adviseLv11InWorker:other,adviseLv12InWorker:other,
+            adviseLv10InWorker:other,adviseLv11InWorker:other,adviseLv12InWorker:other,adviseLv13InWorker:other,
             [`adviseLv${level}InWorker`]:advise,applyCpuAdvisedSelection:applySelection
         });
         await handler.runCpuTurn(owner,{autoMode:viewer==='black'});

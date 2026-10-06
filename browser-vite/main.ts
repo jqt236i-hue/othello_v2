@@ -74,7 +74,8 @@ const startBrowserApp = createStartViteBrowserApp({
         searchCardQuiescenceInWorker: cpuWorkerBridge.searchCardQuiescenceInWorker,
         adviseLv10InWorker: cpuWorkerBridge.adviseLv10InWorker,
         adviseLv11InWorker: cpuWorkerBridge.adviseLv11InWorker,
-        adviseLv12InWorker: cpuWorkerBridge.adviseLv12InWorker
+        adviseLv12InWorker: cpuWorkerBridge.adviseLv12InWorker,
+        adviseLv13InWorker: cpuWorkerBridge.adviseLv13InWorker
       }) === true;
     }
     root.__CARD_REVERSI_BROWSER_CAPABILITIES__ = Object.freeze(Object.assign(
@@ -98,7 +99,7 @@ void bootPromise.then(() => {
   if (new URLSearchParams(root.location.search).get('battleEmbed') !== '1') return;
   root.require('ui/battle/embedded-runtime').installEmbeddedBattle(root, () => {
     const bridge = getCpuWorkerBridge(root);
-    for (const client of [bridge?.client, bridge?.lv10Client, bridge?.lv11Client, bridge?.lv12Client]) client?.terminate('Battle disposed');
+    for (const client of [bridge?.client, bridge?.lv10Client, bridge?.lv11Client, bridge?.lv12Client, bridge?.lv13Client]) client?.terminate('Battle disposed');
   });
 }).catch(() => {});
 

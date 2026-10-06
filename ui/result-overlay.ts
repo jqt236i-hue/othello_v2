@@ -1572,6 +1572,7 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     row.className = 'dialogue-row monster';
     if (cpuLevel === 11) row.classList.add('cpu-level-11');
     if (cpuLevel === 12) row.classList.add('cpu-level-12');
+    if (cpuLevel === 13) row.classList.add('cpu-level-13');
     const name = document.createElement('div');
     name.className = 'character-name';
     name.style.setProperty('--result-character-image', `url("${profile.portraitSrc}")`);
@@ -1580,6 +1581,7 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     if (cpuLevel === 10) label.append('観測', document.createElement('br'), 'ダークドラゴン');
     else if (cpuLevel === 11) label.append('執行', document.createElement('br'), 'エグゼキューション', document.createElement('br'), 'カオスドラゴン');
     else if (cpuLevel === 12) label.append('理論', document.createElement('br'), 'カオスロジカル', document.createElement('br'), 'エンペラービースト');
+    else if (cpuLevel === 13) label.append('真理', document.createElement('br'), 'カオスロジカル', document.createElement('br'), 'エンペラービースト');
     else label.textContent = profile.name;
     name.appendChild(label);
     if (cpuLevel >= 10) name.classList.add('has-long-name');
@@ -1641,6 +1643,11 @@ function getMonsterDialogues() {
             draw: '観測結果は拮抗。次は差を証明しよう。'
         },
         12: {
+            win: 'この一局から、次の一手へ。',
+            lose: 'その一手は、読み切れなかった。',
+            draw: '次の対局で、この続きを。'
+        },
+        13: {
             win: 'この一局から、次の一手へ。',
             lose: 'その一手は、読み切れなかった。',
             draw: '次の対局で、この続きを。'

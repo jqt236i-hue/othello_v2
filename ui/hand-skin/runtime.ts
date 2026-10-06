@@ -13,9 +13,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 let CpuOpponentProfiles: any = null;
 try { CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles'); } catch (e) { CpuOpponentProfiles = null; }
 
-const CPU_HAND_SKINS = Object.freeze(Array.from({ length: 12 }, (_, index) => {
+// Lv13 reuses the Lv12 hand image until a dedicated one exists.
+const CPU_HAND_SKINS = Object.freeze(Array.from({ length: 13 }, (_, index) => {
   const level = index + 1;
-  const levelFileNumber = String(level).padStart(2, '0');
+  const levelFileNumber = String(Math.min(12, level)).padStart(2, '0');
   return Object.freeze({
     id: `cpu-lv${level}`,
     label: `CPU Lv${level}`,
@@ -239,12 +240,12 @@ function clampCpuLevel(value: any): number {
   try {
     if (CpuOpponentProfiles && typeof CpuOpponentProfiles.getCpuOpponentLevel === 'function') {
       const profileLevel = Number(CpuOpponentProfiles.getCpuOpponentLevel(value));
-      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(12, Math.floor(profileLevel)));
+      if (Number.isFinite(profileLevel)) return Math.max(1, Math.min(13, Math.floor(profileLevel)));
     }
   } catch (e) { /* ignore and fall back to numeric level */ }
   const n = Number(value);
   if (!Number.isFinite(n)) return 1;
-  return Math.max(1, Math.min(12, Math.floor(n)));
+  return Math.max(1, Math.min(13, Math.floor(n)));
 }
 
 function resolveCpuLevel(rootRef: any, ownerKey: any, explicitLevel: any): number {
