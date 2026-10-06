@@ -662,7 +662,7 @@ window.CardCatalog = {
       "id": "board_shrink_god_01",
       "name_ja": "盤面縮小神",
       "type": "BOARD_SHRINK_GOD",
-      "cost": 27,
+      "cost": 35,
       "desc_ja": "角を含む辺1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。（不可侵の石は対象外）。",
       "display_type_ja": "禁忌"
     },
