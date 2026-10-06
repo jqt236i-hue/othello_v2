@@ -1,0 +1,12 @@
+Tool: built-in image_gen
+
+ASSET 1: observer-dance-a-pose.png
+Use case: stylized-concept
+Asset type: transparent full-body character asset usable as a dance animation preparation reference.
+Input images: Image 1 observer_will_turnaround.png is the PRIMARY identity and dressed appearance reference. Image 2 observer-will-humanoid-construction.png is ONLY supporting humanoid limb structure, not permission to add a board on the back. Image 3 observer_will_detail_sheet.png is the authoritative head, fingers, board and material reference.
+Create one single full-body FRONT view of this exact Observer character in a symmetrical relaxed A pose, arms 35 degrees away from torso, hands separated from torso and fingers visibly separated, legs slightly apart, both feet flat and clearly visible. Preserve the very tall jagged black hood, dark hollow face with ONE small glowing white eye, long slender black clawed five-finger hands, charred layered ragged black cloth, antique thin metal grid and black/white Reversi discs on the FRONT chest. No nose or mouth.
+Keep the long original ragged robe, but naturally divide its hanging front/side panels to reveal lower legs and feet in this preparation pose. Chest board ends above flexible waist; lower front board panel hangs independently from waist so hip and knees can bend; do not put any rigid board across a joint. Body proportions match references, no bulky armor. Keep the original dark realistic fantasy material rendering, with gentle readable highlights on black materials.
+Centered full character, entire hood, fingertips and feet inside image, generous margin. Orthographic front view, no perspective distortion. Actual transparent background, no ground, no scenery, no shadow beneath character, no text, no labels, no watermark, no second character. This is a character asset, not a reference sheet.
+
+ASSET 2: observer-dance-construction-sheet.png
+undefined
