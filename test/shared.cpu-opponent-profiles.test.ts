@@ -27,10 +27,12 @@ describe('cpu opponent profiles', () => {
     const nine = CpuOpponentProfiles.getCpuOpponentProfile(9), ten = CpuOpponentProfiles.getCpuOpponentProfile(10);
     expect(ten.initialChargeByPlayer).toBe(nine.initialChargeByPlayer);
     for (const player of ['black', 'white']) {
-      const { profileId: _nine, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
-      const { profileId: _ten, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
+      // Lv10 has its own deck (CPU deck tool); every other startup condition is shared with Lv9.
+      const { profileId: _nine, deckCardIds: nineDeck, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
+      const { profileId: _ten, deckCardIds: tenDeck, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
       expect(b).toEqual(a);
-      expect(b.deckCardIds).toHaveLength(94);
+      expect(nineDeck).toHaveLength(94);
+      expect(tenDeck!.length).toBeGreaterThan(0);
       expect(b).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
     }
   });
@@ -337,10 +339,10 @@ test('Lv12 keeps every evaluated Lv11 startup condition for both colors',()=>{
   expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(12)).toBe(12);
   expect(CpuOpponentProfiles.getCpuOpponentProfileId(12)).toBe('12-strategy-cpu');
   for(const side of ['black','white']){
-    const {profileId:_old,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11,side);
-    const {profileId:_new,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
+    const {profileId:_old,deckCardIds:_oldDeck,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11,side);
+    const {profileId:_new,deckCardIds:newDeck,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
     expect(candidate).toEqual(baseline);
-    expect(candidate.deckCardIds).toHaveLength(94);
+    expect(newDeck!.length).toBeGreaterThan(0);
     expect(candidate).toMatchObject({initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6});
   }
 });
@@ -354,8 +356,9 @@ test('Lv13 keeps every Lv12 startup condition for both colors and has its own de
   expect(CpuOpponentProfiles.getCpuOpponentProfileId(13)).toBe('13-truth-chaos-emperor-beast');
   expect(CpuOpponentProfiles.getCpuOpponentLevel(99)).toBe(13);
   for(const side of ['black','white']){
-    const {profileId:_old,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
-    const {profileId:_new,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(13,side);
+    // Decks are each CPU's own (CPU deck tool); every other startup condition is shared.
+    const {profileId:_old,deckCardIds:_oldDeck,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
+    const {profileId:_new,deckCardIds:_newDeck,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(13,side);
     expect(candidate).toEqual(baseline);
   }
 });

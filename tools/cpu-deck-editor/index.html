@@ -78,6 +78,7 @@
   .ed-seg button.on { color: #2a1d10; background: linear-gradient(180deg, #ffe6a8, #d4a44b); font-weight: 700; }
   .ed-select, .ed-input { font: inherit; font-size: 13px; color: var(--ed-text); background: rgba(0,0,0,.45); border: 1px solid var(--ed-line); padding: 6px 8px; }
   .ed-input { flex: 1; min-width: 160px; }
+  .ed-select option { background: #0b1826; color: var(--ed-text); }
   .ed-note { color: var(--ed-muted); font-size: 13px; padding: 16px 4px; line-height: 1.7; }
 
   /* Card grid: the game's card faces */
@@ -179,8 +180,12 @@ async function load() {
   saved = JSON.parse(JSON.stringify(state.decks));
   draft = JSON.parse(JSON.stringify(state.decks));
   if (!current) current = state.profiles.find(p => p.editable).id;
-  const kinds = [...new Set(state.cards.map(card => card.kind).filter(Boolean))];
-  $('kind').innerHTML = '<option value="">すべての分類</option>' + kinds.map(k => `<option>${esc(k)}</option>`).join('');
+  // 「特殊石」は表示分類ではなく、石を特殊石にするかどうか（ゲームの特殊石判定）で分ける。
+  const kinds = [...new Set(state.cards.map(card => card.kind).filter(kind => kind && kind !== '特殊石'))];
+  const count = test => state.cards.filter(test).length;
+  $('kind').innerHTML = `<option value="">すべての分類（${state.cards.length}）</option>`
+    + `<option value="@special-stone">特殊石（${count(c => c.specialStone)}）</option>`
+    + kinds.map(k => `<option value="${esc(k)}">${esc(k)}（${count(c => c.kind === k)}）</option>`).join('');
   render();
   showBuild(state.build, true);
 }
@@ -253,7 +258,7 @@ function setCount(id, n) {
 function renderCards() {
   const q = $('search').value.trim().toLowerCase(), kind = $('kind').value, sort = $('sort').value;
   const map = counts(draft[current]);
-  let list = state.cards.filter(c => (!kind || c.kind === kind) && (!q || (c.name + c.desc + c.type).toLowerCase().includes(q)));
+  let list = state.cards.filter(c => (!kind || (kind === '@special-stone' ? c.specialStone : c.kind === kind)) && (!q || (c.name + c.desc + c.type).toLowerCase().includes(q)));
   if (sort === 'cost') list = list.slice().sort((a, b) => a.cost - b.cost);
   if (sort === 'cost-desc') list = list.slice().sort((a, b) => b.cost - a.cost);
   if (sort === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
@@ -271,7 +276,7 @@ function renderCards() {
 
 function attachTip(el, card) {
   const tip = $('tip');
-  el.addEventListener('mouseenter', () => { tip.innerHTML = `<b>${esc(card.name)}</b><div class="meta">コスト ${card.cost} ・ ${esc(card.kind)}</div><div>${esc(card.desc || '')}</div>`; tip.style.display = 'block'; });
+  el.addEventListener('mouseenter', () => { tip.innerHTML = `<b>${esc(card.name)}</b><div class="meta">コスト ${card.cost} ・ ${esc(card.kind)}${card.specialStone ? ' ・ 特殊石' : ''}</div><div>${esc(card.desc || '')}</div>`; tip.style.display = 'block'; });
   el.addEventListener('mousemove', e => { tip.style.left = Math.min(innerWidth - 320, e.clientX + 16) + 'px'; tip.style.top = Math.min(innerHeight - tip.offsetHeight - 10, e.clientY + 16) + 'px'; });
   el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 }

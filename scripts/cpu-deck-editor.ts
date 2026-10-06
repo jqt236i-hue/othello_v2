@@ -8,6 +8,7 @@
 import fs = require('node:fs');
 import path = require('node:path');
 import http = require('node:http');
+import os = require('node:os');
 import { spawn } from 'node:child_process';
 
 export const CPU_DECKS_SOURCE = 'shared/cpu-opponent-decks.ts';
@@ -99,10 +100,13 @@ function loadContext(root: string): EditorContext {
     const Profiles = require(dist('shared/cpu-opponent-profiles.js'));
     const DeckSpec = require(dist('shared/deck-spec.js'));
     const Art = require(dist('cards/card-art-map.generated.js'));
+    const SpecialStones = require(dist('shared/special-stone-registry-static.js'));
     const catalog = JSON.parse(fs.readFileSync(path.join(root, 'cards/catalog.json'), 'utf8')).cards as any[];
     const enabledCardIds = new Set<string>(DeckSpec.getEnabledCardIds());
     const cards = catalog.filter(card => enabledCardIds.has(card.id)).map(card => ({ id: card.id, name: card.name_ja, type: card.type,
-        cost: card.cost, desc: card.desc_ja, kind: card.display_type_ja || '', image: Art.CARD_FACE_ART_PATH_BY_ID?.[card.id] || null }));
+        cost: card.cost, desc: card.desc_ja, kind: card.display_type_ja || '', image: Art.CARD_FACE_ART_PATH_BY_ID?.[card.id] || null,
+        // Same judgment as the game: the card turns a stone into a special stone.
+        specialStone: !!SpecialStones.getMarkerTypeForSpecialStoneCard(card.type) }));
     const profiles = (Profiles.getCpuOpponentProfiles() as any[]).map(profile => ({ id: profile.id, level: profile.level, name: profile.name,
         editable: isEditableCpuDeckProfile(profile), portraitSrc: profile.portraitSrc }));
     return { root, profiles, cards, enabledCardIds, cardOrder: catalog.map(card => card.id),
@@ -118,14 +122,30 @@ type BuildState = { status: 'idle' | 'running' | 'done' | 'failed'; startedAt: s
 export function createCpuDeckEditorServer(root: string) {
     let context = loadContext(root);
     const build: BuildState = { status: 'idle', startedAt: null, finishedAt: null, log: '' };
+    /** Rebuilds the playable game, then refreshes the Godot CPU golden whose
+     * profile startup options include every CPU deck (test/fixtures/godot-cpu-search.json). */
     const runBuild = () => {
         Object.assign(build, { status: 'running', startedAt: new Date().toISOString(), finishedAt: null, log: '' });
+        const append = (chunk: Buffer | string) => { build.log = (build.log + chunk.toString()).slice(-20000); };
+        const finish = (ok: boolean) => {
+            build.status = ok ? 'done' : 'failed'; build.finishedAt = new Date().toISOString();
+            if (ok) context = loadContext(root);
+        };
         const child = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'build:vite'], { cwd: root, shell: process.platform === 'win32' });
-        const append = (chunk: Buffer) => { build.log = (build.log + chunk.toString()).slice(-20000); };
         child.stdout.on('data', append); child.stderr.on('data', append);
         child.on('close', code => {
-            build.status = code === 0 ? 'done' : 'failed'; build.finishedAt = new Date().toISOString();
-            if (code === 0) context = loadContext(root);
+            if (code !== 0) return finish(false);
+            const temp = path.join(os.tmpdir(), `godot-cpu-search-${process.pid}-${Date.now()}.json`);
+            const golden = spawn(process.execPath, [path.join(root, 'dist/scripts/godot-cpu-benchmark.js'), 'generate', temp], { cwd: root });
+            golden.stdout.on('data', append); golden.stderr.on('data', append);
+            golden.on('close', goldenCode => {
+                try {
+                    if (goldenCode !== 0) return finish(false);
+                    fs.copyFileSync(temp, path.join(root, 'test/fixtures/godot-cpu-search.json'));
+                    fs.rmSync(temp, { force: true });
+                    finish(true);
+                } catch (error) { append(String(error)); finish(false); }
+            });
         });
     };
     const send = (res: http.ServerResponse, status: number, body: unknown, type = 'application/json; charset=utf-8') => {
