@@ -85,6 +85,9 @@
   .ed-chip:hover { border-color: var(--ed-line-strong); }
   .ed-chip.on { color: #2a1d10; background: linear-gradient(180deg, #ffe6a8, #d4a44b); border-color: #8a6524; font-weight: 700; }
   .ed-chip.on small { color: #4a3510; }
+  .ed-chip.exclude { border-style: dashed; }
+  .ed-chip.exclude.on { color: #f3e9d6; background: linear-gradient(180deg, #7a2a22, #4a1612); border-color: #c0614f; border-style: solid; }
+  .ed-chip.exclude.on small { color: #f0c2b6; }
   #tip .roles { margin-top: 4px; color: var(--ed-gold); font-size: 12px; }
   .ed-note { color: var(--ed-muted); font-size: 13px; padding: 16px 4px; line-height: 1.7; }
 
@@ -160,7 +163,7 @@
 <div id="tip"></div>
 <script>
 'use strict';
-let state = null, saved = {}, draft = {}, current = null, polling = null, role = '';
+let state = null, saved = {}, draft = {}, current = null, polling = null, role = '', withoutSpecial = false;
 const $ = id => document.getElementById(id);
 const TYPE_KEY = { '採掘': 'mining', '守護': 'guard', '戦闘': 'battle', '執行': 'judgment', '禁忌': 'taboo', '殲滅': 'annihilation', '繁栄': 'prosperity', '特殊': 'special' };
 const costTier = cost => cost === 0 ? 'white' : cost >= 31 ? 'special' : cost >= 21 ? 'gold' : cost >= 16 ? 'purple' : cost >= 11 ? 'blue' : cost >= 6 ? 'red' : 'gray';
@@ -203,13 +206,24 @@ function render() { renderCpus(); renderHero(); renderDeck(); renderCards(); ren
 function renderRoleChips() {
   const box = $('roles'); box.innerHTML = '';
   const chips = [{ key: '', label: 'すべて' }, ...state.roles];
+  const pool = state.cards.filter(c => !withoutSpecial || !c.roles.includes('special-stone'));
   for (const r of chips) {
     const b = document.createElement('button');
-    const n = r.key ? state.cards.filter(c => c.roles.includes(r.key)).length : state.cards.length;
+    const n = r.key ? pool.filter(c => c.roles.includes(r.key)).length : pool.length;
     b.className = 'ed-chip' + (role === r.key ? ' on' : '');
     b.innerHTML = `${esc(r.label)}<small>${n}</small>`;
+    b.disabled = withoutSpecial && r.key === 'special-stone';
     b.onclick = () => { role = role === r.key ? '' : r.key; renderRoleChips(); renderCards(); };
     box.appendChild(b);
+    // 特殊石を作るカードを除いて表示する切り替え（他の分類と組み合わせられる）。
+    if (r.key === 'special-stone') {
+      const x = document.createElement('button');
+      x.className = 'ed-chip exclude' + (withoutSpecial ? ' on' : '');
+      x.innerHTML = `特殊石以外<small>${state.cards.filter(c => !c.roles.includes('special-stone')).length}</small>`;
+      x.title = '特殊石を作るカードを除いて表示します（ほかの分類と組み合わせられます）';
+      x.onclick = () => { withoutSpecial = !withoutSpecial; if (withoutSpecial && role === 'special-stone') role = ''; renderRoleChips(); renderCards(); };
+      box.appendChild(x);
+    }
   }
 }
 const roleLabel = key => (state.roles.find(r => r.key === key) || { label: key }).label;
@@ -280,7 +294,7 @@ function setCount(id, n) {
 function renderCards() {
   const q = $('search').value.trim().toLowerCase(), kind = $('kind').value, sort = $('sort').value;
   const map = counts(draft[current]);
-  let list = state.cards.filter(c => (!kind || c.kind === kind) && (!role || c.roles.includes(role))
+  let list = state.cards.filter(c => (!kind || c.kind === kind) && (!role || c.roles.includes(role)) && (!withoutSpecial || !c.roles.includes('special-stone'))
     && (!q || (c.name + c.desc + c.type + c.roles.map(roleLabel).join('')).toLowerCase().includes(q)));
   if (sort === 'cost') list = list.slice().sort((a, b) => a.cost - b.cost);
   if (sort === 'cost-desc') list = list.slice().sort((a, b) => b.cost - a.cost);
