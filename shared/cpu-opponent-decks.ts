@@ -109,14 +109,14 @@ const CPU_OPPONENT_DECK_DATA: Record<string, string[] | null> = /* cpu-decks:beg
         "teleport_01", "teleport_01", "cross_bomb_01", "cross_bomb_01", "x_bomb_01", "x_bomb_01",
         "escape_01", "escape_01", "robot_vacuum_01", "robot_vacuum_01", "gluttonous_will_01", "will_hunter_king_01",
         "will_hunter_king_01", "work_01", "ultimate_work_god_01", "ultimate_work_god_01", "double_01", "double_01",
-        "theory_incarnation_01", "board_executor_01", "observer_will_01", "extend_life_01", "extend_life_god_01", "extend_life_god_01",
-        "guard_01", "guardian_god_01", "guardian_god_01", "stone_salvation_god_01", "stone_salvation_god_01", "destroy_dragon_01",
-        "destroy_dragon_01", "lightning_01", "lightning_01", "udg_01", "udg_01", "ultimate_hyperactive_01",
-        "ultimate_hyperactive_01", "board_expand_01", "board_expand_01", "board_expand_god_01", "board_shrink_01", "board_shrink_01",
-        "board_shrink_god_01", "board_shrink_god_01", "fire_will_01", "fire_will_01", "water_will_01", "grass_will_01",
-        "grass_will_01", "meteor_01", "meteor_01", "causal_replay_01", "salvation_01", "living_will_01",
-        "living_will_01", "support_troops_01", "support_troops_01", "fate_will_01", "meteor_god_01", "chaos_summon_01",
-        "chaos_summon_01", "reincarnation_will_01"
+        "theory_incarnation_01", "board_executor_01", "observer_will_01", "observer_will_01", "extend_life_01", "extend_life_god_01",
+        "extend_life_god_01", "guard_01", "guardian_god_01", "guardian_god_01", "stone_salvation_god_01", "stone_salvation_god_01",
+        "destroy_dragon_01", "destroy_dragon_01", "lightning_01", "lightning_01", "udg_01", "udg_01",
+        "ultimate_hyperactive_01", "ultimate_hyperactive_01", "board_expand_01", "board_expand_01", "board_expand_god_01", "board_shrink_01",
+        "board_shrink_01", "board_shrink_god_01", "board_shrink_god_01", "fire_will_01", "fire_will_01", "water_will_01",
+        "grass_will_01", "grass_will_01", "meteor_01", "meteor_01", "causal_replay_01", "salvation_01",
+        "living_will_01", "living_will_01", "support_troops_01", "support_troops_01", "fate_will_01", "meteor_god_01",
+        "chaos_summon_01", "chaos_summon_01", "reincarnation_will_01"
     ]
 }/* cpu-decks:end */;
 
