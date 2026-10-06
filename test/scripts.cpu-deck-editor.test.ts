@@ -53,3 +53,18 @@ test('the written source round-trips duplicates in catalog order', () => {
     const text = formatCpuDecksSource(decks, profiles, catalogOrder);
     expect(parseCpuDecksSource(text)).toEqual({ '1': null, '6': ['chest_01', 'chest_01', 'swap_01'] });
 });
+
+test('every enabled card has an effect group and 特殊石 follows the game judgment', () => {
+    const { resolveCardRoles, listCardRoles, CARD_ROLE_DEFINITIONS } = require('../scripts/cpu-deck-card-roles');
+    const Registry = require('../shared/special-stone-registry-static');
+    const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, '../cards/catalog.json'), 'utf8')).cards;
+    const knownTypes = new Set(catalog.map((card: any) => card.type));
+    for (const card of catalog.filter((card: any) => enabled.has(card.id))) {
+        const special = !!Registry.getMarkerTypeForSpecialStoneCard(card.type);
+        const roles = resolveCardRoles(card.type, special);
+        expect([card.name_ja, roles.length > 0]).toEqual([card.name_ja, true]);
+        expect(roles.includes('special-stone')).toBe(special);
+    }
+    for (const role of CARD_ROLE_DEFINITIONS) for (const type of role.types) expect(knownTypes.has(type)).toBe(true);
+    expect(listCardRoles()[0]).toEqual({ key: 'special-stone', label: '特殊石' });
+});

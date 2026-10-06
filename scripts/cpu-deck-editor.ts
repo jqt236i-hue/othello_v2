@@ -10,6 +10,7 @@ import path = require('node:path');
 import http = require('node:http');
 import os = require('node:os');
 import { spawn } from 'node:child_process';
+import { resolveCardRoles, listCardRoles } from './cpu-deck-card-roles';
 
 export const CPU_DECKS_SOURCE = 'shared/cpu-opponent-decks.ts';
 /** Hypothetical-world search rejects public recipes above this size (LV10_POSITION_LIMITS.maxDeck). */
@@ -106,7 +107,8 @@ function loadContext(root: string): EditorContext {
     const cards = catalog.filter(card => enabledCardIds.has(card.id)).map(card => ({ id: card.id, name: card.name_ja, type: card.type,
         cost: card.cost, desc: card.desc_ja, kind: card.display_type_ja || '', image: Art.CARD_FACE_ART_PATH_BY_ID?.[card.id] || null,
         // Same judgment as the game: the card turns a stone into a special stone.
-        specialStone: !!SpecialStones.getMarkerTypeForSpecialStoneCard(card.type) }));
+        specialStone: !!SpecialStones.getMarkerTypeForSpecialStoneCard(card.type),
+        roles: resolveCardRoles(card.type, !!SpecialStones.getMarkerTypeForSpecialStoneCard(card.type)) }));
     const profiles = (Profiles.getCpuOpponentProfiles() as any[]).map(profile => ({ id: profile.id, level: profile.level, name: profile.name,
         editable: isEditableCpuDeckProfile(profile), portraitSrc: profile.portraitSrc }));
     return { root, profiles, cards, enabledCardIds, cardOrder: catalog.map(card => card.id),
@@ -158,7 +160,7 @@ export function createCpuDeckEditorServer(root: string) {
         try {
             if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) return send(res, 200, fs.readFileSync(page), 'text/html; charset=utf-8');
             if (req.method === 'GET' && url.pathname === '/api/state') {
-                return send(res, 200, { profiles: context.profiles, cards: context.cards, decks: context.readDecks(),
+                return send(res, 200, { profiles: context.profiles, cards: context.cards, roles: listCardRoles(), decks: context.readDecks(),
                     lv9Deck: context.lv9Deck, defaultDeckSample: context.defaultDeckSample, maxCards: CPU_DECK_MAX_CARDS, build });
             }
             if (req.method === 'GET' && url.pathname === '/api/build') return send(res, 200, build);

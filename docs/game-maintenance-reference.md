@@ -14,7 +14,7 @@
 | 対象選択・複数段階・ターン移行 | `game/logic/cards-internal/pending-selection-registry.ts`, `game/turn/pending-coordinator.ts` | 設計資料 §6.3、§7.2.1–7.2.2。 |
 | カード使用後の対象選択の開始（ブラウザ） | `cards/card-interaction.ts` の `_ensureBoardPendingSelectionAfterCardUse` | pending の正本は headless 側。UI は pipeline の結果にある pending へ ID を同期するだけで、カード種別から対象選択を作り直さない（犠牲の意志で無効化された使用が復活しないように）。 |
 | CPU・AUTO | `game/cpu-decision.ts`, `game/cpu-network-command-planner.ts`, `utils/match-auto-command.ts` | 設計資料 §4.5、§8.4.1、§8.6。人間向け対象判定との共有箇所を追える。 |
-| CPUのデッキ | `shared/cpu-opponent-decks.ts`（正本）, `shared/cpu-opponent-startup-options.ts`, `scripts/cpu-deck-editor.ts`, `tools/cpu-deck-editor/index.html` | ルールブック「CPUの固有デッキ」。内容は `npm run cpu-decks:editor` で編集し、テストは中身ではなく正本との一致を確かめる。 |
+| CPUのデッキ | `shared/cpu-opponent-decks.ts`（正本）, `shared/cpu-opponent-startup-options.ts`, `scripts/cpu-deck-editor.ts`, `scripts/cpu-deck-card-roles.ts`（ツールの効果分類）, `tools/cpu-deck-editor/index.html` | ルールブック「CPUの固有デッキ」。内容は `npm run cpu-decks:editor` で編集し、テストは中身ではなく正本との一致を確かめる。 |
 | 特殊石・進化 | `shared/special-stone-registry-factory.ts`, `shared/special-stone-registry-static.ts`, `game/logic/cards-internal/progression.ts` | 設計資料 §6.2.1、§10。 |
 | 演出・音・盤面描画 | `ui/presentation/dispatcher.ts`, `ui/animation-feedback-events.ts`, `ui/board-visual/effect-branch-inventory.ts` | 設計資料 §7.3。盤面内の演出と手札・HUD からの演出で所有者が異なる。 |
 
