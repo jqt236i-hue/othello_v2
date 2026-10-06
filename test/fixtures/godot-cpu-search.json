@@ -2272,7 +2272,7 @@
       },
       "publicRecipes": null,
       "config": {
-        "version": "lv13-card-use-margin",
+        "version": "lv13-card-and-destroy-margin",
         "maxTransitions": 4096,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -2298,14 +2298,16 @@
         "maxDeepCandidates": 3,
         "shallowBudgetFraction": 0.3,
         "repairBudgetFraction": 0.25,
-        "cardUseMargin": 0.1
+        "cardUseMargin": 0.1,
+        "cardUseMarginByType": {},
+        "destroyHandMargin": 0.08
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-card-use-margin",
+        "version": "lv13-card-and-destroy-margin",
         "action": {
           "type": "place",
           "row": 2,
@@ -6276,7 +6278,7 @@
         ]
       },
       "config": {
-        "version": "lv13-card-use-margin",
+        "version": "lv13-card-and-destroy-margin",
         "maxTransitions": 4096,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -6302,14 +6304,16 @@
         "maxDeepCandidates": 3,
         "shallowBudgetFraction": 0.3,
         "repairBudgetFraction": 0.25,
-        "cardUseMargin": 0.1
+        "cardUseMargin": 0.1,
+        "cardUseMarginByType": {},
+        "destroyHandMargin": 0.08
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-card-use-margin",
+        "version": "lv13-card-and-destroy-margin",
         "action": {
           "type": "pass"
         },
@@ -10095,7 +10099,7 @@
         ]
       },
       "config": {
-        "version": "lv13-card-use-margin",
+        "version": "lv13-card-and-destroy-margin",
         "maxTransitions": 4096,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -10121,14 +10125,16 @@
         "maxDeepCandidates": 3,
         "shallowBudgetFraction": 0.3,
         "repairBudgetFraction": 0.25,
-        "cardUseMargin": 0.1
+        "cardUseMargin": 0.1,
+        "cardUseMarginByType": {},
+        "destroyHandMargin": 0.08
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-card-use-margin",
+        "version": "lv13-card-and-destroy-margin",
         "action": {
           "type": "place",
           "row": 4,

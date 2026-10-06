@@ -1,4 +1,4 @@
-import { evaluateLv13Position, lv13CardPotential, lv13MarkerPotential, aggregateLv13ScenarioValues } from './cpu-lv13-evaluation';
+import { evaluateLv13Position, lv13CardPotential, lv13MarkerPotential, aggregateLv13ScenarioValues, lv13CardDefinition } from './cpu-lv13-evaluation';
 import { createLv13ScenarioSampler } from './cpu-lv13-scenarios';
 import Core = require('../logic/core');
 import Board = require('../../shared/shared-board-utils');
@@ -9,12 +9,13 @@ import {
 } from './cpu-lv10-position';
 import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-search-stone-supply';
 
-/** Lv13 policy: the Lv12 search, except that a root which spends a card must
- * beat the best root that keeps the hand by cardUseMargin. The clock keeps a
+/** Lv13 policy: the Lv12 search, except that a root which spends a card
+ * (cardUseMargin) or destroys a hand card (destroyHandMargin) must beat the
+ * best root that does not by a margin. The clock keeps a
  * judgment within 5 s. Canonical actions and turn starts share the same
  * accounting and rules. */
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-card-use-margin', maxTransitions: 4096, maxMs: 4700,
+    version: 'lv13-card-and-destroy-margin', maxTransitions: 4096, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -22,7 +23,11 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
     lateReplyCandidates: 1,
     maxAdditionalDeepCandidates: 1, maxDeepCandidates: 3, shallowBudgetFraction: .3, repairBudgetFraction: .25,
     // Score margin (aggregated scale -1..1) a card-using root must win by.
-    cardUseMargin: .1
+    cardUseMargin: .1,
+    // Per card type adjustment added to cardUseMargin (positive: use only when clearly better).
+    cardUseMarginByType: Object.freeze({}) as Readonly<Record<string, number>>,
+    // Score margin a root that destroys a hand card must win by over a root that does not.
+    destroyHandMargin: .08
 });
 
 type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie?: number };
@@ -555,7 +560,15 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     // Spending a card (its charge and the turn's card use) must beat the best
     // compared root that keeps the hand by a clear margin, not by search noise.
     if(comparable.some(candidate=>candidate.plan.actions[0]?.type!=='use_card')){
-        for(const candidate of comparable)if(candidate.plan.actions[0]?.type==='use_card')candidate.value-=cfg.cardUseMargin;
+        for(const candidate of comparable){
+            const first=candidate.plan.actions[0];
+            if(first?.type!=='use_card')continue;
+            const type=lv13CardDefinition(first.useCardId)?.type;
+            candidate.value-=cfg.cardUseMargin+((type&&cfg.cardUseMarginByType[type])||0);
+        }
+    }
+    if(cfg.destroyHandMargin>0&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='destroy_hand_card')){
+        for(const candidate of comparable)if(candidate.plan.actions[0]?.type==='destroy_hand_card')candidate.value-=cfg.destroyHandMargin;
     }
     comparable.sort((a,b)=>b.value-a.value);
     // A terminal win caused by this immediate action is known, unlike a

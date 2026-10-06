@@ -2,6 +2,8 @@ import {searchLv13,LV13_SEARCH_CONFIG} from '../game/ai/cpu-lv13-search';
 import {searchLv12} from '../game/ai/cpu-lv12-search';
 const opening=require('./fixtures/cpu-lv13-opening.json');
 const cardChoice=require('./fixtures/cpu-lv13-card-choice.json');
+const handDestroy=require('./fixtures/cpu-lv13-hand-destroy.json');
+const marginOf=(action:any)=>action.type==='use_card'?LV13_SEARCH_CONFIG.cardUseMargin:action.type==='destroy_hand_card'?LV13_SEARCH_CONFIG.destroyHandMargin:0;
 
 test('without a card-using root Lv13 judges exactly like Lv12',()=>{
     const before=JSON.stringify(opening.observation);
@@ -25,6 +27,21 @@ test('a card must beat the best root that keeps the hand by the margin',()=>{
     deep(lv13).forEach((candidate,index)=>{
         const original=deep(lv12)[index];
         expect(candidate.action).toEqual(original.action);
-        expect(candidate.score).toBeCloseTo(original.score-(candidate.action.type==='use_card'?LV13_SEARCH_CONFIG.cardUseMargin:0),10);
+        expect(candidate.score).toBeCloseTo(original.score-marginOf(candidate.action),10);
+    });
+},120000);
+
+test('destroying a hand card must beat the best root that keeps it by the margin',()=>{
+    const options={publicRecipes:handDestroy.publicRecipes,maxTransitions:512};
+    const lv12=searchLv12(handDestroy.observation,options);
+    const lv13=searchLv13(handDestroy.observation,options);
+    expect(LV13_SEARCH_CONFIG.destroyHandMargin).toBeGreaterThan(0);
+    // Lv12 destroys a card for a near-tie with an ordinary placement.
+    expect(lv12.action?.type).toBe('destroy_hand_card');
+    expect(lv13.action?.type).toBe('place');
+    const deep=(result:typeof lv12)=>result.candidates!.filter(candidate=>candidate.retainedForDeepening);
+    deep(lv13).forEach((candidate,index)=>{
+        expect(candidate.action).toEqual(deep(lv12)[index].action);
+        expect(candidate.score).toBeCloseTo(deep(lv12)[index].score-marginOf(candidate.action),10);
     });
 },120000);
