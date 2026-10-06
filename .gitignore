@@ -114,3 +114,6 @@ data/**
 /othello-ai/data/
 /worker-public/data/
 /assets/images/special-cards/characters/*_reference/blender_model*/
+
+# training/tests の一時出力（selfplay.clean-artifacts.test などが作る）
+/training/data/
