@@ -2272,8 +2272,8 @@
       },
       "publicRecipes": null,
       "config": {
-        "version": "lv13-card-and-destroy-margin",
-        "maxTransitions": 4096,
+        "version": "lv13-deeper-6144",
+        "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
         "maxRetainedPartialPlans": 64,
@@ -2300,14 +2300,16 @@
         "repairBudgetFraction": 0.25,
         "cardUseMargin": 0.1,
         "cardUseMarginByType": {},
-        "destroyHandMargin": 0.08
+        "destroyHandMargin": 0.08,
+        "cornerRootBonus": 0,
+        "dangerRootPenalty": 0
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-card-and-destroy-margin",
+        "version": "lv13-deeper-6144",
         "action": {
           "type": "place",
           "row": 2,
@@ -6278,8 +6280,8 @@
         ]
       },
       "config": {
-        "version": "lv13-card-and-destroy-margin",
-        "maxTransitions": 4096,
+        "version": "lv13-deeper-6144",
+        "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
         "maxRetainedPartialPlans": 64,
@@ -6306,14 +6308,16 @@
         "repairBudgetFraction": 0.25,
         "cardUseMargin": 0.1,
         "cardUseMarginByType": {},
-        "destroyHandMargin": 0.08
+        "destroyHandMargin": 0.08,
+        "cornerRootBonus": 0,
+        "dangerRootPenalty": 0
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-card-and-destroy-margin",
+        "version": "lv13-deeper-6144",
         "action": {
           "type": "pass"
         },
@@ -10099,8 +10103,8 @@
         ]
       },
       "config": {
-        "version": "lv13-card-and-destroy-margin",
-        "maxTransitions": 4096,
+        "version": "lv13-deeper-6144",
+        "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
         "maxRetainedPartialPlans": 64,
@@ -10127,14 +10131,16 @@
         "repairBudgetFraction": 0.25,
         "cardUseMargin": 0.1,
         "cardUseMarginByType": {},
-        "destroyHandMargin": 0.08
+        "destroyHandMargin": 0.08,
+        "cornerRootBonus": 0,
+        "dangerRootPenalty": 0
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-card-and-destroy-margin",
+        "version": "lv13-deeper-6144",
         "action": {
           "type": "place",
           "row": 4,

@@ -233,12 +233,12 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
         placementLead,placementLead*end];
 }
 
-export function evaluateLv13Position(state:Lv10Position,player:Lv10Player):number{
+export function evaluateLv13Position(state:Lv10Position,player:Lv10Player,weights:readonly number[]=LV13_VALUE_WEIGHTS):number{
     if(Core.isGameOver(state.gameState)){
         const counts=Core.countDiscs(state.gameState,state.cardState);
         const material=(player==='black'?1:-1)*(counts.black-counts.white);
         return material===0?0:Math.sign(material)*100000+material;
     }
     const features=extractLv13ValueFeatures(state,player);
-    return Math.max(-192,Math.min(192,features.reduce((sum,value,index)=>sum+value*LV13_VALUE_WEIGHTS[index],0)));
+    return Math.max(-192,Math.min(192,features.reduce((sum,value,index)=>sum+value*weights[index],0)));
 }

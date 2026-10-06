@@ -32,7 +32,7 @@ test('clock boundary preserves an already checked action within the 5 s judgment
     const start=jest.spyOn(Position,'startLv10Turn').mockImplementation((...args)=>{transitions++;return originalStart(...args);});
     try{
         const result=searchLv13(observation,{now:()=>transitions*1000});
-        expect(LV13_SEARCH_CONFIG).toMatchObject({maxTransitions:4096,maxMs:4700});
+        expect(LV13_SEARCH_CONFIG).toMatchObject({maxTransitions:6144,maxMs:4700});
         expect(result.action).not.toBeNull();
         expect(result.stopped).toBe('time_budget');
         // The clock is checked before each transition; a deliberately atomic

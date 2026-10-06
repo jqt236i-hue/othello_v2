@@ -83,7 +83,7 @@ export function declareExperiment(specInput: ExperimentSpec) {
             || spec.candidate.config !== 'LV13_SEARCH_CONFIG' || spec.candidate.maxMs !== undefined
             || spec.candidate.maxTransitions !== undefined || spec.candidate.turnModule) throw new Error('Lv13 requires the unchanged declared production policy');
         const config = require(path.join(spec.candidate.root,'dist',spec.candidate.module))[spec.candidate.config];
-        if (config.maxTransitions !== 4096 || config.maxMs !== 4700) throw new Error('Lv13 requires 4096 transitions and 4700 ms');
+        if (config.maxTransitions !== 6144 || config.maxMs !== 4700) throw new Error('Lv13 requires 6144 transitions and 4700 ms');
         if (spec.mode === 'acceptance') {
             const fingerprint = lv12PolicyFingerprint(spec.candidate.root,'lv13').sha256;
             if (ledger.some((entry:any)=>entry.mode==='acceptance' && entry.candidatePolicySha256===fingerprint)) throw new Error('Unchanged candidate cannot be redrawn');

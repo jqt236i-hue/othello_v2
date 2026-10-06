@@ -9,13 +9,14 @@ import {
 } from './cpu-lv10-position';
 import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-search-stone-supply';
 
-/** Lv13 policy: the Lv12 search, except that a root which spends a card
- * (cardUseMargin) or destroys a hand card (destroyHandMargin) must beat the
- * best root that does not by a margin. The clock keeps a
- * judgment within 5 s. Canonical actions and turn starts share the same
+/** Lv13 policy: the Lv12 search with a larger transition allowance (faster
+ * board reads left the 4096 allowance unused well before the clock), and a
+ * root which spends a card (cardUseMargin) or destroys a hand card
+ * (destroyHandMargin) must beat the best root that does not by a margin.
+ * The clock keeps a judgment within 5 s. Canonical actions and turn starts share the same
  * accounting and rules. */
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-card-and-destroy-margin', maxTransitions: 4096, maxMs: 4700,
+    version: 'lv13-deeper-6144', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -27,7 +28,12 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
     // Per card type adjustment added to cardUseMargin (positive: use only when clearly better).
     cardUseMarginByType: Object.freeze({}) as Readonly<Record<string, number>>,
     // Score margin a root that destroys a hand card must win by over a root that does not.
-    destroyHandMargin: .08
+    destroyHandMargin: .08,
+    // Root placement priors on the comparison scale: a corner of the current
+    // shape gains cornerRootBonus; a cell next to an empty corner loses
+    // dangerRootPenalty. Zero keeps the search's own judgment.
+    cornerRootBonus: 0,
+    dangerRootPenalty: 0
 });
 
 type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie?: number };
@@ -37,7 +43,7 @@ type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie
  * while many cells are still empty, so the threshold uses the placements that
  * can still be made. Without the rule this is exactly the empty-cell count. */
 export function shouldDeepenLv13Search(state: Lv10Position, player: Lv10Player, ownStones: number, empty: number,
-    totalMobility: number, cfg: Pick<typeof LV13_SEARCH_CONFIG, 'sparseStoneThreshold' | 'endgameEmptyThreshold' | 'endgameMobilityThreshold'> = LV13_SEARCH_CONFIG): boolean {
+    totalMobility: number, cfg: Pick<Lv13SearchConfig, 'sparseStoneThreshold' | 'endgameEmptyThreshold' | 'endgameMobilityThreshold'> = LV13_SEARCH_CONFIG): boolean {
     const remaining = resolveSearchRemainingPlacements(empty, readSearchStoneSupply(state.cardState, player));
     return ownStones <= cfg.sparseStoneThreshold || remaining <= cfg.endgameEmptyThreshold
         || totalMobility <= cfg.endgameMobilityThreshold;
@@ -56,7 +62,12 @@ export type Lv13SearchOptions = {
     maxMs?: number;
     publicRecipes?: Partial<Record<Lv10Player, readonly string[]>>;
     excludedActions?: readonly Lv10Action[];
+    /** Development comparisons only (harness); production callers never set these. */
+    tuning?: Partial<Lv13SearchConfig>;
+    valueWeights?: readonly number[];
 };
+type Widen<T> = T extends string ? string : T extends number ? number : T extends readonly number[] ? readonly number[] : T;
+export type Lv13SearchConfig = { [K in keyof typeof LV13_SEARCH_CONFIG]: Widen<(typeof LV13_SEARCH_CONFIG)[K]> };
 
 export type Lv13SearchResult = {
     version: string; action: Lv10Action | null; continuation: Lv10Action[];
@@ -117,7 +128,7 @@ export function searchLv13(observation: Lv10Observation, options: Lv13SearchOpti
 }
 
 function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptions): Lv13SearchResult {
-    const cfg = LV13_SEARCH_CONFIG, player = observation.player;
+    const cfg: Lv13SearchConfig = options.tuning ? { ...LV13_SEARCH_CONFIG, ...options.tuning } : LV13_SEARCH_CONFIG, player = observation.player;
     if (options.maxTransitions !== undefined && (!Number.isInteger(options.maxTransitions) || options.maxTransitions < 1)) {
         throw new Error('Lv13 transition budget must be a positive integer');
     }
@@ -133,7 +144,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
         evaluationCalls++;
         const cached=evaluationCache.get(state);
         if(cached?.[viewer]!==undefined){evaluationCacheHits++;return cached[viewer]!;}
-        const value=evaluateLv13Position(state,viewer);
+        const value=options.valueWeights?evaluateLv13Position(state,viewer,options.valueWeights):evaluateLv13Position(state,viewer);
         evaluationCache.set(state,{...cached,[viewer]:value});
         return value;
     }
@@ -570,6 +581,16 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
             if(first?.type!=='use_card')continue;
             const type=lv13CardDefinition(first.useCardId)?.type;
             candidate.value-=cfg.cardUseMargin+((type&&cfg.cardUseMarginByType[type])||0);
+        }
+    }
+    if(cfg.cornerRootBonus>0||cfg.dangerRootPenalty>0){
+        const corners=Board.getCornerCells(initialBoard);
+        const emptyCorners=corners.filter((cell:any)=>!Board.getCellValue(initialBoard,cell.row,cell.col));
+        for(const candidate of comparable){
+            const first=candidate.plan.actions[0];
+            if(first?.type!=='place'||!Number.isInteger(first.row)||!Number.isInteger(first.col))continue;
+            if(corners.some((cell:any)=>cell.row===first.row&&cell.col===first.col))candidate.value+=cfg.cornerRootBonus;
+            else if(emptyCorners.some((cell:any)=>Math.abs(cell.row-first.row)<=1&&Math.abs(cell.col-first.col)<=1))candidate.value-=cfg.dangerRootPenalty;
         }
     }
     if(cfg.destroyHandMargin>0&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='destroy_hand_card')){
