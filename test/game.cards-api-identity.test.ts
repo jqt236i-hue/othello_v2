@@ -125,8 +125,10 @@ describe('CardLogic facade identity contract', () => {
       .toMatchObject({ resetOwner: 'game/cpu-turn-handler.ts module/isolate/page reconstruction' });
     // Pending regeneration removal shifted card-interaction evidence by five lines.
     // The stone-supply import shifted match-worker evidence by one line.
-    // The 87 owner identities, mutation kinds, and reset policies are unchanged.
-    expect(inventoryHash).toBe('9db3bffe9042246bd8b5017a4efaeefc080bdfa9ff1af7bbc87f03c0067a0c8e');
+    // CPU stone-supply awareness imports shared/stone-supply into cpu-decision and
+    // moves its evidence lines; the 87 owner identities, mutation kinds, and reset
+    // policies are unchanged.
+    expect(inventoryHash).toBe('1215f1b9fa8a17a421d95123d2d65131df2404d0091a2066620057577e268cff');
   });
 
   test('pins classic registration/global installation cardinality and ordering', () => {

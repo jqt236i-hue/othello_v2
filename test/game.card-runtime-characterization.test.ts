@@ -159,10 +159,12 @@ describe('card runtime Gate B characterization', () => {
       edges: graph.edges.length,
       lookups: graph.lookups.length,
       unresolved: graph.unresolvedEdges.length
-    }).toEqual({ roots: 20, nodes: 199, edges: 881, lookups: 587, unresolved: 32 });
+    }).toEqual({ roots: 20, nodes: 199, edges: 883, lookups: 588, unresolved: 32 });
     // The marker factory now imports the existing canonical zombie initializer.
     // Reviewed source changes also move lookup lines; discovery boundaries are unchanged.
     // shared/stone-supply.ts adds one canonical node, six traversed edges, and one worker literal require.
+    // CPU stone-supply awareness adds cpu-decision.ts and selfplay-runner.ts edges to the existing
+    // shared/stone-supply.ts node, plus the selfplay runner's literal require (out-of-scope consumer).
     expect(graph.edges).toContainEqual(expect.objectContaining({
       from: 'game/logic/card-resolution/special-stone-marker-factory.ts',
       to: 'game/logic/cards/zombie_will.ts',
@@ -170,7 +172,7 @@ describe('card runtime Gate B characterization', () => {
       disposition: 'traversed-source'
     }));
     expect(crypto.createHash('sha256').update(JSON.stringify(graph)).digest('hex')).toBe(
-      'e288d49f2b2c55617bc5b8f3370c3a516635cc62d8717ae58fbc66ba21311777'
+      '049251e5755f30d1712cb6a5bdfb26da11e4f97ba9e4d8fde32072947d589982'
     );
     expect(verifyCardRuntimeGraphNegativeFixtures()).toEqual([
       'aliasRequire', 'aliasedComputedGlobal', 'bareGlobalReference', 'castComputedGlobal',
