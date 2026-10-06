@@ -14,7 +14,7 @@ export const CPU_DECKS_SOURCE = 'shared/cpu-opponent-decks.ts';
 /** Hypothetical-world search rejects public recipes above this size (LV10_POSITION_LIMITS.maxDeck). */
 export const CPU_DECK_MAX_CARDS = 512;
 
-export type CpuDeckProfileInfo = { id: string; level: number; name: string; editable: boolean };
+export type CpuDeckProfileInfo = { id: string; level: number; name: string; editable: boolean; portraitSrc?: string };
 export type CpuDeckMap = Record<string, string[] | null>;
 
 /** Lv9 keeps its all-cards deck; every other CPU profile has an editable deck. */
@@ -104,11 +104,14 @@ function loadContext(root: string): EditorContext {
     const cards = catalog.filter(card => enabledCardIds.has(card.id)).map(card => ({ id: card.id, name: card.name_ja, type: card.type,
         cost: card.cost, desc: card.desc_ja, kind: card.display_type_ja || '', image: Art.CARD_FACE_ART_PATH_BY_ID?.[card.id] || null }));
     const profiles = (Profiles.getCpuOpponentProfiles() as any[]).map(profile => ({ id: profile.id, level: profile.level, name: profile.name,
-        editable: isEditableCpuDeckProfile(profile) }));
+        editable: isEditableCpuDeckProfile(profile), portraitSrc: profile.portraitSrc }));
     return { root, profiles, cards, enabledCardIds, cardOrder: catalog.map(card => card.id),
         readDecks: () => parseCpuDecksSource(fs.readFileSync(path.join(root, CPU_DECKS_SOURCE), 'utf8')),
         lv9Deck: DeckSpec.getCpuLv9EndingAshDeckCardIds(), defaultDeckSample: DeckSpec.sampleDefaultDeckCardIds(null) };
 }
+
+const STATIC_TYPES: Record<string, string> = { '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp',
+    '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
 type BuildState = { status: 'idle' | 'running' | 'done' | 'failed'; startedAt: string | null; finishedAt: string | null; log: string };
 
@@ -154,10 +157,14 @@ export function createCpuDeckEditorServer(root: string) {
                 });
                 return;
             }
-            if (req.method === 'GET' && url.pathname.startsWith('/assets/images/card/')) {
-                const file = path.join(root, decodeURIComponent(url.pathname));
-                if (!file.startsWith(path.join(root, 'assets', 'images', 'card')) || !fs.existsSync(file)) return send(res, 404, 'not found', 'text/plain');
-                return send(res, 200, fs.readFileSync(file), 'image/png');
+            // The page reuses the game's own stylesheets, fonts and images (read-only).
+            const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+            if (req.method === 'GET' && (/^styles-[\w-]+\.css$/.test(relative) || relative.startsWith('assets/'))) {
+                const file = path.resolve(root, relative);
+                const type = STATIC_TYPES[path.extname(file).toLowerCase()];
+                if (!file.startsWith(root + path.sep) || !type || !fs.existsSync(file) || !fs.statSync(file).isFile()) return send(res, 404, 'not found', 'text/plain');
+                res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'max-age=3600' });
+                return res.end(fs.readFileSync(file));
             }
             send(res, 404, 'not found', 'text/plain');
         } catch (error) { send(res, 500, { error: error instanceof Error ? error.message : String(error) }); }
