@@ -1,5 +1,5 @@
 ---
-status: dry-run-complete
+status: complete
 scope: phase-h-history-rewrite
 created: 2026-07-11
 updated: 2026-07-11
@@ -9,9 +9,9 @@ updated: 2026-07-11
 
 ## 結論
 
-`artifacts/**` を全履歴から除去する隔離ドライランは成功した。書き換え前後の最新 tree hash は同一であり、型検査、境界検査、match/network parity、browser/Worker 生成、visual regression は書き換え後の新規クローンで通過した。
+`artifacts/**` を全履歴から除去する履歴修復は完了した。書き換え前後の最新 tree hash は同一であり、型検査、境界検査、match/network parity、browser/Worker 生成、visual regression は権威リモートからの新規クローンで通過した。
 
-権威リモートへの push はまだ行っていない。`origin` の `main` を書き換えるには、本書の結果を確認した後の二回目の明示承認が必要である。
+二回目の明示承認後、権威リモート `origin/main` は `--force-with-lease` で更新済みである。書き換え前の完全bundleと旧checkoutはrollback用に保持している。
 
 ## 対象と承認
 
@@ -23,7 +23,7 @@ updated: 2026-07-11
 - CRLF 検証修正後のローカル `main`: `b4619a00fe15dff8d4e8158ecaf8a48e976ad6a8`
 - ローカルはリモートより 1,957 コミット先行し、リモート固有コミットは 0 件だった。よって、最終候補はリモート clone ではなくローカル `main` の完全履歴から生成する。
 - ユーザーは 2026-07-11 に Phase H の隔離ドライラン、バックアップ、ブラウザ検証を含む残作業を承認した。
-- 本計画が要求する二回目の承認は、下記証拠を提示した後に別途取得する。事前の包括承認をこの確認の代用にはしない。
+- ドライラン証拠を提示した後、ユーザーは 2026-07-11 に「全て承認」と回答し、Phase H.2 の二回目の明示承認を行った。
 
 ## 使用ツールと隔離
 
@@ -40,7 +40,11 @@ updated: 2026-07-11
 - サイズ: 5,217,290,561 bytes
 - SHA-256: `07136C2F9D601B6CDB1A7215FF403FC03D375F0F6AEB4C179844E32EA1340EB6`
 - `git bundle verify` は「complete history」として成功した。
-- H.2 開始時には、本書を含むその時点の最終 pre-rewrite `main` から新しい完全 bundle を作り、SHA-256 と `git bundle verify` を再記録する。初回 bundle は削除せず二重化する。
+- 最終 bundle: `final-pre-rewrite-main-6a4383659.bundle`
+- 最終 pre-rewrite SHA: `6a4383659110a3f0e2c22aabb82f266aa2b15d5f`
+- 最終 bundle サイズ: 5,221,407,417 bytes
+- 最終 bundle SHA-256: `C7FA66E69027125818B8E9F3826CA61A4FD400F57294FBDC89EA23614FF85F0A`
+- 最終 bundle も `git bundle verify` で「complete history」として成功した。初回 bundle は削除せず二重化している。
 
 ## 書き換え方法
 
@@ -134,10 +138,30 @@ git -C <candidate> push --force-with-lease=refs/heads/main:<old-remote-sha> http
 
 push 後の fresh-clone 検証が失敗した場合は新規変更を止め、H.2 で記録する final pre-rewrite SHA と完全 bundle から `main` を復元する。rollback も、現在の rewritten SHA を lease に指定した `--force-with-lease` で行う。具体 SHA は H.2 の最終欄へ記録してから実行する。
 
-## H.2 最終記録（未実施）
+## H.2 最終記録
 
-- 二回目の承認: 未取得
-- final pre-rewrite SHA / bundle: 未採取
-- pushed rewritten SHA: 未実施
-- authoritative fresh-clone stats: 未実施
-- collaborator coordination/recovery status: 未実施
+- 二回目の承認: 2026-07-11、ユーザー回答「全て承認」
+- old remote `main`: `3ba2b21ecebea458c7a92da48057f5ecd6d79e2d`
+- final pre-rewrite `main`: `6a4383659110a3f0e2c22aabb82f266aa2b15d5f`
+- final pre-rewrite tree: `5ee8e71af63eb2ff32a81f9a7902185bc9d72640`
+- pushed rewritten `main`: `7d700fe4be4242c072fe43965e41481d78ac59df`
+- rewritten tree: `5ee8e71af63eb2ff32a81f9a7902185bc9d72640`（pre-rewrite と一致）
+- push: `--force-with-lease=refs/heads/main:3ba2b21ecebea458c7a92da48057f5ecd6d79e2d` で成功
+- authoritative fresh clone refs: `main` / `origin/main` ともに `7d700fe4be4242c072fe43965e41481d78ac59df`、タグ0件
+- authoritative fresh clone: 2,158 commits、pack 1.60 GiB、`.git` 1,725,197,744 bytes
+- authoritative history: `artifacts/**` path 0件、object line 0件、`git fsck --full` PASS
+- authoritative checks: `npm ci`、`build:browser`、`worker:prepare`、`checkall`、match parity 142/142、network parity 516/516、visual diff 0 pixels がすべて PASS
+- recovery status: 復旧手順を本書に掲載し、旧checkout・初回bundle・最終完全bundle・書き換え済み候補を隔離領域に保持している。個別の外部協力者通知先は提供されていないため、次回利用者は既存cloneを再利用せずfresh cloneする。
+
+## 2026-10-06 系統統合の記録
+
+Phase H.2 の push 後、ローカルの本体 `main`（`F:\Desktop\othello_v2`）は書き換え前の系統（`6a4383659` の子孫）のまま作業が続き、GitHub（`origin/main`）は書き換え後の系統（`7d700fe4b` の子孫）に別の作業が積まれていた。ユーザーの依頼（2026-10-06「お願いします」、本体を正として GitHub を合わせる旨を事前説明済み）に基づき、次のとおり統合した。
+
+- 退避: 全 ref の bundle `C:\Users\quarr\othello_v2-git-backup\othello_v2-all-refs-2026-10-06.bundle`（6,443,719,141 bytes、`git bundle verify` 成功）。ローカル ref `refs/backup/2026-10-06/{main,origin-main,kadoriba,boxfish}`。
+- 統合前: 本体 `main` = `31ad41c7e`（旧系統、`6a4383659` 以降 767 commits、merge なし、`artifacts/**` 変更なし）。`origin/main` = `32897c4ff`。worktree `Kansoku111/カドリバ調整` = `c4b3f80f7`（`origin/main` + 3 commits）。
+- 方法: 一時 worktree で `git rebase --onto 7d700fe4b 6a4383659 --committer-date-is-author-date`。`6a4383659` と `7d700fe4b` の tree は同一（`5ee8e71a`）のため競合なし。1 commit が Windows 上で一時的に失敗し `--continue` で再開。
+- 結果: 新 `main` = `fa0e071ba`。tree は旧 `31ad41c7e` と同一。`7d700fe4b` 以降 767 commits。`artifacts/**` を触る commit 0 件。
+- push: `--force-with-lease=refs/heads/main:32897c4ff` で成功。blobless clone で `origin/main` = `fa0e071ba`、commit 数 2,925、`artifacts/**` 0 件、タグ 0 件を確認。
+- `origin/main` 側にだけあった 4 commits の扱い: `d5468b66a` / `32897c4ff`（Phase H 完了記録と承認規約）は本書・計画書・program-baseline へ内容を移植し、AGENTS.md は本体の新版に統合済み。`96d9c7a67` / `d38e0df17`（持ち石ルール・持ち石切れ）は本体で独立に実装済み（`test/game.stone-supply.test.ts` が終局条件を含む）のため移植不要。`c4b3f80f7`（盤面縮小神 コスト27→35）は本体へ再適用。
+- 旧系統の退避: `Kansoku111/カドリバ調整` 旧先端は生成物差分を `8709fbf97` として退避し `refs/backup/2026-10-06/kadoriba` が指す。worktree `boxfish`（`Kansoku111/rename-naming-alt-hyperactive`、`b8ff4bac4`、旧系統上に 61 commits）は未統合。取り込む時は `git rebase --onto fa0e071ba 31ad41c7e` 相当の載せ替えが必要。
+- 復旧: bundle から `git fetch <bundle> refs/backup/2026-10-06/main` で旧 `main` を取り出せる。GitHub を旧状態へ戻す必要があれば `32897c4ff` を対象に、現在の `fa0e071ba` を lease に指定して push する。
