@@ -160,12 +160,16 @@ describe('cpu opponent profiles', () => {
     expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('9-ending-ash', 'not-a-turn')).toBe(false);
   });
 
-  test('resolves dedicated CPU deck codes from opponent profiles', () => {
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('1')).toBeNull();
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6')).toBe(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('7-board-executor')).toBe(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('8-theory-incarnation')).toBe(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('9-ending-ash')).toBeNull();
+  test('resolves each CPU deck from its fixed deck instead of a deck code', () => {
+    // Contents are edited with the CPU deck tool; only the resolution is fixed here.
+    const fixedDecks = require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS;
+    for (const id of ['1', '6', '7-board-executor', '8-theory-incarnation', '9-ending-ash', '13-truth-chaos-emperor-beast']) {
+      expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode(id)).toBeNull();
+    }
+    for (const id of ['6', '7-board-executor', '8-theory-incarnation', '10-observed-dark-dragon', '13-truth-chaos-emperor-beast']) {
+      expect(CpuOpponentStartupOptions.getCpuOpponentDeckCardIds(id)).toEqual(fixedDecks[id]);
+    }
+    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCardIds('9-ending-ash')).toEqual(DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds());
   });
 
   test('exposes the dedicated CPU decks as built-in deck presets', () => {
@@ -238,8 +242,8 @@ describe('cpu opponent profiles', () => {
   test('resolves startup options for Lv8 handicap and normal levels', () => {
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'black')).toEqual({
       profileId: '8-theory-incarnation',
-      deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
-      deckCardIds: null,
+      deckCode: null,
+      deckCardIds: require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['8-theory-incarnation'],
       initialCharge: 50,
       chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: 8,
@@ -247,8 +251,8 @@ describe('cpu opponent profiles', () => {
     });
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'white')).toEqual({
       profileId: '8-theory-incarnation',
-      deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
-      deckCardIds: null,
+      deckCode: null,
+      deckCardIds: require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['8-theory-incarnation'],
       initialCharge: 50,
       chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: 8,

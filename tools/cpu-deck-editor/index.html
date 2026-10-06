@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPUデッキ調整</title>
+<style>
+  :root {
+    --bg: #14161c; --panel: #1e212a; --panel2: #262a35; --line: #363b49; --text: #e9e6dc; --muted: #9a9fae;
+    --accent: #d8b25a; --accent-text: #1b1608; --ok: #6cc28a; --warn: #e3a54a; --bad: #e0675f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .04em; }
+  header .grow { flex: 1; }
+  #status { color: var(--muted); font-size: 13px; }
+  #status.ok { color: var(--ok); } #status.warn { color: var(--warn); } #status.bad { color: var(--bad); }
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 700; padding: 8px 20px; }
+  main { display: grid; grid-template-columns: 230px minmax(320px, 420px) 1fr; gap: 0; height: calc(100vh - 57px); }
+  section { overflow: auto; padding: 14px 16px; border-right: 1px solid var(--line); }
+  h2 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0 0 10px; letter-spacing: .05em; }
+  .cpu { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px; }
+  .cpu small { display: block; color: var(--muted); font-size: 12px; }
+  .cpu.active { border-color: var(--accent); background: #2d2a20; }
+  .cpu .dirty { color: var(--warn); font-weight: 700; margin-left: 4px; }
+  .cpu.locked { opacity: .55; cursor: default; }
+  .mode { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .mode button.on { border-color: var(--accent); color: var(--accent); }
+  .summary { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0 10px; }
+  .summary strong { font-size: 22px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tools select { font: inherit; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px; }
+  .deck-row { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 8px; padding: 5px 4px; border-bottom: 1px solid var(--line); }
+  .deck-row img, .card img { width: 44px; height: 62px; object-fit: cover; border-radius: 4px; background: #000; }
+  .deck-row .name { font-weight: 600; }
+  .deck-row .meta, .card .meta { color: var(--muted); font-size: 12px; }
+  .qty { display: flex; align-items: center; gap: 4px; }
+  .qty button { padding: 2px 9px; }
+  .qty input { width: 46px; text-align: center; font: inherit; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 3px; }
+  .empty { color: var(--muted); padding: 18px 4px; }
+  .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filters input, .filters select { font: inherit; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .filters input { flex: 1; min-width: 180px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+  .card { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+  .card .name { font-weight: 600; }
+  .card .count { color: var(--accent); font-weight: 700; }
+  .card .desc { grid-column: 1 / -1; color: var(--muted); font-size: 12px; display: none; }
+  .card:hover .desc { display: block; }
+  .card .add { display: flex; flex-direction: column; gap: 4px; }
+  .card .add button { padding: 2px 8px; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 12px; }
+  #log { white-space: pre-wrap; font: 11px/1.4 Consolas, monospace; color: var(--muted); max-height: 160px; overflow: auto; display: none; margin-top: 8px; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } section { border-right: none; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>CPUデッキ調整</h1>
+  <span id="status">読み込み中…</span>
+  <span class="grow"></span>
+  <button id="revert" title="保存済みの内容に戻す">変更を取り消す</button>
+  <button id="apply" class="primary">反映</button>
+</header>
+<main>
+  <section>
+    <h2>CPU</h2>
+    <div id="cpus"></div>
+    <p class="note">Lv9 終焉の冥灰は全種デッキ固定のため編集できません。</p>
+  </section>
+  <section>
+    <h2 id="deck-title">デッキ</h2>
+    <div class="mode" id="mode"></div>
+    <div class="summary"><span id="deck-kinds"></span><span><strong id="deck-total">0</strong> 枚</span></div>
+    <div class="tools">
+      <select id="copy-from"></select>
+      <button id="copy">をコピー</button>
+      <button id="all-cards">全種1枚ずつ</button>
+      <button id="clear">空にする</button>
+    </div>
+    <div id="deck"></div>
+    <div id="log"></div>
+  </section>
+  <section>
+    <h2>カード一覧（クリックで追加）</h2>
+    <div class="filters">
+      <input id="search" type="search" placeholder="カード名・効果で検索">
+      <select id="kind"><option value="">すべての分類</option></select>
+      <select id="sort"><option value="catalog">図鑑順</option><option value="cost">コスト順</option><option value="name">名前順</option></select>
+    </div>
+    <div class="grid" id="cards"></div>
+  </section>
+</main>
+<script>
+'use strict';
+let state = null;              // server state
+let saved = {};                // profileId -> deck (array|null) as saved
+let draft = {};                // profileId -> deck (array|null) being edited
+let current = null;            // selected profile id
+let polling = null;
+const $ = id => document.getElementById(id);
+const cardById = () => new Map(state.cards.map(card => [card.id, card]));
+const same = (a, b) => JSON.stringify(a ? a.slice().sort() : null) === JSON.stringify(b ? b.slice().sort() : null);
+const dirtyIds = () => state.profiles.filter(p => p.editable && !same(draft[p.id], saved[p.id])).map(p => p.id);
+
+function setStatus(text, kind = '') { const el = $('status'); el.textContent = text; el.className = kind; }
+
+async function load() {
+  const res = await fetch('/api/state', { cache: 'no-store' });
+  state = await res.json();
+  saved = JSON.parse(JSON.stringify(state.decks));
+  draft = JSON.parse(JSON.stringify(state.decks));
+  if (!current) current = state.profiles.find(p => p.editable).id;
+  const kinds = [...new Set(state.cards.map(card => card.kind).filter(Boolean))];
+  $('kind').innerHTML = '<option value="">すべての分類</option>' + kinds.map(k => `<option>${k}</option>`).join('');
+  render();
+  showBuild(state.build, true);
+}
+
+function render() { renderCpus(); renderDeck(); renderCards(); renderButtons(); }
+
+function renderCpus() {
+  const dirty = new Set(dirtyIds());
+  $('cpus').innerHTML = '';
+  for (const p of state.profiles) {
+    const b = document.createElement('button');
+    const deck = draft[p.id];
+    b.className = 'cpu' + (p.id === current ? ' active' : '') + (p.editable ? '' : ' locked');
+    b.innerHTML = `Lv${p.level} ${p.name}${dirty.has(p.id) ? '<span class="dirty">●</span>' : ''}<small>${!p.editable ? '全種デッキ（固定）' : deck ? deck.length + '枚' : 'デフォルト（毎回ランダム30枚）'}</small>`;
+    b.disabled = !p.editable;
+    b.onclick = () => { current = p.id; render(); };
+    $('cpus').appendChild(b);
+  }
+}
+
+function counts(deck) { const m = new Map(); for (const id of deck || []) m.set(id, (m.get(id) || 0) + 1); return m; }
+
+function renderDeck() {
+  const p = state.profiles.find(x => x.id === current);
+  const deck = draft[current];
+  $('deck-title').textContent = `Lv${p.level} ${p.name} のデッキ`;
+  $('mode').innerHTML = '';
+  const modes = [['fixed', '固定デッキ'], ['default', 'デフォルト（毎回ランダム30枚）']];
+  for (const [mode, label] of modes) {
+    const b = document.createElement('button');
+    b.textContent = label; b.className = (deck ? mode === 'fixed' : mode === 'default') ? 'on' : '';
+    b.onclick = () => {
+      if (mode === 'default') draft[current] = null;
+      else if (!draft[current]) draft[current] = (saved[current] || state.defaultDeckSample).slice();
+      render();
+    };
+    $('mode').appendChild(b);
+  }
+  const copy = $('copy-from');
+  copy.innerHTML = state.profiles.filter(x => x.id !== current).map(x => `<option value="${x.id}">Lv${x.level} ${x.name}</option>`).join('');
+  $('deck-total').textContent = deck ? deck.length : '—';
+  const map = counts(deck), cards = cardById();
+  $('deck-kinds').textContent = deck ? `${map.size}種類` : '対局ごとにランダムな30枚を使います';
+  const box = $('deck'); box.innerHTML = '';
+  if (!deck) return;
+  if (!deck.length) { box.innerHTML = '<div class="empty">カードがありません。右の一覧から追加してください（1枚以上必要）。</div>'; return; }
+  const order = new Map(state.cards.map((c, i) => [c.id, i]));
+  for (const [id, n] of [...map].sort((a, b) => order.get(a[0]) - order.get(b[0]))) {
+    const card = cards.get(id) || { name: id, cost: '?', kind: '' };
+    const row = document.createElement('div'); row.className = 'deck-row';
+    row.innerHTML = `${card.image ? `<img src="/${card.image}" alt="">` : '<span></span>'}<div><div class="name">${card.name}</div><div class="meta">コスト${card.cost} ・ ${card.kind}</div></div>
+      <div class="qty"><button data-d="-1">−</button><input value="${n}" inputmode="numeric"><button data-d="1">＋</button></div>`;
+    row.querySelectorAll('button').forEach(btn => btn.onclick = () => setCount(id, n + Number(btn.dataset.d)));
+    row.querySelector('input').onchange = e => setCount(id, Math.max(0, Math.floor(Number(e.target.value) || 0)));
+    box.appendChild(row);
+  }
+}
+
+function setCount(id, n) {
+  const deck = draft[current] || [];
+  const rest = deck.filter(x => x !== id);
+  draft[current] = rest.concat(Array(Math.max(0, n)).fill(id));
+  render();
+}
+
+function renderCards() {
+  const q = $('search').value.trim().toLowerCase(), kind = $('kind').value, sort = $('sort').value;
+  const map = counts(draft[current]);
+  let list = state.cards.filter(c => (!kind || c.kind === kind) && (!q || (c.name + c.desc + c.type).toLowerCase().includes(q)));
+  if (sort === 'cost') list = list.slice().sort((a, b) => a.cost - b.cost);
+  if (sort === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const box = $('cards'); box.innerHTML = '';
+  for (const c of list) {
+    const el = document.createElement('div'); el.className = 'card';
+    el.innerHTML = `${c.image ? `<img src="/${c.image}" alt="">` : '<span></span>'}<div><div class="name">${c.name}</div><div class="meta">コスト${c.cost} ・ ${c.kind}${map.get(c.id) ? ` ・ <span class="count">${map.get(c.id)}枚</span>` : ''}</div></div>
+      <div class="add"><button data-n="1">+1</button><button data-n="3">+3</button></div><div class="desc">${c.desc}</div>`;
+    el.querySelectorAll('button').forEach(btn => btn.onclick = () => {
+      if (!draft[current]) draft[current] = [];
+      draft[current] = draft[current].concat(Array(Number(btn.dataset.n)).fill(c.id));
+      render();
+    });
+    box.appendChild(el);
+  }
+}
+
+function renderButtons() {
+  const dirty = dirtyIds(), deck = draft[current];
+  const invalid = state.profiles.filter(p => p.editable && draft[p.id] && (draft[p.id].length < 1 || draft[p.id].length > state.maxCards));
+  const building = state.build && state.build.status === 'running';
+  $('apply').disabled = !dirty.length || invalid.length > 0 || building;
+  $('revert').disabled = !dirty.length || building;
+  $('copy').disabled = $('all-cards').disabled = $('clear').disabled = building;
+  if (building) return;
+  if (invalid.length) setStatus(`${invalid.map(p => 'Lv' + p.level).join('・')} のデッキは1〜${state.maxCards}枚にしてください`, 'warn');
+  else if (dirty.length) setStatus(`未反映の変更があります（${dirty.length}体）`, 'warn');
+  else if (!polling && (!state.build || state.build.status !== 'done')) setStatus('保存済みの内容と同じです');
+  void deck;
+}
+
+$('copy').onclick = () => { const src = $('copy-from').value; const p = state.profiles.find(x => x.id === src);
+  draft[current] = (p && !p.editable ? state.lv9Deck : draft[src] || state.defaultDeckSample).slice(); render(); };
+$('all-cards').onclick = () => { draft[current] = state.cards.map(c => c.id); render(); };
+$('clear').onclick = () => { draft[current] = []; render(); };
+$('revert').onclick = () => { draft = JSON.parse(JSON.stringify(saved)); render(); };
+for (const id of ['search', 'kind', 'sort']) $(id).addEventListener('input', renderCards);
+
+$('apply').onclick = async () => {
+  const changes = {}; for (const id of dirtyIds()) changes[id] = draft[id];
+  $('apply').disabled = true;
+  setStatus('保存しています…');
+  const res = await fetch('/api/decks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decks: changes }) });
+  const body = await res.json();
+  if (!res.ok) { setStatus(body.error || '反映に失敗しました', 'bad'); renderButtons(); return; }
+  saved = JSON.parse(JSON.stringify(body.decks));
+  draft = JSON.parse(JSON.stringify(body.decks));
+  state.build = body.build;
+  render();
+  showBuild(body.build);
+};
+
+function showBuild(build, initial = false) {
+  if (!build) return;
+  const log = $('log');
+  if (build.status === 'running') {
+    setStatus('ゲームに組み込み中（ビルド）… 1〜3分ほどかかります');
+    clearTimeout(polling);
+    polling = setTimeout(async () => { const r = await fetch('/api/build', { cache: 'no-store' }); state.build = await r.json(); polling = null; renderButtons(); showBuild(state.build); }, 2000);
+  } else if (build.status === 'done' && !initial) {
+    setStatus('反映しました。ゲームの画面を再読み込みすると新しいデッキで対戦できます', 'ok');
+    log.style.display = 'none';
+  } else if (build.status === 'failed') {
+    setStatus('デッキは保存しましたが、ビルドに失敗しました（下のログ）', 'bad');
+    log.style.display = 'block'; log.textContent = build.log.slice(-4000);
+  }
+  renderButtons();
+}
+
+window.addEventListener('beforeunload', e => { if (state && dirtyIds().length) { e.preventDefault(); e.returnValue = ''; } });
+load().catch(error => setStatus('読み込みに失敗しました: ' + error.message, 'bad'));
+</script>
+</body>
+</html>

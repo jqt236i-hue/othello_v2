@@ -2,6 +2,7 @@
 
 const CpuOpponentProfiles = require('./cpu-opponent-profiles');
 const DeckSpecHelpers = require('./deck-spec');
+const CpuOpponentDecks = require('./cpu-opponent-decks');
 
 type CpuOpponentPlayerKey = 'black' | 'white';
 
@@ -26,8 +27,16 @@ function normalizePlayerKey(value: unknown): CpuOpponentPlayerKey | null {
     return value === 'black' || value === 'white' ? value : null;
 }
 
+/** Per-CPU fixed deck (shared/cpu-opponent-decks.ts). Lv9 keeps its all-cards deck. */
+function getFixedCpuOpponentDeckCardIds(profile: any): string[] | null {
+    if (!profile || profile.level === 9) return null;
+    const deck = CpuOpponentDecks.CPU_OPPONENT_DECKS[profile.id];
+    return Array.isArray(deck) && deck.length > 0 ? deck.slice() : null;
+}
+
 function getCpuOpponentDeckCode(profileValue: unknown): string | null {
     const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
+    if (getFixedCpuOpponentDeckCardIds(profile)) return null;
     if (!profile || !profile.deckProfile || profile.deckProfile === 'default') return null;
     if (profile.deckProfile === 'lv8-ending-ash'
         && typeof DeckSpecHelpers.getCpuLv8EndingAshDeckCode === 'function') {
@@ -50,6 +59,8 @@ function getCpuOpponentDeckCode(profileValue: unknown): string | null {
 
 function getCpuOpponentDeckCardIds(profileValue: unknown): string[] | null {
     const profile = CpuOpponentProfiles.getCpuOpponentProfile(profileValue);
+    const fixed = getFixedCpuOpponentDeckCardIds(profile);
+    if (fixed) return fixed;
     if (!profile || profile.deckProfile !== 'lv9-ending-ash-all-enabled') return null;
     if (typeof DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds !== 'function') return null;
 
