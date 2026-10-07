@@ -2,6 +2,7 @@ import { evaluateLv13Position, lv13CardPotential, lv13MarkerPotential, aggregate
 import { createLv13ScenarioSampler } from './cpu-lv13-scenarios';
 import Core = require('../logic/core');
 import Board = require('../../shared/shared-board-utils');
+import StateHash = require('../../shared/state-hash');
 import {
     applyLv10Action, currentLv10Player, lv10DecisionPlayer, enumerateLv10Actions, lv10ActionKey,
     startLv10Turn, lv10PlacementMoves,
@@ -16,7 +17,7 @@ import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-s
  * The clock keeps a judgment within 5 s. Canonical actions and turn starts share the same
  * accounting and rules. */
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-stable-6144', maxTransitions: 6144, maxMs: 4700,
+    version: 'lv13-no-wasted-card', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -37,6 +38,18 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
 });
 
 type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie?: number };
+
+// Card-state fields that record a card's use (hand, piles, copy/sequence IDs,
+// charge, use counters, presentation) rather than any effect on the game.
+// Markers are compared without their IDs.
+const CARD_BOOKKEEPING = new Set([
+    'decks', 'deck', 'discard', 'hands', 'handCostAdjustmentsByPlayer', '_handCopyIdsByPlayer', '_deckCopyIdsByPlayer',
+    '_discardCopyIds', '_nextCardCopySeq', 'cardCostOverridesByCopyId', 'cardCostModifiersByCopyId',
+    '_revealedHandCopyIdsByViewer', 'markers', '_nextMarkerId', '_nextCreatedSeq', 'presentationEvents',
+    '_presentationEventsPersist', '_nextStoneId', 'stoneIdMap', 'selectedCardId', 'hasUsedCardThisTurnByPlayer',
+    'lastUsedCardByPlayer', 'lastUsedCard', 'cardUseCountByPlayer', 'charge', 'chargeGainedTotal', 'chargeDeltaEvents',
+    '_nextChargeDeltaSeq', 'pendingEffectSeq', '_nextEffectBlockId', 'prngState'
+]);
 
 /** Endgame reading reads the opponent's later turns as well. With the stone
  * supply rule (01-rulebook.md 7.3) the game can end by exhausted supplies
@@ -343,6 +356,51 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
             plans.splice(0,plans.length,...rank(plans,player,cfg.maxRetainedPlans));
         } finally {sliceDeadline=previousDeadline;}
     }
+    // A card turn that ends exactly like a retained turn without the card
+    // only pays its charge: e.g. Free Will before a placement that was legal
+    // anyway. Everything except card bookkeeping must be identical, the hand
+    // may differ only by the spent card and no charge may be gained (a
+    // treasure box or a card that grants its successor is never a twin).
+    // Under a short reading budget such a twin can still win by search noise,
+    // so it is never chosen. It stays among the compared roots: removing it
+    // would hand its slot to another card plan and change unrelated choices.
+    const turnOutcomeKey=(plan:Plan)=>{
+        const {gameState,cardState}=plan.state;
+        const rest:any={};
+        for(const [key,value] of Object.entries(cardState))if(!CARD_BOOKKEEPING.has(key))rest[key]=value;
+        rest.markers=(cardState.markers||[]).map((m:any)=>StateHash.stableStringify([m.row,m.col,m.kind,m.owner,m.data])).sort();
+        return StateHash.stableStringify([gameState,rest]);
+    };
+    const handKey=(hand:readonly string[])=>[...hand].sort().join(',');
+    const holdingOutcomes=new Map<string,{hand:string;charge:number}[]>();
+    for(const plan of plans){
+        if(plan.actions.some(action=>action.type==='use_card'))continue;
+        const key=turnOutcomeKey(plan);
+        holdingOutcomes.set(key,[...(holdingOutcomes.get(key)||[]),
+            {hand:handKey(plan.state.cardState.hands[player]||[]),charge:plan.state.cardState.charge?.[player]??0}]);
+    }
+    const wastedCard=(plan:Plan)=>{
+        const used=plan.actions.find(action=>action.type==='use_card');
+        if(!used)return false;
+        const hand=handKey([...(plan.state.cardState.hands[player]||[]),used.useCardId]);
+        const charge=plan.state.cardState.charge?.[player]??0;
+        return !!holdingOutcomes.get(turnOutcomeKey(plan))?.some(twin=>twin.hand===hand&&charge<=twin.charge);
+    };
+    const wasted=new Set(plans.filter(wastedCard));
+    // After the opponent's pass, a second pass does not end the game while the
+    // opponent still holds a usable card (01-rulebook.md 8.2); the turn only
+    // returns to them. When neither side can place (e.g. one side has no stone
+    // left), two CPUs (or a CPU and a human) would pass forever. There such a
+    // pass is replaced by a completed card turn, which changes the position or
+    // spends charge toward the end. A pass that does end the game is still
+    // compared normally.
+    const canPlace=(side:Lv10Player)=>(readSearchStoneSupply(initial.cardState,side)?.own??1)>0
+        &&lv10PlacementMoves(initial,side).length>0;
+    if((initial.gameState.consecutivePasses||0)>=1&&!canPlace('black')&&!canPlace('white')
+        &&plans.some(plan=>plan.actions.some(action=>action.type==='use_card'))){
+        plans.splice(0,plans.length,...plans.filter(plan=>plan.actions.some(action=>action.type==='use_card')
+            ||plan.actions[plan.actions.length-1]?.type!=='pass'||Core.isGameOver(plan.state.gameState)));
+    }
     const candidates: Plan[] = [];
     const seenRoots = new Set<string>();
     const family=(plan:Plan)=>{
@@ -605,7 +663,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     // terminal result in a hypothetical later draw sequence.
     const proven = allScored.find(candidate => candidate.plan.actions.length === 1
         && Core.isGameOver(candidate.plan.state.gameState) && candidate.plan.value >= 100000);
-    const best=proven || comparable[0];
+    const best=proven || comparable.find(candidate=>!wasted.has(candidate.plan)) || comparable[0];
     return {
         version:cfg.version,action:best?.plan.actions[0] || fallback,continuation:best?.plan.actions.slice(1) || [],
         value:best?.value ?? null,transitions,elapsedMs:started !== undefined && options.now ? options.now()-started:null,

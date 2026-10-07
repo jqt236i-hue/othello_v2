@@ -2272,7 +2272,7 @@
       },
       "publicRecipes": null,
       "config": {
-        "version": "lv13-stable-6144",
+        "version": "lv13-no-wasted-card",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -2309,7 +2309,7 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-stable-6144",
+        "version": "lv13-no-wasted-card",
         "action": {
           "type": "place",
           "row": 2,
@@ -6280,7 +6280,7 @@
         ]
       },
       "config": {
-        "version": "lv13-stable-6144",
+        "version": "lv13-no-wasted-card",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -6317,7 +6317,7 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-stable-6144",
+        "version": "lv13-no-wasted-card",
         "action": {
           "type": "pass"
         },
@@ -10103,7 +10103,7 @@
         ]
       },
       "config": {
-        "version": "lv13-stable-6144",
+        "version": "lv13-no-wasted-card",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -10140,7 +10140,7 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-stable-6144",
+        "version": "lv13-no-wasted-card",
         "action": {
           "type": "place",
           "row": 4,
