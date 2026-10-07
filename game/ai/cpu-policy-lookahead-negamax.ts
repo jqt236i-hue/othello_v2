@@ -117,7 +117,8 @@ export function createCpuPolicyLookaheadNegamax(deps?: CpuPolicyLookaheadNegamax
                 score > originalAlpha && score < beta ? storeTransposition(key, score) : score
             );
 
-            // 黒白とも持ち石 0 は、その配置の直後に確定する終局（01-rulebook.md §7.3 / §8.2）。
+            // 黒白とも持ち石 0 なら、盤面だけを読むこの先読みではこれ以上の配置が無いので最終盤面として評価する
+            // （実際の終局はカード使用とパスに任せる。01-rulebook.md §7.3 / §8.2）。
             if (areAllLookaheadStoneSuppliesExhausted(stoneSupply)) {
                 return evaluateTerminalBoardForLookahead(boardNode, currentPlayer);
             }

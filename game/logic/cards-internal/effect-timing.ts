@@ -6,10 +6,12 @@
 import EvasionStatusImport = require('../../../shared/evasion-status');
 import SpecialStoneMarkerFactoryImport = require('../card-resolution/special-stone-marker-factory');
 import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import StoneSupplyImport = require('../../../shared/stone-supply');
 
 const EvasionStatus: any = EvasionStatusImport;
 const SpecialStoneMarkerFactory: any = SpecialStoneMarkerFactoryImport;
 const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+const StoneSupply: any = StoneSupplyImport;
 
 interface Context {
     constants?: any;
@@ -697,6 +699,8 @@ function drawForTurnStart(cardState: any, playerKey: string, prng: any, context:
         && cardState.turnCountByPlayer
         ? Number(cardState.turnCountByPlayer[playerKey])
         : NaN;
+    // 黒白とも持ち石 0 になった後はドローしない。その時点の手札で戦う（01-rulebook.md §7.3）。
+    if (cardState && StoneSupply.areAllStoneSuppliesExhausted(cardState)) return;
     if (cardState && (cardState as any).debugNoDraw !== true && Number.isFinite(turnCount) && turnCount % constants.DRAW_INTERVAL === 0) {
         if (typeof helpers.commitDraw === 'function') {
             helpers.commitDraw(cardState, playerKey, p);

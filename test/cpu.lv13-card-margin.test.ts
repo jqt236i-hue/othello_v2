@@ -29,8 +29,11 @@ test('a card must beat the best root that keeps the hand by the margin',()=>{
     const lv12=searchLv12(cardChoice.observation,options);
     const lv13=searchLv13(cardChoice.observation,{...options,valueWeights:lv12Weights});
     expect(LV13_SEARCH_CONFIG.cardUseMargin).toBeGreaterThan(0);
-    // Lv12 spends a treasure box for a near-tie with an ordinary placement.
-    expect(lv12.action).toMatchObject({type:'use_card',useCardId:'chest_01'});
+    // The treasure box stays a deep candidate for Lv12 (a near-tie with an ordinary placement).
+    // Since cards that depend on a placement are unusable without a legal move (01-rulebook.md 9),
+    // Lv12 itself now prefers the placement here; the margin still has to keep Lv13 on the placement.
+    const usesChest=(candidate:any)=>[candidate.action,...candidate.continuation].some((action:any)=>action.type==='use_card'&&action.useCardId==='chest_01');
+    expect(lv12.candidates!.filter(candidate=>candidate.retainedForDeepening).some(usesChest)).toBe(true);
     expect(lv13.action?.type).toBe('place');
     expect(lv13.transitions).toBe(lv12.transitions);
     const deep=(result:typeof lv12)=>result.candidates!.filter(candidate=>candidate.retainedForDeepening);

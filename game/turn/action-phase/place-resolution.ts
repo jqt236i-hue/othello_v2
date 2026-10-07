@@ -218,9 +218,11 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     if (!boardPlacement || boardPlacement.spawned !== true) {
         throw new Error('Illegal move: placement spawn failed');
     }
+    const supplyBeforeAllExhausted = StoneSupply.areAllStoneSuppliesExhausted(opts.cardState);
     StoneSupply.consumeStoneSupply(opts.cardState, opts.playerKey);
-    if (StoneSupply.areAllStoneSuppliesExhausted(opts.cardState)) {
-        opts.gameState.endedByStoneSupply = true;
+    if (!supplyBeforeAllExhausted && StoneSupply.areAllStoneSuppliesExhausted(opts.cardState)) {
+        // 両者の持ち石切れは即終局ではなく、以後は通常配置ができない状態として対局を続ける（仕様 7.3 / 8.2）。
+        opts.events.push({ type: 'stone_supply_exhausted_all', player: opts.playerKey });
     }
     flipEvadeResult = boardPlacement.flipEvadeResult || null;
     flips = Array.isArray(boardPlacement.appliedFlips) ? boardPlacement.appliedFlips.slice() : [];

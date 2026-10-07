@@ -33,7 +33,7 @@ export function isLookaheadStoneSupplyExhausted(supply: CpuLookaheadStoneSupply 
     return remaining !== null && remaining <= 0;
 }
 
-/** 黒白とも 0（ルール無効時は false）。持ち石ルールでは直ちに終局する。 */
+/** 黒白とも 0（ルール無効時は false）。両者とも通常配置ができず、盤面だけの先読みではこれ以上進めない。 */
 export function areAllLookaheadStoneSuppliesExhausted(supply: CpuLookaheadStoneSupply | null | undefined): boolean {
     return !!supply && supply.black <= 0 && supply.white <= 0;
 }

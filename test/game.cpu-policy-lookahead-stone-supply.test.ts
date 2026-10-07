@@ -58,13 +58,13 @@ describe('lookahead stone supply (rulebook 7.3)', () => {
         })).toEqual({ black: 4, white: 0 });
     });
 
-    test('negamax treats an exhausted player as having no placement and ends when both are exhausted', () => {
+    test('negamax treats an exhausted player as having no placement and evaluates the final board when both are exhausted', () => {
         const negamax = createTreeSearch({ root: ['a'] }, { root: 3, a: -6 }, { a: 50 });
         // ルール無効: 通常どおり a へ進む。
         expect(negamax({ id: 'root' } as any, 1, 1, -Infinity, Infinity, false, {})).toBe(6);
         // 黒が持ち石切れ: 合法手 0 としてパスし、白手番で評価する。
         expect(negamax({ id: 'root' } as any, 1, 1, -Infinity, Infinity, false, {}, { black: 0, white: 5 })).toBe(-3);
-        // 黒の最後の1個で黒白とも 0 → その配置直後に終局評価。
+        // 黒の最後の1個で黒白とも 0 → 盤面だけの先読みでは配置が尽きるので最終盤面として評価。
         expect(negamax({ id: 'root' } as any, 1, 4, -Infinity, Infinity, false, {}, { black: 1, white: 0 })).toBe(-50);
     });
 

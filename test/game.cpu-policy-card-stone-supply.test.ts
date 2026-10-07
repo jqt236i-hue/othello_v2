@@ -73,6 +73,14 @@ describe('card policy stone supply (rulebook 7.3)', () => {
         expect(stuck.forceUseCard).toBe(true);
         expect(stuck.legalMovesCount).toBe(0);
         expect(Object.prototype.hasOwnProperty.call(stuck, 'ownStoneSupply')).toBe(false);
+        // 黒白とも持ち石 0 ならカードだけが残された行動なので、通常の合法手 0 として強制使用に戻る。
+        const bothExhausted = buildCardDecisionContext({
+            level: 6, playerValue: 1, legalMovesCount: 0, forceUseCard: false, empties: 20,
+            ownStoneSupply: 0, oppStoneSupply: 0
+        } as any) as any;
+        expect(bothExhausted.forceUseCard).toBe(true);
+        expect(bothExhausted.legalMovesCount).toBe(0);
+        expect(bothExhausted.stoneSupplyExhausted).toBe(false);
     });
 
     test('shared card scoring applies the adjustment only while the rule is on', () => {

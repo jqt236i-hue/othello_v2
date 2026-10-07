@@ -33,6 +33,7 @@ declare const DOUBLE_PLACE_PASS_DELAY_MS: any;
 
 const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 const AUTO_PASS_NOTICE_REASON = 'no_legal_moves_or_usable_cards';
+const AUTO_PASS_NOTICE_REASON_STONE_SUPPLY = 'stone_supply_exhausted_no_usable_cards';
 
 // TimerService DI
 let passHandlerTimerService: any = null;
@@ -50,6 +51,7 @@ let passHandlerPendingCoordinator: any = null;
 let passHandlerTurnPipelineModule: any = null;
 let passHandlerCardEffectsHelpers: any = null;
 let passHandlerSpecialEffectsHelpers: any = null;
+let passHandlerStoneSupply: any = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers.js'); } catch (e) { /* ignore */ }
@@ -59,6 +61,23 @@ if (typeof require === 'function') {
     try { passHandlerTurnPipelineModule = require('./turn/turn_pipeline.js'); } catch (e) { /* ignore */ }
     try { passHandlerCardEffectsHelpers = require('./card-effects/helpers'); } catch (e) { /* ignore */ }
     try { passHandlerSpecialEffectsHelpers = require('./special-effects/helpers'); } catch (e) { /* ignore */ }
+    try { passHandlerStoneSupply = require('../shared/stone-supply'); } catch (e) { /* ignore */ }
+}
+
+function isPassHandlerStoneSupplyExhausted(playerKey: string): boolean {
+    try {
+        return !!(passHandlerStoneSupply
+            && cardState
+            && typeof passHandlerStoneSupply.isStoneSupplyExhausted === 'function'
+            && passHandlerStoneSupply.isStoneSupplyExhausted(cardState, normalizePlayerKey(playerKey, 'black')));
+    } catch (e) {
+        return false;
+    }
+}
+
+/** 自動パスの理由文。持ち石切れと通常の手詰まりを区別して見せる（01-rulebook.md §8.4）。 */
+function resolveNoActionPassReasonLabel(playerKey: string): string {
+    return isPassHandlerStoneSupplyExhausted(playerKey) ? '持ち石がありません' : '置ける場所がありません';
 }
 const PassHandlerControllerEvents = require('./controller-events');
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
@@ -780,9 +799,11 @@ function showAutoPassNoticeForPlayer(playerKey: any) {
     const showNoticeFn = resolvePassHandlerRuntimeFunction('showAutoPassNotice');
     if (typeof showNoticeFn !== 'function') return false;
     try {
+        const stoneSupplyExhausted = isPassHandlerStoneSupplyExhausted(playerKey);
         showNoticeFn({
             playerKey: normalizePlayerKey(playerKey, 'black'),
-            reason: AUTO_PASS_NOTICE_REASON
+            reason: stoneSupplyExhausted ? AUTO_PASS_NOTICE_REASON_STONE_SUPPLY : AUTO_PASS_NOTICE_REASON,
+            reasonText: stoneSupplyExhausted ? '持ち石がなく、使用可能カードもありません。' : undefined
         });
         return true;
     } catch (e) { /* ignore */ }
@@ -1315,7 +1336,7 @@ async function handleBlackPassWhenNoMoves() {
             setPassHandlerProcessing(false);
             return;
         }
-        emitPassHandlerLog(`${safeBlackName}: パス (置ける場所がありません)`);
+        emitPassHandlerLog(`${safeBlackName}: パス (${resolveNoActionPassReasonLabel('black')})`);
         const passedPlayer = gameState.currentPlayer;
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
@@ -1350,7 +1371,9 @@ async function processPassTurn(
     const passTurnOptions = normalizeProcessPassTurnOptions(autoMode);
     const normalizedRequestPlayerKey = normalizePlayerKey(playerKey, 'black');
     const selfName = normalizedRequestPlayerKey === 'white' ? '白' : '黒';
-    const passLogMessage = `${selfName}: パス${passTurnOptions.autoMode ? ' (AUTO)' : ''}`;
+    const passLogMessage = passTurnOptions.autoNoActionPass === true
+        ? `${selfName}: パス (${resolveNoActionPassReasonLabel(normalizedRequestPlayerKey)})`
+        : `${selfName}: パス${passTurnOptions.autoMode ? ' (AUTO)' : ''}`;
     const passedPlayer = gameState.currentPlayer;
     const passedPlayerKey = normalizePlayerKey(passedPlayer, normalizedRequestPlayerKey);
 

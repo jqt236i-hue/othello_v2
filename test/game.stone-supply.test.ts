@@ -113,7 +113,7 @@ describe('持ち石ルール', () => {
     expect(usable).toContain('destroy_01');
   });
 
-  test('両者の持ち石が0になった配置で終局し、片方だけ0では終局しない', () => {
+  test('両者の持ち石が0になった配置では即終局せず、両者とも合法手0になる', () => {
     const { cardState, gameState } = makeState();
     cardState.stoneSupply.remainingByPlayer.black = 1;
     cardState.stoneSupply.remainingByPlayer.white = 1;
@@ -126,8 +126,35 @@ describe('持ち石ルール', () => {
     const afterWhite = TurnPipeline.applyTurn(afterBlack.cardState, afterBlack.gameState, 'white', { type: 'place', row: whiteMove.row, col: whiteMove.col }, PRNG, { skipTurnStart: true });
     expect(afterWhite.cardState.stoneSupply.remainingByPlayer).toEqual({ black: 0, white: 0 });
     expect(afterWhite.gameState.consecutivePasses).toBe(0);
-    expect(Core.isGameOver(afterWhite.gameState)).toBe(true);
-    expect(Core.isGameOver(Core.copyGameState(afterWhite.gameState))).toBe(true);
+    expect(Core.isGameOver(afterWhite.gameState)).toBe(false);
+    expect(afterWhite.gameState.endedByStoneSupply).toBeUndefined();
+    expect(afterWhite.events).toContainEqual(expect.objectContaining({ type: 'stone_supply_exhausted_all', player: 'white' }));
+    expect(afterBlack.events).not.toContainEqual(expect.objectContaining({ type: 'stone_supply_exhausted_all' }));
+    expect(legalMovesFor(afterWhite.cardState, afterWhite.gameState, Shared.BLACK)).toHaveLength(0);
+    expect(legalMovesFor(afterWhite.cardState, afterWhite.gameState, Shared.WHITE)).toHaveLength(0);
+  });
+
+  test('両者の持ち石が0でも、使用可能カードが無くなるまでは連続パスで終局しない', () => {
+    const { cardState, gameState } = makeState();
+    cardState.stoneSupply.remainingByPlayer.black = 0;
+    cardState.stoneSupply.remainingByPlayer.white = 0;
+    cardState.charge.black = 99;
+    cardState.charge.white = 99;
+    cardState.hands.black = [];
+    cardState.hands.white = ['destroy_01'];
+    gameState.currentPlayer = Shared.BLACK;
+    gameState.consecutivePasses = 1;
+
+    const blackPass = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'pass', autoNoActionPass: true }, PRNG, { skipTurnStart: true });
+    expect(blackPass.ok).toBe(true);
+    expect(blackPass.gameState.consecutivePasses).toBe(1);
+    expect(Core.isGameOver(blackPass.gameState)).toBe(false);
+
+    blackPass.cardState.hands.white = [];
+    const whitePass = TurnPipeline.applyTurnSafe(blackPass.cardState, blackPass.gameState, 'white', { type: 'pass', autoNoActionPass: true }, PRNG, { skipTurnStart: true });
+    expect(whitePass.ok).toBe(true);
+    expect(whitePass.gameState.consecutivePasses).toBe(2);
+    expect(Core.isGameOver(whitePass.gameState)).toBe(true);
   });
 
   test('使用後に配置待ちになるカードは、すべて持ち石切れで使用不可の一覧に含まれる', () => {
@@ -156,6 +183,49 @@ describe('持ち石ルール', () => {
     expect(awaitingPlacement.length).toBeGreaterThan(0);
     expect(awaitingPlacement.filter((type) => !StoneSupply.isStonePlacementCardType(type))).toEqual([]);
     expect(Array.from(StoneSupply.STONE_PLACEMENT_CARD_TYPES).filter((type) => !catalogTypes.has(type))).toEqual([]);
+  });
+
+  test('通常合法手が無いときは、次に置く石へ効果を付けるカードは使えないが、自由配置と対象選択カードは使える', () => {
+    const { cardState } = makeState();
+    cardState.charge.black = 99;
+    cardState.hands.black = ['hard_01', 'double_01', 'free_01', 'destroy_01'];
+    const gameState: any = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(Shared.WHITE)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[0][0] = Shared.EMPTY;
+    expect(legalMovesFor(cardState, gameState, Shared.BLACK)).toHaveLength(0);
+    const usable = CardLogic.getUsableCardIds(cardState, gameState, 'black');
+    expect(usable).not.toContain('hard_01');
+    expect(usable).not.toContain('double_01');
+    expect(usable).toContain('free_01');
+    expect(usable).toContain('destroy_01');
+
+    // 合法手がある盤面なら同じ手札をすべて使える
+    const openState = Core.createGameState();
+    const usableOpen = CardLogic.getUsableCardIds(cardState, openState, 'black');
+    expect(usableOpen).toContain('hard_01');
+    expect(usableOpen).toContain('double_01');
+  });
+
+  test('両者の持ち石が0になった後はターン開始時にドローしない', () => {
+    const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
+    const { cardState, gameState } = makeState();
+    cardState.debugNoDraw = false;
+    cardState.decks.black = ['chest_01', 'chest_01'];
+    cardState.hands.black = [];
+    cardState.stoneSupply.remainingByPlayer.black = 0;
+    cardState.stoneSupply.remainingByPlayer.white = 1;
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], PRNG);
+    expect(cardState.hands.black).toHaveLength(1);
+
+    cardState.stoneSupply.remainingByPlayer.white = 0;
+    cardState.lastTurnStartedFor = null;
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], PRNG);
+    expect(cardState.hands.black).toHaveLength(1);
+    expect(cardState.decks.black).toHaveLength(1);
   });
 
   test('持ち石0では石を置くカードを使用できない', () => {

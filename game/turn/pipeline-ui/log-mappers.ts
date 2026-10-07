@@ -151,6 +151,9 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             if (msg) logs.push(msg);
         };
         switch (ev.type) {
+            case 'stone_supply_exhausted_all':
+                logs.push('両者とも持ち石がありません。以後は石を置けず、ドローも行いません。使えるカードが無ければパスになります');
+                break;
             case 'bombs_exploded':
                 push(`時限爆弾が${(ev.details && Array.isArray(ev.details.exploded)) ? ev.details.exploded.length : 0}箇所で爆発`);
                 break;

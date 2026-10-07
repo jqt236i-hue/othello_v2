@@ -91,9 +91,10 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         // 持ち石ルール（01-rulebook.md §7.3）。無効時は null。
         const ownStoneSupply = isFiniteNumber(ctx.ownStoneSupply) ? Math.max(0, Math.floor(Number(ctx.ownStoneSupply))) : null;
         const oppStoneSupply = isFiniteNumber(ctx.oppStoneSupply) ? Math.max(0, Math.floor(Number(ctx.oppStoneSupply))) : null;
-        const stoneSupplyExhausted = ownStoneSupply !== null && oppStoneSupply !== null && ownStoneSupply <= 0;
+        // 自分だけ持ち石切れ。黒白とも 0 ならカードだけが残された行動なので、通常の合法手 0 として扱う（01-rulebook.md §7.3）。
+        const stoneSupplyExhausted = ownStoneSupply !== null && oppStoneSupply !== null && ownStoneSupply <= 0 && oppStoneSupply > 0;
         const rawLegalMovesCount = isFiniteNumber(ctx.legalMovesCount) ? Math.max(0, Math.floor(Number(ctx.legalMovesCount))) : 0;
-        // 持ち石切れの合法手 0 は通常の手詰まりではない。カードで手を作る強制使用や低機動力の補正を働かせない。
+        // 自分だけ持ち石切れの合法手 0 は通常の手詰まりではない。カードで手を作る強制使用や低機動力の補正を働かせない。
         const legalMovesCount = stoneSupplyExhausted ? STONE_SUPPLY_EXHAUSTED_NEUTRAL_LEGAL_MOVES : rawLegalMovesCount;
 
         let discDiff = isFiniteNumber(ctx.discDiff) ? Number(ctx.discDiff) : 0;

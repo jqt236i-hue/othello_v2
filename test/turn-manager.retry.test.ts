@@ -1042,14 +1042,13 @@ describe('turn-manager scheduling', () => {
     expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
-  test('onTurnStart skips turn-start processing when both stone supplies ran out on placement', async () => {
+  test('onTurnStart keeps the turn alive without drawing when both stone supplies ran out', async () => {
     global.MATCH_MODE = 'cpu';
     global.showResult = jest.fn();
     global.gameState = {
       currentPlayer: global.BLACK,
       turnNumber: 60,
       consecutivePasses: 0,
-      endedByStoneSupply: true,
       board: Array.from({ length: 8 }, () => Array(8).fill(global.BLACK))
     };
     global.cardState = {
@@ -1077,9 +1076,9 @@ describe('turn-manager scheduling', () => {
 
     await rm.onTurnStart(global.BLACK);
 
-    expect(global.showResult).toHaveBeenCalledTimes(1);
-    expect(global.cardState.turnCountByPlayer.black).toBe(3);
+    expect(global.showResult).not.toHaveBeenCalled();
     expect(global.cardState.hands.black).toEqual([]);
+    expect(global.cardState.decks.black).toEqual(['hard_01']);
   });
 
 

@@ -128,6 +128,15 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
     if (StoneSupply.isStonePlacementCardType(cardType) && StoneSupply.isStoneSupplyExhausted(context.cardState, context.playerKey)) {
         return buildFailureResult();
     }
+    // 効果がそのターンの通常配置に依存するカードは、通常合法手が無いと使えない（01-rulebook.md §9 使用条件の分類）。
+    if (
+        StoneSupply.isLegalMoveDependentCardType(cardType)
+        && context.gameState
+        && typeof context.hasStandardLegalMoveForPlayer === 'function'
+        && context.hasStandardLegalMoveForPlayer(context.cardState, context.gameState, context.playerKey) !== true
+    ) {
+        return buildFailureResult();
+    }
     if (cardType === 'THEORY_INCARNATION') {
         const totals = context && context.cardState && context.cardState.numberCellCollectedTotalByPlayer;
         const collected = Number(totals && totals[context.playerKey || ''] || 0);

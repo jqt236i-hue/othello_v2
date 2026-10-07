@@ -656,7 +656,7 @@
         ]
       },
       "baselineFixed": {
-        "version": "lv12-sparse-threats-dev10c",
+        "version": "lv12-a04-additional-complete-root",
         "action": {
           "type": "place",
           "row": 3,
@@ -664,9 +664,9 @@
         },
         "continuation": [],
         "value": -0.4453398186073884,
-        "transitions": 1550,
-        "elapsedMs": null,
-        "stopped": "complete",
+        "transitions": 1546,
+        "elapsedMs": 0,
+        "stopped": false,
         "rejectedCount": 0,
         "rejected": [],
         "evaluatedCandidates": 3,
@@ -688,8 +688,8 @@
           5,
           5
         ],
-        "evaluationCalls": 1586,
-        "evaluationCacheHits": 36,
+        "evaluationCalls": 1584,
+        "evaluationCacheHits": 37,
         "candidates": [
           {
             "action": {
@@ -700,6 +700,7 @@
             "continuation": [],
             "immediate": 8.301032695383515,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -27.49922830873198,
               -11.669160397551924,
@@ -721,6 +722,7 @@
             "continuation": [],
             "immediate": 1.5539449152182554,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -24.758565029972612,
               -6.590435096160589,
@@ -742,6 +744,7 @@
             "continuation": [],
             "immediate": 0.5653449517128584,
             "retainedForDeepening": false,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -58.49903154314822
             ],
@@ -759,6 +762,7 @@
             "continuation": [],
             "immediate": -1.7842100680677957,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -10.331004820144514,
               -15.070477054014326,
@@ -770,28 +774,11 @@
               100913
             ],
             "score": -0.4453398186073884
-          },
-          {
-            "action": {
-              "type": "place",
-              "row": 5,
-              "col": 2
-            },
-            "continuation": [],
-            "immediate": -5.300876711468351,
-            "retainedForDeepening": false,
-            "replies": [
-              -51.9605317278704
-            ],
-            "scenarioSeeds": [
-              100901
-            ],
-            "score": -0.670627874806363
           }
         ]
       },
       "baselineSlow": {
-        "version": "lv12-sparse-threats-dev10c",
+        "version": "lv12-a04-additional-complete-root",
         "action": {
           "type": "place",
           "row": 5,
@@ -818,6 +805,9 @@
           265995594
         ],
         "alternatePlanRepairs": 0,
+        "additionalDeepeningAttempts": 0,
+        "additionalDeepeningCompleted": 0,
+        "additionalDeepeningStartedAtTransitions": null,
         "comparisonDepths": [
           3,
           5,
@@ -835,6 +825,7 @@
             "continuation": [],
             "immediate": 8.301032695383515,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -1.5096246277317111,
               -11.669160397551924,
@@ -856,6 +847,7 @@
             "continuation": [],
             "immediate": 1.5539449152182554,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               2.3647779872334116,
               -6.590435096160589,
@@ -877,6 +869,7 @@
             "continuation": [],
             "immediate": 0.5653449517128584,
             "retainedForDeepening": false,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -58.49903154314822
             ],
@@ -894,6 +887,7 @@
             "continuation": [],
             "immediate": -1.7842100680677957,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               0.7133710831014062,
               -19.60396163509809,
@@ -915,6 +909,7 @@
             "continuation": [],
             "immediate": -5.300876711468351,
             "retainedForDeepening": false,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -51.9605317278704
             ],
@@ -1578,7 +1573,7 @@
         ]
       },
       "baselineFixed": {
-        "version": "lv12-sparse-threats-dev10c",
+        "version": "lv12-a04-additional-complete-root",
         "action": {
           "type": "place",
           "row": 3,
@@ -1586,9 +1581,9 @@
         },
         "continuation": [],
         "value": -0.5305243849190394,
-        "transitions": 1472,
-        "elapsedMs": null,
-        "stopped": "complete",
+        "transitions": 1459,
+        "elapsedMs": 0,
+        "stopped": false,
         "rejectedCount": 0,
         "rejected": [],
         "evaluatedCandidates": 3,
@@ -1610,8 +1605,8 @@
           5,
           5
         ],
-        "evaluationCalls": 1508,
-        "evaluationCacheHits": 36,
+        "evaluationCalls": 1497,
+        "evaluationCacheHits": 37,
         "candidates": [
           {
             "action": {
@@ -1622,6 +1617,7 @@
             "continuation": [],
             "immediate": 7.555102414071347,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -26.75538416739768,
               -10.85584550319398,
@@ -1643,6 +1639,7 @@
             "continuation": [],
             "immediate": 0.8080146339060867,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -44.04555167113794,
               -7.738330221453885,
@@ -1664,6 +1661,7 @@
             "continuation": [],
             "immediate": -0.18058532959931117,
             "retainedForDeepening": false,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -58.965237968968324
             ],
@@ -1681,6 +1679,7 @@
             "continuation": [],
             "immediate": -2.5301403493799643,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -10.700645942817223,
               -14.251973891526692,
@@ -1692,28 +1691,11 @@
               100913
             ],
             "score": -0.5305243849190394
-          },
-          {
-            "action": {
-              "type": "place",
-              "row": 5,
-              "col": 2
-            },
-            "continuation": [],
-            "immediate": -6.046806992780519,
-            "retainedForDeepening": false,
-            "replies": [
-              -52.70646200918257
-            ],
-            "scenarioSeeds": [
-              100901
-            ],
-            "score": -0.6769911975290593
           }
         ]
       },
       "baselineSlow": {
-        "version": "lv12-sparse-threats-dev10c",
+        "version": "lv12-a04-additional-complete-root",
         "action": {
           "type": "place",
           "row": 5,
@@ -1740,6 +1722,9 @@
           265995594
         ],
         "alternatePlanRepairs": 0,
+        "additionalDeepeningAttempts": 0,
+        "additionalDeepeningCompleted": 0,
+        "additionalDeepeningStartedAtTransitions": null,
         "comparisonDepths": [
           3,
           3,
@@ -1757,6 +1742,7 @@
             "continuation": [],
             "immediate": 7.555102414071347,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -2.255554909043879,
               -4.785920649138316,
@@ -1778,6 +1764,7 @@
             "continuation": [],
             "immediate": 0.8080146339060867,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               1.6188477059212438,
               -0.9115180341731932,
@@ -1799,6 +1786,7 @@
             "continuation": [],
             "immediate": -0.18058532959931117,
             "retainedForDeepening": false,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -58.965237968968324
             ],
@@ -1816,6 +1804,7 @@
             "continuation": [],
             "immediate": -2.5301403493799643,
             "retainedForDeepening": true,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -0.032559198210761586,
               -2.562924938305198,
@@ -1837,6 +1826,7 @@
             "continuation": [],
             "immediate": -6.046806992780519,
             "retainedForDeepening": false,
+            "additionalDeepeningAttempted": false,
             "replies": [
               -52.70646200918257
             ],

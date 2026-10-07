@@ -50,6 +50,8 @@ export const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.
   Object.freeze({ id: 'condition-number-cell-42', label: '数字マス42獲得で使用可能', category: 'resource', description: '対局中に数字マスから実際に得た布石合計が42以上になると使える。' }),
   Object.freeze({ id: 'condition-three-special-stones', label: '特殊石3個以上で使用可能', category: 'resource', description: '所有者を問わず、盤面に特殊石が3個以上ある時だけ使える。' }),
   Object.freeze({ id: 'condition-after-18-turns', label: '18手後使用可能', category: 'resource', description: '18手以上経過した後に使える。' }),
+  Object.freeze({ id: 'condition-legal-move', label: '合法手が必要', category: 'resource', description: '効果がそのターンの通常配置に依存するため、通常の合法手（挟んで置けるマス）が無いときは使えない。持ち石0や配置封鎖中も含む。' }),
+  Object.freeze({ id: 'condition-stone-supply', label: '持ち石が必要', category: 'resource', description: '自分で石を置く効果のため、自分の持ち石が0のときは使えない。' }),
   Object.freeze({ id: 'turn-start', label: 'ターン開始', category: 'resource', description: '手番開始時に効果や持続管理を処理するタイミング。' }),
   Object.freeze({ id: 'time-stop', label: '時間停止', category: 'resource', description: '発動したプレイヤーが2ターン連続で行動する。' }),
   Object.freeze({ id: 'multi-move-state', label: '躍動状態', category: 'stone', description: '両者ターン開始時マス移動する、基本ランダム移動。' })

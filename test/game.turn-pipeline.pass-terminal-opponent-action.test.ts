@@ -39,6 +39,41 @@ describe('連続パスの終局判定: 先にパスした側が行動できる�
     expect(res.events).toContainEqual(expect.objectContaining({ type: 'pass', player: 'black', terminalPassDeferred: true }));
   });
 
+  test('白が行動を持ったまま任意でパスしていた場合は、黒のパスで連続パス2として終局する', () => {
+    const cardState = makeCardStateWithoutHands();
+    const board = fullBoard(Shared.WHITE);
+    board[3][3] = Shared.BLACK;
+    board[3][4] = Shared.EMPTY;
+    const gameState = {
+      board,
+      currentPlayer: Shared.BLACK,
+      turnNumber: 10,
+      consecutivePasses: 1,
+      lastPassWithoutAction: false
+    };
+    const ctx = CardLogic.getCardContext(cardState);
+    expect(Core.getLegalMoves(gameState, Shared.WHITE, ctx).length).toBeGreaterThan(0);
+
+    const res = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'pass', autoNoActionPass: true });
+    expect(res.ok).toBe(true);
+    expect(res.gameState.consecutivePasses).toBe(2);
+    expect(Core.isGameOver(res.gameState)).toBe(true);
+    expect(res.gameState.lastPassWithoutAction).toBe(true);
+    expect(Core.copyGameState(res.gameState).lastPassWithoutAction).toBe(true);
+  });
+
+  test('行動があるのに任意でパスすると、そのパスは行動ありとして記録される', () => {
+    const cardState = CardLogic.createCardState({ shuffle: (arr) => arr });
+    cardState.hands.black = [];
+    cardState.hands.white = [];
+    const gameState = Core.createGameState();
+    expect(Core.getLegalMoves(gameState, Shared.BLACK, CardLogic.getCardContext(cardState)).length).toBeGreaterThan(0);
+
+    const res = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'pass', forcePass: true });
+    expect(res.ok).toBe(true);
+    expect(res.gameState.lastPassWithoutAction).toBe(false);
+  });
+
   test('黒がパスし、白にも合法手も使用可能カードも無ければ連続パス2で終局する', () => {
     const cardState = makeCardStateWithoutHands();
     const board = fullBoard(Shared.BLACK);

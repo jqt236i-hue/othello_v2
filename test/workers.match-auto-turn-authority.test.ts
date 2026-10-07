@@ -101,7 +101,8 @@ function runWorkerAutoTurnScenarios() {
     "    cardState.pendingEffectByPlayer.black = null;",
     "    cardState.hasUsedCardThisTurnByPlayer.black = false;",
     "    CardLogic.addCardToHand(cardState, 'black', 'hard_01');",
-    "    const added = CardLogic.addCardToHand(cardState, 'black', 'hard_01');",
+    "    // 合法手が無い黒でも使える対象選択カードを無料にして、AUTO がパスではなくカードを選ぶことを確かめる。",
+    "    const added = CardLogic.addCardToHand(cardState, 'black', 'destroy_01');",
     "    CardLogic.setCardCostOverrideForCopyId(cardState, added.cardCopyId, 0, 'OBSERVER_WILL');",
     "  });",
     "  const canonicalCardResult = await publishAuto(",
@@ -244,8 +245,8 @@ describe('match worker AUTO authority', () => {
     expect(result.canonicalCard.status).toBe(200);
     expect(result.canonicalCard.payload.ok).toBe(true);
     expect(result.canonicalCard.payload.autoPassNotice).toBeUndefined();
-    expect(result.canonicalCard.payload.snapshot.cardState.discard).toContain('hard_01');
-    expect(result.canonicalCard.payload.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+    expect(result.canonicalCard.payload.snapshot.cardState.discard).toContain('destroy_01');
+    expect(result.canonicalCard.payload.snapshot.cardState.lastUsedCardByPlayer.black).toBe('destroy_01');
     expect(result.canonicalCard.payload.snapshot.cardState.hands.black).toEqual(['hard_01']);
 
     expect(result.repeatedCard.status).toBe(409);

@@ -347,10 +347,12 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             && CardLogic.hasUsableCard(cardState, gameState, opponentKey) === true);
     }
 
-    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
+    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any, passWithoutAction?: boolean) {
         if (!(Core && typeof Core.applyPass === 'function')) {
             throw new Error('TurnPipeline pass completion requires Core.applyPass');
         }
+        // 直前のパスが「行動が無くてのパス」だったか。未記録（旧 snapshot など）は行動無しとみなす。
+        const previousPassWithoutAction = gameState.lastPassWithoutAction !== false;
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         clearPendingForActionPhase(cardState, playerKey);
         if (CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
@@ -362,13 +364,16 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         let terminalPassDeferred = false;
         if (
             Number(gameState.consecutivePasses) >= 2
-            && gameState.endedByStoneSupply !== true
+            && previousPassWithoutAction
             && opponentCanActAfterPass(CardLogic, Core, cardState, gameState, opponentKey)
         ) {
-            // 相手がこの盤面で行動できるなら「両者連続パス」とは扱わず、今回のパスを 1 回目として数え直す。
+            // 相手が「行動が無くて」パスした後に盤面が変わり、今は行動できるなら
+            // 「両者連続パス」とは扱わず、今回のパスを 1 回目として数え直す。
+            // 行動があるのに任意でパスした相手に対しては数え直さない（任意パス同士の応酬で終わらなくなるのを防ぐ）。
             gameState.consecutivePasses = 1;
             terminalPassDeferred = true;
         }
+        gameState.lastPassWithoutAction = passWithoutAction === true;
         const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
             ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
             : { consumed: false, remaining: 0, continueTurn: false };
@@ -1045,18 +1050,22 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             || String(action.reason || '').trim().toLowerCase() === 'timeout'
         );
         const autoNoActionPass = action && action.autoNoActionPass === true;
+        const pendingBeforePass = readPendingForActionPhase(cardState, playerKey);
+        const hasUsableCardBeforePass = !!(CardLogic
+            && typeof CardLogic.hasUsableCard === 'function'
+            && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true);
+        // 行動（通常配置・使用可能カード・未解決の対象選択）が何も無いパスかどうか。終局判定の数え直しに使う。
+        const passWithoutAction = !pendingBeforePass
+            && (legalMoves.length === 0 || placementLocked)
+            && !hasUsableCardBeforePass;
         if (autoNoActionPass && !forcePass) {
-            const pending = readPendingForActionPhase(cardState, playerKey);
-            if (pending) {
+            if (pendingBeforePass) {
                 throw new Error('Illegal auto pass: pending action available');
             }
             if (legalMoves.length > 0 && !placementLocked) {
                 throw new Error('Illegal auto pass: legal moves available');
             }
-            const hasUsableCard = CardLogic
-                && typeof CardLogic.hasUsableCard === 'function'
-                && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true;
-            if (hasUsableCard) {
+            if (hasUsableCardBeforePass) {
                 throw new Error('Illegal auto pass: usable card available');
             }
         }
@@ -1073,7 +1082,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                 events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
             }
         }
-        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason);
+        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason, passWithoutAction);
     }
 
     function applyUseCardOnlyActionStage(ctx: TurnPipelinePhaseContext): void {

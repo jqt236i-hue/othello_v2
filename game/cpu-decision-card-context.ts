@@ -502,9 +502,10 @@ function createCpuDecisionCardContext(config: CpuDecisionCardContextConfig): any
             handCardIds,
             deckRemaining,
             hasDestroyedCardThisTurn,
-            // 持ち石切れの合法手 0 はカードで手を作れないため、強制使用にしない（01-rulebook.md §7.3）。
+            // 自分だけ持ち石切れの合法手 0 はカードで手を作れないため、強制使用にしない（01-rulebook.md §7.3）。
+            // 黒白とも持ち石 0 ならカードだけが残された行動なので、合法手 0 として強制使用に戻す。
             forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0
-                && !StoneSupply.isStoneSupplyExhausted(cs, playerKey),
+                && (!StoneSupply.isStoneSupplyExhausted(cs, playerKey) || StoneSupply.areAllStoneSuppliesExhausted(cs)),
             ...readStoneSupplyContext(cs, playerKey, opponentKey),
             ownCorners: planState.ownCorners,
             oppCorners: planState.oppCorners,

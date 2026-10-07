@@ -299,7 +299,7 @@ function copyGameState(state: any): any {
         roundCompletionByPlayer: createRoundCompletionByPlayer(state && state.roundCompletionByPlayer),
         pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
         boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig),
-        ...(state && state.endedByStoneSupply === true ? { endedByStoneSupply: true } : {})
+        ...(state && typeof state.lastPassWithoutAction === 'boolean' ? { lastPassWithoutAction: state.lastPassWithoutAction } : {})
     };
     return nextState;
 }
@@ -444,8 +444,8 @@ function applyPass(state: any): any {
 }
 
 function isGameOver(state: any): boolean {
-    // 持ち石ルールでは、両者の持ち石切れも終局条件になる。
-    return state.consecutivePasses >= 2 || state.endedByStoneSupply === true;
+    // 終局は両者連続パスだけ。持ち石切れは通常配置ができなくなるだけで、終局はパス処理に任せる（仕様 8.2）。
+    return state.consecutivePasses >= 2;
 }
 
 function countDiscs(stateOrContext: any, cardState?: unknown): DiscCount {
