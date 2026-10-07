@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-06",
-  "generatedAt": "2026-10-06T04:41:37.193Z",
+  "version": "2026-10-07",
+  "generatedAt": "2026-10-07T09:00:55.015Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -569,6 +569,70 @@
     {
       "path": "assets/images/special-cards/characters/observer_will_character_only.png",
       "sha256": "68dcbaa28ce5f4ab0cf499126aab2133e61c5fdc9921018d26a661b7692768d2"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v1/generation-prompts.txt",
+      "sha256": "22929e3bdde5aabb6132a8425881c48af02943d9e17ddbf54565dbba30515e1d"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v1/observer-dance-a-pose.png",
+      "sha256": "fc2571fa7e87ca5cbe17004ffd1d3a6336655c149c7cc5bfce28cd3564150b51"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v1/observer-dance-construction-sheet.png",
+      "sha256": "cd34b418b9e2a6e883b8ac903b579b8bb83529e5e81d5108cddc706da8dbf6dd"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v1/README.md",
+      "sha256": "947396caee404d51e8885b0bc28b3721faf90b02bc9382c153c80edd57521084"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/01-front-a-pose.png",
+      "sha256": "fc2571fa7e87ca5cbe17004ffd1d3a6336655c149c7cc5bfce28cd3564150b51"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/02-side.png",
+      "sha256": "0b336733119e4101069ef5528cc00bb8fa00fcfc7ab3afea8af8928a723fee16"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/03-back.png",
+      "sha256": "de11fd17957c18cf8222e861d1e16ba930d1e69ceb1f8aeabc61243203110bb0"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/04-inner-body.png",
+      "sha256": "506921041a6f8ba986d48bac301a3babdcfe4d041502bca28f6bb8c4fad1a518"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/05-costume-parts.png",
+      "sha256": "0344edce8d1b7242870a09d902ab6277cd403113869f85fde30e38d6cdd6eb80"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/06-head-neck.png",
+      "sha256": "58bbfd214124c56d6b2e46296cf1345ad2d42351fbef804033ebcfdd676102f3"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/07-hands.png",
+      "sha256": "b978d3a246f719e4f1911dc9d3d8d8191a45952caddf5c5c4b95e94a18b3e9f2"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/08-feet.png",
+      "sha256": "757e478d9fd6877f500f3c4038833071db298ec18bc3fd120cceedad7fb9813e"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/09-dance-studies.png",
+      "sha256": "9fafe3870c2954a89fe94b4b3d3e34425653241f442aecedac69765989f808da"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/gallery.html",
+      "sha256": "483f02e7123bfe393b81580f29dee6ddded72c6c0574c0d9eb1a59d716dd9770"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/generation-prompts.txt",
+      "sha256": "92b8ad47d99a20cb630fbb89518a84c96be4d1aa5e9dcaefeeea5b58b8a1e79f"
+    },
+    {
+      "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/README.md",
+      "sha256": "162fbd8e2283d985106fa96f4b12e4ff6330b601901d2f554873b808572d8164"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/observer-will-articulation-studies.png",
