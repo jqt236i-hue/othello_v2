@@ -325,6 +325,28 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         : 99;
 
 
+    /**
+     * 連続パスで終局する直前に、先にパスした側（これから手番になる側）が
+     * 現在の盤面で行動できるかを確かめる。
+     * 躍動系の移動などターン開始効果で盤面が変わると、前回のパス時点では無かった
+     * 合法手や使用可能カードが生まれることがあるため、その場合は終局させず対局を続ける。
+     */
+    function opponentCanActAfterPass(CardLogic: any, Core: any, cardState: any, gameState: any, opponentKey: any): boolean {
+        if (readPendingForActionPhase(cardState, opponentKey)) return true;
+        const opponentValue = opponentKey === 'black' ? Core.BLACK : Core.WHITE;
+        const placementLocked = CardLogic
+            && typeof CardLogic.isPlacementLockedForPlayer === 'function'
+            && CardLogic.isPlacementLockedForPlayer(cardState, opponentKey) === true;
+        if (!placementLocked && typeof Core.getLegalMoves === 'function') {
+            const cardCtx = resolveSafeCardContext(CardLogic, cardState);
+            const legalMoves = Core.getLegalMoves(gameState, opponentValue, cardCtx);
+            if (Array.isArray(legalMoves) && legalMoves.length > 0) return true;
+        }
+        return !!(CardLogic
+            && typeof CardLogic.hasUsableCard === 'function'
+            && CardLogic.hasUsableCard(cardState, gameState, opponentKey) === true);
+    }
+
     function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
         if (!(Core && typeof Core.applyPass === 'function')) {
             throw new Error('TurnPipeline pass completion requires Core.applyPass');
@@ -336,6 +358,17 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         }
         const newState = Core.applyPass(gameState);
         Object.assign(gameState, newState);
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        let terminalPassDeferred = false;
+        if (
+            Number(gameState.consecutivePasses) >= 2
+            && gameState.endedByStoneSupply !== true
+            && opponentCanActAfterPass(CardLogic, Core, cardState, gameState, opponentKey)
+        ) {
+            // 相手がこの盤面で行動できるなら「両者連続パス」とは扱わず、今回のパスを 1 回目として数え直す。
+            gameState.consecutivePasses = 1;
+            terminalPassDeferred = true;
+        }
         const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
             ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
             : { consumed: false, remaining: 0, continueTurn: false };
@@ -348,6 +381,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         const passEvent: any = { type: 'pass', player: playerKey };
         const reasonKey = String(reason || '').trim();
         if (reasonKey) passEvent.reason = reasonKey;
+        if (terminalPassDeferred) passEvent.terminalPassDeferred = true;
         events.push(passEvent);
         return timeStopPassRes;
     }
