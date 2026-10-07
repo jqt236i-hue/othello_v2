@@ -1,7 +1,7 @@
 /**
  * @file water-will.ts
  * @description Canonical WATER_WILL anchor lifecycle and deterministic healing-cell placement.
- * Healing cells prefer cells holding the owner's other special-stone bodies; otherwise any target.
+ * Healing cells avoid existing healing cells and prefer the owner's other special-stone bodies.
  */
 
 import SharedConstantsImport = require('../../../shared-constants');
@@ -152,8 +152,16 @@ function isActiveOwnSpecialStoneBody(
     return getCellValue(cardState, gameState, marker.row, marker.col) === playerValue;
 }
 
-// Narrow the candidates to cells holding the owner's special-stone bodies, excluding the
-// emitting anchor itself. Without such a cell every candidate stays eligible.
+function getHealingCellKeys(cardState: WaterCardState): Set<string> {
+    return new Set(
+        (cardState.markers || [])
+            .filter((entry) => entry && entry.data && String(entry.data.type || '').toUpperCase() === 'HEALING_CELL')
+            .map((entry) => `${entry.row},${entry.col}`)
+    );
+}
+
+// Narrow the candidates, in order, to: the owner's special-stone bodies (excluding the emitting
+// anchor) not yet on a healing cell; any cell not yet healing; otherwise every candidate.
 function preferOwnSpecialStoneTargets(
     cardState: WaterCardState,
     gameState: WaterGameState,
@@ -175,8 +183,11 @@ function preferOwnSpecialStoneTargets(
             ))
             .map((entry) => `${entry.row},${entry.col}`)
     );
-    const preferred = targets.filter((target) => preferredKeys.has(`${target.row},${target.col}`));
-    return preferred.length > 0 ? preferred : targets;
+    const healingKeys = getHealingCellKeys(cardState);
+    const fresh = targets.filter((target) => !healingKeys.has(`${target.row},${target.col}`));
+    const preferred = fresh.filter((target) => preferredKeys.has(`${target.row},${target.col}`));
+    if (preferred.length > 0) return preferred;
+    return fresh.length > 0 ? fresh : targets;
 }
 
 function emptyResult(): WaterResult {

@@ -1,6 +1,7 @@
 /**
  * @file fire-will.ts
  * @description Canonical FIRE_WILL anchor lifecycle and deterministic scorch-cell placement.
+ * Scorch avoids existing scorched cells unless every candidate already is one.
  */
 
 import SharedConstantsImport = require('../../../shared-constants');
@@ -103,6 +104,19 @@ function resolveRandomFunction(randomLike: FireRandomLike | null | undefined): (
     throw new Error('CardFireWill requires an injected deterministic PRNG.');
 }
 
+function avoidScorchedCellTargets(
+    cardState: FireCardState,
+    targets: Array<{ row: number; col: number }>
+): Array<{ row: number; col: number }> {
+    const scorchedKeys = new Set(
+        (cardState.markers || [])
+            .filter((entry) => entry && entry.data && String(entry.data.type || '').toUpperCase() === 'SCORCHED_CELL')
+            .map((entry) => `${entry.row},${entry.col}`)
+    );
+    const fresh = targets.filter((target) => !scorchedKeys.has(`${target.row},${target.col}`));
+    return fresh.length > 0 ? fresh : targets;
+}
+
 function resolveRandomIndex(length: number, randomFn: () => number): number {
     if (length <= 0) return -1;
     if (RandomSourceModule && typeof RandomSourceModule.resolveRandomIndex === 'function') {
@@ -193,8 +207,9 @@ function processAnchor(
     }
 
     const resolveEffect = (): FireResult => {
-        const targets = deps.getScorchTargets!(cardState, gameState, playerKey)
+        const allTargets = deps.getScorchTargets!(cardState, gameState, playerKey)
             .filter((target) => target && Number.isInteger(target.row) && Number.isInteger(target.col));
+        const targets = avoidScorchedCellTargets(cardState, allTargets);
         if (targets.length > 0) {
             const randomFn = resolveRandomFunction(deps.random);
             const target = targets[resolveRandomIndex(targets.length, randomFn)];

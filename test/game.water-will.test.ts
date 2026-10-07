@@ -304,6 +304,69 @@ describe('WATER_WILL（水の意志）', () => {
       expect(healingCells(cardState)).toEqual([{ row: 0, col: 0 }]);
     });
 
+    test('すでに治癒マスにいる自分の特殊石は避け、まだの特殊石を選ぶ', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      for (const [row, col] of [[1, 6], [6, 2]] as Array<[number, number]>) {
+        gameState.board[row][col] = Shared.BLACK;
+        CardLogic.addMarker(cardState, 'specialStone', row, col, 'black', {
+          type: 'SNIPER',
+          remainingOwnerTurns: 6
+        });
+      }
+      CardLogic.addMarker(cardState, 'specialStone', 1, 6, null, {
+        type: 'HEALING_CELL',
+        remainingTurns: 5,
+        appliedTurnNumber: 0
+      });
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toEqual(expect.arrayContaining([{ row: 1, col: 6 }, { row: 6, col: 2 }]));
+      expect(healingCells(cardState)).toHaveLength(2);
+      expect(marker(cardState, 'HEALING_CELL', 1, 6)?.data.remainingTurns).toBe(5);
+    });
+
+    test('自分の特殊石がすべて治癒マスにいれば、治癒マスでないマスから選ぶ', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      gameState.board[1][6] = Shared.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 1, 6, 'black', {
+        type: 'SNIPER',
+        remainingOwnerTurns: 6
+      });
+      for (const [row, col] of [[1, 6], [0, 0]] as Array<[number, number]>) {
+        CardLogic.addMarker(cardState, 'specialStone', row, col, null, {
+          type: 'HEALING_CELL',
+          remainingTurns: 5,
+          appliedTurnNumber: 0
+        });
+      }
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toEqual(expect.arrayContaining([{ row: 0, col: 1 }]));
+      expect(healingCells(cardState)).toHaveLength(3);
+      expect(marker(cardState, 'HEALING_CELL', 0, 0)?.data.remainingTurns).toBe(5);
+      expect(marker(cardState, 'HEALING_CELL', 1, 6)?.data.remainingTurns).toBe(5);
+    });
+
+    test('全マスが治癒マスなら、その中から選んで上書きする', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      for (let row = 0; row < 8; row += 1) {
+        for (let col = 0; col < 8; col += 1) {
+          CardLogic.addMarker(cardState, 'specialStone', row, col, null, {
+            type: 'HEALING_CELL',
+            remainingTurns: 5,
+            appliedTurnNumber: 0
+          });
+        }
+      }
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toHaveLength(64);
+      expect(marker(cardState, 'HEALING_CELL', 0, 0)?.data.remainingTurns).toBe(8);
+    });
+
     test('別の自分の水石は優先対象になる', () => {
       const { prng, cardState, gameState } = createWaterBoard(0);
       gameState.board[7][7] = Shared.BLACK;

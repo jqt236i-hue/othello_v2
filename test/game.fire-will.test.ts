@@ -176,6 +176,59 @@ describe('FIRE_WILL（火の意志）', () => {
       }));
   });
 
+  describe('すでに灼熱マスのマスは対象にしない', () => {
+    function setupFire() {
+      const { cardState, gameState } = createStates(0);
+      gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+      gameState.board[4][4] = Shared.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
+        type: 'FIRE',
+        remainingOwnerTurns: 6
+      });
+      return { cardState, gameState };
+    }
+
+    function scorchedCells(cardState: any) {
+      return (cardState.markers || [])
+        .filter((item: any) => item && item.data && item.data.type === 'SCORCHED_CELL')
+        .map((item: any) => ({ row: item.row, col: item.col, remainingTurns: item.data.remainingTurns }));
+    }
+
+    test('灼熱マスでない敵石のマスがあれば、そちらを選ぶ', () => {
+      const { cardState, gameState } = setupFire();
+      gameState.board[0][0] = Shared.WHITE;
+      gameState.board[6][6] = Shared.WHITE;
+      CardLogic.addMarker(cardState, 'specialStone', 0, 0, null, {
+        type: 'SCORCHED_CELL',
+        remainingTurns: 4,
+        appliedTurnNumber: 0
+      });
+
+      CardLogic.processFireWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, createPrng(0));
+
+      expect(scorchedCells(cardState)).toEqual(expect.arrayContaining([
+        { row: 0, col: 0, remainingTurns: 4 },
+        { row: 6, col: 6, remainingTurns: 10 }
+      ]));
+      expect(scorchedCells(cardState)).toHaveLength(2);
+    });
+
+    test('候補がすべて灼熱マスなら、従来どおりその中から選んで上書きする', () => {
+      const { cardState, gameState } = setupFire();
+      gameState.board[0][0] = Shared.WHITE;
+      CardLogic.addMarker(cardState, 'specialStone', 0, 0, null, {
+        type: 'SCORCHED_CELL',
+        remainingTurns: 4,
+        appliedTurnNumber: 0
+      });
+
+      const result = CardLogic.processFireWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, createPrng(0));
+
+      expect(result.scorched).toHaveLength(1);
+      expect(scorchedCells(cardState)).toEqual([{ row: 0, col: 0, remainingTurns: 10 }]);
+    });
+  });
+
   test('敵石がない発動では灼熱マスを作らない', () => {
     const { cardState, gameState } = createStates(0);
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
