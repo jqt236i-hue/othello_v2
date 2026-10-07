@@ -1201,13 +1201,10 @@ describe('deck builder controller', () => {
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
 
-    expect(options.initialDeckSpecByPlayer.black).toBeUndefined();
-    expect(whiteCardIds).toContain('reinforcement_01');
-    expect(whiteCardIds).toContain('observer_will_01');
-    expect(whiteCardIds).toContain('support_troops_01');
-    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialDeckCardIdsByPlayer.white).toEqual(require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['6']);
+    expect(options.initialDeckCardIdsByPlayer.black).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
   });
 
   test('CPU Lv6対戦ではプレイヤー黒カスタムと白CPU専用デッキを両立する', () => {
@@ -1220,100 +1217,77 @@ describe('deck builder controller', () => {
     const options = controller.buildCardInitOptions();
 
     expect(options.initialDeckSpecByPlayer.black).toEqual(localDeck.deckSpec);
-    expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('reinforcement_01');
-    expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('observer_will_01');
-    expect(options.initialDeckSpecByPlayer.white).not.toEqual(localDeck.deckSpec);
+    expect(options.initialDeckSpecByPlayer.white).toBeUndefined();
+    expect(options.initialDeckCardIdsByPlayer.white).toEqual(require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['6']);
   });
 
   test('CPU Lv7盤界の執行者対戦では白CPUへ執行者専用デッキを入れる', () => {
     window.getCurrentMatchMode = () => 'cpu';
-    const smartWhite = document.getElementById('smartWhite');
+    const select = document.getElementById('smartWhite');
     const option = document.createElement('option');
     option.value = '7-board-executor';
     option.textContent = 'Lv7: 盤界の執行者';
-    smartWhite.appendChild(option);
-    smartWhite.value = '7-board-executor';
+    select.appendChild(option);
+    select.value = '7-board-executor';
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
 
-    expect(whiteCardIds).toContain('board_executor_01');
-    expect(whiteCardIds).toContain('equality_will_01');
-    expect(whiteCardIds).toContain('afterimage_will_01');
-    expect(whiteCardIds).toContain('proliferation_01');
-    expect(whiteCardIds).toContain('hyperactive_01');
-    expect(whiteCardIds).not.toContain('observer_will_01');
-    expect(whiteCardIds).not.toContain('hard_01');
-    expect(whiteCardIds).not.toContain('buoyancy_01');
-    expect(whiteCardIds).not.toContain('gravity_01');
-    expect(whiteCardIds).not.toContain('heaven_01');
-    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialDeckCardIdsByPlayer.white).toEqual(require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['7-board-executor']);
+    expect(options.initialDeckCardIdsByPlayer.black).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
   });
 
   test('CPU Lv7盤界の執行者を黒に選ぶと黒CPUへ執行者専用デッキを入れる', () => {
     window.getCurrentMatchMode = () => 'cpu';
-    const smartBlack = document.getElementById('smartBlack');
+    const select = document.getElementById('smartBlack');
     const option = document.createElement('option');
     option.value = '7-board-executor';
     option.textContent = 'Lv7: 盤界の執行者';
-    smartBlack.appendChild(option);
-    smartBlack.value = '7-board-executor';
+    select.appendChild(option);
+    select.value = '7-board-executor';
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const blackCardIds = options.initialDeckSpecByPlayer.black.cards.map((entry) => entry.cardId);
 
-    expect(blackCardIds).toContain('board_executor_01');
-    expect(blackCardIds).toContain('equality_will_01');
-    expect(blackCardIds).toContain('afterimage_will_01');
-    expect(blackCardIds).toContain('proliferation_01');
-    expect(blackCardIds).not.toContain('observer_will_01');
-    expect(blackCardIds).not.toContain('hard_01');
-    expect(options.initialDeckSpecByPlayer.white).toBeUndefined();
-    expect(options.initialDeckSpecByPlayer.black.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialDeckCardIdsByPlayer.black).toEqual(require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['7-board-executor']);
+    expect(options.initialDeckCardIdsByPlayer.white).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
   });
 
   test('CPU Lv8理論の化身対戦では白CPUへ理論専用デッキと初期布石50を入れる', () => {
     window.getCurrentMatchMode = () => 'cpu';
-    const smartWhite = document.getElementById('smartWhite');
+    const select = document.getElementById('smartWhite');
     const option = document.createElement('option');
     option.value = '8-theory-incarnation';
     option.textContent = 'Lv8: 理論の化身';
-    smartWhite.appendChild(option);
-    smartWhite.value = '8-theory-incarnation';
+    select.appendChild(option);
+    select.value = '8-theory-incarnation';
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const whiteCardIds = options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId);
 
-    expect(whiteCardIds).toContain('theory_incarnation_01');
-    expect(whiteCardIds).toContain('meteor_god_01');
-    expect(whiteCardIds).not.toContain('observer_will_01');
-    expect(whiteCardIds).not.toContain('board_executor_01');
-    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialDeckCardIdsByPlayer.white).toEqual(require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['8-theory-incarnation']);
+    expect(options.initialDeckCardIdsByPlayer.black).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
     expect(options.initialChargeByPlayer).toEqual({ white: 50 });
   });
 
   test('CPU Lv8理論の化身を黒に選ぶと黒CPUへ理論専用デッキと初期布石50を入れる', () => {
     window.getCurrentMatchMode = () => 'cpu';
-    const smartBlack = document.getElementById('smartBlack');
+    const select = document.getElementById('smartBlack');
     const option = document.createElement('option');
     option.value = '8-theory-incarnation';
     option.textContent = 'Lv8: 理論の化身';
-    smartBlack.appendChild(option);
-    smartBlack.value = '8-theory-incarnation';
+    select.appendChild(option);
+    select.value = '8-theory-incarnation';
     const controller = createController();
 
     const options = controller.buildCardInitOptions();
-    const blackCardIds = options.initialDeckSpecByPlayer.black.cards.map((entry) => entry.cardId);
 
-    expect(blackCardIds).toContain('theory_incarnation_01');
-    expect(blackCardIds).toContain('meteor_god_01');
-    expect(blackCardIds).not.toContain('observer_will_01');
-    expect(blackCardIds).not.toContain('board_executor_01');
-    expect(options.initialDeckSpecByPlayer.white).toBeUndefined();
-    expect(options.initialDeckSpecByPlayer.black.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+    expect(options.initialDeckCardIdsByPlayer.black).toEqual(require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['8-theory-incarnation']);
+    expect(options.initialDeckCardIdsByPlayer.white).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
     expect(options.initialChargeByPlayer).toEqual({ black: 50 });
   });
 

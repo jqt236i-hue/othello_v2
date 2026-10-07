@@ -447,6 +447,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/commentary-context-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/commentary-context-helpers.js"),
   "shared/commentary-runtime-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/commentary-runtime-helpers.js"),
   "shared/cpu-lv6-runtime-capability": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/cpu-lv6-runtime-capability.js"),
+  "shared/cpu-opponent-decks": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/cpu-opponent-decks.js"),
   "shared/cpu-opponent-profiles": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/cpu-opponent-profiles.js"),
   "shared/cpu-opponent-startup-options": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/cpu-opponent-startup-options.js"),
   "shared/deck-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/deck-codec.js"),
@@ -1225,6 +1226,7 @@ installBootModuleMetadata({
     "shared/commentary-context-helpers",
     "shared/commentary-runtime-helpers",
     "shared/cpu-lv6-runtime-capability",
+    "shared/cpu-opponent-decks",
     "shared/cpu-opponent-profiles",
     "shared/cpu-opponent-startup-options",
     "shared/deck-codec",
@@ -1650,4 +1652,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 773;
+export const startupModuleCount = 774;

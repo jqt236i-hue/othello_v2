@@ -222,6 +222,102 @@ describe('WATER_WILL（水の意志）', () => {
     ]));
   });
 
+  describe('治癒マスの対象は自分の特殊石を優先する', () => {
+    function createWaterBoard(randomValue: number) {
+      const prng = createPrng(randomValue);
+      const { cardState, gameState } = createStates(randomValue);
+      gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY));
+      gameState.board[4][4] = Shared.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 4, 4, 'black', {
+        type: 'WATER',
+        remainingOwnerTurns: 6
+      });
+      return { prng, cardState, gameState };
+    }
+
+    function healingCells(cardState: any) {
+      return (cardState.markers || [])
+        .filter((item: any) => item && item.data && item.data.type === 'HEALING_CELL')
+        .map((item: any) => ({ row: item.row, col: item.col }));
+    }
+
+    test('自分の特殊石があれば、その位置に治癒マスを出す', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      gameState.board[6][5] = Shared.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 6, 5, 'black', {
+        type: 'SNIPER',
+        remainingOwnerTurns: 6
+      });
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toEqual([{ row: 6, col: 5 }]);
+      expect(prng.random).toHaveBeenCalledTimes(1);
+    });
+
+    test('自分の特殊石が複数あれば、その中からランダムに選ぶ', () => {
+      const setup = (randomValue: number) => {
+        const states = createWaterBoard(randomValue);
+        for (const [row, col, type] of [[1, 6, 'FIRE'], [6, 2, 'GRASS']] as Array<[number, number, string]>) {
+          states.gameState.board[row][col] = Shared.BLACK;
+          CardLogic.addMarker(states.cardState, 'specialStone', row, col, 'black', {
+            type,
+            remainingOwnerTurns: 6
+          });
+        }
+        CardLogic.processWaterWillEffectsAtAnchor(states.cardState, states.gameState, 'black', 4, 4, states.prng);
+        return healingCells(states.cardState);
+      };
+
+      expect(setup(0)).toEqual([{ row: 1, col: 6 }]);
+      expect(setup(0.99)).toEqual([{ row: 6, col: 2 }]);
+    });
+
+    test('発動元の水石自身・相手の特殊石・石状態は優先対象にせず、従来どおり全マスからランダムに選ぶ', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      gameState.board[6][6] = Shared.WHITE;
+      CardLogic.addMarker(cardState, 'specialStone', 6, 6, 'white', {
+        type: 'SNIPER',
+        remainingOwnerTurns: 6
+      });
+      gameState.board[2][2] = Shared.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 2, 2, 'black', {
+        type: 'GUARD',
+        remainingOwnerTurns: 4
+      });
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toEqual([{ row: 0, col: 0 }]);
+    });
+
+    test('自分の所有でも相手色に変わっているマスの特殊石は優先対象にしない', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      gameState.board[5][5] = Shared.WHITE;
+      CardLogic.addMarker(cardState, 'specialStone', 5, 5, 'black', {
+        type: 'SNIPER',
+        remainingOwnerTurns: 6
+      });
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toEqual([{ row: 0, col: 0 }]);
+    });
+
+    test('別の自分の水石は優先対象になる', () => {
+      const { prng, cardState, gameState } = createWaterBoard(0);
+      gameState.board[7][7] = Shared.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', 7, 7, 'black', {
+        type: 'WATER',
+        remainingOwnerTurns: 6
+      });
+
+      CardLogic.processWaterWillEffectsAtAnchor(cardState, gameState, 'black', 4, 4, prng);
+
+      expect(healingCells(cardState)).toEqual([{ row: 7, col: 7 }]);
+    });
+  });
+
   test('治癒マスは成立手番を減らさず、以後の完了手番で減って0で消える', () => {
     const { cardState, gameState } = createStates(0);
     gameState.turnNumber = 4;

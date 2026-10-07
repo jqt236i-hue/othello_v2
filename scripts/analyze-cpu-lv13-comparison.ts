@@ -35,7 +35,7 @@ export function inspectLv13Experiment(directory:string){
         });
         const timing=(candidate:boolean)=>{
             const selected=decisions.filter(d=>(d.player===slot.candidateColor)===candidate);
-            const limit=candidate?5500:4800;
+            const limit=candidate?4700:4800;
             const excess=selected.filter(d=>d.elapsedMs>limit||d.searchMs>limit||d.transitions>4096);
             return {count:selected.length,limitMs:limit,maxSearchMs:Math.max(0,...selected.map(d=>d.searchMs||0)),
                 maxDecisionMs:Math.max(0,...selected.map(d=>d.elapsedMs||0)),maxTransitions:Math.max(0,...selected.map(d=>d.transitions||0)),

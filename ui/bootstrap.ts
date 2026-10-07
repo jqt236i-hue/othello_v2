@@ -78,7 +78,7 @@ function readCpuSmartnessValueFromSelect(id: string): number | string {
     const raw = String(el && el.value || '').trim();
     if (!raw) return 1;
     const n = Number(raw);
-    return Number.isFinite(n) ? Math.max(1, Math.min(12, Math.floor(n))) : raw;
+    return Number.isFinite(n) ? Math.max(1, Math.min(13, Math.floor(n))) : raw;
 }
 
 function createInjectedTimerService(timersImpl: any) {
@@ -137,6 +137,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         adviseLv10InWorker?: Function;
         adviseLv11InWorker?: Function;
         adviseLv12InWorker?: Function;
+        adviseLv13InWorker?: Function;
     } = {};
 
     function configureCpuCandidateScoring(runtime: any): boolean {
@@ -151,7 +152,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             ...(quiescenceSearcher ? { searchCardQuiescenceInWorker: quiescenceSearcher } : {}),
             ...(typeof runtime?.adviseLv10InWorker === 'function' ? { adviseLv10InWorker: runtime.adviseLv10InWorker } : {}),
             ...(typeof runtime?.adviseLv11InWorker === 'function' ? { adviseLv11InWorker: runtime.adviseLv11InWorker } : {}),
-            ...(typeof runtime?.adviseLv12InWorker === 'function' ? { adviseLv12InWorker: runtime.adviseLv12InWorker } : {})
+            ...(typeof runtime?.adviseLv12InWorker === 'function' ? { adviseLv12InWorker: runtime.adviseLv12InWorker } : {}),
+            ...(typeof runtime?.adviseLv13InWorker === 'function' ? { adviseLv13InWorker: runtime.adviseLv13InWorker } : {})
         };
         return !!scorer || !!quiescenceSearcher;
     }
@@ -1721,6 +1723,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     adviseLv12InWorker: (request: any) => {
                         const advisor = cpuCandidateScoringRuntime.adviseLv12InWorker;
                         if (typeof advisor !== 'function') return Promise.reject(new Error('Lv12 Worker unavailable'));
+                        return advisor(request);
+                    },
+                    adviseLv13InWorker: (request: any) => {
+                        const advisor = cpuCandidateScoringRuntime.adviseLv13InWorker;
+                        if (typeof advisor !== 'function') return Promise.reject(new Error('Lv13 Worker unavailable'));
                         return advisor(request);
                     },
                     isCpuCardQuiescenceAvailable: () => (

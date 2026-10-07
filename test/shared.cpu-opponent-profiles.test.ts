@@ -27,10 +27,12 @@ describe('cpu opponent profiles', () => {
     const nine = CpuOpponentProfiles.getCpuOpponentProfile(9), ten = CpuOpponentProfiles.getCpuOpponentProfile(10);
     expect(ten.initialChargeByPlayer).toBe(nine.initialChargeByPlayer);
     for (const player of ['black', 'white']) {
-      const { profileId: _nine, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
-      const { profileId: _ten, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
+      // Lv10 has its own deck (CPU deck tool); every other startup condition is shared with Lv9.
+      const { profileId: _nine, deckCardIds: nineDeck, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
+      const { profileId: _ten, deckCardIds: tenDeck, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
       expect(b).toEqual(a);
-      expect(b.deckCardIds).toHaveLength(94);
+      expect(nineDeck).toHaveLength(94);
+      expect(tenDeck!.length).toBeGreaterThan(0);
       expect(b).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
     }
   });
@@ -47,7 +49,8 @@ describe('cpu opponent profiles', () => {
       { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' },
       { value: '10-observed-dark-dragon', label: 'Lv10: 観測ダークドラゴン' },
       { value: '11-execution-chaos-dragon', label: 'Lv11: 執行エグゼキューションカオスドラゴン' },
-      { value: '12-strategy-cpu', label: 'Lv12: 理論カオスロジカルエンペラービースト' }
+      { value: '12-strategy-cpu', label: 'Lv12: 理論カオスロジカルエンペラービースト' },
+      { value: '13-truth-chaos-emperor-beast', label: 'Lv13: 真理カオスロジカルエンペラービースト' }
     ]);
   });
 
@@ -159,12 +162,16 @@ describe('cpu opponent profiles', () => {
     expect(CpuOpponentProfiles.shouldSkipCpuOpponentCardPhase('9-ending-ash', 'not-a-turn')).toBe(false);
   });
 
-  test('resolves dedicated CPU deck codes from opponent profiles', () => {
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('1')).toBeNull();
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('6')).toBe(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('7-board-executor')).toBe(DeckSpecHelpers.getCpuLv6BoardExecutorWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('8-theory-incarnation')).toBe(DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode());
-    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode('9-ending-ash')).toBeNull();
+  test('resolves each CPU deck from its fixed deck instead of a deck code', () => {
+    // Contents are edited with the CPU deck tool; only the resolution is fixed here.
+    const fixedDecks = require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS;
+    for (const id of ['1', '6', '7-board-executor', '8-theory-incarnation', '9-ending-ash', '13-truth-chaos-emperor-beast']) {
+      expect(CpuOpponentStartupOptions.getCpuOpponentDeckCode(id)).toBeNull();
+    }
+    for (const id of ['6', '7-board-executor', '8-theory-incarnation', '10-observed-dark-dragon', '13-truth-chaos-emperor-beast']) {
+      expect(CpuOpponentStartupOptions.getCpuOpponentDeckCardIds(id)).toEqual(fixedDecks[id]);
+    }
+    expect(CpuOpponentStartupOptions.getCpuOpponentDeckCardIds('9-ending-ash')).toEqual(DeckSpecHelpers.getCpuLv9EndingAshDeckCardIds());
   });
 
   test('exposes the dedicated CPU decks as built-in deck presets', () => {
@@ -237,8 +244,8 @@ describe('cpu opponent profiles', () => {
   test('resolves startup options for Lv8 handicap and normal levels', () => {
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'black')).toEqual({
       profileId: '8-theory-incarnation',
-      deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
-      deckCardIds: null,
+      deckCode: null,
+      deckCardIds: require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['8-theory-incarnation'],
       initialCharge: 50,
       chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: 8,
@@ -246,8 +253,8 @@ describe('cpu opponent profiles', () => {
     });
     expect(CpuOpponentStartupOptions.getCpuOpponentStartupOptions('8-theory-incarnation', 'white')).toEqual({
       profileId: '8-theory-incarnation',
-      deckCode: DeckSpecHelpers.getCpuLv7TheoryIncarnationWhiteDeckCode(),
-      deckCardIds: null,
+      deckCode: null,
+      deckCardIds: require('../shared/cpu-opponent-decks').CPU_OPPONENT_DECKS['8-theory-incarnation'],
       initialCharge: 50,
       chargeGainMultiplier: null,
       cardUseUnlockTurnNumber: 8,
@@ -332,10 +339,26 @@ test('Lv12 keeps every evaluated Lv11 startup condition for both colors',()=>{
   expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(12)).toBe(12);
   expect(CpuOpponentProfiles.getCpuOpponentProfileId(12)).toBe('12-strategy-cpu');
   for(const side of ['black','white']){
-    const {profileId:_old,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11,side);
-    const {profileId:_new,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
+    const {profileId:_old,deckCardIds:_oldDeck,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11,side);
+    const {profileId:_new,deckCardIds:newDeck,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
     expect(candidate).toEqual(baseline);
-    expect(candidate.deckCardIds).toHaveLength(94);
+    expect(newDeck!.length).toBeGreaterThan(0);
     expect(candidate).toMatchObject({initialCharge:99,chargeGainMultiplier:2,cardUseUnlockTurnNumber:6});
+  }
+});
+
+test('Lv13 keeps every Lv12 startup condition for both colors and has its own decision level',()=>{
+  expect(CpuOpponentProfiles.getCpuOpponentProfile(13)).toMatchObject({
+    id:'13-truth-chaos-emperor-beast',
+    name:'真理カオスロジカルエンペラービースト'
+  });
+  expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(13)).toBe(13);
+  expect(CpuOpponentProfiles.getCpuOpponentProfileId(13)).toBe('13-truth-chaos-emperor-beast');
+  expect(CpuOpponentProfiles.getCpuOpponentLevel(99)).toBe(13);
+  for(const side of ['black','white']){
+    // Decks are each CPU's own (CPU deck tool); every other startup condition is shared.
+    const {profileId:_old,deckCardIds:_oldDeck,...baseline}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(12,side);
+    const {profileId:_new,deckCardIds:_newDeck,...candidate}=CpuOpponentStartupOptions.getCpuOpponentStartupOptions(13,side);
+    expect(candidate).toEqual(baseline);
   }
 });

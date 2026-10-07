@@ -31,9 +31,13 @@ export function parseLv10AdvisorRequest(value: any): Lv10AdvisorRequest {
     return value;
 }
 
+/** Sanity bound for any advisor's transition count; each level's own config
+ * is the real budget (Lv10–12: 4096, Lv13: LV13_SEARCH_CONFIG.maxTransitions). */
+export const LV10_ADVISOR_MAX_TRANSITIONS = 8192;
+
 export function parseLv10AdvisorResult(value: any): Lv10SearchResult {
     if (!value || typeof value.version !== 'string' || !Number.isInteger(value.transitions)
-        || value.transitions < 0 || value.transitions > 4096 || !Array.isArray(value.continuation)
+        || value.transitions < 0 || value.transitions > LV10_ADVISOR_MAX_TRANSITIONS || !Array.isArray(value.continuation)
         || value.continuation.length > 16 || JSON.stringify(value).length > 24000
         || (value.action !== null && (!value.action || !['place', 'pass', 'use_card', 'destroy_hand_card'].includes(value.action.type)))) {
         throw new Error('Invalid Lv10 advisor result');

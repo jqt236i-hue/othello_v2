@@ -25,8 +25,8 @@ test('ONNX tolerance applies only to output tensor values, never chosen coordina
 
 test('bounded CPU reference checks every shipped full-rule search without private match state or mutation', () => {
     const report = runCpuSearchBenchmarks(process.cwd(), false, 8);
-    expect(report.records).toHaveLength(9);
-    expect(report.profiles.map(p => p.level)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+    expect(report.records).toHaveLength(12);
+    expect(report.profiles.map(p => p.level)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
     for (const record of report.records) {
         expect(record.result.transitions).toBeLessThanOrEqual(8);
         expect(record.result.elapsedMs).toBeNull();

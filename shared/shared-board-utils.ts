@@ -366,6 +366,7 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
     });
     const inspectBoardState = BoardStateKernel.inspectBoardState;
     const createBoardView = BoardStateKernel.createBoardView;
+    const markImmutableBoardSource = BoardStateKernel.markImmutableBoardSource;
     const createDenseBoardView = BoardStateKernel.createDenseBoardView;
     const canonicalizeStateBoard = BoardStateKernel.canonicalizeStateBoard;
     const getStateCellValue = BoardStateKernel.getStateCellValue;
@@ -666,7 +667,12 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
             isBoardSearchContext(board)
                 ? (board as any).shape.playableKeys
                 : null
-        )
+        ),
+        resolvePlayableChecker: (board: unknown) => {
+            if (isBoardSearchContext(board)) return (row, col) => BoardSearchState.hasPlayableCell(board, row, col);
+            const view = getContextView(board);
+            return view ? (row, col) => Number.isInteger(row) && Number.isInteger(col) && view.isPlayable(row, col) : null;
+        }
     });
     const buildCornerKeySet = BoardCorners.buildCornerKeySet;
     const getCornerCells = BoardCorners.getCornerCells;
@@ -845,6 +851,7 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         withTopologyMemo,
         inspectBoardState,
         createBoardView,
+        markImmutableBoardSource,
         createDenseBoardView,
         canonicalizeStateBoard,
         getStateCellValue,
@@ -880,6 +887,7 @@ const SharedBoardUtils: any = (function (SharedConstants: unknown, BoardUtilsMod
         countBoardEmpties,
         getCornerCells,
         getPerimeterCells,
+        computeCornerKeySetForCoordinates: BoardCorners.computeCornerKeySetForCoordinates,
         getEffectiveCornerCells,
         getEffectiveEdgeCells,
         getCornerEdgeLineDescriptors,

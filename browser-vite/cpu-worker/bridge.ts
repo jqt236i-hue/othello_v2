@@ -2,6 +2,7 @@ import CpuWorkerConstructor from './worker-entry?worker';
 import Lv10WorkerConstructor from './lv10-worker-entry?worker';
 import Lv11WorkerConstructor from './lv11-worker-entry?worker';
 import Lv12WorkerConstructor from './lv12-worker-entry?worker';
+import Lv13WorkerConstructor from './lv13-worker-entry?worker';
 import {
   CpuWorkerClientError,
   createCpuCardQuiescenceWorkerSearcher,
@@ -16,6 +17,7 @@ import type { Lv10SearchResult } from '../../game/ai/cpu-lv10-search';
 
 type RuntimeRoot = Window & Record<string, any>;
 
+
 const bridges = new WeakMap<object, BrowserCpuWorkerBridge>();
 const permanentlyDisabledRoots = new WeakSet<object>();
 
@@ -24,11 +26,13 @@ export interface BrowserCpuWorkerBridge {
   lv10Client: CpuWorkerClient;
   lv11Client: CpuWorkerClient;
   lv12Client: CpuWorkerClient;
+  lv13Client: CpuWorkerClient;
   scoreCandidatesInWorker: ReturnType<typeof createCpuCandidateWorkerScorer>;
   searchCardQuiescenceInWorker: ReturnType<typeof createCpuCardQuiescenceWorkerSearcher>;
   adviseLv10InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
   adviseLv11InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
   adviseLv12InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
+  adviseLv13InWorker: (request: Lv10AdvisorRequest) => Promise<Lv10SearchResult>;
   /** Loads the advisor Worker for a Lv10+ match after boot; never searches. */
   warmUpAdvisor: (level: number) => void;
 }
@@ -75,6 +79,10 @@ export function installCpuWorkerBridge(
     workerFactory: () => new Lv12WorkerConstructor({ name: 'card-reversi-lv12' }) as unknown as Worker,
     defaultTimeoutMs: 8000
   });
+  const lv13Client = createCpuWorkerClient({
+    workerFactory: () => new Lv13WorkerConstructor({ name: 'card-reversi-lv13' }) as unknown as Worker,
+    defaultTimeoutMs: 8000
+  });
   // A cold advisor Worker spends part of the first CPU turn's deadline
   // loading its bundle. When a Lv10+ opponent is shown, load it ahead of that
   // turn, but only after boot so startup never creates a CPU Worker. Failures
@@ -83,14 +91,14 @@ export function installCpuWorkerBridge(
   let pendingWarmUpLevel: number | null = null;
   const isBootReady = () => _documentRef?.documentElement?.getAttribute('data-browser-boot-state') === 'ready';
   const startWarmUp = (level: number) => {
-    const advisor = level === 10 ? lv10Client : level === 11 ? lv11Client : level === 12 ? lv12Client : null;
+    const advisor = level === 10 ? lv10Client : level === 11 ? lv11Client : level === 12 ? lv12Client : level === 13 ? lv13Client : null;
     if (!advisor || warmedAdvisorLevels.has(level)) return;
     warmedAdvisorLevels.add(level);
     void advisor.probe(level === 10 ? 3000 : 8000).catch(() => { warmedAdvisorLevels.delete(level); });
   };
   const warmUpAdvisor = (levelValue: number) => {
     const level = Math.floor(Number(levelValue));
-    if (!(level >= 10 && level <= 12)) return;
+    if (!(level >= 10 && level <= 13)) return;
     if (isBootReady()) { startWarmUp(level); return; }
     const alreadyWaiting = pendingWarmUpLevel !== null;
     pendingWarmUpLevel = level;
@@ -107,6 +115,7 @@ export function installCpuWorkerBridge(
     lv10Client,
     lv11Client,
     lv12Client,
+    lv13Client,
     adviseLv11InWorker: async request => {
       try {
         return parseLv10AdvisorResult(await lv11Client.request(CPU_WORKER_OPERATIONS.LV11_ADVISE, request, {
@@ -129,6 +138,19 @@ export function installCpuWorkerBridge(
         if (error instanceof CpuWorkerClientError && error.recoverable === false) {
           lv12Client.terminate('Lv12 Worker failed');
           updateCapabilities(rootRef, { cpuLv12AdvisorWorker: false });
+        }
+        throw error;
+      }
+    },
+    adviseLv13InWorker: async request => {
+      try {
+        return parseLv10AdvisorResult(await lv13Client.request(CPU_WORKER_OPERATIONS.LV13_ADVISE, request, {
+          turnNumber: request.observation.gameState.turnNumber, timeoutMs: 8000
+        }));
+      } catch (error) {
+        if (error instanceof CpuWorkerClientError && error.recoverable === false) {
+          lv13Client.terminate('Lv13 Worker failed');
+          updateCapabilities(rootRef, { cpuLv13AdvisorWorker: false });
         }
         throw error;
       }
@@ -175,7 +197,8 @@ export function installCpuWorkerBridge(
     cpuCardQuiescenceWorker: true,
     cpuLv10AdvisorWorker: true,
     cpuLv11AdvisorWorker: true,
-    cpuLv12AdvisorWorker: true
+    cpuLv12AdvisorWorker: true,
+    cpuLv13AdvisorWorker: true
   });
   return bridge;
 }
@@ -201,15 +224,19 @@ export function disableCpuWorkerBridge(
   const lv12Advisor = target && typeof target.adviseLv12InWorker === 'function'
     && rootRef.__CARD_REVERSI_BROWSER_CAPABILITIES__?.cpuLv12AdvisorWorker !== false
     ? target.adviseLv12InWorker : null;
+  const lv13Advisor = target && typeof target.adviseLv13InWorker === 'function'
+    && rootRef.__CARD_REVERSI_BROWSER_CAPABILITIES__?.cpuLv13AdvisorWorker !== false
+    ? target.adviseLv13InWorker : null;
   bridges.delete(rootRef);
   permanentlyDisabledRoots.add(rootRef);
   try {
     const bootstrap = rootRef.UIBootstrap;
     if (bootstrap && typeof bootstrap.configureCpuCandidateScoring === 'function') {
-      bootstrap.configureCpuCandidateScoring(lv10Advisor || lv11Advisor || lv12Advisor ? {
+      bootstrap.configureCpuCandidateScoring(lv10Advisor || lv11Advisor || lv12Advisor || lv13Advisor ? {
         ...(lv10Advisor ? { adviseLv10InWorker: lv10Advisor } : {}),
         ...(lv11Advisor ? { adviseLv11InWorker: lv11Advisor } : {}),
-        ...(lv12Advisor ? { adviseLv12InWorker: lv12Advisor } : {})
+        ...(lv12Advisor ? { adviseLv12InWorker: lv12Advisor } : {}),
+        ...(lv13Advisor ? { adviseLv13InWorker: lv13Advisor } : {})
       } : null);
     }
   } catch (error) { /* local fallback remains available */ }
@@ -224,6 +251,7 @@ export function disableCpuWorkerBridge(
     cpuLv10AdvisorWorker: !!lv10Advisor,
     cpuLv11AdvisorWorker: !!lv11Advisor,
     cpuLv12AdvisorWorker: !!lv12Advisor,
+    cpuLv13AdvisorWorker: !!lv13Advisor,
     cpuCandidateScoringInjected: false,
     dedicatedCpuWorker: false,
     onnxInferenceWorker: false,

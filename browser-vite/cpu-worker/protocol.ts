@@ -23,6 +23,7 @@ export const CPU_WORKER_OPERATIONS = Object.freeze({
   LV10_ADVISE: 'cpu.lv10-advise',
   LV11_ADVISE: 'cpu.lv11-advise',
   LV12_ADVISE: 'cpu.lv12-advise',
+  LV13_ADVISE: 'cpu.lv13-advise',
   ONNX_CREATE_SESSION: 'onnx.create-session',
   ONNX_RUN_SESSION: 'onnx.run-session',
   ONNX_RELEASE_SESSION: 'onnx.release-session'
@@ -365,7 +366,8 @@ export function parseCpuWorkerRequest(value: unknown): CpuWorkerRequest {
   } else if (identity.operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) {
     payload = parseCardQuiescencePayload(value.payload, identity);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.LV10_ADVISE || identity.operation === CPU_WORKER_OPERATIONS.LV11_ADVISE
-    || identity.operation === CPU_WORKER_OPERATIONS.LV12_ADVISE) {
+    || identity.operation === CPU_WORKER_OPERATIONS.LV12_ADVISE
+    || identity.operation === CPU_WORKER_OPERATIONS.LV13_ADVISE) {
     payload = parseLv10AdvisorRequest(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
     payload = parseCreateSessionPayload(value.payload);
@@ -462,7 +464,8 @@ function parseResponseResult(operation: CpuWorkerOperation, value: unknown): Cpu
   if (operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) return parseCandidateScoringResult(value);
   if (operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) return parseCardQuiescenceResult(value);
   if (operation === CPU_WORKER_OPERATIONS.LV10_ADVISE || operation === CPU_WORKER_OPERATIONS.LV11_ADVISE
-    || operation === CPU_WORKER_OPERATIONS.LV12_ADVISE) return parseLv10AdvisorResult(value);
+    || operation === CPU_WORKER_OPERATIONS.LV12_ADVISE
+    || operation === CPU_WORKER_OPERATIONS.LV13_ADVISE) return parseLv10AdvisorResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) return parseCreateSessionResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) return parseRunSessionResult(value);
   return parseReleaseSessionResult(value);

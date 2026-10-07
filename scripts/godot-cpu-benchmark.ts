@@ -7,6 +7,7 @@ import { observeLv10Position } from '../game/ai/cpu-lv10-observation';
 import { searchLv10, LV10_SEARCH_CONFIG } from '../game/ai/cpu-lv10-search';
 import { searchLv11, LV11_SEARCH_CONFIG } from '../game/ai/cpu-lv11-search';
 import { searchLv12, LV12_SEARCH_CONFIG } from '../game/ai/cpu-lv12-search';
+import { searchLv13, LV13_SEARCH_CONFIG } from '../game/ai/cpu-lv13-search';
 import { sampleLv10Position, applyLv10Action, lv10PlacementMoves } from '../game/ai/cpu-lv10-position';
 import { extractLv12ValueFeatures, LV12_VALUE_FEATURE_NAMES } from '../game/ai/cpu-lv12-evaluation';
 import { LV12_VALUE_WEIGHTS } from '../game/ai/cpu-lv12-model';
@@ -34,7 +35,7 @@ export function runCpuSearchBenchmarks(root = process.cwd(), timed = false, tran
     const records: any[] = [];
     for (const fixture of cpuBenchmarkCases(root)) {
         const before = JSON.stringify(fixture.observation);
-        for (const [level, search, config] of [[10, searchLv10, LV10_SEARCH_CONFIG], [11, searchLv11, LV11_SEARCH_CONFIG], [12, searchLv12, LV12_SEARCH_CONFIG]] as const) {
+        for (const [level, search, config] of [[10, searchLv10, LV10_SEARCH_CONFIG], [11, searchLv11, LV11_SEARCH_CONFIG], [12, searchLv12, LV12_SEARCH_CONFIG], [13, searchLv13, LV13_SEARCH_CONFIG]] as const) {
             const options = { maxTransitions: transitions, publicRecipes: fixture.publicRecipes,
                 ...(timed ? { now: () => performance.now(), maxMs: 100 } : {}) };
             const started = performance.now(), result = search(fixture.observation, options);

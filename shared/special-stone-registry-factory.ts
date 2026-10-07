@@ -276,7 +276,7 @@ function createSpecialStoneRegistry(
         }),
         WATER: Object.freeze({
             name: '水石',
-            desc: 'ランダムなマスを治癒マスにする。',
+            desc: 'ランダムなマスを治癒マスにする。自分の特殊石があるマスを優先する。',
             flipProtected: true,
             timerClass: 'dragon-timer'
         }),

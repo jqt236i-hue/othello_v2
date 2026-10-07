@@ -192,6 +192,9 @@ function restoreRecord(
 
 export function createStateKernel(deps: StateKernelDependencies) {
   const viewCache = new WeakMap<object, ViewCacheEntry>();
+  // Search-only: a hypothetical position the search promises never to mutate
+  // again. Its cached view is reused without re-reading the whole board.
+  const immutableSources = new WeakSet<object>();
   const maxAbsCoordinate = resolveBoardMaxAbsCoordinate(
     deps.maxAbsCoordinate,
   );
@@ -669,6 +672,16 @@ export function createStateKernel(deps: StateKernelDependencies) {
     }
     const gameState = gameStateValue;
     const strict = options.strict !== false;
+    if (!strict && immutableSources.has(gameState)) {
+      const frozen = viewCache.get(gameState);
+      if (
+        frozen &&
+        frozen.strict === false &&
+        frozen.cardState === (isRecord(options.cardState) ? options.cardState : null)
+      ) {
+        return frozen.view;
+      }
+    }
     const preflightErrors = preflightBoardSources(
       gameState,
       options.cardState,
@@ -739,23 +752,30 @@ export function createStateKernel(deps: StateKernelDependencies) {
         ? (ownerByKey.get(key) ?? null)
         : null;
     };
-    const getFlips = (
+    // Flip lines read the owner map directly: it holds exactly the playable
+    // cells, so a missing key is the same as a non-playable cell. Constraint
+    // sets are resolved once per read instead of once per cell.
+    type ResolvedFlipConstraints = {
+      blocked: ReadonlySet<string>;
+      protectedKeys: ReadonlySet<string>;
+      permanentProtected: ReadonlySet<string>;
+    };
+    const resolveFlipConstraints = (
+      constraints?: FlipConstraints,
+    ): ResolvedFlipConstraints => ({
+      blocked: toKeySet(constraints?.blockedKeys),
+      protectedKeys: toKeySet(constraints?.protectedKeys),
+      permanentProtected: toKeySet(constraints?.permanentProtectedKeys),
+    });
+    const flipsWith = (
       row: number,
       col: number,
       player: number,
-      constraints?: FlipConstraints,
-    ): readonly CellCoord[] => {
+      resolved: ResolvedFlipConstraints,
+    ): CellCoord[] => {
       const startKey = deps.toBoardCellKey(row, col);
-      const blocked = toKeySet(constraints?.blockedKeys);
-      const protectedKeys = toKeySet(constraints?.protectedKeys);
-      const permanentProtected = toKeySet(
-        constraints?.permanentProtectedKeys,
-      );
-      if (
-        !topology.playableKeys.has(startKey) ||
-        get(row, col) !== deps.empty ||
-        blocked.has(startKey)
-      ) {
+      const { blocked, protectedKeys, permanentProtected } = resolved;
+      if (ownerByKey.get(startKey) !== deps.empty || blocked.has(startKey)) {
         return [];
       }
       const flips: CellCoord[] = [];
@@ -764,10 +784,7 @@ export function createStateKernel(deps: StateKernelDependencies) {
         let currentRow = row + direction[0];
         let currentCol = col + direction[1];
         let key = deps.toBoardCellKey(currentRow, currentCol);
-        while (
-          topology.playableKeys.has(key) &&
-          get(currentRow, currentCol) === -player
-        ) {
+        while (ownerByKey.get(key) === -player) {
           if (
             blocked.has(key) ||
             protectedKeys.has(key) ||
@@ -784,21 +801,28 @@ export function createStateKernel(deps: StateKernelDependencies) {
         if (
           line.length > 0 &&
           !blocked.has(key) &&
-          topology.playableKeys.has(key) &&
-          get(currentRow, currentCol) === player
+          ownerByKey.get(key) === player
         ) {
           flips.push(...line);
         }
       }
       return flips;
     };
+    const getFlips = (
+      row: number,
+      col: number,
+      player: number,
+      constraints?: FlipConstraints,
+    ): readonly CellCoord[] =>
+      flipsWith(row, col, player, resolveFlipConstraints(constraints));
     const getLegalMoves = (
       player: number,
       constraints?: FlipConstraints,
     ): readonly BoardMove[] => {
+      const resolved = resolveFlipConstraints(constraints);
       const moves: BoardMove[] = [];
       for (const cell of coordinates) {
-        const flips = getFlips(cell.row, cell.col, player, constraints);
+        const flips = flipsWith(cell.row, cell.col, player, resolved);
         if (flips.length > 0) {
           moves.push({
             row: cell.row,
@@ -1181,11 +1205,18 @@ export function createStateKernel(deps: StateKernelDependencies) {
     return true;
   }
 
+  /** Declares a search position final. Callers must never mutate its board,
+   * expansions or holes afterwards; live match state is never marked. */
+  function markImmutableBoardSource(gameStateValue: unknown): void {
+    if (isRecord(gameStateValue)) immutableSources.add(gameStateValue);
+  }
+
   return {
     BOARD_CONTRACT_VERSION,
     BOARD_DIGEST_VERSION,
     inspectBoardState,
     createBoardView,
+    markImmutableBoardSource,
     createDenseBoardView,
     canonicalizeStateBoard,
     getStateCellValue,

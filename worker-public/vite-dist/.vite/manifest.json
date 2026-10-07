@@ -136,8 +136,8 @@
     "file": "assets/ViewableBuffer-CObpe3su.js",
     "name": "ViewableBuffer"
   },
-  "_bridge-I8WrXZ24.js": {
-    "file": "assets/bridge-I8WrXZ24.js",
+  "_bridge-Bu077lPT.js": {
+    "file": "assets/bridge-Bu077lPT.js",
     "name": "bridge"
   },
   "_canvasUtils-C8xQnZmC.js": {
@@ -185,12 +185,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-CvNJ0DFz.js",
+    "file": "assets/cpu-worker-diagnostics-D7jkFsW_.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-I8WrXZ24.js"
+      "_bridge-Bu077lPT.js"
     ]
   },
   "browser-vite/generated-assets/optional-commentary.mjs": {
@@ -218,7 +218,7 @@
     "src": "browser-vite/generated-assets/optional-gacha.mjs"
   },
   "browser-vite/generated-assets/optional-leaderboard.mjs": {
-    "file": "assets/optional-leaderboard-CGmOMtI6.mjs",
+    "file": "assets/optional-leaderboard-xUlxceMn.mjs",
     "src": "browser-vite/generated-assets/optional-leaderboard.mjs"
   },
   "browser-vite/generated-assets/optional-onnx.mjs": {
@@ -235,14 +235,14 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-CnKaYPyh.js",
+    "file": "assets/index.vite-BkI9Qhvl.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_bridge-I8WrXZ24.js"
+      "_bridge-Bu077lPT.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",
@@ -253,7 +253,7 @@
     "assets": [
       "assets/optional-gacha-D54pooCd.mjs",
       "assets/optional-cosmetic-BFJXwkt8.mjs",
-      "assets/optional-leaderboard-CGmOMtI6.mjs",
+      "assets/optional-leaderboard-xUlxceMn.mjs",
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-UiDuVAOA.mjs",

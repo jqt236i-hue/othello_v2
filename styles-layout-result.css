@@ -612,31 +612,36 @@
 }
 
 .result-dialogues .dialogue-row.cpu-level-11,
-.result-dialogues .dialogue-row.cpu-level-12 {
+.result-dialogues .dialogue-row.cpu-level-12,
+.result-dialogues .dialogue-row.cpu-level-13 {
     grid-template-columns: minmax(0, 1fr);
 }
 
 .result-dialogues .cpu-level-11 .character-name,
-.result-dialogues .cpu-level-12 .character-name {
+.result-dialogues .cpu-level-12 .character-name,
+.result-dialogues .cpu-level-13 .character-name {
     align-content: center;
     padding: calc(10px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) calc(120px * var(--layout-stage-scale));
     font-size: calc(13px * var(--layout-stage-scale));
 }
 
 .result-dialogues .cpu-level-11 .result-character-label,
-.result-dialogues .cpu-level-12 .result-character-label {
+.result-dialogues .cpu-level-12 .result-character-label,
+.result-dialogues .cpu-level-13 .result-character-label {
     white-space: nowrap;
 }
 
 .result-dialogues .cpu-level-11 .character-name::before,
-.result-dialogues .cpu-level-12 .character-name::before {
+.result-dialogues .cpu-level-12 .character-name::before,
+.result-dialogues .cpu-level-13 .character-name::before {
     inset: calc(4px * var(--layout-stage-scale)) auto calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
     width: calc(102px * var(--layout-stage-scale));
     background-size: auto, contain, auto;
 }
 
 .result-dialogues .cpu-level-11 .dialogue-text:empty,
-.result-dialogues .cpu-level-12 .dialogue-text:empty {
+.result-dialogues .cpu-level-12 .dialogue-text:empty,
+.result-dialogues .cpu-level-13 .dialogue-text:empty {
     display: none;
 }
 

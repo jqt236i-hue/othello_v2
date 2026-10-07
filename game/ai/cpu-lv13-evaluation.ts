@@ -4,6 +4,13 @@ import Registry = require('../../shared/special-stone-registry-static');
 import SharedConstants = require('../../shared-constants');
 import { lv10PlacementMoves, type Lv10Position, type Lv10Player } from './cpu-lv10-position';
 import { LV13_VALUE_WEIGHTS } from './cpu-lv13-model';
+import {
+    estimateStonePlacementLead,
+    isSearchStoneSupplyBlockingMobility,
+    readSearchStoneSupply,
+    resolveStonePlacementCardValueFactor,
+    resolveSearchRemainingPlacements
+} from './cpu-search-stone-supply';
 
 // Generated progression cards are legitimate hand cards even though they
 // are excluded from initial deck construction. Value the complete catalog;
@@ -73,16 +80,90 @@ export function lv13CardPotential(id: string): number {
     return tactical[card.type] ?? (3 + Math.min(18, Number(card.cost) || 0) * .2);
 }
 
+const LV13_MARKER_FEATURE_TYPES = Object.freeze(['DRAGON','ULTIMATE_DESTROY_GOD','BREEDING','WILL_HUNTER_KING','LIGHTNING','METEOR_GOD',
+    'ROBOT_VACUUM','GLUTTONOUS','ULTIMATE_HYPERACTIVE','HYPERACTIVE','EXTREME_HYPERACTIVE',
+    'ZOMBIE','GRASS','STONE_SALVATION_GOD','SHINRA_BANSHO_GOD','THEORY_INCARNATION']);
 export const LV13_VALUE_FEATURE_NAMES = Object.freeze([
     'material','materialEnd','geometry','frontier','mobility','mobilityEnd','survival','lasting','hand','charge',
     'materialShare','mobilityShare','potentialMobility','inviolable','protected','tempo','tempoEnd','extraPlacements',
     'infinitePlacement','timeStopTurns',
-    ...['DRAGON','ULTIMATE_DESTROY_GOD','BREEDING','WILL_HUNTER_KING','LIGHTNING','METEOR_GOD',
-        'ROBOT_VACUUM','GLUTTONOUS','ULTIMATE_HYPERACTIVE','HYPERACTIVE','EXTREME_HYPERACTIVE',
-        'ZOMBIE','GRASS','STONE_SALVATION_GOD','SHINRA_BANSHO_GOD','THEORY_INCARNATION'].map(type=>'marker:'+type)
+    ...LV13_MARKER_FEATURE_TYPES.map(type=>'marker:'+type),
+    // 持ち石ルール（01-rulebook.md §7.3）。ルール無効時は常に 0。
+    'stonePlacementLead','stonePlacementLeadEnd',
+    // 安定石（通常の配置では反転されない石）の差。Lv12 にはない Lv13 独自の特徴量。
+    'stable','stableEnd'
 ]);
 export const LV13_PRIOR_VALUE_WEIGHTS = Object.freeze([1.2,2.3,.65,-.3,2,-1,1,.65,.18,.7,
-    ...Array(LV13_VALUE_FEATURE_NAMES.length-10).fill(0)] as number[]);
+    ...Array(LV13_VALUE_FEATURE_NAMES.length-14).fill(0),
+    // stonePlacementLead / stonePlacementLeadEnd: 1 回多く置ける ≒ 置いた石 + 反転ぶん。
+    1,2,
+    // stable / stableEnd: 安定石は終盤まで失われない石。
+    1,-.5] as number[]);
+
+const LV13_STABILITY_AXES = Object.freeze([[0,1],[1,0],[1,1],[1,-1]] as const);
+/** 安定石の数（黒 − 白）。
+ * 角と、そこから途切れず続く辺の石、さらにその内側で 4 方向すべてが
+ * 「盤外・穴」「同じ色の安定石」「空きのない列」のいずれかで守られている石を、
+ * 固定点まで広げて数える。通常の配置では反転できない石の保守的な見積もりで、
+ * 破壊・移動・奪取などのカードによる変化は探索と他の特徴量に任せる。
+ * 盤外と穴は壁として扱い、盤面拡張は考慮しない。 */
+export function countLv13StableStones(owners: ReadonlyMap<string, number>, cells: readonly { row: number; col: number }[]): number {
+    const key = (row: number, col: number) => `${row},${col}`;
+    // 軸ごとに「その列に空きマスがない」かを列単位で判定する。
+    const fullLine = LV13_STABILITY_AXES.map(() => new Map<string, boolean>());
+    LV13_STABILITY_AXES.forEach(([dr, dc], axis) => {
+        const full = fullLine[axis];
+        for (const cell of cells) {
+            if (full.has(key(cell.row, cell.col))) continue;
+            let row = cell.row, col = cell.col;
+            while (owners.has(key(row - dr, col - dc))) { row -= dr; col -= dc; }
+            const line: string[] = [];
+            let empty = false;
+            for (let k = key(row, col); owners.has(k); row += dr, col += dc, k = key(row, col)) {
+                line.push(k);
+                if (!owners.get(k)) empty = true;
+            }
+            for (const k of line) full.set(k, !empty);
+        }
+    });
+    const stable = new Set<string>();
+    const isStable = (row: number, col: number, owner: number) => LV13_STABILITY_AXES.every(([dr, dc], axis) => {
+        const a = key(row + dr, col + dc), b = key(row - dr, col - dc);
+        const ownerA = owners.get(a), ownerB = owners.get(b);
+        return ownerA === undefined || ownerB === undefined
+            || (ownerA === owner && stable.has(a)) || (ownerB === owner && stable.has(b))
+            || fullLine[axis].get(key(row, col)) === true;
+    });
+    // 安定石が増えたら隣接する石だけ見直す。
+    const queue: { row: number; col: number }[] = cells.filter(cell => owners.get(key(cell.row, cell.col)));
+    let total = 0;
+    while (queue.length) {
+        const cell = queue.pop()!;
+        const k = key(cell.row, cell.col), owner = owners.get(k) || 0;
+        if (!owner || stable.has(k) || !isStable(cell.row, cell.col, owner)) continue;
+        stable.add(k);
+        total += owner;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            if ((dr || dc) && owners.get(key(cell.row + dr, cell.col + dc)) === owner) queue.push({ row: cell.row + dr, col: cell.col + dc });
+        }
+    }
+    return total;
+}
+
+// Corner cells depend only on the board shape. Within a search the shape
+// topology is memoized, so most positions share one entry.
+const cornerCellsByTopology = new WeakMap<object, readonly { row: number; col: number }[]>();
+function lv13CornerCells(view: any): readonly { row: number; col: number }[] {
+    const cached = cornerCellsByTopology.get(view.topology);
+    if (cached) return cached;
+    const keys = Board.computeCornerKeySetForCoordinates(view.coordinates);
+    const corners = Object.freeze(view.coordinates
+        .filter((cell: any) => keys.has(`${cell.row},${cell.col}`))
+        .map((cell: any) => ({ row: cell.row, col: cell.col }))
+        .sort((a: any, b: any) => a.row - b.row || a.col - b.col));
+    cornerCellsByTopology.set(view.topology, corners);
+    return corners;
+}
 
 /** Feature extraction reads an isolated sampled world, never a live private
  * state. Training calls this same function on projected public observations. */
@@ -90,23 +171,26 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
     const gs = state.gameState, cs = state.cardState, sign = player === 'black' ? 1 : -1;
     const opponent = player === 'black' ? 'white' : 'black';
     const counts = Core.countDiscs(gs, cs), material = sign * (counts.black - counts.white);
-    // This evaluation never mutates its position. Project the complete board
-    // (including holes and expansions) once instead of rebuilding a checked
-    // board view for every coordinate/owner/corner lookup below.
-    const board = Board.prepareBoardForSearch(Board.createBoardContext(gs, cs));
-    const cells = Board.collectBoardCoordinates(board).filter((cell: any) => Board.hasPlayableCell(board, cell.row, cell.col));
-    const owners = new Map<string, number>(cells.map((cell: any) => [`${cell.row},${cell.col}`, Board.getCellValue(board, cell.row, cell.col) || 0]));
+    // This evaluation never mutates its position. Read the complete board
+    // (including holes and expansions) through one shared view; the search
+    // marks its positions immutable so the view is built once per position.
+    const view: any = Board.createBoardView(gs, { cardState: cs, strict: false });
+    const cells: { row: number; col: number }[] = view.coordinates;
+    const owners = new Map<string, number>(cells.map(cell => [`${cell.row},${cell.col}`, view.get(cell.row, cell.col) || 0]));
     const empty = cells.length - counts.black - counts.white;
     const moves = { black: lv10PlacementMoves(state, 'black'), white: lv10PlacementMoves(state, 'white') };
     // Card reversi can end with a mostly empty board. Dwindling legal lines
     // make present material more important than distant marker production.
     // This remains a heuristic; only Core's consecutive passes end a game.
     const closure = Math.max(0, 1 - (moves.black.length + moves.white.length) / 8);
-    const end = Math.max(closure, 1 - empty / Math.max(1, cells.length * .3));
-    const horizon = Math.max(1, Math.min(8, empty / 2 + 1, 1 + 7 * (1 - closure)));
+    // 持ち石ルールでは、終盤度と見通しを空きマスではなく実際に置ける残り回数で測る。
+    const stoneSupply = readSearchStoneSupply(cs, player);
+    const remaining = resolveSearchRemainingPlacements(empty, stoneSupply);
+    const end = Math.max(closure, 1 - remaining / Math.max(1, cells.length * .3));
+    const horizon = Math.max(1, Math.min(8, remaining / 2 + 1, 1 + 7 * (1 - closure)));
     let geometry = 0, frontier = 0, lasting = 0, potentialMobility = 0, inviolable = 0, protectedCount = 0;
     const markerFeatures:Record<string,number>={};
-    for (const corner of Board.getCornerCells(board)) {
+    for (const corner of lv13CornerCells(view)) {
         const owner = owners.get(`${corner.row},${corner.col}`) || 0;
         geometry += sign * owner * 8;
         if (owner) {
@@ -151,10 +235,17 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
         }
     }
     const mobility = (side: Lv10Player) => moves[side].length;
+    // 持ち石ルールでは各側の残り持ち石（自分, 相手）。無効時は null。
+    const sideSupply = (side: Lv10Player) => stoneSupply
+        ? (side === player ? [stoneSupply.own, stoneSupply.opp] : [stoneSupply.opp, stoneSupply.own])
+        : null;
     const hand = (side: Lv10Player) => {
         const charge = Math.max(0, cs.charge?.[side] || 0);
+        const supply = sideSupply(side);
         const values = (cs.hands?.[side] || []).map((id: string) => lv13CardPotential(id)
-            * ((CARDS.get(id)?.cost || 0) <= charge ? 1 : .5)).sort((a: number,b: number) => b-a);
+            * ((CARDS.get(id)?.cost || 0) <= charge ? 1 : .5)
+            * (supply ? resolveStonePlacementCardValueFactor(CARDS.get(id)?.type, supply[0], supply[1], empty) : 1))
+            .sort((a: number,b: number) => b-a);
         return values.reduce((sum: number, value: number, index: number) => sum + value * (index < 3 ? 1 : .25), 0);
     };
     const charge = (side: Lv10Player) => Math.sqrt(Math.max(0, Math.min(99, cs.charge?.[side] || 0)));
@@ -170,29 +261,40 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
         return -24 / (Math.max(0, counts[side]) + .5)
             -24 / (Math.max(0, counts[side] - mostFlips) + .5);
     };
-    const mobile=mobility(player)-mobility(opponent);
+    // 持ち石切れの合法手 0 は機動力差ではなく、置ける回数の差（stonePlacementLead）として数える。
+    const mobilityBlocked=isSearchStoneSupplyBlockingMobility(stoneSupply);
+    const mobile=mobilityBlocked?0:mobility(player)-mobility(opponent);
+    const placementLead=estimateStonePlacementLead(empty,stoneSupply);
     const turnOwner=gs.currentPlayer===1||gs.currentPlayer==='black'?'black':'white';
     // A nominal turn with no legal placement is not a tempo advantage. Cards
     // that restore placement remain valued and are settled by normal search.
     const tempo=sign*(turnOwner==='black'?1:-1)*Math.min(1,mobility(turnOwner)/3);
     const difference=(field:string,cap:number)=>(Math.min(cap,Math.max(0,Number(cs[field]?.[player])||0))
         -Math.min(cap,Math.max(0,Number(cs[field]?.[opponent])||0)));
+    // 残り追加配置は持ち石の範囲でしか使えない（持ち石ルール無効時は従来どおり）。
+    const extraPlacements=stoneSupply
+        ? Math.min(4,stoneSupply.own,Math.max(0,Number(cs.extraPlaceRemainingByPlayer?.[player])||0))
+            -Math.min(4,stoneSupply.opp,Math.max(0,Number(cs.extraPlaceRemainingByPlayer?.[opponent])||0))
+        : difference('extraPlaceRemainingByPlayer',4);
+    const stable=sign*countLv13StableStones(owners,cells);
     return [material,material*end,geometry,frontier*(1-end),mobile,mobile*end,
         survival(player)-survival(opponent),lasting*(1-end*.55),
         (hand(player)-hand(opponent))*(1-closure*.75),(charge(player)-charge(opponent))*(1-closure*.75),
         material*16/(counts.black+counts.white+4),mobile*8/(moves.black.length+moves.white.length+2),
         potentialMobility,inviolable,protectedCount,tempo,tempo*end,
-        difference('extraPlaceRemainingByPlayer',4),difference('infinitePlaceActiveByPlayer',1),
+        extraPlacements,difference('infinitePlaceActiveByPlayer',1),
         difference('timeStopConsecutiveTurnsRemainingByPlayer',4),
-        ...LV13_VALUE_FEATURE_NAMES.slice(20).map(name=>markerFeatures[name.slice(7)]||0)];
+        ...LV13_MARKER_FEATURE_TYPES.map(type=>markerFeatures[type]||0),
+        placementLead,placementLead*end,
+        stable,stable*end];
 }
 
-export function evaluateLv13Position(state:Lv10Position,player:Lv10Player):number{
+export function evaluateLv13Position(state:Lv10Position,player:Lv10Player,weights:readonly number[]=LV13_VALUE_WEIGHTS):number{
     if(Core.isGameOver(state.gameState)){
         const counts=Core.countDiscs(state.gameState,state.cardState);
         const material=(player==='black'?1:-1)*(counts.black-counts.white);
         return material===0?0:Math.sign(material)*100000+material;
     }
     const features=extractLv13ValueFeatures(state,player);
-    return Math.max(-192,Math.min(192,features.reduce((sum,value,index)=>sum+value*LV13_VALUE_WEIGHTS[index],0)));
+    return Math.max(-192,Math.min(192,features.reduce((sum,value,index)=>sum+value*weights[index],0)));
 }

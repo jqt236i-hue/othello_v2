@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPUデッキ調整</title>
+<!-- The game's own tokens, fonts and card faces (served read-only by the editor server). -->
+<link rel="stylesheet" href="/styles-variables.css">
+<link rel="stylesheet" href="/styles-base.css">
+<link rel="stylesheet" href="/styles-cards.css">
+<style>
+  :root {
+    --ed-panel: rgba(6, 18, 32, 0.86);
+    --ed-panel-strong: rgba(4, 12, 22, 0.94);
+    --ed-line: rgba(158, 130, 72, 0.44);
+    --ed-line-strong: rgba(232, 199, 121, 0.78);
+    --ed-gold: #e8c779;
+    --ed-gold-light: #ffecb3;
+    --ed-text: #eee5d4;
+    --ed-muted: #a99b80;
+    --ed-teal: rgba(18, 74, 92, 0.9);
+    --ed-ok: #8fe0a6; --ed-warn: #f2c26b; --ed-bad: #ff8a73;
+    --ed-latin: "CR-Cinzel Subset", "CR-Cinzel Full", serif;
+  }
+  html, body { height: 100%; }
+  body { overflow: hidden; color: var(--ed-text); }
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(3, 10, 18, 0.55), rgba(2, 6, 10, 0.88)); pointer-events: none; }
+  .ed-root { position: relative; display: flex; flex-direction: column; height: 100vh; padding: 18px 22px 20px; box-sizing: border-box; gap: 14px; }
+
+  /* Header: like the game's DECK BUILDER modal header */
+  .ed-header { display: flex; align-items: center; gap: 16px; padding: 10px 18px; border: 1px solid var(--ed-line); background: linear-gradient(180deg, rgba(10, 28, 44, 0.94), var(--ed-panel-strong)); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); }
+  .ed-kicker { font-family: var(--ed-latin); font-size: 11px; letter-spacing: .22em; color: var(--ed-gold); }
+  .ed-title { font-size: 30px; font-weight: 800; letter-spacing: .12em; color: var(--ed-text); line-height: 1.1; }
+  .ed-pill { border: 1px solid var(--ed-line); border-radius: 999px; padding: 3px 12px; font-size: 13px; color: var(--ed-muted); background: rgba(0, 0, 0, 0.35); }
+  .ed-pill.warn { color: var(--ed-warn); border-color: rgba(242, 194, 107, .6); }
+  .ed-pill.ok { color: var(--ed-ok); border-color: rgba(143, 224, 166, .6); }
+  .ed-pill.bad { color: var(--ed-bad); border-color: rgba(255, 138, 115, .6); }
+  .ed-grow { flex: 1; }
+
+  .ed-btn { font: inherit; font-weight: 700; letter-spacing: .12em; color: var(--ed-text); background: linear-gradient(180deg, rgba(30, 92, 112, 0.95), rgba(12, 52, 68, 0.95)); border: 1px solid rgba(120, 190, 210, 0.55); padding: 8px 18px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 8px rgba(0,0,0,.4); }
+  .ed-btn:hover:not(:disabled) { border-color: var(--ed-line-strong); color: var(--ed-gold-light); }
+  .ed-btn:disabled { opacity: .4; cursor: default; }
+  .ed-btn.gold { color: #2a1d10; background: linear-gradient(180deg, #ffe6a8, #d4a44b); border-color: #8a6524; }
+  .ed-btn.gold:hover:not(:disabled) { color: #1b1206; filter: brightness(1.08); }
+  .ed-btn.small { padding: 4px 10px; font-size: 13px; letter-spacing: .06em; }
+  .ed-btn.round { width: 34px; height: 34px; padding: 0; border-radius: 50%; letter-spacing: 0; font-size: 18px; }
+
+  .ed-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(360px, 1fr) minmax(420px, 1.25fr); gap: 14px; }
+  .ed-panel { min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--ed-line); background: var(--ed-panel); box-shadow: 0 10px 28px rgba(0,0,0,.4); }
+  .ed-panel-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 10px; border-bottom: 1px solid rgba(158,130,72,.25); }
+  .ed-section-title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; letter-spacing: .16em; color: var(--ed-text); }
+  .ed-section-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, #ffe6a8, #d4a44b); }
+  .ed-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; }
+  .ed-panel-body::-webkit-scrollbar { width: 8px; } .ed-panel-body::-webkit-scrollbar-thumb { background: rgba(158,130,72,.45); }
+
+  /* CPU list */
+  .ed-cpu { display: grid; grid-template-columns: 46px 1fr; gap: 10px; align-items: center; width: 100%; margin-bottom: 8px; padding: 6px 8px; text-align: left; font: inherit; color: var(--ed-text); cursor: pointer; border: 1px solid rgba(158,130,72,.3); background: linear-gradient(180deg, rgba(14, 34, 52, .9), rgba(6, 16, 28, .9)); }
+  .ed-cpu:hover:not(:disabled) { border-color: var(--ed-line-strong); }
+  .ed-cpu.active { border-color: var(--ed-line-strong); background: linear-gradient(180deg, rgba(92, 72, 30, .55), rgba(20, 18, 12, .85)); box-shadow: 0 0 0 1px rgba(232,199,121,.3) inset; }
+  .ed-cpu:disabled { opacity: .5; cursor: default; }
+  .ed-cpu img { width: 46px; height: 46px; object-fit: cover; object-position: top; border-radius: 50%; border: 1px solid var(--ed-line); background: #000; }
+  .ed-cpu .lv { font-family: var(--ed-latin); font-size: 11px; color: var(--ed-gold); letter-spacing: .12em; }
+  .ed-cpu .nm { font-size: 13px; font-weight: 700; line-height: 1.3; }
+  .ed-cpu .sub { font-size: 11px; color: var(--ed-muted); }
+  .ed-cpu .dirty { color: var(--ed-warn); }
+
+  /* Selected CPU */
+  .ed-hero { display: grid; grid-template-columns: 96px 1fr auto; gap: 14px; align-items: center; padding: 12px 14px; border-bottom: 1px solid rgba(158,130,72,.25); background: linear-gradient(90deg, rgba(92,72,30,.28), transparent 70%); }
+  .ed-hero img { width: 96px; height: 96px; object-fit: cover; object-position: top; border: 1px solid var(--ed-line-strong); background: #000; }
+  .ed-hero .lv { font-family: var(--ed-latin); color: var(--ed-gold); letter-spacing: .2em; font-size: 12px; }
+  .ed-hero .nm { font-size: 20px; font-weight: 800; letter-spacing: .06em; line-height: 1.3; }
+  .ed-orb { width: 78px; height: 78px; border-radius: 50%; display: grid; place-items: center; text-align: center; border: 1px solid var(--ed-line-strong); background: radial-gradient(circle at 50% 35%, rgba(255,230,168,.25), rgba(6,18,32,.95) 70%); }
+  .ed-orb b { display: block; font-size: 26px; line-height: 1; color: var(--ed-gold-light); }
+  .ed-orb small { font-size: 11px; color: var(--ed-muted); }
+  .ed-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid rgba(158,130,72,.25); }
+  .ed-seg { display: inline-flex; border: 1px solid var(--ed-line); }
+  .ed-seg button { font: inherit; font-size: 13px; padding: 6px 12px; color: var(--ed-muted); background: rgba(0,0,0,.35); border: 0; cursor: pointer; }
+  .ed-seg button.on { color: #2a1d10; background: linear-gradient(180deg, #ffe6a8, #d4a44b); font-weight: 700; }
+  .ed-select, .ed-input { font: inherit; font-size: 13px; color: var(--ed-text); background: rgba(0,0,0,.45); border: 1px solid var(--ed-line); padding: 6px 8px; }
+  .ed-input { flex: 1; min-width: 160px; }
+  .ed-select option { background: #0b1826; color: var(--ed-text); }
+  .ed-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; border-bottom: 1px solid rgba(158,130,72,.25); }
+  .ed-chip { font: inherit; font-size: 12px; padding: 4px 10px; color: var(--ed-text); background: rgba(0,0,0,.4); border: 1px solid rgba(158,130,72,.45); border-radius: 999px; cursor: pointer; }
+  .ed-chip small { color: var(--ed-muted); margin-left: 3px; }
+  .ed-chip:hover { border-color: var(--ed-line-strong); }
+  .ed-chip.on { color: #2a1d10; background: linear-gradient(180deg, #ffe6a8, #d4a44b); border-color: #8a6524; font-weight: 700; }
+  .ed-chip.on small { color: #4a3510; }
+  .ed-chip.exclude { border-style: dashed; }
+  .ed-chip.exclude.on { color: #f3e9d6; background: linear-gradient(180deg, #7a2a22, #4a1612); border-color: #c0614f; border-style: solid; }
+  .ed-chip.exclude.on small { color: #f0c2b6; }
+  #tip .roles { margin-top: 4px; color: var(--ed-gold); font-size: 12px; }
+  .ed-note { color: var(--ed-muted); font-size: 13px; padding: 16px 4px; line-height: 1.7; }
+
+  /* Card grid: the game's card faces */
+  .ed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 12px 10px; }
+  .ed-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .ed-card .card-item { width: 98px; height: 118px; pointer-events: none; }
+  .ed-card.clickable { cursor: pointer; }
+  .ed-card.clickable:hover .card-item { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,.45), 0 0 0 1px rgba(232,199,121,.65); }
+  .ed-card.in-deck .card-item { box-shadow: 0 0 0 2px rgba(255,236,179,.55), 0 2px 6px rgba(0,0,0,.5); }
+  .ed-count { position: absolute; top: 4px; right: 4px; z-index: 6; min-width: 26px; padding: 2px 7px; border-radius: 999px; background: linear-gradient(180deg, #ffe6a8, #f5c659); border: 1px solid rgba(80,50,14,.55); color: #2a1d10; font-size: 11px; font-weight: 800; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.5); pointer-events: none; }
+  .ed-count.zero { background: rgba(0,0,0,.55); color: rgba(255,236,179,.55); border-color: rgba(158,130,72,.4); }
+  .ed-qty { display: flex; align-items: center; gap: 4px; }
+  .ed-qty input { width: 40px; text-align: center; font: inherit; font-size: 14px; font-weight: 700; color: var(--ed-gold-light); background: rgba(0,0,0,.5); border: 1px solid var(--ed-line); padding: 3px 0; }
+  .ed-qty .ed-btn { width: 26px; height: 26px; padding: 0; letter-spacing: 0; font-size: 15px; }
+
+  /* Card detail tooltip */
+  #tip { position: fixed; z-index: 50; max-width: 300px; padding: 10px 12px; border: 1px solid var(--ed-line-strong); background: rgba(4,12,22,.97); box-shadow: 0 10px 24px rgba(0,0,0,.6); font-size: 13px; line-height: 1.6; pointer-events: none; display: none; }
+  #tip b { color: var(--ed-gold-light); font-size: 15px; }
+  #tip .meta { color: var(--ed-muted); font-size: 12px; }
+
+  #log { white-space: pre-wrap; font: 11px/1.4 Consolas, monospace; color: var(--ed-muted); max-height: 140px; overflow: auto; display: none; margin: 0 14px 12px; padding: 8px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,138,115,.4); }
+  @media (max-width: 1100px) { body { overflow: auto; } .ed-root { height: auto; } .ed-main { grid-template-columns: 1fr; } .ed-panel { max-height: 80vh; } }
+</style>
+</head>
+<body>
+<div class="ed-root">
+  <header class="ed-header">
+    <div>
+      <div class="ed-kicker">CPU DECK EDITOR</div>
+      <div class="ed-title">CPUデッキ調整</div>
+    </div>
+    <span id="status" class="ed-pill">読み込み中…</span>
+    <span class="ed-grow"></span>
+    <button id="revert" class="ed-btn" title="保存済みの内容に戻す">取り消し</button>
+    <button id="apply" class="ed-btn gold">反　映</button>
+  </header>
+  <main class="ed-main">
+    <section class="ed-panel">
+      <div class="ed-panel-head"><span class="ed-section-title">CPU</span></div>
+      <div class="ed-panel-body" id="cpus"></div>
+    </section>
+    <section class="ed-panel">
+      <div class="ed-hero">
+        <img id="hero-img" alt="">
+        <div><div class="ed-kicker" id="hero-lv"></div><div class="nm" id="hero-name"></div><div class="ed-cpu sub" style="all:unset;color:var(--ed-muted);font-size:12px" id="hero-kinds"></div></div>
+        <div class="ed-orb"><div><b id="deck-total">0</b><small>枚</small></div></div>
+      </div>
+      <div class="ed-toolbar">
+        <div class="ed-seg" id="mode"></div>
+        <span class="ed-grow"></span>
+        <select id="copy-from" class="ed-select" title="ほかのCPUのデッキを読み込む"></select>
+        <button id="copy" class="ed-btn small">読込</button>
+        <button id="all-cards" class="ed-btn small">全種1枚</button>
+        <button id="clear" class="ed-btn small">空にする</button>
+      </div>
+      <div id="log"></div>
+      <div class="ed-panel-head" style="border-bottom:0;padding-bottom:0"><span class="ed-section-title">選択中カード</span></div>
+      <div class="ed-panel-body"><div id="deck"></div></div>
+    </section>
+    <section class="ed-panel">
+      <div class="ed-panel-head"><span class="ed-section-title">候補カード</span><span class="ed-grow"></span><span class="ed-pill" style="font-size:12px">押すと追加 ／ 右クリックで1枚減らす</span></div>
+      <div class="ed-toolbar">
+        <input id="search" class="ed-input" type="search" placeholder="カード名・効果で検索">
+        <select id="kind" class="ed-select"><option value="">すべての分類</option></select>
+        <select id="sort" class="ed-select"><option value="cost-desc">コスト高い順</option><option value="cost">コスト低い順</option><option value="catalog">図鑑順</option><option value="name">名前順</option></select>
+      </div>
+      <div class="ed-chips" id="roles" title="効果で分類（1枚が複数の分類に入ります）"></div>
+      <div class="ed-panel-body"><div class="ed-grid" id="cards"></div></div>
+    </section>
+  </main>
+</div>
+<div id="tip"></div>
+<script>
+'use strict';
+let state = null, saved = {}, draft = {}, current = null, polling = null, role = '', withoutSpecial = false;
+const $ = id => document.getElementById(id);
+const TYPE_KEY = { '採掘': 'mining', '守護': 'guard', '戦闘': 'battle', '執行': 'judgment', '禁忌': 'taboo', '殲滅': 'annihilation', '繁栄': 'prosperity', '特殊': 'special' };
+const costTier = cost => cost === 0 ? 'white' : cost >= 31 ? 'special' : cost >= 21 ? 'gold' : cost >= 16 ? 'purple' : cost >= 11 ? 'blue' : cost >= 6 ? 'red' : 'gray';
+const esc = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const same = (a, b) => JSON.stringify(a ? a.slice().sort() : null) === JSON.stringify(b ? b.slice().sort() : null);
+const dirtyIds = () => state.profiles.filter(p => p.editable && !same(draft[p.id], saved[p.id])).map(p => p.id);
+const counts = deck => { const m = new Map(); for (const id of deck || []) m.set(id, (m.get(id) || 0) + 1); return m; };
+const portrait = p => p.portraitSrc ? '/' + encodeURI(p.portraitSrc) : '';
+
+function setStatus(text, kind = '') { const el = $('status'); el.textContent = text; el.className = 'ed-pill' + (kind ? ' ' + kind : ''); }
+
+// The game's card face markup (cards/card-renderer.ts createCardFaceElement).
+function cardFace(card) {
+  const tier = costTier(card.cost);
+  const art = card.image ? ` has-card-background" style="--card-background-art-image:url('/${encodeURI(card.image)}')"` : '"';
+  return `<div class="card-item visible cost-tier-${tier}${art} data-card-type="${TYPE_KEY[card.kind] || ''}">`
+    + `${card.image ? '<div class="card-background-art" aria-hidden="true"></div>' : ''}`
+    + `<span class="card-name">${esc(card.name)}</span>`
+    + `<div class="card-cost-badge cost-tier-${tier}"><span class="cost-value">${card.cost}</span><span class="cost-label">cost</span></div></div>`;
+}
+
+async function load() {
+  const res = await fetch('/api/state', { cache: 'no-store' });
+  state = await res.json();
+  saved = JSON.parse(JSON.stringify(state.decks));
+  draft = JSON.parse(JSON.stringify(state.decks));
+  if (!current) current = state.profiles.find(p => p.editable).id;
+  // 表示分類（カードの属性名）はプルダウン、効果分類（特殊石・破壊など。重複あり）はボタンで絞り込む。
+  const kinds = [...new Set(state.cards.map(card => card.kind).filter(Boolean))];
+  const count = test => state.cards.filter(test).length;
+  $('kind').innerHTML = `<option value="">すべての属性（${state.cards.length}）</option>`
+    + kinds.map(k => `<option value="${esc(k)}">${esc(k)}（${count(c => c.kind === k)}）</option>`).join('');
+  renderRoleChips();
+  render();
+  showBuild(state.build, true);
+}
+
+function render() { renderCpus(); renderHero(); renderDeck(); renderCards(); renderButtons(); }
+
+function renderRoleChips() {
+  const box = $('roles'); box.innerHTML = '';
+  const chips = [{ key: '', label: 'すべて' }, ...state.roles];
+  const pool = state.cards.filter(c => !withoutSpecial || !c.roles.includes('special-stone'));
+  for (const r of chips) {
+    const b = document.createElement('button');
+    const n = r.key ? pool.filter(c => c.roles.includes(r.key)).length : pool.length;
+    b.className = 'ed-chip' + (role === r.key ? ' on' : '');
+    b.innerHTML = `${esc(r.label)}<small>${n}</small>`;
+    b.disabled = withoutSpecial && r.key === 'special-stone';
+    b.onclick = () => { role = role === r.key ? '' : r.key; renderRoleChips(); renderCards(); };
+    box.appendChild(b);
+    // 特殊石を作るカードを除いて表示する切り替え（他の分類と組み合わせられる）。
+    if (r.key === 'special-stone') {
+      const x = document.createElement('button');
+      x.className = 'ed-chip exclude' + (withoutSpecial ? ' on' : '');
+      x.innerHTML = `特殊石以外<small>${state.cards.filter(c => !c.roles.includes('special-stone')).length}</small>`;
+      x.title = '特殊石を作るカードを除いて表示します（ほかの分類と組み合わせられます）';
+      x.onclick = () => { withoutSpecial = !withoutSpecial; if (withoutSpecial && role === 'special-stone') role = ''; renderRoleChips(); renderCards(); };
+      box.appendChild(x);
+    }
+  }
+}
+const roleLabel = key => (state.roles.find(r => r.key === key) || { label: key }).label;
+
+function renderCpus() {
+  const dirty = new Set(dirtyIds());
+  $('cpus').innerHTML = '';
+  for (const p of state.profiles) {
+    const deck = draft[p.id];
+    const b = document.createElement('button');
+    b.className = 'ed-cpu' + (p.id === current ? ' active' : '');
+    b.disabled = !p.editable;
+    b.innerHTML = `<img src="${portrait(p)}" alt=""><div><div class="lv">LV ${p.level}${dirty.has(p.id) ? ' <span class="dirty">● 未反映</span>' : ''}</div>`
+      + `<div class="nm">${esc(p.name)}</div><div class="sub">${!p.editable ? '全種デッキ（固定）' : deck ? deck.length + '枚 ・ ' + counts(deck).size + '種類' : 'デフォルト（ランダム30枚）'}</div></div>`;
+    b.onclick = () => { current = p.id; render(); };
+    $('cpus').appendChild(b);
+  }
+}
+
+function renderHero() {
+  const p = state.profiles.find(x => x.id === current), deck = draft[current];
+  $('hero-img').src = portrait(p);
+  $('hero-lv').textContent = 'LV ' + p.level;
+  $('hero-name').textContent = p.name;
+  $('hero-kinds').textContent = deck ? `${counts(deck).size}種類` : '対局ごとにランダムな30枚';
+  $('deck-total').textContent = deck ? deck.length : '—';
+  $('mode').innerHTML = '';
+  for (const [mode, label] of [['fixed', '固定デッキ'], ['default', 'デフォルト（ランダム）']]) {
+    const b = document.createElement('button');
+    b.textContent = label; b.className = (deck ? mode === 'fixed' : mode === 'default') ? 'on' : '';
+    b.onclick = () => {
+      if (mode === 'default') draft[current] = null;
+      else if (!draft[current]) draft[current] = (saved[current] || state.defaultDeckSample).slice();
+      render();
+    };
+    $('mode').appendChild(b);
+  }
+  $('copy-from').innerHTML = state.profiles.filter(x => x.id !== current).map(x => `<option value="${x.id}">Lv${x.level} ${esc(x.name)}</option>`).join('');
+}
+
+function renderDeck() {
+  const deck = draft[current], box = $('deck');
+  box.innerHTML = '';
+  if (!deck) { box.innerHTML = '<div class="ed-note">このCPUは対局ごとにランダムな30枚のデフォルトデッキを使います。<br>「固定デッキ」に切り替えると、カードを自由に選べます。</div>'; return; }
+  if (!deck.length) { box.innerHTML = '<div class="ed-note">カードがありません。右の候補カードを押して追加してください（1枚以上必要）。</div>'; return; }
+  const byId = new Map(state.cards.map(c => [c.id, c]));
+  const grid = document.createElement('div'); grid.className = 'ed-grid';
+  const entries = [...counts(deck)].sort((a, b) => (byId.get(b[0])?.cost ?? 0) - (byId.get(a[0])?.cost ?? 0) || a[0].localeCompare(b[0]));
+  for (const [id, n] of entries) {
+    const card = byId.get(id) || { id, name: id, cost: 0, kind: '' };
+    const el = document.createElement('div'); el.className = 'ed-card in-deck';
+    el.innerHTML = cardFace(card) + `<div class="ed-count">x${n}</div>`
+      + `<div class="ed-qty"><button class="ed-btn" data-d="-1">−</button><input value="${n}" inputmode="numeric"><button class="ed-btn" data-d="1">＋</button></div>`;
+    el.querySelectorAll('button').forEach(btn => btn.onclick = () => setCount(id, n + Number(btn.dataset.d)));
+    el.querySelector('input').onchange = e => setCount(id, Math.max(0, Math.floor(Number(e.target.value) || 0)));
+    attachTip(el.querySelector('.card-item'), card);
+    grid.appendChild(el);
+  }
+  box.appendChild(grid);
+}
+
+function setCount(id, n) {
+  const deck = draft[current] || [];
+  draft[current] = deck.filter(x => x !== id).concat(Array(Math.max(0, n)).fill(id));
+  render();
+}
+
+function renderCards() {
+  const q = $('search').value.trim().toLowerCase(), kind = $('kind').value, sort = $('sort').value;
+  const map = counts(draft[current]);
+  let list = state.cards.filter(c => (!kind || c.kind === kind) && (!role || c.roles.includes(role)) && (!withoutSpecial || !c.roles.includes('special-stone'))
+    && (!q || (c.name + c.desc + c.type + c.roles.map(roleLabel).join('')).toLowerCase().includes(q)));
+  if (sort === 'cost') list = list.slice().sort((a, b) => a.cost - b.cost);
+  if (sort === 'cost-desc') list = list.slice().sort((a, b) => b.cost - a.cost);
+  if (sort === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const box = $('cards'); box.innerHTML = '';
+  for (const c of list) {
+    const n = map.get(c.id) || 0;
+    const el = document.createElement('div'); el.className = 'ed-card clickable' + (n ? ' in-deck' : '');
+    el.innerHTML = cardFace(c) + `<div class="ed-count${n ? '' : ' zero'}">x${n}</div>`;
+    el.onclick = () => { draft[current] = (draft[current] || []).concat(c.id); render(); };
+    el.oncontextmenu = e => { e.preventDefault(); if (n) setCount(c.id, n - 1); };
+    attachTip(el, c);
+    box.appendChild(el);
+  }
+}
+
+function attachTip(el, card) {
+  const tip = $('tip');
+  el.addEventListener('mouseenter', () => { tip.innerHTML = `<b>${esc(card.name)}</b><div class="meta">コスト ${card.cost} ・ ${esc(card.kind)}</div><div>${esc(card.desc || '')}</div>${card.roles && card.roles.length ? `<div class="roles">分類: ${card.roles.map(roleLabel).map(esc).join(' ／ ')}</div>` : ''}`; tip.style.display = 'block'; });
+  el.addEventListener('mousemove', e => { tip.style.left = Math.min(innerWidth - 320, e.clientX + 16) + 'px'; tip.style.top = Math.min(innerHeight - tip.offsetHeight - 10, e.clientY + 16) + 'px'; });
+  el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+}
+
+function renderButtons() {
+  const dirty = dirtyIds();
+  const invalid = state.profiles.filter(p => p.editable && draft[p.id] && (draft[p.id].length < 1 || draft[p.id].length > state.maxCards));
+  const building = state.build && state.build.status === 'running';
+  $('apply').disabled = !dirty.length || invalid.length > 0 || building;
+  $('revert').disabled = !dirty.length || building;
+  if (building) return;
+  if (invalid.length) setStatus(`${invalid.map(p => 'Lv' + p.level).join('・')} は1〜${state.maxCards}枚にしてください`, 'warn');
+  else if (dirty.length) setStatus(`未反映の変更 ${dirty.length}体`, 'warn');
+  else if (!polling && (!state.build || state.build.status !== 'done')) setStatus('保存済み');
+}
+
+$('copy').onclick = () => { const src = $('copy-from').value; const p = state.profiles.find(x => x.id === src);
+  draft[current] = (p && !p.editable ? state.lv9Deck : draft[src] || state.defaultDeckSample).slice(); render(); };
+$('all-cards').onclick = () => { draft[current] = state.cards.map(c => c.id); render(); };
+$('clear').onclick = () => { draft[current] = []; render(); };
+$('revert').onclick = () => { draft = JSON.parse(JSON.stringify(saved)); render(); };
+for (const id of ['search', 'kind', 'sort']) $(id).addEventListener('input', renderCards);
+
+$('apply').onclick = async () => {
+  const changes = {}; for (const id of dirtyIds()) changes[id] = draft[id];
+  $('apply').disabled = true;
+  setStatus('保存しています…');
+  const res = await fetch('/api/decks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decks: changes }) });
+  const body = await res.json();
+  if (!res.ok) { setStatus(body.error || '反映に失敗しました', 'bad'); renderButtons(); return; }
+  saved = JSON.parse(JSON.stringify(body.decks));
+  draft = JSON.parse(JSON.stringify(body.decks));
+  state.build = body.build;
+  render();
+  showBuild(body.build);
+};
+
+function showBuild(build, initial = false) {
+  if (!build) return;
+  const log = $('log');
+  if (build.status === 'running') {
+    setStatus('ゲームに組み込み中… 1〜3分ほどかかります');
+    clearTimeout(polling);
+    polling = setTimeout(async () => { const r = await fetch('/api/build', { cache: 'no-store' }); state.build = await r.json(); polling = null; renderButtons(); showBuild(state.build); }, 2000);
+  } else if (build.status === 'done' && !initial) {
+    setStatus('反映しました。ゲーム画面を再読み込みしてください', 'ok');
+    log.style.display = 'none';
+  } else if (build.status === 'failed') {
+    setStatus('デッキは保存しましたが、組み込みに失敗しました', 'bad');
+    log.style.display = 'block'; log.textContent = build.log.slice(-4000);
+  }
+  renderButtons();
+}
+
+window.addEventListener('beforeunload', e => { if (state && dirtyIds().length) { e.preventDefault(); e.returnValue = ''; } });
+load().catch(error => setStatus('読み込みに失敗しました: ' + error.message, 'bad'));
+</script>
+</body>
+</html>
