@@ -4315,16 +4315,19 @@ const {
             'decrementRemainingOwnerTurns',
             'BoardOps',
             'getHealingCellTargets',
+            'isTrueSpecialStoneMarker',
             'applyHealingCell'
         ], {
             BoardOps: BoardOpsModule,
             random: defaultPrng,
             getHealingCellTargets,
+            isTrueSpecialStoneMarker: CardUtilsModule && CardUtilsModule.isTrueSpecialStoneMarker,
             applyHealingCell: (cs: any, gs: any, owner: any, row: any, col: any, sourceRow: any, sourceCol: any) => (
                 applyHealingCell(cs, gs, owner, row, col, sourceRow, sourceCol)
             )
         }, label);
         deps.getHealingCellTargets = deps.getHealingCellTargets || getHealingCellTargets;
+        deps.isTrueSpecialStoneMarker = deps.isTrueSpecialStoneMarker || (CardUtilsModule && CardUtilsModule.isTrueSpecialStoneMarker);
         deps.applyHealingCell = deps.applyHealingCell || (
             (cs: any, gs: any, owner: any, row: any, col: any, sourceRow: any, sourceCol: any) => (
                 applyHealingCell(cs, gs, owner, row, col, sourceRow, sourceCol)

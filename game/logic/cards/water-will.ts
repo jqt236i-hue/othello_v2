@@ -1,6 +1,7 @@
 /**
  * @file water-will.ts
  * @description Canonical WATER_WILL anchor lifecycle and deterministic healing-cell placement.
+ * Healing cells prefer cells holding the owner's other special-stone bodies; otherwise any target.
  */
 
 import SharedConstantsImport = require('../../../shared-constants');
@@ -48,6 +49,7 @@ interface WaterDeps {
         gameState: WaterGameState,
         playerKey: WaterSeatKey
     ) => Array<{ row: number; col: number }>;
+    isTrueSpecialStoneMarker?: (marker: WaterMarker) => boolean;
     applyHealingCell?: (
         cardState: WaterCardState,
         gameState: WaterGameState,
@@ -133,6 +135,50 @@ function cleanupExpiredWater(cardState: WaterCardState): void {
     ));
 }
 
+function isActiveOwnSpecialStoneBody(
+    cardState: WaterCardState,
+    gameState: WaterGameState,
+    playerKey: WaterSeatKey,
+    marker: WaterMarker,
+    isTrueSpecialStoneMarker: (marker: WaterMarker) => boolean
+): boolean {
+    if (!marker || marker.kind !== 'specialStone' || marker.owner !== playerKey || !marker.data) return false;
+    if (!isTrueSpecialStoneMarker(marker)) return false;
+    if (Object.prototype.hasOwnProperty.call(marker.data, 'remainingOwnerTurns')) {
+        const remaining = Number(marker.data.remainingOwnerTurns);
+        if (!Number.isFinite(remaining) || remaining <= 0) return false;
+    }
+    const playerValue = playerKey === 'black' ? BLACK : WHITE;
+    return getCellValue(cardState, gameState, marker.row, marker.col) === playerValue;
+}
+
+// Narrow the candidates to cells holding the owner's special-stone bodies, excluding the
+// emitting anchor itself. Without such a cell every candidate stays eligible.
+function preferOwnSpecialStoneTargets(
+    cardState: WaterCardState,
+    gameState: WaterGameState,
+    playerKey: WaterSeatKey,
+    sourceMarker: WaterMarker,
+    targets: Array<{ row: number; col: number }>,
+    deps: WaterDeps
+): Array<{ row: number; col: number }> {
+    if (typeof deps.isTrueSpecialStoneMarker !== 'function') {
+        throw new Error('CardWaterWill requires isTrueSpecialStoneMarker to prefer own special stones.');
+    }
+    const isTrueSpecialStoneMarker = deps.isTrueSpecialStoneMarker;
+    const preferredKeys = new Set(
+        (cardState.markers || [])
+            .filter((entry) => (
+                entry !== sourceMarker &&
+                !(entry && entry.row === sourceMarker.row && entry.col === sourceMarker.col) &&
+                isActiveOwnSpecialStoneBody(cardState, gameState, playerKey, entry, isTrueSpecialStoneMarker)
+            ))
+            .map((entry) => `${entry.row},${entry.col}`)
+    );
+    const preferred = targets.filter((target) => preferredKeys.has(`${target.row},${target.col}`));
+    return preferred.length > 0 ? preferred : targets;
+}
+
 function emptyResult(): WaterResult {
     return { healingCells: [], anchors: [], expired: [] };
 }
@@ -198,8 +244,9 @@ function processAnchor(
     }
 
     const resolveEffect = (): WaterResult => {
-        const targets = deps.getHealingCellTargets!(cardState, gameState, playerKey)
+        const allTargets = deps.getHealingCellTargets!(cardState, gameState, playerKey)
             .filter((target) => target && Number.isInteger(target.row) && Number.isInteger(target.col));
+        const targets = preferOwnSpecialStoneTargets(cardState, gameState, playerKey, marker, allTargets, deps);
         if (targets.length > 0) {
             const randomFn = resolveRandomFunction(deps.random);
             const target = targets[resolveRandomIndex(targets.length, randomFn)];
