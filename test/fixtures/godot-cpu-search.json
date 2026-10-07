@@ -2272,7 +2272,7 @@
       },
       "publicRecipes": null,
       "config": {
-        "version": "lv13-deeper-6144",
+        "version": "lv13-stable-6144",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -2309,7 +2309,7 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-deeper-6144",
+        "version": "lv13-stable-6144",
         "action": {
           "type": "place",
           "row": 2,
@@ -6280,7 +6280,7 @@
         ]
       },
       "config": {
-        "version": "lv13-deeper-6144",
+        "version": "lv13-stable-6144",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -6317,7 +6317,7 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-deeper-6144",
+        "version": "lv13-stable-6144",
         "action": {
           "type": "pass"
         },
@@ -6354,13 +6354,13 @@
               "type": "pass"
             },
             "continuation": [],
-            "immediate": -11.690120551632521,
+            "immediate": -10.100120551632521,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
               -25.452828051929707,
               -39.82308558644454,
-              -26.59494633813554
+              -24.89494633813554
             ],
             "scenarioSeeds": [
               100901,
@@ -6388,7 +6388,7 @@
                 "type": "pass"
               }
             ],
-            "immediate": -11.922721579511979,
+            "immediate": -10.33272157951198,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
@@ -6411,13 +6411,13 @@
                 "type": "pass"
               }
             ],
-            "immediate": -13.279496142578225,
+            "immediate": -11.689496142578225,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
               -26.792105712965018,
-              -26.76260794624812,
-              -57.13434467867906
+              -25.06260794624812,
+              -55.65434467867906
             ],
             "scenarioSeeds": [
               100901,
@@ -6438,7 +6438,7 @@
                 "type": "pass"
               }
             ],
-            "immediate": -14.699237829606169,
+            "immediate": -13.109237829606169,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
@@ -10103,7 +10103,7 @@
         ]
       },
       "config": {
-        "version": "lv13-deeper-6144",
+        "version": "lv13-stable-6144",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -10140,14 +10140,14 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-deeper-6144",
+        "version": "lv13-stable-6144",
         "action": {
           "type": "place",
           "row": 4,
           "col": 6
         },
         "continuation": [],
-        "value": -0.49268565069587045,
+        "value": -0.5065204065533861,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -10188,16 +10188,16 @@
                 "col": 4
               }
             ],
-            "immediate": -23.69907013908799,
+            "immediate": -24.65907013908799,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -43.224280094599415
+              -45.254280094599416
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6885072946762454
+            "score": -0.7088539186613773
           },
           {
             "action": {
@@ -10206,16 +10206,16 @@
               "col": 6
             },
             "continuation": [],
-            "immediate": -29.473240739515273,
+            "immediate": -30.543240739515273,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -34.53444469748734
+              -35.71444469748734
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.49268565069587045
+            "score": -0.5065204065533861
           },
           {
             "action": {
@@ -10238,16 +10238,16 @@
                 "col": 6
               }
             ],
-            "immediate": -30.130573804369153,
+            "immediate": -31.200573804369153,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -46.347191772531005
+              -47.417191772531005
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7194886557524427
+            "score": -0.7296847628545537
           },
           {
             "action": {
@@ -10256,16 +10256,16 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": -30.4009244908648,
+            "immediate": -31.5259244908648,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -87.42440796079731
+              -88.38440796079732
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.8777788457402518
+            "score": -0.8811764206053714
           },
           {
             "action": {
@@ -10281,16 +10281,16 @@
                 "col": 2
               }
             ],
-            "immediate": -24.010529680788885,
+            "immediate": -24.970529680788886,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -61.63649705321755
+              -63.11649705321755
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7456432390575363
+            "score": -0.7557352965152025
           },
           {
             "action": {
@@ -10313,16 +10313,16 @@
                 "col": 6
               }
             ],
-            "immediate": -30.130573804369153,
+            "immediate": -31.200573804369153,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -47.353334805130345
+              -48.313334805130346
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6290822361473348
+            "score": -0.6380606732477868
           }
         ]
       },

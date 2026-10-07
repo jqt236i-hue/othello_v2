@@ -89,12 +89,66 @@ export const LV13_VALUE_FEATURE_NAMES = Object.freeze([
     'infinitePlacement','timeStopTurns',
     ...LV13_MARKER_FEATURE_TYPES.map(type=>'marker:'+type),
     // 持ち石ルール（01-rulebook.md §7.3）。ルール無効時は常に 0。
-    'stonePlacementLead','stonePlacementLeadEnd'
+    'stonePlacementLead','stonePlacementLeadEnd',
+    // 安定石（通常の配置では反転されない石）の差。Lv12 にはない Lv13 独自の特徴量。
+    'stable','stableEnd'
 ]);
 export const LV13_PRIOR_VALUE_WEIGHTS = Object.freeze([1.2,2.3,.65,-.3,2,-1,1,.65,.18,.7,
-    ...Array(LV13_VALUE_FEATURE_NAMES.length-12).fill(0),
+    ...Array(LV13_VALUE_FEATURE_NAMES.length-14).fill(0),
     // stonePlacementLead / stonePlacementLeadEnd: 1 回多く置ける ≒ 置いた石 + 反転ぶん。
-    1,2] as number[]);
+    1,2,
+    // stable / stableEnd: 安定石は終盤まで失われない石。
+    1,-.5] as number[]);
+
+const LV13_STABILITY_AXES = Object.freeze([[0,1],[1,0],[1,1],[1,-1]] as const);
+/** 安定石の数（黒 − 白）。
+ * 角と、そこから途切れず続く辺の石、さらにその内側で 4 方向すべてが
+ * 「盤外・穴」「同じ色の安定石」「空きのない列」のいずれかで守られている石を、
+ * 固定点まで広げて数える。通常の配置では反転できない石の保守的な見積もりで、
+ * 破壊・移動・奪取などのカードによる変化は探索と他の特徴量に任せる。
+ * 盤外と穴は壁として扱い、盤面拡張は考慮しない。 */
+export function countLv13StableStones(owners: ReadonlyMap<string, number>, cells: readonly { row: number; col: number }[]): number {
+    const key = (row: number, col: number) => `${row},${col}`;
+    // 軸ごとに「その列に空きマスがない」かを列単位で判定する。
+    const fullLine = LV13_STABILITY_AXES.map(() => new Map<string, boolean>());
+    LV13_STABILITY_AXES.forEach(([dr, dc], axis) => {
+        const full = fullLine[axis];
+        for (const cell of cells) {
+            if (full.has(key(cell.row, cell.col))) continue;
+            let row = cell.row, col = cell.col;
+            while (owners.has(key(row - dr, col - dc))) { row -= dr; col -= dc; }
+            const line: string[] = [];
+            let empty = false;
+            for (let k = key(row, col); owners.has(k); row += dr, col += dc, k = key(row, col)) {
+                line.push(k);
+                if (!owners.get(k)) empty = true;
+            }
+            for (const k of line) full.set(k, !empty);
+        }
+    });
+    const stable = new Set<string>();
+    const isStable = (row: number, col: number, owner: number) => LV13_STABILITY_AXES.every(([dr, dc], axis) => {
+        const a = key(row + dr, col + dc), b = key(row - dr, col - dc);
+        const ownerA = owners.get(a), ownerB = owners.get(b);
+        return ownerA === undefined || ownerB === undefined
+            || (ownerA === owner && stable.has(a)) || (ownerB === owner && stable.has(b))
+            || fullLine[axis].get(key(row, col)) === true;
+    });
+    // 安定石が増えたら隣接する石だけ見直す。
+    const queue: { row: number; col: number }[] = cells.filter(cell => owners.get(key(cell.row, cell.col)));
+    let total = 0;
+    while (queue.length) {
+        const cell = queue.pop()!;
+        const k = key(cell.row, cell.col), owner = owners.get(k) || 0;
+        if (!owner || stable.has(k) || !isStable(cell.row, cell.col, owner)) continue;
+        stable.add(k);
+        total += owner;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            if ((dr || dc) && owners.get(key(cell.row + dr, cell.col + dc)) === owner) queue.push({ row: cell.row + dr, col: cell.col + dc });
+        }
+    }
+    return total;
+}
 
 // Corner cells depend only on the board shape. Within a search the shape
 // topology is memoized, so most positions share one entry.
@@ -222,6 +276,7 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
         ? Math.min(4,stoneSupply.own,Math.max(0,Number(cs.extraPlaceRemainingByPlayer?.[player])||0))
             -Math.min(4,stoneSupply.opp,Math.max(0,Number(cs.extraPlaceRemainingByPlayer?.[opponent])||0))
         : difference('extraPlaceRemainingByPlayer',4);
+    const stable=sign*countLv13StableStones(owners,cells);
     return [material,material*end,geometry,frontier*(1-end),mobile,mobile*end,
         survival(player)-survival(opponent),lasting*(1-end*.55),
         (hand(player)-hand(opponent))*(1-closure*.75),(charge(player)-charge(opponent))*(1-closure*.75),
@@ -230,7 +285,8 @@ export function extractLv13ValueFeatures(state: Lv10Position, player: Lv10Player
         extraPlacements,difference('infinitePlaceActiveByPlayer',1),
         difference('timeStopConsecutiveTurnsRemainingByPlayer',4),
         ...LV13_MARKER_FEATURE_TYPES.map(type=>markerFeatures[type]||0),
-        placementLead,placementLead*end];
+        placementLead,placementLead*end,
+        stable,stable*end];
 }
 
 export function evaluateLv13Position(state:Lv10Position,player:Lv10Player,weights:readonly number[]=LV13_VALUE_WEIGHTS):number{

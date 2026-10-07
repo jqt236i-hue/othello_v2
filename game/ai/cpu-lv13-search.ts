@@ -16,7 +16,7 @@ import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-s
  * The clock keeps a judgment within 5 s. Canonical actions and turn starts share the same
  * accounting and rules. */
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-deeper-6144', maxTransitions: 6144, maxMs: 4700,
+    version: 'lv13-stable-6144', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
