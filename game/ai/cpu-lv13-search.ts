@@ -575,6 +575,10 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     const comparable = examined.length ? examined : scored;
     // Spending a card (its charge and the turn's card use) must beat the best
     // compared root that keeps the hand by a clear margin, not by search noise.
+    // A card is not compared with holding when every compared root spends a
+    // card: the shallow comparison already preferred cards there, and forcing
+    // a holding root into the deep set was measured to lose (see
+    // docs/cpu-lv13-development-plan.md, 第5段階).
     if(comparable.some(candidate=>candidate.plan.actions[0]?.type!=='use_card')){
         for(const candidate of comparable){
             const first=candidate.plan.actions[0];
