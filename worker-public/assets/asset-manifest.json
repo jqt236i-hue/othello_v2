@@ -1,6 +1,6 @@
 {
   "version": "2026-10-07",
-  "generatedAt": "2026-10-07T09:00:55.015Z",
+  "generatedAt": "2026-10-07T13:28:29.553Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -572,7 +572,7 @@
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/dance-v1/generation-prompts.txt",
-      "sha256": "22929e3bdde5aabb6132a8425881c48af02943d9e17ddbf54565dbba30515e1d"
+      "sha256": "0e2d33ef87f20874c1d622221ee9a300c68afc6690cf481d981778ca45624bf4"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/dance-v1/observer-dance-a-pose.png",
@@ -628,11 +628,11 @@
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/generation-prompts.txt",
-      "sha256": "92b8ad47d99a20cb630fbb89518a84c96be4d1aa5e9dcaefeeea5b58b8a1e79f"
+      "sha256": "226e44de40a9af9f80ef3af4d3e8219e64e36379fda081fea0b951b07c86945c"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/dance-v2/README.md",
-      "sha256": "162fbd8e2283d985106fa96f4b12e4ff6330b601901d2f554873b808572d8164"
+      "sha256": "98cf4d57d7ec6027f59392ed7d305cee158519e2ef5b8671092961c3ce3278d9"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will_reference/observer-will-articulation-studies.png",
@@ -880,7 +880,7 @@
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
-      "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
+      "sha256": "dbd36198717213c2c52e6f452e6e774fc9a53faf6458f6db0bfd595cbd686675"
     },
     {
       "path": "assets/images/background-skin/観測の机.png",
