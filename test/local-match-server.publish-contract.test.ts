@@ -1459,6 +1459,60 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('使用可能カードを残したパスにも「パス」の通知を付けて返す（01-rulebook.md §2.5）', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      const baseVersion = Number(created.data.stateVersion);
+      const turnIndex = 5;
+      patchRoomSnapshotForTests(roomId, (room) => {
+        room.snapshot.gameState.board = createEmptyBoard();
+        room.snapshot.gameState.currentPlayer = 1;
+        room.snapshot.gameState.consecutivePasses = 0;
+        room.snapshot.cardState.turnIndex = turnIndex;
+        room.snapshot.cardState.hands = { black: [], white: [] };
+        room.snapshot.cardState._handCopyIdsByPlayer = { black: [], white: [] };
+        room.snapshot.cardState.decks = { black: [], white: [] };
+        room.snapshot.cardState.deck = [];
+        room.snapshot.cardState._deckCopyIdsByPlayer = { black: [], white: [] };
+        room.snapshot.cardState.charge = { black: 99, white: 0 };
+        room.snapshot.cardState.pendingEffectByPlayer = { black: null, white: null };
+        CardLogic.addCardToHand(room.snapshot.cardState, 'black', 'chest_01');
+      });
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion,
+        operationId: 'op_voluntary_pass_notice_1',
+        actionType: 'pass',
+        actor: 'black',
+        turnIndex,
+        action: {
+          type: 'pass',
+          playerKey: 'black',
+          turnIndex
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.ok).toBe(true);
+      expect(response.data.autoPassNotice).toEqual({
+        playerKey: 'black',
+        reason: 'voluntary_pass'
+      });
+      expect(response.data.snapshot.gameState.consecutivePasses).toBe(1);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('auto pass idempotent replay response preserves auto pass notice metadata', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

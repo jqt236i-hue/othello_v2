@@ -34,7 +34,9 @@ declare const DOUBLE_PLACE_PASS_DELAY_MS: any;
 const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 const AUTO_PASS_NOTICE_REASON = 'no_legal_moves_or_usable_cards';
 const AUTO_PASS_NOTICE_REASON_STONE_SUPPLY = 'stone_supply_exhausted_no_usable_cards';
-// 8.4 終局の見せ方: 自動パスの通知を見せてから、次の自動パスやリザルトへ進む（ローカル対局）。
+// 使用可能カードがあるのにパスを選んだ時の通知（01-rulebook.md §2.5）。
+const PASS_NOTICE_REASON_VOLUNTARY = 'voluntary_pass';
+// 8.4 終局の見せ方: パスの通知を見せてから、CPU の次の手番・次の自動パス・リザルトへ進む（ローカル対局）。
 const AUTO_PASS_NOTICE_HOLD_MS = 2400;
 let lastAutoPassNoticeShownAt: number | null = null;
 
@@ -820,20 +822,28 @@ function isPlacementLockedForPlayerKey(playerKey: string) {
     return false;
 }
 
-function showAutoPassNoticeForPlayer(playerKey: any) {
+function showPassNoticeForPlayer(playerKey: any, reason: string, reasonText?: string) {
     const showNoticeFn = resolvePassHandlerRuntimeFunction('showAutoPassNotice');
     if (typeof showNoticeFn !== 'function') return false;
     try {
-        const stoneSupplyExhausted = isPassHandlerStoneSupplyExhausted(playerKey);
         showNoticeFn({
             playerKey: normalizePlayerKey(playerKey, 'black'),
-            reason: stoneSupplyExhausted ? AUTO_PASS_NOTICE_REASON_STONE_SUPPLY : AUTO_PASS_NOTICE_REASON,
-            reasonText: stoneSupplyExhausted ? '持ち石がなく、使用可能カードもありません。' : undefined
+            reason,
+            reasonText
         });
         markAutoPassNoticeShown();
         return true;
     } catch (e) { /* ignore */ }
     return false;
+}
+
+function showAutoPassNoticeForPlayer(playerKey: any) {
+    const stoneSupplyExhausted = isPassHandlerStoneSupplyExhausted(playerKey);
+    return showPassNoticeForPlayer(
+        playerKey,
+        stoneSupplyExhausted ? AUTO_PASS_NOTICE_REASON_STONE_SUPPLY : AUTO_PASS_NOTICE_REASON,
+        stoneSupplyExhausted ? '持ち石がなく、使用可能カードもありません。' : undefined
+    );
 }
 
 function resolveCoreApi() {
@@ -921,12 +931,14 @@ function normalizeProcessPassTurnOptions(value: any) {
     if (value && typeof value === 'object') {
         return {
             autoMode: value.autoMode === true,
-            autoNoActionPass: value.autoNoActionPass === true
+            autoNoActionPass: value.autoNoActionPass === true,
+            noActionNotice: value.autoNoActionPass === true || value.noActionNotice === true
         };
     }
     return {
         autoMode: value === true,
-        autoNoActionPass: value === true
+        autoNoActionPass: value === true,
+        noActionNotice: value === true
     };
 }
 
@@ -1017,7 +1029,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
 
     // With no legal move and no usable card, pass is the only available action.
     // Network mode must publish an authoritative pass command instead of applying a local delayed pass.
-    const passArg = pending ? { autoMode: true } : true;
+    const passArg = pending ? { autoMode: true, noActionNotice: true } : true;
     if (isExplicitNetworkMatchMode()) {
         if (!canPublishNetworkPassForTurnOwner(playerKey)) return false;
         processPassTurn(playerKey, passArg);
@@ -1404,7 +1416,7 @@ async function handleBlackPassWhenNoMoves() {
 
 async function processPassTurn(
     playerKey: string,
-    autoMode?: boolean | { autoMode?: boolean; autoNoActionPass?: boolean },
+    autoMode?: boolean | { autoMode?: boolean; autoNoActionPass?: boolean; noActionNotice?: boolean },
     internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
 ) {
     if (isPassBlockedByCardRuntimeIntegrity()) {
@@ -1441,8 +1453,11 @@ async function processPassTurn(
         return handleRejectedPass(result);
     }
     syncPassPipelineState(result);
-    if (passOptions && passOptions.autoNoActionPass === true) {
+    // 行動が無いパスは「自動パス」、使用可能カードがあるのに選んだパス（人・CPU）は「パス」として通知する。
+    if (passTurnOptions.noActionNotice === true) {
         showAutoPassNoticeForPlayer(passedPlayerKey);
+    } else {
+        showPassNoticeForPlayer(passedPlayerKey, PASS_NOTICE_REASON_VOLUNTARY);
     }
 
     if (internalOptions && internalOptions.performanceScope) {

@@ -147,6 +147,7 @@ describe('match worker timeout controller', () => {
     expect(room.snapshot.cardState.chargeDeltaEvents).toEqual([]);
     expect(broadcastCalls[0]).toEqual(expect.objectContaining({
       actionType: 'timeout_pass',
+      autoPassNotice: { playerKey: 'black', reason: 'timeout_pass' },
       playbackEvents: [{ type: 'pass', phase: 1 }],
       effectLogs: ['forced timeout pass'],
       playbackDiagnostics: { source: 'forced-pass' },

@@ -182,6 +182,8 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
         await cfg.broadcastSnapshot({
             playerKey: timedOutSeatKey,
             actionType: 'timeout_pass',
+            // 時間切れパスも両席の画面中央に「パス」として通知する（01-rulebook.md §2.5）。
+            autoPassNotice: { playerKey: timedOutSeatKey, reason: 'timeout_pass' },
             playbackEvents: serverPlaybackEvents,
             effectLogs: serverEffectLogs,
             playbackDiagnostics: serverPlaybackDiagnostics,

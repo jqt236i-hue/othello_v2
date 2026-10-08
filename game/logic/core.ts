@@ -298,8 +298,7 @@ function copyGameState(state: any): any {
         roundNumber: normalizeRoundNumber(state && state.roundNumber),
         roundCompletionByPlayer: createRoundCompletionByPlayer(state && state.roundCompletionByPlayer),
         pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
-        boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig),
-        ...(state && typeof state.lastPassWithoutAction === 'boolean' ? { lastPassWithoutAction: state.lastPassWithoutAction } : {})
+        boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig)
     };
     return nextState;
 }

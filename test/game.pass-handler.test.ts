@@ -721,7 +721,8 @@ describe('pass-handler flows', () => {
         }
     });
 
-    test('通知を出していない任意パスで終局する時は、リザルトを遅らせない', async () => {
+    test('使用可能カードがあるのに選んだパスも「パス」として通知し、通知を見せてからリザルトを出す', async () => {
+        jest.useFakeTimers();
         delete require.cache[modPath];
         (global as any).showAutoPassNotice = jest.fn();
         (global as any).isGameOver = jest.fn((gs: any) => Number(gs && gs.consecutivePasses) >= 2);
@@ -735,14 +736,57 @@ describe('pass-handler flows', () => {
         };
         (global as any).Core = { getLegalMoves: jest.fn(() => []) };
         (global as any).gameState = { currentPlayer: (global as any).BLACK, consecutivePasses: 1, turnNumber: 20 };
+        try {
+            const ph = require('../game/pass-handler');
+            injectPassHandlerRuntimeFromGlobals(ph);
+            injectPassHandlerFakeTimerService(ph);
+
+            await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+
+            expect((global as any).showAutoPassNotice).toHaveBeenCalledTimes(1);
+            expect((global as any).showAutoPassNotice).toHaveBeenCalledWith(expect.objectContaining({
+                playerKey: 'black',
+                reason: 'voluntary_pass'
+            }));
+            expect((global as any).showResult).not.toHaveBeenCalled();
+
+            await jest.advanceTimersByTimeAsync(2500);
+            expect((global as any).showResult).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
+    });
+
+    test('CPU が使用可能カードを残してパスした時も「パス」、行動が無いパスは「自動パス」として通知する', async () => {
+        delete require.cache[modPath];
+        (global as any).showAutoPassNotice = jest.fn();
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).BLACK, consecutivePasses: 1, turnNumber: 21 }),
+                cardState: cs,
+                events: [{ type: 'pass', player: 'white' }]
+            }))
+        };
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        (global as any).gameState = { currentPlayer: (global as any).WHITE, consecutivePasses: 0, turnNumber: 20 };
         const ph = require('../game/pass-handler');
         injectPassHandlerRuntimeFromGlobals(ph);
         injectPassHandlerFakeTimerService(ph);
 
-        await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+        await ph.processPassTurn('white', { autoMode: false });
+        expect((global as any).showAutoPassNotice).toHaveBeenLastCalledWith(expect.objectContaining({
+            playerKey: 'white',
+            reason: 'voluntary_pass'
+        }));
 
-        expect((global as any).showAutoPassNotice).not.toHaveBeenCalled();
-        expect((global as any).showResult).toHaveBeenCalledTimes(1);
+        (global as any).gameState = { currentPlayer: (global as any).WHITE, consecutivePasses: 0, turnNumber: 22 };
+        await ph.processPassTurn('white', { autoMode: false, autoNoActionPass: true });
+        expect((global as any).showAutoPassNotice).toHaveBeenLastCalledWith(expect.objectContaining({
+            playerKey: 'white',
+            reason: 'no_legal_moves_or_usable_cards'
+        }));
     });
 
     test('ensureCurrentPlayerCanActOrPass はローカル自動パス時に中央通知を出す', () => {

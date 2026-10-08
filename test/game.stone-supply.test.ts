@@ -134,24 +134,30 @@ describe('持ち石ルール', () => {
     expect(legalMovesFor(afterWhite.cardState, afterWhite.gameState, Shared.WHITE)).toHaveLength(0);
   });
 
-  test('両者の持ち石が0でも、使用可能カードが無くなるまでは連続パスで終局しない', () => {
+  test('両者の持ち石が0でも即終局せず、先にパスされた側は最後の手番でカードを使ってからパスで終局する', () => {
     const { cardState, gameState } = makeState();
     cardState.stoneSupply.remainingByPlayer.black = 0;
     cardState.stoneSupply.remainingByPlayer.white = 0;
     cardState.charge.black = 99;
     cardState.charge.white = 99;
     cardState.hands.black = [];
-    cardState.hands.white = ['destroy_01'];
+    cardState.hands.white = ['chest_01'];
     gameState.currentPlayer = Shared.BLACK;
-    gameState.consecutivePasses = 1;
+    gameState.consecutivePasses = 0;
 
     const blackPass = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'pass', autoNoActionPass: true }, PRNG, { skipTurnStart: true });
     expect(blackPass.ok).toBe(true);
     expect(blackPass.gameState.consecutivePasses).toBe(1);
     expect(Core.isGameOver(blackPass.gameState)).toBe(false);
+    expect(CardLogic.hasUsableCard(blackPass.cardState, blackPass.gameState, 'white')).toBe(true);
 
-    blackPass.cardState.hands.white = [];
-    const whitePass = TurnPipeline.applyTurnSafe(blackPass.cardState, blackPass.gameState, 'white', { type: 'pass', autoNoActionPass: true }, PRNG, { skipTurnStart: true });
+    const whiteCard = TurnPipeline.applyTurnSafe(blackPass.cardState, blackPass.gameState, 'white', { type: 'use_card', useCardId: 'chest_01' }, PRNG, { skipTurnStart: true });
+    expect(whiteCard.ok).toBe(true);
+    expect(whiteCard.cardState.discard).toContain('chest_01');
+    expect(Core.isGameOver(whiteCard.gameState)).toBe(false);
+
+    // 01-rulebook.md §8.2: 2回目のパスで終局する（カード使用ではパス数は戻らない）。
+    const whitePass = TurnPipeline.applyTurnSafe(whiteCard.cardState, whiteCard.gameState, 'white', { type: 'pass', autoNoActionPass: true }, PRNG, { skipTurnStart: true });
     expect(whitePass.ok).toBe(true);
     expect(whitePass.gameState.consecutivePasses).toBe(2);
     expect(Core.isGameOver(whitePass.gameState)).toBe(true);

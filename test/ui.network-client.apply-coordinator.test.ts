@@ -521,6 +521,46 @@ describe('NetworkMatchClient apply coordinator', () => {
     });
   });
 
+  test('timeout pass payload shows its pass notice', async () => {
+    const showAutoPassNotice = jest.fn();
+    jest.doMock('../ui/animation-feedback-events', () => ({
+      showAutoPassNotice
+    }));
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    responsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 11,
+      actionType: 'timeout_pass',
+      snapshot: createSnapshot(11),
+      playbackEvents: [],
+      autoPassNotice: {
+        playerKey: 'black',
+        reason: 'timeout_pass'
+      }
+    };
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'pass',
+      action: { type: 'pass', playerKey: 'black', turnIndex: 1 }
+    });
+
+    await Promise.resolve();
+    resolvePublishResponse();
+    await expect(publishPromise).resolves.toEqual({ ok: true });
+
+    expect(showAutoPassNotice).toHaveBeenCalledWith({
+      playerKey: 'black',
+      reason: 'timeout_pass'
+    });
+  });
+
   test('authoritative auto_turn pass response shows its auto-pass notice', async () => {
     const showAutoPassNotice = jest.fn();
     jest.doMock('../ui/animation-feedback-events', () => ({

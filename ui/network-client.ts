@@ -2503,7 +2503,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             ? payload.autoPassNotice
             : null;
         const actionType = String(payload.actionType || '').trim().toLowerCase();
-        if (!noticeSource || (actionType && actionType !== 'pass' && actionType !== 'auto_turn')) return null;
+        if (!noticeSource || (actionType && actionType !== 'pass' && actionType !== 'auto_turn' && actionType !== 'timeout_pass')) return null;
         return {
             playerKey: normalizePlayerKey(noticeSource.playerKey || payload.playerKey),
             reason: String(noticeSource.reason || '').trim() || AUTO_PASS_NOTICE_REASON

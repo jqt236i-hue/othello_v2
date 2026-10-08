@@ -2,16 +2,20 @@ import {searchLv13} from '../game/ai/cpu-lv13-search';
 import Core = require('../game/logic/core');
 const fixture=require('./fixtures/cpu-lv13-pass-stall.json');
 
-// Black has no stones and neither side can place. Both hold usable cards, so
-// a second pass never counts (01-rulebook.md 8.2) and the two CPUs passed for
-// hundreds of turns. The searcher must spend a card instead of passing again.
-test('after the opponent passes, a pass that does not end the game is replaced by a card turn',()=>{
+// Black has no stones and neither side can place. Under the old rule a second pass did
+// not count while the opponent held a usable card, and two CPUs once passed for hundreds
+// of turns. Since 2026-10-08 the second pass always ends the game (01-rulebook.md 8.2),
+// so here White's pass is a terminal win (33-0) and the searcher takes it.
+test('after the opponent passes, the second pass ends the game and a winning side takes it',()=>{
     const before=JSON.stringify(fixture.observation);
-    expect(fixture.observation.gameState.consecutivePasses).toBe(1);
-    expect(Core.isGameOver(fixture.observation.gameState)).toBe(false);
+    const gameState=fixture.observation.gameState;
+    expect(gameState.consecutivePasses).toBe(1);
+    expect(Core.isGameOver(gameState)).toBe(false);
+    expect(Core.isGameOver(Core.applyPass(gameState))).toBe(true);
+    const discs=gameState.board.flat();
+    expect(discs.filter((value:number)=>value===Core.WHITE).length).toBeGreaterThan(discs.filter((value:number)=>value===Core.BLACK).length);
+
     const result=searchLv13(fixture.observation,{publicRecipes:fixture.publicRecipes,maxTransitions:2048});
-    expect(result.action?.type).toBe('use_card');
-    expect(result.candidates!.every(candidate=>[candidate.action,...candidate.continuation]
-        .some((action:any)=>action.type==='use_card'))).toBe(true);
+    expect(result.action?.type).toBe('pass');
     expect(JSON.stringify(fixture.observation)).toBe(before);
 },120000);

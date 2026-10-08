@@ -432,4 +432,35 @@ describe('animation feedback sound key coverage', () => {
     setTimeoutSpy.mockRestore();
     jest.useRealTimers();
   });
+
+  test('voluntary and timeout passes use the same popup with a "パス" title', () => {
+    jest.useFakeTimers();
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'white', reason: 'voluntary_pass' }, { isNoAnim: () => false });
+    let popup = document.querySelector('.auto-pass-notice-popup') as HTMLElement;
+    expect(popup.textContent).toContain('白 : パス');
+    expect(popup.textContent).not.toContain('自動パス');
+    expect(popup.textContent).toContain('パスを選びました。');
+    expect(popup.dataset.passKind).toBe('manual');
+
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'black', reason: 'timeout_pass' }, { isNoAnim: () => false });
+    const popups = document.querySelectorAll('.auto-pass-notice-popup');
+    expect(popups).toHaveLength(1);
+    popup = popups[0] as HTMLElement;
+    expect(popup.textContent).toContain('黒 : パス');
+    expect(popup.textContent).toContain('持ち時間が切れました。');
+
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'black', reason: 'stone_supply_exhausted_no_usable_cards' }, { isNoAnim: () => false });
+    popup = document.querySelector('.auto-pass-notice-popup') as HTMLElement;
+    expect(popup.textContent).toContain('黒 : 自動パス');
+    expect(popup.textContent).toContain('持ち石がなく、使用可能カードもありません。');
+    expect(popup.dataset.passKind).toBe('auto');
+
+    jest.runAllTimers();
+    jest.useRealTimers();
+  });
 });

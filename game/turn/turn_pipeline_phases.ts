@@ -325,55 +325,18 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         : 99;
 
 
-    /**
-     * 連続パスで終局する直前に、先にパスした側（これから手番になる側）が
-     * 現在の盤面で行動できるかを確かめる。
-     * 躍動系の移動などターン開始効果で盤面が変わると、前回のパス時点では無かった
-     * 合法手や使用可能カードが生まれることがあるため、その場合は終局させず対局を続ける。
-     */
-    function opponentCanActAfterPass(CardLogic: any, Core: any, cardState: any, gameState: any, opponentKey: any): boolean {
-        if (readPendingForActionPhase(cardState, opponentKey)) return true;
-        const opponentValue = opponentKey === 'black' ? Core.BLACK : Core.WHITE;
-        const placementLocked = CardLogic
-            && typeof CardLogic.isPlacementLockedForPlayer === 'function'
-            && CardLogic.isPlacementLockedForPlayer(cardState, opponentKey) === true;
-        if (!placementLocked && typeof Core.getLegalMoves === 'function') {
-            const cardCtx = resolveSafeCardContext(CardLogic, cardState);
-            const legalMoves = Core.getLegalMoves(gameState, opponentValue, cardCtx);
-            if (Array.isArray(legalMoves) && legalMoves.length > 0) return true;
-        }
-        return !!(CardLogic
-            && typeof CardLogic.hasUsableCard === 'function'
-            && CardLogic.hasUsableCard(cardState, gameState, opponentKey) === true);
-    }
-
-    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any, passWithoutAction?: boolean) {
+    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
         if (!(Core && typeof Core.applyPass === 'function')) {
             throw new Error('TurnPipeline pass completion requires Core.applyPass');
         }
-        // 直前のパスが「行動が無くてのパス」だったか。未記録（旧 snapshot など）は行動無しとみなす。
-        const previousPassWithoutAction = gameState.lastPassWithoutAction !== false;
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         clearPendingForActionPhase(cardState, playerKey);
         if (CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
             CardLogic.processPoisonTurnEnd(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
         }
+        // 2 回目の連続パスはその時点で終局（01-rulebook.md §8.2）。相手の行動可否による数え直しはしない。
         const newState = Core.applyPass(gameState);
         Object.assign(gameState, newState);
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        let terminalPassDeferred = false;
-        if (
-            Number(gameState.consecutivePasses) >= 2
-            && previousPassWithoutAction
-            && opponentCanActAfterPass(CardLogic, Core, cardState, gameState, opponentKey)
-        ) {
-            // 相手が「行動が無くて」パスした後に盤面が変わり、今は行動できるなら
-            // 「両者連続パス」とは扱わず、今回のパスを 1 回目として数え直す。
-            // 行動があるのに任意でパスした相手に対しては数え直さない（任意パス同士の応酬で終わらなくなるのを防ぐ）。
-            gameState.consecutivePasses = 1;
-            terminalPassDeferred = true;
-        }
-        gameState.lastPassWithoutAction = passWithoutAction === true;
         const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
             ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
             : { consumed: false, remaining: 0, continueTurn: false };
@@ -386,7 +349,6 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         const passEvent: any = { type: 'pass', player: playerKey };
         const reasonKey = String(reason || '').trim();
         if (reasonKey) passEvent.reason = reasonKey;
-        if (terminalPassDeferred) passEvent.terminalPassDeferred = true;
         events.push(passEvent);
         return timeStopPassRes;
     }
@@ -1050,22 +1012,18 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             || String(action.reason || '').trim().toLowerCase() === 'timeout'
         );
         const autoNoActionPass = action && action.autoNoActionPass === true;
-        const pendingBeforePass = readPendingForActionPhase(cardState, playerKey);
-        const hasUsableCardBeforePass = !!(CardLogic
-            && typeof CardLogic.hasUsableCard === 'function'
-            && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true);
-        // 行動（通常配置・使用可能カード・未解決の対象選択）が何も無いパスかどうか。終局判定の数え直しに使う。
-        const passWithoutAction = !pendingBeforePass
-            && (legalMoves.length === 0 || placementLocked)
-            && !hasUsableCardBeforePass;
         if (autoNoActionPass && !forcePass) {
-            if (pendingBeforePass) {
+            const pending = readPendingForActionPhase(cardState, playerKey);
+            if (pending) {
                 throw new Error('Illegal auto pass: pending action available');
             }
             if (legalMoves.length > 0 && !placementLocked) {
                 throw new Error('Illegal auto pass: legal moves available');
             }
-            if (hasUsableCardBeforePass) {
+            const hasUsableCard = CardLogic
+                && typeof CardLogic.hasUsableCard === 'function'
+                && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true;
+            if (hasUsableCard) {
                 throw new Error('Illegal auto pass: usable card available');
             }
         }
@@ -1082,7 +1040,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                 events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
             }
         }
-        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason, passWithoutAction);
+        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason);
     }
 
     function applyUseCardOnlyActionStage(ctx: TurnPipelinePhaseContext): void {

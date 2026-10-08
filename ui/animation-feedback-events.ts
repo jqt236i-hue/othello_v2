@@ -310,15 +310,29 @@ function resolveAutoPassNoticePlayerKey(value: any): string {
     return normalized === 'white' ? 'white' : 'black';
 }
 
+// パス通知の理由（01-rulebook.md §2.5 / §8.4）。自動パス以外（任意・時間切れ）は見出しを「パス」にする。
+const PASS_NOTICE_REASON_TEXT: Readonly<Record<string, string>> = Object.freeze({
+    no_legal_moves_or_usable_cards: '合法手と使用可能カードがありません。',
+    stone_supply_exhausted_no_usable_cards: '持ち石がなく、使用可能カードもありません。',
+    voluntary_pass: 'パスを選びました。',
+    timeout_pass: '持ち時間が切れました。'
+});
+const MANUAL_PASS_NOTICE_REASONS: ReadonlySet<string> = new Set(['voluntary_pass', 'timeout_pass']);
+
 function resolveAutoPassNotice(input: any) {
     const source = (input && typeof input === 'object') ? input : {};
     const playerKey = resolveAutoPassNoticePlayerKey(source.playerKey || source.player || source.owner);
     const playerLabel = playerKey === 'white' ? '白' : '黒';
+    const reason = String(source.reason || '').trim();
+    const kind = MANUAL_PASS_NOTICE_REASONS.has(reason) ? 'manual' : 'auto';
     const reasonText = String(source.reasonText || source.message || '').trim()
-        || '合法手と使用可能カードがありません。';
+        || PASS_NOTICE_REASON_TEXT[reason]
+        || PASS_NOTICE_REASON_TEXT.no_legal_moves_or_usable_cards;
     return {
         playerKey,
         playerLabel,
+        kind,
+        title: `${playerLabel} : ${kind === 'manual' ? 'パス' : '自動パス'}`,
         reasonText
     };
 }
@@ -336,6 +350,7 @@ function showAutoPassNotice(input: any, deps: AnimationFeedbackEventDeps = {}) {
     const popup = documentRef.createElement('div');
     popup.className = 'auto-pass-notice-popup';
     popup.dataset.playerKey = notice.playerKey;
+    popup.dataset.passKind = notice.kind;
     popup.setAttribute('role', 'status');
     popup.setAttribute('aria-live', 'polite');
     popup.setAttribute('aria-atomic', 'true');
@@ -345,7 +360,7 @@ function showAutoPassNotice(input: any, deps: AnimationFeedbackEventDeps = {}) {
 
     const titleEl = documentRef.createElement('div');
     titleEl.className = 'auto-pass-notice-popup-title';
-    titleEl.textContent = `${notice.playerLabel} : 自動パス`;
+    titleEl.textContent = notice.title;
 
     const reasonEl = documentRef.createElement('div');
     reasonEl.className = 'auto-pass-notice-popup-reason';

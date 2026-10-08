@@ -28,6 +28,15 @@ export function createMatchPublishController(config?: any): any {
     }
   }
 
+  // パスの通知（01-rulebook.md §2.5）。行動が無い自動パス、任意のパス、時間切れパスを区別して両席へ届ける。
+  function resolvePassNoticeReason(...sources: Record<string, unknown>[]): string {
+    const isTrue = (key: string) => sources.some((source) => source[key] === true);
+    if (isTrue('autoNoActionPass')) return 'no_legal_moves_or_usable_cards';
+    const timeout = isTrue('timeoutPass') || isTrue('forcePass')
+      || sources.some((source) => String(source.reason || '').trim().toLowerCase() === 'timeout');
+    return timeout ? 'timeout_pass' : 'voluntary_pass';
+  }
+
   function resolveAutoPassNoticeForCommand(actionType: unknown, actionValue: unknown, playerKey: unknown) {
     const action = cfg.asRecord(actionValue);
     const requestedActionType = String(actionType || '').trim().toLowerCase();
@@ -35,10 +44,10 @@ export function createMatchPublishController(config?: any): any {
     const normalizedActionType = requestedActionType === 'auto_turn'
       ? resolvedActionType
       : (requestedActionType || resolvedActionType);
-    if (normalizedActionType !== 'pass' || action.autoNoActionPass !== true) return null;
+    if (normalizedActionType !== 'pass' || (resolvedActionType && resolvedActionType !== 'pass')) return null;
     return {
       playerKey: cfg.normalizePlayerKey(action.playerKey || playerKey),
-      reason: 'no_legal_moves_or_usable_cards'
+      reason: resolvePassNoticeReason(action)
     };
   }
 
@@ -47,11 +56,10 @@ export function createMatchPublishController(config?: any): any {
     const params = cfg.asRecord(source.params);
     const action = cfg.asRecord(source.action);
     const normalizedActionType = String(actionType || source.actionType || action.type || action.actionType || '').trim().toLowerCase();
-    const autoNoActionPass = params.autoNoActionPass === true || action.autoNoActionPass === true || source.autoNoActionPass === true;
-    if (normalizedActionType !== 'pass' || autoNoActionPass !== true) return null;
+    if (normalizedActionType !== 'pass') return null;
     return {
       playerKey: cfg.normalizePlayerKey(action.playerKey || source.playerKey || source.actor || playerKey),
-      reason: 'no_legal_moves_or_usable_cards'
+      reason: resolvePassNoticeReason(params, action, source)
     };
   }
 

@@ -1421,6 +1421,7 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     broadcastSnapshot(room, {
         playerKey: timedOutSeatKey,
         actionType: 'timeout_pass',
+        autoPassNotice: { playerKey: timedOutSeatKey, reason: 'timeout_pass' },
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
