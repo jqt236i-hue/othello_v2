@@ -241,4 +241,28 @@ describe('card renderer hand glow layout cache', () => {
     expect(glowLayer.children.length).toBeGreaterThan(0);
     expect(rectSpy.mock.calls.length).toBeGreaterThan(afterFirst);
   });
+
+  // 01-rulebook.md §8.4: 終局後は手札を「使える」と見せない。
+  test('does not show usable glow or usable state after the game has ended', () => {
+    const renderer = require('../cards/card-renderer.js');
+    jest.spyOn(dom.window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const element = this as HTMLElement;
+      const index = Number(element.dataset.handIndex || 0);
+      return {
+        left: index * 10, top: 0, width: 80, height: 120, right: index * 10 + 80, bottom: 120, x: index * 10, y: 0,
+        toJSON: () => ({})
+      } as DOMRect;
+    });
+
+    renderer.renderCardUI();
+    const glowCount = () => document.querySelectorAll('#hand-black .hand-availability-glow-layer > *').length;
+    expect(glowCount()).toBeGreaterThan(0);
+    expect(document.querySelectorAll('#hand-black .usable').length).toBeGreaterThan(0);
+
+    (global as any).gameState.consecutivePasses = 2;
+    renderer.renderCardUI();
+
+    expect(glowCount()).toBe(0);
+    expect(document.querySelectorAll('#hand-black .usable').length).toBe(0);
+  });
 });

@@ -347,7 +347,10 @@ function buildBoardHintProjection(inputValue: BoardHintProjectionInput): any {
       pending
     })
     : new Set<string>();
+  // 終局後は置けるマスを光らせない（01-rulebook.md §8.4）。終局は連続パス 2 だけ（Core.isGameOver と同じ判定）。
+  const isTerminal = Number(input.gameState && input.gameState.consecutivePasses) >= 2;
   const showLegalHints = input.isHumanTurn === true
+    && !isTerminal
     && !isSelectingTarget
     && randomSpawnPreviewSet.size <= 0
     && input.canControlCurrentTurn === true;

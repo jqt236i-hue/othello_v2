@@ -298,7 +298,9 @@ function copyGameState(state: any): any {
         roundNumber: normalizeRoundNumber(state && state.roundNumber),
         roundCompletionByPlayer: createRoundCompletionByPlayer(state && state.roundCompletionByPlayer),
         pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
-        boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig)
+        boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig),
+        // 直前のパスが行動を持ったまま選ばれた時だけ記録する（01-rulebook.md §8.2 の数え直しに使う）。
+        ...(state && state.lastPassHadAction === true ? { lastPassHadAction: true } : {})
     };
     return nextState;
 }

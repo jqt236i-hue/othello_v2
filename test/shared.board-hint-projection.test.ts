@@ -65,6 +65,25 @@ describe('board hint projection', () => {
     expect(toArray(projection.legalSet)).toEqual(['0,0']);
   });
 
+  // 01-rulebook.md §8.4: 終局後は置けるマスを光らせない。
+  test('hides legal hints once the game has ended', () => {
+    const getLegalMoves = jest.fn(() => [{ row: 0, col: 0 }]);
+    const projection = BoardHintProjection.buildBoardHintProjection({
+      gameState: { board: [[0]], currentPlayer: 1, consecutivePasses: 2 },
+      cardState: { pendingEffectByPlayer: { black: null } },
+      playerKey: 'black',
+      boardShape: { rows: 1, cols: 1 },
+      canControlCurrentTurn: true,
+      isHumanTurn: true,
+      cardLogic: { getSelectableTargets: jest.fn(() => []) },
+      getLegalMoves
+    });
+
+    expect(projection.showLegalHints).toBe(false);
+    expect(toArray(projection.legalSet)).toEqual([]);
+    expect(getLegalMoves).not.toHaveBeenCalled();
+  });
+
   test('combines normal legal hints and taboo reverse candidates', () => {
     const projection = BoardHintProjection.buildBoardHintProjection({
       gameState: {

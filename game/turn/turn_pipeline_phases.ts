@@ -325,27 +325,96 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         : 99;
 
 
-    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any) {
+    // 未解決の対象選択と自由配置の続きは「行動」に数える（01-rulebook.md §8.2）。次に置く石への予約だけの pending は行動ではない。
+    function isPendingActionAvailableForActionPhase(CardLogic: any, pending: any): boolean {
+        if (!pending || typeof pending !== 'object') return false;
+        if (pending.stage === 'selectTarget') return true;
+        const pendingType = String(pending.type || '').trim().toUpperCase();
+        return !!pendingType
+            && !!CardLogic
+            && typeof CardLogic.isFreePlacementPendingType === 'function'
+            && CardLogic.isFreePlacementPendingType(pendingType) === true;
+    }
+
+    /**
+     * そのプレイヤーが今の局面で行動（通常配置・使用可能カード・未解決の対象選択）を持つか。
+     * 相手の手番中に判定する時は、手番をそのプレイヤーへ移した局面で見る。
+     */
+    function playerCanActForPassJudgement(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any): boolean {
+        if (isPendingActionAvailableForActionPhase(CardLogic, readPendingForActionPhase(cardState, playerKey))) return true;
+        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        const turnState = gameState.currentPlayer === playerValue ? gameState : { ...gameState, currentPlayer: playerValue };
+        const placementLocked = CardLogic
+            && typeof CardLogic.isPlacementLockedForPlayer === 'function'
+            && CardLogic.isPlacementLockedForPlayer(cardState, playerKey) === true;
+        if (!placementLocked && typeof Core.getLegalMoves === 'function') {
+            const legalMoves = Core.getLegalMoves(turnState, playerValue, resolveSafeCardContext(CardLogic, cardState));
+            if (Array.isArray(legalMoves) && legalMoves.length > 0) return true;
+        }
+        return !!(CardLogic
+            && typeof CardLogic.hasUsableCard === 'function'
+            && CardLogic.hasUsableCard(cardState, turnState, playerKey) === true);
+    }
+
+    function normalizeConsecutivePassesForActionPhase(gameState: any): number {
+        const value = Number(gameState && gameState.consecutivePasses);
+        return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+    }
+
+    /**
+     * このパスで終局するか（01-rulebook.md §8.2）。終局は両者とも行動できないことを確かめてから。
+     * 先にパスした相手が行動の無いパスをしていて、その後の盤面変化で今は行動できるなら終局しない。
+     * 相手が行動を持ったままパスを選んでいた（gameState.lastPassHadAction）場合は数え直さない。
+     */
+    function resolvePassEndsGame(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any): boolean {
+        if (normalizeConsecutivePassesForActionPhase(gameState) < 1) return false;
+        if (gameState.lastPassHadAction === true) return true;
+        const opponentKey = playerKey === 'black' ? 'white' : 'black';
+        return !playerCanActForPassJudgement(CardLogic, Core, cardState, gameState, opponentKey);
+    }
+
+    function writeLastPassHadAction(gameState: any, hadAction: boolean) {
+        // 行動を持ったまま選んだパスだけを記録する。未記録は行動の無いパス（旧 snapshot も同じ扱い）。
+        if (hadAction) {
+            gameState.lastPassHadAction = true;
+        } else {
+            delete gameState.lastPassHadAction;
+        }
+    }
+
+    function applyPassCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any[], reason?: any, passJudgement?: any) {
         if (!(Core && typeof Core.applyPass === 'function')) {
             throw new Error('TurnPipeline pass completion requires Core.applyPass');
         }
+        const endsGame = !!(passJudgement && passJudgement.endsGame === true);
+        const passHadAction = !!(passJudgement && passJudgement.hadAction === true);
+        const previousPasses = normalizeConsecutivePassesForActionPhase(gameState);
+        const previousPassHadAction = gameState.lastPassHadAction === true;
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         clearPendingForActionPhase(cardState, playerKey);
         // 出稼ぎの意志は「次に置く石」の予約を pending とは別の旗で持つため、パス時の破棄（01-rulebook.md §9）で一緒に消す。
         if (cardState && cardState.workNextPlacementArmedByPlayer && cardState.workNextPlacementArmedByPlayer[playerKey] === true) {
             cardState.workNextPlacementArmedByPlayer[playerKey] = false;
         }
-        if (CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
+        // 終局が決まったパスでは盤面を止める（01-rulebook.md §8.2）。ターン終わりの毒・焼け跡などは処理しない。
+        if (!endsGame && CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
             CardLogic.processPoisonTurnEnd(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
         }
-        // 2 回目の連続パスはその時点で終局（01-rulebook.md §8.2）。相手の行動可否による数え直しはしない。
         const newState = Core.applyPass(gameState);
         Object.assign(gameState, newState);
-        const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
+        if (!endsGame && normalizeConsecutivePassesForActionPhase(gameState) >= 2) {
+            // 先にパスした相手が今は行動できるので終局せず、今回のパスを 1 回目として数え直す。
+            gameState.consecutivePasses = 1;
+        }
+        writeLastPassHadAction(gameState, passHadAction);
+        const timeStopPassRes = (!endsGame && ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
             ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
             : { consumed: false, remaining: 0, continueTurn: false };
         if (timeStopPassRes.continueTurn === true) {
             gameState.currentPlayer = playerValue;
+            // 時間停止で同じプレイヤーが続けて行動する間のパスは、相手のパスとの連続に数えない。
+            gameState.consecutivePasses = previousPasses;
+            writeLastPassHadAction(gameState, previousPassHadAction);
             if (cardState) {
                 cardState.lastTurnStartedFor = null;
             }
@@ -1016,6 +1085,15 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             || String(action.reason || '').trim().toLowerCase() === 'timeout'
         );
         const autoNoActionPass = action && action.autoNoActionPass === true;
+        let usableCardBeforePass: boolean | null = null;
+        const hasUsableCardBeforePass = () => {
+            if (usableCardBeforePass === null) {
+                usableCardBeforePass = !!(CardLogic
+                    && typeof CardLogic.hasUsableCard === 'function'
+                    && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true);
+            }
+            return usableCardBeforePass;
+        };
         if (autoNoActionPass && !forcePass) {
             const pending = readPendingForActionPhase(cardState, playerKey);
             if (pending) {
@@ -1024,17 +1102,21 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             if (legalMoves.length > 0 && !placementLocked) {
                 throw new Error('Illegal auto pass: legal moves available');
             }
-            const hasUsableCard = CardLogic
-                && typeof CardLogic.hasUsableCard === 'function'
-                && CardLogic.hasUsableCard(cardState, gameState, playerKey) === true;
-            if (hasUsableCard) {
+            if (hasUsableCardBeforePass()) {
                 throw new Error('Illegal auto pass: usable card available');
             }
         }
         if (legalMoves.length > 0 && !placementLocked && !forcePass) {
             throw new Error('Illegal pass: legal moves available');
         }
+        // 行動（通常配置・使用可能カード・未解決の対象選択）を持ったまま選んだパスか。終局の数え直しに使う。
+        const hadAction = (legalMoves.length > 0 && !placementLocked)
+            || isPendingActionAvailableForActionPhase(CardLogic, readPendingForActionPhase(cardState, playerKey))
+            || hasUsableCardBeforePass();
+        // 終局の判定はパスの処理で盤面が動く前に行う（01-rulebook.md §8.2）。
+        const endsGame = resolvePassEndsGame(CardLogic, Core, cardState, gameState, playerKey);
         if (
+            !endsGame &&
             CardLogic &&
             typeof CardLogic.processTheoryIncarnationOwnerPass === 'function' &&
             !isOthelloModeForTurnPipelinePhases()
@@ -1044,7 +1126,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                 events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPassRes.expired });
             }
         }
-        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason);
+        applyPassCompletion(CardLogic, Core, cardState, gameState, playerKey, events, action.reason, { endsGame, hadAction });
     }
 
     function applyUseCardOnlyActionStage(ctx: TurnPipelinePhaseContext): void {

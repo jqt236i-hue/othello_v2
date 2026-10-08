@@ -62,6 +62,7 @@ UTF-8のJSONファイルを用いる。文字列の内容はUnicode、JS側ハ�
 | `currentPlayer` | 1/-1。制御者は別途cardStateの運命効果を参照 |
 | `turnNumber` | 整数0〜10000000 |
 | `consecutivePasses` | 整数0〜2。2だけがterminal |
+| `lastPassHadAction` | 省略可。`true` だけを記録し、直前のパスが行動（合法手・使用可能カード・未解決の対象選択）を持ったまま選ばれたことを示す。連続パス終局の数え直し（01-rulebook.md §8.2）に使う。省略時は行動の無いパス |
 | `roundNumber` | 1以上の整数 |
 | `roundCompletionByPlayer` | black/whiteのboolean |
 | `pendingRoundBonus` | `null` または `{roundNumber,amount}`、roundNumberは現在以下、amountは正整数 |

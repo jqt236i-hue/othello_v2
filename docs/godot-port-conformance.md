@@ -46,6 +46,8 @@
 
 逃げる意志の反転回避が1回から3回になった仕様変更に合わせ、`card/escape_01/basic` と `card/theory_incarnation_01/basic`（理論の化身が生成する逃亡石の回避残数）の期待値だけを現行仕様へ更新しました。入力 `cases.json`、`vectors.json`、他の期待値は変更していません。
 
+連続パスの終局判定（01-rulebook.md §8.2）で、行動を持ったまま選んだパスを `gameState.lastPassHadAction` に記録する変更に合わせ、`card/last_resort_01/basic` の期待値だけを現行仕様へ更新しました。差分は、使用可能カードを持ったまま選んだ白のパス（step 5）とその後の局面（step 6）に `lastPassHadAction: true` が加わったことと、それに伴う `stateHash` だけです。入力 `cases.json`、`vectors.json`、他の期待値は変更していません。
+
 更新時は新規ディレクトリへ収録し、従来206ケースの入力・671ステップの出力と決定論vectorsが変更されていないことを照合しました。現在の採用基準へ5ケース35ステップを追加したもので、歴史的な保存・リプレイfixtureを更新したものではありません。
 
 既存の内部production fixtureの数値石IDは、移植用入力を作る入口で公開形式 `sN` / 空欄 `null` に変換しています。旧fixture本体は変更していません。公開保存検証との照合も行い、内部でしか受け取れない局面を外部契約の正解例にしないようにしています。

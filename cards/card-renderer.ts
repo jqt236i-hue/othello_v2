@@ -1939,6 +1939,8 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
             _setTextContentIfChanged(countLabel, `${topDeckVisual.count}/${topDeckVisual.total}`);
     }
     const isBlackTurn = gameState.currentPlayer === BLACK;
+    // 終局は連続パス 2 だけ（Core.isGameOver と同じ判定）。
+    const isTerminalForRender = Number(gameState.consecutivePasses) >= 2;
     const isAnimating = _isCardAnimatingForRender();
     const staleVisualPlaybackLock = _isStaleVisualPlaybackLockForRender();
     const isDebugUnlimited = (typeof window !== 'undefined' && window.DEBUG_UNLIMITED_USAGE === true);
@@ -2144,7 +2146,8 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
         state.canInspectOwnerHand = isNetworkMode
             ? canShowFace
             : (isDebugHvH ? true : (ownerKey === 'black' || fateWillIsViewingVictim));
-        const isRuleUsable = _isHandCardRuleUsableForRender(ownerKey, cardId);
+        // 終局後は手札を「使える」と見せない（01-rulebook.md §8.4）。
+        const isRuleUsable = !isTerminalForRender && _isHandCardRuleUsableForRender(ownerKey, cardId);
         state.availableGlow = canShowAvailabilityGlow
             && hasNotUsedThisTurn
             && state.canAfford

@@ -316,6 +316,8 @@ describe('current card runtime failure and recovery characterization', () => {
     const pass = compileNamedFunctionFromSource(ROOT, 'game/turn/turn_pipeline_phases.ts', 'applyPassActionStage', {
       resolveSafeCardContext: () => ({ protectedStones: [], permaProtectedStones: [], bombs: [] }),
       readPendingForActionPhase: () => null,
+      isPendingActionAvailableForActionPhase: () => false,
+      resolvePassEndsGame: () => false,
       isOthelloModeForTurnPipelinePhases: () => true,
       applyPassCompletion
     });
@@ -331,6 +333,8 @@ describe('current card runtime failure and recovery characterization', () => {
     const throwsBeforePass = compileNamedFunctionFromSource(ROOT, 'game/turn/turn_pipeline_phases.ts', 'applyPassActionStage', {
       resolveSafeCardContext: () => ({}),
       readPendingForActionPhase: () => null,
+      isPendingActionAvailableForActionPhase: () => false,
+      resolvePassEndsGame: () => false,
       isOthelloModeForTurnPipelinePhases: () => true,
       applyPassCompletion
     });
