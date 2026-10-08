@@ -788,6 +788,11 @@ describe('card renderer hand inspection', () => {
     window.CARD_DEFS = [
       { id: 'hard_01', name: '弱い意志', desc: 'd', cost: 1, type: 'PROTECTED_NEXT_STONE' }
     ];
+    // 開始配置で置ける場所を用意する（置けない盤面では弱い意志は効果ゼロのため使えない。01-rulebook.md §9）。
+    window.gameState.board[3][3] = -1;
+    window.gameState.board[3][4] = 1;
+    window.gameState.board[4][3] = 1;
+    window.gameState.board[4][4] = -1;
     window.cardState.charge.black = 0;
     window.cardState.handCostAdjustmentsByPlayer = {
       black: [{ overrideCost: 0 }],

@@ -418,6 +418,12 @@ describe('card use source element selection', () => {
     window.MATCH_MODE = 'network';
     window.LOCAL_PLAYER_KEY = 'black';
     global.gameState.currentPlayer = global.BLACK;
+    // 開始配置で置ける場所を用意する（置けない盤面では弱い意志は効果ゼロのため使えない。01-rulebook.md §9）。
+    global.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    global.gameState.board[3][3] = -1;
+    global.gameState.board[3][4] = 1;
+    global.gameState.board[4][3] = 1;
+    global.gameState.board[4][4] = -1;
     global.cardState.selectedCardId = 'hard_01';
     global.cardState.selectedCardOwnerKey = 'black';
     global.cardState.selectedCardHandIndex = 0;

@@ -28,8 +28,11 @@ function installState() {
     { id: 'ghost_01', name: 'Ghost', desc: 'd', cost: 1 },
     { id: 'trap_01', name: 'Trap', desc: 'd', cost: 1 }
   ];
+  // 開始配置（置ける場所がある盤面）。置けない盤面では「次に置く石」系カードは使えない（01-rulebook.md §9）。
+  const openingBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
+  openingBoard[3][3] = -1; openingBoard[3][4] = 1; openingBoard[4][3] = 1; openingBoard[4][4] = -1;
   (global as any).gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+    board: openingBoard,
     currentPlayer: 1
   };
   (global as any).cardState = {

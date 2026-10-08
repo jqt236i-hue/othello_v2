@@ -71,6 +71,56 @@ const STONE_PLACEMENT_CARD_TYPES: ReadonlySet<string> = new Set([
     'THEORY_INCARNATION'
 ]);
 
+/**
+ * 通常合法手が無い（置ける場所が無い）手番に使っても、何も起きないことが確実なカード種別（01-rulebook.md §9）。
+ * 効果がその手番の通常配置で置く石にしか作用せず、使用時点では盤面・手札・布石が変わらず、
+ * 予約はパスで破棄される（カードは1手番に1枚なので、別のカードで置き場所を作ることもできない）。
+ * 少しでも効果が出る可能性があるカードは含めない（迷ったら「使える」側に残す）:
+ * 自由配置系（自由の意志・狙撃・究極反転龍・究極破壊神・禁忌の反転・最後の切り札）、
+ * 後継カードが手札に加わる連投石・連鎖（二〜四）、自石を壊す時間停石・時間停神、
+ * 使用時に手札を壊す悪食の意志、顕現予約が残る盤界の執行者・理論の化身。
+ * 一覧に無いカード（新カードを含む）は既定で「使える」。
+ */
+const NO_EFFECT_WITHOUT_LEGAL_MOVE_CARD_TYPES: ReadonlySet<string> = new Set([
+    'INFINITE_PLACE',
+    'INFINITE_CHAIN_WILL',
+    'PROTECTED_NEXT_STONE',
+    'PERMA_PROTECT_NEXT_STONE',
+    'GHOST_WILL',
+    'SACRIFICE_WILL',
+    'ZOMBIE_WILL',
+    'AFTERIMAGE_WILL',
+    'REGEN_WILL',
+    'BREEDING_WILL',
+    'PROLIFERATION_WILL',
+    'CROSS_BOMB',
+    'X_BOMB',
+    'HYPERACTIVE_WILL',
+    'EXTREME_HYPERACTIVE_WILL',
+    'INSTANT_HYPERACTIVE_WILL',
+    'ULTIMATE_HYPERACTIVE_GOD',
+    'ESCAPE_WILL',
+    'ROBOT_VACUUM_WILL',
+    'WILL_HUNTER_KING',
+    'WORK_WILL',
+    'ULTIMATE_WORK_GOD',
+    'FIRE_WILL',
+    'WATER_WILL',
+    'GRASS_WILL',
+    'GOLD_STONE',
+    'SILVER_STONE',
+    'RAINBOW_STONE',
+    'CRYSTAL_STONE',
+    'STONE_SALVATION_GOD',
+    'DESTROY_DRAGON_WILL',
+    'LIGHTNING_WILL',
+    'METEOR_GOD'
+]);
+
+function isNoEffectWithoutLegalMoveCardType(cardType: unknown): boolean {
+    return NO_EFFECT_WITHOUT_LEGAL_MOVE_CARD_TYPES.has(String(cardType || '').trim().toUpperCase());
+}
+
 function toNonNegativeInteger(value: unknown, fallback: number): number {
     const n = Number(value);
     if (!Number.isFinite(n)) return fallback;
@@ -190,6 +240,8 @@ function listStoneSupplyExhaustedPlayerKeys(cardState: unknown): StoneSupplyPlay
 export = {
     STONE_PLACEMENT_CARD_TYPES,
     isStonePlacementCardType,
+    NO_EFFECT_WITHOUT_LEGAL_MOVE_CARD_TYPES,
+    isNoEffectWithoutLegalMoveCardType,
     areAllStoneSuppliesExhausted,
     resolveStoneSupplyEnabledOption,
     computeInitialStoneSupply,

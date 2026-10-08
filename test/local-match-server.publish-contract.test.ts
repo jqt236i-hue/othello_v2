@@ -2318,8 +2318,9 @@ describe('local match server publish contract', () => {
         snapshot.cardState.cardCostOverridesByCopyId = {};
         snapshot.cardState.cardCostModifiersByCopyId = {};
         snapshot.cardState.charge.black = 0;
-        CardLogic.addCardToHand(snapshot.cardState, 'black', 'hard_01');
-        const added = CardLogic.addCardToHand(snapshot.cardState, 'black', 'hard_01');
+        // 置き場所が無くても使える対象選択カード（01-rulebook.md §9）。1枚目は通常コスト、2枚目は観測で奪った無料のコピー。
+        CardLogic.addCardToHand(snapshot.cardState, 'black', 'destroy_01');
+        const added = CardLogic.addCardToHand(snapshot.cardState, 'black', 'destroy_01');
         CardLogic.setCardCostOverrideForCopyId(
           snapshot.cardState,
           added.cardCopyId,
@@ -2365,13 +2366,13 @@ describe('local match server publish contract', () => {
         expect.objectContaining({
           type: 'card_use_animation',
           targets: expect.arrayContaining([
-            expect.objectContaining({ cardId: 'hard_01', cost: 0 })
+            expect.objectContaining({ cardId: 'destroy_01', cost: 0 })
           ])
         })
       ]));
-      expect(response.data.snapshot.cardState.discard).toContain('hard_01');
-      expect(response.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
-      expect(response.data.snapshot.cardState.hands.black).toEqual(['hard_01']);
+      expect(response.data.snapshot.cardState.discard).toContain('destroy_01');
+      expect(response.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('destroy_01');
+      expect(response.data.snapshot.cardState.hands.black).toEqual(['destroy_01']);
     } finally {
       await closeServer(server);
     }

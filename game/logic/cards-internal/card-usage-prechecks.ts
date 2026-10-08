@@ -128,6 +128,15 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
     if (StoneSupply.isStonePlacementCardType(cardType) && StoneSupply.isStoneSupplyExhausted(context.cardState, context.playerKey)) {
         return buildFailureResult();
     }
+    // 置ける場所が無い手番に使っても何も起きないことが確実なカードだけを使えなくする（01-rulebook.md §9）。
+    if (
+        StoneSupply.isNoEffectWithoutLegalMoveCardType(cardType)
+        && context.gameState
+        && typeof context.hasStandardLegalMoveForPlayer === 'function'
+        && context.hasStandardLegalMoveForPlayer(context.cardState, context.gameState, context.playerKey) !== true
+    ) {
+        return buildFailureResult();
+    }
     if (cardType === 'THEORY_INCARNATION') {
         const totals = context && context.cardState && context.cardState.numberCellCollectedTotalByPlayer;
         const collected = Number(totals && totals[context.playerKey || ''] || 0);

@@ -664,7 +664,7 @@
         },
         "continuation": [],
         "value": -0.4453398186073884,
-        "transitions": 1550,
+        "transitions": 1546,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
@@ -688,8 +688,8 @@
           5,
           5
         ],
-        "evaluationCalls": 1586,
-        "evaluationCacheHits": 36,
+        "evaluationCalls": 1584,
+        "evaluationCacheHits": 37,
         "candidates": [
           {
             "action": {
@@ -1586,7 +1586,7 @@
         },
         "continuation": [],
         "value": -0.5305243849190394,
-        "transitions": 1472,
+        "transitions": 1459,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
@@ -1610,8 +1610,8 @@
           5,
           5
         ],
-        "evaluationCalls": 1508,
-        "evaluationCacheHits": 36,
+        "evaluationCalls": 1497,
+        "evaluationCacheHits": 37,
         "candidates": [
           {
             "action": {

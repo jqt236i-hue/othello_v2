@@ -191,20 +191,107 @@ describe('持ち石ルール', () => {
     expect(Array.from(StoneSupply.STONE_PLACEMENT_CARD_TYPES).filter((type) => !catalogTypes.has(type))).toEqual([]);
   });
 
-  test('通常合法手が無くても、持ち石があればカードは使える（合法手の有無は使用条件にしない）', () => {
+  // 01-rulebook.md §9: 置ける場所が無い手番に使えないのは、使っても何も起きないことが確実なカードだけ。
+  function noLegalMoveState(hand: string[]) {
     const { cardState } = makeState();
     cardState.charge.black = 99;
-    cardState.hands.black = ['hard_01', 'double_01', 'free_01', 'destroy_01'];
+    cardState.hands.black = [];
+    cardState._handCopyIdsByPlayer = { black: [], white: [] };
+    for (const cardId of hand) CardLogic.addCardToHand(cardState, 'black', cardId);
     const gameState: any = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(Shared.WHITE)),
+      board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
       currentPlayer: Shared.BLACK,
-      turnNumber: 1,
+      turnNumber: 30,
       consecutivePasses: 0
     };
-    gameState.board[0][0] = Shared.EMPTY;
-    expect(legalMovesFor(cardState, gameState, Shared.BLACK)).toHaveLength(0);
-    const usable = CardLogic.getUsableCardIds(cardState, gameState, 'black');
-    expect(usable).toEqual(expect.arrayContaining(['hard_01', 'double_01', 'free_01', 'destroy_01']));
+    gameState.board[0][0] = Shared.WHITE;
+    gameState.board[0][1] = Shared.WHITE;
+    gameState.board[1][0] = Shared.WHITE;
+    gameState.board[1][1] = Shared.WHITE;
+    gameState.board[7][5] = Shared.BLACK;
+    gameState.board[7][6] = Shared.BLACK;
+    gameState.board[7][7] = Shared.BLACK;
+    return { cardState, gameState };
+  }
+
+  test('置ける場所が無いときは、効果ゼロが確実なカードだけ使えず、少しでも効果が出るカードは使える', () => {
+    const ambiguousOrUseful = [
+      'free_01', 'sniper_01', 'udr_01', 'udg_01', 'taboo_reverse_01',
+      'double_01', 'triple_01', 'quad_01', 'double_chain_01', 'triple_chain_01', 'quad_chain_01',
+      'time_stop_god_01', 'gluttonous_will_01', 'destroy_01', 'chest_01'
+    ];
+    const noEffect = ['hard_01', 'perma_01', 'infinite_01', 'infinite_chain_01', 'work_01', 'ultimate_work_god_01', 'crystal_stone', 'gold_stone', 'meteor_god_01'];
+    // 手札は最大5枚なので、1枚ずつ別の盤面で確かめる。
+    const usableWithoutLegalMove = (cardId: string) => {
+      const { cardState, gameState } = noLegalMoveState([cardId]);
+      expect(cardState.hands.black).toEqual([cardId]);
+      expect(legalMovesFor(cardState, gameState, Shared.BLACK)).toHaveLength(0);
+      return CardLogic.getUsableCardIds(cardState, gameState, 'black').includes(cardId);
+    };
+    for (const cardId of ambiguousOrUseful) expect([cardId, usableWithoutLegalMove(cardId)]).toEqual([cardId, true]);
+    for (const cardId of noEffect) expect([cardId, usableWithoutLegalMove(cardId)]).toEqual([cardId, false]);
+
+    // 置ける場所がある盤面なら同じカードは使える
+    for (const cardId of noEffect) {
+      const { cardState } = noLegalMoveState([cardId]);
+      expect([cardId, CardLogic.getUsableCardIds(cardState, Core.createGameState(), 'black').includes(cardId)]).toEqual([cardId, true]);
+    }
+  });
+
+  test('置ける場所が無いときに効果ゼロのカードだけを持っていれば、使えるカードは無い（自動パスになる）', () => {
+    const { cardState, gameState } = noLegalMoveState(['hard_01', 'gold_stone']);
+    expect(CardLogic.hasUsableCard(cardState, gameState, 'black')).toBe(false);
+    const res = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'pass', autoNoActionPass: true }, PRNG, { skipTurnStart: true });
+    expect(res.ok).toBe(true);
+    expect(res.gameState.consecutivePasses).toBe(1);
+  });
+
+  test('効果ゼロの一覧は持ち石の一覧の内側にあり、曖昧なカードは含めない', () => {
+    for (const type of StoneSupply.NO_EFFECT_WITHOUT_LEGAL_MOVE_CARD_TYPES) {
+      expect(StoneSupply.isStonePlacementCardType(type)).toBe(true);
+    }
+    for (const type of [
+      'LAST_RESORT', 'FREE_PLACEMENT', 'SNIPER_WILL', 'ULTIMATE_REVERSE_DRAGON', 'ULTIMATE_DESTROY_GOD', 'TABOO_REVERSE_WILL',
+      'DOUBLE_PLACE', 'TRIPLE_PLACE', 'QUAD_PLACE', 'DOUBLE_CHAIN_WILL', 'TRIPLE_CHAIN_WILL', 'QUAD_CHAIN_WILL',
+      'TIME_STOP_GOD', 'TIME_STOP_DEITY', 'GLUTTONOUS_WILL', 'BOARD_EXECUTOR', 'THEORY_INCARNATION'
+    ]) {
+      expect(StoneSupply.isNoEffectWithoutLegalMoveCardType(type)).toBe(false);
+    }
+    // 一覧に無いカード（新カードを含む）は既定で「使える」
+    expect(StoneSupply.isNoEffectWithoutLegalMoveCardType('SOME_FUTURE_CARD')).toBe(false);
+  });
+
+  test('出稼ぎの意志の予約はパスで消え、後の手番の配置を出稼ぎ石にしない', () => {
+    const run = (passFirst: boolean) => {
+      const { cardState, gameState } = makeState();
+      cardState.charge.black = 99;
+      cardState.hands.black = [];
+      cardState._handCopyIdsByPlayer = { black: [], white: [] };
+      CardLogic.addCardToHand(cardState, 'black', 'work_01');
+      const used = TurnPipeline.applyTurnSafe(cardState, gameState, 'black', { type: 'use_card', useCardId: 'work_01' }, PRNG, { skipTurnStart: true });
+      expect(used.ok).toBe(true);
+      expect(used.cardState.workNextPlacementArmedByPlayer.black).toBe(true);
+      let cs = used.cardState;
+      let gs = used.gameState;
+      if (passFirst) {
+        const blackPass = TurnPipeline.applyTurnSafe(cs, gs, 'black', { type: 'pass', forcePass: true, reason: 'timeout' }, PRNG, { skipTurnStart: true });
+        expect(blackPass.ok).toBe(true);
+        expect(blackPass.cardState.workNextPlacementArmedByPlayer.black).toBe(false);
+        const whitePass = TurnPipeline.applyTurnSafe(blackPass.cardState, blackPass.gameState, 'white', { type: 'pass', forcePass: true }, PRNG, { skipTurnStart: true });
+        cs = whitePass.cardState;
+        gs = Core.copyGameState(whitePass.gameState);
+        gs.consecutivePasses = 0;
+        gs.currentPlayer = Shared.BLACK;
+      }
+      const move = legalMovesFor(cs, gs, Shared.BLACK)[0];
+      const placed = TurnPipeline.applyTurnSafe(cs, gs, 'black', { type: 'place', row: move.row, col: move.col }, PRNG, { skipTurnStart: true });
+      expect(placed.ok).toBe(true);
+      return placed.cardState.workAnchorPosByPlayer ? placed.cardState.workAnchorPosByPlayer.black : null;
+    };
+    // パスせずに置けば出稼ぎ石になる（効果そのものは変わらない）
+    expect(run(false)).toEqual(expect.objectContaining({ row: expect.any(Number), col: expect.any(Number) }));
+    // パスを挟むと予約は破棄される（01-rulebook.md §9）
+    expect(run(true)).toBeNull();
   });
 
   test('両者の持ち石が0になった後はターン開始時にドローしない', () => {

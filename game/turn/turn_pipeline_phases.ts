@@ -331,6 +331,10 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         }
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         clearPendingForActionPhase(cardState, playerKey);
+        // 出稼ぎの意志は「次に置く石」の予約を pending とは別の旗で持つため、パス時の破棄（01-rulebook.md §9）で一緒に消す。
+        if (cardState && cardState.workNextPlacementArmedByPlayer && cardState.workNextPlacementArmedByPlayer[playerKey] === true) {
+            cardState.workNextPlacementArmedByPlayer[playerKey] = false;
+        }
         if (CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
             CardLogic.processPoisonTurnEnd(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
         }

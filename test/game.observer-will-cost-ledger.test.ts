@@ -1,5 +1,12 @@
 const CardLogic = require('../game/logic/cards.js');
 
+// 開始配置（置ける場所がある盤面）。置けない盤面では弱い意志は効果ゼロのため使えない（01-rulebook.md §9）。
+function openingBoard() {
+  const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+  board[3][3] = -1; board[3][4] = 1; board[4][3] = 1; board[4][4] = -1;
+  return board;
+}
+
 function createCardState() {
   return CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 }, { plainReversi: true });
 }
@@ -40,7 +47,7 @@ describe('OBSERVER_WILL card copy cost ledger', () => {
   test('effective copy cost gates usage and payment', () => {
     const cardState = createCardState();
     const gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      board: openingBoard(),
       currentPlayer: 1,
       turnNumber: 20
     };
@@ -56,7 +63,7 @@ describe('OBSERVER_WILL card copy cost ledger', () => {
   test('selected hand index uses the zero-cost stolen copy when duplicate card ids exist', () => {
     const cardState = createCardState();
     const gameState = {
-      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      board: openingBoard(),
       currentPlayer: 1,
       turnNumber: 20
     };
