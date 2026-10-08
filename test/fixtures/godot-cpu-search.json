@@ -2272,7 +2272,7 @@
       },
       "publicRecipes": null,
       "config": {
-        "version": "lv13-no-wasted-card",
+        "version": "lv13-keep-relocation",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -2302,14 +2302,27 @@
         "cardUseMarginByType": {},
         "destroyHandMargin": 0.08,
         "cornerRootBonus": 0,
-        "dangerRootPenalty": 0
+        "dangerRootPenalty": 0,
+        "cornerOnlyCardTypes": [
+          "TELEPORT_WILL",
+          "SWAP_WITH_ENEMY",
+          "POSITION_SWAP_WILL",
+          "STRONG_WIND_WILL",
+          "GRAVITY_WILL",
+          "BUOYANCY_WILL",
+          "SUPER_GRAVITY_WILL",
+          "SUPER_BUOYANCY_WILL",
+          "BOARD_EXPANSION_WILL",
+          "BOARD_EXPANSION_GOD"
+        ],
+        "cornerOnlyOpenPlacements": 10
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-no-wasted-card",
+        "version": "lv13-keep-relocation",
         "action": {
           "type": "place",
           "row": 2,
@@ -6280,7 +6293,7 @@
         ]
       },
       "config": {
-        "version": "lv13-no-wasted-card",
+        "version": "lv13-keep-relocation",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -6310,14 +6323,27 @@
         "cardUseMarginByType": {},
         "destroyHandMargin": 0.08,
         "cornerRootBonus": 0,
-        "dangerRootPenalty": 0
+        "dangerRootPenalty": 0,
+        "cornerOnlyCardTypes": [
+          "TELEPORT_WILL",
+          "SWAP_WITH_ENEMY",
+          "POSITION_SWAP_WILL",
+          "STRONG_WIND_WILL",
+          "GRAVITY_WILL",
+          "BUOYANCY_WILL",
+          "SUPER_GRAVITY_WILL",
+          "SUPER_BUOYANCY_WILL",
+          "BOARD_EXPANSION_WILL",
+          "BOARD_EXPANSION_GOD"
+        ],
+        "cornerOnlyOpenPlacements": 10
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-no-wasted-card",
+        "version": "lv13-keep-relocation",
         "action": {
           "type": "pass"
         },
@@ -10103,7 +10129,7 @@
         ]
       },
       "config": {
-        "version": "lv13-no-wasted-card",
+        "version": "lv13-keep-relocation",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -10133,14 +10159,27 @@
         "cardUseMarginByType": {},
         "destroyHandMargin": 0.08,
         "cornerRootBonus": 0,
-        "dangerRootPenalty": 0
+        "dangerRootPenalty": 0,
+        "cornerOnlyCardTypes": [
+          "TELEPORT_WILL",
+          "SWAP_WITH_ENEMY",
+          "POSITION_SWAP_WILL",
+          "STRONG_WIND_WILL",
+          "GRAVITY_WILL",
+          "BUOYANCY_WILL",
+          "SUPER_GRAVITY_WILL",
+          "SUPER_BUOYANCY_WILL",
+          "BOARD_EXPANSION_WILL",
+          "BOARD_EXPANSION_GOD"
+        ],
+        "cornerOnlyOpenPlacements": 10
       },
       "limit": {
         "transitions": 128,
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-no-wasted-card",
+        "version": "lv13-keep-relocation",
         "action": {
           "type": "place",
           "row": 4,

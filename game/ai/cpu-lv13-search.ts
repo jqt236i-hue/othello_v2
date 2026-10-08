@@ -17,7 +17,7 @@ import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-s
  * The clock keeps a judgment within 5 s. Canonical actions and turn starts share the same
  * accounting and rules. */
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-no-wasted-card', maxTransitions: 6144, maxMs: 4700,
+    version: 'lv13-keep-relocation', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -34,7 +34,15 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
     // shape gains cornerRootBonus; a cell next to an empty corner loses
     // dangerRootPenalty. Zero keeps the search's own judgment.
     cornerRootBonus: 0,
-    dangerRootPenalty: 0
+    dangerRootPenalty: 0,
+    // Stone-relocation and board-expansion cards are kept (neither used nor
+    // destroyed) unless the turn gains corners over every turn without them:
+    // taking a corner, or taking back / removing one the opponent holds. The
+    // restriction lifts when at most cornerOnlyOpenPlacements placements remain.
+    cornerOnlyCardTypes: Object.freeze(['TELEPORT_WILL','SWAP_WITH_ENEMY','POSITION_SWAP_WILL','STRONG_WIND_WILL',
+        'GRAVITY_WILL','BUOYANCY_WILL','SUPER_GRAVITY_WILL','SUPER_BUOYANCY_WILL',
+        'BOARD_EXPANSION_WILL','BOARD_EXPANSION_GOD']) as readonly string[],
+    cornerOnlyOpenPlacements: 10
 });
 
 type Plan = { state: Lv10Position; actions: Lv10Action[]; value: number; rootTie?: number };
@@ -400,6 +408,28 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
         &&plans.some(plan=>plan.actions.some(action=>action.type==='use_card'))){
         plans.splice(0,plans.length,...plans.filter(plan=>plan.actions.some(action=>action.type==='use_card')
             ||plan.actions[plan.actions.length-1]?.type!=='pass'||Core.isGameOver(plan.state.gameState)));
+    }
+    // Relocation cards (teleport, swaps, wind, gravity/buoyancy) and board
+    // expansion mostly reshuffle stones the opponent can answer. Before the last
+    // placements they are kept for a corner: a turn using or destroying one is
+    // compared only when its corner balance (own minus opponent corners, on the
+    // shape after the turn) beats every turn without them.
+    const cornerOnly=new Set(cfg.cornerOnlyCardTypes);
+    const cornerOnlyCard=(id:string|undefined)=>!!id&&cornerOnly.has(String(lv13CardDefinition(id)?.type));
+    const touchesCornerOnlyCard=(plan:Plan)=>plan.actions.some(action=>
+        (action.type==='use_card'&&cornerOnlyCard(action.useCardId))
+        ||(action.type==='destroy_hand_card'&&cornerOnlyCard(action.destroyCardId)));
+    if(cornerOnly.size&&resolveSearchRemainingPlacements(initialEmpty,readSearchStoneSupply(initial.cardState,player))>cfg.cornerOnlyOpenPlacements
+        &&plans.some(touchesCornerOnlyCard)){
+        const sign=player==='black'?1:-1;
+        const cornerBalance=(state:Lv10Position)=>{
+            const context=Board.prepareBoardForSearch(Board.createBoardContext(state.gameState,state.cardState));
+            return Board.getCornerCells(context).reduce((sum:number,cell:any)=>sum+sign*(Board.getCellValue(context,cell.row,cell.col)||0),0);
+        };
+        const kept=plans.filter(plan=>!touchesCornerOnlyCard(plan));
+        const baseline=Math.max(cornerBalance(initial),...kept.map(plan=>cornerBalance(plan.state)));
+        const allowed=plans.filter(plan=>!touchesCornerOnlyCard(plan)||cornerBalance(plan.state)>baseline);
+        if(allowed.length)plans.splice(0,plans.length,...allowed);
     }
     const candidates: Plan[] = [];
     const seenRoots = new Set<string>();
