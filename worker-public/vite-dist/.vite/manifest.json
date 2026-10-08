@@ -1,4 +1,124 @@
 {
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
+    "file": "assets/browserAll-D2z7_yPU.js",
+    "name": "browserAll",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_FederatedEventTarget-C-UmVFe2.js",
+      "_FilterSystem-lINCcHw8.js",
+      "_init-Dov3IVMy.js"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
+    "file": "assets/webworkerAll-DL-vOdK_.js",
+    "name": "webworkerAll",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_FilterSystem-lINCcHw8.js",
+      "_init-Dov3IVMy.js"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs": {
+    "file": "assets/lib-CdqLQ3Z-.js",
+    "name": "lib",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_rolldown-runtime-aKtaBQYM.js",
+      "_preload-helper-HclGiUj8.js",
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_FederatedEventTarget-C-UmVFe2.js",
+      "_FilterSystem-lINCcHw8.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_CanvasPool-CPoFfVNI.js",
+      "_GraphicsContext-H5W9uhhZ.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_RenderTargetSystem-BOQSKBfs.js",
+      "_getTextureBatchBindGroup-DoAcu5ce.js",
+      "_ViewableBuffer-CObpe3su.js",
+      "_GCManagedHash-Igj10gjP.js",
+      "_GpuStencilModesToPixi-D7_3d2fF.js",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "_ParticleBuffer-B-PCZxN0.js",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ],
+    "dynamicImports": [
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
+    "file": "assets/CanvasRenderer-y3G8kg5_.js",
+    "name": "CanvasRenderer",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_Shader-Dff_yvjw.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_GraphicsContext-H5W9uhhZ.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_RenderTargetSystem-BOQSKBfs.js",
+      "_GCManagedHash-Igj10gjP.js"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
+    "file": "assets/WebGLRenderer-u4y-XyBt.js",
+    "name": "WebGLRenderer",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
+    "file": "assets/WebGPURenderer-DqpAinc2.js",
+    "name": "WebGPURenderer",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
+    "file": "assets/BitmapFont-3_bdR0G-.js",
+    "name": "BitmapFont",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_CanvasPool-CPoFfVNI.js",
+      "_GraphicsContext-H5W9uhhZ.js"
+    ]
+  },
+  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
+    "file": "assets/init-BtrWJfXd.js",
+    "name": "init",
+    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_ParticleBuffer-B-PCZxN0.js"
+    ]
+  },
   "_AbstractRenderer-GQgU6Z_I.js": {
     "file": "assets/AbstractRenderer-GQgU6Z_I.js",
     "name": "AbstractRenderer",
@@ -136,8 +256,8 @@
     "file": "assets/ViewableBuffer-CObpe3su.js",
     "name": "ViewableBuffer"
   },
-  "_bridge-qzViYQES.js": {
-    "file": "assets/bridge-qzViYQES.js",
+  "_bridge-D0t7VmOO.js": {
+    "file": "assets/bridge-D0t7VmOO.js",
     "name": "bridge"
   },
   "_canvasUtils-C8xQnZmC.js": {
@@ -185,12 +305,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-DlfuOOFs.js",
+    "file": "assets/cpu-worker-diagnostics-DKydA-Qp.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-qzViYQES.js"
+      "_bridge-D0t7VmOO.js"
     ]
   },
   "browser-vite/generated-assets/optional-commentary.mjs": {
@@ -235,20 +355,20 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-Dllboi7M.js",
+    "file": "assets/index.vite--OckWvSE.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_bridge-qzViYQES.js"
+      "_bridge-D0t7VmOO.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",
       "entry-browser.js",
-      "node_modules/pixi.js/lib/unsafe-eval/init.mjs",
-      "node_modules/pixi.js/lib/index.mjs"
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs"
     ],
     "assets": [
       "assets/optional-gacha-D54pooCd.mjs",
@@ -262,126 +382,6 @@
       "assets/black-C5I6QShq.png",
       "assets/hero-DbqiEqdj.png",
       "assets/勇者の手-C6v2toAd.png"
-    ]
-  },
-  "node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
-    "file": "assets/browserAll-D2z7_yPU.js",
-    "name": "browserAll",
-    "src": "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_Container--DC3sRrW.js",
-      "_FederatedEventTarget-C-UmVFe2.js",
-      "_FilterSystem-lINCcHw8.js",
-      "_init-Dov3IVMy.js"
-    ]
-  },
-  "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
-    "file": "assets/webworkerAll-DL-vOdK_.js",
-    "name": "webworkerAll",
-    "src": "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_FilterSystem-lINCcHw8.js",
-      "_init-Dov3IVMy.js"
-    ]
-  },
-  "node_modules/pixi.js/lib/index.mjs": {
-    "file": "assets/lib-CdqLQ3Z-.js",
-    "name": "lib",
-    "src": "node_modules/pixi.js/lib/index.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_rolldown-runtime-aKtaBQYM.js",
-      "_preload-helper-HclGiUj8.js",
-      "_Geometry-CZCQfHLF.js",
-      "_Container--DC3sRrW.js",
-      "_Filter-CxXus6PE.js",
-      "_FederatedEventTarget-C-UmVFe2.js",
-      "_FilterSystem-lINCcHw8.js",
-      "_Shader-Dff_yvjw.js",
-      "_Cache-B8IRbCgz.js",
-      "_ImageSource-D2JHCQ3v.js",
-      "_canvasUtils-C8xQnZmC.js",
-      "_CanvasPool-CPoFfVNI.js",
-      "_GraphicsContext-H5W9uhhZ.js",
-      "_AbstractRenderer-GQgU6Z_I.js",
-      "_RenderTargetSystem-BOQSKBfs.js",
-      "_getTextureBatchBindGroup-DoAcu5ce.js",
-      "_ViewableBuffer-CObpe3su.js",
-      "_GCManagedHash-Igj10gjP.js",
-      "_GpuStencilModesToPixi-D7_3d2fF.js",
-      "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-      "_ParticleBuffer-B-PCZxN0.js",
-      "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
-    ],
-    "dynamicImports": [
-      "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
-      "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
-      "node_modules/pixi.js/lib/index.mjs",
-      "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-      "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
-    ]
-  },
-  "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
-    "file": "assets/CanvasRenderer-y3G8kg5_.js",
-    "name": "CanvasRenderer",
-    "src": "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_Container--DC3sRrW.js",
-      "_Filter-CxXus6PE.js",
-      "_Shader-Dff_yvjw.js",
-      "_canvasUtils-C8xQnZmC.js",
-      "_GraphicsContext-H5W9uhhZ.js",
-      "_AbstractRenderer-GQgU6Z_I.js",
-      "_RenderTargetSystem-BOQSKBfs.js",
-      "_GCManagedHash-Igj10gjP.js"
-    ]
-  },
-  "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
-    "file": "assets/WebGLRenderer-u4y-XyBt.js",
-    "name": "WebGLRenderer",
-    "src": "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "node_modules/pixi.js/lib/index.mjs"
-    ]
-  },
-  "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
-    "file": "assets/WebGPURenderer-DqpAinc2.js",
-    "name": "WebGPURenderer",
-    "src": "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "node_modules/pixi.js/lib/index.mjs"
-    ]
-  },
-  "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
-    "file": "assets/BitmapFont-3_bdR0G-.js",
-    "name": "BitmapFont",
-    "src": "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_Shader-Dff_yvjw.js",
-      "_Cache-B8IRbCgz.js",
-      "_ImageSource-D2JHCQ3v.js",
-      "_CanvasPool-CPoFfVNI.js",
-      "_GraphicsContext-H5W9uhhZ.js"
-    ]
-  },
-  "node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
-    "file": "assets/init-BtrWJfXd.js",
-    "name": "init",
-    "src": "node_modules/pixi.js/lib/unsafe-eval/init.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_AbstractRenderer-GQgU6Z_I.js",
-      "_ParticleBuffer-B-PCZxN0.js"
     ]
   },
   "ui/layout-stage.js": {

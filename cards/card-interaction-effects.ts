@@ -16,15 +16,6 @@ const SpecialStoneRegistry = (function() {
   } catch (e) { return null; }
 })();
 
-const StoneSupplyModule = (function() {
-  try {
-    const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-      ? __non_webpack_require__
-      : require;
-    return _require('../shared/stone-supply');
-  } catch (e) { return null; }
-})();
-
 function getSpecialStoneDisplayName(rawType: string, fallback?: string) {
   if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneDisplayName === 'function') {
     return SpecialStoneRegistry.getSpecialStoneDisplayName(rawType, fallback);
@@ -427,29 +418,12 @@ function cloneCardEffectTag(tag: any) {
   return cloned;
 }
 
-// 使用条件タグ（01-rulebook.md §9 使用条件の分類）。配置依存カード一覧 shared/stone-supply.ts から導出する。
-const LEGAL_MOVE_REQUIRED_TAG_LABEL = '合法手が必要';
-const STONE_SUPPLY_REQUIRED_TAG_LABEL = '持ち石が必要';
-
-function resolveUsageConditionTagsForType(cardType: string) {
-  const tags: any[] = [];
-  if (!StoneSupplyModule) return tags;
-  if (typeof StoneSupplyModule.isLegalMoveDependentCardType === 'function' && StoneSupplyModule.isLegalMoveDependentCardType(cardType)) {
-    tags.push(usageConditionTag(LEGAL_MOVE_REQUIRED_TAG_LABEL));
-  }
-  if (typeof StoneSupplyModule.isStonePlacementCardType === 'function' && StoneSupplyModule.isStonePlacementCardType(cardType)) {
-    tags.push(usageConditionTag(STONE_SUPPLY_REQUIRED_TAG_LABEL));
-  }
-  return tags;
-}
-
 function resolveCardEffectTags(cardDef: any) {
   const cardType = cardDef && cardDef.type ? String(cardDef.type) : '';
   if (!cardType) return [];
   const mappedTags = (cardEffectTagsByType as any)[cardType];
-  const mapped = Array.isArray(mappedTags) ? mappedTags.map(cloneCardEffectTag).filter(Boolean) : [];
-  const conditionTags = resolveUsageConditionTagsForType(cardType).map(cloneCardEffectTag).filter(Boolean);
-  return [...conditionTags, ...mapped];
+  if (!Array.isArray(mappedTags) || mappedTags.length === 0) return [];
+  return mappedTags.map(cloneCardEffectTag).filter(Boolean);
 }
 
 function resolveCardNumericTags(cardDef: any) {

@@ -193,7 +193,7 @@ describe('manifest effect panel', () => {
     const panel = renderOnce();
 
     const tagButtons = Array.from(panel?.querySelectorAll('#manifest-effect-tags .card-detail-effect-tag-button') || []) as HTMLElement[];
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '6ターン持続', '反転無効', '穴マス', '抹消']);
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '6ターン持続', '反転無効', '穴マス', '抹消']);
 
     const holeTag = tagButtons.find((el) => el.textContent === '穴マス');
     expect(holeTag).toBeTruthy();

@@ -185,7 +185,7 @@ describe('持ち石ルール', () => {
     expect(Array.from(StoneSupply.STONE_PLACEMENT_CARD_TYPES).filter((type) => !catalogTypes.has(type))).toEqual([]);
   });
 
-  test('通常合法手が無いときは、次に置く石へ効果を付けるカードは使えないが、自由配置と対象選択カードは使える', () => {
+  test('通常合法手が無くても、持ち石があればカードは使える（合法手の有無は使用条件にしない）', () => {
     const { cardState } = makeState();
     cardState.charge.black = 99;
     cardState.hands.black = ['hard_01', 'double_01', 'free_01', 'destroy_01'];
@@ -198,16 +198,7 @@ describe('持ち石ルール', () => {
     gameState.board[0][0] = Shared.EMPTY;
     expect(legalMovesFor(cardState, gameState, Shared.BLACK)).toHaveLength(0);
     const usable = CardLogic.getUsableCardIds(cardState, gameState, 'black');
-    expect(usable).not.toContain('hard_01');
-    expect(usable).not.toContain('double_01');
-    expect(usable).toContain('free_01');
-    expect(usable).toContain('destroy_01');
-
-    // 合法手がある盤面なら同じ手札をすべて使える
-    const openState = Core.createGameState();
-    const usableOpen = CardLogic.getUsableCardIds(cardState, openState, 'black');
-    expect(usableOpen).toContain('hard_01');
-    expect(usableOpen).toContain('double_01');
+    expect(usable).toEqual(expect.arrayContaining(['hard_01', 'double_01', 'free_01', 'destroy_01']));
   });
 
   test('両者の持ち石が0になった後はターン開始時にドローしない', () => {

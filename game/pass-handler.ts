@@ -34,6 +34,9 @@ declare const DOUBLE_PLACE_PASS_DELAY_MS: any;
 const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 const AUTO_PASS_NOTICE_REASON = 'no_legal_moves_or_usable_cards';
 const AUTO_PASS_NOTICE_REASON_STONE_SUPPLY = 'stone_supply_exhausted_no_usable_cards';
+// 8.4 終局の見せ方: 自動パスの通知を見せてから、次の自動パスやリザルトへ進む（ローカル対局）。
+const AUTO_PASS_NOTICE_HOLD_MS = 2400;
+let lastAutoPassNoticeShownAt: number | null = null;
 
 // TimerService DI
 let passHandlerTimerService: any = null;
@@ -129,9 +132,31 @@ function resolvePassHandlerGameState(): any {
     return gameState || null;
 }
 
+function markAutoPassNoticeShown() {
+    lastAutoPassNoticeShownAt = Date.now();
+}
+
+function resolveRemainingAutoPassNoticeHoldMs(): number {
+    if (lastAutoPassNoticeShownAt === null) return 0;
+    const elapsed = Date.now() - lastAutoPassNoticeShownAt;
+    if (!Number.isFinite(elapsed) || elapsed < 0) return AUTO_PASS_NOTICE_HOLD_MS;
+    return Math.max(0, AUTO_PASS_NOTICE_HOLD_MS - elapsed);
+}
+
+function extendDelayForAutoPassNotice(delayMs: number): number {
+    const base = Number.isFinite(delayMs) ? delayMs : 0;
+    return Math.max(base, resolveRemainingAutoPassNoticeHoldMs());
+}
+
 function showPassHandlerResultIfAvailable() {
     const showResultFn = resolvePassHandlerRuntimeFunction('showResult');
     if (typeof showResultFn !== 'function') return false;
+    const invokeShowResult = () => {
+        try { showResultFn(); } catch (e) { /* ignore */ }
+    };
+    // 直前に自動パス通知を出していれば、通知を見せ終えてからリザルトへ移る。
+    const holdMs = resolveRemainingAutoPassNoticeHoldMs();
+    if (holdMs > 0 && scheduleWithDelay(holdMs, invokeShowResult)) return true;
     try {
         showResultFn();
         return true;
@@ -805,6 +830,7 @@ function showAutoPassNoticeForPlayer(playerKey: any) {
             reason: stoneSupplyExhausted ? AUTO_PASS_NOTICE_REASON_STONE_SUPPLY : AUTO_PASS_NOTICE_REASON,
             reasonText: stoneSupplyExhausted ? '持ち石がなく、使用可能カードもありません。' : undefined
         });
+        markAutoPassNoticeShown();
         return true;
     } catch (e) { /* ignore */ }
     return false;
@@ -1003,6 +1029,22 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
         return true;
     }
 
+    // 直前の自動パス通知が表示中なら、見せ終えてから次の自動パスへ進む。
+    const noticeHoldMs = resolveRemainingAutoPassNoticeHoldMs();
+    if (noticeHoldMs > 0) {
+        const expectedTurnNumber = Number.isFinite(gameState.turnNumber) ? gameState.turnNumber : null;
+        const scheduled = scheduleWithDelay(noticeHoldMs, () => {
+            const latestGameState = resolvePassHandlerGameState();
+            if (!latestGameState || latestGameState.__resultShown === true) return;
+            if (typeof isGameOver === 'function' && isGameOver(latestGameState)) return;
+            if (normalizePlayerKeyOptional(latestGameState.currentPlayer) !== playerKey) return;
+            const latestTurnNumber = Number.isFinite(latestGameState.turnNumber) ? latestGameState.turnNumber : null;
+            if (expectedTurnNumber !== null && latestTurnNumber !== expectedTurnNumber) return;
+            processPassTurn(playerKey, passArg);
+        });
+        if (scheduled) return true;
+    }
+
     processPassTurn(playerKey, passArg);
     return true;
 }
@@ -1186,7 +1228,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
             setPassHandlerProcessing(!humanMode);
             if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('white', nextPlayer));
             if (!humanMode) {
-                scheduleWhiteCpuTurnGuarded(resolvePassHandlerCpuTurnDelayMs(nextPlayerKey), {
+                scheduleWhiteCpuTurnGuarded(extendDelayForAutoPassNotice(resolvePassHandlerCpuTurnDelayMs(nextPlayerKey)), {
                     nextPlayerKey
                 });
             }
@@ -1202,7 +1244,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
         setPassHandlerProcessing(!humanMode);
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue(nextPlayerKey, nextPlayer));
         if (!humanMode) {
-            scheduleWhiteCpuTurnGuarded(resolvePassHandlerCpuTurnDelayMs(nextPlayerKey), {
+            scheduleWhiteCpuTurnGuarded(extendDelayForAutoPassNotice(resolvePassHandlerCpuTurnDelayMs(nextPlayerKey)), {
                 nextPlayerKey
             });
         }
@@ -1245,7 +1287,7 @@ async function finalizePassTurnHandoff(
         gameStateForDelay && gameStateForDelay.currentPlayer,
         'white'
     );
-    const safeCpuDelay = resolvePassHandlerCpuTurnDelayMs(nextPlayerKeyForDelay);
+    const safeCpuDelay = extendDelayForAutoPassNotice(resolvePassHandlerCpuTurnDelayMs(nextPlayerKeyForDelay));
 
     await finalizeTurn({
         playerKey: safePublishPlayerKey,
@@ -1254,6 +1296,7 @@ async function finalizePassTurnHandoff(
         playbackEvents: [],
         humanMode,
         cpuDelayMs: safeCpuDelay,
+        showResult: () => { showPassHandlerResultIfAvailable(); },
         performanceScope: internalOptions && internalOptions.performanceScope
             ? internalOptions.performanceScope
             : null,
@@ -1312,7 +1355,7 @@ async function handleBlackPassWhenNoMoves() {
         setPassHandlerProcessing(false);
         return;
     }
-    const safeBlackPassDelay = (typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000;
+    const safeBlackPassDelay = extendDelayForAutoPassNotice((typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000);
     const safeBlackName = (typeof BLACK !== 'undefined' && typeof getPlayerName === 'function') ? getPlayerName(BLACK) : '黒';
     const expectedPlayer = gameState ? gameState.currentPlayer : null;
     const expectedPlayerKey = normalizePlayerKeyOptional(expectedPlayer);

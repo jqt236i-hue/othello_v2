@@ -166,21 +166,6 @@ function isStonePlacementCardType(cardType: unknown): boolean {
     return STONE_PLACEMENT_CARD_TYPES.has(String(cardType || '').trim().toUpperCase());
 }
 
-/**
- * 通常合法手が無い（置けるマスが無い・配置封鎖中・持ち石 0）ときに使用できないカード種別。
- * 配置依存カードのうち、通常合法手が無くても自分で置ける自由配置（LAST_RESORT / FREE_PLACEMENT）と、
- * 独自の禁忌候補マスで配置する TABOO_REVERSE_WILL を除いたもの。
- */
-const LEGAL_MOVE_DEPENDENT_CARD_TYPES: ReadonlySet<string> = new Set(
-    Array.from(STONE_PLACEMENT_CARD_TYPES).filter((type) => (
-        type !== 'LAST_RESORT' && type !== 'FREE_PLACEMENT' && type !== 'TABOO_REVERSE_WILL'
-    ))
-);
-
-function isLegalMoveDependentCardType(cardType: unknown): boolean {
-    return LEGAL_MOVE_DEPENDENT_CARD_TYPES.has(String(cardType || '').trim().toUpperCase());
-}
-
 /** 黒白とも持ち石が 0（ルール無効時は false）。両者とも通常配置ができず、以後のターン開始ドローを止める。 */
 function areAllStoneSuppliesExhausted(cardState: unknown): boolean {
     return isStoneSupplyExhausted(cardState, 'black') && isStoneSupplyExhausted(cardState, 'white');
@@ -204,9 +189,7 @@ function listStoneSupplyExhaustedPlayerKeys(cardState: unknown): StoneSupplyPlay
 
 export = {
     STONE_PLACEMENT_CARD_TYPES,
-    LEGAL_MOVE_DEPENDENT_CARD_TYPES,
     isStonePlacementCardType,
-    isLegalMoveDependentCardType,
     areAllStoneSuppliesExhausted,
     resolveStoneSupplyEnabledOption,
     computeInitialStoneSupply,

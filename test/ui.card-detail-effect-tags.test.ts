@@ -80,7 +80,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '8ターン持続', '反転無効']);
+    expect(getTagLabels()).toEqual(['特殊石', '8ターン持続', '反転無効']);
     expect(tagsEl.style.display).toBe('flex');
     expect(document.getElementById('card-detail-panel').classList.contains('has-effect-tags')).toBe(true);
 
@@ -88,13 +88,12 @@ describe('card detail effect tags', () => {
     expect(desc).toContain('空きマス自由配置可');
     expect(desc).toContain('置いた石が龍化');
 
-    // 配置依存カードは使用条件タグを持つため、タグを一切持たないカードとして宝箱を使う。
     const noTagCardDef = {
-      id: 'chest_01',
-      name: '宝箱',
-      type: 'TREASURE_BOX',
-      cost: 0,
-      desc: '布石を1〜6獲得。'
+      id: 'triple_01',
+      name: '三連投石',
+      type: 'TRIPLE_PLACE',
+      cost: 24,
+      desc: '使用ターンだけ石を3連続で置ける。'
     };
     global.cardState.selectedCardId = noTagCardDef.id;
     global.cardState.hands.black = [noTagCardDef.id];
@@ -122,7 +121,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '5ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石', '5ターン持続']);
     expect(document.getElementById('card-detail-desc').textContent).toBe('次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。');
   });
 
@@ -143,7 +142,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '3ターン持続', '反転無効']);
+    expect(getTagLabels()).toEqual(['特殊石', '3ターン持続', '反転無効']);
   });
 
   test('GUARD_WILL shows full protection together with duration tags', () => {
@@ -212,7 +211,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '数字マス42獲得で使用可能', '不可侵', '3ターン持続']);
+    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '3ターン持続']);
       expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
       expect(document.getElementById('card-detail-more').textContent).toContain('3T不可侵の顕現石');
     expect(document.getElementById('card-detail-more').textContent).toContain('最大4回特殊石を出現できる');
@@ -238,7 +237,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
     expect(document.getElementById('card-detail-desc').textContent).toContain('不可侵ではない特殊石を絶対執行');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('場合のみ使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
@@ -262,7 +261,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '反転回避6回', '破壊回避6回']);
+    expect(getTagLabels()).toEqual(['特殊石', '反転回避6回', '破壊回避6回']);
   });
 
   test('TIME_STOP_GOD detail follows rulebook timing text and keeps delayed activation tag', () => {
@@ -289,7 +288,7 @@ describe('card detail effect tags', () => {
     expect(detailText).toContain('5回目の所有者ターン開始時');
     expect(detailText).toContain('反転無効は持たない');
 
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '5ターン後に発動']);
+    expect(getTagLabels()).toEqual(['特殊石', '5ターン後に発動']);
   });
 
   test('METEOR_WILL shows hole-cell tags and BOARD_EXECUTOR shows absolute execution tags', () => {
@@ -331,7 +330,7 @@ describe('card detail effect tags', () => {
     global.CardLogic.getCardDef = () => boardExecutorDef;
 
     window.updateCardDetailPanel();
-    expect(getTagLabels()).toEqual(['合法手が必要', '持ち石が必要', '特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
   });
 
   test('hole-cell board shrink cards use concise erase wording in the detail summary', () => {
@@ -633,7 +632,7 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     const tagButtons = Array.from(document.querySelectorAll('#card-detail-effect-tags .card-detail-effect-tag-button'));
-    expect(tagButtons.map((el) => el.textContent)).toEqual(['合法手が必要', '持ち石が必要', '特殊石', '8ターン持続', '反転無効']);
+    expect(tagButtons.map((el) => el.textContent)).toEqual(['特殊石', '8ターン持続', '反転無効']);
 
     const specialStoneButton = tagButtons.find((el) => el.textContent === '特殊石');
     specialStoneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));

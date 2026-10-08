@@ -26,8 +26,6 @@ test('a treasure box at the charge cap is not chosen even without the card-use m
     const deep=result.candidates!.filter(candidate=>candidate.retainedForDeepening);
     const chest=deep.find(usesCard('chest_01'))!, holding=deep.find(candidate=>
         JSON.stringify([candidate.action,...candidate.continuation])===JSON.stringify(chest.continuation))!;
-    // The chest plan and its holding twin are compared as a pair; the twin wins regardless of the margin.
-    expect(chest).toBeTruthy();
-    expect(holding).toBeTruthy();
+    expect(chest.score).toBeGreaterThan(holding.score);
     expect(result.action).toEqual(holding.action);
 },120000);
