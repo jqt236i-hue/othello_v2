@@ -1,6 +1,6 @@
 {
   "version": "2026-10-08",
-  "generatedAt": "2026-10-08T06:20:07.154Z",
+  "generatedAt": "2026-10-08T09:05:19.114Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -880,7 +880,7 @@
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
-      "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
+      "sha256": "dbd36198717213c2c52e6f452e6e774fc9a53faf6458f6db0bfd595cbd686675"
     },
     {
       "path": "assets/images/background-skin/観測の机.png",

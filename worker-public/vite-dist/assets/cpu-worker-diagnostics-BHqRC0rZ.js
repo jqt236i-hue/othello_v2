@@ -1,1 +1,0 @@
-import{n as e}from"./bridge-Dt84zm72.js";function t(t=window){return e(t)}export{t as getCpuWorkerBridgeDiagnostics};

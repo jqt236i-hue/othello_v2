@@ -45,7 +45,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石', '5ターン後に発動']);
     expect(getEffectTagLabels('REGEN_WILL')).toEqual(['特殊石']);
     expect(getEffectTagLabels('HYPERACTIVE_WILL')).toEqual(['特殊石', '反転回避1回']);
-    expect(getEffectTagLabels('ESCAPE_WILL')).toEqual(['特殊石', '反転回避1回']);
+    expect(getEffectTagLabels('ESCAPE_WILL')).toEqual(['特殊石', '反転回避3回']);
     expect(getEffectTagLabels('WORK_WILL')).toEqual(['特殊石', '5ターン持続']);
     expect(getEffectTagLabels('STONE_SALVATION_GOD')).toEqual(['特殊石', '12ターン持続', '反転無効']);
 

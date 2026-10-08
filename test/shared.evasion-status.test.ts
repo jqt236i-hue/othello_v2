@@ -3,7 +3,7 @@ import * as EvasionStatus from '../shared/evasion-status';
 describe('shared evasion status profiles', () => {
   test.each([
     ['HYPERACTIVE', 1, undefined, undefined, 'HYPERACTIVE', 'hyperactive_flip_evade_move', false, false],
-    ['ESCAPE_HYPERACTIVE', 1, undefined, undefined, 'ESCAPE_HYPERACTIVE', 'escape_hyperactive_flip_evade_move', false, false],
+    ['ESCAPE_HYPERACTIVE', 3, undefined, undefined, 'ESCAPE_HYPERACTIVE', 'escape_hyperactive_flip_evade_move', false, false],
     ['EXTREME_HYPERACTIVE', 5, 5, 5, 'EXTREME_HYPERACTIVE_WILL', 'extreme_hyperactive_flip_evade_move', false, false],
     ['ULTIMATE_HYPERACTIVE', 5, 2, 5, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip_evade_move', true, false],
     ['AFTERIMAGE_WILL', 6, 6, undefined, 'AFTERIMAGE_WILL', 'afterimage_will_flip_evade_move', false, true],

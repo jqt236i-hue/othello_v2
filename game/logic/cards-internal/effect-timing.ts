@@ -1253,7 +1253,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).hyperactiveSeqCounter = (cardState.hyperactiveSeqCounter || 0) + 1;
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ESCAPE_HYPERACTIVE',
-            flipEvadeRemaining: getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 1),
+            flipEvadeRemaining: getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 3),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;

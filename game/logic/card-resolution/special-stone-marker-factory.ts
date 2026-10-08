@@ -182,7 +182,7 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
         case 'ESCAPE_WILL':
             return {
                 type: readRegistryMarkerType(type, deps) || 'ESCAPE_HYPERACTIVE',
-                flipEvadeRemaining: readPositiveInt(constants.ESCAPE_HYPERACTIVE_FLIP_EVADE_LIMIT, 1)
+                flipEvadeRemaining: readPositiveInt(constants.ESCAPE_HYPERACTIVE_FLIP_EVADE_LIMIT, 3)
             };
         case 'ROBOT_VACUUM':
         case 'ROBOT_VACUUM_WILL':

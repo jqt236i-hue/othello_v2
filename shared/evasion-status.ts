@@ -46,7 +46,7 @@ const EvasionStatus: any = (function () {
             flipMoveReason: 'hyperactive_flip_evade_move'
         }),
         ESCAPE_HYPERACTIVE: Object.freeze({
-            flipDefault: 1,
+            flipDefault: 3,
             flipCause: 'ESCAPE_HYPERACTIVE',
             flipMoveReason: 'escape_hyperactive_flip_evade_move'
         }),

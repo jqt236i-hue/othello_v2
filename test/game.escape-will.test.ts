@@ -41,6 +41,7 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
       m.data.type === 'ESCAPE_HYPERACTIVE'
     ));
     expect(marker).toBeTruthy();
+    expect(marker.data.flipEvadeRemaining).toBe(3);
   });
 
   test('近くの石から逃げる方向へ移動する', () => {
@@ -110,7 +111,7 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
     expect(marker).toBeUndefined();
   });
 
-  test('反転対象時は1回だけ回避し、同列の他石は通常反転される', () => {
+  test('反転対象時は回避を1回消費して移動し、同列の他石は通常反転される', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = Core.createGameState();
@@ -170,6 +171,47 @@ describe('ESCAPE_WILL（逃げる意志）', () => {
     const placeEvent = events.find((ev) => ev && ev.type === 'place');
     expect(placeEvent).toBeTruthy();
     expect(placeEvent.flips).toEqual([[3, 4]]);
+  });
+
+  test('回避残り3回の逃亡石は反転されても回避を1回だけ消費し、まだ回避できる', () => {
+    const prng = makePrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+
+    gameState.board = createEmptyBoard();
+    gameState.currentPlayer = Core.WHITE;
+    gameState.board[3][3] = Core.WHITE;
+    gameState.board[3][4] = Core.BLACK;
+
+    cardState.markers.push({
+      id: 104,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'white',
+      data: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5, flipEvadeRemaining: 3 }
+    });
+
+    const events = [];
+    TurnPipelinePhases.applyActionPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 3, col: 2 },
+      events,
+      prng,
+      BoardOps
+    );
+
+    expect(gameState.board[3][3]).toBe(Core.EMPTY);
+    const marker = (cardState.markers || []).find((m) => (
+      m && m.kind === 'specialStone' && m.data && m.data.type === 'ESCAPE_HYPERACTIVE'
+    ));
+    expect(marker).toBeTruthy();
+    expect(gameState.board[marker.row][marker.col]).toBe(Core.WHITE);
+    expect(marker.data.flipEvadeRemaining).toBe(2);
   });
 
   test('反転回避で盤面上に有効な空きが無い場合は爆発せず通常反転される', () => {
