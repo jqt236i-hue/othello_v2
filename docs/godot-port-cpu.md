@@ -27,6 +27,8 @@ Lv10〜12の唯一の観測入口は [observeLv10Position](../game/ai/cpu-lv10-o
 
 探索の返値はaction、continuation、value、transitions、elapsedMs、stopped、rejectedCount等。valueは探索の評価値であり勝率保証ではない。例は固定比較JSONの `records[].result`。探索失敗は明示した `source: fallback` とerrorで記録し、上限20msの安価な合法操作選択に退避する。画面threadで同じ重い探索を再実行しない。
 
+Lv13は1手番の探索で4600msを共有し、各要求に手番の残り時間を `maxMs`（最低100ms）として付ける。2操作目以降は、実際の公開観測が「直前の操作を最初の仮想局面（seed 100901）に適用した予測」と項目順を問わず一致する間、continuationの次の操作を探索せずに使う（その仮想局面で合法を確認）。外れ・拒否・古い応答で手順を捨てて探索し直す。Lv10〜12は操作ごとに探索する。正本は [cpu-lv10-turn.ts](../game/cpu-lv10-turn.ts) の `Lv10PlanMemory`。
+
 ## 探索量と実時間
 
 | 探索 | version | 本番上限 |

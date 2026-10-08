@@ -14,15 +14,60 @@ export type Lv10TurnDeps = {
     record?: (record: Lv10TurnRecord) => void;
     performanceScope?: CpuTurnPerformanceScope | null;
     rejectedActions?: { identity: string | null; actions: Lv10Action[];
-        cancelledCards?: { turnIdentity: string; cardIds: string[] } };
+        cancelledCards?: { turnIdentity: string; cardIds: string[] };
+        /** Present only for policies that keep following the searched turn. */
+        plan?: Lv10PlanMemory };
 };
+/** The rest of the turn the last search completed, valid only while the public
+ * observation is exactly the one predicted after the previous action. */
+export type Lv10PlanMemory = { expectedIdentity: string | null; continuation: Lv10Action[];
+    /** Thinking time shared by every search of one turn. */
+    turnBudgetMs: number; turnIdentity: string | null; spentMs: number };
 export type Lv10TurnRecord = {
     player: Lv10Player; turnNumber: number; action: Lv10Action | null;
     elapsedMs: number; source: 'worker' | 'fallback'; error: string | null;
     search: Omit<Lv10SearchResult, 'continuation'> | null;
     outcome: 'applied' | 'rejected' | 'stale' | 'no_action';
     excludedActions?: readonly Lv10Action[];
+    /** The action came from the previous search's continuation (no new search). */
+    followedPlan?: boolean;
 };
+
+// The scenario seed of the first Lv10-13 search world. Any public outcome that
+// differs from this world's (a draw, a chance effect, a hidden card) makes the
+// prediction miss, and the next action is searched again.
+const PLAN_SAMPLE_SEED = 100901;
+
+// A search after a chance outcome still gets this much when the turn budget is spent.
+const PLAN_MIN_SEARCH_MS = 100;
+
+// Popup queues for the charge counter are drained by the live runtime, not by
+// the search transition; they carry no rule state.
+const PLAN_IGNORED_KEYS = new Set(['chargeDeltaEvents']);
+
+/** Key-order independent identity of an observation for plan matching. The
+ * live runtime and a search transition can add the same bookkeeping fields in
+ * a different order. */
+function lv10PlanIdentity(value: unknown): string {
+    return JSON.stringify(value, (key, item) => {
+        if (PLAN_IGNORED_KEYS.has(key)) return undefined;
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+        return Object.fromEntries(Object.keys(item).sort().map(name => [name, (item as Record<string, unknown>)[name]]));
+    });
+}
+
+/** Applies an action to one sampled world of the public observation. Returns
+ * the viewer's predicted observation identity, or null when it does not apply. */
+function predictLv10Observation(observation: ReturnType<typeof observeLv10Position>, publicRecipes: Lv10AdvisorRequest['publicRecipes'],
+    player: Lv10Player, action: Lv10Action): string | null {
+    try {
+        const result = applyLv10Action(sampleLv10Position(observation, PLAN_SAMPLE_SEED, publicRecipes), action);
+        if (!result.ok || result.selectionFailed) return null;
+        return lv10PlanIdentity(observeLv10Position(result.state, player));
+    } catch {
+        return null;
+    }
+}
 
 /** One advisory action at a time. Presentation and the canonical handoff stay
  * in their existing UI adapters; no search state is ever installed in a match. */
@@ -50,18 +95,40 @@ export async function runLv10Turn(player: Lv10Player, deps: Lv10TurnDeps): Promi
     const excludedActions = [...new Map([...cancelledActions,...(rejectionMemory?.actions || [])]
         .map(action => [lv10ActionKey(action),action])).values()].slice(0,64);
     const excluded = new Set(excludedActions.map(lv10ActionKey));
-    const request = { observation, publicRecipes: deps.getPublicRecipes(), excludedActions };
+    const plan = rejectionMemory?.plan;
+    if (plan && plan.turnIdentity !== turnIdentity) { plan.turnIdentity = turnIdentity; plan.spentMs = 0; }
+    const request: Lv10AdvisorRequest = { observation, publicRecipes: deps.getPublicRecipes(), excludedActions };
+    // Every search of the turn, the first included, fits in what the turn has left.
+    if (plan) request.maxMs = Math.max(PLAN_MIN_SEARCH_MS, plan.turnBudgetMs - plan.spentMs);
     const record: Lv10TurnRecord = { player, turnNumber: observation.gameState.turnNumber, action: null,
         elapsedMs: 0, source: 'worker', error: null, search: null, outcome: 'no_action' };
     if (excludedActions.length) record.excludedActions = excludedActions;
     const scope = deps.performanceScope;
     const perfStarted = scope ? readCpuTurnPerformanceNowMs(scope) : null;
-    try {
+    // A card, its targets and the placement are one searched turn. While every
+    // public result matches the prediction, take the next action of that turn
+    // instead of searching each step again (one search budget per turn).
+    const planned = plan?.expectedIdentity && plan.expectedIdentity === lv10PlanIdentity(observation) ? plan.continuation[0] : undefined;
+    const plannedRest = plan ? plan.continuation.slice(1) : [];
+    if (plan) { plan.expectedIdentity = null; plan.continuation = []; }
+    if (plan && planned && !excluded.has(lv10ActionKey(planned))) {
+        const predicted = predictLv10Observation(observation, request.publicRecipes, player, planned);
+        if (predicted !== null) {
+            record.action = planned;
+            record.followedPlan = true;
+            if (plannedRest.length) { plan.expectedIdentity = predicted; plan.continuation = plannedRest; }
+        }
+    }
+    if (!record.action) try {
         const result = parseLv10AdvisorResult(await deps.advise(request));
         if (result.action && excluded.has(lv10ActionKey(result.action))) throw new Error('Advisor repeated a rejected action');
-        const { continuation: _continuation, ...details } = result;
+        const { continuation, ...details } = result;
         record.search = details;
         record.action = result.action;
+        if (plan && result.action && continuation.length) {
+            plan.expectedIdentity = predictLv10Observation(observation, request.publicRecipes, player, result.action);
+            plan.continuation = plan.expectedIdentity ? continuation.slice() : [];
+        }
     } catch (error) {
         record.error = error instanceof Error ? error.message : String(error);
         record.source = 'fallback';
@@ -88,6 +155,7 @@ export async function runLv10Turn(player: Lv10Player, deps: Lv10TurnDeps): Promi
         }
     }
     record.elapsedMs = performance.now() - started;
+    if (plan) plan.spentMs += record.elapsedMs;
     if (scope && perfStarted !== null) recordCpuTurnPerformanceInterval(scope, 'move-candidates', 'wait',
         perfStarted, readCpuTurnPerformanceNowMs(scope), record.source === 'worker' ? 'continue' : 'error');
     if (!deps.isCurrent() || JSON.stringify(observeLv10Position(deps.getState(), player)) !== identity) {
@@ -111,6 +179,7 @@ export async function runLv10Turn(player: Lv10Player, deps: Lv10TurnDeps): Promi
                 && !excluded.has(lv10ActionKey(record.action))) rejectionMemory.actions.push(record.action);
         }
     }
+    if (plan && record.outcome !== 'applied') { plan.expectedIdentity = null; plan.continuation = []; }
     deps.record?.(record);
     return record;
 }

@@ -183,8 +183,14 @@ const lv12RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedA
 };
 const lv13RecentDecisions: Lv10TurnRecord[] = [];
 const lv13DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, noAction: 0 };
+// Lv13 follows its searched turn (card, targets, placement) and shares one
+// thinking budget per turn, so the player waits under 5 seconds a turn. A
+// search after a chance outcome may add a short minimum on top.
+const LV13_TURN_THINK_MS = 4600;
+const createLv13PlanMemory = () => ({ expectedIdentity: null, continuation: [], turnBudgetMs: LV13_TURN_THINK_MS, turnIdentity: null, spentMs: 0 });
 const lv13RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedActions']>> = {
-    black: { identity: null, actions: [] }, white: { identity: null, actions: [] }
+    black: { identity: null, actions: [], plan: createLv13PlanMemory() },
+    white: { identity: null, actions: [], plan: createLv13PlanMemory() }
 };
 // Presentation and extra-action handoffs may release the shared processing flag
 // while an advisory action is still awaiting completion. Keep the Lv10 request
@@ -1292,7 +1298,10 @@ function resetPendingSelectRetryState(playerKey: any) {
 }
 
 function resetCpuTurnHandlerState() {
-    for (const memory of [...Object.values(lv10RejectedActions), ...Object.values(lv11RejectedActions), ...Object.values(lv12RejectedActions), ...Object.values(lv13RejectedActions)]) { memory.identity = null; memory.actions = []; delete memory.cancelledCards; }
+    for (const memory of [...Object.values(lv10RejectedActions), ...Object.values(lv11RejectedActions), ...Object.values(lv12RejectedActions), ...Object.values(lv13RejectedActions)]) {
+        memory.identity = null; memory.actions = []; delete memory.cancelledCards;
+        if (memory.plan) memory.plan = createLv13PlanMemory();
+    }
     return CpuTurnScheduler.resetCpuTurnHandlerState();
 }
 
@@ -1312,7 +1321,13 @@ function restoreBattleCpuMemory(memory: any) {
     validateBattleCpuMemory(memory);
     for (const [key, target] of [['lv10', lv10RejectedActions], ['lv11', lv11RejectedActions], ['lv12', lv12RejectedActions], ['lv13', lv13RejectedActions]] as const) {
         if (!memory[key]) continue;
-        for (const player of ['black', 'white'] as const) Object.assign(target[player], JSON.parse(JSON.stringify(memory[key][player])));
+        for (const player of ['black', 'white'] as const) {
+            const hadPlan = !!target[player].plan;
+            Object.assign(target[player], JSON.parse(JSON.stringify(memory[key][player])));
+            // A turn plan never outlives the turn it was searched in.
+            if (hadPlan) target[player].plan = createLv13PlanMemory();
+            else delete target[player].plan;
+        }
     }
 }
 

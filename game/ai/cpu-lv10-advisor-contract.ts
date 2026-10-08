@@ -5,6 +5,8 @@ export type Lv10AdvisorRequest = {
     observation: Lv10Observation;
     publicRecipes?: Partial<Record<Lv10Player, readonly string[]>>;
     excludedActions?: readonly Lv10Action[];
+    /** A shorter search clock for the rest of a turn; the level's own maxMs still caps it. */
+    maxMs?: number;
 };
 
 // The transport accepts public observations, never an authoritative snapshot.
@@ -15,6 +17,8 @@ export function parseLv10AdvisorRequest(value: any): Lv10AdvisorRequest {
         || value.excludedActions.some((action:any) => !action || !['place','pass','use_card','destroy_hand_card','cancel_card'].includes(action.type)))) {
         throw new Error('Invalid Lv10 rejected action history');
     }
+    if (value?.maxMs !== undefined && (typeof value.maxMs !== 'number' || !Number.isFinite(value.maxMs)
+        || value.maxMs <= 0 || value.maxMs > 60000)) throw new Error('Invalid Lv10 search clock');
     const obs = value?.observation;
     if (!obs || obs.schema !== 'cpu_lv10_observation.v1' || !['black', 'white'].includes(obs.player)
         || !obs.gameState || !obs.cardState || JSON.stringify(value).length > 540000) {

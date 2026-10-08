@@ -30,6 +30,18 @@ test('Lv13 transport uses the evaluated policy with a live clock and no search b
   expect(options.now()).toBeLessThanOrEqual(performance.now());
 });
 
+test('a shorter clock for the rest of a turn reaches the search, and an invalid one is refused', () => {
+  (searchLv13 as jest.Mock).mockReturnValue({ version: 'test', transitions: 10, continuation: [], action: { type: 'pass' } });
+  const input = request();
+  (input.payload as any).maxMs = 1200;
+  expect(executeLv13WorkerMessage(input)).toMatchObject({ ok: true });
+  expect((searchLv13 as jest.Mock).mock.calls.at(-1)![1].maxMs).toBe(1200);
+  (searchLv13 as jest.Mock).mockClear();
+  (input.payload as any).maxMs = -1;
+  expect(() => executeLv13WorkerMessage(input)).toThrow(/Invalid Lv10 search clock/);
+  expect(searchLv13).not.toHaveBeenCalled();
+});
+
 test('private deck state is rejected before Lv13 search', () => {
   (searchLv13 as jest.Mock).mockClear();
   const input = request();

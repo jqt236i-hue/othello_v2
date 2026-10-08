@@ -13,7 +13,9 @@ export function executeLv13WorkerMessage(raw: unknown): CpuWorkerResponse | null
     if (identity.operation !== CPU_WORKER_OPERATIONS.LV13_ADVISE) throw new Error('Unsupported Lv13 operation');
     const request = parseLv10AdvisorRequest(payload);
     const result = searchLv13(request.observation, { publicRecipes: request.publicRecipes,
-      excludedActions: request.excludedActions, now: () => performance.now() });
+      excludedActions: request.excludedActions, now: () => performance.now(),
+      // The rest of a turn whose earlier searches used part of its budget.
+      ...(request.maxMs !== undefined ? { maxMs: request.maxMs } : {}) });
     return { ...identity, kind: 'response', ok: true, result };
   } catch (error) {
     return { ...identity, kind: 'response', ok: false, error: {
