@@ -50,7 +50,8 @@ export function createMatchAuthorityOperationsApi(deps: MatchAuthorityOperations
         if (autoPassReason) {
             normalized.autoPassNotice = {
                 playerKey: deps.normalizePlayerKey(autoPassNoticeSource.playerKey),
-                reason: autoPassReason
+                reason: autoPassReason,
+                ...(autoPassNoticeSource.turnReturned === true ? { turnReturned: true } : {})
             };
         }
         return normalized;

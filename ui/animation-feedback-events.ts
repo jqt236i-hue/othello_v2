@@ -333,15 +333,52 @@ function resolveAutoPassNotice(input: any) {
         playerLabel,
         kind,
         title: `${playerLabel} : ${kind === 'manual' ? 'パス' : '自動パス'}`,
-        reasonText
+        reasonText,
+        turnReturned: source.turnReturned === true
     };
 }
+
+// 2回目のパスで終局せず先にパスした側へ手番が戻った時（01-rulebook.md §8.2 / §8.4）、パス通知の後に続けて出す。
+const PASS_TURN_RETURNED_NOTICE = Object.freeze({
+    kind: 'resume',
+    title: '続行',
+    reasonText: '新たな一手が生まれました。'
+});
+// 手番が戻る時は、パス通知をこの時間で下げて続行通知へ移る（pass-handler の通知保持と合わせる）。
+const PASS_NOTICE_BEFORE_RESUME_MS = 2400;
+const PASS_NOTICE_FADE_OUT_MS = 500;
+const PASS_RESUME_NOTICE_MS = 2400;
+let passNoticeSequenceToken = 0;
 
 function showAutoPassNotice(input: any, deps: AnimationFeedbackEventDeps = {}) {
     const notice = resolveAutoPassNotice(input);
     const documentRef = getDocumentRef();
     if (!documentRef || !documentRef.body) return;
+    passNoticeSequenceToken += 1;
+    const sequenceToken = passNoticeSequenceToken;
+    const noAnim = !!(deps.isNoAnim && deps.isNoAnim());
+    if (!notice.turnReturned) {
+        showPassNoticePopup(documentRef, notice, noAnim ? null : 3000, null);
+        return;
+    }
+    const showResume = () => {
+        // 後から別のパス通知が出ていたら、古い続行通知は出さない。
+        if (sequenceToken !== passNoticeSequenceToken) return;
+        showPassNoticePopup(documentRef, { ...PASS_TURN_RETURNED_NOTICE, playerKey: notice.playerKey }, noAnim ? null : PASS_RESUME_NOTICE_MS, null);
+    };
+    if (noAnim) {
+        showResume();
+        return;
+    }
+    showPassNoticePopup(documentRef, notice, PASS_NOTICE_BEFORE_RESUME_MS, showResume);
+}
 
+function showPassNoticePopup(
+    documentRef: any,
+    notice: { playerKey: string; kind: string; title: string; reasonText: string },
+    visibleMs: number | null,
+    onDismiss: (() => void) | null
+) {
     const existing = Array.from(documentRef.querySelectorAll('.auto-pass-notice-popup')) as any[];
     for (const node of existing) {
         try { if (node && node.parentElement) node.parentElement.removeChild(node); } catch (e: any) { /* ignore */ }
@@ -389,7 +426,11 @@ function showAutoPassNotice(input: any, deps: AnimationFeedbackEventDeps = {}) {
         } catch (e: any) { /* ignore */ }
         removeTimer = setTimeout(() => {
             try { if (popup.parentElement) popup.parentElement.removeChild(popup); } catch (e: any) { /* ignore */ }
-        }, 500);
+            // 続けて出す通知は、前の通知が消え終わってから出す。
+            if (onDismiss) {
+                try { onDismiss(); } catch (e: any) { /* ignore */ }
+            }
+        }, PASS_NOTICE_FADE_OUT_MS);
     };
 
     popup.addEventListener('click', dismiss);
@@ -403,8 +444,8 @@ function showAutoPassNotice(input: any, deps: AnimationFeedbackEventDeps = {}) {
         popup.classList.add('is-visible');
     }
 
-    if (deps.isNoAnim && deps.isNoAnim()) return;
-    fadeTimer = setTimeout(dismiss, 3000);
+    if (visibleMs === null) return;
+    fadeTimer = setTimeout(dismiss, visibleMs);
 }
 
 function applyManifestPresentationForCinematic(target: any, deps: AnimationFeedbackEventDeps) {

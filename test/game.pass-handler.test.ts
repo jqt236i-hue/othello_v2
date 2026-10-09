@@ -789,6 +789,39 @@ describe('pass-handler flows', () => {
         }));
     });
 
+    // 01-rulebook.md §8.2 / §8.4: 2回目のパスで先にパスした側へ手番が戻った時は、パス通知に「続行」を続ける印を付ける。
+    test('2回目のパスで手番が戻った時だけ、パス通知に turnReturned を付ける', async () => {
+        delete require.cache[modPath];
+        (global as any).showAutoPassNotice = jest.fn();
+        let nextPasses = 1;
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).BLACK, consecutivePasses: nextPasses, turnNumber: 31 }),
+                cardState: cs,
+                events: [{ type: 'pass', player: 'white' }]
+            }))
+        };
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        (global as any).gameState = { currentPlayer: (global as any).WHITE, consecutivePasses: 1, turnNumber: 30 };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+        injectPassHandlerFakeTimerService(ph);
+
+        await ph.processPassTurn('white', { autoMode: false, autoNoActionPass: true });
+        expect((global as any).showAutoPassNotice).toHaveBeenLastCalledWith(expect.objectContaining({
+            playerKey: 'white',
+            reason: 'no_legal_moves_or_usable_cards',
+            turnReturned: true
+        }));
+
+        // 終局したパスには付けない。
+        nextPasses = 2;
+        (global as any).gameState = { currentPlayer: (global as any).WHITE, consecutivePasses: 1, turnNumber: 32 };
+        await ph.processPassTurn('white', { autoMode: false, autoNoActionPass: true });
+        expect((global as any).showAutoPassNotice.mock.calls.at(-1)[0].turnReturned).toBeUndefined();
+    });
+
     test('ensureCurrentPlayerCanActOrPass はローカル自動パス時に中央通知を出す', () => {
         delete require.cache[modPath];
         (global as any).showAutoPassNotice = jest.fn();

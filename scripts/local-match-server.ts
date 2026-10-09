@@ -50,6 +50,7 @@ const DeckSpecHelpers = require('../shared/deck-spec');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 const PresentationEnvelopeContract = require('../shared/network-presentation-envelope');
+const PassTurnReturn = require('../shared/pass-turn-return');
 
 function readArgValue(name: any) {
     const key = `--${name}`;
@@ -1421,7 +1422,16 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     broadcastSnapshot(room, {
         playerKey: timedOutSeatKey,
         actionType: 'timeout_pass',
-        autoPassNotice: { playerKey: timedOutSeatKey, reason: 'timeout_pass' },
+        autoPassNotice: {
+            playerKey: timedOutSeatKey,
+            reason: 'timeout_pass',
+            // 2回目のパスで先にパスした側へ手番が戻った時は「続行」通知も出す（01-rulebook.md §8.4）。
+            ...(PassTurnReturn.didPassReturnTurn(
+                snapshot && snapshot.gameState,
+                nextSnapshot && nextSnapshot.gameState,
+                timedOutSeatKey
+            ) ? { turnReturned: true } : {})
+        },
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,

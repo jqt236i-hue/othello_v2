@@ -1,4 +1,5 @@
 import { compactNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
+import PassTurnReturn = require('../shared/pass-turn-return');
 
 export function createMatchPublishController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
@@ -49,6 +50,16 @@ export function createMatchPublishController(config?: any): any {
       playerKey: cfg.normalizePlayerKey(action.playerKey || playerKey),
       reason: resolvePassNoticeReason(action)
     };
+  }
+
+  // 2回目のパスで終局せず、先にパスした側へ手番が戻った時は「続行」通知も出す（01-rulebook.md §8.2 / §8.4）。
+  function withPassTurnReturned(notice: { playerKey: string; reason: string } | null, previousSnapshot: any, nextSnapshot: any) {
+    if (!notice) return notice;
+    const previousGameState = previousSnapshot && previousSnapshot.gameState;
+    const nextGameState = nextSnapshot && nextSnapshot.gameState;
+    return PassTurnReturn.didPassReturnTurn(previousGameState, nextGameState, notice.playerKey)
+      ? { ...notice, turnReturned: true }
+      : notice;
   }
 
   function resolveAutoPassNoticeForPublishBody(actionType: unknown, bodyValue: unknown, playerKey: unknown) {
@@ -297,6 +308,7 @@ export function createMatchPublishController(config?: any): any {
     );
 
     const stateHashBefore = cfg.MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
+    const snapshotBeforeCommand = room.snapshot;
     let nextSnapshot: any = null;
     let serverPlaybackEvents: unknown[] = [];
     let serverEffectLogs: unknown[] = [];
@@ -413,8 +425,12 @@ export function createMatchPublishController(config?: any): any {
       perfCounters: cfg.publishPerfCounters
     });
     room.authoritativeStateHash = publishViewerArtifacts.canonicalHash;
-    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
-      || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
+    const autoPassNotice = withPassTurnReturned(
+      resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
+        || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey),
+      snapshotBeforeCommand,
+      nextSnapshot
+    );
     if (operationId) {
       const acceptedEntry: any = {
         operationId,

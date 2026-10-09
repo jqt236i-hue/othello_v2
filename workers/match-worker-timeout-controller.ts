@@ -4,6 +4,7 @@ import type {
     MatchWorkerTurnTimeoutResult,
     MatchWorkerTurnTimerOptions
 } from './match-worker-types';
+const PassTurnReturn = require('../shared/pass-turn-return');
 
 type MatchWorkerTimeoutControllerConfig = {
     getRoom: () => MatchWorkerRoomState | null;
@@ -183,7 +184,16 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             playerKey: timedOutSeatKey,
             actionType: 'timeout_pass',
             // 時間切れパスも両席の画面中央に「パス」として通知する（01-rulebook.md §2.5）。
-            autoPassNotice: { playerKey: timedOutSeatKey, reason: 'timeout_pass' },
+            autoPassNotice: {
+                playerKey: timedOutSeatKey,
+                reason: 'timeout_pass',
+                // 2回目のパスで先にパスした側へ手番が戻った時は「続行」通知も出す（01-rulebook.md §8.4）。
+                ...(PassTurnReturn.didPassReturnTurn(
+                    snapshot && (snapshot as any).gameState,
+                    nextSnapshot && (nextSnapshot as any).gameState,
+                    timedOutSeatKey
+                ) ? { turnReturned: true } : {})
+            },
             playbackEvents: serverPlaybackEvents,
             effectLogs: serverEffectLogs,
             playbackDiagnostics: serverPlaybackDiagnostics,

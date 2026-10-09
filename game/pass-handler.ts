@@ -38,7 +38,10 @@ const AUTO_PASS_NOTICE_REASON_STONE_SUPPLY = 'stone_supply_exhausted_no_usable_c
 const PASS_NOTICE_REASON_VOLUNTARY = 'voluntary_pass';
 // 8.4 終局の見せ方: パスの通知を見せてから、CPU の次の手番・次の自動パス・リザルトへ進む（ローカル対局）。
 const AUTO_PASS_NOTICE_HOLD_MS = 2400;
+// 2回目のパスで手番が戻った時は、パス通知（2.4 秒）が消えてから「続行」通知（2.4 秒）を出す（ui/animation-feedback-events.ts と合わせる）。
+const PASS_TURN_RETURNED_NOTICE_HOLD_MS = 2400 + 500 + 2400;
 let lastAutoPassNoticeShownAt: number | null = null;
+let lastAutoPassNoticeHoldMs = AUTO_PASS_NOTICE_HOLD_MS;
 
 // TimerService DI
 let passHandlerTimerService: any = null;
@@ -57,6 +60,7 @@ let passHandlerTurnPipelineModule: any = null;
 let passHandlerCardEffectsHelpers: any = null;
 let passHandlerSpecialEffectsHelpers: any = null;
 let passHandlerStoneSupply: any = null;
+let passHandlerPassTurnReturn: any = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers.js'); } catch (e) { /* ignore */ }
@@ -67,6 +71,7 @@ if (typeof require === 'function') {
     try { passHandlerCardEffectsHelpers = require('./card-effects/helpers'); } catch (e) { /* ignore */ }
     try { passHandlerSpecialEffectsHelpers = require('./special-effects/helpers'); } catch (e) { /* ignore */ }
     try { passHandlerStoneSupply = require('../shared/stone-supply'); } catch (e) { /* ignore */ }
+    try { passHandlerPassTurnReturn = require('../shared/pass-turn-return'); } catch (e) { /* ignore */ }
 }
 
 function isPassHandlerStoneSupplyExhausted(playerKey: string): boolean {
@@ -134,15 +139,33 @@ function resolvePassHandlerGameState(): any {
     return gameState || null;
 }
 
-function markAutoPassNoticeShown() {
+function markAutoPassNoticeShown(holdMs: number = AUTO_PASS_NOTICE_HOLD_MS) {
     lastAutoPassNoticeShownAt = Date.now();
+    lastAutoPassNoticeHoldMs = holdMs;
 }
 
 function resolveRemainingAutoPassNoticeHoldMs(): number {
     if (lastAutoPassNoticeShownAt === null) return 0;
     const elapsed = Date.now() - lastAutoPassNoticeShownAt;
-    if (!Number.isFinite(elapsed) || elapsed < 0) return AUTO_PASS_NOTICE_HOLD_MS;
-    return Math.max(0, AUTO_PASS_NOTICE_HOLD_MS - elapsed);
+    if (!Number.isFinite(elapsed) || elapsed < 0) return lastAutoPassNoticeHoldMs;
+    return Math.max(0, lastAutoPassNoticeHoldMs - elapsed);
+}
+
+/** パスを適用する前の連続パス数。手番が戻ったか（01-rulebook.md §8.2）をパス後に判定するために取っておく。 */
+function readPassStateBeforePassForNotice(): { consecutivePasses: number } {
+    const currentGameState = resolvePassHandlerGameState();
+    const value = Number(currentGameState && currentGameState.consecutivePasses);
+    return { consecutivePasses: Number.isFinite(value) ? value : 0 };
+}
+
+function didPassReturnTurnForNotice(passStateBefore: any, passedPlayerKey: string): boolean {
+    try {
+        return !!(passHandlerPassTurnReturn
+            && typeof passHandlerPassTurnReturn.didPassReturnTurn === 'function'
+            && passHandlerPassTurnReturn.didPassReturnTurn(passStateBefore, resolvePassHandlerGameState(), passedPlayerKey));
+    } catch (e) {
+        return false;
+    }
 }
 
 function extendDelayForAutoPassNotice(delayMs: number): number {
@@ -822,27 +845,29 @@ function isPlacementLockedForPlayerKey(playerKey: string) {
     return false;
 }
 
-function showPassNoticeForPlayer(playerKey: any, reason: string, reasonText?: string) {
+function showPassNoticeForPlayer(playerKey: any, reason: string, reasonText?: string, turnReturned: boolean = false) {
     const showNoticeFn = resolvePassHandlerRuntimeFunction('showAutoPassNotice');
     if (typeof showNoticeFn !== 'function') return false;
     try {
         showNoticeFn({
             playerKey: normalizePlayerKey(playerKey, 'black'),
             reason,
-            reasonText
+            reasonText,
+            ...(turnReturned ? { turnReturned: true } : {})
         });
-        markAutoPassNoticeShown();
+        markAutoPassNoticeShown(turnReturned ? PASS_TURN_RETURNED_NOTICE_HOLD_MS : AUTO_PASS_NOTICE_HOLD_MS);
         return true;
     } catch (e) { /* ignore */ }
     return false;
 }
 
-function showAutoPassNoticeForPlayer(playerKey: any) {
+function showAutoPassNoticeForPlayer(playerKey: any, turnReturned: boolean = false) {
     const stoneSupplyExhausted = isPassHandlerStoneSupplyExhausted(playerKey);
     return showPassNoticeForPlayer(
         playerKey,
         stoneSupplyExhausted ? AUTO_PASS_NOTICE_REASON_STONE_SUPPLY : AUTO_PASS_NOTICE_REASON,
-        stoneSupplyExhausted ? '持ち石がなく、使用可能カードもありません。' : undefined
+        stoneSupplyExhausted ? '持ち石がなく、使用可能カードもありません。' : undefined,
+        turnReturned
     );
 }
 
@@ -1401,13 +1426,14 @@ async function handleBlackPassWhenNoMoves() {
             return;
         }
         const passOptions = pending ? undefined : { autoNoActionPass: true };
+        const passStateBefore = readPassStateBeforePassForNotice();
         const result = applyPassViaPipeline(playerKey, passOptions);
         if (!result.ok) {
             return handleRejectedPass(result);
         }
         syncPassPipelineState(result);
         if (passOptions && passOptions.autoNoActionPass === true) {
-            showAutoPassNoticeForPlayer(playerKey);
+            showAutoPassNoticeForPlayer(playerKey, didPassReturnTurnForNotice(passStateBefore, playerKey));
         }
 
         await _postApplyPassCommon(playerKey, passOptions);
@@ -1446,6 +1472,7 @@ async function processPassTurn(
 
     emitPassHandlerLog(passLogMessage);
 
+    const passStateBefore = readPassStateBeforePassForNotice();
     const result = internalOptions && internalOptions.performanceScope
         ? applyPassViaPipeline(passedPlayerKey, passOptions, internalOptions)
         : applyPassViaPipeline(passedPlayerKey, passOptions);
@@ -1454,10 +1481,12 @@ async function processPassTurn(
     }
     syncPassPipelineState(result);
     // 行動が無いパスは「自動パス」、使用可能カードがあるのに選んだパス（人・CPU）は「パス」として通知する。
+    // 2回目のパスで先にパスした側へ手番が戻った時は、続けて「続行」を出す（01-rulebook.md §8.4）。
+    const turnReturned = didPassReturnTurnForNotice(passStateBefore, passedPlayerKey);
     if (passTurnOptions.noActionNotice === true) {
-        showAutoPassNoticeForPlayer(passedPlayerKey);
+        showAutoPassNoticeForPlayer(passedPlayerKey, turnReturned);
     } else {
-        showPassNoticeForPlayer(passedPlayerKey, PASS_NOTICE_REASON_VOLUNTARY);
+        showPassNoticeForPlayer(passedPlayerKey, PASS_NOTICE_REASON_VOLUNTARY, undefined, turnReturned);
     }
 
     if (internalOptions && internalOptions.performanceScope) {

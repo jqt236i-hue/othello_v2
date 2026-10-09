@@ -463,4 +463,63 @@ describe('animation feedback sound key coverage', () => {
     jest.runAllTimers();
     jest.useRealTimers();
   });
+
+  // 01-rulebook.md §8.4: 2回目のパスで手番が戻った時は、パス通知が消えた後に「続行」通知を出す。
+  test('shows the resume notice after the pass notice when the turn returns', () => {
+    jest.useFakeTimers();
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    const popupText = () => Array.from(document.querySelectorAll('.auto-pass-notice-popup'))
+      .map((node) => (node as HTMLElement).textContent || '');
+
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'white', turnReturned: true }, { isNoAnim: () => false });
+    expect(popupText()).toEqual([expect.stringContaining('白 : 自動パス')]);
+
+    jest.advanceTimersByTime(2400);
+    expect((document.querySelector('.auto-pass-notice-popup') as HTMLElement).classList.contains('is-leaving')).toBe(true);
+    jest.advanceTimersByTime(500);
+    const resume = document.querySelector('.auto-pass-notice-popup') as HTMLElement;
+    expect(resume.dataset.passKind).toBe('resume');
+    expect((resume.querySelector('.auto-pass-notice-popup-title') as HTMLElement).textContent).toBe('続行');
+    expect((resume.querySelector('.auto-pass-notice-popup-reason') as HTMLElement).textContent).toBe('新たな一手が生まれました。');
+
+    jest.advanceTimersByTime(2400 + 500);
+    expect(document.querySelector('.auto-pass-notice-popup')).toBeNull();
+    jest.useRealTimers();
+  });
+
+  test('a later pass notice cancels the pending resume notice', () => {
+    jest.useFakeTimers();
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'white', turnReturned: true }, { isNoAnim: () => false });
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'black' }, { isNoAnim: () => false });
+    jest.runAllTimers();
+    expect(document.querySelector('.auto-pass-notice-popup[data-pass-kind="resume"]')).toBeNull();
+    jest.useRealTimers();
+  });
+
+  test('does not show the resume notice when the turn did not return', () => {
+    jest.useFakeTimers();
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).HTMLElement = dom.window.HTMLElement;
+    const seen: string[] = [];
+    const observer = new dom.window.MutationObserver(() => {
+      document.querySelectorAll('.auto-pass-notice-popup').forEach((node) => seen.push((node as HTMLElement).dataset.passKind || ''));
+    });
+    observer.observe(document.body, { childList: true });
+
+    AnimationFeedbackEvents.showAutoPassNotice({ playerKey: 'white' }, { isNoAnim: () => false });
+    jest.runAllTimers();
+    observer.disconnect();
+    expect(seen).not.toContain('resume');
+    jest.useRealTimers();
+  });
 });

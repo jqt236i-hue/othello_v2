@@ -336,6 +336,26 @@ describe('match authority publish response payload', () => {
     });
   });
 
+  // 01-rulebook.md §8.4: 手番が戻った印は両席へそのまま届ける。
+  test('buildSnapshotPayloadFromRoom keeps the turn returned flag on the pass notice', () => {
+    const payload = MatchAuthority.buildSnapshotPayloadFromRoom({
+      roomId: 'ABC',
+      stateVersion: 5
+    }, {
+      autoPassNotice: {
+        playerKey: 'white',
+        reason: 'no_legal_moves_or_usable_cards',
+        turnReturned: true
+      }
+    });
+
+    expect(payload.autoPassNotice).toEqual({
+      playerKey: 'white',
+      reason: 'no_legal_moves_or_usable_cards',
+      turnReturned: true
+    });
+  });
+
   test('buildPresencePayloadFromRoom and buildHeartbeatPayloadFromRoom preserve viewer-neutral room fields', () => {
     const room = {
       roomId: 'ABCD',

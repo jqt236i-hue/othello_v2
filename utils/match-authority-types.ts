@@ -116,6 +116,7 @@ export interface MatchAuthorityAcceptedOperationEntry {
     autoPassNotice?: {
         playerKey: MatchAuthoritySeatKey;
         reason: string;
+        turnReturned?: boolean;
     };
 }
 
@@ -170,6 +171,8 @@ export interface MatchAuthorityPublishMeta {
 export interface MatchAuthorityAutoPassNotice {
     playerKey: MatchAuthoritySeatKey;
     reason: string;
+    /** 2回目のパスで終局せず、先にパスした側へ手番が戻った（01-rulebook.md §8.2）。「続行」通知を続けて出す。 */
+    turnReturned?: boolean;
 }
 
 export interface MatchAuthorityRoomPayloadOptions extends MatchAuthorityJsonObject {

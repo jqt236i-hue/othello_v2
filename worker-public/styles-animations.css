@@ -345,6 +345,25 @@
         0 2px 14px rgba(0, 0, 0, 0.92);
 }
 
+/* 2回目のパスで手番が戻った時の「続行」通知（01-rulebook.md §8.4）。パス通知と見分けられるよう金色寄りにする。 */
+.auto-pass-notice-popup[data-pass-kind="resume"] .auto-pass-notice-popup-shell {
+    border-color: rgba(255, 214, 120, 0.86);
+    background:
+        linear-gradient(135deg, rgba(255, 214, 120, 0.2), rgba(139, 255, 196, 0.08)),
+        rgba(14, 12, 6, 0.74);
+    box-shadow:
+        0 0 0 1px rgba(255, 236, 170, 0.18) inset,
+        0 0 30px rgba(255, 206, 102, 0.26),
+        0 22px 52px rgba(0, 0, 0, 0.55);
+}
+
+.auto-pass-notice-popup[data-pass-kind="resume"] .auto-pass-notice-popup-title {
+    color: #ffe39a;
+    text-shadow:
+        0 0 14px rgba(255, 206, 102, 0.42),
+        0 2px 14px rgba(0, 0, 0, 0.92);
+}
+
 .auto-pass-notice-popup-reason {
     font-size: clamp(14px, 1.8vw, 18px);
     font-weight: 700;

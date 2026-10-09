@@ -120,7 +120,8 @@ export function createMatchAuthorityPublishApi(deps: MatchAuthorityPublishApiDep
         const source = asRecord(value);
         return {
             playerKey: deps.normalizePlayerKey(source.playerKey || source.player || source.owner),
-            reason: String(source.reason || '').trim() || 'no_legal_moves_or_usable_cards'
+            reason: String(source.reason || '').trim() || 'no_legal_moves_or_usable_cards',
+            ...(source.turnReturned === true ? { turnReturned: true } : {})
         };
     }
 

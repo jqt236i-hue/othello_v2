@@ -2506,7 +2506,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!noticeSource || (actionType && actionType !== 'pass' && actionType !== 'auto_turn' && actionType !== 'timeout_pass')) return null;
         return {
             playerKey: normalizePlayerKey(noticeSource.playerKey || payload.playerKey),
-            reason: String(noticeSource.reason || '').trim() || AUTO_PASS_NOTICE_REASON
+            reason: String(noticeSource.reason || '').trim() || AUTO_PASS_NOTICE_REASON,
+            // 2回目のパスで手番が戻った時は、パス通知の後に「続行」を出す（01-rulebook.md §8.4）。
+            ...(noticeSource.turnReturned === true ? { turnReturned: true } : {})
         };
     }
 

@@ -293,6 +293,42 @@ describe('match worker timeout controller', () => {
     ]);
   });
 
+  // 01-rulebook.md §8.4: 時間切れパスで先にパスした相手へ手番が戻った時は、両席に「続行」通知も届ける。
+  test('timeout pass that hands the turn back marks the pass notice as turn returned', async () => {
+    const room = createRoom();
+    room.snapshot.gameState.consecutivePasses = 1;
+    const broadcastCalls: any[] = [];
+    const controller = createMatchWorkerTimeoutController({
+      getRoom: () => room,
+      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
+      resolveTurnSeatKey: () => 'black',
+      refreshTurnTimer: async () => false,
+      saveRoom: async () => undefined,
+      applyTimeoutPassToSnapshot: async ({ snapshot }: any) => ({
+        ok: true,
+        snapshot: {
+          ...snapshot,
+          gameState: { ...snapshot.gameState, currentPlayer: -1, consecutivePasses: 1, turnNumber: 10 }
+        },
+        playbackEvents: [{ type: 'pass', phase: 1 }]
+      }),
+      deepClone: <T>(value: T) => JSON.parse(JSON.stringify(value)),
+      computeAuthoritativeStateHash: () => 'hash',
+      stripTransientChargeDeltaState,
+      normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
+      appendAuthorityLog: () => [],
+      ensureInitialPresentationSnapshots: jest.fn(),
+      buildPublishViewerArtifacts: jest.fn(() => ({ canonicalHash: 'hash', projectedSnapshots: {}, snapshotPayloads: {} })),
+      appendPresentationFrameForAcceptedPublish: jest.fn((_room, options) => ({ visualSeq: 1, operationId: options.operationId })),
+      broadcastSnapshot: async (meta) => { broadcastCalls.push(meta); }
+    } as any);
+
+    const result = await controller.applyExpiredTurnTimeoutIfNeeded({ nowMs: 20 });
+
+    expect(result).toEqual({ applied: true, stateVersion: 5, playerKey: 'black' });
+    expect(broadcastCalls[0].autoPassNotice).toEqual({ playerKey: 'black', reason: 'timeout_pass', turnReturned: true });
+  });
+
   test('missing shared timeout resolver fails closed before timer refresh or save', async () => {
     const room = createRoom();
     const before = JSON.parse(JSON.stringify(room));
