@@ -2348,7 +2348,7 @@ emainingOwnerTurns など持続情報は、複製元の値をそのまま引き�
 ### 12.15 サウンド既定値
 
 - 起動時の既定BGMは `assets/audio/bgm/Observation Battle3.mp3`（Observation Battle）を使用する
-- 起動時の BGM 音量スライダー既定値は `0.548625` とする
+- 起動時の BGM 音量スライダー既定値は `0.41146875` とする
 - BGM全般の出力補正は `0.24752` とし、通常BGM、顕現石専用BGM、勝利/敗北リザルトBGMの実効音量は BGM 音量スライダー値にこの補正を掛けた値とする
 - BGM 音量スライダー上限は `1.2` とし、起動直後もつまみが見える余白を残す
 - BGM 選択一覧は `assets/audio/bgm/c-reversi.mp3`、`assets/audio/bgm/c-reversi-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3`、`assets/audio/bgm/The Observer’s Tears.mp3`、`assets/audio/bgm/sacrifice.mp3`、`assets/audio/bgm/Observation Battle3.mp3` の 8 曲を含める
