@@ -264,5 +264,76 @@ describe('card renderer hand glow layout cache', () => {
 
     expect(glowCount()).toBe(0);
     expect(document.querySelectorAll('#hand-black .usable').length).toBe(0);
+    // 終局後は自分の手札を全部暗くする。
+    expect(document.querySelectorAll('#hand-black .card-item.visible').length).toBe(2);
+    expect(document.querySelectorAll('#hand-black .card-item.visible.hand-card-dimmed').length).toBe(2);
+  });
+
+  // 01-rulebook.md §8.4: パスできる場面（自分の手番で置けるマスが無い）だけ、今使えない手札を暗くする。
+  describe('dims cards that cannot be used when the player can only pass or use a card', () => {
+    const dimmedIds = () => Array.from(document.querySelectorAll('#hand-black .card-item.visible.hand-card-dimmed'))
+      .map((el) => (el as HTMLElement).dataset.cardId);
+    const usableIds = () => Array.from(document.querySelectorAll('#hand-black .card-item.visible.usable'))
+      .map((el) => (el as HTMLElement).dataset.cardId);
+    // 黒石しか無い盤面。黒は挟める白石が無く、置けるマスが無い。
+    function useBoardWithoutBlackPlacement() {
+      const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+      board[3][3] = 1; board[3][4] = 1; board[4][3] = 1; board[4][4] = 1;
+      (global as any).gameState.board = board;
+    }
+
+    test('does not dim any card while the player has a place to put a stone', () => {
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      expect(dimmedIds()).toEqual([]);
+    });
+
+    test('dims only the cards that cannot be used in a pass situation', () => {
+      useBoardWithoutBlackPlacement();
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      // ゴーストの意志は次に置く石にしか効かないので、置けるマスが無いと使えない（01-rulebook.md §9）。
+      expect(dimmedIds()).toContain('ghost_01');
+      expect(usableIds()).not.toContain('ghost_01');
+      // 使えるカードは暗くしない。
+      for (const id of usableIds()) expect(dimmedIds()).not.toContain(id);
+      expect(dimmedIds().length + usableIds().length).toBe(2);
+    });
+
+    test('dims cards the player cannot afford in a pass situation', () => {
+      useBoardWithoutBlackPlacement();
+      (global as any).cardState.charge.black = 0;
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      expect(dimmedIds().sort()).toEqual(['ghost_01', 'trap_01']);
+    });
+
+    test('does not dim the hand on the opponent turn', () => {
+      useBoardWithoutBlackPlacement();
+      (global as any).gameState.currentPlayer = -1;
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      expect(dimmedIds()).toEqual([]);
+    });
+
+    test('does not dim the hand while a card is choosing its target', () => {
+      useBoardWithoutBlackPlacement();
+      (global as any).cardState.pendingEffectByPlayer.black = { type: 'TRAP_WILL', stage: 'selectTarget' };
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      expect(dimmedIds()).toEqual([]);
+    });
+
+    test('removes the dimming once the player can place again', () => {
+      useBoardWithoutBlackPlacement();
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      expect(dimmedIds().length).toBeGreaterThan(0);
+      const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+      board[3][3] = -1; board[3][4] = 1; board[4][3] = 1; board[4][4] = -1;
+      (global as any).gameState.board = board;
+      renderer.renderCardUI();
+      expect(dimmedIds()).toEqual([]);
+    });
   });
 });

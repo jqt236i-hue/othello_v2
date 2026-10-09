@@ -1467,6 +1467,18 @@
     -webkit-filter: drop-shadow(var(--ui-drop-shadow-panel));
 }
 
+/* パスできる場面・終局後に今使えない手札を暗くする（01-rulebook.md §8.4）。選択・詳細表示・破壊はそのまま行える。 */
+:is(#hand-black, #hand-white) .card-item.visible.hand-card-dimmed:not(.card-use-ghost),
+:is(#hand-black, #hand-white) .card-item.visible.hand-card-dimmed.clickable:hover:not(.card-use-ghost) {
+    filter: brightness(0.42) saturate(0.55) drop-shadow(var(--ui-drop-shadow-panel));
+    -webkit-filter: brightness(0.42) saturate(0.55) drop-shadow(var(--ui-drop-shadow-panel));
+}
+
+:is(#hand-black, #hand-white) .card-item.visible.hand-card-dimmed.selected:not(.card-use-ghost) {
+    filter: brightness(0.62) saturate(0.7) drop-shadow(var(--ui-drop-shadow-panel));
+    -webkit-filter: brightness(0.62) saturate(0.7) drop-shadow(var(--ui-drop-shadow-panel));
+}
+
 .card-item.card-use-ghost,
 .card-item.card-use-ghost::before {
     animation: none !important;

@@ -61,6 +61,8 @@ let OwnerHelpersModule: any = _resolveCardRendererModule('../utils/owner-helpers
 let HandFadeStateModule: any = _resolveCardRendererModule('../ui/hand-animation/fade-state', 'HandFadeStateModule');
 let PlayerSlotElementsModule: any = _resolveCardRendererModule('../ui/player-slot-elements', 'PlayerSlotElements');
 let CardLogicModule: any = _resolveCardRendererModule('../game/logic/cards', 'CardLogic');
+let CoreLogicModule: any = _resolveCardRendererModule('../game/logic/core', 'CoreLogic')
+    || _resolveCardRendererModule('../game/logic/core', 'Core');
 let SpecialCardRegistryModule: any = _resolveCardRendererModule('../shared/special-card-registry', 'SpecialCardRegistry');
 let CardArtMapModule: any = _resolveCardRendererModule('./card-art-map.generated', 'CardArtMap');
 let CardDemoVideoModule: any = _resolveCardRendererModule('./card-demo-video', 'CardDemoVideo');
@@ -1478,6 +1480,7 @@ function _buildHandSlotElementSignature(
             cost: Number(state.cost) || 0,
             usable: !!state.usable,
             availableGlow: !!state.availableGlow,
+            dimmed: !!state.dimmed,
             isSelected: !!state.isSelected,
             isObserved: !!state.isObserved
         }))
@@ -1869,6 +1872,25 @@ function _getPlayerSlotElementsForRender() {
         handWhiteEl: document.getElementById('hand-white')
     };
 }
+// 手番側に置けるマスが無いか（配置封じを含む）。card-interaction のパスボタン判定と同じ。判定できない時は false（暗くしない）。
+function _resolveTurnWithoutPlacementForRender(cardState: any, gameState: any, turnOwnerKey: string): boolean {
+    try {
+        if (CardLogicModule && typeof CardLogicModule.isPlacementLockedForPlayer === 'function'
+            && CardLogicModule.isPlacementLockedForPlayer(cardState, turnOwnerKey) === true) {
+            return true;
+        }
+        if (!gameState || !CoreLogicModule || typeof CoreLogicModule.getLegalMoves !== 'function') {
+            return false;
+        }
+        const context = (CardLogicModule && typeof CardLogicModule.getCardContext === 'function')
+            ? CardLogicModule.getCardContext(cardState)
+            : { protectedStones: [], permaProtectedStones: [], bombs: [] };
+        const moves = CoreLogicModule.getLegalMoves(gameState, gameState.currentPlayer, context);
+        return Array.isArray(moves) && moves.length === 0;
+    }
+    catch (e) { /* 判定できない時は暗くしない */ }
+    return false;
+}
 function renderCardUI() {
     const gameState = _resolveCardRendererGameState();
     const cardState = _normalizeCardStateForRender(_resolveCardRendererCardState());
@@ -1941,6 +1963,14 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
     const isBlackTurn = gameState.currentPlayer === BLACK;
     // 終局は連続パス 2 だけ（Core.isGameOver と同じ判定）。
     const isTerminalForRender = Number(gameState.consecutivePasses) >= 2;
+    // パスできる場面（手番側に置けるマスが無い）は、パスボタンと同じ判定で一度だけ求める（01-rulebook.md §8.4）。
+    let currentTurnHasNoPlacementForRender: boolean | null = null;
+    function _isCurrentTurnWithoutPlacementForRender() {
+        if (currentTurnHasNoPlacementForRender === null) {
+            currentTurnHasNoPlacementForRender = _resolveTurnWithoutPlacementForRender(cardState, gameState, isBlackTurn ? 'black' : 'white');
+        }
+        return currentTurnHasNoPlacementForRender === true;
+    }
     const isAnimating = _isCardAnimatingForRender();
     const staleVisualPlaybackLock = _isStaleVisualPlaybackLockForRender();
     const isDebugUnlimited = (typeof window !== 'undefined' && window.DEBUG_UNLIMITED_USAGE === true);
@@ -2095,6 +2125,7 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
             cost: 0,
             usable: false,
             availableGlow: false,
+            dimmed: false,
             isSelected: false,
             isObserved: false
         };
@@ -2157,6 +2188,13 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
             && hasNotUsedThisTurn
             && state.canAfford
             && isRuleUsable;
+        // 使えないカードを暗くするのは、終局後と、自分の手番でパスできる場面だけ（01-rulebook.md §8.4）。
+        const ownerPending = cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownerKey];
+        const isOwnerSelectingTarget = !!(ownerPending && ownerPending.stage === 'selectTarget');
+        state.dimmed = canShowAvailabilityGlow
+            && !state.availableGlow
+            && (isTerminalForRender
+                || (isOwnerTurn && !isOwnerSelectingTarget && _isCurrentTurnWithoutPlacementForRender()));
         const selectedHandIndex = Number(cardState.selectedCardHandIndex);
         const hasSelectedHandIndex = Number.isInteger(selectedHandIndex) && selectedHandIndex >= 0;
         state.isSelected = cardState.selectedCardId === cardId
@@ -2221,6 +2259,7 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
             cardEl.classList.toggle('affordable', entryState.canAfford);
             cardEl.classList.toggle('usable', entryState.usable);
             cardEl.classList.toggle('selected', entryState.isSelected);
+            cardEl.classList.toggle('hand-card-dimmed', !!entryState.dimmed);
             _syncObservedHandTagForRender(cardEl, entryState.isObserved);
             cardEl.style.removeProperty('opacity');
             cardEl.style.removeProperty('pointer-events');
