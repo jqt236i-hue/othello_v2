@@ -1,8 +1,8 @@
 {
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
     "file": "assets/browserAll-D2z7_yPU.js",
     "name": "browserAll",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_Geometry-CZCQfHLF.js",
@@ -12,20 +12,20 @@
       "_init-Dov3IVMy.js"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
     "file": "assets/webworkerAll-DL-vOdK_.js",
     "name": "webworkerAll",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_FilterSystem-lINCcHw8.js",
       "_init-Dov3IVMy.js"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs": {
     "file": "assets/lib-CdqLQ3Z-.js",
     "name": "lib",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
@@ -47,22 +47,22 @@
       "_ViewableBuffer-CObpe3su.js",
       "_GCManagedHash-Igj10gjP.js",
       "_GpuStencilModesToPixi-D7_3d2fF.js",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
       "_ParticleBuffer-B-PCZxN0.js",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
     ],
     "dynamicImports": [
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs",
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
     "file": "assets/CanvasRenderer-y3G8kg5_.js",
     "name": "CanvasRenderer",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_Geometry-CZCQfHLF.js",
@@ -76,28 +76,28 @@
       "_GCManagedHash-Igj10gjP.js"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
     "file": "assets/WebGLRenderer-u4y-XyBt.js",
     "name": "WebGLRenderer",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs"
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
     "file": "assets/WebGPURenderer-DqpAinc2.js",
     "name": "WebGPURenderer",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs"
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
     "file": "assets/BitmapFont-3_bdR0G-.js",
     "name": "BitmapFont",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_Geometry-CZCQfHLF.js",
@@ -108,10 +108,10 @@
       "_GraphicsContext-H5W9uhhZ.js"
     ]
   },
-  "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
+  "F:/Desktop/othello_v2/node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
     "file": "assets/init-BtrWJfXd.js",
     "name": "init",
-    "src": "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+    "src": "F:/Desktop/othello_v2/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_Geometry-CZCQfHLF.js",
@@ -355,7 +355,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-DXHtDtu5.js",
+    "file": "assets/index.vite-yc1rA-o8.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -367,8 +367,8 @@
     "dynamicImports": [
       "ui/layout-stage.js",
       "entry-browser.js",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
-      "../../../../../../../../orca/workspaces/othello_v2/カドリバ調整/node_modules/pixi.js/lib/index.mjs"
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+      "F:/Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs"
     ],
     "assets": [
       "assets/optional-gacha-D54pooCd.mjs",

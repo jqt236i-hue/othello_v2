@@ -68,7 +68,7 @@ const SoundEngine = {
         this.effectBaseVolume = parseFloat(String(val));
     },
     bgm: null as any,
-    bgmVolume: 0.548625,
+    bgmVolume: 0.41146875,
     bgmOutputVolumeScale: 0.24752,
     currentTrackIndex: 7,
     allowBgmPlay: true, // Default to true requested by user

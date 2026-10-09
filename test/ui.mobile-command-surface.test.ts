@@ -316,8 +316,9 @@ describe('mobile command surface', () => {
     expect(openCpuSettings).toHaveBeenCalledTimes(1);
     expect(documentClicks).toHaveBeenCalledTimes(1);
     expect(cpuMenu.hidden).toBe(false);
-    expect(cpuMenu.style.top).toBe('125px');
-    expect(cpuMenu.style.right).toBe('639px');
+    // 設定ポップアップは CSS で画面中央に置き、敵アイコン基準の inline 位置は付けない
+    expect(cpuMenu.style.top).toBe('');
+    expect(cpuMenu.style.right).toBe('');
 
     sourceLabel.textContent = 'Lv4 盤面支配者';
     sourceImage.setAttribute('src', 'assets/images/cpu/level4.png');

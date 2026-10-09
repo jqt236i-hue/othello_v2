@@ -67,7 +67,7 @@ node dist/scripts/build-battle-package.js
 | --- | --- |
 | master | 初期値1、範囲0–2、muteを別途適用 |
 | 効果音 | base 0.56 × key scale（既定0.35）× master、0–1へclamp。呼出し側volumeScaleで上書き可能 |
-| BGM | 0.548625 × 0.24752 × master、0–1へclamp。playlist/顕現/敗北結果はloop、勝利結果は非loop |
+| BGM | 0.41146875 × 0.24752 × master、0–1へclamp。playlist/顕現/敗北結果はloop、勝利結果は非loop |
 | loopEndがnull | 音声デコード後のduration。明示loopEndは秒単位 |
 | 特殊カード使用 | 通常BGM mute 3000ms。演出と音の再開条件は演出資料も参照 |
 

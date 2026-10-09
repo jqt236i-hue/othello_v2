@@ -22,6 +22,12 @@ const CpuOpponentStartupOptions = _require('../shared/cpu-opponent-startup-optio
 const CpuProfileSelection = _require('./cpu-profile-selection');
 const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
 
+type CpuDeckRule = 'default' | 'all-cards' | 'random-30';
+
+function normalizeCpuDeckRule(value: any): CpuDeckRule {
+    return value === 'all-cards' || value === 'random-30' ? value : 'default';
+}
+
     function ensureDependencies() {
         if (!DeckSpecHelpers || !DeckCodecModule || !DeckPresetStorage || !DeckBuilderStateModule || !DeckBuilderRendererModule || !SharedBoardUtils) {
             throw new Error('Deck builder dependencies are missing');
@@ -70,6 +76,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             networkDeckSyncLatestPromise: null as any,
             localBoardConfig: SharedBoardUtils.buildBoardConfig(),
             localStoneSupplyEnabled: true,
+            localCpuDeckRule: 'default' as CpuDeckRule,
             editor: {
                 presetId: '',
                 sourceName: '',
@@ -748,6 +755,23 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             renderBoardSizeControls();
         }
 
+        function getLocalStoneSupplyEnabled() {
+            return state.localStoneSupplyEnabled === true;
+        }
+
+        function setLocalStoneSupplyEnabled(enabled: any) {
+            state.localStoneSupplyEnabled = enabled === true;
+            renderBoardSizeControls();
+        }
+
+        function getLocalCpuDeckRule(): CpuDeckRule {
+            return state.localCpuDeckRule;
+        }
+
+        function setLocalCpuDeckRule(rule: any) {
+            state.localCpuDeckRule = normalizeCpuDeckRule(rule);
+        }
+
         function buildBoardSizeSummaryText() {
             const boardConfig = readBoardConfig();
             const label = formatBoardConfigLabel(boardConfig);
@@ -1006,6 +1030,38 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             return options;
         }
 
+        function buildCpuDeckRuleCardIds(rule: CpuDeckRule): string[] | null {
+            if (rule === 'all-cards') {
+                const cardIds = getAllCardsDeckCardIds();
+                return cardIds.length > 0 ? cardIds : null;
+            }
+            if (rule === 'random-30') {
+                try {
+                    const draft = DeckBuilderStateModule.createRandomFullDraft(opts.randomSource);
+                    return DeckBuilderStateModule.createExpandedCardIdsFromDraft(draft);
+                } catch (e: any) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        // CPU対戦の「盤面・ルール設定」で選んだ両者共通デッキ。山札順は黒白それぞれ別にシャッフルされ、
+        // ランダム30枚は黒白それぞれ別に生成する。CPU固有の初期布石・獲得倍率はそのまま使う。
+        function buildCpuDeckRuleInitOptions() {
+            if (state.localCpuDeckRule === 'default' || readCurrentMatchMode() !== 'cpu') return null;
+            const blackDeckCardIds = buildCpuDeckRuleCardIds(state.localCpuDeckRule);
+            const whiteDeckCardIds = buildCpuDeckRuleCardIds(state.localCpuDeckRule);
+            if (!blackDeckCardIds || !whiteDeckCardIds) return null;
+            const options = buildCpuDeckInitOptions(null);
+            delete options.initialDeckSpecByPlayer;
+            options.initialDeckCardIdsByPlayer = {
+                black: blackDeckCardIds,
+                white: whiteDeckCardIds
+            };
+            return options;
+        }
+
         function buildCardInitOptions() {
             const roomDeck = getRoomDeckMetadata();
             const baseOptions = {
@@ -1014,6 +1070,11 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             };
             if (roomDeck) {
                 return Object.assign(baseOptions, resolveRoomDeckInitOptions(roomDeck) || {});
+            }
+
+            const cpuDeckRuleOptions = buildCpuDeckRuleInitOptions();
+            if (cpuDeckRuleOptions) {
+                return Object.assign(baseOptions, cpuDeckRuleOptions);
             }
 
             const effective = getEffectiveChoice();
@@ -1779,6 +1840,10 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             readBoardConfig,
             getLocalBoardConfig,
             setLocalBoardConfig: updateLocalBoardConfig,
+            getLocalStoneSupplyEnabled,
+            setLocalStoneSupplyEnabled,
+            getLocalCpuDeckRule,
+            setLocalCpuDeckRule,
             getActiveLocalChoice: function () {
                 return Object.assign({}, state.activeLocalChoice || createStandardChoice({ source: 'standard' }));
             }

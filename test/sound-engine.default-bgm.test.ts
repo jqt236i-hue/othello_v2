@@ -125,7 +125,7 @@ async function flushAsyncWork() {
 }
 
 const DEFAULT_MASTER_VOLUME = 1;
-const DEFAULT_BGM_OUTPUT_VOLUME = 0.548625 * 0.24752 * DEFAULT_MASTER_VOLUME;
+const DEFAULT_BGM_OUTPUT_VOLUME = 0.41146875 * 0.24752 * DEFAULT_MASTER_VOLUME;
 
 describe('SoundEngine default BGM', () => {
   test('prepareAudioContext constructs the context without resuming or playing', () => {
@@ -451,10 +451,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.masterVolume).toBe(1);
   });
 
-  test('startup default BGM volume is 0.548625', () => {
+  test('startup default BGM volume is 0.41146875', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.bgmVolume).toBe(0.548625);
+    expect(soundEngine.bgmVolume).toBe(0.41146875);
   });
 
   test('startup BGM output is globally scaled without moving the volume slider', () => {
@@ -464,7 +464,7 @@ describe('SoundEngine default BGM', () => {
     soundEngine.allowBgmPlay = false;
     soundEngine.loadBgm(0);
 
-    expect(soundEngine.bgmVolume).toBe(0.548625);
+    expect(soundEngine.bgmVolume).toBe(0.41146875);
     expect(soundEngine.bgmOutputVolumeScale).toBe(0.24752);
     expect(instances[0].volume).toBeCloseTo(DEFAULT_BGM_OUTPUT_VOLUME, 6);
 
@@ -484,8 +484,8 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.masterVolume).toBe(0.5);
     expect(soundEngine.volume).toBe(0.56);
-    expect(soundEngine.bgmVolume).toBe(0.548625);
-    expect(instances[0].volume).toBeCloseTo(0.548625 * 0.24752 * 0.5, 6);
+    expect(soundEngine.bgmVolume).toBe(0.41146875);
+    expect(instances[0].volume).toBeCloseTo(0.41146875 * 0.24752 * 0.5, 6);
     expect(soundEngine.resolveEffectVolume('hand_card_select')).toBeCloseTo(0.56 * 0.35 * 0.5 * 0.5, 6);
   });
 
