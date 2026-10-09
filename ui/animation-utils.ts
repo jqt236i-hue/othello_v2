@@ -284,7 +284,10 @@ const PLACE_HAND_SPEED_FACTOR = 0.95;
 const applyPlaceHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / PLACE_HAND_SPEED_FACTOR));
 const DRAW_HAND_SPEED_FACTOR = 0.9;
 const applyDrawHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / DRAW_HAND_SPEED_FACTOR));
-const HAND_PLACE_APPROACH_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST)));
+const HAND_PLACE_APPROACH_TIME_RATIO = 0.5;
+const HAND_PLACE_APPROACH_MS = Math.max(1, Math.round(applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST))) * HAND_PLACE_APPROACH_TIME_RATIO));
+// The placing hand appears this many cells toward the placer's side of the target cell.
+const HAND_PLACE_ORIGIN_CELL_OFFSET = 2;
 const HAND_PLACE_BOB_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST)));
 const HAND_PLACE_RETREAT_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(300), PLACE_HAND_SPEED_BOOST)));
 const HAND_PLACE_FADE_OUT_PROGRESS = 0.45;
@@ -556,15 +559,6 @@ function _readUsableClientRect(el: any) {
     } catch (e: any) {
         return null;
     }
-}
-
-function _resolvePlacementHandOriginCenter(playerKey: any) {
-    const originRect = _resolvePlacementHandOriginRect(playerKey);
-    if (!originRect) return null;
-    return {
-        x: originRect.left + ((originRect.right - originRect.left) / 2),
-        y: originRect.top + ((originRect.bottom - originRect.top) / 2)
-    };
 }
 
 function _resolvePlacementHandOriginRect(playerKey: any) {
@@ -1726,7 +1720,7 @@ function _readPlaceAnimationStyle() {
     if (__hand_animation_preferences_utils && typeof __hand_animation_preferences_utils.readPlaceAnimationStyle === 'function') {
         return __hand_animation_preferences_utils.readPlaceAnimationStyle(rootRef);
     }
-    return 'throw';
+    return 'hand';
 }
 
 function _getVisualEffectsMapForThrownStone() {
@@ -2043,19 +2037,11 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             refreshCardUi();
         }, 3000, sc);
 
-        const boardRect = boardRoot.getBoundingClientRect();
         const requestedOwnerKey = (visualOptions && typeof visualOptions === 'object' && visualOptions.ownerKey != null)
             ? visualOptions.ownerKey
             : player;
         const playerKey = _normalizeHandOwnerKey(requestedOwnerKey);
         const fromBottom = _isOwnerOnBottomSlot(playerKey);
-        const handOriginCenter = _resolvePlacementHandOriginCenter(playerKey);
-        const wrapperLayoutWidth = Number(wrapperEl.offsetWidth) > 0
-            ? Number(wrapperEl.offsetWidth)
-            : HAND_WRAPPER_WIDTH;
-        const wrapperLayoutHeight = Number(wrapperEl.offsetHeight) > 0
-            ? Number(wrapperEl.offsetHeight)
-            : HAND_WRAPPER_WIDTH;
 
         const handContext = _syncDisplayedHandSkinForAnimation(player, visualOptions);
         // Prepare the next frame while hidden without tearing down the composited wrapper.
@@ -2070,8 +2056,8 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         const cellCenterY = cellRect.top + (cellRect.height / 2);
         const wrapW = HAND_WRAPPER_WIDTH;
 
-        let startY;
-        let dropY;
+        let startY: number;
+        let dropY: number;
         let rotation;
         let scale;
 
@@ -2080,25 +2066,17 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             rotation = 0;
             scale = 0.8;
             dropY = cellCenterY - 55;
-            startY = boardRect.bottom + 50;
         } else {
             // Top seat: from above board
             rotation = 180;
             scale = 0.7;
             dropY = cellCenterY - 290;
-            startY = boardRect.top - 250;
         }
 
         const dropX = cellCenterX - (wrapW / 2);
-        const startX = handOriginCenter
-            ? handOriginCenter.x - (wrapperLayoutWidth / 2)
-            : dropX;
-        if (handOriginCenter) {
-            const visualCenterOffsetY = fromBottom
-                ? wrapperLayoutHeight - ((wrapperLayoutHeight * scale) / 2)
-                : wrapperLayoutHeight + ((wrapperLayoutHeight * scale) / 2);
-            startY = handOriginCenter.y - visualCenterOffsetY;
-        }
+        const startX = dropX;
+        const originOffsetY = cellRect.height * HAND_PLACE_ORIGIN_CELL_OFFSET;
+        startY = fromBottom ? dropY + originOffsetY : dropY - originOffsetY;
 
         // Set initial state
         wrapperEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;

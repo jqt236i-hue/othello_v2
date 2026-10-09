@@ -282,18 +282,18 @@ describe('hand skin handler', () => {
     expect(api.getHandAnimationPreferences()).toEqual({ draw: false, place: false });
   });
 
-  test('renders the placement style choice defaulting to throw and persists the hand option', () => {
+  test('renders the placement style choice defaulting to hand and persists the throw option', () => {
     const mod = require('../ui/handlers/hand-skin.js');
     mod.setupHandSkinControls({ root: window });
 
     const select = document.getElementById('handAnimationPlaceStyle');
     expect(select).toBeTruthy();
     expect(Array.from(select.options).map((option) => option.textContent)).toEqual(['手で置く', '石を投げる']);
-    expect(select.value).toBe('throw');
+    expect(select.value).toBe('hand');
 
-    select.value = 'hand';
+    select.value = 'throw';
     select.dispatchEvent(new window.Event('change'));
-    expect(window.localStorage.getItem('othello.handAnimation.placeStyle')).toBe('hand');
+    expect(window.localStorage.getItem('othello.handAnimation.placeStyle')).toBe('throw');
   });
 
   test('defaults hand animation toggles off on iPhone when no preference is stored', () => {
