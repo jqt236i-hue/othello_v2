@@ -32,9 +32,17 @@ describe('smart cpu level shortcut', () => {
     const setLocalBoardConfig = jest.fn((nextBoardConfig) => {
       boardConfig = nextBoardConfig;
     });
+    let deckRule = 'default';
+    let stoneSupplyEnabled = true;
+    const setLocalCpuDeckRule = jest.fn((rule) => { deckRule = rule; });
+    const setLocalStoneSupplyEnabled = jest.fn((enabled) => { stoneSupplyEnabled = enabled; });
     (window as any).DeckBuilderController = {
       getLocalBoardConfig: () => boardConfig,
-      setLocalBoardConfig
+      setLocalBoardConfig,
+      getLocalCpuDeckRule: () => deckRule,
+      setLocalCpuDeckRule,
+      getLocalStoneSupplyEnabled: () => stoneSupplyEnabled,
+      setLocalStoneSupplyEnabled
     };
     const resetClick = jest.fn();
     document.getElementById('resetBtn')?.addEventListener('click', resetClick);
@@ -60,8 +68,12 @@ describe('smart cpu level shortcut', () => {
     shortcut.click();
 
     const menu = document.getElementById('cpu-level-menu');
+    const backdrop = document.getElementById('cpu-level-menu-backdrop');
     expect(menu).not.toBeNull();
     expect(menu?.hidden).toBe(false);
+    expect(backdrop?.hidden).toBe(false);
+    expect(menu?.style.top).toBe('');
+    expect(menu?.style.right).toBe('');
     expect(shortcut.getAttribute('aria-expanded')).toBe('true');
     expect(menu?.querySelectorAll('.cpu-level-menu-item')).toHaveLength(13);
     expect(menu?.querySelector('[data-cpu-level="10-observed-dark-dragon"]')?.textContent).toContain('観測ダークドラゴン');
@@ -69,6 +81,7 @@ describe('smart cpu level shortcut', () => {
     expect(menu?.querySelector('[data-cpu-level="12-strategy-cpu"]')?.textContent).toContain('理論カオスロジカルエンペラービースト');
     expect(menu?.querySelector('[data-cpu-level="13-truth-chaos-emperor-beast"]')?.textContent).toContain('真理カオスロジカルエンペラービースト');
     expect(menu?.querySelectorAll('.cpu-config-tab')).toHaveLength(2);
+    expect(menu?.querySelector('[data-cpu-config-tab="board"]')?.textContent).toBe('盤面・ルール設定');
     expect(menu?.querySelector('[data-cpu-config-tab="cpu"]')?.getAttribute('aria-selected')).toBe('true');
     expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv1 / 通常 8×8');
     expect(menu?.querySelector('.cpu-level-menu-item.is-selected')?.getAttribute('data-cpu-level')).toBe('1');
@@ -105,21 +118,30 @@ describe('smart cpu level shortcut', () => {
     expect(smartWhite.value).toBe('9-ending-ash');
     expect((global as any).cpuSmartness.white).toBe(9);
 
-    shortcutEl.getBoundingClientRect = () => ({
-      x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0,
-      toJSON() { return {}; }
-    });
-    if (menu) {
-      menu.style.top = '125px';
-      menu.style.right = '8px';
-      menu.style.left = 'auto';
-    }
     (menu?.querySelector('[data-cpu-config-tab="board"]') as HTMLButtonElement).click();
     expect(menu?.querySelector('[data-cpu-config-tab="board"]')?.getAttribute('aria-selected')).toBe('true');
     expect((menu?.querySelector('[data-cpu-config-panel="cpu"]') as HTMLElement).hidden).toBe(true);
     expect((menu?.querySelector('[data-cpu-config-panel="board"]') as HTMLElement).hidden).toBe(false);
-    expect(menu?.style.top).toBe('125px');
-    expect(menu?.style.right).toBe('8px');
+
+    expect(Array.from(menu?.querySelectorAll('[data-cpu-deck-rule]') || []).map((button) => button.textContent)).toEqual([
+      '通常（各自のデッキ）',
+      '両者全カードデッキ',
+      '両者ランダム30枚デッキ'
+    ]);
+    expect(menu?.querySelector('[data-cpu-deck-rule="default"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(menu?.querySelector('[data-cpu-stone-supply="on"]')?.getAttribute('aria-pressed')).toBe('true');
+    (menu?.querySelector('[data-cpu-deck-rule="all-cards"]') as HTMLButtonElement).click();
+    expect(setLocalCpuDeckRule).toHaveBeenLastCalledWith('all-cards');
+    expect(menu?.querySelector('[data-cpu-deck-rule="all-cards"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv9 / 通常 8×8 / 両者全カード');
+    (menu?.querySelector('[data-cpu-deck-rule="random-30"]') as HTMLButtonElement).click();
+    (menu?.querySelector('[data-cpu-stone-supply="off"]') as HTMLButtonElement).click();
+    expect(setLocalStoneSupplyEnabled).toHaveBeenLastCalledWith(false);
+    expect(menu?.querySelector('[data-cpu-stone-supply="off"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv9 / 通常 8×8 / 両者ランダム30枚 / 持ち石なし');
+    (menu?.querySelector('[data-cpu-deck-rule="default"]') as HTMLButtonElement).click();
+    (menu?.querySelector('[data-cpu-stone-supply="on"]') as HTMLButtonElement).click();
+    expect(setLocalStoneSupplyEnabled).toHaveBeenLastCalledWith(true);
 
     (menu?.querySelector('[data-cpu-board-shape="circle"]') as HTMLButtonElement).click();
     (menu?.querySelector('[data-cpu-circle-size="12"]') as HTMLButtonElement).click();
@@ -165,6 +187,7 @@ describe('smart cpu level shortcut', () => {
     (menu?.querySelector('.cpu-board-reset-button') as HTMLButtonElement).click();
     expect(resetClick).toHaveBeenCalledTimes(1);
     expect(menu?.hidden).toBe(true);
+    expect(backdrop?.hidden).toBe(true);
     expect(shortcut.getAttribute('aria-expanded')).toBe('false');
 
     delete global.window;
@@ -180,10 +203,11 @@ describe('smart cpu level shortcut', () => {
     dom.window.close();
   });
 
-  test('constrains the CPU level menu inside short viewports', () => {
+  test('opens centered over a backdrop from the CPU button and closes on backdrop click', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<button id="cpu-level-label" type="button" aria-expanded="false"></button>' +
+      '<button id="modeCpuBtn" type="button">CPU</button>' +
       '<button id="resetBtn" type="button">リセット</button>' +
       '<select id="smartBlack"></select>' +
       '<select id="smartWhite"></select>' +
@@ -201,14 +225,6 @@ describe('smart cpu level shortcut', () => {
     global.CpuPolicy = { loadPolicyForLevel: jest.fn().mockResolvedValue({}) };
     global.addLog = jest.fn();
     global.mccfrPolicy = null;
-    Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 375 });
-    Object.defineProperty(dom.window, 'innerHeight', { configurable: true, value: 325 });
-
-    const shortcutEl = document.getElementById('cpu-level-label') as HTMLButtonElement;
-    shortcutEl.getBoundingClientRect = () => ({
-      x: 184, y: 96, left: 184, top: 96, right: 362, bottom: 130, width: 178, height: 34,
-      toJSON() { return {}; }
-    });
 
     const smartModule = require(path.join(__dirname, '..', 'ui', 'handlers', 'smart.js'));
     smartModule.setupSmartSelects(
@@ -216,19 +232,37 @@ describe('smart cpu level shortcut', () => {
       document.getElementById('smartWhite')
     );
 
-    shortcutEl.click();
+    // match-mode の CPU ボタンは CPU 対戦中なら window.toggleCpuConfigMenu('board') を呼ぶ
+    const cpuButton = document.getElementById('modeCpuBtn') as HTMLButtonElement;
+    cpuButton.addEventListener('click', () => {
+      (window as any).toggleCpuConfigMenu('board');
+    });
+    cpuButton.click();
 
     const menu = document.getElementById('cpu-level-menu') as HTMLDivElement | null;
-    expect(menu).not.toBeNull();
+    const backdrop = document.getElementById('cpu-level-menu-backdrop') as HTMLDivElement | null;
     expect(menu?.hidden).toBe(false);
+    expect(backdrop?.hidden).toBe(false);
+    expect(menu?.style.top).toBe('');
+    expect(menu?.querySelector('[data-cpu-config-tab="board"]')?.getAttribute('aria-selected')).toBe('true');
+    expect((menu?.querySelector('[data-cpu-config-panel="board"]') as HTMLElement).hidden).toBe(false);
+    expect(document.getElementById('cpu-level-label')?.getAttribute('aria-expanded')).toBe('true');
 
-    const top = Number.parseFloat(menu?.style.top || '');
-    const maxHeight = Number.parseFloat(menu?.style.maxHeight || '');
-    expect(Number.isFinite(top)).toBe(true);
-    expect(Number.isFinite(maxHeight)).toBe(true);
-    expect(top + maxHeight).toBeLessThanOrEqual(317);
-    expect(menu?.style.right).toBe('28px');
-    expect(menu?.style.overflowY).toBe('auto');
+    backdrop?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    expect(menu?.hidden).toBe(true);
+    expect(backdrop?.hidden).toBe(true);
+
+    cpuButton.click();
+    expect(menu?.hidden).toBe(false);
+    cpuButton.click();
+    expect(menu?.hidden).toBe(true);
+
+    (document.getElementById('cpu-level-label') as HTMLButtonElement).click();
+    expect(menu?.hidden).toBe(false);
+    expect(menu?.querySelector('[data-cpu-config-tab="cpu"]')?.getAttribute('aria-selected')).toBe('true');
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(menu?.hidden).toBe(true);
+    expect(backdrop?.hidden).toBe(true);
 
     delete global.window;
     delete global.document;

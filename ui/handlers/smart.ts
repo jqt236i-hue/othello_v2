@@ -27,12 +27,18 @@ const SharedBoardUtils = _require('../../shared/shared-board-utils');
 const CpuProfileSelection = _require('../cpu-profile-selection');
 const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
 const localCpuProfileValues: Record<string, string> = { black: '1', white: '1' };
+let boundCpuMenuSmartWhite: HTMLSelectElement | null = null;
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
 const CPU_LEVEL_MENU_ID = 'cpu-level-menu';
-const CPU_LEVEL_MENU_OFFSET_PX = 8;
-const CPU_LEVEL_MENU_SHIFT_LEFT_PX = 15;
-const CPU_LEVEL_MENU_VIEWPORT_MARGIN_PX = 8;
-const CPU_LEVEL_MENU_MIN_HEIGHT_PX = 96;
+const CPU_LEVEL_MENU_BACKDROP_ID = 'cpu-level-menu-backdrop';
+const CPU_MODE_BUTTON_ID = 'modeCpuBtn';
+type CpuConfigTabName = 'cpu' | 'board';
+type CpuDeckRule = 'default' | 'all-cards' | 'random-30';
+const CPU_DECK_RULE_OPTIONS: ReadonlyArray<{ rule: CpuDeckRule; label: string; summary: string }> = [
+  { rule: 'default', label: '通常（各自のデッキ）', summary: '' },
+  { rule: 'all-cards', label: '両者全カードデッキ', summary: '両者全カード' },
+  { rule: 'random-30', label: '両者ランダム30枚デッキ', summary: '両者ランダム30枚' }
+];
 const CPU_LEVEL_OPTIONS: SmartOption[] = CpuOpponentProfiles.getCpuOpponentMenuOptions()
   .map((opt: any) => ({ v: String(opt.value), t: String(opt.label) }));
 
@@ -69,8 +75,28 @@ function setCpuLevelShortcutExpanded(expanded: boolean): void {
   shortcut.setAttribute('aria-expanded', expanded ? 'true' : 'false');
 }
 
+function getCpuLevelMenuBackdrop(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  return document.getElementById(CPU_LEVEL_MENU_BACKDROP_ID);
+}
+
+function ensureCpuLevelMenuBackdrop(): HTMLElement | null {
+  if (typeof document === 'undefined' || !document.body) return null;
+  let backdrop = getCpuLevelMenuBackdrop();
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.id = CPU_LEVEL_MENU_BACKDROP_ID;
+    backdrop.hidden = true;
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(backdrop);
+  }
+  return backdrop;
+}
+
 function hideCpuLevelMenu(): void {
   const menu = getCpuLevelMenu();
+  const backdrop = getCpuLevelMenuBackdrop();
+  if (backdrop) backdrop.hidden = true;
   if (!menu) {
     setCpuLevelShortcutExpanded(false);
     return;
@@ -126,10 +152,55 @@ function writeCpuMenuBoardConfig(nextBoardConfig: any): any {
   return normalized;
 }
 
+function normalizeCpuDeckRule(value: unknown): CpuDeckRule {
+  return value === 'all-cards' || value === 'random-30' ? value : 'default';
+}
+
+function readCpuMenuDeckRule(): CpuDeckRule {
+  const controller = resolveCpuBoardConfigController();
+  try {
+    if (controller && typeof controller.getLocalCpuDeckRule === 'function') {
+      return normalizeCpuDeckRule(controller.getLocalCpuDeckRule());
+    }
+  } catch (e) { /* ignore */ }
+  return 'default';
+}
+
+function writeCpuMenuDeckRule(rule: CpuDeckRule): void {
+  const controller = resolveCpuBoardConfigController();
+  if (controller && typeof controller.setLocalCpuDeckRule === 'function') controller.setLocalCpuDeckRule(rule);
+}
+
+function readCpuMenuStoneSupplyEnabled(): boolean {
+  const controller = resolveCpuBoardConfigController();
+  try {
+    if (controller && typeof controller.getLocalStoneSupplyEnabled === 'function') {
+      return controller.getLocalStoneSupplyEnabled() !== false;
+    }
+  } catch (e) { /* ignore */ }
+  return true;
+}
+
+function writeCpuMenuStoneSupplyEnabled(enabled: boolean): void {
+  const controller = resolveCpuBoardConfigController();
+  if (controller && typeof controller.setLocalStoneSupplyEnabled === 'function') {
+    controller.setLocalStoneSupplyEnabled(enabled);
+  }
+}
+
 function formatCpuMenuBoardConfig(boardConfig: any): string {
   const normalized = SharedBoardUtils.normalizeBoardConfig(boardConfig);
   const shapeLabel = normalized.shape === 'circle' ? '円形' : '通常';
   return `${shapeLabel} ${normalized.rows}×${normalized.cols}`;
+}
+
+function formatCpuMenuRuleSummary(): string {
+  const parts: string[] = [];
+  const deckRule = readCpuMenuDeckRule();
+  const deckOption = CPU_DECK_RULE_OPTIONS.find((opt) => opt.rule === deckRule);
+  if (deckOption && deckOption.summary) parts.push(deckOption.summary);
+  if (!readCpuMenuStoneSupplyEnabled()) parts.push('持ち石なし');
+  return parts.map((part) => ` / ${part}`).join('');
 }
 
 function formatCpuMenuProfileLevel(selectedValue: unknown): string {
@@ -142,7 +213,7 @@ function syncCpuConfigMenuSummary(menu: HTMLDivElement, selectedValue: unknown, 
   const summary = menu.querySelector<HTMLElement>('.cpu-config-summary-value');
   if (!summary) return;
   const config = boardConfig || readCpuMenuBoardConfig();
-  summary.textContent = `${formatCpuMenuProfileLevel(selectedValue)} / ${formatCpuMenuBoardConfig(config)}`;
+  summary.textContent = `${formatCpuMenuProfileLevel(selectedValue)} / ${formatCpuMenuBoardConfig(config)}${formatCpuMenuRuleSummary()}`;
 }
 
 function readCpuBoardWheelDelta(event: WheelEvent): number {
@@ -189,10 +260,22 @@ function syncCpuBoardConfigControls(menu: HTMLDivElement, selectedValue: unknown
   const colsSelect = menu.querySelector<HTMLSelectElement>('[data-cpu-board-cols]');
   if (rowsSelect) rowsSelect.value = String(config.rows);
   if (colsSelect) colsSelect.value = String(config.cols);
+  const deckRule = readCpuMenuDeckRule();
+  menu.querySelectorAll<HTMLButtonElement>('[data-cpu-deck-rule]').forEach((button) => {
+    const selected = button.dataset.cpuDeckRule === deckRule;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
+  const stoneSupplyValue = readCpuMenuStoneSupplyEnabled() ? 'on' : 'off';
+  menu.querySelectorAll<HTMLButtonElement>('[data-cpu-stone-supply]').forEach((button) => {
+    const selected = button.dataset.cpuStoneSupply === stoneSupplyValue;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
   syncCpuConfigMenuSummary(menu, selectedValue, config);
 }
 
-function setCpuConfigMenuTab(menu: HTMLDivElement, tabName: 'cpu' | 'board'): void {
+function setCpuConfigMenuTab(menu: HTMLDivElement, tabName: CpuConfigTabName): void {
   menu.querySelectorAll<HTMLButtonElement>('[data-cpu-config-tab]').forEach((button) => {
     const selected = button.dataset.cpuConfigTab === tabName;
     button.classList.toggle('is-selected', selected);
@@ -204,7 +287,7 @@ function setCpuConfigMenuTab(menu: HTMLDivElement, tabName: 'cpu' | 'board'): vo
   });
 }
 
-function createCpuConfigTab(menu: HTMLDivElement, label: string, tabName: 'cpu' | 'board'): HTMLButtonElement {
+function createCpuConfigTab(menu: HTMLDivElement, label: string, tabName: CpuConfigTabName): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'cpu-config-tab';
@@ -213,10 +296,58 @@ function createCpuConfigTab(menu: HTMLDivElement, label: string, tabName: 'cpu' 
   button.setAttribute('role', 'tab');
   button.addEventListener('click', () => {
     setCpuConfigMenuTab(menu, tabName);
-    const shortcut = getCpuLevelShortcutButton();
-    if (shortcut) positionCpuLevelMenu(shortcut, menu);
   });
   return button;
+}
+
+function createCpuBoardControlGroup(labelText: string, extraClassName: string): HTMLDivElement {
+  const group = document.createElement('div');
+  group.className = `cpu-board-control-group ${extraClassName}`;
+  const label = document.createElement('div');
+  label.className = 'cpu-board-control-label';
+  label.textContent = labelText;
+  group.appendChild(label);
+  return group;
+}
+
+function createCpuRuleChoiceButton(label: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cpu-board-choice-button';
+  button.textContent = label;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function appendCpuRuleControls(panel: HTMLDivElement, menu: HTMLDivElement, smartWhite: HTMLSelectElement): void {
+  const deckGroup = createCpuBoardControlGroup('デッキ', 'cpu-board-deck-controls');
+  const deckChoices = document.createElement('div');
+  deckChoices.className = 'cpu-board-deck-choices';
+  CPU_DECK_RULE_OPTIONS.forEach((opt) => {
+    const button = createCpuRuleChoiceButton(opt.label, () => {
+      writeCpuMenuDeckRule(opt.rule);
+      syncCpuBoardConfigControls(menu, smartWhite.value);
+    });
+    button.dataset.cpuDeckRule = opt.rule;
+    deckChoices.appendChild(button);
+  });
+  deckGroup.appendChild(deckChoices);
+  panel.appendChild(deckGroup);
+
+  const stoneGroup = createCpuBoardControlGroup('持ち石', 'cpu-board-stone-supply-controls');
+  const stoneChoices = document.createElement('div');
+  stoneChoices.className = 'cpu-board-shape-choices';
+  const stoneOptions: Array<[string, boolean]> = [['持ち石あり', true], ['持ち石なし', false]];
+  stoneOptions.forEach(([label, enabled]) => {
+    const button = createCpuRuleChoiceButton(label, () => {
+      writeCpuMenuStoneSupplyEnabled(enabled);
+      syncCpuBoardConfigControls(menu, smartWhite.value);
+    });
+    button.dataset.cpuStoneSupply = enabled ? 'on' : 'off';
+    stoneChoices.appendChild(button);
+  });
+  stoneGroup.appendChild(stoneChoices);
+  panel.appendChild(stoneGroup);
 }
 
 function createCpuBoardShapeButton(
@@ -360,11 +491,13 @@ function createCpuBoardPanel(menu: HTMLDivElement, smartWhite: HTMLSelectElement
   rectangleControls.appendChild(dimensionFields);
   panel.appendChild(rectangleControls);
 
+  appendCpuRuleControls(panel, menu, smartWhite);
+
   const footer = document.createElement('div');
   footer.className = 'cpu-board-panel-footer';
   const applyNote = document.createElement('div');
   applyNote.className = 'cpu-board-apply-note';
-  applyNote.textContent = '盤面変更は次のリセット / 新規対局で反映';
+  applyNote.textContent = '盤面・ルールの変更は次のリセット / 新規対局で反映';
   const resetButton = document.createElement('button');
   resetButton.type = 'button';
   resetButton.className = 'cpu-board-reset-button';
@@ -398,36 +531,13 @@ function getCpuLevelMenuItemClasses(profileValue: unknown): string[] {
   return classes;
 }
 
-function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement): boolean {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return false;
-  const rect = shortcut.getBoundingClientRect();
-  if (!(rect.width > 0 && rect.height > 0)) return false;
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-  const margin = CPU_LEVEL_MENU_VIEWPORT_MARGIN_PX;
-  const desiredTop = Math.round(rect.bottom + CPU_LEVEL_MENU_OFFSET_PX);
-  const belowHeight = viewportHeight - desiredTop - margin;
-  const aboveBottom = Math.round(rect.top - CPU_LEVEL_MENU_OFFSET_PX);
-  const aboveHeight = aboveBottom - margin;
-  const shouldOpenAbove = belowHeight < CPU_LEVEL_MENU_MIN_HEIGHT_PX && aboveHeight > belowHeight;
-  let top = Math.max(margin, Math.min(desiredTop, Math.max(margin, viewportHeight - margin)));
-  let availableHeight = belowHeight;
-  if (shouldOpenAbove) {
-    availableHeight = Math.max(CPU_LEVEL_MENU_MIN_HEIGHT_PX, aboveHeight);
-    top = Math.max(margin, aboveBottom - availableHeight);
-  }
-  const viewportBoundHeight = Math.max(48, viewportHeight - top - margin);
-  const maxHeight = Math.max(
-    48,
-    Math.min(Math.max(CPU_LEVEL_MENU_MIN_HEIGHT_PX, availableHeight), viewportBoundHeight)
-  );
-  const right = Math.max(margin, Math.round(viewportWidth - rect.right + CPU_LEVEL_MENU_SHIFT_LEFT_PX));
-  menu.style.top = `${top}px`;
-  menu.style.right = `${right}px`;
-  menu.style.left = 'auto';
-  menu.style.maxHeight = `${Math.round(maxHeight)}px`;
-  menu.style.overflowY = 'auto';
-  return true;
+// ポップアップは CSS で画面中央に固定する。以前の表示位置（ラベル基準）の inline 指定が残らないよう消す。
+function centerCpuLevelMenu(menu: HTMLDivElement): void {
+  menu.style.top = '';
+  menu.style.right = '';
+  menu.style.left = '';
+  menu.style.maxHeight = '';
+  menu.style.overflowY = '';
 }
 
 function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | null {
@@ -438,7 +548,8 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
     menu.id = CPU_LEVEL_MENU_ID;
     menu.hidden = true;
     menu.setAttribute('role', 'dialog');
-    menu.setAttribute('aria-label', 'CPU・盤面設定');
+    menu.setAttribute('aria-modal', 'true');
+    menu.setAttribute('aria-label', 'CPU・盤面・ルール設定');
     menu.addEventListener('click', (event) => {
       event.stopPropagation();
     });
@@ -449,9 +560,9 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
   const tabs = document.createElement('div');
   tabs.className = 'cpu-config-tabs';
   tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'CPU・盤面設定');
+  tabs.setAttribute('aria-label', 'CPU・盤面・ルール設定');
   tabs.appendChild(createCpuConfigTab(menu, 'CPU選択', 'cpu'));
-  tabs.appendChild(createCpuConfigTab(menu, '盤面設定', 'board'));
+  tabs.appendChild(createCpuConfigTab(menu, '盤面・ルール設定', 'board'));
   menu.appendChild(tabs);
 
   const cpuPanel = document.createElement('div');
@@ -489,7 +600,6 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
 
   syncCpuLevelMenuSelection(menu, smartWhite.value || localCpuLevels.white);
   syncCpuBoardConfigControls(menu, smartWhite.value || localCpuLevels.white);
-  setCpuConfigMenuTab(menu, 'cpu');
   return menu;
 }
 
@@ -507,6 +617,8 @@ function bindCpuLevelDismissHandlers(): void {
     if (nodeCtor && target instanceof nodeCtor) {
       if (menu.contains(target)) return;
       if (shortcut && shortcut.contains(target)) return;
+      const cpuModeButton = document.getElementById(CPU_MODE_BUTTON_ID);
+      if (cpuModeButton && cpuModeButton.contains(target)) return;
     }
     hideCpuLevelMenu();
   });
@@ -515,16 +627,6 @@ function bindCpuLevelDismissHandlers(): void {
     if (event.key === 'Escape') {
       hideCpuLevelMenu();
     }
-  });
-
-  window.addEventListener('resize', () => {
-    const shortcut = getCpuLevelShortcutButton();
-    const menu = getCpuLevelMenu();
-    if (!shortcut || !menu || menu.hidden || shortcut.disabled) {
-      hideCpuLevelMenu();
-      return;
-    }
-    positionCpuLevelMenu(shortcut, menu);
   });
 
   root.__cpuLevelMenuDismissBound = true;
@@ -549,6 +651,7 @@ function observeCpuLevelShortcutState(): void {
 
 function bindCpuLevelShortcut(smartWhite: HTMLSelectElement | null): void {
   const shortcut = getCpuLevelShortcutButton();
+  if (smartWhite) boundCpuMenuSmartWhite = smartWhite;
   if (!shortcut || !smartWhite || shortcut.dataset.cpuLevelShortcutBound === '1') return;
   shortcut.setAttribute('aria-haspopup', 'dialog');
   shortcut.setAttribute('aria-expanded', 'false');
@@ -560,19 +663,35 @@ function bindCpuLevelShortcut(smartWhite: HTMLSelectElement | null): void {
       return;
     }
 
-    const existingMenu = getCpuLevelMenu();
-    if (existingMenu && !existingMenu.hidden) {
-      hideCpuLevelMenu();
-      return;
-    }
-
-    const menu = ensureCpuLevelMenu(smartWhite);
-    if (!menu) return;
-    positionCpuLevelMenu(shortcut, menu);
-    menu.hidden = false;
-    setCpuLevelShortcutExpanded(true);
+    toggleCpuConfigMenu('cpu');
   });
   shortcut.dataset.cpuLevelShortcutBound = '1';
+}
+
+function showCpuConfigMenu(tabName: CpuConfigTabName): boolean {
+  const smartWhite = boundCpuMenuSmartWhite;
+  const shortcut = getCpuLevelShortcutButton();
+  if (!smartWhite || (shortcut && shortcut.disabled)) return false;
+  bindCpuLevelDismissHandlers();
+  const menu = ensureCpuLevelMenu(smartWhite);
+  if (!menu) return false;
+  const backdrop = ensureCpuLevelMenuBackdrop();
+  setCpuConfigMenuTab(menu, tabName);
+  centerCpuLevelMenu(menu);
+  if (backdrop) backdrop.hidden = false;
+  menu.hidden = false;
+  setCpuLevelShortcutExpanded(true);
+  return true;
+}
+
+// CPU名ラベル、または CPU 対戦中の CPU ボタンから開く。開いている時は閉じる。
+function toggleCpuConfigMenu(tabName: CpuConfigTabName): boolean {
+  const existingMenu = getCpuLevelMenu();
+  if (existingMenu && !existingMenu.hidden) {
+    hideCpuLevelMenu();
+    return false;
+  }
+  return showCpuConfigMenu(tabName);
 }
 
 function syncRuntimeCpuLevel(playerKey: 'black' | 'white', level: number): void {
@@ -733,8 +852,10 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
 
 if (typeof window !== 'undefined') {
   (window as Window & { setupSmartSelects?: typeof setupSmartSelects }).setupSmartSelects = setupSmartSelects;
+  (window as Window & { toggleCpuConfigMenu?: typeof toggleCpuConfigMenu }).toggleCpuConfigMenu = toggleCpuConfigMenu;
 }
 
 export = {
-  setupSmartSelects
+  setupSmartSelects,
+  toggleCpuConfigMenu
 };

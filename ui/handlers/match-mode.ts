@@ -1953,6 +1953,11 @@ const MODE_OTHELLO = 'othello';
         if (!matchModeControlsBound) {
             if (uiRefs.modeCpuBtn) {
                 uiRefs.modeCpuBtn.addEventListener('click', () => {
+                    // CPU対戦中にもう一度押すと、CPU名ラベルと同じ設定ポップアップを盤面・ルール設定タブで開く。
+                    if (currentMode === MODE_CPU && typeof root.toggleCpuConfigMenu === 'function') {
+                        root.toggleCpuConfigMenu('board');
+                        return;
+                    }
                     void setMode(MODE_CPU);
                 });
             }

@@ -474,6 +474,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/observation-gacha-catalog-shared": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/observation-gacha-catalog-shared.js"),
   "shared/observation-gacha-catalog.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/observation-gacha-catalog.generated.js"),
   "shared/othello-core": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/othello-core.js"),
+  "shared/pass-turn-return": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/pass-turn-return.js"),
   "shared/playback-digest": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-digest.js"),
   "shared/playback-event-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-event-codec.js"),
   "shared/playback-event-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-event-contract.js"),
@@ -1253,6 +1254,7 @@ installBootModuleMetadata({
     "shared/observation-gacha-catalog-shared",
     "shared/observation-gacha-catalog.generated",
     "shared/othello-core",
+    "shared/pass-turn-return",
     "shared/playback-digest",
     "shared/playback-event-codec",
     "shared/playback-event-contract",
@@ -1652,4 +1654,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 774;
+export const startupModuleCount = 775;

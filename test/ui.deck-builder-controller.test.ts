@@ -1255,6 +1255,75 @@ describe('deck builder controller', () => {
     expect(options.initialDeckSpecByPlayer).toBeUndefined();
   });
 
+  test('CPU対戦の両者全カードデッキはCPU固有デッキより優先し、初期布石はCPU固有の値を残す', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    window.getCurrentMatchMode = () => 'cpu';
+    const select = document.getElementById('smartWhite');
+    const option = document.createElement('option');
+    option.value = '8-theory-incarnation';
+    option.textContent = 'Lv8: 理論の化身';
+    select.appendChild(option);
+    select.value = '8-theory-incarnation';
+    const controller = createController();
+
+    expect(controller.getLocalCpuDeckRule()).toBe('default');
+    controller.setLocalCpuDeckRule('all-cards');
+    const options = controller.buildCardInitOptions();
+
+    expect(options.initialDeckCardIdsByPlayer.black).toEqual(DeckSpecHelpers.getAllCardsDeckCardIds());
+    expect(options.initialDeckCardIdsByPlayer.white).toEqual(DeckSpecHelpers.getAllCardsDeckCardIds());
+    expect(options.initialDeckSpecByPlayer).toBeUndefined();
+    expect(options.initialChargeByPlayer).toEqual({ white: 50 });
+  });
+
+  test('CPU対戦の両者ランダム30枚デッキは黒白それぞれに合法な30枚を生成する', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    window.getCurrentMatchMode = () => 'cpu';
+    let seed = 7;
+    const controller = createController({
+      randomSource: () => {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+      }
+    });
+
+    controller.setLocalCpuDeckRule('random-30');
+    const options = controller.buildCardInitOptions();
+    const enabledIds = new Set(DeckSpecHelpers.getEnabledCardDefs().map((cardDef) => cardDef.id));
+
+    ['black', 'white'].forEach((playerKey) => {
+      const cardIds = options.initialDeckCardIdsByPlayer[playerKey];
+      expect(cardIds).toHaveLength(DeckSpecHelpers.CUSTOM_DECK_SIZE);
+      cardIds.forEach((cardId) => expect(enabledIds.has(cardId)).toBe(true));
+      const counts = cardIds.reduce((acc, cardId) => ({ ...acc, [cardId]: (acc[cardId] || 0) + 1 }), {});
+      Object.entries(counts).forEach(([cardId, count]) => {
+        expect(count).toBeLessThanOrEqual(DeckSpecHelpers.getMaxCopiesForCardId(cardId));
+      });
+    });
+    expect(options.initialDeckCardIdsByPlayer.black).not.toEqual(options.initialDeckCardIdsByPlayer.white);
+  });
+
+  test('両者デッキ指定はCPU対戦以外では使わない', () => {
+    window.getCurrentMatchMode = () => 'local';
+    const controller = createController();
+
+    controller.setLocalCpuDeckRule('all-cards');
+    const options = controller.buildCardInitOptions();
+
+    expect(options.initialDeckCardIdsByPlayer).toBeUndefined();
+  });
+
+  test('持ち石ルールは設定ポップアップ用の API からも切り替えられる', () => {
+    window.getCurrentMatchMode = () => 'cpu';
+    const controller = createController();
+
+    expect(controller.getLocalStoneSupplyEnabled()).toBe(true);
+    expect(controller.buildCardInitOptions().stoneSupplyEnabled).toBe(true);
+    controller.setLocalStoneSupplyEnabled(false);
+    expect(controller.getLocalStoneSupplyEnabled()).toBe(false);
+    expect(controller.buildCardInitOptions().stoneSupplyEnabled).toBe(false);
+  });
+
   test('CPU Lv8理論の化身対戦では白CPUへ理論専用デッキと初期布石50を入れる', () => {
     window.getCurrentMatchMode = () => 'cpu';
     const select = document.getElementById('smartWhite');

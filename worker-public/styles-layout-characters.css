@@ -155,13 +155,27 @@
     opacity: 0;
 }
 
+#cpu-level-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 4, 8, 0.66);
+    z-index: calc(var(--z-floating-control) + 759);
+}
+
+#cpu-level-menu-backdrop[hidden] {
+    display: none;
+}
+
+/* 画面中央に固定する。タブ切替で位置が跳ねないよう高さも固定し、中身はスクロールする */
 #cpu-level-menu {
     position: fixed;
-    top: 0;
-    right: 0;
-    min-width: calc(176px * var(--layout-stage-scale));
-    max-width: calc(100dvw - 16px);
-    max-height: calc(100dvh - 16px);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(max(320px, calc(420px * var(--layout-stage-scale))), calc(100dvw - 24px));
+    height: min(max(480px, calc(640px * var(--layout-stage-scale))), calc(100dvh - 24px));
+    max-width: calc(100dvw - 24px);
+    max-height: calc(100dvh - 24px);
     display: flex;
     flex-direction: column;
     gap: calc(4px * var(--layout-stage-scale));
@@ -281,6 +295,12 @@
     gap: calc(6px * var(--layout-stage-scale));
 }
 
+.cpu-board-deck-choices {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(6px * var(--layout-stage-scale));
+}
+
 .cpu-board-size-choices {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -350,6 +370,7 @@
 }
 
 .cpu-config-summary {
+    margin-top: auto;
     display: grid;
     gap: calc(2px * var(--layout-stage-scale));
     padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
