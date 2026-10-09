@@ -449,7 +449,8 @@ describe('animation-utils hand fallback', () => {
     // Flush the queued hand start and the completed approach, while the network
     // approval remains deliberately unresolved.
     for (let i = 0; i < 12; i += 1) await Promise.resolve();
-    expect(wrapper.animate).toHaveBeenCalledTimes(1);
+    // Only the entry fade and the approach have started; the press waits for approval.
+    expect(wrapper.animate.mock.calls.map((call) => call[1].duration)).toEqual([40, 135]);
     expect(document.getElementById('heldStone').style.display).toBe('block');
     expect(done).not.toHaveBeenCalled();
     expect(global.SoundEngine.playStoneClack).not.toHaveBeenCalled();
@@ -767,7 +768,7 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
-  test('playHandAnimation reaches the stone in half the previous approach time', async () => {
+  test('playHandAnimation reaches the stone in 65% of the original approach time with smooth phase easing', async () => {
     jest.useFakeTimers();
 
     const cancelMock = jest.fn();
@@ -814,12 +815,14 @@ describe('animation-utils hand fallback', () => {
       .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
       .map((call) => call[1].easing);
 
-    expect(transformDurations).toEqual([104, 78, 156]);
+    expect(transformDurations).toEqual([135, 78, 156]);
     expect(transformEasings).toEqual([
-      'cubic-bezier(0.3, 0.2, 0.7, 0.8)',
-      'ease-in-out',
-      'cubic-bezier(0.3, 0.2, 0.7, 0.8)'
+      'cubic-bezier(0.33, 1, 0.68, 1)',
+      'linear',
+      'cubic-bezier(0.32, 0, 0.67, 0)'
     ]);
+    const pressFrames = animateMock.mock.calls.find((call) => call[1].duration === 78)[0];
+    expect(pressFrames.slice(0, 2).map((frame) => frame.easing)).toEqual(['ease-in-out', 'ease-in-out']);
     expect(document.getElementById('handLayer').style.display).toBe('block');
     expect(wrapper.style.display).toBe('block');
     expect(wrapper.style.opacity).toBe('0');
@@ -833,13 +836,12 @@ describe('animation-utils hand fallback', () => {
       handId: 'hand-black',
       cardRect: { left: 300, top: 520, width: 100, height: 120, right: 400, bottom: 640 },
       expectedApproach: [
-        { transform: 'translate(120px, 275px) rotate(0deg) scale(0.8)', opacity: 0 },
-        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)', opacity: 1 }
+        { transform: 'translate(120px, 275px) rotate(0deg) scale(0.8)' },
+        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)' }
       ],
       expectedRetreat: [
-        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)', opacity: 1 },
-        { transform: 'translate(120px, 209px) rotate(0deg) scale(0.8)', opacity: 0, offset: 0.45 },
-        { transform: 'translate(120px, 275px) rotate(0deg) scale(0.8)', opacity: 0 }
+        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)' },
+        { transform: 'translate(120px, 275px) rotate(0deg) scale(0.8)' }
       ]
     },
     {
@@ -848,16 +850,15 @@ describe('animation-utils hand fallback', () => {
       handId: 'hand-white',
       cardRect: { left: 60, top: 80, width: 80, height: 100, right: 140, bottom: 180 },
       expectedApproach: [
-        { transform: 'translate(120px, -200px) rotate(180deg) scale(0.7)', opacity: 0 },
-        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)', opacity: 1 }
+        { transform: 'translate(120px, -200px) rotate(180deg) scale(0.7)' },
+        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)' }
       ],
       expectedRetreat: [
-        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)', opacity: 1 },
-        { transform: 'translate(120px, -134px) rotate(180deg) scale(0.7)', opacity: 0, offset: 0.45 },
-        { transform: 'translate(120px, -200px) rotate(180deg) scale(0.7)', opacity: 0 }
+        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)' },
+        { transform: 'translate(120px, -200px) rotate(180deg) scale(0.7)' }
       ]
     }
-  ])('playHandAnimation starts two cells toward the $label side of the target, ignoring hand cards, and fades in and out', async ({
+  ])('playHandAnimation starts two cells toward the $label side of the target, ignoring hand cards, with only brief fades at entry and exit', async ({
     player,
     handId,
     cardRect,
@@ -897,11 +898,16 @@ describe('animation-utils hand fallback', () => {
     const mod = require('../ui/animation-utils.js');
     await expect(mod.playHandAnimation(player, 0, 0, jest.fn())).resolves.toBeUndefined();
 
-    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 104);
+    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 135);
     const retreatCall = animateMock.mock.calls.find((call) => call[1].duration === 156);
     expect(approachCall?.[0]).toEqual(expectedApproach);
     expect(retreatCall?.[0]).toEqual(expectedRetreat);
-    expect(retreatCall?.[1]).toMatchObject({ duration: 156, opacityDuration: 70 });
+    const opacityCalls = animateMock.mock.calls
+      .filter((call) => call[0].every((frame) => !Object.prototype.hasOwnProperty.call(frame, 'transform')));
+    expect(opacityCalls).toEqual([
+      [[{ opacity: 0 }, { opacity: 1 }], { duration: 40, delay: 0, easing: 'linear', fill: 'forwards' }],
+      [[{ opacity: 1 }, { opacity: 0 }], { duration: 50, delay: 106, easing: 'linear', fill: 'forwards' }]
+    ]);
     expect(wrapper.style.opacity).toBe('0');
   });
 
@@ -2096,7 +2102,7 @@ describe('animation-utils hand fallback', () => {
       const mod = require('../ui/animation-utils.js');
       await new Promise((resolve) => mod.playHandAnimation(global.BLACK, 0, 0, resolve));
       expect(appended.some((el) => el.classList && el.classList.contains('thrown-stone'))).toBe(false);
-      expect(animateMock.mock.calls.some((call) => call[1].duration === 104)).toBe(true);
+      expect(animateMock.mock.calls.some((call) => call[1].duration === 135)).toBe(true);
       expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
     });
 

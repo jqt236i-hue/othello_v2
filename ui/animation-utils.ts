@@ -284,14 +284,18 @@ const PLACE_HAND_SPEED_FACTOR = 0.95;
 const applyPlaceHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / PLACE_HAND_SPEED_FACTOR));
 const DRAW_HAND_SPEED_FACTOR = 0.9;
 const applyDrawHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / DRAW_HAND_SPEED_FACTOR));
-const HAND_PLACE_APPROACH_TIME_RATIO = 0.5;
+const HAND_PLACE_APPROACH_TIME_RATIO = 0.65;
 const HAND_PLACE_APPROACH_MS = Math.max(1, Math.round(applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST))) * HAND_PLACE_APPROACH_TIME_RATIO));
 // The placing hand appears this many cells toward the placer's side of the target cell.
 const HAND_PLACE_ORIGIN_CELL_OFFSET = 2;
 const HAND_PLACE_BOB_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST)));
 const HAND_PLACE_RETREAT_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(300), PLACE_HAND_SPEED_BOOST)));
-const HAND_PLACE_FADE_OUT_PROGRESS = 0.45;
-const HAND_PLACE_FADE_OUT_MS = Math.max(1, Math.round(HAND_PLACE_RETREAT_MS * HAND_PLACE_FADE_OUT_PROGRESS));
+// Keep the placing hand opaque for almost the whole motion: only a brief fade at appearance and exit.
+const HAND_PLACE_FADE_IN_MS = 40;
+const HAND_PLACE_FADE_OUT_MS = 50;
+// Decelerate into the cell and accelerate away from it so the phases join without a velocity jump.
+const HAND_PLACE_APPROACH_EASING = 'cubic-bezier(0.33, 1, 0.68, 1)';
+const HAND_PLACE_RETREAT_EASING = 'cubic-bezier(0.32, 0, 0.67, 0)';
 const HAND_PLACE_CLEANUP_FALLBACK_MS = HAND_PLACE_APPROACH_MS + HAND_PLACE_BOB_MS + HAND_PLACE_RETREAT_MS + 600;
 const HAND_DRAW_PICKUP_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(140, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_MOVE_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(360, DRAW_HAND_SPEED_BOOST)));
@@ -509,6 +513,20 @@ function _setHandWrapperPresentationActive(wrapperEl: any, active: boolean) {
     if (wrapperEl.style.display !== 'block') wrapperEl.style.display = 'block';
     const opacity = active ? '1' : '0';
     if (wrapperEl.style.opacity !== opacity) wrapperEl.style.opacity = opacity;
+}
+
+// Runs only on the Web Animations path: the wrapper's inline opacity doubles as the
+// presentation liveness flag, so the fallback path keeps the hand opaque instead.
+function _animateHandWrapperOpacity(wrapperEl: any, from: number, to: number, duration: number, delay: number) {
+    if (!wrapperEl || typeof wrapperEl.animate !== 'function') return;
+    try {
+        wrapperEl.animate([{ opacity: from }, { opacity: to }], {
+            duration,
+            delay,
+            easing: 'linear',
+            fill: 'forwards'
+        });
+    } catch (e: any) { /* ignore */ }
 }
 
 function _isHandWrapperPresentationActive(wrapperEl: any) {
@@ -2117,18 +2135,13 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
 
         (async () => {
             // 1. Approach
+            _animateHandWrapperOpacity(wrapperEl, 0, 1, HAND_PLACE_FADE_IN_MS, 0);
             await _animateCompat(wrapperEl, [
-                {
-                    transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`,
-                    opacity: 0
-                },
-                {
-                    transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`,
-                    opacity: 1
-                }
+                { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_PLACE_APPROACH_MS,
-                easing: HAND_TRAVEL_EASING,
+                easing: HAND_PLACE_APPROACH_EASING,
                 fill: 'forwards'
             }, sc);
             if (!_isHandWrapperPresentationActive(wrapperEl)) return;
@@ -2143,13 +2156,14 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
 
             // 2. Place (Bobbing effect)
             const bobOffset = (player === BLACK) ? 10 : -10;
+            // Ease each half separately so the hand eases into the press and out of it.
             const placeAnim = _animateCompat(wrapperEl, [
-                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
-                { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})` },
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`, easing: 'ease-in-out' },
+                { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})`, easing: 'ease-in-out' },
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_PLACE_BOB_MS,
-                easing: 'ease-in-out'
+                easing: 'linear'
             }, sc);
 
             // Reflect placement immediately when the hand starts the place motion.
@@ -2160,26 +2174,13 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             if (!_isHandWrapperPresentationActive(wrapperEl)) return;
 
             // 3. Retreat
-            const fadeOutX = dropX + ((startX - dropX) * HAND_PLACE_FADE_OUT_PROGRESS);
-            const fadeOutY = dropY + ((startY - dropY) * HAND_PLACE_FADE_OUT_PROGRESS);
+            _animateHandWrapperOpacity(wrapperEl, 1, 0, HAND_PLACE_FADE_OUT_MS, Math.max(0, HAND_PLACE_RETREAT_MS - HAND_PLACE_FADE_OUT_MS));
             await _animateCompat(wrapperEl, [
-                {
-                    transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`,
-                    opacity: 1
-                },
-                {
-                    transform: `translate(${fadeOutX}px, ${fadeOutY}px) rotate(${rotation}deg) scale(${scale})`,
-                    opacity: 0,
-                    offset: HAND_PLACE_FADE_OUT_PROGRESS
-                },
-                {
-                    transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`,
-                    opacity: 0
-                }
+                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
+                { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_PLACE_RETREAT_MS,
-                opacityDuration: HAND_PLACE_FADE_OUT_MS,
-                easing: HAND_TRAVEL_EASING,
+                easing: HAND_PLACE_RETREAT_EASING,
                 fill: 'forwards'
             }, sc);
         })().catch(() => {
