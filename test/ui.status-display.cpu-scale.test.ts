@@ -3,6 +3,18 @@ import * as path from 'path';
 import { readCssBlock, readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('status-display cpu image scaling', () => {
+  test('CPU settings fade in with a centered entrance and respect reduced motion', () => {
+    const css = readLayoutCssSurface();
+    const menu = readCssBlock(css, '#cpu-level-menu');
+    const backdrop = readCssBlock(css, '#cpu-level-menu-backdrop');
+    expect(menu).toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+    expect(menu).toMatch(/animation:\s*cpuConfigMenuEnter\s+260ms/);
+    expect(backdrop).toMatch(/animation:\s*cpuConfigBackdropEnter\s+220ms/);
+    expect(css).toMatch(/@keyframes cpuConfigMenuEnter\s*\{\s*from\s*\{\s*opacity:\s*0;\s*transform:\s*translate\(-50%,\s*-50%\)[^}]+scale\(0\.985\)/);
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*#cpu-level-menu,\s*#cpu-level-menu-backdrop\s*\{\s*animation:\s*none/);
+    expect(readCssBlock(css, '#cpu-level-menu[hidden]')).toMatch(/display:\s*none/);
+  });
+
   test('preserves the replacement hero artwork orientation without changing CPU portrait mirroring', () => {
     const css = readLayoutCssSurface();
     const heroArtworkRule = readCssBlock(css, '#hero-character-img[data-card-reversi-logical-src="assets/images/hero/hero.png"]');

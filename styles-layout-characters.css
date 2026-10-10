@@ -170,6 +170,7 @@
     inset: 0;
     background: rgba(2, 4, 8, 0.66);
     z-index: calc(var(--z-floating-control) + 759);
+    animation: cpuConfigBackdropEnter 220ms ease-out;
 }
 
 #cpu-level-menu-backdrop[hidden] {
@@ -205,6 +206,31 @@
     backdrop-filter: blur(calc(8px * var(--layout-stage-scale))) saturate(1.06);
     -webkit-backdrop-filter: blur(calc(8px * var(--layout-stage-scale))) saturate(1.06);
     z-index: calc(var(--z-floating-control) + 760);
+    animation: cpuConfigMenuEnter 260ms cubic-bezier(.2, .7, .2, 1);
+}
+
+/* デッキなどと同じ、短いフェード + 小さな移動・拡大で開く。中央固定は維持する。 */
+@keyframes cpuConfigBackdropEnter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes cpuConfigMenuEnter {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(calc(6px * var(--layout-stage-scale))) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #cpu-level-menu,
+    #cpu-level-menu-backdrop {
+        animation: none;
+    }
 }
 
 #cpu-level-menu[hidden] {
