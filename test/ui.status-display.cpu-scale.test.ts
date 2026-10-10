@@ -15,11 +15,12 @@ describe('status-display cpu image scaling', () => {
     expect(readCssBlock(css, '#cpu-level-menu[hidden]')).toMatch(/display:\s*none/);
   });
 
-  test('preserves the replacement hero artwork orientation without changing CPU portrait mirroring', () => {
+  test('preserves the human hero orientation and mirrors left-side CPUs by slot, not by image', () => {
     const css = readLayoutCssSurface();
     const heroArtworkRule = readCssBlock(css, '#hero-character-img[data-card-reversi-logical-src="assets/images/hero/hero.png"]');
     expect(heroArtworkRule).toMatch(/--hero-character-face-direction:\s*1\s*;/);
     expect(readCssBlock(css, '#hero-character-img')).toMatch(/--hero-character-face-direction:\s*-1\s*;/);
+    expect(css).not.toContain('observed-dark-dragon-transparent.png');
   });
 
   test('hides the default hero name without removing the space below its portrait', () => {
@@ -44,8 +45,9 @@ describe('status-display cpu image scaling', () => {
     expect(varsCss).toMatch(/--layout-character-image-scale:\s*0\.8/);
     expect(css).toMatch(/#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(css).toMatch(/#cpu-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)\s*scale\(var\(--cpu-level-scale,\s*1\)\)/);
-    expect(css).toMatch(/#cpu-character-img[\s\S]*scaleX\(var\(--cpu-character-face-direction,\s*1\)\)/);
-    expect(css).toMatch(/#cpu-character-img\.is-network-opponent-hero[\s\S]*--cpu-character-face-direction:\s*1/);
+    expect(readCssBlock(css, '#cpu-character-img')).not.toMatch(/scaleX/);
+    expect(readCssBlock(css, '#cpu-character-img:hover')).not.toMatch(/scaleX/);
+    expect(css).not.toContain('--cpu-character-face-direction');
     expect(css).toMatch(/#cpu-character-img:hover[\s\S]*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)\s*scale\(calc\(var\(--cpu-level-scale,\s*1\)\s*\*\s*1\.04\)\)/);
     expect(css).toMatch(/#hero-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(css).toMatch(/#hero-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);

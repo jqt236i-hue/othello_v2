@@ -6,17 +6,23 @@ function readCssRuleBlock(css: string, selector: string): string {
   return match ? match[1] : '';
 }
 
-describe('network opponent hero portrait CSS', () => {
-  test('turns only the white network opponent toward the board', () => {
+describe('opponent portrait authored orientation', () => {
+  test('uses the authored orientation for all right-side portraits, including hover', () => {
     const css = readRepoTextFile('styles-layout-characters.css');
-    const block = readCssRuleBlock(css, '#cpu-character-img.is-network-opponent-hero[data-card-reversi-logical-src="assets/images/hero/hero-white.png"]');
-    expect(block).toMatch(/--cpu-character-face-direction\s*:\s*-1\s*;/);
+    expect(readCssRuleBlock(css, '#cpu-character-img')).not.toMatch(/scaleX/);
+    expect(readCssRuleBlock(css, '#cpu-character-img:hover')).not.toMatch(/scaleX/);
+    expect(css).not.toContain('--cpu-character-face-direction');
   });
 
-  test('does not mirror the opponent hero image on the CPU portrait slot', () => {
+  test('has no image-specific orientation exceptions for the white hero or Lv10', () => {
     const css = readRepoTextFile('styles-layout-characters.css');
-    const block = readCssRuleBlock(css, '#cpu-character-img.is-network-opponent-hero');
+    expect(css).not.toContain('hero-white.png');
+    expect(css).not.toContain('observed-dark-dragon-transparent.png');
+  });
 
-    expect(block).not.toMatch(/--cpu-character-face-direction\s*:\s*-1\s*;/);
+  test('uses the authored Lv10 orientation in the result portrait as well', () => {
+    const css = readRepoTextFile('styles-layout-result.css');
+    expect(readCssRuleBlock(css, '.result-dialogues .character-name::before')).not.toMatch(/scaleX/);
+    expect(css).not.toContain('observed-dark-dragon-transparent.png');
   });
 });

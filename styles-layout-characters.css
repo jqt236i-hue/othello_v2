@@ -41,37 +41,21 @@
     display: block;
     order: 1;
     transform-origin: center;
-    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1)) scaleX(var(--cpu-character-face-direction, 1));
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1));
 }
 
 #cpu-character-img[src]:not([src=""]) {
     opacity: 1;
 }
 
-#cpu-character-img.is-network-opponent-hero {
-    --cpu-character-face-direction: 1;
-}
-
-/* The white counterpart faces inward from the opponent's right-hand portrait slot. */
-#cpu-character-img.is-network-opponent-hero[data-card-reversi-logical-src="assets/images/hero/hero-white.png"] {
-    --cpu-character-face-direction: -1;
-}
-
-#cpu-character-img[data-card-reversi-logical-src="assets/images/cpu/observed-dark-dragon-transparent.png"] {
-    --cpu-character-face-direction: -1;
-}
-
+/* Opponent portraits are authored facing inward; no per-image mirroring is needed. */
 /* The replacement hero already faces the board; preserve the source artwork's orientation. */
 #hero-character-img[data-card-reversi-logical-src="assets/images/hero/hero.png"] {
     --hero-character-face-direction: 1;
 }
 
-#hero-character-img[data-card-reversi-logical-src="assets/images/cpu/observed-dark-dragon-transparent.png"] {
-    --hero-character-face-direction: 1;
-}
-
 #cpu-character-img:hover {
-    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04)) scaleX(var(--cpu-character-face-direction, 1));
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04));
     filter:
         drop-shadow(var(--ui-drop-shadow-strong))
         drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(255, 204, 153, 0.4));
