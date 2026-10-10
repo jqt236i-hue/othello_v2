@@ -175,6 +175,12 @@
     "setupFilesAfterEnv": [
       "<rootDir>/tests/jest.afterenv.js"
     ],
+    "roots": [
+      "<rootDir>/test",
+      "<rootDir>/training/tests",
+      "<rootDir>/game/ai/__tests__",
+      "<rootDir>/scripts/__tests__"
+    ],
     "collectCoverageFrom": [
       "game/**/*.(js|ts)",
       "!**/vendor/**"

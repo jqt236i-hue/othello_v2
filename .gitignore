@@ -5,6 +5,10 @@ node_modules/
 dist/
 /vite-dist/
 coverage/
+# Large generated browser/Worker outputs. Regenerate with `npm run build:vite`
+# (registry) and `npm run worker:prepare` (Worker mirror); never commit them.
+/public/module-registry*.js
+/worker-public/
 
 # Cloudflare Wrangler cache
 .wrangler/

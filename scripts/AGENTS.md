@@ -25,4 +25,4 @@ Build, codegen, checks, local servers, worker sync, and selfplay/training orches
 
 - Changed script entrypoint: `npm run build:ts`, then run the relevant npm script or focused Jest under `test/scripts.*` / `training/tests/selfplay.*`.
 - Check scripts: `npm run checkall` and/or `npm run check:window`.
-- Worker sync script changes: `npm run worker:prepare`, `npm run check:worker-mirror`, and inspect mirror-related output. The latter is read-only and rejects stale content or manual-only files in the tracked mirror.
+- Worker sync script changes: `npm run worker:prepare`, `npm run check:worker-mirror`, and inspect mirror-related output. The latter is read-only and rejects stale content or manual-only files in the generated mirror. `worker-public/` and `public/module-registry*.js` are untracked (`.gitignore`); never commit them.

@@ -1,1 +1,0 @@
-var e=((e,t)=>()=>(t||(e((t={exports:{}}).exports,t),e=null),t.exports))((()=>{let e={},t=globalThis.__CARD_REVERSI_REGISTER_VITE_MODULES__;if(typeof t!=`function`)throw Error(`Vite module bridge is unavailable for commentary`);t(e,{},`commentary`)}));export default e();
