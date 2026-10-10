@@ -1,0 +1,596 @@
+{
+  "plaza": {
+    "url": "assets/forest-plaza/plaza.glb",
+    "bytes": 15835976,
+    "sourceBytes": 64105128
+  },
+  "characters": [
+    {
+      "id": "fire-will",
+      "label": "火石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/fire-will.glb",
+      "height": 1.198,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 276236
+    },
+    {
+      "id": "water-will",
+      "label": "水石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/water-will.glb",
+      "height": 0.99,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 516552
+    },
+    {
+      "id": "grass-will",
+      "label": "草石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/grass-will.glb",
+      "height": 1.097,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 435124
+    },
+    {
+      "id": "gold_stone",
+      "label": "金の石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/gold_stone.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 197824
+    },
+    {
+      "id": "silver.stone",
+      "label": "銀の石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/silver.stone.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 188160
+    },
+    {
+      "id": "rainbow_stone",
+      "label": "虹の石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/rainbow_stone.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 201000
+    },
+    {
+      "id": "work_stone",
+      "label": "労働石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/work_stone.glb",
+      "height": 0.997,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 96768
+    },
+    {
+      "id": "trap_stone",
+      "label": "罠石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/trap_stone.glb",
+      "height": 0.405,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 100740
+    },
+    {
+      "id": "protected_next_stone",
+      "label": "弱い石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/protected_next_stone.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 174268
+    },
+    {
+      "id": "perma_protect_next_stone",
+      "label": "強い石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/perma_protect_next_stone.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 364556
+    },
+    {
+      "id": "regen_stone",
+      "label": "復活石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/regen_stone.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 220508
+    },
+    {
+      "id": "rakurai",
+      "label": "落雷石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/rakurai.glb",
+      "height": 1.088,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 376168
+    },
+    {
+      "id": "ZAN",
+      "label": "残像石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ZAN.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 444068
+    },
+    {
+      "id": "sna",
+      "label": "狙撃石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/sna.glb",
+      "height": 1.25,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 1127884
+    },
+    {
+      "id": "TIME_BOMB",
+      "label": "時限爆弾",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/TIME_BOMB.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 224860
+    },
+    {
+      "id": "CROSS_BOMB",
+      "label": "十字爆弾",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/CROSS_BOMB.glb",
+      "height": 0.998,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 220188
+    },
+    {
+      "id": "X_BOMB",
+      "label": "クロス爆弾",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/X_BOMB.glb",
+      "height": 0.999,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 153340
+    },
+    {
+      "id": "TIME_STOP",
+      "label": "時間停石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/TIME_STOP.glb",
+      "height": 1.198,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 312184
+    },
+    {
+      "id": "PROLIFERATION_WILL",
+      "label": "増殖石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/PROLIFERATION_WILL.glb",
+      "height": 0.981,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 305532
+    },
+    {
+      "id": "BREEDING_WILL",
+      "label": "繁殖石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/BREEDING_WILL.glb",
+      "height": 2.5,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Sway"
+      ],
+      "bytes": 1446308
+    },
+    {
+      "id": "HYPERACTIVE_WILL",
+      "label": "躍動石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/HYPERACTIVE_WILL.glb",
+      "height": 0.912,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 795380
+    },
+    {
+      "id": "ESCAPE_WILL",
+      "label": "逃亡石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ESCAPE_WILL.glb",
+      "height": 0.912,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 767032
+    },
+    {
+      "id": "SACRIFICE_WILL",
+      "label": "犠牲石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/SACRIFICE_WILL.glb",
+      "height": 1.1,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 801524
+    },
+    {
+      "id": "GLUTTONOUS_WILL",
+      "label": "悪食石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/GLUTTONOUS_WILL.glb",
+      "height": 1.8,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 827228
+    },
+    {
+      "id": "ZOMBIE",
+      "label": "屍石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ZOMBIE.glb",
+      "height": 1.1,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 837908
+    },
+    {
+      "id": "GHOST_WILL-black",
+      "label": "幽体石・黒",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/GHOST_WILL-black.glb",
+      "height": 1.9,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 1215348
+    },
+    {
+      "id": "GHOST_WILL-white",
+      "label": "幽体石・白",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/GHOST_WILL-white.glb",
+      "height": 1.9,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 1069784
+    },
+    {
+      "id": "ROBOT_VACUUM_WILL",
+      "label": "ロボット掃除機石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ROBOT_VACUUM_WILL.glb",
+      "height": 0.3,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 487572
+    },
+    {
+      "id": "EXTREME_HYPERACTIVE_WILL",
+      "label": "極悪躍動魔",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/EXTREME_HYPERACTIVE_WILL.glb",
+      "height": 1,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 692080
+    },
+    {
+      "id": "WILL_HUNTER_KING-black",
+      "label": "意志狩りの王・黒",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/WILL_HUNTER_KING-black.glb",
+      "height": 2.2,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 1143376
+    },
+    {
+      "id": "WILL_HUNTER_KING-white",
+      "label": "意志狩りの王・白",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/WILL_HUNTER_KING-white.glb",
+      "height": 2.2,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 1004756
+    },
+    {
+      "id": "DESTROY_DRAGON",
+      "label": "破壊龍",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/DESTROY_DRAGON.glb",
+      "height": 1.2,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 967868
+    },
+    {
+      "id": "ultimate_reverse_dragon",
+      "label": "究極反転龍",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ultimate_reverse_dragon.glb",
+      "height": 2.021,
+      "animations": [
+        "Attack",
+        "Fly",
+        "Idle"
+      ],
+      "bytes": 464200
+    },
+    {
+      "id": "TIME_STOP_DEITY",
+      "label": "時間停神",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/TIME_STOP_DEITY.glb",
+      "height": 2.4,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 1084984
+    },
+    {
+      "id": "METEOR_GOD",
+      "label": "因果抹消神石",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/METEOR_GOD.glb",
+      "height": 2.2,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 894508
+    },
+    {
+      "id": "STONE_SALVATION_GOD",
+      "label": "救済神",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/STONE_SALVATION_GOD.glb",
+      "height": 2.4,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 1219996
+    },
+    {
+      "id": "SHINRA_BANSHO_GOD",
+      "label": "森羅万象神",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/SHINRA_BANSHO_GOD.glb",
+      "height": 1.196,
+      "animations": [
+        "Action",
+        "Idle"
+      ],
+      "bytes": 632212
+    },
+    {
+      "id": "ULTIMATE_HYPERACTIVE_GOD",
+      "label": "究極躍動神",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ULTIMATE_HYPERACTIVE_GOD.glb",
+      "height": 1.2,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 1245676
+    },
+    {
+      "id": "ULTIMATE_DESTROY_GOD",
+      "label": "究極破壊神",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ULTIMATE_DESTROY_GOD.glb",
+      "height": 2.416,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 1176820
+    },
+    {
+      "id": "ULTIMATE_WORK_GOD",
+      "label": "究極労働神",
+      "kind": "stone",
+      "url": "assets/forest-plaza/characters/ULTIMATE_WORK_GOD.glb",
+      "height": 1.794,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 133136
+    },
+    {
+      "id": "CPU_LV1",
+      "label": "盤喰いの小鬼",
+      "kind": "cpu",
+      "url": "assets/forest-plaza/characters/CPU_LV1.glb",
+      "height": 1.1,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 1144080
+    },
+    {
+      "id": "CPU_LV2",
+      "label": "反転の影",
+      "kind": "cpu",
+      "url": "assets/forest-plaza/characters/CPU_LV2.glb",
+      "height": 1.3,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Walk"
+      ],
+      "bytes": 1111692
+    },
+    {
+      "id": "CPU_LV4",
+      "label": "盤面支配者",
+      "kind": "cpu",
+      "url": "assets/forest-plaza/characters/CPU_LV4.glb",
+      "height": 1.8,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 1107280
+    },
+    {
+      "id": "CPU_LV5",
+      "label": "終局を告げる者",
+      "kind": "cpu",
+      "url": "assets/forest-plaza/characters/CPU_LV5.glb",
+      "height": 2,
+      "animations": [
+        "Attack",
+        "Idle",
+        "Move"
+      ],
+      "bytes": 761928
+    },
+    {
+      "id": "observer",
+      "label": "盤理の観測者",
+      "kind": "manifest",
+      "url": "assets/forest-plaza/characters/observer.glb",
+      "height": 1.994,
+      "animations": [
+        "OW_Dance_Human_16s",
+        "OW_Walk_InPlace_1s"
+      ],
+      "bytes": 11856896
+    },
+    {
+      "id": "executor",
+      "label": "盤界の執行者",
+      "kind": "manifest",
+      "url": "assets/forest-plaza/characters/executor.glb",
+      "height": 1.879,
+      "animations": [
+        "BE_Dance_Loop"
+      ],
+      "bytes": 6458212
+    },
+    {
+      "id": "theory",
+      "label": "理論の化身",
+      "kind": "manifest",
+      "url": "assets/forest-plaza/characters/theory.glb",
+      "height": 1.988,
+      "animations": [
+        "TI_Dance_Loop_Phys"
+      ],
+      "bytes": 5427496
+    }
+  ]
+}

@@ -84,6 +84,14 @@ const MOBILE_COMMANDS = [
     tone: 'ember',
   },
   {
+    kind: 'action',
+    id: 'forestPlaza',
+    label: '森の広場',
+    group: 'game',
+    triggerId: 'forestPlazaOpenBtn',
+    tone: 'sage',
+  },
+  {
     kind: 'panel',
     id: 'deck',
     label: 'デッキ',

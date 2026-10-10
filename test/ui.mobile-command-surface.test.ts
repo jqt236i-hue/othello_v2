@@ -37,6 +37,7 @@ function createFixture() {
           <button id="parallelWorldsOpenBtn" popovertarget="parallelWorldsPopover">
             <span class="left-action-icon left-action-icon-parallel-worlds"></span>並行世界を観測
           </button>
+          <button id="forestPlazaOpenBtn"><span class="left-action-icon left-action-icon-forest-plaza"></span>森の広場</button>
           <button id="deckBuilderOpenBtn"><span class="left-action-icon left-action-icon-deck"></span>デッキ</button>
           <button id="gachaOpenBtn"><span class="left-action-icon left-action-icon-gacha"></span>ガチャ</button>
           <button id="handSkinBtn"><span class="left-action-icon left-action-icon-skin"></span>スキン</button>
@@ -144,6 +145,7 @@ describe('mobile command surface', () => {
       cpu: 'emerald',
       network: 'azure',
       action: 'ember',
+      forestPlaza: 'sage',
       deck: 'azure',
       gacha: 'ember',
       appearance: 'violet',

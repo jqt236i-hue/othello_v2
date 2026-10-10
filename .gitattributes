@@ -26,3 +26,6 @@ data/models/policy-net.onnx.meta.json -text whitespace=blank-at-eol,blank-at-eof
 data/models/othello/policy-table.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 data/models/othello/value-table.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 data/models/othello/policy-value.onnx.meta.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# 3D models (forest plaza)
+*.glb binary

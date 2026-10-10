@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <link rel="icon" href="data:,">
+    <title>森の広場 - Card Reversi</title>
+    <link rel="stylesheet" href="/browser-vite/forest-plaza/forest-plaza.css">
+</head>
+<body>
+    <div id="plazaView" class="plaza-view"></div>
+    <div id="plazaBubbles" class="plaza-bubbles" aria-live="polite"></div>
+
+    <header class="plaza-topbar">
+        <div class="plaza-title">
+            <span class="plaza-title-main">森の広場</span>
+            <span class="plaza-title-sub">キャラをタップすると反応します。なでると仲良くなれます</span>
+        </div>
+        <div class="plaza-topbar-actions">
+            <div id="plazaTimes" class="plaza-times" role="group" aria-label="時間帯"></div>
+            <button id="plazaCallBtn" class="plaza-btn plaza-btn-primary" type="button" aria-expanded="false" aria-controls="plazaRoster">キャラを呼ぶ</button>
+            <button id="plazaCloseBtn" class="plaza-btn plaza-btn-close" type="button" aria-label="森の広場を閉じる">×</button>
+        </div>
+    </header>
+
+    <aside id="plazaRoster" class="plaza-roster" hidden>
+        <div class="plaza-roster-head">
+            <span>広場に呼ぶキャラ（最大 <span id="plazaRosterMax">6</span> 体）</span>
+            <button id="plazaRosterClose" class="plaza-btn plaza-btn-small" type="button">閉じる</button>
+        </div>
+        <div id="plazaRosterList" class="plaza-roster-list"></div>
+    </aside>
+
+    <div id="plazaInfo" class="plaza-info" hidden>
+        <span id="plazaInfoName" class="plaza-info-name"></span>
+        <span id="plazaInfoHearts" class="plaza-info-hearts"></span>
+    </div>
+
+    <div id="plazaHint" class="plaza-hint">ドラッグで見回す・ホイールで寄る／引く　キャラをタップ：あいさつ　キャラの上でこする：なでる</div>
+
+    <div id="plazaLoading" class="plaza-loading">
+        <div class="plaza-loading-box">
+            <div class="plaza-loading-title">森の広場へ向かっています…</div>
+            <div class="plaza-loading-bar"><div id="plazaLoadingBar"></div></div>
+            <div id="plazaLoadingText" class="plaza-loading-text">0%</div>
+        </div>
+    </div>
+
+    <script type="module" src="/browser-vite/forest-plaza/main.ts"></script>
+</body>
+</html>

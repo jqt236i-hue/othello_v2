@@ -1059,6 +1059,10 @@ body.time-stop-active {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 12 5.5 6.5M12 12l6.5-5.5M12 12v7' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='5' cy='6' r='2.5' fill='black'/%3E%3Ccircle cx='19' cy='6' r='2.5' fill='black'/%3E%3Ccircle cx='12' cy='12' r='3' fill='black'/%3E%3Ccircle cx='12' cy='20' r='2.5' fill='black'/%3E%3C/svg%3E");
 }
 
+#leftActionButtons .left-action-icon-forest-plaza {
+    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5c3.4 0 6 2.6 6 5.6 2 .8 3 2.5 3 4.3 0 2.8-2.4 4.6-5 4.6h-2.6V21h-2.8v-4H8c-2.6 0-5-1.8-5-4.6 0-1.8 1-3.5 3-4.3 0-3 2.6-5.6 6-5.6Z' fill='black'/%3E%3Cpath d='M12 13.6c-.6-1-2.6-1.2-2.6.4 0 1.2 1.6 2 2.6 2.8 1-.8 2.6-1.6 2.6-2.8 0-1.6-2-1.4-2.6-.4Z' fill='white'/%3E%3C/svg%3E");
+}
+
 #leftActionButtons .left-action-icon-gacha {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 9V7a4 4 0 0 1 8 0v2M6 10h12l-1.2 8.5A2 2 0 0 1 14.82 20H9.18a2 2 0 0 1-1.98-1.5Z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3Ccircle cx='10' cy='13.5' r='1.2' fill='black'/%3E%3Ccircle cx='14' cy='15.5' r='1.2' fill='black'/%3E%3C/svg%3E");
 }
@@ -1597,6 +1601,34 @@ body.time-stop-active {
     --left-action-border: rgba(255, 130, 92, 0.32);
     --left-action-icon-top: #fff0d4;
     --left-action-icon-bottom: #f0a063;
+}
+
+#leftActionButtons #forestPlazaOpenBtn {
+    --left-action-tone: rgba(132, 222, 120, 0.24);
+    --left-action-tone-strong: rgba(132, 222, 120, 0.6);
+    --left-action-tone-soft: rgba(132, 222, 120, 0.15);
+    --left-action-border: rgba(132, 222, 120, 0.38);
+    --left-action-icon-top: #f3ffe6;
+    --left-action-icon-bottom: #9fdc8a;
+}
+
+/* 森の広場：three.js の別ページを全画面の iframe で開く（閉じると iframe ごと破棄する） */
+#forestPlazaOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    background: #0a0f0b;
+}
+
+#forestPlazaOverlay[hidden] {
+    display: none;
+}
+
+#forestPlazaOverlay iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
 }
 
 #leftActionButtons #leaderboardOpenBtn {

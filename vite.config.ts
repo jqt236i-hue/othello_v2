@@ -80,6 +80,8 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         'index.vite': path.resolve(__dirname, 'index.vite.html'),
+        // 森の広場（three.js の 3D 画面）。本体とは別のページにして、開いた時だけ読み込む
+        'forest-plaza': path.resolve(__dirname, 'forest-plaza.html'),
         'cpu-worker-diagnostics': path.resolve(
           __dirname,
           'browser-vite/cpu-worker/diagnostics.ts'
