@@ -63,6 +63,7 @@ export function pickLine(id: string, kind: PlazaCharacterKind, situation: PlazaL
 
 const AFFECTION_STORAGE_KEY = 'cardReversi.forestPlaza.affection.v1';
 const TIME_STORAGE_KEY = 'cardReversi.forestPlaza.time.v1';
+const COMFORT_STORAGE_KEY = 'cardReversi.forestPlaza.comfort.v1';
 
 /** 仲良し度の上限と、ハートの数（最大 5）への換算 */
 export const AFFECTION_MAX = 100;
@@ -95,6 +96,37 @@ export function loadAffection(): Record<string, number> {
 
 export function saveAffection(value: Record<string, number>): void {
   writeJson(AFFECTION_STORAGE_KEY, value);
+}
+
+/**
+ * 3D 酔い対策の設定。初期値は酔いにくい側（揺れなし・視野広め・動く時に周りを暗くする）
+ * - fov: 視野の広さ（度）。広いほど酔いにくい人が多い
+ * - sensitivity: 見回す速さの倍率
+ * - headBob: 歩く時の視点の揺れ（入れると揺れる）
+ * - vignette: 移動・見回し中に画面の周りを暗くする（周辺視野の流れを減らす）
+ */
+export interface PlazaComfortSettings {
+  fov: number;
+  sensitivity: number;
+  headBob: boolean;
+  vignette: boolean;
+}
+
+export const DEFAULT_COMFORT: Readonly<PlazaComfortSettings> = { fov: 80, sensitivity: 0.8, headBob: false, vignette: true };
+
+export function loadComfort(): PlazaComfortSettings {
+  const value = readJson<Partial<PlazaComfortSettings> | null>(COMFORT_STORAGE_KEY, null) ?? {};
+  const num = (v: unknown, min: number, max: number, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback);
+  return {
+    fov: num(value.fov, 60, 100, DEFAULT_COMFORT.fov),
+    sensitivity: num(value.sensitivity, 0.2, 2, DEFAULT_COMFORT.sensitivity),
+    headBob: typeof value.headBob === 'boolean' ? value.headBob : DEFAULT_COMFORT.headBob,
+    vignette: typeof value.vignette === 'boolean' ? value.vignette : DEFAULT_COMFORT.vignette,
+  };
+}
+
+export function saveComfort(value: PlazaComfortSettings): void {
+  writeJson(COMFORT_STORAGE_KEY, value);
 }
 
 export function loadTimeOfDay(): string | null {

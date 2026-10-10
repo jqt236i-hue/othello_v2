@@ -16,6 +16,18 @@ export interface PlayerWorld {
   standAt(x: number, z: number): number | null;
   /** キャラとぶつかるか */
   hitsCharacter(x: number, z: number, radius: number): boolean;
+  /** from から to へカメラを引く時、壁・幹に当たらずに引ける距離 */
+  clearDistance(from: THREE.Vector3, to: THREE.Vector3): number;
+}
+
+/**
+ * 3D 酔いへの配慮（main.ts の「酔い対策」で変えられる）
+ * - headBob: 歩く時の視点の上下揺れ（0 = 揺れない。初期値）
+ * - sensitivity: 見回す速さの倍率
+ */
+export interface PlayerComfort {
+  headBob: number;
+  sensitivity: number;
 }
 
 const EYE_HEIGHT = 1.62;
@@ -54,6 +66,16 @@ export class PlazaPlayer {
   private gesture: PlayerGesture = 'none';
   private gestureUntil = 0;
   private readonly thirdOffset = new THREE.Vector3();
+  /** 歩きの速度（急に動き出す・止まるのを和らげる） */
+  private readonly moveVelocity = new THREE.Vector2();
+  /** 目の高さ（段差で視点が跳ねないよう、なめらかに追う） */
+  private eyeY = 0;
+  /** 三人称でカメラを引く距離（壁に当たった時になめらかに寄る） */
+  private cameraDistance = 2.9;
+  /** 直近の見回しの速さ（ラジアン/秒）と、このフレームの見回し量 */
+  private turnRate = 0;
+  private turnThisFrame = 0;
+  readonly comfort: PlayerComfort = { headBob: 0, sensitivity: 1 };
   private readonly onKeyDown: (event: KeyboardEvent) => void;
   private readonly onKeyUp: (event: KeyboardEvent) => void;
   private readonly onBlur: () => void;
@@ -63,6 +85,7 @@ export class PlazaPlayer {
     this.world = world;
     this.position.copy(start);
     this.yaw = yaw;
+    this.eyeY = start.y;
     this.knight = buildKnight();
     scene.add(this.knight.root);
     this.arm = buildFirstPersonArm();
@@ -94,8 +117,11 @@ export class PlazaPlayer {
   }
 
   look(dx: number, dy: number): void {
-    this.yaw -= dx * MOUSE_SENSITIVITY;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * MOUSE_SENSITIVITY, -1.35, 1.25);
+    const k = MOUSE_SENSITIVITY * this.comfort.sensitivity;
+    // 上下は左右より少し遅くし、見上げ・見下ろしすぎないようにする（急な上下の動きは酔いやすい）
+    this.yaw -= dx * k;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * k * 0.8, -1.1, 1.0);
+    this.turnThisFrame += Math.hypot(dx * k, dy * k * 0.8);
   }
 
   setView(view: PlayerView): void {
@@ -113,6 +139,11 @@ export class PlazaPlayer {
   playGesture(gesture: PlayerGesture, seconds: number): void {
     this.gesture = gesture;
     this.gestureUntil = performance.now() + seconds * 1000;
+  }
+
+  /** 動きの大きさ（0〜1 程度）。移動中・見回し中に画面の周りを暗くする強さに使う */
+  get motionAmount(): number {
+    return Math.min(1, this.speed / RUN_SPEED + this.turnRate / 4);
   }
 
   /** 押しているキーをすべて離した扱いにする（メニューを開いた時など） */
@@ -148,16 +179,19 @@ export class PlazaPlayer {
     const running = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
     const targetSpeed = length > 0 ? (running ? RUN_SPEED : WALK_SPEED) : 0;
     let moved = 0;
-    if (length > 0) {
-      ix /= length;
-      iz /= length;
+    if (length > 0) { ix /= length; iz /= length; }
+    // 速度は約 0.2 秒かけて目標に近づける（急発進・急停止は酔いやすい）
+    const ease = 1 - Math.exp(-dt * 11);
+    this.moveVelocity.x += (ix * targetSpeed - this.moveVelocity.x) * ease;
+    this.moveVelocity.y += (iz * targetSpeed - this.moveVelocity.y) * ease;
+    if (this.moveVelocity.lengthSq() > 1e-4) {
       // 前（W）はカメラの向き（-Z を yaw だけ回した向き）
       const forwardX = -Math.sin(this.yaw);
       const forwardZ = -Math.cos(this.yaw);
       const rightX = Math.cos(this.yaw);
       const rightZ = -Math.sin(this.yaw);
-      const dx = (forwardX * iz + rightX * ix) * targetSpeed * dt;
-      const dz = (forwardZ * iz + rightZ * ix) * targetSpeed * dt;
+      const dx = (forwardX * this.moveVelocity.y + rightX * this.moveVelocity.x) * dt;
+      const dz = (forwardZ * this.moveVelocity.y + rightZ * this.moveVelocity.x) * dt;
       // 壁に沿って滑るよう、斜め → 横だけ → 縦だけの順に試す（細かく刻んで抜けを防ぐ）
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.12));
       for (let i = 0; i < steps; i += 1) {
@@ -192,25 +226,35 @@ export class PlazaPlayer {
     this.arm.setGesture(this.gesture);
     const walkRatio = this.speed / WALK_SPEED;
     this.knight.animate(dt, walkRatio, this.grounded);
-    this.arm.animate(dt, walkRatio);
+    // 腕の揺れも、視点の揺れを切っている時は小さくする
+    this.arm.animate(dt, walkRatio * (0.35 + 0.65 * this.comfort.headBob));
     this.knight.root.position.copy(this.position);
     // 勇者の模型は +Z が正面、カメラは -Z が正面
     this.knight.root.rotation.y = this.yaw + Math.PI;
 
+    this.turnRate += ((dt > 0 ? this.turnThisFrame / dt : 0) - this.turnRate) * (1 - Math.exp(-dt * 8));
+    this.turnThisFrame = 0;
     this.bob += dt * (7 + walkRatio * 3) * (walkRatio > 0.1 && this.grounded ? 1 : 0);
     const camera = this.camera;
     camera.rotation.order = 'YXZ';
     if (this.view === 'first') {
       const eye = this.eye;
-      eye.y += Math.sin(this.bob) * 0.025 * Math.min(1.5, walkRatio);
+      // 段差を上り下りしても視点は急に跳ねず、なめらかに追う（ジャンプ中はそのまま追う）
+      const targetEyeY = eye.y;
+      this.eyeY = this.grounded ? this.eyeY + (targetEyeY - this.eyeY) * (1 - Math.exp(-dt * 12)) : targetEyeY;
+      if (Math.abs(targetEyeY - this.eyeY) > 1) this.eyeY = targetEyeY;
+      eye.y = this.eyeY + Math.sin(this.bob) * 0.02 * Math.min(1.5, walkRatio) * this.comfort.headBob;
       camera.position.copy(eye);
       camera.rotation.set(this.pitch, this.yaw, 0);
     } else {
       // 三人称：勇者の後ろ上から見る
       const target = new THREE.Vector3(this.position.x, this.position.y + 1.45, this.position.z);
-      const distance = 2.9;
-      this.thirdOffset.set(0, 0, distance).applyEuler(new THREE.Euler(this.pitch - 0.18, this.yaw, 0, 'YXZ'));
-      camera.position.copy(target).add(this.thirdOffset);
+      this.thirdOffset.set(0, 0, 2.9).applyEuler(new THREE.Euler(this.pitch - 0.18, this.yaw, 0, 'YXZ'));
+      // 壁や幹の向こうへカメラが抜けないよう手前に寄せる。寄る時は速く、戻る時はゆっくり
+      const wanted = Math.max(0.6, this.world.clearDistance(target, target.clone().add(this.thirdOffset)) - 0.2);
+      const rate = wanted < this.cameraDistance ? 18 : 3;
+      this.cameraDistance += (wanted - this.cameraDistance) * (1 - Math.exp(-dt * rate));
+      camera.position.copy(target).addScaledVector(this.thirdOffset.normalize(), this.cameraDistance);
       if (camera.position.y < this.position.y + 0.3) camera.position.y = this.position.y + 0.3;
       camera.lookAt(target);
     }

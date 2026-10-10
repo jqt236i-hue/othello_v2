@@ -18,6 +18,7 @@
         </div>
         <div class="plaza-topbar-actions">
             <div id="plazaTimes" class="plaza-times" role="group" aria-label="時間帯"></div>
+            <button id="plazaComfortBtn" class="plaza-btn" type="button" aria-expanded="false" aria-controls="plazaComfort">酔い対策</button>
             <button id="plazaViewBtn" class="plaza-btn" type="button" title="一人称と三人称を切り替える（V）">視点: 一人称</button>
             <button id="plazaCallBtn" class="plaza-btn plaza-btn-primary" type="button" aria-expanded="false" aria-controls="plazaRoster">キャラを呼ぶ</button>
             <button id="plazaCloseBtn" class="plaza-btn plaza-btn-close" type="button" aria-label="森の広場を閉じる">×</button>
@@ -32,6 +33,36 @@
         <div id="plazaRosterList" class="plaza-roster-list"></div>
     </aside>
 
+    <aside id="plazaComfort" class="plaza-comfort" hidden aria-label="酔い対策">
+        <div class="plaza-roster-head">
+            <span>酔い対策（3D酔いしやすい方向け）</span>
+            <button id="plazaComfortClose" class="plaza-btn plaza-btn-small" type="button">閉じる</button>
+        </div>
+        <div class="plaza-comfort-body">
+            <label class="plaza-comfort-row">
+                <span class="plaza-comfort-label">視野の広さ <output id="plazaFovValue"></output></span>
+                <input id="plazaFov" type="range" min="60" max="100" step="5">
+                <span class="plaza-comfort-note">広いほど酔いにくい人が多いです</span>
+            </label>
+            <label class="plaza-comfort-row">
+                <span class="plaza-comfort-label">見回す速さ <output id="plazaSensValue"></output></span>
+                <input id="plazaSens" type="range" min="0.2" max="2" step="0.1">
+                <span class="plaza-comfort-note">遅めにすると画面が急に回りません</span>
+            </label>
+            <label class="plaza-comfort-check">
+                <input id="plazaVignette" type="checkbox">
+                <span>動いている時に画面の周りを暗くする</span>
+            </label>
+            <label class="plaza-comfort-check">
+                <input id="plazaHeadBob" type="checkbox">
+                <span>歩く時に視点を揺らす</span>
+            </label>
+            <button id="plazaComfortReset" class="plaza-btn plaza-btn-small" type="button">おすすめに戻す</button>
+        </div>
+    </aside>
+
+    <div id="plazaVignetteOverlay" class="plaza-vignette" aria-hidden="true"></div>
+
     <div id="plazaInfo" class="plaza-info" hidden>
         <span id="plazaInfoName" class="plaza-info-name"></span>
         <span id="plazaInfoHearts" class="plaza-info-hearts"></span>
@@ -44,6 +75,7 @@
 
     <div id="plazaStart" class="plaza-start">
         <button id="plazaStartBtn" class="plaza-start-btn" type="button">クリックして歩きはじめる</button>
+        <p class="plaza-start-note">3D酔いしやすい方は、右上の「酔い対策」で視野・見回す速さ・揺れを調整できます</p>
         <dl class="plaza-keys">
             <dt>W A S D</dt><dd>歩く（Shift で走る）</dd>
             <dt>マウス</dt><dd>見回す</dd>

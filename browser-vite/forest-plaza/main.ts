@@ -5,7 +5,11 @@ import {
   AFFECTION_MAX,
   affectionHearts,
   loadAffection,
+  loadComfort,
   loadTimeOfDay,
+  saveComfort,
+  DEFAULT_COMFORT,
+  type PlazaComfortSettings,
   pickLine,
   saveAffection,
   saveTimeOfDay,
@@ -155,7 +159,9 @@ async function boot(): Promise<void> {
     // マウスを捕まえている間の Esc はブラウザがマウスを戻すのに使う（広場は閉じない）
     if (document.pointerLockElement) return;
     if (freeMode) { exitFreeMode(); return; }
-    if (!roster.hidden) setRosterOpen(false);
+    const comfortOpen = document.getElementById('plazaComfort');
+    if (comfortOpen && !comfortOpen.hidden) { comfortOpen.hidden = true; $('plazaComfortBtn').setAttribute('aria-expanded', 'false'); }
+    else if (!roster.hidden) setRosterOpen(false);
     else closePlaza();
   });
 
@@ -168,7 +174,7 @@ async function boot(): Promise<void> {
   view.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(70, 1, 0.03, 600);
+  const camera = new THREE.PerspectiveCamera(80, 1, 0.03, 600);
   camera.position.set(0.2, 1.6, 1.2);
 
   const resize = () => {
@@ -295,6 +301,15 @@ async function boot(): Promise<void> {
         if (playerFloorAt(x + ox, z + oz, from.y) === null) return null;
       }
       return center;
+    },
+    clearDistance(from, to) {
+      sideDir.subVectors(to, from);
+      const length = sideDir.length();
+      if (length < 1e-5) return 0;
+      solidRay.set(from, sideDir.divideScalar(length));
+      solidRay.far = length;
+      const hit = solidRay.intersectObjects(plaza.playerSolidMeshes, false)[0];
+      return hit ? hit.distance : length;
     },
     hitsCharacter(x, z, radius) {
       if (!player) return false;
@@ -594,6 +609,56 @@ async function boot(): Promise<void> {
   }
   const activePlayer = player;
 
+  // ------------------------------------------------------------ 酔い対策
+  const comfortPanel = $('plazaComfort');
+  const comfortButton = $<HTMLButtonElement>('plazaComfortBtn');
+  const fovInput = $<HTMLInputElement>('plazaFov');
+  const sensInput = $<HTMLInputElement>('plazaSens');
+  const vignetteInput = $<HTMLInputElement>('plazaVignette');
+  const headBobInput = $<HTMLInputElement>('plazaHeadBob');
+  const vignette = $('plazaVignetteOverlay');
+  let comfort: PlazaComfortSettings = loadComfort();
+  const applyComfort = () => {
+    camera.fov = comfort.fov;
+    camera.updateProjectionMatrix();
+    activePlayer.comfort.sensitivity = comfort.sensitivity;
+    activePlayer.comfort.headBob = comfort.headBob ? 1 : 0;
+    fovInput.value = String(comfort.fov);
+    sensInput.value = String(comfort.sensitivity);
+    vignetteInput.checked = comfort.vignette;
+    headBobInput.checked = comfort.headBob;
+    $('plazaFovValue').textContent = `${comfort.fov}°`;
+    $('plazaSensValue').textContent = `×${comfort.sensitivity.toFixed(1)}`;
+    if (!comfort.vignette) vignette.style.opacity = '0';
+  };
+  const updateComfort = (patch: Partial<PlazaComfortSettings>) => {
+    comfort = { ...comfort, ...patch };
+    saveComfort(comfort);
+    applyComfort();
+  };
+  fovInput.addEventListener('input', () => updateComfort({ fov: Number(fovInput.value) }));
+  sensInput.addEventListener('input', () => updateComfort({ sensitivity: Number(sensInput.value) }));
+  vignetteInput.addEventListener('change', () => updateComfort({ vignette: vignetteInput.checked }));
+  headBobInput.addEventListener('change', () => updateComfort({ headBob: headBobInput.checked }));
+  $('plazaComfortReset').addEventListener('click', () => updateComfort({ ...DEFAULT_COMFORT }));
+  const setComfortOpen = (open: boolean) => {
+    comfortPanel.hidden = !open;
+    comfortButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) setRosterOpen(false);
+  };
+  comfortButton.addEventListener('click', () => setComfortOpen(comfortPanel.hidden !== false));
+  $('plazaComfortClose').addEventListener('click', () => setComfortOpen(false));
+  callButton.addEventListener('click', () => setComfortOpen(false));
+  applyComfort();
+  let vignetteLevel = 0;
+  /** 移動・見回しの大きさに合わせて画面の周りを暗くする（ゆっくり変える） */
+  const updateVignette = (dt: number) => {
+    if (!comfort.vignette) return;
+    const target = (activePlayer.view === 'first' ? 0.8 : 0.4) * activePlayer.motionAmount;
+    vignetteLevel += (target - vignetteLevel) * (1 - Math.exp(-dt * (target > vignetteLevel ? 10 : 4)));
+    vignette.style.opacity = vignetteLevel.toFixed(3);
+  };
+
   /** 照準（画面の真ん中。マウスを捕まえていない時はマウスの位置）の先にいる、手の届くキャラ */
   const aimedCharacter = (ndc: THREE.Vector2 = screenCenter): PlazaCharacter | null => {
     hitRaycaster.setFromCamera(ndc, camera);
@@ -667,6 +732,7 @@ async function boot(): Promise<void> {
   };
   const lockPointer = () => {
     setRosterOpen(false);
+    setComfortOpen(false);
     try {
       const request = canvas.requestPointerLock() as unknown as Promise<void> | undefined;
       if (request && typeof request.then === 'function') request.then(() => { freeMode = false; syncLock(); }, enterFreeMode);
@@ -775,7 +841,8 @@ async function boot(): Promise<void> {
     const dt = Math.min(clock.getDelta(), 0.05);
     for (const character of visitors.values()) character.update(dt, walkArea);
     updateHearts(dt);
-    activePlayer.update(dt, (isActive() || debugInput) && roster.hidden === true);
+    activePlayer.update(dt, (isActive() || debugInput) && roster.hidden === true && comfortPanel.hidden === true);
+    updateVignette(dt);
     updatePress(performance.now());
     updateAim();
     renderer.render(scene, camera);
