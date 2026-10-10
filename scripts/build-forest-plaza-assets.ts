@@ -90,6 +90,7 @@ const MANIFESTS: readonly (readonly [string, string, string])[] = [
 const CHARACTER_TEXTURE_MAX = 1024;
 const MANIFEST_TEXTURE_MAX = 2048;
 const PLAZA_TEXTURE_MAX = 2048;
+const PLAZA_LITE_TEXTURE_MAX = 1024;
 
 type CharacterKind = 'stone' | 'cpu' | 'manifest';
 
@@ -104,7 +105,7 @@ interface CharacterEntry {
 }
 
 interface Catalog {
-  plaza: { url: string; bytes: number; sourceBytes: number };
+  plaza: { url: string; bytes: number; sourceBytes: number; liteUrl?: string; liteBytes?: number };
   characters: CharacterEntry[];
 }
 
@@ -131,7 +132,7 @@ async function createIO(): Promise<any> {
     });
 }
 
-async function optimize(io: any, src: string, dst: string, textureMax: number, keepScene: boolean) {
+async function optimize(io: any, src: string, dst: string, textureMax: number, keepScene: boolean, normalMax = 512) {
   const fn: any = await import('@gltf-transform/functions');
   const meshopt: any = await import('meshoptimizer');
   const sharp: any = (await import('sharp')).default;
@@ -146,7 +147,7 @@ async function optimize(io: any, src: string, dst: string, textureMax: number, k
     fn.resample({ tolerance: 1e-4 }),
     // 広場の法線マップは細部の凹凸だけなので半分の大きさにする（容量の大半を占めるため）
     ...(keepScene
-      ? [fn.textureCompress({ encoder: sharp, targetFormat: 'webp', slots: /^normalTexture$/, resize: [512, 512], quality: 86, effort: 80 })]
+      ? [fn.textureCompress({ encoder: sharp, targetFormat: 'webp', slots: /^normalTexture$/, resize: [normalMax, normalMax], quality: 86, effort: 80 })]
       : []),
     fn.textureCompress({
       encoder: sharp, targetFormat: 'webp', resize: [textureMax, textureMax], quality: 86, effort: 80,
@@ -205,12 +206,16 @@ async function main(): Promise<number> {
   let plaza = previous?.plaza ?? { url: 'assets/forest-plaza/plaza.glb', bytes: 0, sourceBytes: 0 };
   if (!only || only === 'plaza') {
     const dst = path.join(OUT, 'plaza.glb');
-    if (!force && isUpToDate(SOURCES.plaza, dst) && previous?.plaza) {
+    if (!force && isUpToDate(SOURCES.plaza, dst) && isUpToDate(SOURCES.plaza, path.join(OUT, 'plaza-lite.glb')) && previous?.plaza?.liteUrl) {
       console.log('skip plaza');
     } else {
       const started = Date.now();
       const info = await optimize(io, SOURCES.plaza, dst, PLAZA_TEXTURE_MAX, true);
-      plaza = { url: 'assets/forest-plaza/plaza.glb', bytes: info.bytes, sourceBytes: info.sourceBytes };
+      // スマホ向けの軽い版（テクスチャを 1/4 の面積に。GPU のメモリが少ない端末で落ちないように）
+      const liteDst = path.join(OUT, 'plaza-lite.glb');
+      const lite = await optimize(io, SOURCES.plaza, liteDst, PLAZA_LITE_TEXTURE_MAX, true, 256);
+      plaza = { url: 'assets/forest-plaza/plaza.glb', bytes: info.bytes, sourceBytes: info.sourceBytes, liteUrl: 'assets/forest-plaza/plaza-lite.glb', liteBytes: lite.bytes };
+      console.log(`ok   plaza-lite -> ${(lite.bytes / 1e6).toFixed(2)}MB`);
       console.log(`ok   plaza ${(info.sourceBytes / 1e6).toFixed(1)}MB -> ${(info.bytes / 1e6).toFixed(2)}MB (${((Date.now() - started) / 1000).toFixed(0)}s)`);
     }
   }

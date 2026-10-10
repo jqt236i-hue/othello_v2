@@ -126,6 +126,7 @@ export async function loadPlaza(
   scene: THREE.Scene,
   renderer: THREE.WebGLRenderer,
   onProgress: (ratio: number) => void,
+  options: { shadowMapSize?: number } = {},
 ): Promise<PlazaScene> {
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
@@ -259,7 +260,9 @@ export async function loadPlaza(
     const shadowCamera = sunLight.shadow.camera;
     shadowCamera.left = -26; shadowCamera.right = 26; shadowCamera.top = 26; shadowCamera.bottom = -26;
     shadowCamera.near = 5; shadowCamera.far = 140;
-    sunLight.shadow.mapSize.set(2048, 2048);
+    const shadowSize = options.shadowMapSize ?? 2048;
+    sunLight.castShadow = shadowSize > 0;
+    sunLight.shadow.mapSize.set(Math.max(1, shadowSize), Math.max(1, shadowSize));
     sunLight.shadow.bias = -0.0004;
     sunLight.shadow.normalBias = 0.04;
   }

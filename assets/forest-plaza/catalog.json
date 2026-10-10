@@ -2,7 +2,9 @@
   "plaza": {
     "url": "assets/forest-plaza/plaza.glb",
     "bytes": 15835976,
-    "sourceBytes": 64105128
+    "sourceBytes": 64105128,
+    "liteUrl": "assets/forest-plaza/plaza-lite.glb",
+    "liteBytes": 11543700
   },
   "characters": [
     {

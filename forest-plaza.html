@@ -76,7 +76,7 @@
     <div id="plazaStart" class="plaza-start">
         <button id="plazaStartBtn" class="plaza-start-btn" type="button">クリックして歩きはじめる</button>
         <p class="plaza-start-note">3D酔いしやすい方は、右上の「酔い対策」で視野・見回す速さ・揺れを調整できます</p>
-        <dl class="plaza-keys">
+        <dl id="plazaKeys" class="plaza-keys">
             <dt>W A S D</dt><dd>歩く（Shift で走る）</dd>
             <dt>マウス</dt><dd>見回す</dd>
             <dt>Space</dt><dd>ジャンプ</dd>
@@ -85,6 +85,11 @@
             <dt>V</dt><dd>一人称 / 三人称</dd>
             <dt>Esc</dt><dd>マウスを戻す（もう一度で広場を出る）</dd>
         </dl>
+    </div>
+
+    <div id="plazaTouchControls" class="plaza-touch" hidden>
+        <div id="plazaStick" class="plaza-stick" aria-hidden="true"><span id="plazaStickKnob" class="plaza-stick-knob"></span></div>
+        <button id="plazaJumpBtn" class="plaza-btn plaza-jump-btn" type="button">ジャンプ</button>
     </div>
 
     <div id="plazaHint" class="plaza-hint">WASD：歩く　マウス：見回す　左クリック：あいさつ　長押し：なでる　V：視点　Esc：マウスを戻す</div>

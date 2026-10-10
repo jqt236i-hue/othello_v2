@@ -23,7 +23,7 @@ import { PLAZA_TIMES, loadPlaza, type PlazaScene, type PlazaTimeOfDay } from './
  */
 
 interface PlazaCatalog {
-  plaza: { url: string; bytes: number };
+  plaza: { url: string; bytes: number; liteUrl?: string; liteBytes?: number };
   characters: PlazaCharacterInfo[];
 }
 
@@ -63,6 +63,12 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return element as T;
 };
 
+/**
+ * スマホ・タブレット（指で操作する端末）か。GPU のメモリが少ないので軽い広場・影・解像度にし、
+ * 操作は画面の左下のスティックで歩き、右側をなぞって見回す
+ */
+const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && !window.matchMedia('(pointer: fine)').matches);
+
 /** 入るたびに最初からいるキャラをランダムに選ぶ（同じキャラは重ならない） */
 function pickRandomVisitors(characters: readonly PlazaCharacterInfo[]): string[] {
   const pool = characters.slice();
@@ -73,7 +79,7 @@ function pickRandomVisitors(characters: readonly PlazaCharacterInfo[]): string[]
   const picked: string[] = [];
   let manifests = 0;
   for (const entry of pool) {
-    if (picked.length >= Math.min(RANDOM_VISITOR_COUNT, MAX_VISITORS)) break;
+    if (picked.length >= Math.min(IS_TOUCH ? 3 : RANDOM_VISITOR_COUNT, MAX_VISITORS)) break;
     if (entry.kind === 'manifest') {
       if (manifests >= RANDOM_MANIFEST_LIMIT) continue;
       manifests += 1;
@@ -165,13 +171,20 @@ async function boot(): Promise<void> {
     else closePlaza();
   });
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  const renderer = new THREE.WebGLRenderer({ antialias: !IS_TOUCH, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 1.25 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   view.appendChild(renderer.domElement);
+  // スマホで GPU のメモリが足りなくなると描画が止まる。その時は案内を出す
+  renderer.domElement.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault();
+    loading.hidden = false;
+    loadingBar.style.width = '0%';
+    loadingText.textContent = 'この端末では描画の負荷が大きすぎたため止まりました。閉じてからもう一度開いてください。';
+  });
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(80, 1, 0.03, 600);
@@ -192,11 +205,13 @@ async function boot(): Promise<void> {
   const catalog = (await catalogResponse.json()) as PlazaCatalog;
   const characterById = new Map(catalog.characters.map((entry) => [entry.id, entry]));
 
-  const plaza: PlazaScene = await loadPlaza(`${assetBase}${catalog.plaza.url}`, scene, renderer, (ratio) => {
+  const plazaUrl = IS_TOUCH && catalog.plaza.liteUrl ? catalog.plaza.liteUrl : catalog.plaza.url;
+  const plazaBytes = IS_TOUCH && catalog.plaza.liteBytes ? catalog.plaza.liteBytes : catalog.plaza.bytes;
+  const plaza: PlazaScene = await loadPlaza(`${assetBase}${plazaUrl}`, scene, renderer, (ratio) => {
     const percent = Math.round(ratio * 100);
     loadingBar.style.width = `${percent}%`;
-    loadingText.textContent = `${percent}%（${formatMegabytes(catalog.plaza.bytes)}）`;
-  });
+    loadingText.textContent = `${percent}%（${formatMegabytes(plazaBytes)}）`;
+  }, { shadowMapSize: IS_TOUCH ? 1024 : 2048 });
   const savedTime = loadTimeOfDay();
   let timeOfDay: PlazaTimeOfDay = (PLAZA_TIMES as readonly string[]).includes(savedTime ?? '')
     ? savedTime as PlazaTimeOfDay
@@ -723,12 +738,16 @@ async function boot(): Promise<void> {
     }
   };
   const enterFreeMode = () => {
+    setRosterOpen(false);
+    setComfortOpen(false);
     freeMode = true;
     syncLock();
+    syncTouchControls();
   };
   exitFreeMode = () => {
     freeMode = false;
     syncLock();
+    syncTouchControls();
   };
   const lockPointer = () => {
     setRosterOpen(false);
@@ -742,7 +761,7 @@ async function boot(): Promise<void> {
   };
   document.addEventListener('pointerlockchange', syncLock);
   document.addEventListener('pointerlockerror', enterFreeMode);
-  $('plazaStartBtn').addEventListener('click', lockPointer);
+  $('plazaStartBtn').addEventListener('click', () => (IS_TOUCH ? enterFreeMode() : lockPointer()));
 
   interface Press { since: number; lastPet: number; pets: number; character: PlazaCharacter | null; dragged: number }
   let press: Press | null = null;
@@ -782,6 +801,98 @@ async function boot(): Promise<void> {
     press.pets += 1;
     doPet(character, press.pets);
   };
+  // ------------------------------------------------------------ スマホの操作
+  // 画面の左下 40% に指を置くとスティック（歩く。端まで倒すと走る）、それ以外をなぞると見回す。
+  // キャラをタップであいさつ、キャラの上で指を止めて長押しでなでる
+  const touchControls = $('plazaTouchControls');
+  const stick = $('plazaStick');
+  const stickKnob = $('plazaStickKnob');
+  const STICK_RADIUS = 48;
+  const TOUCH_LOOK_SCALE = 1.5;
+  let stickPointer: number | null = null;
+  const stickCenter = { x: 0, y: 0 };
+  let lookPointer: number | null = null;
+  const lookLast = { x: 0, y: 0 };
+  const setStickVisual = (dx: number, dy: number) => {
+    stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  const resetStick = () => {
+    stickPointer = null;
+    stick.classList.remove('is-active');
+    setStickVisual(0, 0);
+    activePlayer.setStick(0, 0);
+  };
+  if (IS_TOUCH) {
+    $('plazaStartBtn').textContent = 'タップして歩きはじめる';
+    $('plazaKeys').innerHTML = '<dt>左下のスティック</dt><dd>歩く（端まで倒すと走る）</dd>'
+      + '<dt>画面をなぞる</dt><dd>見回す</dd>'
+      + '<dt>キャラをタップ</dt><dd>あいさつ</dd>'
+      + '<dt>キャラを長押し</dt><dd>なでる</dd>'
+      + '<dt>視点ボタン</dt><dd>一人称 / 三人称</dd>';
+    hint.textContent = '左下：歩く　なぞる：見回す　キャラをタップ：あいさつ　長押し：なでる';
+    $('plazaJumpBtn').addEventListener('click', () => activePlayer.jump());
+    canvas.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse') return;
+      event.preventDefault();
+      if (!isActive()) { enterFreeMode(); return; }
+      const rect = canvas.getBoundingClientRect();
+      const inStickArea = event.clientX - rect.left < rect.width * 0.4 && event.clientY - rect.top > rect.height * 0.45;
+      if (inStickArea && stickPointer === null) {
+        stickPointer = event.pointerId;
+        const base = stick.getBoundingClientRect();
+        stickCenter.x = base.left + base.width / 2;
+        stickCenter.y = base.top + base.height / 2;
+        stick.classList.add('is-active');
+      } else if (lookPointer === null) {
+        lookPointer = event.pointerId;
+        lookLast.x = event.clientX;
+        lookLast.y = event.clientY;
+        setPointerNdc(event);
+        press = { since: performance.now(), lastPet: 0, pets: 0, character: aimedCharacter(pointerNdc), dragged: 0 };
+      }
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', (event) => {
+      if (event.pointerType === 'mouse') return;
+      if (event.pointerId === stickPointer) {
+        let dx = event.clientX - stickCenter.x;
+        let dy = event.clientY - stickCenter.y;
+        const length = Math.hypot(dx, dy);
+        if (length > STICK_RADIUS) { dx *= STICK_RADIUS / length; dy *= STICK_RADIUS / length; }
+        setStickVisual(dx, dy);
+        activePlayer.setStick(dx / STICK_RADIUS, -dy / STICK_RADIUS);
+      } else if (event.pointerId === lookPointer) {
+        const dx = event.clientX - lookLast.x;
+        const dy = event.clientY - lookLast.y;
+        lookLast.x = event.clientX;
+        lookLast.y = event.clientY;
+        setPointerNdc(event);
+        if (press) {
+          press.dragged += Math.abs(dx) + Math.abs(dy);
+          if (press.dragged > 12) activePlayer.look(dx * TOUCH_LOOK_SCALE, dy * TOUCH_LOOK_SCALE);
+        }
+      }
+    });
+    const endTouch = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') return;
+      if (event.pointerId === stickPointer) resetStick();
+      if (event.pointerId === lookPointer) {
+        lookPointer = null;
+        if (press && press.pets === 0 && press.dragged <= 12 && event.type === 'pointerup') {
+          const character = aimedCharacter(pointerNdc) ?? press.character;
+          if (character) doTap(character);
+        }
+        press = null;
+      }
+    };
+    canvas.addEventListener('pointerup', endTouch);
+    canvas.addEventListener('pointercancel', endTouch);
+  }
+  const syncTouchControls = () => {
+    touchControls.hidden = !(IS_TOUCH && isActive());
+    if (touchControls.hidden) resetStick();
+  };
+  document.addEventListener('pointerlockchange', syncTouchControls);
   const setViewLabel = () => {
     viewButton.textContent = activePlayer.view === 'first' ? '視点: 一人称' : '視点: 三人称';
   };
@@ -881,5 +992,6 @@ async function boot(): Promise<void> {
 boot().catch((error: unknown) => {
   console.error('[forest-plaza] failed to start', error);
   const text = document.getElementById('plazaLoadingText');
-  if (text) text.textContent = '読み込みに失敗しました。閉じてからもう一度開いてください。';
+  const detail = error instanceof Error ? error.message : String(error);
+  if (text) text.textContent = `読み込みに失敗しました。閉じてからもう一度開いてください。（${detail.slice(0, 120)}）`;
 });

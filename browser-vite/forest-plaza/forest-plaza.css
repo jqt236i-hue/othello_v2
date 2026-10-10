@@ -572,3 +572,72 @@ body {
   color: var(--plaza-sub);
   text-align: center;
 }
+/* スマホの操作（左下のスティック・ジャンプ） */
+.plaza-touch {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.plaza-touch[hidden] {
+  display: none;
+}
+
+.plaza-stick {
+  position: absolute;
+  left: calc(max(18px, env(safe-area-inset-left)) + 8px);
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 64px);
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  opacity: 0.7;
+}
+
+.plaza-stick.is-active {
+  opacity: 1;
+}
+
+.plaza-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.plaza-jump-btn {
+  position: absolute;
+  right: calc(max(18px, env(safe-area-inset-right)) + 8px);
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 60px);
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  .plaza-topbar .plaza-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .plaza-title-sub {
+    display: none;
+  }
+}
+.plaza-start {
+  width: min(360px, calc(100vw - 28px));
+  box-sizing: border-box;
+}
+
+.plaza-keys dt {
+  white-space: nowrap;
+}

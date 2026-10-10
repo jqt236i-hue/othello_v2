@@ -59,6 +59,8 @@ export class PlazaPlayer {
   private readonly knight: KnightRig;
   private readonly arm: FirstPersonArm;
   private readonly keys = new Set<string>();
+  /** スマホのスティック（x: 右が +、y: 前が +。長さ 1 まで） */
+  private readonly stick = new THREE.Vector2();
   private velocityY = 0;
   private grounded = true;
   private speed = 0;
@@ -146,9 +148,20 @@ export class PlazaPlayer {
     return Math.min(1, this.speed / RUN_SPEED + this.turnRate / 4);
   }
 
+  /** スマホのスティックの傾き（長さ 0.9 以上で走る） */
+  setStick(x: number, forward: number): void {
+    this.stick.set(x, forward);
+    if (this.stick.lengthSq() > 1) this.stick.normalize();
+  }
+
+  jump(): void {
+    if (this.grounded) { this.velocityY = JUMP_SPEED; this.grounded = false; }
+  }
+
   /** 押しているキーをすべて離した扱いにする（メニューを開いた時など） */
   releaseKeys(): void {
     this.keys.clear();
+    this.stick.set(0, 0);
   }
 
   private tryMove(x: number, z: number): boolean {
@@ -175,11 +188,19 @@ export class PlazaPlayer {
         if (dir) { ix += dir[0]; iz += dir[1]; }
       }
     }
-    const length = Math.hypot(ix, iz);
-    const running = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
-    const targetSpeed = length > 0 ? (running ? RUN_SPEED : WALK_SPEED) : 0;
-    let moved = 0;
+    let length = Math.hypot(ix, iz);
+    let running = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+    let analog = 1;
     if (length > 0) { ix /= length; iz /= length; }
+    else if (inputEnabled && this.stick.lengthSq() > 0.0025) {
+      length = this.stick.length();
+      ix = this.stick.x / length;
+      iz = this.stick.y / length;
+      running = length > 0.9;
+      analog = running ? 1 : Math.min(1, length / 0.75);
+    }
+    const targetSpeed = length > 0 ? (running ? RUN_SPEED : WALK_SPEED * analog) : 0;
+    let moved = 0;
     // 速度は約 0.2 秒かけて目標に近づける（急発進・急停止は酔いやすい）
     const ease = 1 - Math.exp(-dt * 11);
     this.moveVelocity.x += (ix * targetSpeed - this.moveVelocity.x) * ease;
