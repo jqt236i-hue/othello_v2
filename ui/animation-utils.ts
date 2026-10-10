@@ -285,14 +285,16 @@ const applyPlaceHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.r
 const DRAW_HAND_SPEED_FACTOR = 0.9;
 const applyDrawHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / DRAW_HAND_SPEED_FACTOR));
 const HAND_PLACE_APPROACH_TIME_RATIO = 0.45;
-const HAND_PLACE_APPROACH_MS = Math.max(1, Math.round(applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST))) * HAND_PLACE_APPROACH_TIME_RATIO));
+// Slows the approach and press (everything before the stone lands) for a calmer, more readable placement.
+const HAND_PLACE_PLACING_SLOWDOWN = 1.4;
+const HAND_PLACE_APPROACH_MS = Math.max(1, Math.round(applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST))) * HAND_PLACE_APPROACH_TIME_RATIO * HAND_PLACE_PLACING_SLOWDOWN));
 // The placing hand appears this many cells toward the placer's side of the target cell.
 const HAND_PLACE_ORIGIN_CELL_OFFSET = 2;
 const HAND_PLACE_BOB_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST)));
 // The stone lands at the bottom of the press, so contact happens after the approach plus this half.
-const HAND_PLACE_PRESS_HALF_MS = Math.max(1, Math.round(HAND_PLACE_BOB_MS / 2));
+const HAND_PLACE_PRESS_HALF_MS = Math.max(1, Math.round((HAND_PLACE_BOB_MS * HAND_PLACE_PLACING_SLOWDOWN) / 2));
 // Board playback resumes at stone contact, so a relaxed retreat does not slow the game down.
-const HAND_PLACE_RETREAT_MS = 200;
+const HAND_PLACE_RETREAT_MS = 300;
 // The retreat drifts this many cells sideways toward the placer's hand cards.
 const HAND_PLACE_RETREAT_SIDE_CELL_OFFSET = 1;
 // Keep the placing hand opaque for almost the whole motion: only a brief fade at appearance and exit.

@@ -450,7 +450,7 @@ describe('animation-utils hand fallback', () => {
     // approval remains deliberately unresolved.
     for (let i = 0; i < 12; i += 1) await Promise.resolve();
     // Only the entry fade and the approach have started; the press waits for approval.
-    expect(wrapper.animate.mock.calls.map((call) => call[1].duration)).toEqual([40, 94]);
+    expect(wrapper.animate.mock.calls.map((call) => call[1].duration)).toEqual([40, 131]);
     expect(document.getElementById('heldStone').style.display).toBe('block');
     expect(done).not.toHaveBeenCalled();
     expect(global.SoundEngine.playStoneClack).not.toHaveBeenCalled();
@@ -814,7 +814,7 @@ describe('animation-utils hand fallback', () => {
         && Array.isArray(call[0])
         && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')));
 
-    expect(wrapperTransformCalls.map(({ call }) => call[1].duration)).toEqual([94, 78, 200]);
+    expect(wrapperTransformCalls.map(({ call }) => call[1].duration)).toEqual([131, 110, 300]);
     expect(wrapperTransformCalls.map(({ call }) => call[1].easing)).toEqual([
       'cubic-bezier(0.33, 1, 0.68, 1)',
       'linear',
@@ -903,15 +903,15 @@ describe('animation-utils hand fallback', () => {
     const mod = require('../ui/animation-utils.js');
     await expect(mod.playHandAnimation(player, 0, 0, jest.fn())).resolves.toBeUndefined();
 
-    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 94);
-    const retreatCall = animateMock.mock.calls.find((call) => call[1].duration === 200);
+    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 131);
+    const retreatCall = animateMock.mock.calls.find((call) => call[1].duration === 300);
     expect(approachCall?.[0]).toEqual(expectedApproach);
     expect(retreatCall?.[0]).toEqual(expectedRetreat);
     const opacityCalls = animateMock.mock.calls
       .filter((call) => call[0].every((frame) => !Object.prototype.hasOwnProperty.call(frame, 'transform')));
     expect(opacityCalls).toEqual([
       [[{ opacity: 0 }, { opacity: 1 }], { duration: 40, delay: 0, easing: 'linear', fill: 'forwards' }],
-      [[{ opacity: 1 }, { opacity: 0 }], { duration: 50, delay: 150, easing: 'linear', fill: 'forwards' }]
+      [[{ opacity: 1 }, { opacity: 0 }], { duration: 50, delay: 250, easing: 'linear', fill: 'forwards' }]
     ]);
     expect(wrapper.style.opacity).toBe('0');
   });
@@ -941,7 +941,7 @@ describe('animation-utils hand fallback', () => {
       ['offsetLeft', 'offsetTop', 'offsetWidth', 'offsetHeight'].forEach((key) => delete heldStone[key]);
     }
 
-    const approach = animateMock.mock.calls.find((call) => call[1].duration === 94);
+    const approach = animateMock.mock.calls.find((call) => call[1].duration === 131);
     const [, dropX, dropY] = approach[0][1].transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/).map(Number);
     // Map the held stone center through the wrapper transform (origin: center bottom, scale 0.8).
     const stoneCenterX = 60 + (0.8 * ((120 * 90 / 180) - 60)) + dropX;
@@ -961,7 +961,7 @@ describe('animation-utils hand fallback', () => {
     cell.getBoundingClientRect = () => ({ left: 180, top: 180, width: 60, height: 60, right: 240, bottom: 240 });
     let placingDuringApproach = null;
     wrapper.animate = jest.fn((frames, options) => {
-      if (options && options.duration === 94) placingDuringApproach = wrapper.classList.contains('hand-wrapper--placing');
+      if (options && options.duration === 131) placingDuringApproach = wrapper.classList.contains('hand-wrapper--placing');
       return { addEventListener: jest.fn(), finished: Promise.resolve() };
     });
     const shadowAnimate = jest.fn(() => ({ addEventListener: jest.fn(), finished: Promise.resolve() }));
@@ -993,7 +993,7 @@ describe('animation-utils hand fallback', () => {
       return { x, y, scale, opacity: frame.opacity };
     };
     const calls = shadowAnimate.mock.calls;
-    expect(calls.map((call) => call[1].duration)).toEqual([94, 78, 200]);
+    expect(calls.map((call) => call[1].duration)).toEqual([131, 110, 300]);
     const [approachFrom, approachTo] = calls[0][0].map(pose);
     const pressed = pose(calls[1][0][1]);
     const retreatTo = pose(calls[2][0][1]);
@@ -2204,7 +2204,7 @@ describe('animation-utils hand fallback', () => {
       const mod = require('../ui/animation-utils.js');
       await new Promise((resolve) => mod.playHandAnimation(global.BLACK, 0, 0, resolve));
       expect(appended.some((el) => el.classList && el.classList.contains('thrown-stone'))).toBe(false);
-      expect(animateMock.mock.calls.some((call) => call[1].duration === 94)).toBe(true);
+      expect(animateMock.mock.calls.some((call) => call[1].duration === 131)).toBe(true);
       expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
     });
 
