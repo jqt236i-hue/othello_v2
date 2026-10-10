@@ -67,7 +67,7 @@ describe('deck builder controller', () => {
   });
 
   function openEditor(body) {
-    const editButton = Array.from(body.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid button')).find((button) => button.textContent === '編集');
+    const editButton = Array.from(body.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid button')).find((button) => button.textContent === '編集' || button.textContent === '構築');
     expect(editButton).toBeTruthy();
     editButton.click();
   }
@@ -205,44 +205,38 @@ describe('deck builder controller', () => {
     expect(defaultCard.textContent).toContain('IN USE');
   });
 
-  test('全カードデッキはローカルで選択でき、CPU対戦ではプレイヤー黒にだけ適用する', () => {
-    const DeckSpecHelpers = require('../shared/deck-spec.js');
-    const CardLogic = require('../game/logic/cards.js');
+  test('デッキ構築画面には全カードデッキの選択肢を置かない', () => {
     const body = document.getElementById('body');
-    const expectedCardIds = DeckSpecHelpers.getAllCardsDeckCardIds();
-    const prng = { shuffle: (array) => array, random: () => 0.5 };
-    window.getCurrentMatchMode = () => 'cpu';
 
-    const controller = createController();
-    controller.open();
+    createController().open();
 
-    const allCardsDeck = body.querySelector('.deck-builder-all-cards-hero');
-    expect(allCardsDeck).toBeTruthy();
-    expect(allCardsDeck.textContent).toContain('全カードデッキ');
-    expect(allCardsDeck.textContent).toContain(`${expectedCardIds.length}枚`);
+    expect(body.querySelector('.deck-builder-all-cards-hero')).toBeNull();
+    expect(body.querySelector('.deck-builder-loadout-column').textContent).not.toContain('全カードデッキ');
+    expect(body.querySelectorAll('.deck-builder-default-hero')).toHaveLength(1);
+  });
 
-    const useButton = Array.from(allCardsDeck.querySelectorAll('button')).find((button) => button.textContent === '使 用');
-    expect(useButton).toBeTruthy();
-    useButton.click();
+  test('空きスロットは「構築」ボタンだけを出し、カード全体のクリックでも構築画面を開く', () => {
+    const body = document.getElementById('body');
+    const savedDeck = createThirtyCardDeck(0);
+    const presetState = buildPresetState('preset_1', '保存デッキ', savedDeck.deckCode);
+    presetState.activePresetId = '';
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(presetState));
 
-    expect(controller.getActiveLocalChoice()).toMatchObject({
-      source: 'all-cards',
-      mode: 'all-cards',
-      name: '全カードデッキ',
-      deckSize: expectedCardIds.length
-    });
-    expect(controller.getActiveLocalChoice().deckCardIds).toEqual(expectedCardIds);
-    expect(document.getElementById('summary').textContent).toBe(`全カードデッキ / ${expectedCardIds.length}枚`);
-    expect(body.querySelector('.deck-builder-all-cards-hero').classList.contains('is-active')).toBe(true);
-    expect(body.querySelector('.deck-builder-default-hero').classList.contains('is-active')).toBe(false);
+    createController().open();
 
-    const options = controller.buildCardInitOptions();
-    expect(options.initialDeckCardIdsByPlayer).toEqual({ black: expectedCardIds });
-    expect(options.initialDeckSpecByPlayer).toBeUndefined();
+    const slotCards = Array.from(body.querySelectorAll('.deck-builder-workshop-grid > .deck-builder-save-slot-card'));
+    const filledButtons = Array.from(slotCards[0].querySelectorAll('button')).map((button) => button.textContent);
+    expect(filledButtons).toEqual(['使用', '編集']);
+    expect(slotCards[0].querySelector('.deck-builder-preset-title').getAttribute('title')).toBe('保存デッキ');
 
-    const cardState = CardLogic.createCardState(prng, options);
-    expect(cardState.decks.black).toEqual(expectedCardIds);
-    expect(cardState.decks.white).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
+    const emptyCard = slotCards[1];
+    expect(emptyCard.classList.contains('is-empty')).toBe(true);
+    expect(Array.from(emptyCard.querySelectorAll('button')).map((button) => button.textContent)).toEqual(['構築']);
+
+    emptyCard.querySelector('.deck-builder-empty-cta').click();
+
+    expect(body.querySelector('.deck-builder-view-editor')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-preset-destination-select').value).toBe('preset_2');
   });
 
   test('デッキ選択画面を観測室アーカイブの専用サーフェスで包む', () => {
@@ -895,32 +889,6 @@ describe('deck builder controller', () => {
 
       expect(updateDeckSelection).toHaveBeenCalledTimes(1);
       expect(updateDeckSelection).toHaveBeenCalledWith('');
-    } finally {
-      delete window.NetworkMatchClient;
-    }
-  });
-
-  test('ネット対戦中に全カードデッキを選んでも room のデッキ選択は上書きしない', () => {
-    const updateDeckSelection = jest.fn(() => Promise.resolve({ ok: true }));
-
-    window.NetworkMatchClient = {
-      isActive: () => true,
-      isSpectator: () => false,
-      getRoomDeck: () => null,
-      updateDeckSelection
-    };
-
-    try {
-      const controller = createController();
-      controller.open();
-
-      const allCardsUseButton = document.querySelector('.deck-builder-all-cards-hero button');
-      expect(allCardsUseButton).toBeTruthy();
-      allCardsUseButton.click();
-
-      expect(updateDeckSelection).not.toHaveBeenCalled();
-      expect(controller.getActiveLocalChoice()).toMatchObject({ mode: 'all-cards', source: 'all-cards' });
-      expect(document.querySelector('.deck-builder-notice').textContent).toContain('ローカル対戦用');
     } finally {
       delete window.NetworkMatchClient;
     }

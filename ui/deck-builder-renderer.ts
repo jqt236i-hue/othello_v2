@@ -574,6 +574,8 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
   const title = document.createElement('div');
   title.className = 'deck-builder-preset-title';
   title.textContent = preset.displayName;
+  // 長い名前は2行で省略するため、全文はツールチップで読めるようにする。
+  title.title = String(preset.displayName || '');
   meta.appendChild(title);
 
   const summary = document.createElement('div');
@@ -696,53 +698,6 @@ function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): H
   return card;
 }
 
-function createAllCardsDeckHero(viewModel: any, onUse: any, isActive: boolean): HTMLElement {
-  const deckSize = Math.max(0, Math.floor(Number(viewModel && viewModel.allCardsDeckSize) || 0));
-  const card = document.createElement('div');
-  card.className = `deck-builder-preset-card deck-builder-standard-card deck-builder-default-hero deck-builder-all-cards-hero ${isActive ? 'is-active' : 'is-filled'}`;
-  card.dataset.slotState = 'all-cards';
-
-  if (isActive) {
-    card.appendChild(createActiveSealElement('全カードデッキ'));
-  }
-
-  const sigil = document.createElement('div');
-  sigil.className = 'deck-builder-hero-sigil';
-  sigil.setAttribute('aria-hidden', 'true');
-  sigil.textContent = 'ALL CARDS';
-  card.appendChild(sigil);
-
-  const title = document.createElement('div');
-  title.className = 'deck-builder-preset-title';
-  title.textContent = '全カードデッキ';
-  card.appendChild(title);
-
-  const sub = document.createElement('div');
-  sub.className = 'deck-builder-preset-summary';
-  const count = document.createElement('b');
-  count.textContent = `${deckSize}枚`;
-  sub.appendChild(count);
-  sub.appendChild(document.createTextNode(' · 使用可能カード全種'));
-  card.appendChild(sub);
-
-  const metaRow = document.createElement('div');
-  metaRow.className = 'deck-builder-hero-meta';
-  const pill = document.createElement('span');
-  pill.className = 'deck-builder-format-pill';
-  pill.textContent = 'ALL CARDS';
-  metaRow.appendChild(pill);
-  const metaText = document.createElement('span');
-  metaText.className = 'deck-builder-hero-meta-text';
-  metaText.textContent = 'フォーマット: 全カード';
-  metaRow.appendChild(metaText);
-  card.appendChild(metaRow);
-
-  const cta = createButton('使 用', 'btn-small deck-builder-hero-cta', typeof onUse === 'function' ? onUse : undefined);
-  card.appendChild(cta);
-
-  return card;
-}
-
 function createSectionIcon(svgInner: string): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'deck-builder-section-icon';
@@ -782,7 +737,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
 
   const intro = document.createElement('div');
   intro.className = 'deck-builder-intro';
-  intro.textContent = '6つまで保存できます。使用で即時切替、編集で構築画面を開きます。';
+  intro.textContent = '6つまで保存できます。「使用」で即時切替、「編集」または空きスロットのクリックで構築画面を開きます。';
   wrapper.appendChild(intro);
 
   const workspace = document.createElement('div');
@@ -797,14 +752,10 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
 
   const savedPresets = Array.isArray(viewModel.presets) ? viewModel.presets : [];
   const builtInPresets = Array.isArray(viewModel.builtInPresets) ? viewModel.builtInPresets : [];
-  const isAllCardsActive = viewModel.allCardsDeckActive === true;
-  const isStandardActive = !isAllCardsActive
-    && !savedPresets.some((preset: any) => preset && preset.isActive)
+  const isStandardActive = !savedPresets.some((preset: any) => preset && preset.isActive)
     && !builtInPresets.some((preset: any) => preset && preset.isActive);
   const standardCard = createDefaultDeckHero(viewModel, handlers.onUseStandard, isStandardActive);
   defaultPresetRow.appendChild(standardCard);
-  const allCardsCard = createAllCardsDeckHero(viewModel, handlers.onUseAllCards, isAllCardsActive);
-  defaultPresetRow.appendChild(allCardsCard);
 
   if (builtInPresets.length > 0) {
     const builtInSection = document.createElement('div');
@@ -849,10 +800,26 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   viewModel.presets.forEach((preset: any, slotIndex: number) => {
     const actions = document.createElement('div');
     actions.className = 'deck-builder-actions-row';
-    actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
-    actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
+    const isEmptySlot = classifyPresetSlotState(preset) === 'empty';
+    if (isEmptySlot) {
+      // 空きスロットは使えないので「使用」を出さず、構築だけを1つのボタンにする。
+      actions.classList.add('is-single');
+      actions.appendChild(createButton('構築', 'btn-small deck-builder-build-btn', () => handlers.onEditPreset(preset.id)));
+    } else {
+      actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
+      actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
+    }
 
-    presetGrid.appendChild(createPresetCard(preset, actions, { slotIndex }));
+    const presetCard = createPresetCard(preset, actions, { slotIndex });
+    if (isEmptySlot) {
+      // 「クリックして構築」の表示どおり、カード全体を押しても構築画面を開く。
+      presetCard.addEventListener('click', (event: Event) => {
+        const target = event.target as HTMLElement | null;
+        if (target && typeof target.closest === 'function' && target.closest('button')) return;
+        handlers.onEditPreset(preset.id);
+      });
+    }
+    presetGrid.appendChild(presetCard);
   });
 
   loadoutColumn.appendChild(defaultPresetRow);
@@ -1050,6 +1017,7 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
   }
   if (uiRefs.headerSummary) {
     uiRefs.headerSummary.textContent = model.headerSummaryText || '';
+    uiRefs.headerSummary.title = model.headerSummaryText || '';
   }
   if (uiRefs.controlSummary) {
     uiRefs.controlSummary.textContent = model.controlSummaryText || '';
