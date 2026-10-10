@@ -65,6 +65,8 @@ test_run_output.txt
 # Disposable investigation output. Durable documentation belongs in docs/ and
 # shipped images belong in assets/; artifacts/ must never become source input.
 /artifacts/
+# Image generation drafts are local references; publish chosen art from assets/.
+/generated-images/
 
 # Debug Python scripts
 check_*.py

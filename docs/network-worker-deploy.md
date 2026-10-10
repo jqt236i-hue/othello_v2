@@ -6,7 +6,7 @@
   - Worker 本体: `workers/match-worker.mjs`
   - Durable Objects バインディング: `MATCH_ROOM`
   - 静的配信バインディング: `ASSETS`
-  - マイグレーション: `MatchRoomDurableObject`
+  - マイグレーション: `MatchRoomDurableObject` → `MatchRoomDurableObjectV2` → `MatchRoomDurableObjectV3`（現行の `MATCH_ROOM` は V3）
 
 ## 2. ローカル確認
 
