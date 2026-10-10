@@ -1831,6 +1831,17 @@ html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack >
 
 /* Stage-first desktop/tablet layout: keep 1920x1080 relative composition stable. */
 @media (min-width: 56.3125em) {
+    /* Reserve the lower-left space beneath the information HUD for the full hero and its name. */
+    html.layout-profile-16x9.layout-stage-enabled {
+        --layout-anchor-hero-bottom: 64px;
+        --layout-hero-clearance-scale: 0.8;
+    }
+
+    html.layout-profile-16x9.layout-stage-enabled #hero-character-img {
+        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-hero-clearance-scale));
+        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-hero-clearance-scale));
+    }
+
     html.layout-profile-tablet-4x3.layout-stage-enabled #game-container {
         gap: calc(8px * var(--layout-stage-scale));
         padding-bottom: calc(96px * var(--layout-stage-scale));
