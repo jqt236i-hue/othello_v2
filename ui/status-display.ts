@@ -34,6 +34,7 @@ const TURN_ARRIVAL_TOAST_REFERENCE_WIDTH = 164;
 const TURN_ARRIVAL_TOAST_PHONE_REFERENCE_WIDTH = 132;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/hero.png';
+const NETWORK_OPPONENT_HERO_IMAGE_SRC = 'assets/images/hero/hero-white.png';
 const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
 const NETWORK_WAITING_NAME = '接続待ち';
 const PORTRAIT_SPEECH_ROLE_CPU = 'cpu';
@@ -856,18 +857,18 @@ function readWhiteCpuProfileValue(): string {
 }
 
 function updateHeroCharacterForBlackCpuProfile(): void {
-    if (isNetworkModeForLabels()) return;
+    const networkMode = isNetworkModeForLabels();
     const heroImg = document.getElementById('hero-character-img') as HTMLImageElement | null;
     const heroLabel = document.getElementById('hero-label');
     if (!heroImg) {
-        setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
+        if (!networkMode) setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         return;
     }
 
     const selectedProfileValue = readCpuProfileValue('black');
     const fallbackLevel = (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).black : 1) || 1);
     const cpuProfile = CpuOpponentProfiles.getCpuOpponentProfile(selectedProfileValue || fallbackLevel);
-    const useCpuPortrait = !!(cpuProfile && Number(cpuProfile.level) >= 6);
+    const useCpuPortrait = !networkMode && !!(cpuProfile && Number(cpuProfile.level) >= 6);
     const primaryPath = useCpuPortrait
         ? String(cpuProfile.portraitSrc || HERO_IMAGE_SRC)
         : HERO_IMAGE_SRC;
@@ -876,7 +877,7 @@ function updateHeroCharacterForBlackCpuProfile(): void {
         : HERO_DEFAULT_LABEL;
 
     heroImg.alt = label;
-    setHeroLabelText(heroLabel, label);
+    if (!networkMode) setHeroLabelText(heroLabel, label);
 
     requestPortraitImage(heroImg, primaryPath, [HERO_IMAGE_SRC], () => {
         heroImg.style.opacity = '';
@@ -1254,7 +1255,7 @@ function updateCpuCharacter(): void {
     
     if (charImg && levelLabel) {
         const primaryPath = useNetworkHeroPresentation
-            ? HERO_IMAGE_SRC
+            ? NETWORK_OPPONENT_HERO_IMAGE_SRC
             : (hasNamedProfileOverride
                 ? String(cpuProfile.portraitSrc)
                 : (specialPresentation && specialPresentation.imageSrc

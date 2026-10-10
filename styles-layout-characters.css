@@ -52,6 +52,11 @@
     --cpu-character-face-direction: 1;
 }
 
+/* The white counterpart faces inward from the opponent's right-hand portrait slot. */
+#cpu-character-img.is-network-opponent-hero[data-card-reversi-logical-src="assets/images/hero/hero-white.png"] {
+    --cpu-character-face-direction: -1;
+}
+
 #cpu-character-img[data-card-reversi-logical-src="assets/images/cpu/observed-dark-dragon-transparent.png"] {
     --cpu-character-face-direction: -1;
 }

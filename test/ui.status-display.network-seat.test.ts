@@ -28,10 +28,12 @@ describe('status-display network seat labels', () => {
     delete global.WHITE;
   });
 
-  test('normalizes padded uppercase seat key before applying network labels', () => {
+  test.each([' BLACK ', ' WHITE '])('uses a white opponent and black self portrait for either network seat (%s)', (seatKey) => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<img id="cpu-character-img" />' +
+      '<img id="hero-character-img" src="assets/images/special-cards/characters/board_executor.png" />' +
+      '<select id="smartBlack"><option value="7-board-executor" selected>盤界の執行者</option></select>' +
       '<button id="cpu-level-label" type="button"></button>' +
       '<div id="hero-label"></div>' +
       '</body></html>',
@@ -51,7 +53,7 @@ describe('status-display network seat labels', () => {
     window.OwnerHelpers = require('../utils/owner-helpers');
     window.MatchMode = { isNetworkModeActive: () => true };
     window.NetworkMatchClient = {
-      getSeatKey: () => ' WHITE ',
+      getSeatKey: () => seatKey,
       getSeatNames: () => ({ black: '  Alpha  ', white: '  Beta  ' })
     };
     window.Image = class FakeImage {
@@ -75,13 +77,28 @@ describe('status-display network seat labels', () => {
     window.document.getElementById('hero-label').classList.add('is-default-hero-label');
     window.updateCpuCharacter();
 
+    const ownSeatIsWhite = seatKey.trim() === 'WHITE';
     expect(window.document.getElementById('hero-label').classList.contains('is-default-hero-label')).toBe(false);
-    expect(window.document.getElementById('hero-label').textContent).toBe('白:Beta');
-    expect(window.document.getElementById('cpu-level-label').textContent).toBe('黒:Alpha');
+    expect(window.document.getElementById('hero-label').textContent).toBe(ownSeatIsWhite ? '白:Beta' : '黒:Alpha');
+    expect(window.document.getElementById('cpu-level-label').textContent).toBe(ownSeatIsWhite ? '黒:Alpha' : '白:Beta');
+    expect(window.document.getElementById('hero-character-img').src).toContain('/assets/images/hero/hero.png');
     expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('true');
-    expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/hero/hero.png');
+    expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/hero/hero-white.png');
     expect(window.document.getElementById('cpu-character-img').alt).toBe('対戦相手の勇者');
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(true);
+
+    window.MatchMode.isNetworkModeActive = () => false;
+    window.updateCpuCharacter();
+    expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/cpu/level2.png');
+    expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(false);
+    expect(window.document.getElementById('hero-character-img').src).toContain('/assets/images/special-cards/characters/board_executor.png');
+    expect(window.document.getElementById('hero-label').textContent).toBe('盤界の執行者');
+    expect(window.document.getElementById('hero-label').classList.contains('is-default-hero-label')).toBe(false);
+
+    window.MatchMode.isNetworkModeActive = () => true;
+    window.updateCpuCharacter();
+    expect(window.document.getElementById('cpu-character-img').src).toContain('/assets/images/hero/hero-white.png');
+    expect(window.document.getElementById('hero-label').textContent).toBe(ownSeatIsWhite ? '白:Beta' : '黒:Alpha');
 
     dom.window.close();
   });

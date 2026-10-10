@@ -328,11 +328,11 @@ describe('mobile command surface', () => {
 
     sourceLabel.textContent = '白: Alpha';
     sourceLabel.setAttribute('aria-disabled', 'true');
-    sourceImage.setAttribute('src', 'assets/images/hero/hero.png');
-    sourceImage.setAttribute('data-card-reversi-logical-src', 'assets/images/hero/hero.png');
+    sourceImage.setAttribute('src', 'assets/images/hero/hero-white.png');
+    sourceImage.setAttribute('data-card-reversi-logical-src', 'assets/images/hero/hero-white.png');
     sourceImage.alt = '対戦相手の勇者';
     controller.sync();
-    expect(avatarImage.getAttribute('src')).toBe('assets/images/hero/hero.png');
+    expect(avatarImage.getAttribute('src')).toBe('assets/images/hero/hero-white.png');
     expect(avatar.disabled).toBe(true);
     expect(avatar.getAttribute('aria-label')).toBe('白: Alpha');
     avatar.click();
