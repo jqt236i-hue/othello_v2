@@ -222,6 +222,16 @@ describe('status-display round bonus surface', () => {
     expect(img.src).toContain('assets/images/hero/hero.png');
     expect(img.alt).toBe('リバーシの勇者');
     expect(label.textContent).toBe('リバーシの勇者');
+    expect(label.classList.contains('is-default-hero-label')).toBe(true);
+
+    smartBlack.value = '7-board-executor';
+    window.updateStatus();
+    expect(label.textContent).toBe('盤界の執行者');
+    expect(label.classList.contains('is-default-hero-label')).toBe(false);
+
+    smartBlack.value = '1';
+    window.updateStatus();
+    expect(label.classList.contains('is-default-hero-label')).toBe(true);
 
     teardownStatusDisplayDom(dom);
   });

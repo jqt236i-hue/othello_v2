@@ -190,10 +190,16 @@ function applyCpuLevelLabelInteractivity(levelLabel: any, interactive: boolean, 
     }
 }
 
+function setHeroLabelText(heroLabel: HTMLElement | null, label: string): void {
+    if (!heroLabel) return;
+    heroLabel.textContent = label;
+    heroLabel.classList.toggle('is-default-hero-label', label === HERO_DEFAULT_LABEL);
+}
+
 function applyNetworkSeatLabels(levelLabel: any): boolean {
     const heroLabel = document.getElementById('hero-label');
     if (!isNetworkModeForLabels()) {
-        if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+        setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         return false;
     }
 
@@ -204,9 +210,7 @@ function applyNetworkSeatLabels(levelLabel: any): boolean {
     const ownName = normalizeNetworkDisplayName(seatNames[ownSeatKey]) || 'あなた';
     const opponentName = normalizeNetworkDisplayName(seatNames[opponentSeatKey]) || NETWORK_WAITING_NAME;
 
-    if (heroLabel) {
-        heroLabel.textContent = `${toSeatLabel(ownSeatKey)}:${ownName}`;
-    }
+    setHeroLabelText(heroLabel, `${toSeatLabel(ownSeatKey)}:${ownName}`);
     if (levelLabel) {
         applyCpuLevelLabelInteractivity(levelLabel, false, `${toSeatLabel(opponentSeatKey)}:${opponentName}`);
     }
@@ -856,7 +860,7 @@ function updateHeroCharacterForBlackCpuProfile(): void {
     const heroImg = document.getElementById('hero-character-img') as HTMLImageElement | null;
     const heroLabel = document.getElementById('hero-label');
     if (!heroImg) {
-        if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+        setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         return;
     }
 
@@ -872,7 +876,7 @@ function updateHeroCharacterForBlackCpuProfile(): void {
         : HERO_DEFAULT_LABEL;
 
     heroImg.alt = label;
-    if (heroLabel) heroLabel.textContent = label;
+    setHeroLabelText(heroLabel, label);
 
     requestPortraitImage(heroImg, primaryPath, [HERO_IMAGE_SRC], () => {
         heroImg.style.opacity = '';
@@ -1292,7 +1296,7 @@ function updateCpuCharacter(): void {
             : defaultName;
         if (specialPresentation) {
             applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
-            if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+            setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         }
         else if (!applyNetworkSeatLabels(levelLabel)) {
             applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level >= 10 ? '\n' : ' '}${displayName}`);

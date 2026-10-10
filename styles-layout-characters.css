@@ -686,6 +686,11 @@
     filter: drop-shadow(var(--ui-drop-shadow-panel));
 }
 
+/* Hide only the default hero name while retaining its space and portrait position. */
+#hero-label.is-default-hero-label {
+    visibility: hidden;
+}
+
 /* Character panel baseline offsets shared across responsive profiles. */
 #cpu-character-panel,
 #hero-character-panel {

@@ -10,6 +10,12 @@ describe('status-display cpu image scaling', () => {
     expect(readCssBlock(css, '#hero-character-img')).toMatch(/--hero-character-face-direction:\s*-1\s*;/);
   });
 
+  test('hides the default hero name without removing the space below its portrait', () => {
+    const rule = readCssBlock(readLayoutCssSurface(), '#hero-label.is-default-hero-label');
+    expect(rule).toMatch(/visibility:\s*hidden\s*;/);
+    expect(rule).not.toMatch(/display:\s*none/);
+  });
+
   test('uses CSS variable based level scaling without JS pixel width override', () => {
     const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
     const js = fs.readFileSync(jsPath, 'utf8');

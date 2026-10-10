@@ -72,8 +72,10 @@ describe('status-display network seat labels', () => {
     global.Image = window.Image;
 
     loadStatusDisplayIntoWindow(window);
+    window.document.getElementById('hero-label').classList.add('is-default-hero-label');
     window.updateCpuCharacter();
 
+    expect(window.document.getElementById('hero-label').classList.contains('is-default-hero-label')).toBe(false);
     expect(window.document.getElementById('hero-label').textContent).toBe('白:Beta');
     expect(window.document.getElementById('cpu-level-label').textContent).toBe('黒:Alpha');
     expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('true');
