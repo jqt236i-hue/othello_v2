@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh/src/index.js';
 
 /**
  * 森のリバーシ広場（Blender 製 v06 を圧縮した GLB）の読み込みと照明。
@@ -69,9 +70,11 @@ const EMIT_SCALE: Record<string, number> = {
 /** 60W のランタンを書き出した強さ（cd） */
 const LAMP_REF = 3261;
 const PLAZA_CENTER = fromBlender(0.5, 9.5, 0);
-const FLOOR_MESH = /^(Flagstones|Terrain|DeckTop|LandingFloor)$/;
+const FLOOR_MESH = /^(Flagstones|Terrain|DeckTop|LandingFloor|AlcoveFloor)$/;
+/** プレイヤーだけがぶつかる大きな形（巨木の幹・土手の岩壁と根・森の内側の木） */
+const PLAYER_SOLID_MESH = /^(GiantTrees|BankRockWall|BankRoots|ForestInner)$/;
 /** 足元の判定に使わない大きな形（地形・森・樹冠・背景）。三角形が多く、毎回の判定が重くなるため除く */
-const NON_OBSTACLE_MESH = /^(Backdrop|HazeScrim|Canopy|CanopySheet|ForestRing|ForestInner|Understory|BankPlants|BankRockWall|BankRoots|GiantTrees|Plants|AlcoveFloor|AlcoveRug|Rug)$/;
+const NON_OBSTACLE_MESH = /^(Backdrop|HazeScrim|Canopy|CanopySheet|ForestRing|ForestInner|Understory|BankPlants|BankRockWall|BankRoots|GiantTrees|Plants|AlcoveRug|Rug)$/;
 
 export interface PlazaScene {
   root: THREE.Object3D;
@@ -79,6 +82,8 @@ export interface PlazaScene {
   floorMeshes: THREE.Mesh[];
   /** キャラが歩いて通り抜けない家具・小物（切り株のテーブル・ピアノ・岩など、形の小さいもの） */
   obstacleMeshes: THREE.Mesh[];
+  /** プレイヤーがぶつかる形（obstacleMeshes に巨木・土手を足したもの） */
+  playerSolidMeshes: THREE.Mesh[];
   setTime(name: PlazaTimeOfDay): void;
   dispose(): void;
 }
@@ -156,6 +161,7 @@ export async function loadPlaza(
   const leafMaterials = new Map<THREE.MeshStandardMaterial, number>();
   const floorMeshes: THREE.Mesh[] = [];
   const obstacleMeshes: THREE.Mesh[] = [];
+  const playerSolidMeshes: THREE.Mesh[] = [];
   const ownedMaterials: THREE.Material[] = [];
 
   root.traverse((object) => {
@@ -215,6 +221,7 @@ export async function loadPlaza(
         ? mesh.parent.name
         : mesh.name;
       if (FLOOR_MESH.test(mesh.name) || FLOOR_MESH.test(nodeName)) floorMeshes.push(mesh);
+      else if (PLAYER_SOLID_MESH.test(mesh.name) || PLAYER_SOLID_MESH.test(nodeName)) playerSolidMeshes.push(mesh);
       else if (!NON_OBSTACLE_MESH.test(mesh.name) && !NON_OBSTACLE_MESH.test(nodeName)) obstacleMeshes.push(mesh);
       if (!Array.isArray(mesh.material) && mesh.material.name === 'CanopyLeaves') {
         // 木漏れ日の天井：影だけ落として画面には描かない
@@ -237,6 +244,12 @@ export async function loadPlaza(
   });
   scene.add(root);
   root.updateMatrixWorld(true);
+  playerSolidMeshes.push(...obstacleMeshes);
+  // 足元・当たり判定の光線を速くする（三角形の索引木を作る。数十万三角形で 1 回の判定が 1ms 未満になる）
+  for (const mesh of new Set([...floorMeshes, ...playerSolidMeshes])) {
+    if (!mesh.geometry.boundsTree) mesh.geometry.boundsTree = new MeshBVH(mesh.geometry);
+    mesh.raycast = acceleratedRaycast;
+  }
 
   const sunLight = sun as THREE.DirectionalLight | null;
   if (sunLight) {
@@ -298,6 +311,7 @@ export async function loadPlaza(
     root.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
+      mesh.geometry.boundsTree = undefined;
       mesh.geometry.dispose();
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       for (const material of materials) {
@@ -312,5 +326,5 @@ export async function loadPlaza(
     if (sunLight) sunLight.shadow.dispose();
   }
 
-  return { root, floorMeshes, obstacleMeshes, setTime, dispose };
+  return { root, floorMeshes, obstacleMeshes, playerSolidMeshes, setTime, dispose };
 }

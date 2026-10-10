@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PlazaCharacter, type PlazaCharacterInfo, type WalkArea } from './characters';
+import { PlazaPlayer, type PlayerWorld } from './player';
 import {
   AFFECTION_MAX,
   affectionHearts,
@@ -36,8 +36,19 @@ const KIND_GROUPS: readonly { kind: PlazaCharacterInfo['kind']; label: string }[
 ];
 /** キャラが歩ける広場の範囲（three 座標。切り株のテーブルのまわりの敷石） */
 const WALK_BOUNDS = { minX: -4.6, maxX: 3.2, minZ: -8.4, maxZ: -0.2 };
-/** カメラの注視点を動かせる範囲 */
-const TARGET_BOUNDS = new THREE.Box3(new THREE.Vector3(-6, 0.3, -13), new THREE.Vector3(6, 2.6, 0.5));
+/** プレイヤーが歩ける範囲（敷石の広場とそのまわり。外の森へは出ない） */
+const PLAYER_BOUNDS = { minX: -13.5, maxX: 13.5, minZ: -22.5, maxZ: 5.5 };
+/** プレイヤーの最初の位置と向き（広場の入口から切り株のテーブルを見る） */
+const PLAYER_START = new THREE.Vector3(0.2, 0, 1.2);
+const PLAYER_START_YAW = Math.atan2(0.85, 5.2);
+/** 一度に登れる段差と、降りてよい段差（m） */
+const PLAYER_STEP_UP = 0.45;
+const PLAYER_MAX_DROP = 1.6;
+/** あいさつ・なでるが届く距離（目から m） */
+const REACH = 3.2;
+/** 長押しでなでるまでの時間と、なでる間隔（ms） */
+const PET_HOLD_MS = 350;
+const PET_INTERVAL_MS = 420;
 
 /** 素材の置き場所。ビルド後は vite-dist/ の下、素材は repo 直下の assets/ */
 const assetBase = new URL(window.location.pathname.includes('/vite-dist/') ? '../' : './', window.location.href).href;
@@ -128,6 +139,9 @@ async function boot(): Promise<void> {
   const hint = $('plazaHint');
   $('plazaRosterMax').textContent = String(MAX_VISITORS);
 
+  /** マウスを捕まえられない環境での操作中か（ドラッグで見回す） */
+  let freeMode = false;
+  let exitFreeMode = () => { freeMode = false; };
   const closePlaza = () => {
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: CLOSE_MESSAGE }, window.location.origin);
@@ -138,6 +152,9 @@ async function boot(): Promise<void> {
   $('plazaCloseBtn').addEventListener('click', closePlaza);
   window.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    // マウスを捕まえている間の Esc はブラウザがマウスを戻すのに使う（広場は閉じない）
+    if (document.pointerLockElement) return;
+    if (freeMode) { exitFreeMode(); return; }
     if (!roster.hidden) setRosterOpen(false);
     else closePlaza();
   });
@@ -151,17 +168,8 @@ async function boot(): Promise<void> {
   view.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 600);
-  camera.position.set(0.5, 2.0, 2.4);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(-0.4, 0.55, -2.8);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.minDistance = 1.4;
-  controls.maxDistance = 12;
-  controls.maxPolarAngle = Math.PI * 0.48;
-  controls.screenSpacePanning = false;
-  controls.update();
+  const camera = new THREE.PerspectiveCamera(70, 1, 0.03, 600);
+  camera.position.set(0.2, 1.6, 1.2);
 
   const resize = () => {
     const width = window.innerWidth;
@@ -235,8 +243,85 @@ async function boot(): Promise<void> {
     return value;
   };
 
+  // ------------------------------------------------------------ プレイヤー（リバーシの勇者）
+  const allSolid = [...new Set([...plaza.floorMeshes, ...plaza.playerSolidMeshes])];
+  const solidRay = new THREE.Raycaster();
+  solidRay.firstHitOnly = true;
+  const groundRay = new THREE.Raycaster();
+  const sideDir = new THREE.Vector3();
+  const sideOrigin = new THREE.Vector3();
+  let player: PlazaPlayer | null = null;
+  const playerFrom = new THREE.Vector3();
+
+  /** 足元の床の高さ（プレイヤー用。家具・木・壁の中や、登れない段差・深い段差の先なら null） */
+  const playerFloorAt = (x: number, z: number, fromY: number): number | null => {
+    groundRay.set(sideOrigin.set(x, fromY + 2.0, z), down);
+    groundRay.far = 2.0 + PLAYER_MAX_DROP + 0.5;
+    const hits = groundRay.intersectObjects(allSolid, false);
+    let floor: number | null = null;
+    for (const hit of hits) {
+      // 頭から登れる高さまでの間に何かあれば、そこには立てない（机・幹・低い天井）
+      if (hit.point.y > fromY + PLAYER_STEP_UP) {
+        if (hit.point.y < fromY + 1.85) return null;
+        continue;
+      }
+      floor = hit.point.y;
+      break;
+    }
+    if (floor === null || floor < fromY - PLAYER_MAX_DROP) return null;
+    return floor;
+  };
+
+  const playerWorld: PlayerWorld = {
+    standAt(x, z) {
+      if (x < PLAYER_BOUNDS.minX || x > PLAYER_BOUNDS.maxX || z < PLAYER_BOUNDS.minZ || z > PLAYER_BOUNDS.maxZ) return null;
+      const from = player ? playerFrom.copy(player.position) : playerFrom.set(x, PLAYER_START.y, z);
+      const dx = x - from.x;
+      const dz = z - from.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance > 1e-5) {
+        // 進む先に壁・幹が無いか、膝と胸の高さで横向きに確かめる（真上からの光線では垂直な壁が見えないため）
+        sideDir.set(dx / distance, 0, dz / distance);
+        for (const height of [0.6, 1.3]) {
+          solidRay.set(sideOrigin.set(from.x, from.y + height, from.z), sideDir);
+          solidRay.far = distance + 0.3;
+          if (solidRay.intersectObjects(plaza.playerSolidMeshes, false).length) return null;
+        }
+      }
+      const center = playerFloorAt(x, z, from.y);
+      if (center === null) return null;
+      // 体の幅（半径 0.25m）の 4 点でも立てるか確かめ、幹や家具の縁にめり込まないようにする
+      for (const [ox, oz] of [[0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25]] as const) {
+        if (playerFloorAt(x + ox, z + oz, from.y) === null) return null;
+      }
+      return center;
+    },
+    hitsCharacter(x, z, radius) {
+      if (!player) return false;
+      for (const character of visitors.values()) {
+        const minDistance = radius + character.radius;
+        const dx = character.position.x - x;
+        const dz = character.position.z - z;
+        if (dx * dx + dz * dz >= minDistance * minDistance) continue;
+        // 既に重なっている時は、離れる向きだけ許す
+        const nx = character.position.x - player.position.x;
+        const nz = character.position.z - player.position.z;
+        if (dx * dx + dz * dz < nx * nx + nz * nz) return true;
+      }
+      return false;
+    },
+  };
+
   const walkArea: WalkArea = {
     isFree(x, z, self) {
+      if (player) {
+        const minDistance = self.radius + player.radius + 0.1;
+        const dx = player.position.x - x;
+        const dz = player.position.z - z;
+        const nx = player.position.x - self.position.x;
+        const nz = player.position.z - self.position.z;
+        if (dx * dx + dz * dz < minDistance * minDistance && dx * dx + dz * dz < nx * nx + nz * nz) return false;
+      }
       for (const other of visitors.values()) {
         if (other === self) continue;
         const minDistance = self.radius + other.radius + 0.1;
@@ -263,6 +348,7 @@ async function boot(): Promise<void> {
         if (ox === 0 && oz === 0) height = y;
       }
       if (self) {
+        if (player && (player.position.x - x) ** 2 + (player.position.z - z) ** 2 < (self.radius + player.radius + 0.3) ** 2) return null;
         for (const other of visitors.values()) {
           if (other === self) continue;
           const minDistance = self.radius + other.radius + 0.25;
@@ -492,32 +578,39 @@ async function boot(): Promise<void> {
     syncRoster();
   }
 
-  // ------------------------------------------------------------ タップ・なでる
-  const pointer = new THREE.Vector2();
+  // ------------------------------------------------------------ 一人称の操作（あいさつ・なでる）
+  const crosshair = $('plazaCrosshair');
+  const aimLabel = $('plazaAimLabel');
+  const startPanel = $('plazaStart');
+  const viewButton = $<HTMLButtonElement>('plazaViewBtn');
+  const canvas = renderer.domElement;
   const hitRaycaster = new THREE.Raycaster();
-  const pickCharacter = (clientX: number, clientY: number): PlazaCharacter | null => {
-    const rect = renderer.domElement.getBoundingClientRect();
-    pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
-    hitRaycaster.setFromCamera(pointer, camera);
+  const screenCenter = new THREE.Vector2(0, 0);
+
+  player = new PlazaPlayer(scene, camera, playerWorld, PLAYER_START, PLAYER_START_YAW);
+  {
+    const startFloor = playerFloorAt(PLAYER_START.x, PLAYER_START.z, 3);
+    player.position.y = startFloor ?? 0;
+  }
+  const activePlayer = player;
+
+  /** 照準（画面の真ん中。マウスを捕まえていない時はマウスの位置）の先にいる、手の届くキャラ */
+  const aimedCharacter = (ndc: THREE.Vector2 = screenCenter): PlazaCharacter | null => {
+    hitRaycaster.setFromCamera(ndc, camera);
     const proxies = Array.from(visitors.values(), (character) => character.hitProxy);
     const hit = hitRaycaster.intersectObjects(proxies, false)[0];
-    return hit ? (hit.object.userData.plazaCharacter as PlazaCharacter) : null;
+    if (!hit) return null;
+    if (hit.point.distanceTo(activePlayer.eye) > REACH) return null;
+    // 間に壁や木があれば届かない
+    solidRay.set(hitRaycaster.ray.origin, hitRaycaster.ray.direction);
+    solidRay.far = hit.distance;
+    if (solidRay.intersectObjects(plaza.playerSolidMeshes, false).length) return null;
+    return hit.object.userData.plazaCharacter as PlazaCharacter;
   };
-
-  interface Press {
-    character: PlazaCharacter;
-    pointerId: number;
-    lastX: number;
-    lastY: number;
-    moved: number;
-    stroke: number;
-    pets: number;
-  }
-  let press: Press | null = null;
   const lastTap = new Map<string, number>();
-
   const doTap = (character: PlazaCharacter) => {
-    character.react(camera.position);
+    activePlayer.playGesture('wave', 0.9);
+    character.react(activePlayer.eye);
     spawnHearts(character, 2);
     say(character, 'greet');
     const now = performance.now();
@@ -530,7 +623,8 @@ async function boot(): Promise<void> {
   };
 
   const doPet = (character: PlazaCharacter, count: number) => {
-    character.pet(camera.position);
+    activePlayer.playGesture('pet', 0.6);
+    character.pet(activePlayer.eye);
     spawnHearts(character, 1);
     const levelUp = addAffection(character, 1);
     const level = affectionHearts(affection[character.info.id] ?? 0);
@@ -542,47 +636,119 @@ async function boot(): Promise<void> {
     }
   };
 
-  const canvas = renderer.domElement;
-  canvas.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 && event.pointerType === 'mouse') return;
-    const character = pickCharacter(event.clientX, event.clientY);
-    if (!character) return;
-    press = { character, pointerId: event.pointerId, lastX: event.clientX, lastY: event.clientY, moved: 0, stroke: 0, pets: 0 };
-    // キャラの上で押した時は、カメラを回さずになでる操作にする
-    controls.enabled = false;
-    canvas.setPointerCapture(event.pointerId);
-    hint.classList.add('is-faded');
-  });
-  canvas.addEventListener('pointermove', (event) => {
-    if (press && event.pointerId === press.pointerId) {
-      const distance = Math.hypot(event.clientX - press.lastX, event.clientY - press.lastY);
-      press.lastX = event.clientX;
-      press.lastY = event.clientY;
-      press.moved += distance;
-      press.stroke += distance;
-      if (press.moved > 10 && press.stroke >= 80) {
-        press.stroke = 0;
-        press.pets += 1;
-        doPet(press.character, press.pets);
-      }
+  // マウスを捕まえて（ポインターロック）見回す。捕まえていない間は「歩きはじめる」案内を出す。
+  // ブラウザが捕まえるのを断った時は、ドラッグで見回し、キャラを直接クリックする操作に切り替える
+  const isLocked = () => document.pointerLockElement === canvas;
+  const isActive = () => isLocked() || freeMode;
+  const pointerNdc = new THREE.Vector2();
+  const setPointerNdc = (event: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    pointerNdc.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+  };
+  const aimPoint = () => (isLocked() ? screenCenter : pointerNdc);
+  const syncLock = () => {
+    const locked = isLocked();
+    const active = isActive();
+    startPanel.hidden = active;
+    crosshair.hidden = !locked;
+    hint.classList.toggle('is-faded', !active);
+    if (!active) {
+      activePlayer.releaseKeys();
+      press = null;
+    }
+  };
+  const enterFreeMode = () => {
+    freeMode = true;
+    syncLock();
+  };
+  exitFreeMode = () => {
+    freeMode = false;
+    syncLock();
+  };
+  const lockPointer = () => {
+    setRosterOpen(false);
+    try {
+      const request = canvas.requestPointerLock() as unknown as Promise<void> | undefined;
+      if (request && typeof request.then === 'function') request.then(() => { freeMode = false; syncLock(); }, enterFreeMode);
+    } catch {
+      enterFreeMode();
+    }
+  };
+  document.addEventListener('pointerlockchange', syncLock);
+  document.addEventListener('pointerlockerror', enterFreeMode);
+  $('plazaStartBtn').addEventListener('click', lockPointer);
+
+  interface Press { since: number; lastPet: number; pets: number; character: PlazaCharacter | null; dragged: number }
+  let press: Press | null = null;
+
+  canvas.addEventListener('mousemove', (event) => {
+    setPointerNdc(event);
+    if (isLocked()) {
+      activePlayer.look(event.movementX, event.movementY);
       return;
     }
-    if (event.pointerType === 'mouse' && event.buttons === 0) {
-      canvas.style.cursor = pickCharacter(event.clientX, event.clientY) ? 'pointer' : '';
+    if (freeMode && (event.buttons & 1) && press) {
+      press.dragged += Math.abs(event.movementX) + Math.abs(event.movementY);
+      // キャラの上で押していない時、または押したまま大きく動かした時は見回す
+      if (!press.character || press.dragged > 12) activePlayer.look(event.movementX, event.movementY);
     }
   });
-  const endPress = (event: PointerEvent) => {
-    if (!press || event.pointerId !== press.pointerId) return;
-    if (press.moved <= 10 && event.type === 'pointerup') doTap(press.character);
+  canvas.addEventListener('mousedown', (event) => {
+    if (event.button !== 0) return;
+    setPointerNdc(event);
+    if (!isActive()) { lockPointer(); return; }
+    press = { since: performance.now(), lastPet: 0, pets: 0, character: aimedCharacter(aimPoint()), dragged: 0 };
+  });
+  window.addEventListener('mouseup', (event) => {
+    if (event.button !== 0 || !press) return;
+    // 短く押して離した時はあいさつ（長押しでなでていた時・見回していた時は何もしない）
+    if (press.pets === 0 && press.dragged <= 12) {
+      const character = aimedCharacter(aimPoint()) ?? press.character;
+      if (character) doTap(character);
+    }
     press = null;
-    controls.enabled = true;
+  });
+  const updatePress = (now: number) => {
+    if (!press || press.dragged > 12 || now - press.since < PET_HOLD_MS || now - press.lastPet < PET_INTERVAL_MS) return;
+    const character = aimedCharacter(aimPoint());
+    if (!character) return;
+    press.lastPet = now;
+    press.pets += 1;
+    doPet(character, press.pets);
   };
-  canvas.addEventListener('pointerup', endPress);
-  canvas.addEventListener('pointercancel', endPress);
+  const setViewLabel = () => {
+    viewButton.textContent = activePlayer.view === 'first' ? '視点: 一人称' : '視点: 三人称';
+  };
+  const toggleView = () => {
+    activePlayer.toggleView();
+    setViewLabel();
+  };
+  viewButton.addEventListener('click', toggleView);
+  window.addEventListener('keydown', (event) => {
+    if (event.code === 'KeyV' && !event.repeat) toggleView();
+  });
+  setViewLabel();
 
-  // 確認用（?debug=1 の時だけ）：キャラの画面上の位置を返す
+  let aimed: PlazaCharacter | null = null;
+  const updateAim = () => {
+    const next = isActive() ? aimedCharacter(aimPoint()) : null;
+    canvas.style.cursor = freeMode && next ? 'pointer' : '';
+    if (next === aimed) return;
+    aimed = next;
+    crosshair.classList.toggle('is-target', Boolean(next));
+    aimLabel.textContent = next ? `${next.info.label}　クリック：あいさつ／長押し：なでる` : '';
+    if (next) showInfo(next);
+  };
+  // 確認用（?debug=1 の時だけ）：キャラの画面上の位置、プレイヤーの位置、マウスを捕まえずに歩く操作
+  let debugInput = false;
   if (new URLSearchParams(window.location.search).get('debug') === '1') {
     (window as unknown as { __forestPlazaDebug?: unknown }).__forestPlazaDebug = {
+      player: () => ({ x: activePlayer.position.x, y: activePlayer.position.y, z: activePlayer.position.z, yaw: activePlayer.yaw, pitch: activePlayer.pitch, view: activePlayer.view }),
+      setInput: (enabled: boolean) => { debugInput = enabled; },
+      look: (yaw: number, pitch: number) => { activePlayer.yaw = yaw; activePlayer.pitch = pitch; },
+      aimed: () => aimedCharacter()?.info.id ?? null,
+      tap: () => { const c = aimedCharacter(); if (c) doTap(c); return c?.info.id ?? null; },
+      pet: () => { const c = aimedCharacter(); if (c) doPet(c, 1); return c?.info.id ?? null; },
       characters: () => Array.from(visitors.values(), (character) => {
         const point = character.position.clone();
         point.y += character.height * 0.5;
@@ -601,7 +767,7 @@ async function boot(): Promise<void> {
   syncRoster();
   loading.classList.add('is-done');
   window.setTimeout(() => { loading.hidden = true; }, 400);
-  window.setTimeout(() => hint.classList.add('is-faded'), 9000);
+  syncLock();
 
   let nextChatter = performance.now() + 9000;
   const clock = new THREE.Clock();
@@ -609,9 +775,9 @@ async function boot(): Promise<void> {
     const dt = Math.min(clock.getDelta(), 0.05);
     for (const character of visitors.values()) character.update(dt, walkArea);
     updateHearts(dt);
-    controls.update();
-    controls.target.clamp(TARGET_BOUNDS.min, TARGET_BOUNDS.max);
-    if (camera.position.y < 0.35) camera.position.y = 0.35;
+    activePlayer.update(dt, (isActive() || debugInput) && roster.hidden === true);
+    updatePress(performance.now());
+    updateAim();
     renderer.render(scene, camera);
     updateBubbles();
     const now = performance.now();
@@ -638,6 +804,7 @@ async function boot(): Promise<void> {
   window.addEventListener('pagehide', () => {
     renderer.setAnimationLoop(null);
     for (const id of Array.from(visitors.keys())) removeVisitor(id);
+    activePlayer.dispose();
     plaza.dispose();
     heartTexture.dispose();
     renderer.dispose();

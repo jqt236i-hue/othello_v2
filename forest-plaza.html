@@ -14,10 +14,11 @@
     <header class="plaza-topbar">
         <div class="plaza-title">
             <span class="plaza-title-main">森の広場</span>
-            <span class="plaza-title-sub">キャラをタップすると反応します。なでると仲良くなれます</span>
+            <span class="plaza-title-sub">WASDで歩いて、キャラにあいさつしたり、なでたりできます</span>
         </div>
         <div class="plaza-topbar-actions">
             <div id="plazaTimes" class="plaza-times" role="group" aria-label="時間帯"></div>
+            <button id="plazaViewBtn" class="plaza-btn" type="button" title="一人称と三人称を切り替える（V）">視点: 一人称</button>
             <button id="plazaCallBtn" class="plaza-btn plaza-btn-primary" type="button" aria-expanded="false" aria-controls="plazaRoster">キャラを呼ぶ</button>
             <button id="plazaCloseBtn" class="plaza-btn plaza-btn-close" type="button" aria-label="森の広場を閉じる">×</button>
         </div>
@@ -36,7 +37,25 @@
         <span id="plazaInfoHearts" class="plaza-info-hearts"></span>
     </div>
 
-    <div id="plazaHint" class="plaza-hint">ドラッグで見回す・ホイールで寄る／引く　キャラをタップ：あいさつ　キャラの上でこする：なでる</div>
+    <div id="plazaCrosshair" class="plaza-crosshair" hidden>
+        <span class="plaza-crosshair-dot"></span>
+        <span id="plazaAimLabel" class="plaza-aim-label"></span>
+    </div>
+
+    <div id="plazaStart" class="plaza-start">
+        <button id="plazaStartBtn" class="plaza-start-btn" type="button">クリックして歩きはじめる</button>
+        <dl class="plaza-keys">
+            <dt>W A S D</dt><dd>歩く（Shift で走る）</dd>
+            <dt>マウス</dt><dd>見回す</dd>
+            <dt>Space</dt><dd>ジャンプ</dd>
+            <dt>左クリック</dt><dd>あいさつ</dd>
+            <dt>左クリック長押し</dt><dd>なでる</dd>
+            <dt>V</dt><dd>一人称 / 三人称</dd>
+            <dt>Esc</dt><dd>マウスを戻す（もう一度で広場を出る）</dd>
+        </dl>
+    </div>
+
+    <div id="plazaHint" class="plaza-hint">WASD：歩く　マウス：見回す　左クリック：あいさつ　長押し：なでる　V：視点　Esc：マウスを戻す</div>
 
     <div id="plazaLoading" class="plaza-loading">
         <div class="plaza-loading-box">
