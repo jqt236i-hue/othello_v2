@@ -57,7 +57,7 @@ describe('my skin controls', () => {
       useFrameSkin: jest.fn(() => definitions[2]),
       saveFrameSkin: jest.fn(() => definitions[2]),
       getSelectedSkinId: jest.fn(() => 'bluegreen-felt'),
-      getSelectedFrameSkinId: jest.fn(() => 'marsh-forged-iron')
+      getSelectedFrameSkinId: jest.fn(() => 'submerged-wood')
     };
     stoneController = {
       useSkin: jest.fn(() => definitions[3]),

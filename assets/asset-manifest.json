@@ -1,6 +1,6 @@
 {
   "version": "2026-10-10",
-  "generatedAt": "2026-10-10T10:56:45.435Z",
+  "generatedAt": "2026-10-10T13:41:12.396Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -695,14 +695,6 @@
       "sha256": "193f8057d0e525713ae8def34eb3b25187a36802bdf9ae6f73a00230e6494f53"
     },
     {
-      "path": "assets/images/background/default.png",
-      "sha256": "05b646a37378f4642d8af354f9007001c4c3b6a9a7e9cb6f85a47055e22b32c2"
-    },
-    {
-      "path": "assets/images/background/default.webp",
-      "sha256": "6a7931e6d73dea81f1f918a47a4b1870bc2c445cb19254cee8fb784f1a64129e"
-    },
-    {
       "path": "assets/images/background/manifest-worlds/執行の世界.png",
       "sha256": "fecf1c7d63dc0f33172ba686cc8b04b6dc6f28b3df756dde455dbf3f4f27e82d"
     },
@@ -716,91 +708,7 @@
     },
     {
       "path": "assets/images/background/optimized-backgrounds.json",
-      "sha256": "1618c0eac23461f271ddd1baa1a0b42eb4949609732ec76bea71b38cbf146355"
-    },
-    {
-      "path": "assets/images/background/デフォルト10.png",
-      "sha256": "653429033ddd97ec7da5057355b80c0259bba13631f5b768dc6495969da7b260"
-    },
-    {
-      "path": "assets/images/background/デフォルト10.webp",
-      "sha256": "b505eaa2744db2a4a2bf24e8f9ba261ac024bc557fff0fbbba1a739e31f0743a"
-    },
-    {
-      "path": "assets/images/background/デフォルト11.png",
-      "sha256": "d4b898acdd64acf0c9acb41e7712babb9f904b61bc5d5c27bb7751ba9413d85e"
-    },
-    {
-      "path": "assets/images/background/デフォルト11.webp",
-      "sha256": "f3cf841b3d27c5d04784904154b26709d0bc70dd67e461347d024c5f6921bd16"
-    },
-    {
-      "path": "assets/images/background/デフォルト12.png",
-      "sha256": "6a2d18a66d9c2606b1acd0c4727a1ca72199aa241cf6029880c413d7a4d10cde"
-    },
-    {
-      "path": "assets/images/background/デフォルト12.webp",
-      "sha256": "2f57410b796a298d9970f0683c19118e013f22bcb7dac4b70a7fc897d950ee00"
-    },
-    {
-      "path": "assets/images/background/デフォルト13.png",
-      "sha256": "acbafdeed1f36cbbd9c863546c440fe3b41b28afb94100e49f5282825a9d26b6"
-    },
-    {
-      "path": "assets/images/background/デフォルト13.webp",
-      "sha256": "2e0a86c8a2fc49a00ab443fe11d4577bcf14a762d233b38d970c5fdbd881007b"
-    },
-    {
-      "path": "assets/images/background/デフォルト14.png",
-      "sha256": "00f4168f5c67f9706183ff149377906a1a486e97b954fe0eb0357fa7c742c3b9"
-    },
-    {
-      "path": "assets/images/background/デフォルト15.png",
-      "sha256": "67b07d11634dc29bb573c13dce3009bfd37c2fe45d3b89cf2f3cc41ab7f7f649"
-    },
-    {
-      "path": "assets/images/background/デフォルト16.png",
-      "sha256": "ab3224d96faca839eb53b318ecd53054a96d927fd577cdec82311acb00ef4f52"
-    },
-    {
-      "path": "assets/images/background/デフォルト17.png",
-      "sha256": "6f505b774804a8818c61b9514b303d37ff1a9d51d2786f6ad5ecbdadcb4d8f44"
-    },
-    {
-      "path": "assets/images/background/デフォルト18.png",
-      "sha256": "29ec1ea9e37f8b5dadbaa13e7ebb83b3b82760f75b193b1e523aa48b4aa86b2c"
-    },
-    {
-      "path": "assets/images/background/デフォルト19.png",
-      "sha256": "502a741868ebd5869b25d4ccf92033c5d9606c69e16f4e710dfad847b91650f7"
-    },
-    {
-      "path": "assets/images/background/デフォルト2.png",
-      "sha256": "28d9b26031e88d39696c0828f4447a43a66f34d3076aedbd97a8a2280a389324"
-    },
-    {
-      "path": "assets/images/background/デフォルト2.webp",
-      "sha256": "1ad22302ba46e718bd4c212cf210e6e854fa5f8144477b5f6240c58aaa156d67"
-    },
-    {
-      "path": "assets/images/background/デフォルト20.png",
-      "sha256": "b5b12ae9852e03a12cf2425151fd1b999f50bb36176d6347f244a44fe6b880c5"
-    },
-    {
-      "path": "assets/images/background/デフォルト21.png",
-      "sha256": "ca33da1607ba2084f5cf12af6bdac1d3d7468412b87a49f34cfdafc22d81b86b"
-    },
-    {
-      "path": "assets/images/background/デフォルト22.png",
-      "sha256": "233c14b8537c22c97035d3489ec8d02dfbd67323ffdf4ab22b27ca45d9948f61"
-    },
-    {
-      "path": "assets/images/background/デフォルト23.png",
-      "sha256": "5d8cfb6acca4c2c7830610454e361c2367f8b0c057ab1f341ae71f32b3cac1a1"
-    },
-    {
-      "path": "assets/images/background/デフォルト24.png",
-      "sha256": "d9f3fc82b252957df7abb505db545c0feb6d778e4cdbbf85aedc2b539004395e"
+      "sha256": "0f70f1976bf381a98ddd77364f4e94c251c99977489ceb542ccd60ba574d2702"
     },
     {
       "path": "assets/images/background/デフォルト25.png",
@@ -811,80 +719,8 @@
       "sha256": "3edea2fad2d858ed9f29d94738dcd5661aab5566ba6546a20308aa935ae10671"
     },
     {
-      "path": "assets/images/background/デフォルト26.png",
-      "sha256": "bb711cea4dc25a2cf55f8335b7598fd32f05dc2e9699eb33dc04ac241465306c"
-    },
-    {
-      "path": "assets/images/background/デフォルト27.png",
-      "sha256": "6fc0ccf10a5cf3808ea8aa8544068d1f353732da2eae4494bcf1fe3cf349a5c2"
-    },
-    {
-      "path": "assets/images/background/デフォルト28.png",
-      "sha256": "bf9c534e8ca9ae81ac659672edca13b45ec58d7eab386604e5ca9f78084da7d0"
-    },
-    {
-      "path": "assets/images/background/デフォルト3.png",
-      "sha256": "6ae979997b6ac627385ffdad73563a3d1812b34f4cd89804b562ba42ab45e868"
-    },
-    {
-      "path": "assets/images/background/デフォルト3.webp",
-      "sha256": "7ab698d1e1b12b0846a672dce59e84648765d11e5d77901e8b5d012a77166dc7"
-    },
-    {
-      "path": "assets/images/background/デフォルト4.png",
-      "sha256": "355e9a6dad8d2978d4b8bb8e0a2d59776293031ca54e7f17b74a6f901f6073fe"
-    },
-    {
-      "path": "assets/images/background/デフォルト4.webp",
-      "sha256": "f91a9287e3038a93aa93f25ca43fc6e6c675b2c1cf3783ba6aeb7f745c5d5d92"
-    },
-    {
-      "path": "assets/images/background/デフォルト5.png",
-      "sha256": "725b2c5108453fd4308e766b0df206ca752203959dd1c0d625c4cbd1072ee9c1"
-    },
-    {
-      "path": "assets/images/background/デフォルト5.webp",
-      "sha256": "f451c1fd370fc93e5bb687f1c2375aed40ed34409b9e0711630c251d85b46508"
-    },
-    {
-      "path": "assets/images/background/デフォルト6.png",
-      "sha256": "83aa0c386e6b49135c0b4477b15c651c338862c97f6ee61f1376a5cfdae930e7"
-    },
-    {
-      "path": "assets/images/background/デフォルト6.webp",
-      "sha256": "9ff64d5720050add1c89aebc34a3fe172014e737844b44769b5705a0c5591eff"
-    },
-    {
-      "path": "assets/images/background/デフォルト7.png",
-      "sha256": "e9baffcca5fc72874b0fd5919b5872312224f4cb818898fa37ceb0182bf0a5e1"
-    },
-    {
-      "path": "assets/images/background/デフォルト7.webp",
-      "sha256": "170a5556c01528b1ad68b0142243e488b21fe083282d316d4d7fbabc81ebb386"
-    },
-    {
-      "path": "assets/images/background/デフォルト8.png",
-      "sha256": "2583b29ff8b2e64b8fa09b15eec71118f5b739002a5fd3ee9676dfc07a0a8fd2"
-    },
-    {
-      "path": "assets/images/background/デフォルト8.webp",
-      "sha256": "53b1b661e259647cee597cf307e3883a57207b79350ce507fad03f7dbefb8716"
-    },
-    {
-      "path": "assets/images/background/デフォルト9.png",
-      "sha256": "8313e9ca67980f9d1b2541009cb1f2aa04c4b7c9c40dd0e6057d22455f7a6ebd"
-    },
-    {
-      "path": "assets/images/background/デフォルト9.webp",
-      "sha256": "47f6d266a86bf7bff9969c72cd56019dc97f93ab2b7a98703cd33742064a3080"
-    },
-    {
       "path": "assets/images/background-skin/default-table.svg",
       "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
-    },
-    {
-      "path": "assets/images/background-skin/観測の机.png",
-      "sha256": "f7d0fd366f7414fbd93bd5ea3979fea420f95735ba119cf731a64da7ac5ea940"
     },
     {
       "path": "assets/images/hand-skin/cpu-lv01.png",

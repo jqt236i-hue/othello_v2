@@ -17,7 +17,7 @@ const path = require('path');
 function goodFixture(definition: any, dpr = 1): any {
   const expected = definition.skin || {
     board: 'bluegreen-felt',
-    frame: 'marsh-forged-iron',
+    frame: 'submerged-wood',
     stone: 'o-stone'
   };
   const presentationCandidateKeys = definition.decoratePresentation
@@ -263,7 +263,7 @@ describe('Pixi static board browser check', () => {
       },
       skinSnapshot: {
         boardSkinId: 'bluegreen-felt',
-        frameSkinId: 'marsh-forged-iron',
+        frameSkinId: 'submerged-wood',
         stoneSkinId: 'o-stone'
       }
     };
@@ -273,7 +273,7 @@ describe('Pixi static board browser check', () => {
         '4,4': { left: 196, top: 206, width: 44, height: 44 },
         '-1,3': { left: 152, top: -14, width: 44, height: 44 }
       },
-      skin: { board: 'bluegreen-felt', frame: 'marsh-forged-iron', stone: 'o-stone' }
+      skin: { board: 'bluegreen-felt', frame: 'submerged-wood', stone: 'o-stone' }
     };
     expect(Check.comparePhaseZeroGeometryAndSkin(probe, baseline)).toMatchObject({
       ok: true,
@@ -288,7 +288,7 @@ describe('Pixi static board browser check', () => {
     expect(Check.comparePhaseZeroGeometryAndSkin(probe, baseline)).toMatchObject({ ok: false });
   });
 
-  test('reads the checked-in Phase 0 fixture from the current single-run lane object', () => {
+  test('reads the historical checked-in Phase 0 fixture without rewriting its old skin evidence', () => {
     const baseline = Check.readPhaseZeroFixtureBaseline(
       path.resolve(__dirname, '..'),
       'classic',

@@ -10,37 +10,7 @@ const STORAGE_KEY = 'reversi.gacha.progress.v1';
 const LEGACY_STORAGE_KEY = 'othello.gacha.progress.v1';
 const STATE_VERSION = 3;
 const DEFAULT_OWNED_HAND_SKIN_IDS = Object.freeze(['default']);
-const DEFAULT_OWNED_BACKGROUND_SKIN_IDS = Object.freeze([
-  'default',
-  'default-2',
-  'default-3',
-  'default-4',
-  'default-5',
-  'default-6',
-  'default-7',
-  'default-8',
-  'default-9',
-  'default-10',
-  'default-11',
-  'default-12',
-  'default-13',
-  'default-14',
-  'default-15',
-  'default-16',
-  'default-17',
-  'default-18',
-  'default-19',
-  'default-20',
-  'default-21',
-  'default-22',
-  'default-23',
-  'default-24',
-  'default-25',
-  'default-26',
-  'default-27',
-  'default-28',
-  'unobserved-night'
-]);
+const DEFAULT_OWNED_BACKGROUND_SKIN_IDS = Object.freeze(['default-25']);
 const DEFAULT_OWNED_PLACEMENT_SOUND_IDS = Object.freeze(['default']);
 const OWNED_KIND_CONFIG = Object.freeze({
   hand_skin: Object.freeze({

@@ -11,6 +11,7 @@ import {
   expectedCaptureOrder,
   exportBoardPerformanceReport,
   installBoardVisualPerformanceHarness,
+  installStabilityBoardSkinFixture,
   isBoardPerformanceHarnessRequested,
   nearestRank,
   stablePerformanceJson,
@@ -97,6 +98,34 @@ describe('board visual performance harness contract', () => {
     expect(primed.recorder.timestamps).toEqual([7_026, 7_042]);
     expect(primed.recorder.intervals).toEqual([16]);
     primed.recorder.stop();
+  });
+
+  test('switches a temporary diagnostics texture without adding a standard or saved skin', () => {
+    const catalog = require('../ui/board-skin/catalog.ts');
+    const root: any = { BoardSkinCatalogModule: catalog, localStorage: { length: 0, setItem: jest.fn() } };
+    const savedBefore = root.localStorage.length;
+    const fixture = installStabilityBoardSkinFixture(root);
+    const alternate = root.BoardSkinCatalogModule.getBoardSkinDefinition(fixture.id, root);
+    const standard = root.BoardSkinCatalogModule.getBoardSkinDefinition('bluegreen-felt', root);
+
+    expect(alternate.id).toBe(fixture.id);
+    expect(alternate.imagePath).toMatch(/^data:image\/svg\+xml,/);
+    expect(alternate.imagePath).not.toBe(standard.imagePath);
+    expect(root.BoardSkinCatalogModule.normalizeBoardSkinId(fixture.id, root)).toBe(fixture.id);
+    expect(root.BoardSkinCatalogModule.getAllBoardSkins(root)).toHaveLength(1);
+    expect(root.localStorage.length).toBe(savedBefore);
+    expect(root.localStorage.setItem).not.toHaveBeenCalled();
+    fixture.restore();
+    expect(root.BoardSkinCatalogModule).toBe(catalog);
+    expect(catalog.normalizeBoardSkinId(fixture.id, root)).toBe('bluegreen-felt');
+  });
+
+  test('removes the temporary catalog override when no global catalog existed', () => {
+    const root: any = {};
+    const fixture = installStabilityBoardSkinFixture(root);
+    expect(root.BoardSkinCatalogModule).toBeDefined();
+    fixture.restore();
+    expect(Object.prototype.hasOwnProperty.call(root, 'BoardSkinCatalogModule')).toBe(false);
   });
 
   test('derives capture order from the final commit byte', () => {

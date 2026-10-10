@@ -1185,7 +1185,64 @@ function stabilityFixture(base: ScenarioFixture, expanded: boolean): ScenarioFix
   });
 }
 
+// A temporary diagnostics-only texture keeps skin-switch sampling meaningful
+// when the player-facing standard catalog contains only the default board.
+export function installStabilityBoardSkinFixture(root: any): Readonly<{ id: string; restore(): void }> {
+  const hadCatalog = Object.prototype.hasOwnProperty.call(root, 'BoardSkinCatalogModule');
+  const previousCatalog = root.BoardSkinCatalogModule;
+  const catalog = previousCatalog || _require('../board-skin/catalog');
+  const id = 'board-perf-alternate';
+  const definition = Object.freeze({
+    id,
+    label: '計測専用下地',
+    note: '永続化しない計測用テクスチャ',
+    imagePath: 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="#264a38" d="M0 0h16v16H0z"/><path fill="#335a43" d="M0 0h8v8H0zM8 8h8v8H8z"/></svg>'
+    )
+  });
+  root.BoardSkinCatalogModule = {
+    ...catalog,
+    normalizeBoardSkinId(value: unknown, rootRef: any) {
+      return value === id ? id : catalog.normalizeBoardSkinId(value, rootRef);
+    },
+    getBoardSkinDefinition(value: string, rootRef: any) {
+      return value === id ? { ...definition } : catalog.getBoardSkinDefinition(value, rootRef);
+    }
+  };
+  return Object.freeze({
+    id,
+    restore() {
+      if (hadCatalog) root.BoardSkinCatalogModule = previousCatalog;
+      else delete root.BoardSkinCatalogModule;
+    }
+  });
+}
+
 async function runStabilityScenario(
+  runtime: RuntimeModules,
+  fixture: ScenarioFixture,
+  config: BoardPerformanceRunConfig,
+  nominal: number,
+  progress: (message: string) => void
+): Promise<Readonly<Record<string, unknown>>> {
+  const elements = [runtime.boardElement, runtime.document.documentElement];
+  const previousBoardIds = elements.map((element) => element.dataset.boardSkinId);
+  const previousStoneId = runtime.document.documentElement.dataset.stoneSkinId;
+  const skinFixture = installStabilityBoardSkinFixture(runtime.root);
+  try {
+    return await runStabilityScenarioWithFixture(runtime, fixture, config, nominal, progress);
+  } finally {
+    skinFixture.restore();
+    elements.forEach((element, index) => {
+      if (previousBoardIds[index] === undefined) delete element.dataset.boardSkinId;
+      else element.dataset.boardSkinId = previousBoardIds[index];
+    });
+    if (previousStoneId === undefined) delete runtime.document.documentElement.dataset.stoneSkinId;
+    else runtime.document.documentElement.dataset.stoneSkinId = previousStoneId;
+  }
+}
+
+async function runStabilityScenarioWithFixture(
   runtime: RuntimeModules,
   fixture: ScenarioFixture,
   config: BoardPerformanceRunConfig,
@@ -1203,7 +1260,7 @@ async function runStabilityScenario(
   // deliberately lazy in production; the readiness gate measures reuse after
   // that first-use work instead of misclassifying the expected warm-up upload
   // as monotonic lifecycle growth.
-  runtime.boardElement.dataset.boardSkinId = 'emerald-stone';
+  runtime.boardElement.dataset.boardSkinId = 'board-perf-alternate';
   rootElement.dataset.stoneSkinId = 'jade-rim';
   applyFixtureState(runtime, stabilityFixture(fixture, true), true);
   await renderCurrentState(runtime);
@@ -1219,7 +1276,7 @@ async function runStabilityScenario(
   try {
     do {
       const expanded = index % 2 === 1;
-      runtime.boardElement.dataset.boardSkinId = expanded ? 'emerald-stone' : 'bluegreen-felt';
+      runtime.boardElement.dataset.boardSkinId = expanded ? 'board-perf-alternate' : 'bluegreen-felt';
       rootElement.dataset.stoneSkinId = expanded ? 'jade-rim' : 'o-stone';
       applyFixtureState(runtime, stabilityFixture(fixture, expanded), true);
       const sampleStartedAt = now(runtime.root);
@@ -1256,7 +1313,7 @@ async function runStabilityScenario(
     lifecycle.reset = Object.freeze({ count: config.resetCount, diagnostics: readDiagnostics(runtime) });
     for (let run = 0; run < config.skinSwitchCount; run += 1) {
       const alternate = run % 2 === 0;
-      runtime.boardElement.dataset.boardSkinId = alternate ? 'emerald-stone' : 'bluegreen-felt';
+      runtime.boardElement.dataset.boardSkinId = alternate ? 'board-perf-alternate' : 'bluegreen-felt';
       rootElement.dataset.stoneSkinId = alternate ? 'jade-rim' : 'o-stone';
       await renderCurrentState(runtime);
     }

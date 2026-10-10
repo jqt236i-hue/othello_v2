@@ -114,7 +114,7 @@ const TOPOLOGY_FIXTURES: readonly TopologyFixtureDefinition[] = Object.freeze([
 
 const DEFAULT_SKIN = Object.freeze({
   board: 'bluegreen-felt',
-  frame: 'marsh-forged-iron',
+  frame: 'submerged-wood',
   stone: 'o-stone'
 });
 
@@ -859,7 +859,7 @@ async function applyBrowserFixture(page: any, fixture: BrowserFixtureDefinition)
     root.cardState = cardState;
 
     const skin = definition.skin || {
-      board: 'bluegreen-felt', frame: 'marsh-forged-iron', stone: 'o-stone'
+      board: 'bluegreen-felt', frame: 'submerged-wood', stone: 'o-stone'
     };
     const boardSkinRuntime = resolveModule(['BoardSkinRuntimeModule'], 'ui/board-skin/runtime');
     const stoneSkinRuntime = resolveModule(['StoneSkinRuntimeModule'], 'ui/stone-skin/runtime');

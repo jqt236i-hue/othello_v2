@@ -1,6 +1,6 @@
 {
   "schemaVersion": "model_assets.v1",
-  "generatedAt": "2026-10-10T13:15:11.473Z",
+  "generatedAt": "2026-10-10T13:41:28.148Z",
   "files": [
     "data/models/othello/policy-table.json",
     "data/models/othello/policy-value.onnx",

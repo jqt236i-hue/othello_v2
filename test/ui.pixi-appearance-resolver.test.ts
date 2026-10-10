@@ -23,7 +23,7 @@ describe('Pixi appearance resolver', () => {
     const resolver = require('../ui/pixi/appearance-resolver.ts');
     const selection = {
       boardSkinId: 'bluegreen-felt',
-      boardFrameSkinId: 'marsh-forged-iron',
+      boardFrameSkinId: 'submerged-wood',
       stoneSkinId: 'jade-rim'
     };
     const first = resolver.resolveBoardAppearanceResources(window, selection);
@@ -67,7 +67,7 @@ describe('Pixi appearance resolver', () => {
     const resolver = require('../ui/pixi/appearance-resolver.ts');
     const resolved = resolver.resolveBoardAppearanceResources(window, {
       boardSkinId: board.id,
-      boardFrameSkinId: 'marsh-forged-iron',
+      boardFrameSkinId: 'submerged-wood',
       stoneSkinId: stone.id
     });
 

@@ -26,22 +26,22 @@ describe('board visual frame descriptor and presenter', () => {
     const doc = dom.window.document;
     const root = doc.documentElement;
     const host = doc.getElementById('board') as HTMLElement;
-    root.dataset.boardSkinId = 'emerald-stone';
-    root.dataset.boardFrameSkinId = 'swamp-ruin-stone';
+    root.dataset.boardSkinId = 'bluegreen-felt';
+    root.dataset.boardFrameSkinId = 'submerged-wood';
     root.dataset.stoneSkinId = 'jade-rim';
 
     const appearance = FramePresenter.resolveBoardAppearanceDescriptor(host, 7);
 
     expect(appearance).toMatchObject({
-      boardSkinId: 'emerald-stone',
-      boardImageUrl: 'assets/images/board/board-surface-emerald-v1.png',
-      boardFrameSkinId: 'swamp-ruin-stone',
+      boardSkinId: 'bluegreen-felt',
+      boardImageUrl: 'assets/images/board/board-surface-bluegreen-felt-v1.webp',
+      boardFrameSkinId: 'submerged-wood',
       stoneSkinId: 'jade-rim',
       blackStoneImageUrl: 'assets/images/stone-skin/jade-rim/black.png',
       whiteStoneImageUrl: 'assets/images/stone-skin/jade-rim/white.png',
       revision: 7
     });
-    expect(appearance.boardFrameLayout).toMatchObject({ paddingTop: 17, paddingLeft: 22 });
+    expect(appearance.boardFrameLayout).toMatchObject({ paddingTop: 15, paddingLeft: 20 });
     expect(Object.isFrozen(appearance)).toBe(true);
     expect(Object.isFrozen(appearance.boardFrameLayout)).toBe(true);
   });

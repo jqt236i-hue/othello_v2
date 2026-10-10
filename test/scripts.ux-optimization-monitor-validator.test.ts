@@ -11,10 +11,12 @@ import {
   validateUxOptimizationReport
 } from '../scripts/perf/validate-ux-optimization-monitor';
 
+import { readOptimizedFrameAdmissionEvidence } from '../scripts/perf/capture-ux-optimization-monitor';
+
 const DEFAULT_FRAME_PNG_PATH =
-  'assets/images/board/board-frame-marsh-forged-iron-v1.png';
+  'assets/images/board/board-frame-submerged-wood-v1.png';
 const DEFAULT_FRAME_WEBP_PATH =
-  'assets/images/board/board-frame-marsh-forged-iron-v1.webp';
+  'assets/images/board/board-frame-submerged-wood-v1.webp';
 
 function validFrameVariant(
   cssPath: string,
@@ -33,11 +35,12 @@ function validFrameVariant(
     singleWriter: true,
     uiInitialized: true,
     visiblySized: true,
-    rootSkinId: 'marsh-forged-iron',
-    elementSkinId: 'marsh-forged-iron',
+    rootSkinId: 'submerged-wood',
+    elementSkinId: 'submerged-wood',
     rootCssValue: cssValue,
     elementCssValue: cssValue,
     computedBackgroundImage: cssValue,
+    sourceMode: cssPath === DEFAULT_FRAME_WEBP_PATH ? 'current-catalog' : 'policy-png-fallback-probe',
     frameWebpRequestCount: counts.webpRequests,
     framePngRequestCount: counts.pngRequests,
     frameWebpResponseCount: counts.webpResponses,
@@ -538,13 +541,20 @@ function validReport(): Record<string, any> {
                     admission: {
                       manifestSha256: '8'.repeat(64),
                       schemaVersion: 1,
-                      codec: 'webp-lossless',
+                      codec: 'webp-lossy',
+                      quality: 90,
+                      sourcePath: DEFAULT_FRAME_PNG_PATH,
+                      policyEncoding: { codec: 'webp-lossy', quality: 90 },
+                      policyAdmissionStatus: 'admitted',
+                      policyOutputSha256: '7'.repeat(64),
                       minimumSavingsRatio: 0.1,
                       admittedMappingOutput: DEFAULT_FRAME_WEBP_PATH,
-                      sourceBytes: 1_126_115,
-                      outputBytes: 553_268,
-                      savingsRatio: 0.508,
-                      visiblePixelsEqual: true,
+                      sourceBytes: 1_288_714,
+                      outputBytes: 136_932,
+                      actualSourceBytes: 1_288_714,
+                      actualOutputBytes: 136_932,
+                      savingsRatio: 1 - 136_932 / 1_288_714,
+                      visiblePixelsEqual: false,
                       width: 1254,
                       height: 1254,
                       sourceSha256: '6'.repeat(64),
@@ -553,15 +563,22 @@ function validReport(): Record<string, any> {
                       actualOutputSha256: '7'.repeat(64),
                       admissionStatus: 'admitted',
                       hardwareDecode: {
+                        // Synthetic validator samples, not historical desktop measurements.
+                        measurementSource: 'current-frame-capture',
+                        hardwareAccelerated: true,
+                        sourceSha256: '6'.repeat(64),
+                        outputSha256: '7'.repeat(64),
+                        codec: 'webp-lossy',
+                        quality: 90,
                         sampleCountPerFormat: 12,
                         order: 'alternating',
-                        pngMedianMs: 12,
-                        webpMedianMs: 10.75,
+                        pngMedianMs: 8,
+                        webpMedianMs: 7,
                         allowedDeltaMs: 2,
                         verdict: 'admitted'
                       }
                     },
-                    normal: validFrameVariant('blob:admitted-frame', {
+                    normal: validFrameVariant(DEFAULT_FRAME_WEBP_PATH, {
                       webpRequests: 1,
                       pngRequests: 0,
                       webpResponses: 1,
@@ -863,6 +880,73 @@ describe('UX optimization monitor validator', () => {
     expect(validation.checks.find(
       (check) => check.id === 'scenario.playback.opponent-actions:vite:pixi'
     )?.verdict).toBe('fail');
+  });
+
+  test('captures current q90 frame encoding without importing historical hardware timings', async () => {
+    const admission = await readOptimizedFrameAdmissionEvidence(process.cwd());
+    expect(admission).toMatchObject({
+      codec: 'webp-lossy', quality: 90, sourcePath: DEFAULT_FRAME_PNG_PATH,
+      policyEncoding: { codec: 'webp-lossy', quality: 90 },
+      admissionStatus: 'admitted', visiblePixelsEqual: false, hardwareDecode: null,
+      sourceBytes: 1_288_714, outputBytes: 136_932
+    });
+    expect(admission.policyOutputSha256).toBe(admission.actualOutputSha256);
+    expect(admission.sourceSha256).toBe(admission.actualSourceSha256);
+    expect(admission.outputSha256).toBe(admission.actualOutputSha256);
+  });
+
+  test.each([
+    ['wrong codec', { codec: 'webp-lossless' }],
+    ['wrong quality', { quality: 80 }],
+    ['wrong policy quality', { policyEncoding: { codec: 'webp-lossy', quality: 80 } }],
+    ['missing pixel flag', { visiblePixelsEqual: undefined }],
+    ['false lossless claim', { visiblePixelsEqual: true }],
+    ['unreproducible output', { policyOutputSha256: '0'.repeat(64) }],
+    ['wrong delivered hash', { actualOutputSha256: '0'.repeat(64) }],
+    ['wrong delivered size', { actualOutputBytes: 1 }],
+    ['invalid savings', { savingsRatio: NaN }]
+  ])('rejects current-frame admission with %s', (_name, changes) => {
+    const report = validReport();
+    const asset = report.scenarios.find((entry: any) => entry.id === 'asset.webp-fallback');
+    Object.assign(asset.metrics.admission, changes);
+    const result = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['lossless-webp-admission']
+    });
+    expect(result.focusedVerdict).toBe('fail');
+  });
+
+  test.each(['missing', 'legacy', 'different-image', 'wrong-codec', 'software', 'slow']) (
+    'requires genuine current-frame hardware decode evidence: %s', (fault) => {
+      const report = validReport();
+      const asset = report.scenarios.find((entry: any) => entry.id === 'asset.webp-fallback');
+      const decode = asset.metrics.admission.hardwareDecode;
+      if (fault === 'missing') asset.metrics.admission.hardwareDecode = null;
+      if (fault === 'legacy') delete decode.measurementSource;
+      if (fault === 'different-image') decode.outputSha256 = '0'.repeat(64);
+      if (fault === 'wrong-codec') decode.codec = 'webp-lossless';
+      if (fault === 'software') decode.hardwareAccelerated = false;
+      if (fault === 'slow') decode.webpMedianMs = 20;
+      const result = validateUxOptimizationReport(report, {
+        targetOptimizationIds: ['lossless-webp-admission']
+      });
+      expect(result.focusedVerdict).toBe('fail');
+      expect(result.checks.find((entry) => entry.id === `scenario.asset.webp-fallback:${asset.lane}:pixi`)
+        ?.reasons).toContain('default frame hardware decode evidence does not meet the admission threshold');
+    }
+  );
+
+  test('rejects the deleted default or a fallback probe posing as normal catalog rendering', () => {
+    const report = validReport();
+    const asset = report.scenarios.find((entry: any) => entry.id === 'asset.webp-fallback');
+    asset.metrics.normal.rootSkinId = 'marsh-forged-iron';
+    asset.metrics.normal.sourceMode = 'policy-png-fallback-probe';
+    asset.metrics.normal.rootCssValue = 'url("blob:legacy-frame")';
+    const result = validateUxOptimizationReport(report);
+    expect(result.checks.find((entry) => entry.id === `scenario.asset.webp-fallback:${asset.lane}:pixi`)
+      ?.reasons).toEqual(expect.arrayContaining([
+        'normal did not finish with the visible default frame',
+        `normal computed frame image did not use ${DEFAULT_FRAME_WEBP_PATH}`
+      ]));
   });
 
   test('fails duplicate default-frame bodies and a missing PNG fallback', () => {

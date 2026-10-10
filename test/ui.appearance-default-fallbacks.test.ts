@@ -44,7 +44,31 @@ describe('appearance default fallbacks without catalog globals', () => {
     expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
 
     expect(selection.writeStoredBackgroundSkinId(window, 'default')).toBe(true);
-    expect(selection.readStoredBackgroundSkinId(window)).toBe('default');
+    expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
+    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+  });
+
+  test.each([
+    'default', ...Array.from({ length: 27 }, (_, index) => `default-${index + 2}`)
+      .filter((skinId) => skinId !== 'default-25'),
+    'observation-desk'
+  ])('falls back from removed saved background %s for either storage key', (skinId) => {
+    const selection = require('../ui/background-skin/selection.ts');
+    const catalog = require('../ui/background-skin/catalog.ts');
+    [selection.BACKGROUND_SKIN_STORAGE_KEY, selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY]
+      .forEach((key) => {
+        window.localStorage.clear();
+        // Even a previously migrated explicit selection must no longer resolve to a removed skin.
+        window.localStorage.setItem(selection.BACKGROUND_SKIN_STORAGE_VERSION_KEY, '2');
+        window.localStorage.setItem(key, skinId);
+
+        expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
+        expect(catalog.getBackgroundSkinDefinition(skinId, window)?.id).toBe('default-25');
+        expect(selection.writeStoredBackgroundSkinId(window, skinId)).toBe(true);
+        expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+        expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+      });
   });
 
   test('uses the configured board defaults when the board catalog is unavailable', () => {

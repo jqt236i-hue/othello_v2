@@ -85,6 +85,17 @@ describe('hand skin handler', () => {
     return storageModule;
   }
 
+  function installCustomPresetAlternatives() {
+    const definitions = [
+      { id: 'custom:board:preset-alternative', kind: 'board', label: '別の盤面', note: '個人保存', imagePath: 'blob:preset-board' },
+      { id: 'custom:board-frame:preset-alternative', kind: 'board-frame', label: '別の枠', note: '個人保存', imagePath: 'blob:preset-frame' }
+    ];
+    (window as any).CustomSkinStorageModule = {
+      ...require('../ui/custom-skin/storage.ts'),
+      getCustomSkinDefinitions: (_root, kind) => definitions.filter((skin) => !kind || skin.kind === kind)
+    };
+  }
+
   function setIphoneUserAgent() {
     Object.defineProperty(window.navigator, 'userAgent', {
       value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
@@ -386,19 +397,20 @@ describe('hand skin handler', () => {
 
     document.getElementById('handSkinBtn').click();
     document.getElementById('appearanceTabBoard').click();
-    document.querySelector('#boardSkinOptions [data-board-skin-id="emerald-stone"]').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="bluegreen-felt"]').click();
 
-    expect(window.localStorage.getItem('othello.boardSkin')).toBe('emerald-stone');
-    expect(window.localStorage.getItem('reversi.boardSkin')).toBe('emerald-stone');
-    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
-    expect(board.getAttribute('data-board-skin-id')).toBe('emerald-stone');
-    expect(board.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-emerald-v1.png")');
+    expect(window.localStorage.getItem('othello.boardSkin')).toBe('bluegreen-felt');
+    expect(window.localStorage.getItem('reversi.boardSkin')).toBe('bluegreen-felt');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+    expect(board.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+    expect(board.style.getPropertyValue('--board-surface-texture-image')).toBe('url("assets/images/board/board-surface-bluegreen-felt-v1.webp")');
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
     expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 
   test('preset tab saves current appearance, copies its code, reapplies it, and deletes it', async () => {
     unlockAltGachaHandSkin();
+    installCustomPresetAlternatives();
     const clipboardWrites = [];
     Object.defineProperty(window.navigator, 'clipboard', {
       value: {
@@ -421,9 +433,9 @@ describe('hand skin handler', () => {
     document.getElementById('handSkinBtn').click();
     api.selectSkin(ALT_GACHA_HAND_SKIN_ID);
     document.getElementById('appearanceTabBoard').click();
-    document.querySelector('#boardSkinOptions [data-board-skin-id="emerald-stone"]').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="bluegreen-felt"]').click();
     document.getElementById('appearanceTabBoardFrame').click();
-    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="compact-brass-clean-corners"]').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="submerged-wood"]').click();
     document.getElementById('appearanceTabFont').click();
     document.querySelector('[data-font-skin-id="dot-gothic"]').click();
     document.getElementById('appearanceTabStone').click();
@@ -438,16 +450,16 @@ describe('hand skin handler', () => {
     expect(savedPresetUse).not.toBeNull();
     expect(savedPresetName && savedPresetName.textContent).toContain('プリセット1');
     expect(savedPresetUse && savedPresetUse.textContent).toBe('使用');
-    expect(window.localStorage.getItem('reversi.appearancePresets')).toContain('emerald-stone');
+    expect(window.localStorage.getItem('reversi.appearancePresets')).toContain('bluegreen-felt');
     document.querySelector('.appearance-preset-code-copy').click();
     await Promise.resolve();
     expect(clipboardWrites[0]).toMatch(/^appearance:v1:/);
 
     api.selectSkin('default');
     document.getElementById('appearanceTabBoard').click();
-    document.querySelector('#boardSkinOptions [data-board-skin-id="woven-felt"]').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="custom:board:preset-alternative"]').click();
     document.getElementById('appearanceTabBoardFrame').click();
-    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="black-gold-lacquer"]').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="custom:board-frame:preset-alternative"]').click();
     document.getElementById('appearanceTabFont').click();
     document.querySelector('[data-font-skin-id="shippori-mincho"]').click();
     document.getElementById('appearanceTabStone').click();
@@ -456,16 +468,16 @@ describe('hand skin handler', () => {
     document.getElementById('appearanceTabPreset').click();
     document.querySelector('.appearance-preset-name').click();
     expect(api.getSelectedSkinId()).toBe('default');
-    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('woven-felt');
-    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('black-gold-lacquer');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('custom:board:preset-alternative');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('custom:board-frame:preset-alternative');
     expect(document.body.getAttribute('data-font-skin-id')).toBe('shippori-mincho');
     expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('jade-rim');
 
     document.querySelector('.appearance-preset-use').click();
 
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
-    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
-    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('compact-brass-clean-corners');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
     expect(document.body.getAttribute('data-font-skin-id')).toBe('dot-gothic');
     expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
 
@@ -477,6 +489,7 @@ describe('hand skin handler', () => {
 
   test('preset tab loads appearance codes from clipboard without a visible code field', async () => {
     unlockAltGachaHandSkin();
+    installCustomPresetAlternatives();
     let clipboardText = '';
     Object.defineProperty(window.navigator, 'clipboard', {
       value: {
@@ -497,9 +510,9 @@ describe('hand skin handler', () => {
     document.getElementById('handSkinBtn').click();
     api.selectSkin(ALT_GACHA_HAND_SKIN_ID);
     document.getElementById('appearanceTabBoard').click();
-    document.querySelector('#boardSkinOptions [data-board-skin-id="emerald-stone"]').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="bluegreen-felt"]').click();
     document.getElementById('appearanceTabBoardFrame').click();
-    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="compact-brass-clean-corners"]').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="submerged-wood"]').click();
     document.getElementById('appearanceTabFont').click();
     document.querySelector('[data-font-skin-id="dot-gothic"]').click();
     document.getElementById('appearanceTabStone').click();
@@ -515,9 +528,9 @@ describe('hand skin handler', () => {
 
     api.selectSkin('default');
     document.getElementById('appearanceTabBoard').click();
-    document.querySelector('#boardSkinOptions [data-board-skin-id="woven-felt"]').click();
+    document.querySelector('#boardSkinOptions [data-board-skin-id="custom:board:preset-alternative"]').click();
     document.getElementById('appearanceTabBoardFrame').click();
-    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="black-gold-lacquer"]').click();
+    document.querySelector('#boardFrameSkinOptions [data-board-frame-skin-id="custom:board-frame:preset-alternative"]').click();
     document.getElementById('appearanceTabFont').click();
     document.querySelector('[data-font-skin-id="shippori-mincho"]').click();
     document.getElementById('appearanceTabStone').click();
@@ -528,8 +541,8 @@ describe('hand skin handler', () => {
     await Promise.resolve();
 
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
-    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('emerald-stone');
-    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('compact-brass-clean-corners');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
     expect(document.body.getAttribute('data-font-skin-id')).toBe('dot-gothic');
     expect(document.documentElement.getAttribute('data-stone-skin-id')).toBe('o-stone');
     expect(document.getElementById('appearancePresetCodeStatus').textContent).toContain('読み込みました');
