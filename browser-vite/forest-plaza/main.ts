@@ -6,11 +6,9 @@ import {
   affectionHearts,
   loadAffection,
   loadTimeOfDay,
-  loadVisitors,
   pickLine,
   saveAffection,
   saveTimeOfDay,
-  saveVisitors,
   type PlazaLineSituation,
 } from './lines';
 import { PLAZA_TIMES, loadPlaza, type PlazaScene, type PlazaTimeOfDay } from './scene';
@@ -27,7 +25,10 @@ interface PlazaCatalog {
 
 const CLOSE_MESSAGE = 'card-reversi:forest-plaza:close';
 const MAX_VISITORS = 6;
-const DEFAULT_VISITORS = ['fire-will', 'water-will', 'grass-will'];
+/** 広場に入った時に最初からいるキャラの数（入るたびにランダムに選び直す） */
+const RANDOM_VISITOR_COUNT = 4;
+/** 最初からいるキャラのうち、観測者・執行者・理論の化身（容量が大きい）は 1 体まで */
+const RANDOM_MANIFEST_LIMIT = 1;
 const KIND_GROUPS: readonly { kind: PlazaCharacterInfo['kind']; label: string }[] = [
   { kind: 'stone', label: '特殊石' },
   { kind: 'cpu', label: 'CPU の中ボス' },
@@ -46,6 +47,26 @@ const $ = <T extends HTMLElement>(id: string): T => {
   if (!element) throw new Error(`missing #${id}`);
   return element as T;
 };
+
+/** 入るたびに最初からいるキャラをランダムに選ぶ（同じキャラは重ならない） */
+function pickRandomVisitors(characters: readonly PlazaCharacterInfo[]): string[] {
+  const pool = characters.slice();
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picked: string[] = [];
+  let manifests = 0;
+  for (const entry of pool) {
+    if (picked.length >= Math.min(RANDOM_VISITOR_COUNT, MAX_VISITORS)) break;
+    if (entry.kind === 'manifest') {
+      if (manifests >= RANDOM_MANIFEST_LIMIT) continue;
+      manifests += 1;
+    }
+    picked.push(entry.id);
+  }
+  return picked;
+}
 
 function formatMegabytes(bytes: number): string {
   return `${(bytes / 1e6).toFixed(bytes >= 1e7 ? 0 : 1)}MB`;
@@ -354,7 +375,7 @@ async function boot(): Promise<void> {
 
   // ------------------------------------------------------------ 呼ぶキャラの一覧
   const rosterButtons = new Map<string, HTMLButtonElement>();
-  let visitorOrder: string[] = (loadVisitors() ?? DEFAULT_VISITORS).filter((id) => characterById.has(id)).slice(0, MAX_VISITORS);
+  let visitorOrder: string[] = pickRandomVisitors(catalog.characters);
 
   const syncRoster = () => {
     for (const [id, button] of rosterButtons) {
@@ -436,7 +457,6 @@ async function boot(): Promise<void> {
     } catch (error) {
       console.warn('[forest-plaza] failed to load character', id, error);
       visitorOrder = visitorOrder.filter((value) => value !== id);
-      saveVisitors(visitorOrder);
     } finally {
       loadingIds.delete(id);
       syncRoster();
@@ -469,7 +489,6 @@ async function boot(): Promise<void> {
       visitorOrder.push(id);
       void spawnVisitor(id);
     }
-    saveVisitors(visitorOrder);
     syncRoster();
   }
 

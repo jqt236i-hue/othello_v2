@@ -62,7 +62,6 @@ export function pickLine(id: string, kind: PlazaCharacterKind, situation: PlazaL
 }
 
 const AFFECTION_STORAGE_KEY = 'cardReversi.forestPlaza.affection.v1';
-const VISITORS_STORAGE_KEY = 'cardReversi.forestPlaza.visitors.v1';
 const TIME_STORAGE_KEY = 'cardReversi.forestPlaza.time.v1';
 
 /** 仲良し度の上限と、ハートの数（最大 5）への換算 */
@@ -96,15 +95,6 @@ export function loadAffection(): Record<string, number> {
 
 export function saveAffection(value: Record<string, number>): void {
   writeJson(AFFECTION_STORAGE_KEY, value);
-}
-
-export function loadVisitors(): string[] | null {
-  const value = readJson<unknown>(VISITORS_STORAGE_KEY, null);
-  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : null;
-}
-
-export function saveVisitors(ids: readonly string[]): void {
-  writeJson(VISITORS_STORAGE_KEY, ids);
 }
 
 export function loadTimeOfDay(): string | null {
