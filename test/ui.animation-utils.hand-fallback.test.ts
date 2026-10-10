@@ -450,7 +450,7 @@ describe('animation-utils hand fallback', () => {
     // approval remains deliberately unresolved.
     for (let i = 0; i < 12; i += 1) await Promise.resolve();
     // Only the entry fade and the approach have started; the press waits for approval.
-    expect(wrapper.animate.mock.calls.map((call) => call[1].duration)).toEqual([40, 135]);
+    expect(wrapper.animate.mock.calls.map((call) => call[1].duration)).toEqual([40, 94]);
     expect(document.getElementById('heldStone').style.display).toBe('block');
     expect(done).not.toHaveBeenCalled();
     expect(global.SoundEngine.playStoneClack).not.toHaveBeenCalled();
@@ -768,7 +768,7 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
-  test('playHandAnimation reaches the stone in 65% of the original approach time with smooth phase easing', async () => {
+  test('playHandAnimation lands the stone at the bottom of the press about 0.15s after the hand appears', async () => {
     jest.useFakeTimers();
 
     const cancelMock = jest.fn();
@@ -808,21 +808,26 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
     expect(onComplete).toHaveBeenCalledTimes(1);
 
-    const transformDurations = animateMock.mock.calls
-      .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
-      .map((call) => call[1].duration);
-    const transformEasings = animateMock.mock.calls
-      .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
-      .map((call) => call[1].easing);
+    const wrapperTransformCalls = animateMock.mock.calls
+      .map((call, index) => ({ call, context: animateMock.mock.contexts[index], order: animateMock.mock.invocationCallOrder[index] }))
+      .filter(({ call, context }) => context === wrapper
+        && Array.isArray(call[0])
+        && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')));
 
-    expect(transformDurations).toEqual([135, 78, 156]);
-    expect(transformEasings).toEqual([
+    expect(wrapperTransformCalls.map(({ call }) => call[1].duration)).toEqual([94, 78, 200]);
+    expect(wrapperTransformCalls.map(({ call }) => call[1].easing)).toEqual([
       'cubic-bezier(0.33, 1, 0.68, 1)',
       'linear',
       'cubic-bezier(0.32, 0, 0.67, 0)'
     ]);
-    const pressFrames = animateMock.mock.calls.find((call) => call[1].duration === 78)[0];
-    expect(pressFrames.slice(0, 2).map((frame) => frame.easing)).toEqual(['ease-in-out', 'ease-in-out']);
+    // The press eases each half separately inside one animation.
+    expect(wrapperTransformCalls[1].call[0].slice(0, 2).map((frame) => frame.easing)).toEqual(['ease-in-out', 'ease-in-out']);
+    // Contact (sound + placement completion) waits for the bottom of the press, before the retreat.
+    const soundOrder = global.SoundEngine.playStoneClack.mock.invocationCallOrder[0];
+    expect(soundOrder).toBeGreaterThan(wrapperTransformCalls[1].order);
+    expect(soundOrder).toBeLessThan(wrapperTransformCalls[2].order);
+    expect(onComplete.mock.invocationCallOrder[0]).toBeGreaterThan(wrapperTransformCalls[1].order);
+    expect(onComplete.mock.invocationCallOrder[0]).toBeLessThan(wrapperTransformCalls[2].order);
     expect(document.getElementById('handLayer').style.display).toBe('block');
     expect(wrapper.style.display).toBe('block');
     expect(wrapper.style.opacity).toBe('0');
@@ -836,12 +841,12 @@ describe('animation-utils hand fallback', () => {
       handId: 'hand-black',
       cardRect: { left: 300, top: 520, width: 100, height: 120, right: 400, bottom: 640 },
       expectedApproach: [
-        { transform: 'translate(120px, 275px) rotate(0deg) scale(0.8)' },
-        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)' }
+        { transform: 'translate(120px, 242px) rotate(0deg) scale(0.8)' },
+        { transform: 'translate(120px, 122px) rotate(0deg) scale(0.8)' }
       ],
       expectedRetreat: [
-        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)' },
-        { transform: 'translate(120px, 275px) rotate(0deg) scale(0.8)' }
+        { transform: 'translate(120px, 122px) rotate(0deg) scale(0.8)' },
+        { transform: 'translate(180px, 242px) rotate(0deg) scale(0.8)' }
       ]
     },
     {
@@ -850,15 +855,15 @@ describe('animation-utils hand fallback', () => {
       handId: 'hand-white',
       cardRect: { left: 60, top: 80, width: 80, height: 100, right: 140, bottom: 180 },
       expectedApproach: [
-        { transform: 'translate(120px, -200px) rotate(180deg) scale(0.7)' },
-        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)' }
+        { transform: 'translate(120px, -170.5px) rotate(180deg) scale(0.7)' },
+        { transform: 'translate(120px, -50.5px) rotate(180deg) scale(0.7)' }
       ],
       expectedRetreat: [
-        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)' },
-        { transform: 'translate(120px, -200px) rotate(180deg) scale(0.7)' }
+        { transform: 'translate(120px, -50.5px) rotate(180deg) scale(0.7)' },
+        { transform: 'translate(60px, -170.5px) rotate(180deg) scale(0.7)' }
       ]
     }
-  ])('playHandAnimation starts two cells toward the $label side of the target, ignoring hand cards, with only brief fades at entry and exit', async ({
+  ])('playHandAnimation starts two cells toward the $label side of the target, retreats diagonally toward the hand cards, with only brief fades at entry and exit', async ({
     player,
     handId,
     cardRect,
@@ -898,17 +903,114 @@ describe('animation-utils hand fallback', () => {
     const mod = require('../ui/animation-utils.js');
     await expect(mod.playHandAnimation(player, 0, 0, jest.fn())).resolves.toBeUndefined();
 
-    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 135);
-    const retreatCall = animateMock.mock.calls.find((call) => call[1].duration === 156);
+    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 94);
+    const retreatCall = animateMock.mock.calls.find((call) => call[1].duration === 200);
     expect(approachCall?.[0]).toEqual(expectedApproach);
     expect(retreatCall?.[0]).toEqual(expectedRetreat);
     const opacityCalls = animateMock.mock.calls
       .filter((call) => call[0].every((frame) => !Object.prototype.hasOwnProperty.call(frame, 'transform')));
     expect(opacityCalls).toEqual([
       [[{ opacity: 0 }, { opacity: 1 }], { duration: 40, delay: 0, easing: 'linear', fill: 'forwards' }],
-      [[{ opacity: 1 }, { opacity: 0 }], { duration: 50, delay: 106, easing: 'linear', fill: 'forwards' }]
+      [[{ opacity: 1 }, { opacity: 0 }], { duration: 50, delay: 150, easing: 'linear', fill: 'forwards' }]
     ]);
     expect(wrapper.style.opacity).toBe('0');
+  });
+
+  test('playHandAnimation lands the held stone on the cell center at the current hand size', async () => {
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    const wrapper = document.getElementById('handWrapper');
+    const heldStone = document.getElementById('heldStone');
+    board.getBoundingClientRect = () => ({ left: 0, top: 0, width: 480, height: 480, right: 480, bottom: 480 });
+    cell.getBoundingClientRect = () => ({ left: 180, top: 180, width: 44, height: 44, right: 224, bottom: 224 });
+    // A 2/3 stage scale: 120px wrapper with the held stone laid out at its CSS position.
+    Object.defineProperty(wrapper, 'offsetWidth', { configurable: true, value: 120 });
+    Object.defineProperty(wrapper, 'offsetHeight', { configurable: true, value: 120 });
+    Object.defineProperty(heldStone, 'offsetLeft', { configurable: true, value: 120 * 65 / 180 });
+    Object.defineProperty(heldStone, 'offsetTop', { configurable: true, value: 120 * 40 / 180 });
+    Object.defineProperty(heldStone, 'offsetWidth', { configurable: true, value: 120 * 50 / 180 });
+    Object.defineProperty(heldStone, 'offsetHeight', { configurable: true, value: 120 * 50 / 180 });
+    const animateMock = jest.fn(() => ({ addEventListener: jest.fn(), finished: Promise.resolve() }));
+    wrapper.animate = animateMock;
+
+    try {
+      const mod = require('../ui/animation-utils.js');
+      await expect(mod.playHandAnimation(global.BLACK, 0, 0, jest.fn())).resolves.toBeUndefined();
+    } finally {
+      ['offsetWidth', 'offsetHeight'].forEach((key) => delete wrapper[key]);
+      ['offsetLeft', 'offsetTop', 'offsetWidth', 'offsetHeight'].forEach((key) => delete heldStone[key]);
+    }
+
+    const approach = animateMock.mock.calls.find((call) => call[1].duration === 94);
+    const [, dropX, dropY] = approach[0][1].transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/).map(Number);
+    // Map the held stone center through the wrapper transform (origin: center bottom, scale 0.8).
+    const stoneCenterX = 60 + (0.8 * ((120 * 90 / 180) - 60)) + dropX;
+    const stoneCenterY = 120 + (0.8 * ((120 * 65 / 180) - 120)) + dropY;
+    expect(stoneCenterX).toBeCloseTo(202, 6);
+    expect(stoneCenterY).toBeCloseTo(202, 6);
+  });
+
+  test('playHandAnimation casts a hand shadow that tightens on contact and leaves with the hand, and dissolves the cuff only while placing', async () => {
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    const layer = document.getElementById('handLayer');
+    const wrapper = document.getElementById('handWrapper');
+    // Mirror the shipped markup, where the hand wrapper lives inside the hand layer.
+    layer.appendChild(wrapper);
+    board.getBoundingClientRect = () => ({ left: 0, top: 0, width: 480, height: 480, right: 480, bottom: 480 });
+    cell.getBoundingClientRect = () => ({ left: 180, top: 180, width: 60, height: 60, right: 240, bottom: 240 });
+    let placingDuringApproach = null;
+    wrapper.animate = jest.fn((frames, options) => {
+      if (options && options.duration === 94) placingDuringApproach = wrapper.classList.contains('hand-wrapper--placing');
+      return { addEventListener: jest.fn(), finished: Promise.resolve() };
+    });
+    const shadowAnimate = jest.fn(() => ({ addEventListener: jest.fn(), finished: Promise.resolve() }));
+    const originalCreateElement = document.createElement.bind(document);
+    const createSpy = jest.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
+      const el = originalCreateElement(tagName, options);
+      el.animate = shadowAnimate;
+      return el;
+    });
+
+    try {
+      const mod = require('../ui/animation-utils.js');
+      await expect(mod.playHandAnimation(global.BLACK, 0, 0, jest.fn())).resolves.toBeUndefined();
+    } finally {
+      createSpy.mockRestore();
+    }
+
+    const shadow = layer.querySelector('.hand-place-shadow');
+    expect(shadow).toBeTruthy();
+    expect(shadow.nextElementSibling).toBe(wrapper);
+    // 60% x 50% of the on-screen hand width (180px wrapper at scale 0.8).
+    expect(parseFloat(shadow.style.width)).toBeCloseTo(86.4, 6);
+    expect(parseFloat(shadow.style.height)).toBeCloseTo(72, 6);
+    expect(placingDuringApproach).toBe(true);
+    expect(wrapper.classList.contains('hand-wrapper--placing')).toBe(false);
+
+    const pose = (frame) => {
+      const [, x, y, scale] = frame.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\) scale\(([-\d.]+)\)/).map(Number);
+      return { x, y, scale, opacity: frame.opacity };
+    };
+    const calls = shadowAnimate.mock.calls;
+    expect(calls.map((call) => call[1].duration)).toEqual([94, 78, 200]);
+    const [approachFrom, approachTo] = calls[0][0].map(pose);
+    const pressed = pose(calls[1][0][1]);
+    const retreatTo = pose(calls[2][0][1]);
+    // Raised: two cells below, far down-right of the stone, wide and faint.
+    expect(approachFrom.x).toBeCloseTo(220.8, 6);
+    expect(approachFrom.y).toBeCloseTo(345, 6);
+    expect(approachFrom).toMatchObject({ scale: 1.25, opacity: 0.25 });
+    // Contact: tucked close beside the hand, darker; pressing tightens it further.
+    expect(approachTo.x).toBeCloseTo(193.8, 6);
+    expect(approachTo.y).toBeCloseTo(207, 6);
+    expect(approachTo).toMatchObject({ scale: 1, opacity: 0.6 });
+    expect(pressed.x).toBeLessThan(approachTo.x);
+    expect(pressed).toMatchObject({ scale: 0.94, opacity: 0.7 });
+    // Retreat: drifts away with the hand and fades out.
+    expect(retreatTo.y).toBeCloseTo(approachFrom.y, 6);
+    expect(retreatTo).toMatchObject({ scale: 1.25, opacity: 0 });
+    expect(calls[2][1]).toMatchObject({ easing: 'cubic-bezier(0.32, 0, 0.67, 0)' });
   });
 
   test('playDrawCardHandAnimation uses 10%-slower draw motion durations than the current baseline', async () => {
@@ -2102,7 +2204,7 @@ describe('animation-utils hand fallback', () => {
       const mod = require('../ui/animation-utils.js');
       await new Promise((resolve) => mod.playHandAnimation(global.BLACK, 0, 0, resolve));
       expect(appended.some((el) => el.classList && el.classList.contains('thrown-stone'))).toBe(false);
-      expect(animateMock.mock.calls.some((call) => call[1].duration === 135)).toBe(true);
+      expect(animateMock.mock.calls.some((call) => call[1].duration === 94)).toBe(true);
       expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
     });
 

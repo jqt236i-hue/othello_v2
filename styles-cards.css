@@ -2709,6 +2709,24 @@
     backface-visibility: hidden;
 }
 
+/* Placing hand: dissolve the cuff end so the arm reads as reaching in from off the board. */
+#handWrapper.hand-wrapper--placing #handImage,
+#handWrapper.hand-wrapper--placing .hand-animation-actor-image {
+    -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 12%);
+    mask-image: linear-gradient(to top, transparent 0%, #000 12%);
+}
+
+.hand-place-shadow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.45) 40%, rgba(0, 0, 0, 0) 72%);
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
 .hand-inner {
     position: relative;
     width: 100%;

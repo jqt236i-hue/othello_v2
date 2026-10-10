@@ -284,19 +284,40 @@ const PLACE_HAND_SPEED_FACTOR = 0.95;
 const applyPlaceHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / PLACE_HAND_SPEED_FACTOR));
 const DRAW_HAND_SPEED_FACTOR = 0.9;
 const applyDrawHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.round(baseMs / DRAW_HAND_SPEED_FACTOR));
-const HAND_PLACE_APPROACH_TIME_RATIO = 0.65;
+const HAND_PLACE_APPROACH_TIME_RATIO = 0.45;
 const HAND_PLACE_APPROACH_MS = Math.max(1, Math.round(applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST))) * HAND_PLACE_APPROACH_TIME_RATIO));
 // The placing hand appears this many cells toward the placer's side of the target cell.
 const HAND_PLACE_ORIGIN_CELL_OFFSET = 2;
 const HAND_PLACE_BOB_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST)));
-const HAND_PLACE_RETREAT_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(300), PLACE_HAND_SPEED_BOOST)));
+// The stone lands at the bottom of the press, so contact happens after the approach plus this half.
+const HAND_PLACE_PRESS_HALF_MS = Math.max(1, Math.round(HAND_PLACE_BOB_MS / 2));
+// Board playback resumes at stone contact, so a relaxed retreat does not slow the game down.
+const HAND_PLACE_RETREAT_MS = 200;
+// The retreat drifts this many cells sideways toward the placer's hand cards.
+const HAND_PLACE_RETREAT_SIDE_CELL_OFFSET = 1;
 // Keep the placing hand opaque for almost the whole motion: only a brief fade at appearance and exit.
 const HAND_PLACE_FADE_IN_MS = 40;
 const HAND_PLACE_FADE_OUT_MS = 50;
+// The hand casts a soft board shadow: it peeks out down-right of the hand, tightens and darkens
+// as the hand lowers onto the cell, then drifts away and fades with the retreating hand.
+const HAND_PLACE_SHADOW_CLASS = 'hand-place-shadow';
+// Shadow size relative to the hand's on-screen width.
+const HAND_PLACE_SHADOW_WIDTH_RATIO = 0.6;
+const HAND_PLACE_SHADOW_HEIGHT_RATIO = 0.5;
+// Offsets in cells: toward the hand body from the stone, and the light offset (x, y) when raised /
+// touching. The x offset is large enough for the shadow to peek out beside the hand at contact.
+const HAND_PLACE_SHADOW_BODY_CELL_OFFSET = 0.4;
+const HAND_PLACE_SHADOW_RAISED_LIGHT = { x: 0.9, y: 0.45 };
+const HAND_PLACE_SHADOW_CONTACT_LIGHT = { x: 0.45, y: 0.15 };
+const HAND_PLACE_SHADOW_PRESSED_LIGHT = { x: 0.38, y: 0.12 };
+// Held stone center inside the unscaled hand wrapper (styles-cards.css .held-stone), as fractions.
+const HELD_STONE_CENTER_X_RATIO = 90 / 180;
+const HELD_STONE_CENTER_Y_RATIO = 65 / 180;
+const HAND_PLACING_WRAPPER_CLASS = 'hand-wrapper--placing';
 // Decelerate into the cell and accelerate away from it so the phases join without a velocity jump.
 const HAND_PLACE_APPROACH_EASING = 'cubic-bezier(0.33, 1, 0.68, 1)';
 const HAND_PLACE_RETREAT_EASING = 'cubic-bezier(0.32, 0, 0.67, 0)';
-const HAND_PLACE_CLEANUP_FALLBACK_MS = HAND_PLACE_APPROACH_MS + HAND_PLACE_BOB_MS + HAND_PLACE_RETREAT_MS + 600;
+const HAND_PLACE_CLEANUP_FALLBACK_MS = HAND_PLACE_APPROACH_MS + (HAND_PLACE_PRESS_HALF_MS * 2) + HAND_PLACE_RETREAT_MS + 600;
 const HAND_DRAW_PICKUP_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(140, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_MOVE_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(360, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_RETREAT_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(220, DRAW_HAND_SPEED_BOOST)));
@@ -527,6 +548,53 @@ function _animateHandWrapperOpacity(wrapperEl: any, from: number, to: number, du
             fill: 'forwards'
         });
     } catch (e: any) { /* ignore */ }
+}
+
+function _resolveHandPlaceShadowElement(layerEl: any, wrapperEl: any) {
+    if (!layerEl || typeof document === 'undefined') return null;
+    let shadowEl = typeof layerEl.querySelector === 'function'
+        ? layerEl.querySelector(`.${HAND_PLACE_SHADOW_CLASS}`)
+        : null;
+    if (!shadowEl) {
+        shadowEl = document.createElement('div');
+        shadowEl.className = HAND_PLACE_SHADOW_CLASS;
+        shadowEl.setAttribute('aria-hidden', 'true');
+        // Keep the shadow beneath the hand inside the shared hand layer.
+        if (wrapperEl && wrapperEl.parentNode === layerEl) layerEl.insertBefore(shadowEl, wrapperEl);
+        else layerEl.appendChild(shadowEl);
+    }
+    return shadowEl;
+}
+
+// Like the hand fades, the shadow is a Web Animations-only enhancement.
+function _animateHandPlaceShadow(shadowEl: any, keyframes: any[], options: any) {
+    if (!shadowEl || typeof shadowEl.animate !== 'function') return;
+    try { shadowEl.animate(keyframes, options); } catch (e: any) { /* ignore */ }
+}
+
+function _resolveHeldStoneLocalCenter(heldStoneEl: any, wrapperWidth: number, wrapperHeight: number) {
+    const width = Number(heldStoneEl && heldStoneEl.offsetWidth);
+    const height = Number(heldStoneEl && heldStoneEl.offsetHeight);
+    if (width > 0 && height > 0) {
+        return {
+            x: Number(heldStoneEl.offsetLeft) + (width / 2),
+            y: Number(heldStoneEl.offsetTop) + (height / 2)
+        };
+    }
+    return {
+        x: wrapperWidth * HELD_STONE_CENTER_X_RATIO,
+        y: wrapperHeight * HELD_STONE_CENTER_Y_RATIO
+    };
+}
+
+function _resolvePlacementRetreatSideDirection(playerKey: any, cellRect: any) {
+    const handRect = _resolvePlacementHandOriginRect(playerKey);
+    if (!handRect || !cellRect) return 0;
+    const handCenterX = handRect.left + ((handRect.right - handRect.left) / 2);
+    const cellCenterX = cellRect.left + (cellRect.width / 2);
+    const deltaX = handCenterX - cellCenterX;
+    if (Math.abs(deltaX) < cellRect.width / 2) return 0;
+    return deltaX > 0 ? 1 : -1;
 }
 
 function _isHandWrapperPresentationActive(wrapperEl: any) {
@@ -2072,32 +2140,52 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         // Calculate Position
         const cellCenterX = cellRect.left + (cellRect.width / 2);
         const cellCenterY = cellRect.top + (cellRect.height / 2);
-        const wrapW = HAND_WRAPPER_WIDTH;
+        // Bottom seat reaches up from below the board; top seat reaches down, rotated.
+        const rotation = fromBottom ? 0 : 180;
+        const scale = fromBottom ? 0.8 : 0.7;
 
-        let startY: number;
-        let dropY: number;
-        let rotation;
-        let scale;
-
-        if (fromBottom) {
-            // Bottom seat: from below board
-            rotation = 0;
-            scale = 0.8;
-            dropY = cellCenterY - 55;
-        } else {
-            // Top seat: from above board
-            rotation = 180;
-            scale = 0.7;
-            dropY = cellCenterY - 290;
-        }
-
-        const dropX = cellCenterX - (wrapW / 2);
+        // Land the held stone exactly on the cell center at any stage scale. The wrapper is
+        // positioned at the layer origin and scales/rotates around its center bottom.
+        const wrapperLayoutWidth = Number(wrapperEl.offsetWidth) > 0 ? Number(wrapperEl.offsetWidth) : HAND_WRAPPER_WIDTH;
+        const wrapperLayoutHeight = Number(wrapperEl.offsetHeight) > 0 ? Number(wrapperEl.offsetHeight) : HAND_WRAPPER_WIDTH;
+        const heldStoneLocal = _resolveHeldStoneLocalCenter(heldStoneEl, wrapperLayoutWidth, wrapperLayoutHeight);
+        const rotationSign = fromBottom ? 1 : -1;
+        const dropX = cellCenterX - (wrapperLayoutWidth / 2) - (rotationSign * scale * (heldStoneLocal.x - (wrapperLayoutWidth / 2)));
+        const dropY = cellCenterY - wrapperLayoutHeight - (rotationSign * scale * (heldStoneLocal.y - wrapperLayoutHeight));
         const startX = dropX;
-        const originOffsetY = cellRect.height * HAND_PLACE_ORIGIN_CELL_OFFSET;
-        startY = fromBottom ? dropY + originOffsetY : dropY - originOffsetY;
+        const originOffsetY = fromBottom
+            ? cellRect.height * HAND_PLACE_ORIGIN_CELL_OFFSET
+            : -cellRect.height * HAND_PLACE_ORIGIN_CELL_OFFSET;
+        const startY = dropY + originOffsetY;
+        const retreatOffsetX = cellRect.width * HAND_PLACE_RETREAT_SIDE_CELL_OFFSET * _resolvePlacementRetreatSideDirection(playerKey, cellRect);
+        const retreatX = dropX + retreatOffsetX;
+        const retreatY = startY;
+
+        // The hand shadow is placed relative to the held stone: shifted toward the hand body and
+        // down-right by the light, further and wider while the hand is raised.
+        const shadowEl = _resolveHandPlaceShadowElement(layerEl, wrapperEl);
+        const handVisualWidth = wrapperLayoutWidth * scale;
+        const shadowWidth = handVisualWidth * HAND_PLACE_SHADOW_WIDTH_RATIO;
+        const shadowHeight = handVisualWidth * HAND_PLACE_SHADOW_HEIGHT_RATIO;
+        const shadowBodyOffsetY = cellRect.height * HAND_PLACE_SHADOW_BODY_CELL_OFFSET * (fromBottom ? 1 : -1);
+        const shadowTransform = (stoneOffsetX: number, stoneOffsetY: number, light: { x: number; y: number }, shadowScale: number) => {
+            const x = cellCenterX + stoneOffsetX + (cellRect.width * light.x) - (shadowWidth / 2);
+            const y = cellCenterY + stoneOffsetY + shadowBodyOffsetY + (cellRect.height * light.y) - (shadowHeight / 2);
+            return `translate(${x}px, ${y}px) scale(${shadowScale})`;
+        };
+        const shadowRaisedAtStart = shadowTransform(0, originOffsetY, HAND_PLACE_SHADOW_RAISED_LIGHT, 1.25);
+        const shadowAtContact = shadowTransform(0, 0, HAND_PLACE_SHADOW_CONTACT_LIGHT, 1);
+        const shadowPressed = shadowTransform(0, 0, HAND_PLACE_SHADOW_PRESSED_LIGHT, 0.94);
+        const shadowRaisedAtRetreat = shadowTransform(retreatOffsetX, originOffsetY, HAND_PLACE_SHADOW_RAISED_LIGHT, 1.25);
+        if (shadowEl && shadowEl.style) {
+            _cancelElementAnimations(shadowEl);
+            shadowEl.style.width = `${shadowWidth}px`;
+            shadowEl.style.height = `${shadowHeight}px`;
+        }
 
         // Set initial state
         wrapperEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
+        if (wrapperEl.classList) wrapperEl.classList.add(HAND_PLACING_WRAPPER_CLASS);
         _setHandWrapperPresentationActive(wrapperEl, true);
         let completed = false;
         let cleanupStarted = false;
@@ -2116,6 +2204,8 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             _setHandWrapperPresentationActive(wrapperEl, false);
             heldStoneEl.style.display = 'none';
             _cancelElementAnimations(wrapperEl);
+            if (wrapperEl.classList) wrapperEl.classList.remove(HAND_PLACING_WRAPPER_CLASS);
+            _cancelElementAnimations(shadowEl);
             _restoreDisplayedHandSkinAfterAnimation(handContext);
             if (handAnimationTimeout) {
                 _Timer().clearTimeout(handAnimationTimeout);
@@ -2136,6 +2226,14 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         (async () => {
             // 1. Approach
             _animateHandWrapperOpacity(wrapperEl, 0, 1, HAND_PLACE_FADE_IN_MS, 0);
+            _animateHandPlaceShadow(shadowEl, [
+                { transform: shadowRaisedAtStart, opacity: 0.25 },
+                { transform: shadowAtContact, opacity: 0.6 }
+            ], {
+                duration: HAND_PLACE_APPROACH_MS,
+                easing: HAND_PLACE_APPROACH_EASING,
+                fill: 'forwards'
+            });
             await _animateCompat(wrapperEl, [
                 { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
@@ -2154,30 +2252,49 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 clearCleanupFallback = _installAnimationResolveFallback(cleanup, HAND_PLACE_CLEANUP_FALLBACK_MS);
             }
 
-            // 2. Place (Bobbing effect)
+            // 2. Press the stone down and release in one animation (each half eased in and out),
+            // so no await gap stretches the press. The stone lands at the bottom of the press.
             const bobOffset = (player === BLACK) ? 10 : -10;
-            // Ease each half separately so the hand eases into the press and out of it.
-            const placeAnim = _animateCompat(wrapperEl, [
+            _animateHandPlaceShadow(shadowEl, [
+                { transform: shadowAtContact, opacity: 0.6, easing: 'ease-in-out' },
+                { transform: shadowPressed, opacity: 0.7, easing: 'ease-in-out' },
+                { transform: shadowAtContact, opacity: 0.6 }
+            ], {
+                duration: HAND_PLACE_PRESS_HALF_MS * 2,
+                easing: 'linear',
+                fill: 'forwards'
+            });
+            const pressAnim = _animateCompat(wrapperEl, [
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`, easing: 'ease-in-out' },
                 { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})`, easing: 'ease-in-out' },
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
-                duration: HAND_PLACE_BOB_MS,
-                easing: 'linear'
+                duration: HAND_PLACE_PRESS_HALF_MS * 2,
+                easing: 'linear',
+                fill: 'forwards'
             }, sc);
+            await new Promise<void>((resolve) => { _Timer().setTimeout(resolve, HAND_PLACE_PRESS_HALF_MS, sc); });
+            if (!_isHandWrapperPresentationActive(wrapperEl) || cleanupStarted) return;
 
-            // Reflect placement immediately when the hand starts the place motion.
             heldStoneEl.style.display = 'none';
             _playStonePlaceSoundSafe();
             completeMove();
-            await placeAnim;
+            await pressAnim;
             if (!_isHandWrapperPresentationActive(wrapperEl)) return;
 
-            // 3. Retreat
+            // 3. Retreat, drifting toward the placer's hand cards so flips stay visible.
             _animateHandWrapperOpacity(wrapperEl, 1, 0, HAND_PLACE_FADE_OUT_MS, Math.max(0, HAND_PLACE_RETREAT_MS - HAND_PLACE_FADE_OUT_MS));
+            _animateHandPlaceShadow(shadowEl, [
+                { transform: shadowAtContact, opacity: 0.6 },
+                { transform: shadowRaisedAtRetreat, opacity: 0 }
+            ], {
+                duration: HAND_PLACE_RETREAT_MS,
+                easing: HAND_PLACE_RETREAT_EASING,
+                fill: 'forwards'
+            });
             await _animateCompat(wrapperEl, [
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
-                { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
+                { transform: `translate(${retreatX}px, ${retreatY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_PLACE_RETREAT_MS,
                 easing: HAND_PLACE_RETREAT_EASING,
