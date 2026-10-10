@@ -297,9 +297,9 @@ const HAND_PLACE_PRESS_HALF_MS = Math.max(1, Math.round((HAND_PLACE_BOB_MS * HAN
 const HAND_PLACE_RETREAT_MS = 300;
 // The retreat drifts this many cells sideways toward the placer's hand cards.
 const HAND_PLACE_RETREAT_SIDE_CELL_OFFSET = 1;
-// Keep the placing hand opaque for almost the whole motion: only a brief fade at appearance and exit.
+// Keep the placing hand opaque while it approaches and presses: a brief fade-in, then a gentle fade over the second half of the retreat.
 const HAND_PLACE_FADE_IN_MS = 40;
-const HAND_PLACE_FADE_OUT_MS = 50;
+const HAND_PLACE_FADE_OUT_MS = 150;
 // The hand casts a soft board shadow: it peeks out down-right of the hand, tightens and darkens
 // as the hand lowers onto the cell, then drifts away and fades with the retreating hand.
 const HAND_PLACE_SHADOW_CLASS = 'hand-place-shadow';

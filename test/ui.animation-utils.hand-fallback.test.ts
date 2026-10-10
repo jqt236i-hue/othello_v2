@@ -911,7 +911,7 @@ describe('animation-utils hand fallback', () => {
       .filter((call) => call[0].every((frame) => !Object.prototype.hasOwnProperty.call(frame, 'transform')));
     expect(opacityCalls).toEqual([
       [[{ opacity: 0 }, { opacity: 1 }], { duration: 40, delay: 0, easing: 'linear', fill: 'forwards' }],
-      [[{ opacity: 1 }, { opacity: 0 }], { duration: 50, delay: 250, easing: 'linear', fill: 'forwards' }]
+      [[{ opacity: 1 }, { opacity: 0 }], { duration: 150, delay: 150, easing: 'linear', fill: 'forwards' }]
     ]);
     expect(wrapper.style.opacity).toBe('0');
   });
