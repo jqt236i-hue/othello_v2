@@ -3,6 +3,13 @@ import * as path from 'path';
 import { readCssBlock, readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('status-display cpu image scaling', () => {
+  test('preserves the replacement hero artwork orientation without changing CPU portrait mirroring', () => {
+    const css = readLayoutCssSurface();
+    const heroArtworkRule = readCssBlock(css, '#hero-character-img[data-card-reversi-logical-src="assets/images/hero/hero.png"]');
+    expect(heroArtworkRule).toMatch(/--hero-character-face-direction:\s*1\s*;/);
+    expect(readCssBlock(css, '#hero-character-img')).toMatch(/--hero-character-face-direction:\s*-1\s*;/);
+  });
+
   test('uses CSS variable based level scaling without JS pixel width override', () => {
     const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
     const js = fs.readFileSync(jsPath, 'utf8');
