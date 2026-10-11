@@ -248,7 +248,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
     resolvePublish();
     await expect(result.publishPromise).resolves.toEqual({ ok: true });
-    expect(setBoardPresentationPreviewHints).toHaveBeenLastCalledWith([], { deferRender: true });
+    expect(setBoardPresentationPreviewHints).toHaveBeenLastCalledWith([], undefined);
   });
 
   test('destroy_hand_card送信でcommand payloadを使いclient snapshotを送らない', async () => {
