@@ -99,6 +99,20 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.isPlaybackStale()).toBe(true);
   });
 
+  test('owned playback is never stale while the engine waits for the committed network frame', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const board = document.getElementById('board');
+    global.window.AnimationEngine = { isPlaying: false };
+
+    manager.beginPlayback({ boardElement: board, runId: 7 });
+    const claim = manager.claimVisualPlayback({ source: 'strict-network-test' });
+    expect(manager.isPlaybackStale()).toBe(false);
+
+    manager.releaseVisualPlaybackClaim(claim);
+    expect(manager.isPlaybackStale()).toBe(true);
+    expect(manager.finalizePlayback({ boardElement: board, expectedRunId: 7 })).not.toBe(false);
+  });
+
   test('playback stale helpers fall back to elapsed playback time when engine state is unavailable', () => {
     const manager = require('../ui/playback-state-manager.js');
     global.window.PASS_STALE_PLAYBACK_MS = 2000;

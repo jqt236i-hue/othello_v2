@@ -432,6 +432,10 @@ function isPlaybackRunning(options?: any): boolean {
 
 function isPlaybackStale(options?: any): boolean {
   if (!getPlaybackActive()) return false;
+  // 演出の持ち主（presentation の claim、ネット演出タイムライン、選択確定ロック）がいる間は放置ロックではない。
+  // ネット対戦ではアニメーションが終わった後も、確定フレームを反映するまで claim が残る。
+  // ここで放置扱いにして解除すると、その演出の確定が失敗してタイムラインが止まり、入力できなくなる。
+  if (hasClaimedVisualPlayback() || hasSelectionSettlementLock() || isNetworkPresentationTimelinePlaying()) return false;
   const animationEngine = getAnimationEngine(options);
   if (animationEngine && typeof animationEngine.isPlaying === 'boolean') {
     return animationEngine.isPlaying !== true;

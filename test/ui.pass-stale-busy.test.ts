@@ -288,4 +288,24 @@ describe('pass fail-safe when no legal moves', () => {
       delete global.requestCardUiSync;
     }
   });
+
+  test('card UI refresh does not clear a network playback that waits for its committed frame', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    global.PlaybackStateManager = manager;
+    global.window.PlaybackStateManager = manager;
+    global.window.AnimationEngine = { isPlaying: false };
+    manager.beginPlayback({ runId: 9 });
+    const claim = manager.claimVisualPlayback({ source: 'strict-network-test' });
+    // A newer snapshot lowers the processing flag while the earlier frame still owns playback.
+    manager.setBusyState({ processing: false, cardAnimating: false });
+    global.isProcessing = false;
+    global.window.isProcessing = false;
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    expect(manager.hasClaimedVisualPlayback()).toBe(true);
+    expect(manager.releaseVisualPlaybackClaim(claim)).toBe(true);
+    expect(manager.finalizePlayback({ expectedRunId: 9 })).not.toBe(false);
+  });
 });
