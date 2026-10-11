@@ -147,4 +147,63 @@ describe('board visual render-state source', () => {
       .toThrow('Committed board visual receipt is not current for the visual store');
     expect(store.peekRenderSnapshot).not.toHaveBeenCalled();
   });
+
+  describe('local multi-stage selection preview', () => {
+    function createSelectionHarness(localPending: any, overrides?: any) {
+      const networkPending = { type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', pendingEffectId: 'pe-1', selectedTargets: [] };
+      const snapshot = {
+        stateVersion: 7,
+        gameState: { currentPlayer: 1, turnNumber: 5 },
+        cardState: { label: 'visual-card', pendingEffectByPlayer: { black: networkPending, white: null } }
+      };
+      const localPair = {
+        gameState: { currentPlayer: 1, turnNumber: 5, ...(overrides?.localGameState || {}) },
+        cardState: { pendingEffectByPlayer: { black: localPending, white: null } }
+      };
+      const store = {
+        peekRenderSnapshot: () => snapshot,
+        getOperationalState: () => ({ lagging: false })
+      };
+      const timeline = overrides?.timeline || null;
+      return { source: createHarness({ store, localPair, timeline }), snapshot, networkPending };
+    }
+
+    test('shows cells the local player already picked before the final target is published', () => {
+      const localPending = {
+        type: 'BOARD_SHRINK_WILL',
+        stage: 'selectTarget',
+        pendingEffectId: 'pe-1',
+        selectedTargets: [{ row: 0, col: 0 }]
+      };
+      const { source, snapshot } = createSelectionHarness(localPending);
+      const pair = source.resolvePair();
+
+      expect(pair.source).toBe('network_visual_state');
+      expect(pair.gameState).toBe(snapshot.gameState);
+      expect(pair.cardState.label).toBe('visual-card');
+      expect(pair.cardState.pendingEffectByPlayer.black).toBe(localPending);
+      expect(snapshot.cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([]);
+    });
+
+    test('keeps the network pending when the local pending belongs to another instance or turn', () => {
+      const otherInstance = { type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', pendingEffectId: 'pe-0', selectedTargets: [{ row: 0, col: 0 }] };
+      const first = createSelectionHarness(otherInstance);
+      expect(first.source.resolvePair().cardState.pendingEffectByPlayer.black).toBe(first.networkPending);
+
+      const sameInstance = { type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', pendingEffectId: 'pe-1', selectedTargets: [{ row: 0, col: 0 }] };
+      const otherTurn = createSelectionHarness(sameInstance, { localGameState: { turnNumber: 6 } });
+      expect(otherTurn.source.resolvePair().cardState.pendingEffectByPlayer.black).toBe(otherTurn.networkPending);
+
+      const noProgress = createSelectionHarness({ type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', pendingEffectId: 'pe-1', selectedTargets: [] });
+      expect(noProgress.source.resolvePair().cardState.pendingEffectByPlayer.black).toBe(noProgress.networkPending);
+    });
+
+    test('does not mix the local preview into playback frames', () => {
+      const localPending = { type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', pendingEffectId: 'pe-1', selectedTargets: [{ row: 0, col: 0 }] };
+      const { source, networkPending } = createSelectionHarness(localPending, {
+        timeline: { getOperationalState: () => ({ playing: true, paused: false, pendingFrameCount: 1 }) }
+      });
+      expect(source.resolvePair().cardState.pendingEffectByPlayer.black).toBe(networkPending);
+    });
+  });
 });

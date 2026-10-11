@@ -942,6 +942,35 @@ function canConsumeCardUseForTurn(cardState: any, playerKey: string): boolean {
     );
 }
 
+function hasCardCostLedgerEntry(cardState: any, copyId: number | null): boolean {
+    if (!copyId || !cardState) return false;
+    const key = String(copyId);
+    const overrides = cardState.cardCostOverridesByCopyId;
+    const modifiers = cardState.cardCostModifiersByCopyId;
+    return !!(
+        (overrides && typeof overrides === 'object' && Object.prototype.hasOwnProperty.call(overrides, key))
+        || (modifiers && typeof modifiers === 'object' && Object.prototype.hasOwnProperty.call(modifiers, key))
+    );
+}
+
+// ネット対戦の投影（utils/match-authority/projection.ts）はコスト台帳と copy ID を外し、
+// 見えている手札ごとのコスト調整（観測者の意志の観測税など）だけを届ける。
+// 台帳に無い手札は、その調整で実効コストを求める（手札表示の布石判定と同じ式）。
+function resolveHandSlotCardCost(cardState: any, playerKey: string, handIndex: number, cardId: string, context: Context): number {
+    const copyId = normalizePositiveCopyId(getHandCopyIdAt(cardState, playerKey, handIndex));
+    const ledgerCost = getEffectiveCardCostForCopy(cardState, cardId, Number(copyId || 0), context);
+    if (hasCardCostLedgerEntry(cardState, copyId)) return ledgerCost;
+    const adjustmentsByPlayer = cardState && cardState.handCostAdjustmentsByPlayer;
+    const adjustments = adjustmentsByPlayer && typeof adjustmentsByPlayer === 'object' ? adjustmentsByPlayer[playerKey] : null;
+    const adjustment = Array.isArray(adjustments) ? adjustments[handIndex] : null;
+    if (!adjustment || typeof adjustment !== 'object') return ledgerCost;
+    const overrideCost = Number(adjustment.overrideCost);
+    const delta = Number(adjustment.delta);
+    const cost = (Number.isFinite(overrideCost) ? overrideCost : getCardCost(cardId, context))
+        + (Number.isFinite(delta) ? delta : 0);
+    return Number.isFinite(cost) ? cost : ledgerCost;
+}
+
 function canUseCard(cardState: any, playerKey: string, cardId: string, context: Context, opts?: any): boolean {
     const { RIBO_WILL_UNLOCK_TURN_INDEX } = getConstants(context);
     const hands = cardState && cardState.hands;
@@ -956,8 +985,7 @@ function canUseCard(cardState: any, playerKey: string, cardId: string, context: 
     const handIndex = resolveHandIndexForCard(cardState, playerKey, cardId, opts);
     if (handIndex < 0) return false;
     if (!skipCostAndTurnLimit) {
-        const copyId = getHandCopyIdAt(cardState, playerKey, handIndex);
-        const cost = getEffectiveCardCostForCopy(cardState, cardId, Number(copyId || 0), context);
+        const cost = resolveHandSlotCardCost(cardState, playerKey, handIndex, cardId, context);
         if (!cardState.charge || Number(cardState.charge[playerKey] || 0) < cost) return false;
     }
     const cardType = getCardType(cardId, context);

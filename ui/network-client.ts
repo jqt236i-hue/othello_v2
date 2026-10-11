@@ -77,6 +77,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const NetworkPresenceToastModule = resolveNetworkClientModule('./network/presence-toast', null);
     const NetworkDiagnosticsModule = resolveNetworkClientModule('./network/diagnostics', null);
     const NetworkSelectionSignalBridgeModule = resolveNetworkClientModule('./network/selection-signal-bridge', null);
+    const NetworkNoActionPassModule = resolveNetworkClientModule('./network/no-action-pass', null);
     const CardRuntimeIntegrityModule = resolveNetworkClientModule('./card-runtime-integrity', null);
     const NetworkGameContract = NetworkGameContractAdapterModule
         && typeof NetworkGameContractAdapterModule.createNetworkGameContractAdapter === 'function'
@@ -4612,6 +4613,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     armBoardUpdateDuringPlayback
                 });
             }
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (NetworkNoActionPassModule && typeof NetworkNoActionPassModule.createNetworkNoActionPassMonitor === 'function') {
+            NetworkNoActionPassModule.createNetworkNoActionPassMonitor({
+                root: target,
+                client: api,
+                hasPendingLocalPublishes: () => hasPendingLocalPublishes(null)
+            }).start();
         }
     } catch (e) { /* ignore */ }
     try { target.NetworkMatchClient = api; } catch (e) { /* ignore */ }

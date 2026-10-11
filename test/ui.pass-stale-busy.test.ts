@@ -255,4 +255,37 @@ describe('pass fail-safe when no legal moves', () => {
     expect(passBtn.disabled).toBe(true);
     expect(global.processPassTurn).not.toHaveBeenCalled();
   });
+
+  test('re-enables the pass button without input after running playback ends', () => {
+    jest.useFakeTimers();
+    try {
+      global.window.VisualPlaybackActive = true;
+      global.isCardAnimating = true;
+      global.window.isCardAnimating = true;
+      global.window.AnimationEngine = { isPlaying: true };
+      global.requestCardUiSync = jest.fn(() => window.updateCardDetailPanel());
+      global.window.requestCardUiSync = global.requestCardUiSync;
+      require('../cards/card-interaction.js');
+
+      window.updateCardDetailPanel();
+      const framePassBtn = document.getElementById('board-frame-pass-btn');
+      expect(framePassBtn.hidden).toBe(false);
+      expect(framePassBtn.disabled).toBe(true);
+
+      // 演出の終了・処理中フラグの解除は UI の再描画を依頼しない。
+      global.window.VisualPlaybackActive = false;
+      global.isCardAnimating = false;
+      global.window.isCardAnimating = false;
+      global.isProcessing = false;
+      global.window.isProcessing = false;
+      global.window.AnimationEngine = { isPlaying: false };
+      jest.advanceTimersByTime(300);
+
+      expect(framePassBtn.hidden).toBe(false);
+      expect(framePassBtn.disabled).toBe(false);
+    } finally {
+      jest.useRealTimers();
+      delete global.requestCardUiSync;
+    }
+  });
 });

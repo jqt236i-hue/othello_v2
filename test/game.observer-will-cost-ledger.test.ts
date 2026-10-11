@@ -92,4 +92,22 @@ describe('OBSERVER_WILL card copy cost ledger', () => {
     cardState.charge.white = CardLogic.getCardCost('silver_stone') + 5;
     expect(CardLogic.canUseCard(cardState, 'white', 'silver_stone')).toBe(true);
   });
+
+  test('network projected hand cost adjustments gate use when the ledgers are not sent', () => {
+    // utils/match-authority/projection.ts removes the ledgers and copy ids and sends per-slot adjustments.
+    const cardState = createCardState();
+    CardLogic.addCardToHand(cardState, 'white', 'guard_01');
+    CardLogic.addCardToHand(cardState, 'white', 'silver_stone');
+    delete cardState.cardCostOverridesByCopyId;
+    delete cardState.cardCostModifiersByCopyId;
+    cardState.handCostAdjustmentsByPlayer = { black: [], white: [{ delta: 5 }, { overrideCost: 0 }] };
+
+    cardState.charge.white = CardLogic.getCardCost('guard_01') + 4;
+    expect(CardLogic.canUseCard(cardState, 'white', 'guard_01', { handIndex: 0 })).toBe(false);
+    cardState.charge.white = CardLogic.getCardCost('guard_01') + 5;
+    expect(CardLogic.canUseCard(cardState, 'white', 'guard_01', { handIndex: 0 })).toBe(true);
+
+    cardState.charge.white = 0;
+    expect(CardLogic.canUseCard(cardState, 'white', 'silver_stone', { handIndex: 1 })).toBe(true);
+  });
 });

@@ -381,9 +381,10 @@ function buildBoardHintProjection(inputValue: BoardHintProjectionInput): any {
     randomSpawnPreviewSet,
     selectedTargetHighlightSet: input.isHumanTurn ? collectPendingSelectedTargetHighlightKeys(pending) : new Set<string>(),
     boardShrinkGodPreviewHighlightSet: input.isHumanTurn ? collectBoardShrinkGodPreviewHighlightKeys(pending, selectableTargets) : new Set<string>(),
-    boardExpansionDirectionHintMap: buildBoardExpansionDirectionHintMap(pending, selectableTargets, input.boardShape),
-    boardShrinkGodDirectionHintMap: buildBoardShrinkGodDirectionHintMap(pending, selectableTargets),
-    boardShrinkWillDirectionHintMap: buildBoardShrinkWillDirectionHintMap(pending, selectableTargets)
+    // 方向矢印も選択中の本人だけに見せる。相手・観戦者・CPU 手番では紫ハイライトと同じく出さない。
+    boardExpansionDirectionHintMap: input.isHumanTurn ? buildBoardExpansionDirectionHintMap(pending, selectableTargets, input.boardShape) : new Map<string, string[]>(),
+    boardShrinkGodDirectionHintMap: input.isHumanTurn ? buildBoardShrinkGodDirectionHintMap(pending, selectableTargets) : new Map<string, string>(),
+    boardShrinkWillDirectionHintMap: input.isHumanTurn ? buildBoardShrinkWillDirectionHintMap(pending, selectableTargets) : new Map<string, string>()
   };
 }
 

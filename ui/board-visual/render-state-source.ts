@@ -121,10 +121,60 @@ export function createBoardVisualRenderStateSource(
     return snapshot && snapshot.gameState && snapshot.cardState ? snapshot : null;
   };
 
+  // Multi-stage selections (board shrink, swap, ...) publish only their final
+  // target, so the network snapshot keeps the pending without the cells the
+  // local player has already picked. Show that local progress as a preview
+  // while the network visual state is idle; the authoritative snapshot still
+  // owns everything else and replaces the preview once the publish lands.
+  const withLocalPendingSelectionPreview = (pair: BoardVisualRenderPair): BoardVisualRenderPair => {
+    if (isStrictNetworkVisualRenderActive()) return pair;
+    const networkGameState = pair.gameState;
+    const networkPendingByPlayer = pair.cardState && pair.cardState.pendingEffectByPlayer;
+    if (!networkGameState || !networkPendingByPlayer) return pair;
+    const playerKey = Number(networkGameState.currentPlayer) === -1 ? 'white' : 'black';
+    const networkPending = networkPendingByPlayer[playerKey];
+    let localPair: Readonly<{ gameState: any; cardState: any }> | null = null;
+    try {
+      localPair = dependencies.getLocalPair();
+    } catch (_error) {
+      return pair;
+    }
+    const localGameState = localPair && localPair.gameState;
+    const localPendingByPlayer = localPair && localPair.cardState && localPair.cardState.pendingEffectByPlayer;
+    const localPending = localPendingByPlayer ? localPendingByPlayer[playerKey] : null;
+    if (
+      !networkPending
+      || !localPending
+      || localPending === networkPending
+      || !localGameState
+      || localGameState.currentPlayer !== networkGameState.currentPlayer
+      || localGameState.turnNumber !== networkGameState.turnNumber
+      || networkPending.stage !== 'selectTarget'
+      || localPending.stage !== 'selectTarget'
+      || String(localPending.type || '') !== String(networkPending.type || '')
+      || (networkPending.pendingEffectId
+        && localPending.pendingEffectId !== networkPending.pendingEffectId)
+    ) {
+      return pair;
+    }
+    const localSelectedCount = Array.isArray(localPending.selectedTargets) ? localPending.selectedTargets.length : 0;
+    const networkSelectedCount = Array.isArray(networkPending.selectedTargets) ? networkPending.selectedTargets.length : 0;
+    const hasLocalProgress = localSelectedCount > networkSelectedCount
+      || (!!localPending.firstTarget && !networkPending.firstTarget);
+    if (!hasLocalProgress) return pair;
+    return Object.freeze({
+      ...pair,
+      cardState: {
+        ...pair.cardState,
+        pendingEffectByPlayer: { ...networkPendingByPlayer, [playerKey]: localPending }
+      }
+    });
+  };
+
   const resolvePair = (): BoardVisualRenderPair => {
     if (preparedState) return requirePair(preparedState, 'prepared');
     const visualSnapshot = resolveNetworkSnapshot();
-    if (visualSnapshot) return requirePair(visualSnapshot, 'network_visual_state');
+    if (visualSnapshot) return withLocalPendingSelectionPreview(requirePair(visualSnapshot, 'network_visual_state'));
     // Browser bootstrap and injected-controller tests can legitimately render
     // an already-built frame before the first local game state exists. Keep
     // that pre-game local pair observable so guarded consumers can no-op.
