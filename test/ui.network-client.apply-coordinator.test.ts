@@ -561,6 +561,45 @@ describe('NetworkMatchClient apply coordinator', () => {
     });
   });
 
+  test('accepted pass notice is also written to the log with its reason', async () => {
+    const showAutoPassNotice = jest.fn();
+    jest.doMock('../ui/animation-feedback-events', () => ({
+      showAutoPassNotice
+    }));
+    const emitLogAdded = jest.fn();
+    window.emitLogAdded = emitLogAdded;
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    responsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 11,
+      snapshot: createSnapshot(11),
+      playbackEvents: [],
+      autoPassNotice: {
+        playerKey: 'white',
+        reason: 'stone_supply_exhausted_no_usable_cards'
+      }
+    };
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'pass',
+      action: { type: 'pass', playerKey: 'black', turnIndex: 1, autoNoActionPass: true }
+    });
+
+    await Promise.resolve();
+    resolvePublishResponse();
+    await expect(publishPromise).resolves.toEqual({ ok: true });
+
+    expect(emitLogAdded).toHaveBeenCalledWith('白: パス (持ち石がありません)');
+    delete window.emitLogAdded;
+  });
+
   test('authoritative auto_turn pass response shows its auto-pass notice', async () => {
     const showAutoPassNotice = jest.fn();
     jest.doMock('../ui/animation-feedback-events', () => ({
