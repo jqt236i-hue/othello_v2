@@ -1632,6 +1632,8 @@ async function handleCreate(req: any, res: any) {
 
     const room = makeRoom({
         networkDebugEnabled,
+        // 部屋作成設定の「オートプレイを許可」（Worker と同じく作成時に保存する）。
+        networkAutoEnabled: body.networkAutoEnabled === true,
         allCardsDeckEnabled,
         initialDeckCardIdsByPlayer: allCardsDeckCardIdsByPlayer,
         roomDeck,

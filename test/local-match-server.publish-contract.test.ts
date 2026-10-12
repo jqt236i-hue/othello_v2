@@ -2264,6 +2264,21 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('room creation keeps the allow-autoplay setting like the Worker', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const allowed = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ', networkAutoEnabled: true });
+      const plain = await requestJson(port, 'POST', '/api/match/create', { playerName: 'しろ' });
+
+      expect(allowed.data.networkAutoEnabled).toBe(true);
+      expect(plain.data.networkAutoEnabled).toBe(false);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('auto_turn places the continuation stone instead of selecting a card during DOUBLE_PLACE', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
