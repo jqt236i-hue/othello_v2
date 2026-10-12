@@ -188,6 +188,21 @@ describe('OwnerHelpers network seat helpers', () => {
     expect(permissions.canUseOwnHand).toBe(false);
   });
 
+  test('resolveNetworkInputPermissions never lets a network spectator act on the default black seat', () => {
+    const permissions = OwnerHelpers.resolveNetworkInputPermissions({
+      rootRef: {
+        MATCH_MODE: 'network',
+        NetworkMatchClient: { getSeatKey: () => 'black', isSpectator: () => true }
+      },
+      gameState: { currentPlayer: 'black' },
+      cardState: { fateWillControllerByTurnOwner: {} }
+    });
+
+    expect(permissions.canOperateBoard).toBe(false);
+    expect(permissions.canUseOwnHand).toBe(false);
+    expect(permissions.canPass).toBe(false);
+  });
+
   test('resolveNetworkInputPermissions allows only the FATE_WILL controller in network mode', () => {
     const cardState = {
       fateWillControllerByTurnOwner: { white: 'black' }
