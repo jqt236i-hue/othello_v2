@@ -1347,4 +1347,20 @@ describe('showResult __resultToken race condition', () => {
 
     expect(document.querySelectorAll('#result-overlay')).toHaveLength(1);
   });
+
+  test('終局を決めたパスの通知が表示中なら、消えてからリザルトを出す', () => {
+    jest.useFakeTimers();
+    const mod = require('../ui/result-overlay.js');
+    const notice = document.createElement('div');
+    notice.className = 'auto-pass-notice-popup is-visible';
+    document.body.appendChild(notice);
+
+    mod.showResult();
+    jest.advanceTimersByTime(2500);
+    expect(document.getElementById('result-overlay')).toBeNull();
+
+    notice.classList.add('is-leaving');
+    jest.advanceTimersByTime(300);
+    expect(document.getElementById('result-overlay')).not.toBeNull();
+  });
 });

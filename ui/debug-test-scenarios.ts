@@ -196,7 +196,7 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
   gameState.turnNumber = Math.max(OBSERVER_READY_TURN, Number(gameState.turnNumber) || 0);
   gameState.consecutivePasses = 0;
   setBoardCell(gameState, 2, 3, 1);
-  setBoardCell(gameState, 2, 4, -1);
+  setBoardCell(gameState, 2, 4, 1);
   setBoardCell(gameState, 3, 5, -1);
 
   cardState.hands = {
@@ -235,11 +235,11 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
       }
     },
     {
-      id: 'debug_special_ready_trap_white',
+      id: 'debug_special_ready_trap_black',
       kind: 'specialStone',
       row: 2,
       col: 4,
-      owner: 'white',
+      owner: 'black',
       data: { type: 'TRAP', hidden: true, sourceType: 'SPECIAL_DEBUG' }
     },
     {

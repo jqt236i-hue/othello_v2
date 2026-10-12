@@ -38,24 +38,15 @@ if (!PerfBenchmarks && typeof globalThis !== 'undefined') {
 declare const gameState: any;
 declare const cardState: any;
 declare const boardEl: any;
-declare const getPlayerKey: (...args: any[]) => any;
 declare const CardLogic: any;
 declare const getLegalMoves: (...args: any[]) => any;
 declare const BLACK: number;
-declare const WHITE: number;
-declare const EMPTY: number;
-declare const MarkersAdapter: any;
-declare const applyStoneVisualEffect: (...args: any[]) => any;
-declare const applyTrapStoneFallbackVisual: (...args: any[]) => any;
-declare const getEffectKeyForSpecialType: (...args: any[]) => any;
-declare const SPECIAL_TYPE_TO_EFFECT_KEY: any;
-declare const attachBoardCellInteraction: (...args: any[]) => any;
 declare const handleCellClick: (...args: any[]) => any;
 
 /**
  * @file board-renderer.js
- * @description 盤面レンダリング（差分レンダリング対応版）
- * Board rendering with differential rendering support
+ * @description 盤面描画の窓口（描画は Pixi / DOM 互換 backend に委譲）
+ * Board visual facade; drawing is delegated to the Pixi or DOM compatibility backend
  */
 
 /**

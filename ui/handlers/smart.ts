@@ -665,6 +665,22 @@ function bindCpuLevelShortcut(smartWhite: HTMLSelectElement | null): void {
 
     toggleCpuConfigMenu('cpu');
   });
+  shortcut.addEventListener('wheel', (event) => {
+    if (shortcut.disabled || shortcut.getAttribute('aria-disabled') === 'true'
+      || smartWhite.disabled || event.ctrlKey || !event.deltaY) return;
+
+    // 一覧と同じプロフィール順で増減し、固有名を持つLv7以降も通常の変更経路に渡す。
+    const currentIndex = CPU_LEVEL_OPTIONS.findIndex((option) => option.v === smartWhite.value);
+    if (currentIndex < 0) return;
+    const nextIndex = Math.max(0, Math.min(
+      CPU_LEVEL_OPTIONS.length - 1,
+      currentIndex + (event.deltaY < 0 ? 1 : -1)
+    ));
+    event.preventDefault();
+    if (nextIndex === currentIndex) return;
+    smartWhite.value = CPU_LEVEL_OPTIONS[nextIndex].v;
+    dispatchSelectChange(smartWhite);
+  }, { passive: false });
   shortcut.dataset.cpuLevelShortcutBound = '1';
 }
 

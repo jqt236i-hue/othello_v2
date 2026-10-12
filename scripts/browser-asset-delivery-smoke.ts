@@ -55,15 +55,17 @@ async function openDefaultPage(browser: Browser, baseUrl: string): Promise<{
 async function applyBackground(page: Page, sourcePath: string): Promise<string> {
   await page.evaluate((pathValue) => {
     const root = window as any;
-    const codec = root.require('ui/assets/background-image-codec');
-    if (!codec || typeof codec.applyBackgroundImageWithFallback !== 'function') {
-      throw new Error('background image codec is unavailable');
+    const codec = root.require('ui/assets/optimized-image-codec');
+    const mapping = root.require('ui/assets/optimized-ui-images.generated').OPTIMIZED_UI_IMAGES;
+    if (!codec || typeof codec.applyOptimizedImageWithFallback !== 'function' || !mapping[pathValue]) {
+      throw new Error('default background image codec or mapping is unavailable');
     }
     const target = document.createElement('div');
     target.id = 'assetDeliveryBackgroundProbe';
     target.style.cssText = 'position:fixed;left:0;top:0;width:64px;height:64px;z-index:-1;';
     document.body.appendChild(target);
-    codec.applyBackgroundImageWithFallback(root, target.style, 'background-image', pathValue);
+    // Probe the remaining default's PNG/WebP pair without restoring retired skins.
+    codec.applyOptimizedImageWithFallback(root, target.style, 'background-image', pathValue, mapping, { strictMime: false });
   }, sourcePath);
   await page.waitForFunction(() => {
     const target = document.getElementById('assetDeliveryBackgroundProbe');
@@ -90,11 +92,12 @@ function summarizeBackgroundRequests(
 
 async function runBackgroundSuccessProbe(browser: Browser, baseUrl: string): Promise<BackgroundProbe> {
   const runtime = await openDefaultPage(browser, baseUrl);
-  const sourcePath = 'assets/images/background/デフォルト2.png';
+  const sourcePath = 'assets/images/background/デフォルト25.png';
   try {
-    const startIndex = runtime.requestedUrls.length;
     const finalStyle = await applyBackground(runtime.page, sourcePath);
-    return summarizeBackgroundRequests(runtime.requestedUrls.slice(startIndex), sourcePath, finalStyle);
+    // The sole default is already loaded at boot; codec reuse must not require
+    // a duplicate request. Include that original download in the success probe.
+    return summarizeBackgroundRequests(runtime.requestedUrls, sourcePath, finalStyle);
   } finally {
     await RuntimeHelpers.stopPlaywrightPage(runtime.page);
     await runtime.context.close().catch(() => undefined);
@@ -103,7 +106,7 @@ async function runBackgroundSuccessProbe(browser: Browser, baseUrl: string): Pro
 
 async function runBackgroundFallbackProbe(browser: Browser, baseUrl: string): Promise<BackgroundProbe> {
   const runtime = await openDefaultPage(browser, baseUrl);
-  const sourcePath = 'assets/images/background/デフォルト3.png';
+  const sourcePath = 'assets/images/background/デフォルト25.png';
   const webpPattern = /\/assets\/images\/background\/[^/]+\.webp(?:\?.*)?$/;
   await runtime.page.route(webpPattern, (route) => route.abort('failed'));
   try {

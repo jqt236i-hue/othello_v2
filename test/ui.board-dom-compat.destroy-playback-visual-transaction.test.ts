@@ -139,7 +139,7 @@ describe('destroy playback visual transaction', () => {
   });
 
   test('no-disc destroy fallback emits diagnostics when a visual ghost is required', async () => {
-    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    const AnimationDestroyEvents = require('../ui/board-dom-compat/animation-destroy-events');
     const cell = document.createElement('div');
     const onDestroyGhostFallback = jest.fn();
     const deps = createDestroyDeps(cell, onDestroyGhostFallback);
@@ -167,7 +167,7 @@ describe('destroy playback visual transaction', () => {
   });
 
   test('normal destroy with an existing target disc does not use ghost fallback diagnostics', async () => {
-    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    const AnimationDestroyEvents = require('../ui/board-dom-compat/animation-destroy-events');
     const cell = document.createElement('div');
     const disc = document.createElement('div');
     const onDestroyGhostFallback = jest.fn();
@@ -190,7 +190,7 @@ describe('destroy playback visual transaction', () => {
   });
 
   test('missing DOM target does not commit before its source trajectory settles', async () => {
-    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    const AnimationDestroyEvents = require('../ui/board-dom-compat/animation-destroy-events');
     let settleTrajectory!: () => void;
     const trajectoryGate = new Promise<void>((resolve) => {
       settleTrajectory = resolve;
@@ -223,7 +223,7 @@ describe('destroy playback visual transaction', () => {
   });
 
   test('missing DOM target never commits when its source trajectory rejects', async () => {
-    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    const AnimationDestroyEvents = require('../ui/board-dom-compat/animation-destroy-events');
     let rejectTrajectory!: (error: Error) => void;
     const trajectoryGate = new Promise<void>((_resolve, reject) => {
       rejectTrajectory = reject;

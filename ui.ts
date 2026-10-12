@@ -512,6 +512,12 @@ export function updateOccupancyUI() {
     } catch (e) { /* ignore require failures in browser */ }
 }
 
+// WORK stone repair only applies to DOM board cells. The Pixi backend draws
+// stones itself, so there are no `.cell .disc` elements to repair.
+function isDomBoardRendererActive(board: Element | null = document.getElementById('board')): boolean {
+    return !!board && board.getAttribute('data-board-renderer') === 'dom';
+}
+
 /**
  * Defensive helper: ensure WORK stones always have visual effect applied
  * This runs after a render and fixes cases where diff rendering or animation
@@ -519,6 +525,7 @@ export function updateOccupancyUI() {
  */
 export function ensureWorkVisualsApplied() {
     try {
+        if (!isDomBoardRendererActive()) return;
         // Diagnostic log to capture invocation in user environments
         try { (window as any)._lastEnsureVisualsTs = Date.now(); } catch (e) { /* Intentionally empty: diagnostic timestamp */ }
         const markers = ((window as any).cardState && Array.isArray((window as any).cardState.markers)) ? (window as any).cardState.markers : [];
@@ -618,7 +625,11 @@ export function setupWorkVisualsObserver() {
         } catch (e) { /* defensive */ }
     }, 50);
 
-    const mo = new MutationObserver(() => run());
+    // The observer stays installed so a later fallback to the DOM backend is
+    // still covered, but Pixi-path mutations (accessibility layer) skip the repair.
+    const mo = new MutationObserver(() => {
+        if (isDomBoardRendererActive(board)) run();
+    });
     mo.observe(board, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'data-row', 'data-col'] });
     (window as any)._workVisualsObserver = mo;
     (window as any)._teardownWorkVisualsObserver = () => { mo.disconnect(); (window as any)._workVisualsObserver = null; };
@@ -634,7 +645,7 @@ export function initWorkVisualsHelpers() {
 }
 
 
-// ===== Work visual diagnostics (temporary) =====
+// ===== Work visual diagnostics (DOM board backend) =====
 export function collectWorkVisualDiagnostics() {
     const res: any = {};
     res.timestamp = Date.now();

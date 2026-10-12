@@ -77,6 +77,7 @@
 - root source を変更し、影響する生成物は既存スクリプトで更新する。`dist/`、生成 catalog を正本として編集しない。ブラウザ生成物・Worker mirror の範囲は設計資料 §5.1.1・§11 を参照する。生成後は差分を確認し、既存の変更や依頼外のアセットを巻き込んでいないことを確かめる。
 - 仕様と責務境界に沿い、原因を持つ層と既存 helper で直す。テストを通すためだけに失敗を削除・skip・弱体化しない。
 - 誤りや不要になった変更は、新しい編集で上書きする。以前の状態へ戻す目的で Git を使わない（詳細は GIT HYGIENE）。
+- 大容量のローカルデータ（`data/cpu-lv10`〜`13`、`data/runs`、`othello-ai/data`、`artifacts/`、`output/`、`.venv/`）の実体は repo 外の `F:\othello_v2-data\` にあり、repo 内の同名パスはジャンクション（リンク）。スクリプトはそのまま使える。検索でリンク先を辿らない（`rg -L`、`Get-ChildItem -Recurse -FollowSymlink` などを使わない）。長時間の実験・計測で新しい大容量出力を作る時も、これらのパスか repo 外へ置き、repo 直下にログや出力を残さない。
 
 ## VERIFICATION
 
@@ -89,6 +90,8 @@
 | 通信・authority | 関連テストと必要な parity 検証を選び、クライアントと authority の両方への影響を確認する。 |
 | 描画・入力・演出 | 関連テストに加え、変更した操作や表示を必要な実ブラウザ確認で確かめる。 |
 | 生成物・Worker mirror | 正本から生成し、対応する生成・同期チェックを行う。 |
+
+テストは関連するものを `npm run test:jest -- --runTestsByPath <パス>` で実行するのが基本。`npm test` は事前チェック（`checkall`、約 3 分）のあと全 1,100 件超を実行するため、共有基盤・ビルド・テスト設定など影響が広い変更で必要な時に、作業の最後に 1 回だけ使う。修正のたびに繰り返さない。型の確認は `npm run typecheck`（約 20 秒）で行う。Jest は型チェックをしない。
 
 既存テストで十分なら追加は不要。失敗は今回の変更との関係を切り分け、依頼外の問題は根拠と影響を報告する。切り分けできないものや未確認の挙動は、そのまま明示する。
 
@@ -113,7 +116,8 @@
 ### 開始時
 
 - `git status --short` で既存の未コミット変更を把握する。それらは他の作業の進行中の可能性があるので触らず、今回分と分離して進める。
-- ビルドや生成スクリプトの出力だけの差分（`index.html` のキャッシュ番号、`public/module-registry*.js`、`shared/*.generated.js`、`assets/asset-manifest.json`、`worker-public/` など）は、他の作業の進行中とはみなさない。今回のビルドで再生成し、今回分のコミットに含める。これを理由にユーザーへ確認しない。
+- ビルドや生成スクリプトの出力だけの差分（`index.html` のキャッシュ番号、`shared/*.generated.js`、`assets/asset-manifest.json` など）は、他の作業の進行中とはみなさない。今回のビルドで再生成し、今回分のコミットに含める。これを理由にユーザーへ確認しない。
+- `public/module-registry*.js`、`vite-dist/`、`worker-public/` は Git 管理外の生成物（`.gitignore` 済み）。ビルドで更新されても差分に出ず、コミットもしない。
 - 所有権が不明な変更を上書きせざるを得ない場合だけ、具体的な衝突を示して確認する。
 
 ### 完了時
@@ -155,8 +159,8 @@
 
 | 目的 | コマンド |
 | --- | --- |
-| 全テスト（`pretest` で `checkall` を実行） | `npm test` |
-| 限定したテスト | `npm run test:jest -- --runTestsByPath <対象テストのパス>` |
+| 限定したテスト（通常はこちら） | `npm run test:jest -- --runTestsByPath <対象テストのパス>` |
+| 全テスト（`pretest` で `checkall` を実行。影響が広い時に最後に 1 回） | `npm test` |
 | 型の整合性 | `npm run typecheck` |
 | 通常配信へ反映（`build:browser` を含む） | `npm run build:vite` |
 | 通常のローカルサーバー（8000） | `npm run serve` |

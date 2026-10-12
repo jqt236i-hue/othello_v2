@@ -3,6 +3,32 @@ import * as path from 'path';
 import { readCssBlock, readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('status-display cpu image scaling', () => {
+  test('CPU settings fade in with a centered entrance and respect reduced motion', () => {
+    const css = readLayoutCssSurface();
+    const menu = readCssBlock(css, '#cpu-level-menu');
+    const backdrop = readCssBlock(css, '#cpu-level-menu-backdrop');
+    expect(menu).toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+    expect(menu).toMatch(/animation:\s*cpuConfigMenuEnter\s+260ms/);
+    expect(backdrop).toMatch(/animation:\s*cpuConfigBackdropEnter\s+220ms/);
+    expect(css).toMatch(/@keyframes cpuConfigMenuEnter\s*\{\s*from\s*\{\s*opacity:\s*0;\s*transform:\s*translate\(-50%,\s*-50%\)[^}]+scale\(0\.985\)/);
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*#cpu-level-menu,\s*#cpu-level-menu-backdrop\s*\{\s*animation:\s*none/);
+    expect(readCssBlock(css, '#cpu-level-menu[hidden]')).toMatch(/display:\s*none/);
+  });
+
+  test('preserves the human hero orientation and mirrors left-side CPUs by slot, not by image', () => {
+    const css = readLayoutCssSurface();
+    const heroArtworkRule = readCssBlock(css, '#hero-character-img[data-card-reversi-logical-src="assets/images/hero/hero.png"]');
+    expect(heroArtworkRule).toMatch(/--hero-character-face-direction:\s*1\s*;/);
+    expect(readCssBlock(css, '#hero-character-img')).toMatch(/--hero-character-face-direction:\s*-1\s*;/);
+    expect(css).not.toContain('observed-dark-dragon-transparent.png');
+  });
+
+  test('hides the default hero name without removing the space below its portrait', () => {
+    const rule = readCssBlock(readLayoutCssSurface(), '#hero-label.is-default-hero-label');
+    expect(rule).toMatch(/visibility:\s*hidden\s*;/);
+    expect(rule).not.toMatch(/display:\s*none/);
+  });
+
   test('uses CSS variable based level scaling without JS pixel width override', () => {
     const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
     const js = fs.readFileSync(jsPath, 'utf8');
@@ -19,8 +45,9 @@ describe('status-display cpu image scaling', () => {
     expect(varsCss).toMatch(/--layout-character-image-scale:\s*0\.8/);
     expect(css).toMatch(/#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(css).toMatch(/#cpu-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)\s*scale\(var\(--cpu-level-scale,\s*1\)\)/);
-    expect(css).toMatch(/#cpu-character-img[\s\S]*scaleX\(var\(--cpu-character-face-direction,\s*1\)\)/);
-    expect(css).toMatch(/#cpu-character-img\.is-network-opponent-hero[\s\S]*--cpu-character-face-direction:\s*1/);
+    expect(readCssBlock(css, '#cpu-character-img')).not.toMatch(/scaleX/);
+    expect(readCssBlock(css, '#cpu-character-img:hover')).not.toMatch(/scaleX/);
+    expect(css).not.toContain('--cpu-character-face-direction');
     expect(css).toMatch(/#cpu-character-img:hover[\s\S]*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)\s*scale\(calc\(var\(--cpu-level-scale,\s*1\)\s*\*\s*1\.04\)\)/);
     expect(css).toMatch(/#hero-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(css).toMatch(/#hero-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);

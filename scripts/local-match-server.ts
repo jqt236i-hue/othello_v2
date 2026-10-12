@@ -954,6 +954,7 @@ function buildHeartbeatPayload(room: any, serverTime: any) {
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     });
@@ -1111,6 +1112,7 @@ function buildSnapshotPayload(room: any, meta: any, viewer: any) {
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
@@ -1632,6 +1634,8 @@ async function handleCreate(req: any, res: any) {
 
     const room = makeRoom({
         networkDebugEnabled,
+        // 部屋作成設定の「オートプレイを許可」（Worker と同じく作成時に保存する）。
+        networkAutoEnabled: body.networkAutoEnabled === true,
         allCardsDeckEnabled,
         initialDeckCardIdsByPlayer: allCardsDeckCardIdsByPlayer,
         roomDeck,

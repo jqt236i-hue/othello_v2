@@ -30,6 +30,7 @@ ID・type・日本語名の検索だけでは、イベント名、pending type�
 | セッション・再接続 | `ui/network/session-lifecycle.ts`, `ui/network/session-seat.ts`, `ui/network/reconnect-controller.ts`, `ui/network/stream-session.ts` | §7.2、§8.4 |
 | SSE と replay | `utils/match-stream-preparation-controller.ts`, `utils/match-authority.ts` | §8.4 |
 | pending の識別・送信 | `utils/match-authority/pending-selection.ts`, `ui/network/selection-signal-bridge.ts` | §6.3、§7.2.1 |
+| 行動が無い手番の自動パス | `ui/network/no-action-pass.ts`, `game/pass-handler.ts` の `ensureCurrentPlayerCanActOrPass` | §7.2、§8.3 |
 | 黒・白・観戦者への公開範囲 | `utils/match-authority/projection.ts`, `utils/match-authority/hand-projection.ts`, `utils/match-authority/board-contract.ts` | §6.1.1、§8.2、§8.7–8.8 |
 | 演出 journal・再生・回復 | `shared/network-presentation-frame.ts`, `utils/match-authority/presentation-journal.ts`, `ui/network/presentation-timeline.ts`, `ui/network/visual-state-store.ts`, `ui/network/visual-settlement.ts` | §6.4、§7.3、§8.4 |
 | Worker 起動・配信 | `workers/match-worker-runtime-preload.ts`, `scripts/prepare-worker-assets.ts` | §5.2、§11 |

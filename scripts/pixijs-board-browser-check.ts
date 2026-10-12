@@ -10,7 +10,7 @@ const { BROWSER_FIXTURES, CAPTURE_DIR } = PixijsPlayfieldBaseline as any;
 
 const DEFAULT_SKIN = Object.freeze({
   board: 'bluegreen-felt',
-  frame: 'marsh-forged-iron',
+  frame: 'submerged-wood',
   stone: 'o-stone'
 });
 const STATIC_ENTRY_QUERY = 'debug=1&boardRenderer=pixi&noanim=1';
@@ -403,7 +403,7 @@ async function applyPhaseZeroFixture(page: any, fixture: FixtureDefinition): Pro
     root.cardState = cardState;
 
     const skin = definition.skin || {
-      board: 'bluegreen-felt', frame: 'marsh-forged-iron', stone: 'o-stone'
+      board: 'bluegreen-felt', frame: 'submerged-wood', stone: 'o-stone'
     };
     const boardSkinRuntime = resolveModule(['BoardSkinRuntimeModule'], 'ui/board-skin/runtime');
     const stoneSkinRuntime = resolveModule(['StoneSkinRuntimeModule'], 'ui/stone-skin/runtime');
@@ -628,7 +628,7 @@ async function readFixtureProbe(
       cellRects[key] = debug.getCellClientRect(row, col);
     }
     const expectedSkin = definition.skin || {
-      board: 'bluegreen-felt', frame: 'marsh-forged-iron', stone: 'o-stone'
+      board: 'bluegreen-felt', frame: 'submerged-wood', stone: 'o-stone'
     };
     const backingMaxWidth = viewportRect && cellSize > 0
       ? Math.ceil((viewportRect.width + cellSize * 4) * resolution) + 4

@@ -1,4 +1,5 @@
 import {
+  readCssBlock,
   readLayoutCssSurface,
   readNetworkFeatureCssSurface,
   readRepoTextFile,
@@ -22,6 +23,19 @@ describe('left info stack layout contract', () => {
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top/);
     expect(varsCss).toMatch(/--layout-anchor-left-info-stack-top:\s*188px/);
     expect(varsCss).toMatch(/--profile-left-info-stack-left:\s*max\(var\(--profile-stone-info-safe-left\),\s*calc\(var\(--profile-stone-info-left\)\s*-\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+  });
+
+  test('desktop hero fits below the information HUD without shrinking CPU portraits', () => {
+    const css = readRepoTextFile('styles-responsive.css');
+    const profileRule = readCssBlock(css, 'html.layout-profile-16x9.layout-stage-enabled');
+    const heroRule = readCssBlock(css, 'html.layout-profile-16x9.layout-stage-enabled #hero-character-img');
+
+    expect(profileRule).toMatch(/--layout-anchor-hero-bottom:\s*64px\s*;/);
+    expect(profileRule).toMatch(/--layout-hero-clearance-scale:\s*0\.8\s*;/);
+    expect(heroRule).toMatch(/width:\s*calc\([^;]*var\(--layout-hero-clearance-scale\)\)/);
+    expect(heroRule).toMatch(/height:\s*calc\([^;]*var\(--layout-hero-clearance-scale\)\)/);
+    expect(readCssBlock(css, 'html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-img'))
+      .not.toMatch(/--layout-hero-clearance-scale/);
   });
 
   test('responsive left info stack overrides stay explicit', () => {

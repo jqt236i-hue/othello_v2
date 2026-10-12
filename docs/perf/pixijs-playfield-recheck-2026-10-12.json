@@ -1,0 +1,866 @@
+{
+  "schemaVersion": "pixijs_playfield_desktop_capture.v1",
+  "capturedAt": "2026-10-12T06:12:52.301Z",
+  "sourceCommit": "75e6a12b4",
+  "note": "Summary of a standard desktop capture run from a clean export of the source commit. Full raw capture: artifacts/pixijs-playfield-performance/desktop-capture-2026-10-12.json (not in git).",
+  "browserArtifactSha256": "40aa08ad4d7caf924dccf70ec14940d137e0f2b9a17775adb0461b45226e6a89",
+  "profile": "desktop",
+  "standardRun": true,
+  "environment": {
+    "node": "v24.12.0",
+    "platform": "win32",
+    "arch": "x64",
+    "browserVersion": "143.0.7499.4",
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "dpr": 1,
+    "graphics": {
+      "hardwareAccelerated": true,
+      "glRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11-32.0.16.1074)",
+      "glVendor": "Google Inc. (NVIDIA)",
+      "displayType": "ANGLE_D3D11",
+      "gpuCompositing": "enabled",
+      "webgl": "enabled",
+      "devices": [
+        {
+          "vendorId": 4318,
+          "deviceId": 7938,
+          "deviceString": "NVIDIA GeForce RTX 2070",
+          "driverVendor": "NVIDIA",
+          "driverVersion": "32.0.16.1074"
+        },
+        {
+          "vendorId": 4098,
+          "deviceId": 5056,
+          "deviceString": "AMD Radeon(TM) Graphics",
+          "driverVendor": "",
+          "driverVersion": "32.0.21042.62"
+        },
+        {
+          "vendorId": 5140,
+          "deviceId": 140,
+          "deviceString": "Microsoft Basic Render Driver",
+          "driverVendor": "",
+          "driverVersion": "10.0.26100.9278"
+        }
+      ]
+    }
+  },
+  "crossLaneIdentity": true,
+  "phaseZeroEnvironment": {
+    "pass": true,
+    "checks": [
+      {
+        "name": "platform",
+        "pass": true,
+        "baseline": "win32",
+        "current": "win32"
+      },
+      {
+        "name": "arch",
+        "pass": true,
+        "baseline": "x64",
+        "current": "x64"
+      },
+      {
+        "name": "viewport",
+        "pass": true,
+        "baseline": {
+          "width": 1366,
+          "height": 900
+        },
+        "current": {
+          "width": 1366,
+          "height": 900
+        }
+      },
+      {
+        "name": "dpr",
+        "pass": true,
+        "baseline": 1,
+        "current": 1
+      },
+      {
+        "name": "classic.browserVersion",
+        "pass": true,
+        "baseline": "143.0.7499.4",
+        "current": "143.0.7499.4"
+      },
+      {
+        "name": "vite.browserVersion",
+        "pass": true,
+        "baseline": "143.0.7499.4",
+        "current": "143.0.7499.4"
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "lane": "classic",
+      "pass": false,
+      "checks": [
+        {
+          "name": "identity.candidateCommit",
+          "pass": true,
+          "dom": "09a15d7f416dec61e6e65ceebf11c9325149d261",
+          "pixi": "09a15d7f416dec61e6e65ceebf11c9325149d261"
+        },
+        {
+          "name": "identity.browserArtifactSha256",
+          "pass": true,
+          "dom": "40aa08ad4d7caf924dccf70ec14940d137e0f2b9a17775adb0461b45226e6a89",
+          "pixi": "40aa08ad4d7caf924dccf70ec14940d137e0f2b9a17775adb0461b45226e6a89"
+        },
+        {
+          "name": "identity.fixtureDigest",
+          "pass": true,
+          "dom": "fnv1a32:45a514aa",
+          "pixi": "fnv1a32:45a514aa"
+        },
+        {
+          "name": "identity.eventDigest",
+          "pass": true,
+          "dom": "fnv1a32:75cd8b2e",
+          "pixi": "fnv1a32:75cd8b2e"
+        },
+        {
+          "name": "identity.lane",
+          "pass": true,
+          "dom": "classic",
+          "pixi": "classic"
+        },
+        {
+          "name": "identity.environment",
+          "pass": true
+        },
+        {
+          "name": "basic.pixi-frame-target",
+          "pass": true,
+          "actual": 16.7,
+          "target": 17.7
+        },
+        {
+          "name": "basic.pixi-jank",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "basic.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "basic.dom-comparison",
+          "pass": true,
+          "domP95": 16.8,
+          "pixiP95": 16.7,
+          "domTarget": 17.7
+        },
+        {
+          "name": "micro.model-under-50ms",
+          "pass": true,
+          "max": 7.4
+        },
+        {
+          "name": "micro.apply-under-50ms",
+          "pass": true,
+          "max": 1
+        },
+        {
+          "name": "micro.hit-under-50ms",
+          "pass": true,
+          "max": 0.1
+        },
+        {
+          "name": "basic.multi-flip-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "basic.multi-flip-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 501.1,
+          "pixiP95": 501.5
+        },
+        {
+          "name": "basic.multi-flip-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.4,
+          "pixiP95": 16.4
+        },
+        {
+          "name": "heavy.move-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.move-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.8,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.move-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.move-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.8,
+          "pixiP95": 16.8,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.move-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 434.9,
+          "pixiP95": 451
+        },
+        {
+          "name": "heavy.move-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.3,
+          "pixiP95": 16.5
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.8,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.8,
+          "pixiP95": 16.8,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 1467.2,
+          "pixiP95": 1484.3
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": false,
+          "domP95": 15.5,
+          "pixiP95": 16.4
+        },
+        {
+          "name": "heavy.status-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.status-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.status-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.status-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.7,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.status-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 652.5,
+          "pixiP95": 650.6
+        },
+        {
+          "name": "heavy.status-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.2,
+          "pixiP95": 16.4
+        },
+        {
+          "name": "heavy.destroy-source-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.destroy-source-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.destroy-source-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.destroy-source-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.7,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.destroy-source-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": false,
+          "domP95": 1084.9,
+          "pixiP95": 1200.8
+        },
+        {
+          "name": "heavy.destroy-source-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.3,
+          "pixiP95": 16.4
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.8,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 7017,
+          "pixiP95": 6783.6
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.2,
+          "pixiP95": 16.3
+        },
+        {
+          "name": "stability.dom-stall50",
+          "pass": false,
+          "actual": 37
+        },
+        {
+          "name": "stability.pixi-stall50",
+          "pass": false,
+          "actual": 1
+        }
+      ]
+    },
+    {
+      "lane": "vite",
+      "pass": false,
+      "checks": [
+        {
+          "name": "identity.candidateCommit",
+          "pass": true,
+          "dom": "09a15d7f416dec61e6e65ceebf11c9325149d261",
+          "pixi": "09a15d7f416dec61e6e65ceebf11c9325149d261"
+        },
+        {
+          "name": "identity.browserArtifactSha256",
+          "pass": true,
+          "dom": "40aa08ad4d7caf924dccf70ec14940d137e0f2b9a17775adb0461b45226e6a89",
+          "pixi": "40aa08ad4d7caf924dccf70ec14940d137e0f2b9a17775adb0461b45226e6a89"
+        },
+        {
+          "name": "identity.fixtureDigest",
+          "pass": true,
+          "dom": "fnv1a32:45a514aa",
+          "pixi": "fnv1a32:45a514aa"
+        },
+        {
+          "name": "identity.eventDigest",
+          "pass": true,
+          "dom": "fnv1a32:75cd8b2e",
+          "pixi": "fnv1a32:75cd8b2e"
+        },
+        {
+          "name": "identity.lane",
+          "pass": true,
+          "dom": "vite",
+          "pixi": "vite"
+        },
+        {
+          "name": "identity.environment",
+          "pass": true
+        },
+        {
+          "name": "basic.pixi-frame-target",
+          "pass": true,
+          "actual": 16.7,
+          "target": 17.7
+        },
+        {
+          "name": "basic.pixi-jank",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "basic.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "basic.dom-comparison",
+          "pass": true,
+          "domP95": 16.7,
+          "pixiP95": 16.7,
+          "domTarget": 17.7
+        },
+        {
+          "name": "micro.model-under-50ms",
+          "pass": true,
+          "max": 8.5
+        },
+        {
+          "name": "micro.apply-under-50ms",
+          "pass": true,
+          "max": 0.6
+        },
+        {
+          "name": "micro.hit-under-50ms",
+          "pass": true,
+          "max": 0.1
+        },
+        {
+          "name": "basic.multi-flip-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "basic.multi-flip-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 501,
+          "pixiP95": 501.1
+        },
+        {
+          "name": "basic.multi-flip-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.4,
+          "pixiP95": 16.6
+        },
+        {
+          "name": "heavy.move-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.move-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.move-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.move-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.7,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.move-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 435,
+          "pixiP95": 451.4
+        },
+        {
+          "name": "heavy.move-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.2,
+          "pixiP95": 16.4
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.8,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 1458.7,
+          "pixiP95": 1483.3
+        },
+        {
+          "name": "heavy.destroy-spawn-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16,
+          "pixiP95": 16.3
+        },
+        {
+          "name": "heavy.status-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.status-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.status-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.status-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.7,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.status-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 651.5,
+          "pixiP95": 651.2
+        },
+        {
+          "name": "heavy.status-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.3,
+          "pixiP95": 16.2
+        },
+        {
+          "name": "heavy.destroy-source-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.destroy-source-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.destroy-source-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.destroy-source-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.7,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.destroy-source-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": false,
+          "domP95": 1084.8,
+          "pixiP95": 1200.8
+        },
+        {
+          "name": "heavy.destroy-source-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 16.2,
+          "pixiP95": 16.3
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.pixi-stall50",
+          "pass": true,
+          "actual": 0
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.pixi-p95",
+          "pass": true,
+          "actual": 16.7,
+          "target": 33.4
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.pixi-max",
+          "pass": true,
+          "actual": 16.8,
+          "target": 100
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.dom-comparison",
+          "pass": true,
+          "domP95": 16.8,
+          "pixiP95": 16.7,
+          "domTarget": 33.4
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.wholeTurnSettlementMs.dom-comparison",
+          "pass": true,
+          "domP95": 7192,
+          "pixiP95": 6783.7
+        },
+        {
+          "name": "heavy.theory-manifest-8x8.presentationStartLatencyMs.dom-comparison",
+          "pass": true,
+          "domP95": 49.2,
+          "pixiP95": 16.5
+        },
+        {
+          "name": "stability.dom-stall50",
+          "pass": false,
+          "actual": 1478
+        },
+        {
+          "name": "stability.pixi-stall50",
+          "pass": false,
+          "actual": 4
+        }
+      ]
+    }
+  ],
+  "stability": [
+    {
+      "lane": "classic",
+      "backend": "pixi",
+      "durationMs": 601206.8,
+      "summary": {
+        "nominalFrameIntervalMs": 16.7,
+        "firstTwoMinutes": {
+          "raf": {
+            "count": 7198,
+            "p50": 16.7,
+            "p95": 16.7,
+            "p99": 16.8,
+            "max": 33.2,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 1,
+            "jankRatio": 0,
+            "rafStall50msCount": 0
+          },
+          "backendApplySettlementMs": {
+            "count": 239,
+            "p50": 14,
+            "p95": 22.4,
+            "p99": 27.2,
+            "max": 29.5
+          }
+        },
+        "lastTwoMinutes": {
+          "raf": {
+            "count": 7198,
+            "p50": 16.7,
+            "p95": 16.8,
+            "p99": 16.8,
+            "max": 83.2,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 4,
+            "jankRatio": 0.001,
+            "rafStall50msCount": 1
+          },
+          "backendApplySettlementMs": {
+            "count": 238,
+            "p50": 15.2,
+            "p95": 23.6,
+            "p99": 29,
+            "max": 35.6
+          }
+        }
+      }
+    },
+    {
+      "lane": "classic",
+      "backend": "dom",
+      "durationMs": 600882,
+      "summary": {
+        "nominalFrameIntervalMs": 16.7,
+        "firstTwoMinutes": {
+          "raf": {
+            "count": 7083,
+            "p50": 16.7,
+            "p95": 16.8,
+            "p99": 33.3,
+            "max": 83.3,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 101,
+            "jankRatio": 0.014,
+            "rafStall50msCount": 10
+          },
+          "backendApplySettlementMs": {
+            "count": 238,
+            "p50": 32.3,
+            "p95": 46,
+            "p99": 57.2,
+            "max": 71.2
+          }
+        },
+        "lastTwoMinutes": {
+          "raf": {
+            "count": 7106,
+            "p50": 16.7,
+            "p95": 16.8,
+            "p99": 33.3,
+            "max": 50.1,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 102,
+            "jankRatio": 0.014,
+            "rafStall50msCount": 7
+          },
+          "backendApplySettlementMs": {
+            "count": 238,
+            "p50": 31.8,
+            "p95": 46,
+            "p99": 50.1,
+            "max": 61.4
+          }
+        }
+      }
+    },
+    {
+      "lane": "vite",
+      "backend": "pixi",
+      "durationMs": 601287.8,
+      "summary": {
+        "nominalFrameIntervalMs": 16.7,
+        "firstTwoMinutes": {
+          "raf": {
+            "count": 7187,
+            "p50": 16.7,
+            "p95": 16.8,
+            "p99": 16.8,
+            "max": 83.3,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 7,
+            "jankRatio": 0.001,
+            "rafStall50msCount": 3
+          },
+          "backendApplySettlementMs": {
+            "count": 239,
+            "p50": 12.9,
+            "p95": 20.1,
+            "p99": 28.2,
+            "max": 88.7
+          }
+        },
+        "lastTwoMinutes": {
+          "raf": {
+            "count": 7213,
+            "p50": 16.7,
+            "p95": 16.7,
+            "p99": 16.8,
+            "max": 50.1,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 1,
+            "jankRatio": 0,
+            "rafStall50msCount": 1
+          },
+          "backendApplySettlementMs": {
+            "count": 238,
+            "p50": 13.5,
+            "p95": 20,
+            "p99": 26.2,
+            "max": 27.3
+          }
+        }
+      }
+    },
+    {
+      "lane": "vite",
+      "backend": "dom",
+      "durationMs": 601363.8,
+      "summary": {
+        "nominalFrameIntervalMs": 16.7,
+        "firstTwoMinutes": {
+          "raf": {
+            "count": 6119,
+            "p50": 16.7,
+            "p95": 50,
+            "p99": 66.7,
+            "max": 100,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 476,
+            "jankRatio": 0.078,
+            "rafStall50msCount": 359
+          },
+          "backendApplySettlementMs": {
+            "count": 238,
+            "p50": 55.9,
+            "p95": 70.5,
+            "p99": 77.5,
+            "max": 87
+          }
+        },
+        "lastTwoMinutes": {
+          "raf": {
+            "count": 6222,
+            "p50": 16.7,
+            "p95": 50,
+            "p99": 66.7,
+            "max": 83.4,
+            "jankThresholdMs": 25.05,
+            "jankFrameCount": 473,
+            "jankRatio": 0.076,
+            "rafStall50msCount": 324
+          },
+          "backendApplySettlementMs": {
+            "count": 238,
+            "p50": 53.2,
+            "p95": 67.6,
+            "p99": 72.6,
+            "max": 73.2
+          }
+        }
+      }
+    }
+  ],
+  "pass": false
+}

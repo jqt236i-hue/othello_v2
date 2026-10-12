@@ -2,8 +2,12 @@ import * as codec from '../ui/assets/background-image-codec';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const sourcePath = 'assets/images/background/default.png';
-const outputPath = 'assets/images/background/default.webp';
+// Exercise codec admission with a synthetic mapping, independent of standard skin assets.
+jest.mock('../ui/assets/optimized-backgrounds.generated', () => ({
+  OPTIMIZED_BACKGROUND_IMAGES: { 'test-assets/background.png': 'test-assets/background.webp' }
+}));
+const sourcePath = 'test-assets/background.png';
+const outputPath = 'test-assets/background.webp';
 
 class SuccessfulImage {
   onload: null | (() => void) = null;
@@ -28,7 +32,7 @@ class SuccessfulImage {
 describe('background image codec fallback', () => {
   beforeEach(() => codec.resetBackgroundImageCodecForTests());
 
-  test('uses committed lossless WebP only after capability and asset decode succeed', async () => {
+  test('uses mapped lossless WebP only after capability and asset decode succeed', async () => {
     const resolved = await codec.resolveBackgroundImagePath(
       { Image: SuccessfulImage } as any,
       sourcePath
@@ -151,30 +155,24 @@ describe('background image codec fallback', () => {
     expect(values['--background']).toBe('url("assets/images/background/newer.png")');
   });
 
-  test('ships only materially smaller lossless WebP backgrounds', () => {
+  test('ships no legacy background codec candidates after standard skin removal', () => {
     const root = path.resolve(__dirname, '..');
     const manifest = JSON.parse(fs.readFileSync(
       path.join(root, 'assets', 'images', 'background', 'optimized-backgrounds.json'),
       'utf8'
     ));
 
-    expect(manifest.images).toHaveLength(13);
+    const actualMapping = jest.requireActual('../ui/assets/optimized-backgrounds.generated');
+    expect(manifest.images).toEqual([]);
+    expect(actualMapping.OPTIMIZED_BACKGROUND_IMAGES).toEqual({});
     expect(manifest.selection).toMatchObject({
       minimumSourceBytes: 1310720,
       minimumSavedBytes: 262144,
       minimumSavingsRatio: 0.15,
       opaqueOnly: true
     });
-    manifest.images.forEach((image: any) => {
-      expect(image.savedBytes).toBeGreaterThanOrEqual(manifest.selection.minimumSavedBytes);
-      expect(image.savedBytes / image.sourceBytes).toBeGreaterThanOrEqual(
-        manifest.selection.minimumSavingsRatio
-      );
-      expect(fs.existsSync(path.join(root, image.output))).toBe(true);
-      expect(image.output.endsWith('.webp')).toBe(true);
-    });
-    expect(codec.getOptimizedBackgroundPath('assets/images/background/デフォルト4.png'))
-      .toBe('assets/images/background/デフォルト4.webp');
+    expect(Object.keys(actualMapping.OPTIMIZED_BACKGROUND_IMAGES))
+      .not.toContain('assets/images/background/デフォルト4.png');
     expect(fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
       .some((name) => name.endsWith('.avif'))).toBe(false);
     const mappedOutputs = new Set(manifest.images.map((image: any) => path.basename(image.output)));
@@ -199,6 +197,10 @@ describe('background image codec fallback', () => {
         'background',
         name.replace(/\.webp$/i, '.png')
       )));
-    expect(pairedWebpOutputs.every((name) => mappedOutputs.has(name))).toBe(true);
+    expect(pairedWebpOutputs).toEqual([]);
+    expect(mappedOutputs.size).toBe(0);
+    expect(fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
+      .filter((name) => /\.(png|webp)$/i.test(name)).sort())
+      .toEqual(['デフォルト25.png', 'デフォルト25.webp']);
   });
 });

@@ -3576,3 +3576,52 @@
 #deckBuilderModal .deck-builder-atelier-shell {
     min-height: 0 !important;
 }
+
+/* ============================================================
+   Deck Workshop — slot readability refinement
+   Long deck names stay inside the slot, empty slots read as one
+   build action, and the fixed preset library stays legible.
+   ============================================================ */
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta .deck-builder-preset-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+}
+
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-empty {
+    cursor: pointer;
+}
+
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-empty:hover > .deck-builder-empty-halo {
+    border-color: rgba(232, 199, 121, 0.86);
+    background: rgba(151, 110, 43, 0.22);
+}
+
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single .deck-builder-build-btn {
+    color: #ddf8ff !important;
+    border-color: rgba(141, 221, 228, 0.44) !important;
+    background: rgba(25, 84, 102, 0.44) !important;
+}
+
+#deckBuilderModal .deck-builder-builtin-meta .deck-builder-preset-title {
+    font-size: max(13px, calc(13px * var(--layout-stage-scale))) !important;
+}
+
+#deckBuilderModal .deck-builder-builtin-meta .deck-builder-preset-summary {
+    font-size: max(10px, calc(10px * var(--layout-stage-scale))) !important;
+}
+
+#deckBuilderModal #deckBuilderHeaderSummary {
+    max-width: min(46vw, 520px);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

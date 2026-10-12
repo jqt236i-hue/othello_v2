@@ -9,46 +9,6 @@
   "policy": "scripts/assets/optimized-ui-images.policy.json",
   "images": [
     {
-      "source": "assets/images/board/board-frame-marsh-forged-iron-v1.png",
-      "candidateOutput": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
-      "output": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
-      "criticalPath": true,
-      "codec": "webp-lossless",
-      "quality": null,
-      "admission": {
-        "status": "admitted",
-        "reason": "headful hardware desktop Chromium median decode improved by 1.25ms and passed the +2ms/+10% threshold"
-      },
-      "measurement": {
-        "investigation": "capacity and visible-pixel checks passed during design research",
-        "hardwareDecode": {
-          "capturedAt": "2026-07-23T10:34:41.715Z",
-          "browser": "Chrome 143.0.0.0",
-          "platform": "Windows 10 x64",
-          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
-          "devicePixelRatio": 1,
-          "hardwareConcurrency": 16,
-          "sampleCountPerFormat": 12,
-          "order": "alternating",
-          "pngMedianMs": 12,
-          "webpMedianMs": 10.75,
-          "deltaMs": -1.25,
-          "allowedDeltaMs": 2,
-          "verdict": "admitted"
-        }
-      },
-      "width": 1254,
-      "height": 1254,
-      "hasAlpha": true,
-      "sourceBytes": 1126115,
-      "outputBytes": 553268,
-      "savedBytes": 572847,
-      "savingsRatio": 0.5086931618884395,
-      "sourceSha256": "548ec96673c9dba082a6224d964eb79442bad36e7ce02e020ec759f92fc19665",
-      "outputSha256": "7337494f071843a3d0d6bd8e2366535b5d4424607b2a726d39164850f9da0ecc",
-      "visiblePixelsEqual": true
-    },
-    {
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
       "candidateOutput": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
       "output": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
@@ -414,7 +374,6 @@
     }
   ],
   "admittedMapping": {
-    "assets/images/board/board-frame-marsh-forged-iron-v1.png": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
     "assets/images/board/board-surface-bluegreen-felt-v1.png": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
     "assets/images/board/board-frame-submerged-wood-v1.png": "assets/images/board/board-frame-submerged-wood-v1.webp",
     "assets/images/background/デフォルト25.png": "assets/images/background/デフォルト25.webp",

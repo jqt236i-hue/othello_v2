@@ -1,7 +1,10 @@
 "use strict";
 
+// Type checking belongs to `npm run typecheck`; Jest only needs per-file
+// transpilation, which avoids building a TypeScript program for every worker.
 const tsJest = require("ts-jest").default.createTransformer({
-  diagnostics: false
+  diagnostics: false,
+  tsconfig: { isolatedModules: true }
 });
 
 function stripShebang(output) {

@@ -132,7 +132,10 @@ export function setLogicalImageSourceIfChanged(
     if (!isCurrent()) return;
     documentSources(documentRef).set(candidate, deliveredSource);
     setLogicalAttribute(element, candidate);
-    if (!sourcesMatch(documentRef, readDeliveredSource(element), deliveredSource)) {
+    // currentSrc can still show the previous image while a new src is pending.
+    // Compare the requested src so a quick switch back cancels that request.
+    const requestedSource = String(element.getAttribute('src') || element.src || '').trim();
+    if (!sourcesMatch(documentRef, requestedSource, deliveredSource)) {
       element.src = deliveredSource;
     }
     options.onLoad?.(deliveredSource, candidate);

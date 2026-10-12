@@ -263,4 +263,36 @@ describe('board hint projection', () => {
     expect(projection.selectableTargets).toEqual([]);
     expect(projection.isSelectingTarget).toBe(false);
   });
+
+  test('shows board shape direction arrows only to the viewer who controls the selection', () => {
+    const shrinkPending = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      selectedTargets: [{ row: 0, col: 3 }]
+    };
+    const expansionPending = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const godPending = { type: 'BOARD_SHRINK_GOD', stage: 'selectTarget', firstTarget: { row: 0, col: 0 } };
+    const build = (pending: any, selectableTargets: any[], isHumanTurn: boolean) => BoardHintProjection.buildBoardHintProjection({
+      gameState: { board: [[0]], currentPlayer: 1 },
+      cardState: { pendingEffectByPlayer: { black: pending } },
+      playerKey: 'black',
+      boardShape: { rows: 8, cols: 8 },
+      canControlCurrentTurn: isHumanTurn,
+      isHumanTurn,
+      selectableTargets,
+      cardLogic: {},
+      getLegalMoves: jest.fn(() => [])
+    });
+    const shrinkTargets = [{ row: 0, col: 4 }];
+    const expansionTargets = [{ row: 0, col: 0, directionKey: 'left' }];
+    const godTargets = [{ row: 0, col: 7 }];
+
+    expect(build(shrinkPending, shrinkTargets, true).boardShrinkWillDirectionHintMap.size).toBe(1);
+    expect(build(expansionPending, expansionTargets, true).boardExpansionDirectionHintMap.size).toBe(1);
+    expect(build(godPending, godTargets, true).boardShrinkGodDirectionHintMap.size).toBe(1);
+
+    expect(build(shrinkPending, shrinkTargets, false).boardShrinkWillDirectionHintMap.size).toBe(0);
+    expect(build(expansionPending, expansionTargets, false).boardExpansionDirectionHintMap.size).toBe(0);
+    expect(build(godPending, godTargets, false).boardShrinkGodDirectionHintMap.size).toBe(0);
+  });
 });

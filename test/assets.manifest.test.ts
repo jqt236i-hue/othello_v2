@@ -59,18 +59,8 @@ describe('assets manifest', () => {
       'manifest should include default hand image asset'
     );
     [
-      'assets/images/background/default.png',
-      'assets/images/background/デフォルト4.png',
-      'assets/images/background/デフォルト5.png',
-      'assets/images/background/デフォルト6.png',
-      'assets/images/background/デフォルト7.png',
-      'assets/images/background/デフォルト8.png',
-      'assets/images/background/デフォルト9.png',
-      'assets/images/background/デフォルト10.png',
-      'assets/images/background/デフォルト11.png',
-      'assets/images/background/デフォルト12.png',
-      'assets/images/background/デフォルト13.png',
-      'assets/images/background-skin/観測の机.png',
+      'assets/images/background/デフォルト25.png',
+      'assets/images/background/デフォルト25.webp',
       'assets/images/hand-skin/lv1-2.png',
       'assets/images/hand-skin/lv3-5.png',
       'assets/images/hand-skin/lv4.png',
@@ -110,6 +100,20 @@ describe('assets manifest', () => {
         `manifest should include expected image asset ${assetPath}`
       );
     });
+    assert.deepStrictEqual(manifest.files
+      .map((file) => file.path)
+      .filter((assetPath) => /^assets\/images\/background\/[^/]+\.(png|webp)$/.test(assetPath))
+      .sort(), ['assets/images/background/デフォルト25.png', 'assets/images/background/デフォルト25.webp']);
+    // Board textures are served directly and are not part of the gacha manifest.
+    assert.deepStrictEqual(Array.from(fs.readdirSync(path.join(repoRoot, 'assets/images/board')))
+      .filter((fileName) => /^board-(surface|frame)-.*\.(png|webp)$/.test(fileName))
+      .map((fileName) => `assets/images/board/${fileName}`)
+      .sort(), [
+      'assets/images/board/board-frame-submerged-wood-v1.png',
+      'assets/images/board/board-frame-submerged-wood-v1.webp',
+      'assets/images/board/board-surface-bluegreen-felt-v1.png',
+      'assets/images/board/board-surface-bluegreen-felt-v1.webp'
+    ]);
     const gachaFiles = collectFiles(path.resolve(repoRoot, 'assets', 'images', 'Gacha'), repoRoot);
     assert.ok(gachaFiles.length > 0, 'gacha asset directory should contain at least one file');
     gachaFiles.forEach((assetPath) => {

@@ -1583,6 +1583,59 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('auto pass notice tells the stone supply ran out when the passing seat has no stones left', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      const baseVersion = Number(created.data.stateVersion);
+      const turnIndex = 5;
+      patchRoomSnapshotForTests(roomId, (room) => {
+        room.snapshot.gameState.board = createEmptyBoard();
+        room.snapshot.gameState.currentPlayer = 1;
+        room.snapshot.gameState.consecutivePasses = 0;
+        room.snapshot.cardState.turnIndex = turnIndex;
+        room.snapshot.cardState.hands = { black: [], white: [] };
+        room.snapshot.cardState.decks = { black: [], white: [] };
+        room.snapshot.cardState.deck = [];
+        room.snapshot.cardState._deckCopyIdsByPlayer = { black: [], white: [] };
+        room.snapshot.cardState.charge = { black: 0, white: 0 };
+        room.snapshot.cardState.pendingEffectByPlayer = { black: null, white: null };
+        room.snapshot.cardState.stoneSupply = { initial: 30, remainingByPlayer: { black: 0, white: 12 } };
+      });
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion,
+        operationId: 'op_auto_pass_stone_supply_1',
+        actionType: 'pass',
+        actor: 'black',
+        params: { autoNoActionPass: true },
+        turnIndex,
+        action: {
+          type: 'pass',
+          playerKey: 'black',
+          turnIndex,
+          autoNoActionPass: true
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.autoPassNotice).toEqual({
+        playerKey: 'black',
+        reason: 'stone_supply_exhausted_no_usable_cards'
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('different same-seat operationId is not treated as idempotent replay', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
@@ -2206,6 +2259,21 @@ describe('local match server publish contract', () => {
       expect(response.data.snapshot.cardState.discard).toEqual([]);
       expect(response.data.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
       expect(response.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('room creation keeps the allow-autoplay setting like the Worker', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const allowed = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ', networkAutoEnabled: true });
+      const plain = await requestJson(port, 'POST', '/api/match/create', { playerName: 'しろ' });
+
+      expect(allowed.data.networkAutoEnabled).toBe(true);
+      expect(plain.data.networkAutoEnabled).toBe(false);
     } finally {
       await closeServer(server);
     }

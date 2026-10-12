@@ -25,7 +25,7 @@ function checkBrowserBuildUpToDate(rootDirInput?: string): BrowserBuildCheckResu
         return {
             ok: false,
             code: 2,
-            message: `[check-browser-build] committed module registry not found: ${registryPath}`
+            message: `[check-browser-build] generated module registry not found: ${registryPath}. Run \`npm run build:browser\`.`
         };
     }
 

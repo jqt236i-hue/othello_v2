@@ -41,27 +41,21 @@
     display: block;
     order: 1;
     transform-origin: center;
-    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1)) scaleX(var(--cpu-character-face-direction, 1));
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1));
 }
 
 #cpu-character-img[src]:not([src=""]) {
     opacity: 1;
 }
 
-#cpu-character-img.is-network-opponent-hero {
-    --cpu-character-face-direction: 1;
-}
-
-#cpu-character-img[data-card-reversi-logical-src="assets/images/cpu/observed-dark-dragon-transparent.png"] {
-    --cpu-character-face-direction: -1;
-}
-
-#hero-character-img[data-card-reversi-logical-src="assets/images/cpu/observed-dark-dragon-transparent.png"] {
+/* Opponent portraits are authored facing inward; no per-image mirroring is needed. */
+/* The replacement hero already faces the board; preserve the source artwork's orientation. */
+#hero-character-img[data-card-reversi-logical-src="assets/images/hero/hero.png"] {
     --hero-character-face-direction: 1;
 }
 
 #cpu-character-img:hover {
-    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04)) scaleX(var(--cpu-character-face-direction, 1));
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04));
     filter:
         drop-shadow(var(--ui-drop-shadow-strong))
         drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) rgba(255, 204, 153, 0.4));
@@ -160,6 +154,7 @@
     inset: 0;
     background: rgba(2, 4, 8, 0.66);
     z-index: calc(var(--z-floating-control) + 759);
+    animation: cpuConfigBackdropEnter 220ms ease-out;
 }
 
 #cpu-level-menu-backdrop[hidden] {
@@ -195,6 +190,31 @@
     backdrop-filter: blur(calc(8px * var(--layout-stage-scale))) saturate(1.06);
     -webkit-backdrop-filter: blur(calc(8px * var(--layout-stage-scale))) saturate(1.06);
     z-index: calc(var(--z-floating-control) + 760);
+    animation: cpuConfigMenuEnter 260ms cubic-bezier(.2, .7, .2, 1);
+}
+
+/* デッキなどと同じ、短いフェード + 小さな移動・拡大で開く。中央固定は維持する。 */
+@keyframes cpuConfigBackdropEnter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes cpuConfigMenuEnter {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(calc(6px * var(--layout-stage-scale))) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #cpu-level-menu,
+    #cpu-level-menu-backdrop {
+        animation: none;
+    }
 }
 
 #cpu-level-menu[hidden] {
@@ -679,6 +699,11 @@
     position: relative;
     display: block;
     filter: drop-shadow(var(--ui-drop-shadow-panel));
+}
+
+/* Hide only the default hero name while retaining its space and portrait position. */
+#hero-label.is-default-hero-label {
+    visibility: hidden;
 }
 
 /* Character panel baseline offsets shared across responsive profiles. */

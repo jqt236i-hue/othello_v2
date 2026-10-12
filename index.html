@@ -37,7 +37,7 @@
         data-card-reversi-feature-style-href="styles-feature-network-layout-controls.css?v=207648095638469"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
     <meta data-card-reversi-feature-style-slot="deck-builder"
-        data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=230986042292973"
+        data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=99690069154092"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
     <meta data-card-reversi-feature-style-slot="network"
         data-card-reversi-feature-style-href="styles-feature-network.css?v=41267236501823"
@@ -46,7 +46,7 @@
         data-card-reversi-feature-style-href="styles-feature-rules-help-layout-info.css?v=170949670105968"
         data-card-reversi-feature-style-after="styles-layout-info.css">
     <meta data-card-reversi-feature-style-slot="result"
-        data-card-reversi-feature-style-href="styles-layout-result.css?v=102086412947122"
+        data-card-reversi-feature-style-href="styles-layout-result.css?v=163869910856018"
         data-card-reversi-feature-style-before="styles-layout-characters.css">
     <meta data-card-reversi-feature-style-slot="rules-help-cards"
         data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css?v=98671376079036"
@@ -68,18 +68,18 @@
     <base href="../">
     <meta name="card-reversi-classic-style" content="styles-variables.css?v=27450893054797">
     <meta name="card-reversi-classic-style" content="styles-base.css?v=222492527358876">
-    <meta name="card-reversi-classic-style" content="styles-layout.css?v=114483888733766">
+    <meta name="card-reversi-classic-style" content="styles-layout.css?v=5532437212688">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=202479173618870">
-    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=39721011214991">
+    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=53621162346781">
     <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=216265661492938">
-    <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=119516425050732">
+    <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=113058248959745">
     <meta name="card-reversi-classic-style" content="styles-board.css?v=239463805794209">
-    <meta name="card-reversi-classic-style" content="styles-cards.css?v=208595407960367">
+    <meta name="card-reversi-classic-style" content="styles-cards.css?v=18235662347235">
     <meta name="card-reversi-classic-style" content="styles-animations.css?v=268796206019380">
-    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=176910485244926">
+    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=2711830940386">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=50154902815750">
     <meta name="card-reversi-classic-style" content="styles-mobile-command-surface.css?v=161330156685431">
-    <meta name="card-reversi-startup-version" content="30476972905141">
+    <meta name="card-reversi-startup-version" content="5774414582768">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -98,10 +98,11 @@
         })();
     </script>
     <meta name="card-reversi-browser-lane" content="vite">
-  <script type="module" crossorigin src="./vite-dist/assets/index.vite-yc1rA-o8.js"></script>
-  <link rel="modulepreload" crossorigin href="./vite-dist/assets/rolldown-runtime-aKtaBQYM.js">
+  <script type="module" crossorigin src="./vite-dist/assets/index.vite-Bsyhjf-d.js"></script>
+  <link rel="modulepreload" crossorigin href="./vite-dist/assets/rolldown-runtime-DaJ6WEGw.js">
+  <link rel="modulepreload" crossorigin href="./vite-dist/assets/modulepreload-polyfill-Dezn_h7o.js">
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/preload-helper-HclGiUj8.js">
-  <link rel="modulepreload" crossorigin href="./vite-dist/assets/bridge-DZqI-6dE.js">
+  <link rel="modulepreload" crossorigin href="./vite-dist/assets/bridge-C1j8OUFU.js">
 </head>
 
 <body>
@@ -130,8 +131,8 @@
 
     <!-- Hero Character Display -->
     <div id="hero-character-panel">
-        <img id="hero-character-img" data-card-reversi-logical-src="assets/images/hero/hero.png" src="./vite-dist/assets/hero-DbqiEqdj.png" alt="リバーシの勇者">
-        <div id="hero-label">リバーシの勇者</div>
+        <img id="hero-character-img" data-card-reversi-logical-src="assets/images/hero/hero.png" src="./vite-dist/assets/hero-PR7QOhY7.png" alt="リバーシの勇者">
+        <div id="hero-label" class="is-default-hero-label">リバーシの勇者</div>
     </div>
 
     <div id="leftActionButtons" aria-label="左下メニュー">
@@ -197,6 +198,10 @@
             </nav>
             <p id="parallelWorldsLinkNotice" class="parallel-worlds-footnote">選んだゲームは別タブで開き、カードリバーシの対局はこのタブで続きます。</p>
         </section>
+        <button id="forestPlazaOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="forestPlazaOverlay" aria-expanded="false" aria-haspopup="dialog" title="キャラと触れ合う森の広場へ">
+            <span class="left-action-icon left-action-icon-forest-plaza" aria-hidden="true"></span>
+            <span class="left-action-label">森の広場</span>
+        </button>
         <button id="leaderboardOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">
             <span class="left-action-icon left-action-icon-ranking" aria-hidden="true"></span>
             <span class="left-action-label">ランキング</span>
@@ -245,6 +250,36 @@
             };
             sync(true);
             btn.addEventListener('click', () => sync(rail.classList.contains('left-rail-collapsed')));
+        })();
+    </script>
+    <div id="forestPlazaOverlay" role="dialog" aria-modal="true" aria-label="森の広場" hidden></div>
+    <script>
+        (() => {
+            // 森の広場（three.js の 3D 画面）は別ページ。開く時だけ iframe で読み込み、閉じたら iframe ごと捨てて GPU のメモリを返す
+            const btn = document.getElementById('forestPlazaOpenBtn');
+            const overlay = document.getElementById('forestPlazaOverlay');
+            if (!btn || !overlay) return;
+            const close = () => {
+                overlay.replaceChildren();
+                overlay.hidden = true;
+                btn.setAttribute('aria-expanded', 'false');
+                btn.focus();
+            };
+            btn.addEventListener('click', () => {
+                if (!overlay.hidden) return;
+                const frame = document.createElement('iframe');
+                frame.title = '森の広場';
+                frame.src = 'vite-dist/forest-plaza.html';
+                frame.allow = 'fullscreen';
+                overlay.replaceChildren(frame);
+                overlay.hidden = false;
+                btn.setAttribute('aria-expanded', 'true');
+                frame.addEventListener('load', () => frame.focus(), { once: true });
+            });
+            window.addEventListener('message', (event) => {
+                if (event.origin !== window.location.origin) return;
+                if (event.data && event.data.type === 'card-reversi:forest-plaza:close') close();
+            });
         })();
     </script>
 
@@ -575,7 +610,7 @@
                 <img
                     id="handImage"
                     data-card-reversi-logical-src="assets/images/hand-skin/勇者の手.png"
-                    src="./vite-dist/assets/%E5%8B%87%E8%80%85%E3%81%AE%E6%89%8B-C6v2toAd.png"
+                    src="./vite-dist/assets/%E5%8B%87%E8%80%85%E3%81%AE%E6%89%8B-sIP80Bvo.png"
                     alt=""
                     aria-hidden="true"
                     draggable="false"

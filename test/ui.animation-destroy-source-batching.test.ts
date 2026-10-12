@@ -50,7 +50,7 @@ describe('destroy source animation batching', () => {
       col: 2,
       meta: { sourceTrajectoryProfile: 'fireWillFlameBeam' }
     };
-    const animationModule = require('../ui/animation-destroy-source-events');
+    const animationModule = require('../ui/board-dom-compat/animation-destroy-source-events');
     const makeDeps = () => ({
       isNoAnim: () => false,
       getCellClientRect: (row: number, col: number) => (
@@ -134,14 +134,14 @@ describe('destroy source animation batching', () => {
 
     const observedRects: any[] = [];
     const launchOrder: string[] = [];
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateUdgLightningStrike: jest.fn(async (target: any, deps: any) => {
         launchOrder.push(`source:${target.r},${target.col}`);
         observedRects.push(deps.getCellClientRect(1, 1));
         observedRects.push(deps.getCellClientRect(target.r, target.col));
       })
     }));
-    jest.doMock('../ui/animation-destroy-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-events', () => ({
       handleDestroyEvent: jest.fn(async (event: any, deps: any) => {
         for (const target of event.targets || []) {
           launchOrder.push(`board:${target.r},${target.col}`);
@@ -194,7 +194,7 @@ describe('destroy source animation batching', () => {
     dom.window.close();
     delete (global as any).window;
     delete (global as any).document;
-    jest.dontMock('../ui/animation-destroy-source-events');
-    jest.dontMock('../ui/animation-destroy-events');
+    jest.dontMock('../ui/board-dom-compat/animation-destroy-source-events');
+    jest.dontMock('../ui/board-dom-compat/animation-destroy-events');
   });
 });

@@ -1,5 +1,6 @@
 import { compactNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
 import PassTurnReturn = require('../shared/pass-turn-return');
+import StoneSupply = require('../shared/stone-supply');
 
 export function createMatchPublishController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
@@ -60,6 +61,19 @@ export function createMatchPublishController(config?: any): any {
     return PassTurnReturn.didPassReturnTurn(previousGameState, nextGameState, notice.playerKey)
       ? { ...notice, turnReturned: true }
       : notice;
+  }
+
+  // 持ち石切れの自動パスは理由を分けて見せる（ローカルの pass-handler と同じ、01-rulebook.md §8.4）。
+  function withStoneSupplyNoActionReason(notice: { playerKey: string; reason: string } | null, previousSnapshot: any) {
+    if (!notice || notice.reason !== 'no_legal_moves_or_usable_cards') return notice;
+    const previousCardState = previousSnapshot && previousSnapshot.cardState;
+    let exhausted = false;
+    try {
+      exhausted = !!previousCardState && StoneSupply.isStoneSupplyExhausted(previousCardState, notice.playerKey) === true;
+    } catch (_error) {
+      exhausted = false;
+    }
+    return exhausted ? { ...notice, reason: 'stone_supply_exhausted_no_usable_cards' } : notice;
   }
 
   function resolveAutoPassNoticeForPublishBody(actionType: unknown, bodyValue: unknown, playerKey: unknown) {
@@ -426,8 +440,11 @@ export function createMatchPublishController(config?: any): any {
     });
     room.authoritativeStateHash = publishViewerArtifacts.canonicalHash;
     const autoPassNotice = withPassTurnReturned(
-      resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
-        || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey),
+      withStoneSupplyNoActionReason(
+        resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
+          || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey),
+        snapshotBeforeCommand
+      ),
       snapshotBeforeCommand,
       nextSnapshot
     );

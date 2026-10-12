@@ -54,6 +54,7 @@ interface OwnerNetworkInputPermissionOptions extends Record<string, unknown> {
     localPlayerKey?: unknown;
     matchMode?: unknown;
     debugHumanVsHuman?: unknown;
+    isSpectator?: unknown;
 }
 
 interface OwnerNetworkInputPermissions {
@@ -402,6 +403,15 @@ const OwnerHelpersModule = (function (root: OwnerHelpersRoot | undefined) {
         return Object.prototype.hasOwnProperty.call(value, key);
     }
 
+    function isNetworkSpectatorViewer(ctx: any): boolean {
+        try {
+            const client = ctx && ctx.NetworkMatchClient;
+            return !!(client && typeof client.isSpectator === 'function' && client.isSpectator() === true);
+        } catch (e) {
+            return false;
+        }
+    }
+
     function resolveNetworkInputPermissions(options?: OwnerNetworkInputPermissionOptions | null): OwnerNetworkInputPermissions {
         const opts = (options && typeof options === 'object') ? options : {};
         const ctx = asRoot(opts.rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {}));
@@ -437,8 +447,14 @@ const OwnerHelpersModule = (function (root: OwnerHelpersRoot | undefined) {
         const controlledTurnOwnerKey = fateWillControllerKey === inputPlayerKey ? turnOwnerKey : null;
         const actionOwnerKey = controlledTurnOwnerKey || inputPlayerKey;
         let canActCurrentTurn = false;
+        // 観戦者には席が無い。席キーの既定値（黒）で黒の手番を操作できる扱いにしない。
+        const isSpectatorViewer = isNetwork && (hasOwn(opts, 'isSpectator')
+            ? opts.isSpectator === true
+            : isNetworkSpectatorViewer(ctx));
 
-        if (fateWillControllerKey && (isNetwork || !isDebugHumanVsHuman)) {
+        if (isSpectatorViewer) {
+            canActCurrentTurn = false;
+        } else if (fateWillControllerKey && (isNetwork || !isDebugHumanVsHuman)) {
             canActCurrentTurn = fateWillControllerKey === inputPlayerKey;
         } else if (isNetwork) {
             canActCurrentTurn = turnOwnerKey === inputPlayerKey;

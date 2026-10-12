@@ -3,6 +3,7 @@ import path from 'path';
 
 const repoRoot = path.resolve(__dirname, '..');
 const heroAssetPath = 'assets/images/hero/hero.png';
+const whiteHeroAssetPath = 'assets/images/hero/hero-white.png';
 
 function expectExactFileCase(relativePath: string) {
   const fullPath = path.join(repoRoot, ...relativePath.split('/'));
@@ -13,6 +14,16 @@ function expectExactFileCase(relativePath: string) {
   expect(actualName).toBe(expectedName);
   expect(fs.existsSync(fullPath)).toBe(true);
 }
+
+test('white opponent hero asset ships unchanged with exact file casing', () => {
+  const statusDisplaySource = fs.readFileSync(path.join(repoRoot, 'ui', 'status-display.ts'), 'utf8');
+  expect(statusDisplaySource).toContain(`'${whiteHeroAssetPath}'`);
+  expectExactFileCase(whiteHeroAssetPath);
+  expectExactFileCase(`worker-public/${whiteHeroAssetPath}`);
+  const source = fs.readFileSync(path.join(repoRoot, whiteHeroAssetPath));
+  const mirror = fs.readFileSync(path.join(repoRoot, 'worker-public', whiteHeroAssetPath));
+  expect(source.equals(mirror)).toBe(true);
+});
 
 test('hero image references match the deployed asset case', () => {
   const indexHtml = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');

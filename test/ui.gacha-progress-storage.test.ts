@@ -1,36 +1,6 @@
 import { JSDOM } from 'jsdom';
 
-const DEFAULT_BACKGROUND_SKIN_IDS = [
-  'default',
-  'default-10',
-  'default-11',
-  'default-12',
-  'default-13',
-  'default-14',
-  'default-15',
-  'default-16',
-  'default-17',
-  'default-18',
-  'default-19',
-  'default-2',
-  'default-20',
-  'default-21',
-  'default-22',
-  'default-23',
-  'default-24',
-  'default-25',
-  'default-26',
-  'default-27',
-  'default-28',
-  'default-3',
-  'default-4',
-  'default-5',
-  'default-6',
-  'default-7',
-  'default-8',
-  'default-9',
-  'unobserved-night'
-];
+const DEFAULT_BACKGROUND_SKIN_IDS = ['default-25'];
 
 describe('gacha progress storage', () => {
   let dom;
@@ -87,9 +57,8 @@ describe('gacha progress storage', () => {
       'gacha__n__小鬼の手'
     ]);
     expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual([
-      ...DEFAULT_BACKGROUND_SKIN_IDS.slice(0, -1),
-      'gacha__n__background_skin__観測できなかった夜',
-      DEFAULT_BACKGROUND_SKIN_IDS[DEFAULT_BACKGROUND_SKIN_IDS.length - 1]
+      ...DEFAULT_BACKGROUND_SKIN_IDS,
+      'gacha__n__background_skin__観測できなかった夜'
     ]);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual([
       'default',

@@ -202,4 +202,24 @@ describe('local match server presentation envelope delivery', () => {
       await closeServer(server);
     }
   });
+
+  test('stream snapshots keep the room allow-autoplay setting like the Worker', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const opened: Array<{ close: () => void }> = [];
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black', networkAutoEnabled: true });
+      const roomId = created.data.roomId;
+      const streamPath = `/api/match/stream?roomId=${encodeURIComponent(roomId)}`
+        + `&seatKey=black&seatToken=${encodeURIComponent(created.data.seatToken)}`;
+      const live = await openSse(port, streamPath);
+      opened.push(live);
+      const initialSnapshot = await live.nextEvent();
+      expect(initialSnapshot.event).toBe('snapshot');
+      expect(initialSnapshot.data.networkAutoEnabled).toBe(true);
+    } finally {
+      for (const stream of opened) stream.close();
+      await closeServer(server);
+    }
+  });
 });

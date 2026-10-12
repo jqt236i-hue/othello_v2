@@ -43,7 +43,12 @@ describe('optimized UI image policy and lossless pipeline', () => {
     expect(manifest.codec).toBe('webp-lossless');
     expect(manifest.codecs).toEqual(['webp-lossless', 'webp-lossy']);
     expect(manifest.minimumSavingsRatio).toBe(0.1);
-    expect(manifest.images).toHaveLength(15);
+    const policy = JSON.parse(fs.readFileSync(
+      path.join(root, 'scripts', 'assets', 'optimized-ui-images.policy.json'), 'utf8'
+    ));
+    expect(manifest.images).toHaveLength(14);
+    expect(manifest.images.map((image: any) => image.source).sort())
+      .toEqual(policy.images.map((image: any) => image.source).sort());
     manifest.images.forEach((image: any) => {
       expect(['webp-lossless', 'webp-lossy']).toContain(image.codec);
       if (image.codec === 'webp-lossless') {
@@ -64,25 +69,17 @@ describe('optimized UI image policy and lossless pipeline', () => {
     });
 
     const frame = manifest.images.find((image: any) => (
-      image.source === 'assets/images/board/board-frame-marsh-forged-iron-v1.png'
+      image.source === 'assets/images/board/board-frame-submerged-wood-v1.png'
     ));
     expect(frame).toMatchObject({
       criticalPath: true,
-      codec: 'webp-lossless',
-      output: 'assets/images/board/board-frame-marsh-forged-iron-v1.webp',
-      admission: { status: 'admitted' },
-      measurement: {
-        hardwareDecode: {
-          sampleCountPerFormat: 12,
-          order: 'alternating',
-          pngMedianMs: 12,
-          webpMedianMs: 10.75,
-          deltaMs: -1.25,
-          allowedDeltaMs: 2,
-          verdict: 'admitted'
-        }
-      }
+      codec: 'webp-lossy',
+      quality: 90,
+      output: 'assets/images/board/board-frame-submerged-wood-v1.webp',
+      admission: { status: 'admitted' }
     });
+    expect(manifest.images.some((image: any) => image.source.includes('marsh-forged-iron')))
+      .toBe(false);
 
     // Start-up textures ship as lossy WebP: transfer size dominates first load.
     const felt = manifest.images.find((image: any) => (

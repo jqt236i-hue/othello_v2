@@ -91,6 +91,46 @@ test('ignores a stale preload completion after the element generation changes', 
   expect(image.src).toBe('https://example.test/assets/images/cpu/level7.png');
 });
 
+test.each([
+  ['CPU level', 'assets/images/cpu/level1.png', 'assets/images/cpu/level1.png'],
+  ['hashed hero', HERO_LOGICAL_PATH, './vite-dist/assets/hero-HASHED.png']
+])('restores the requested %s source when currentSrc still shows the previous image', (
+  _label, initialLogicalPath, initialDeliveredSource
+) => {
+  const documentRef = createDocument();
+  const image = documentRef.createElement('img');
+  image.setAttribute('data-card-reversi-logical-src', initialLogicalPath);
+  image.setAttribute('src', initialDeliveredSource);
+  documentRef.body.appendChild(image);
+  // Browsers can keep displaying the old currentSrc after a new src is set.
+  const initialCurrentSource = image.src;
+  Object.defineProperty(image, 'currentSrc', { get: () => initialCurrentSource });
+  const loaders: HTMLImageElement[] = [];
+  const createImage = () => {
+    const loader = documentRef.createElement('img');
+    loaders.push(loader);
+    return loader;
+  };
+  const options = { createImage };
+
+  setLogicalImageSourceIfChanged(image, initialLogicalPath, options);
+  expect(loaders).toHaveLength(0);
+  setLogicalImageSourceIfChanged(image, 'assets/images/cpu/level2.png', options);
+  expect(loaders).toHaveLength(1);
+  loaders[0].onload?.(new Event('load'));
+  expect(image.getAttribute('src')).toBe('assets/images/cpu/level2.png');
+  expect(image.currentSrc).toBe(initialCurrentSource);
+
+  setLogicalImageSourceIfChanged(image, initialLogicalPath, options);
+  expect(image.src).toBe(initialCurrentSource);
+  expect(image.getAttribute('data-card-reversi-logical-src')).toBe(initialLogicalPath);
+  expect(loaders).toHaveLength(1);
+  // Repeated status updates and obsolete completions must not undo the restore.
+  expect(setLogicalImageSourceIfChanged(image, initialLogicalPath, options)).toBe(false);
+  loaders[0].onload?.(new Event('load'));
+  expect(image.src).toBe(initialCurrentSource);
+});
+
 test('does not cache the previous visible source under a pending logical image', () => {
   const documentRef = createDocument();
   const image = documentRef.createElement('img');

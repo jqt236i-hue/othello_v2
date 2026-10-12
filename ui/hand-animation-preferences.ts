@@ -10,7 +10,7 @@ type HandAnimationKind = keyof typeof HAND_ANIMATION_STORAGE_KEYS;
 const PLACE_ANIMATION_STYLE_STORAGE_KEY = 'othello.handAnimation.placeStyle';
 const PLACE_ANIMATION_STYLES = ['hand', 'throw'] as const;
 type PlaceAnimationStyle = typeof PLACE_ANIMATION_STYLES[number];
-const DEFAULT_PLACE_ANIMATION_STYLE: PlaceAnimationStyle = 'throw';
+const DEFAULT_PLACE_ANIMATION_STYLE: PlaceAnimationStyle = 'hand';
 
 function isIphoneEnvironment(rootRef: any): boolean {
   try {

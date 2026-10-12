@@ -3,7 +3,7 @@ describe('theory incarnation spawn roulette animation', () => {
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<div class="cell"><span class="board-bonus-number">5</span><div class="disc old"></div></div>');
     const cell = dom.window.document.querySelector('.cell');
-    const handler = require('../ui/animation-theory-events.js');
+    const handler = require('../ui/board-dom-compat/animation-theory-events');
     let now = 0;
     const clock = jest.spyOn(performance, 'now').mockImplementation(() => now);
     const seen: any[] = [];
@@ -54,7 +54,7 @@ describe('theory incarnation spawn roulette animation', () => {
     global.window.requestAnimationFrame = global.requestAnimationFrame;
 
     const timers: Array<{ fn: () => void; ms: number }> = [];
-    const handler = require('../ui/animation-theory-events.js');
+    const handler = require('../ui/board-dom-compat/animation-theory-events');
     const createDisc = jest.fn((state) => {
       const disc = dom.window.document.createElement('div');
       disc.className = 'disc';
@@ -169,7 +169,7 @@ describe('theory incarnation spawn roulette animation', () => {
 
     const timers: Array<{ fn: () => void; ms: number }> = [];
     const activeCols: number[] = [];
-    const handler = require('../ui/animation-theory-events.js');
+    const handler = require('../ui/board-dom-compat/animation-theory-events');
     const createDisc = jest.fn((state) => {
       const disc = dom.window.document.createElement('div');
       disc.className = 'disc';
@@ -264,7 +264,7 @@ describe('theory incarnation spawn roulette animation', () => {
     global.window.requestAnimationFrame = global.requestAnimationFrame;
 
     const timers: Array<{ fn: () => void; ms: number }> = [];
-    const handler = require('../ui/animation-theory-events.js');
+    const handler = require('../ui/board-dom-compat/animation-theory-events');
     const createDisc = jest.fn((state) => {
       const disc = dom.window.document.createElement('div');
       disc.className = 'disc';
@@ -347,7 +347,7 @@ describe('theory incarnation spawn roulette animation', () => {
     global.window.requestAnimationFrame = global.requestAnimationFrame;
 
     const timers: Array<{ fn: () => void; ms: number }> = [];
-    const handler = require('../ui/animation-theory-events.js');
+    const handler = require('../ui/board-dom-compat/animation-theory-events');
     const createDisc = jest.fn((state) => {
       const disc = dom.window.document.createElement('div');
       disc.className = 'disc';

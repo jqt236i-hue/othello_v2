@@ -114,7 +114,7 @@ const TOPOLOGY_FIXTURES: readonly TopologyFixtureDefinition[] = Object.freeze([
 
 const DEFAULT_SKIN = Object.freeze({
   board: 'bluegreen-felt',
-  frame: 'marsh-forged-iron',
+  frame: 'submerged-wood',
   stone: 'o-stone'
 });
 
@@ -447,13 +447,13 @@ function collectSelectorInventory(rootDir: string): any {
 function collectPresentationInventory(rootDir: string): any {
   const sourcePaths = [
     'ui/animation-engine.ts',
-    'ui/animation-flip-events.ts',
-    'ui/animation-placement-events.ts',
-    'ui/animation-destroy-events.ts',
-    'ui/animation-destroy-source-events.ts',
-    'ui/animation-move-events.ts',
-    'ui/animation-status-events.ts',
-    'ui/animation-theory-events.ts',
+    'ui/board-dom-compat/animation-flip-events.ts',
+    'ui/board-dom-compat/animation-placement-events.ts',
+    'ui/board-dom-compat/animation-destroy-events.ts',
+    'ui/board-dom-compat/animation-destroy-source-events.ts',
+    'ui/board-dom-compat/animation-move-events.ts',
+    'ui/board-dom-compat/animation-status-events.ts',
+    'ui/board-dom-compat/animation-theory-events.ts',
     'ui/presentation-handler.ts',
     'ui/playback-engine.ts',
     'ui/network/presentation-timeline.ts',
@@ -859,7 +859,7 @@ async function applyBrowserFixture(page: any, fixture: BrowserFixtureDefinition)
     root.cardState = cardState;
 
     const skin = definition.skin || {
-      board: 'bluegreen-felt', frame: 'marsh-forged-iron', stone: 'o-stone'
+      board: 'bluegreen-felt', frame: 'submerged-wood', stone: 'o-stone'
     };
     const boardSkinRuntime = resolveModule(['BoardSkinRuntimeModule'], 'ui/board-skin/runtime');
     const stoneSkinRuntime = resolveModule(['StoneSkinRuntimeModule'], 'ui/stone-skin/runtime');

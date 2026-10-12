@@ -24,7 +24,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
-const AnimationDestroySourceEvents = _require('../animation-destroy-source-events');
+const AnimationDestroySourceEvents = _require('./animation-destroy-source-events');
 
 type DestroySourceAnimationDeps = {
   isNoAnim: () => boolean;

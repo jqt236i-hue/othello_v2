@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import optimizedUiImagePolicy from '../assets/optimized-ui-images.policy.json';
 
 import {
   UX_OPTIMIZATION_CAPTURE_POLICY,
@@ -50,9 +51,9 @@ const FORBIDDEN_KEYS = new Set(
 type BootLogicalImageKind = 'hero' | 'default-hand';
 
 const DEFAULT_FRAME_PNG_PATH =
-  'assets/images/board/board-frame-marsh-forged-iron-v1.png';
+  'assets/images/board/board-frame-submerged-wood-v1.png';
 const DEFAULT_FRAME_WEBP_PATH =
-  'assets/images/board/board-frame-marsh-forged-iron-v1.webp';
+  'assets/images/board/board-frame-submerged-wood-v1.webp';
 
 function classifyBootLogicalImagePath(value: unknown): BootLogicalImageKind | null {
   const rawPath = String(value || '').replace(/^\/+/, '');
@@ -1465,8 +1466,19 @@ export function validateUxOptimizationReport(
       if (!/^[a-f0-9]{64}$/.test(String(admission.manifestSha256 || ''))) {
         reasons.push('optimized image manifest SHA-256 is missing');
       }
-      if (Number(admission.schemaVersion) !== 1 || admission.codec !== 'webp-lossless') {
-        reasons.push('optimized image manifest schema/codec is invalid');
+      const policy = optimizedUiImagePolicy.images.find((entry) => entry.source === DEFAULT_FRAME_PNG_PATH);
+      if (
+        Number(admission.schemaVersion) !== 1
+        || !policy
+        || admission.sourcePath !== policy.source
+        || policy.admission.status !== 'admitted'
+        || admission.policyAdmissionStatus !== policy.admission.status
+        || admission.codec !== policy.encoding.codec
+        || admission.quality !== policy.encoding.quality
+        || admission.policyEncoding?.codec !== policy.encoding.codec
+        || admission.policyEncoding?.quality !== policy.encoding.quality
+      ) {
+        reasons.push('default frame schema/codec/quality does not match the current admitted policy');
       }
       if (admission.admissionStatus !== 'admitted') {
         reasons.push(`default frame admission was ${String(admission.admissionStatus || 'missing')}`);
@@ -1474,13 +1486,27 @@ export function validateUxOptimizationReport(
       if (admission.admittedMappingOutput !== DEFAULT_FRAME_WEBP_PATH) {
         reasons.push('default frame admitted mapping does not point to the WebP output');
       }
-      if (admission.visiblePixelsEqual !== true) {
-        reasons.push('default frame visible pixels are not equal');
+      // Lossy q90 deliberately makes no pixel-equality claim. Require its
+      // honest flag and byte-exact reproduction of the admitted encoding.
+      if (
+        admission.visiblePixelsEqual !== false
+        || admission.policyOutputSha256 !== admission.actualOutputSha256
+        || !/^[a-f0-9]{64}$/.test(String(admission.policyOutputSha256 || ''))
+      ) {
+        reasons.push('default frame output does not reproduce the admitted lossy encoding');
       }
       if (
-        Number(admission.minimumSavingsRatio) < 0.1
+        !Number.isFinite(admission.minimumSavingsRatio)
+        || admission.minimumSavingsRatio !== optimizedUiImagePolicy.minimumSavingsRatio
+        || !Number.isFinite(admission.savingsRatio)
         || Number(admission.savingsRatio) < Number(admission.minimumSavingsRatio)
+        || !Number.isInteger(admission.sourceBytes)
+        || !Number.isInteger(admission.outputBytes)
+        || Number(admission.outputBytes) <= 0
         || Number(admission.outputBytes) >= Number(admission.sourceBytes)
+        || admission.sourceBytes !== admission.actualSourceBytes
+        || admission.outputBytes !== admission.actualOutputBytes
+        || Math.abs(admission.savingsRatio - (1 - admission.outputBytes / admission.sourceBytes)) > 1e-12
       ) {
         reasons.push('default frame encoded size does not meet the admission threshold');
       }
@@ -1507,10 +1533,20 @@ export function validateUxOptimizationReport(
       const allowedDeltaMs = Math.max(2, pngMedianMs * 0.1);
       if (
         decode.verdict !== 'admitted'
+        || graphics?.hardwareAccelerated !== true
+        || decode.hardwareAccelerated !== true
+        || decode.measurementSource !== 'current-frame-capture'
+        || decode.sourceSha256 !== admission.actualSourceSha256
+        || decode.outputSha256 !== admission.actualOutputSha256
+        || decode.codec !== admission.codec
+        || decode.quality !== admission.quality
         || decode.order !== 'alternating'
+        || !Number.isInteger(decode.sampleCountPerFormat)
         || Number(decode.sampleCountPerFormat) < 5
         || !Number.isFinite(pngMedianMs)
+        || pngMedianMs < 0
         || !Number.isFinite(webpMedianMs)
+        || webpMedianMs < 0
         || webpMedianMs - pngMedianMs > allowedDeltaMs
         || Number(decode.allowedDeltaMs) !== allowedDeltaMs
       ) {
@@ -1538,8 +1574,9 @@ export function validateUxOptimizationReport(
         if (
           variant.uiInitialized !== true
           || variant.visiblySized !== true
-          || variant.rootSkinId !== 'marsh-forged-iron'
-          || variant.elementSkinId !== 'marsh-forged-iron'
+          || variant.rootSkinId !== 'submerged-wood'
+          || variant.elementSkinId !== 'submerged-wood'
+          || variant.sourceMode !== (name === 'normal' ? 'current-catalog' : 'policy-png-fallback-probe')
         ) {
           reasons.push(`${name} did not finish with the visible default frame`);
         }
@@ -1575,7 +1612,7 @@ export function validateUxOptimizationReport(
         pngResponses: 0,
         failedWebpRequests: 0,
         browserErrors: 0,
-        cssPath: 'blob:'
+        cssPath: DEFAULT_FRAME_WEBP_PATH
       });
       validateVariant('forcedPng', {
         webpRequests: 0,

@@ -77,6 +77,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const NetworkPresenceToastModule = resolveNetworkClientModule('./network/presence-toast', null);
     const NetworkDiagnosticsModule = resolveNetworkClientModule('./network/diagnostics', null);
     const NetworkSelectionSignalBridgeModule = resolveNetworkClientModule('./network/selection-signal-bridge', null);
+    const NetworkNoActionPassModule = resolveNetworkClientModule('./network/no-action-pass', null);
     const CardRuntimeIntegrityModule = resolveNetworkClientModule('./card-runtime-integrity', null);
     const NetworkGameContract = NetworkGameContractAdapterModule
         && typeof NetworkGameContractAdapterModule.createNetworkGameContractAdapter === 'function'
@@ -2544,9 +2545,34 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         try {
             fn(notice);
             if (signature) state.lastAutoPassNoticeSignature = signature;
+            emitPassNoticeLog(notice);
             return true;
         } catch (e: any) { /* ignore */ }
         return false;
+    }
+
+    // パスが成立したら、誰がなぜパスしたかを両者のログにも残す（01-rulebook.md §8.4）。
+    // 通知と同じく権威の応答・配信から出すので、送信が断られたパスは記録しない。
+    const PASS_LOG_REASON_LABELS: Record<string, string> = {
+        no_legal_moves_or_usable_cards: '置ける場所がありません',
+        stone_supply_exhausted_no_usable_cards: '持ち石がありません',
+        voluntary_pass: 'パスを選びました',
+        timeout_pass: '持ち時間切れ'
+    };
+
+    function emitPassNoticeLog(notice: any) {
+        const playerLabel = notice && notice.playerKey === 'white' ? '白' : '黒';
+        const reasonLabel = PASS_LOG_REASON_LABELS[String(notice && notice.reason || '')] || '';
+        const line = reasonLabel ? `${playerLabel}: パス (${reasonLabel})` : `${playerLabel}: パス`;
+        try {
+            if (root && typeof root.emitLogAdded === 'function') {
+                root.emitLogAdded(line);
+                return;
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof addLog === 'function') addLog(line);
+        } catch (e: any) { /* ignore */ }
     }
 
     function getSeatDisplayName(seatKey: any) {
@@ -4612,6 +4638,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     armBoardUpdateDuringPlayback
                 });
             }
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (NetworkNoActionPassModule && typeof NetworkNoActionPassModule.createNetworkNoActionPassMonitor === 'function') {
+            NetworkNoActionPassModule.createNetworkNoActionPassMonitor({
+                root: target,
+                client: api,
+                hasPendingLocalPublishes: () => hasPendingLocalPublishes(null)
+            }).start();
         }
     } catch (e) { /* ignore */ }
     try { target.NetworkMatchClient = api; } catch (e) { /* ignore */ }

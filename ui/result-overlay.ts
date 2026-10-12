@@ -1301,10 +1301,31 @@ function showResult() {
     // Guard against stale callbacks (e.g., when showResult is called again for a new game),
     // but do NOT abort just because gameState.__resultToken was cleared by a snapshot replacement.
     // _pendingResultToken is module-level and unaffected by snapshot replacement.
-    setTimeout(() => {
+    // 終局を決めたパスの通知が表示中なら、消えてからリザルトへ移る（01-rulebook.md §8.4）。
+    // ネット対戦では終局の反映と通知の表示が同時に来るため、通知の表示時間より先に 2 秒が経つ。
+    let waitedForPassNoticeMs = 0;
+    const showOverlayAfterPassNotice = () => {
         if (_pendingResultToken !== resultToken) return;
+        if (isPassNoticeVisible() && waitedForPassNoticeMs < RESULT_PASS_NOTICE_MAX_WAIT_MS) {
+            waitedForPassNoticeMs += RESULT_PASS_NOTICE_POLL_MS;
+            setTimeout(showOverlayAfterPassNotice, RESULT_PASS_NOTICE_POLL_MS);
+            return;
+        }
         try { showResultOverlay(); } catch (e: any) { console.warn('showResultOverlay failed', e); }
-    }, 2000);
+    };
+    setTimeout(showOverlayAfterPassNotice, 2000);
+}
+
+const RESULT_PASS_NOTICE_POLL_MS = 200;
+const RESULT_PASS_NOTICE_MAX_WAIT_MS = 6000;
+
+function isPassNoticeVisible(): boolean {
+    try {
+        if (typeof document === 'undefined' || !document) return false;
+        return !!document.querySelector('.auto-pass-notice-popup:not(.is-leaving)');
+    } catch (e: any) {
+        return false;
+    }
 }
 
 /**

@@ -34,6 +34,7 @@ const TURN_ARRIVAL_TOAST_REFERENCE_WIDTH = 164;
 const TURN_ARRIVAL_TOAST_PHONE_REFERENCE_WIDTH = 132;
 const HERO_DEFAULT_LABEL = 'リバーシの勇者';
 const HERO_IMAGE_SRC = 'assets/images/hero/hero.png';
+const NETWORK_OPPONENT_HERO_IMAGE_SRC = 'assets/images/hero/hero-white.png';
 const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
 const NETWORK_WAITING_NAME = '接続待ち';
 const PORTRAIT_SPEECH_ROLE_CPU = 'cpu';
@@ -183,17 +184,23 @@ function applyCpuLevelLabelInteractivity(levelLabel: any, interactive: boolean, 
     if (typeof levelLabel.setAttribute === 'function') {
         levelLabel.setAttribute('aria-disabled', interactive ? 'false' : 'true');
         levelLabel.setAttribute('aria-label', interactive ? 'CPU・盤面・ルール設定を開く' : '対戦相手表示');
-        levelLabel.title = interactive ? 'クリックでCPUレベル一覧を表示' : '対戦相手表示';
+        levelLabel.title = interactive ? 'クリックでCPUレベル一覧を表示 / スクロールでレベル変更（上: 強く、下: 弱く）' : '対戦相手表示';
     }
     if ('disabled' in levelLabel) {
         (levelLabel as HTMLButtonElement).disabled = !interactive;
     }
 }
 
+function setHeroLabelText(heroLabel: HTMLElement | null, label: string): void {
+    if (!heroLabel) return;
+    heroLabel.textContent = label;
+    heroLabel.classList.toggle('is-default-hero-label', label === HERO_DEFAULT_LABEL);
+}
+
 function applyNetworkSeatLabels(levelLabel: any): boolean {
     const heroLabel = document.getElementById('hero-label');
     if (!isNetworkModeForLabels()) {
-        if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+        setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         return false;
     }
 
@@ -204,9 +211,7 @@ function applyNetworkSeatLabels(levelLabel: any): boolean {
     const ownName = normalizeNetworkDisplayName(seatNames[ownSeatKey]) || 'あなた';
     const opponentName = normalizeNetworkDisplayName(seatNames[opponentSeatKey]) || NETWORK_WAITING_NAME;
 
-    if (heroLabel) {
-        heroLabel.textContent = `${toSeatLabel(ownSeatKey)}:${ownName}`;
-    }
+    setHeroLabelText(heroLabel, `${toSeatLabel(ownSeatKey)}:${ownName}`);
     if (levelLabel) {
         applyCpuLevelLabelInteractivity(levelLabel, false, `${toSeatLabel(opponentSeatKey)}:${opponentName}`);
     }
@@ -852,18 +857,18 @@ function readWhiteCpuProfileValue(): string {
 }
 
 function updateHeroCharacterForBlackCpuProfile(): void {
-    if (isNetworkModeForLabels()) return;
+    const networkMode = isNetworkModeForLabels();
     const heroImg = document.getElementById('hero-character-img') as HTMLImageElement | null;
     const heroLabel = document.getElementById('hero-label');
     if (!heroImg) {
-        if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+        if (!networkMode) setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         return;
     }
 
     const selectedProfileValue = readCpuProfileValue('black');
     const fallbackLevel = (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).black : 1) || 1);
     const cpuProfile = CpuOpponentProfiles.getCpuOpponentProfile(selectedProfileValue || fallbackLevel);
-    const useCpuPortrait = !!(cpuProfile && Number(cpuProfile.level) >= 6);
+    const useCpuPortrait = !networkMode && !!(cpuProfile && Number(cpuProfile.level) >= 6);
     const primaryPath = useCpuPortrait
         ? String(cpuProfile.portraitSrc || HERO_IMAGE_SRC)
         : HERO_IMAGE_SRC;
@@ -872,7 +877,7 @@ function updateHeroCharacterForBlackCpuProfile(): void {
         : HERO_DEFAULT_LABEL;
 
     heroImg.alt = label;
-    if (heroLabel) heroLabel.textContent = label;
+    if (!networkMode) setHeroLabelText(heroLabel, label);
 
     requestPortraitImage(heroImg, primaryPath, [HERO_IMAGE_SRC], () => {
         heroImg.style.opacity = '';
@@ -1250,7 +1255,7 @@ function updateCpuCharacter(): void {
     
     if (charImg && levelLabel) {
         const primaryPath = useNetworkHeroPresentation
-            ? HERO_IMAGE_SRC
+            ? NETWORK_OPPONENT_HERO_IMAGE_SRC
             : (hasNamedProfileOverride
                 ? String(cpuProfile.portraitSrc)
                 : (specialPresentation && specialPresentation.imageSrc
@@ -1292,7 +1297,7 @@ function updateCpuCharacter(): void {
             : defaultName;
         if (specialPresentation) {
             applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
-            if (heroLabel) heroLabel.textContent = HERO_DEFAULT_LABEL;
+            setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);
         }
         else if (!applyNetworkSeatLabels(levelLabel)) {
             applyCpuLevelLabelInteractivity(levelLabel, true, `Lv${level}${level >= 10 ? '\n' : ' '}${displayName}`);

@@ -124,30 +124,10 @@
     display: none;
 }
 
-#board-frame[data-board-frame-skin-id="black-gold-lacquer"],
-#board-frame[data-board-frame-skin-id="compact-gold-clean-corners"] {
-    --board-contour-highlight: rgba(238, 196, 91, 0.94);
-    --board-contour-metal: rgba(71, 45, 18, 0.98);
-    --board-contour-shadow: rgba(8, 5, 3, 0.98);
-}
-
-#board-frame[data-board-frame-skin-id="compact-iron-clean-corners"] {
-    --board-contour-highlight: rgba(164, 178, 179, 0.82);
-    --board-contour-metal: rgba(42, 49, 49, 0.98);
-    --board-contour-shadow: rgba(3, 6, 7, 0.98);
-}
-
 #board-frame[data-board-frame-skin-id="submerged-wood"] {
     --board-contour-highlight: rgba(163, 121, 72, 0.84);
     --board-contour-metal: rgba(61, 38, 24, 0.98);
     --board-contour-shadow: rgba(12, 8, 5, 0.98);
-}
-
-#board-frame[data-board-frame-skin-id="swamp-ruin-stone"],
-#board-frame[data-board-frame-skin-id="shadow-vine-lacquer"] {
-    --board-contour-highlight: rgba(135, 158, 102, 0.82);
-    --board-contour-metal: rgba(35, 52, 39, 0.98);
-    --board-contour-shadow: rgba(3, 9, 6, 0.98);
 }
 
 /* Occupancy Indicators */

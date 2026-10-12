@@ -76,7 +76,7 @@ describe('destroy source animation stone skin visuals', () => {
   });
 
   test('sniper projectile uses the selected black normal stone skin', async () => {
-    const mod = require('../ui/animation-destroy-source-events.js');
+    const mod = require('../ui/board-dom-compat/animation-destroy-source-events');
     const observedBackgroundImages: string[] = [];
 
     await mod.animateSniperProjectile({ r: 2, col: 2, projectileOwner: 'black' }, makeDeps(observedBackgroundImages));
@@ -85,7 +85,7 @@ describe('destroy source animation stone skin visuals', () => {
   });
 
   test('robot vacuum suction uses the selected white normal stone skin', async () => {
-    const mod = require('../ui/animation-destroy-source-events.js');
+    const mod = require('../ui/board-dom-compat/animation-destroy-source-events');
     const observedBackgroundImages: string[] = [];
 
     await mod.animateRobotVacuumSuction({ r: 2, col: 2, ownerBefore: 'white' }, makeDeps(observedBackgroundImages));

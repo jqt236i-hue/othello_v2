@@ -135,8 +135,18 @@ function collectBoardExecutorSpecialStoneCells(cardState: CardState, deps?: any)
     return cells;
 }
 
-function canUseBoardExecutor(cardState: CardState, _playerKey: PlayerKey, deps?: any): boolean {
-    return collectBoardExecutorSpecialStoneInstances(cardState, deps).length >= BOARD_EXECUTOR_MIN_SPECIAL_STONES;
+function isHiddenOpponentTrapMarker(marker: any, playerKey: PlayerKey): boolean {
+    if (markerTypeOf(marker) !== 'TRAP' || !marker.data || marker.data.hidden !== true) return false;
+    const owner = String(marker.owner || '');
+    return !!owner && owner !== String(playerKey || '');
+}
+
+// 使用条件の個体数は、使用者から見えている特殊石で数える。相手の非公開罠は数えず、
+// 秘密情報から使用可否を推測できないようにする（01-rulebook.md §10.23.1.2）。絶対執行の対象には含める。
+function canUseBoardExecutor(cardState: CardState, playerKey: PlayerKey, deps?: any): boolean {
+    const visible = collectBoardExecutorSpecialStoneInstances(cardState, deps)
+        .filter((marker) => !isHiddenOpponentTrapMarker(marker, playerKey));
+    return visible.length >= BOARD_EXECUTOR_MIN_SPECIAL_STONES;
 }
 
 function ensureBoardExecutorState(cardState: any): void {

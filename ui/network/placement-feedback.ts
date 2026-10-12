@@ -149,12 +149,27 @@ function createNetworkPlacementFeedbackController(config?: any): any {
     // Intake can precede playback. Keep the approaching hand until its exact
     // authoritative frame is dispatched; only the waiting cell hint ends here.
     activeFeedback = null;
-    setPreviewHints([], { deferRender: true });
+    // Newly queued playback will apply the hint-free frame. Without it, intake
+    // may already have refreshed the board, so request the guarded overlay
+    // update rather than relying on another render that may never arrive.
+    setPreviewHints([], Number(intakeResult.enqueuedFrameCount) > 0 ? { deferRender: true } : undefined);
     return true;
   }
 
   async function preparePlayback(frame: any): Promise<any[]> {
     const events = Array.isArray(frame?.playbackEvents) ? frame.playbackEvents : [];
+    // Recovered journal frames can bypass snapshot intake, or arrive in a batch
+    // whose envelope identifies a different operation. The exact frame owns
+    // this handoff, even when no local hand animation was available.
+    if (activeFeedback?.operationId
+      && normalizeOperationId(frame?.operationId) === activeFeedback.operationId
+      && normalizeRoomId(frame?.roomId) === activeFeedback.roomId
+      && isSameSession(activeFeedback, readSessionIdentity(cfg))) {
+      activeFeedback = null;
+      // Playback is about to own the board and apply the hint-free frame.
+      // Do not cancel the approaching hand: it still joins contact below.
+      setPreviewHints([], { deferRender: true });
+    }
     const hand = placementHand;
     if (!hand || !hand.operationId || String(frame?.operationId || '') !== hand.operationId
       || !isSameSession(hand, readSessionIdentity(cfg))) return events;

@@ -96,6 +96,12 @@ describe('left action rail layout contract', () => {
     expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
     expect(html).toMatch(/id="reversiDestinyOpenLink"[\s\S]*href="https:\/\/reversi-destiny\.pages\.dev\/"[\s\S]*target="_blank"[\s\S]*rel="noopener noreferrer external"[\s\S]*referrerpolicy="no-referrer"[\s\S]*aria-describedby="parallelWorldsLinkNotice"/);
     expect(html.match(/https:\/\/reversi-destiny\.pages\.dev\//g)).toHaveLength(1);
+    // 森の広場：並行世界の次に置き、押した時だけ 3D の別ページを iframe で読み込む
+    expect(html).toMatch(/id="parallelWorldsOpenBtn"[\s\S]*id="forestPlazaOpenBtn"[\s\S]*>森の広場<[\s\S]*id="leaderboardOpenBtn"/);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-forest-plaza"/);
+    expect(html).toMatch(/id="forestPlazaOverlay"[^>]*hidden/);
+    expect(html).not.toMatch(/<iframe[^>]*forest-plaza/);
+    expect(html).toContain("frame.src = 'vite-dist/forest-plaza.html'");
   });
 
   test('settings panel keeps a narrower vertical layout with an internal reversi shortcut', () => {

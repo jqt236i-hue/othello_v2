@@ -2868,6 +2868,26 @@ function _getBoardExpansionGodConfirmationTarget(playerKey: any) {
     };
 }
 
+const TRANSIENT_ACTION_LOCK_RECHECK_MS = 250;
+let _transientActionLockRecheckTimer: ReturnType<typeof setTimeout> | null = null;
+
+// パス・使用ボタンが演出中や処理中の一時ロックで押せない状態は、ロックが外れても
+// 再描画の依頼が来ない経路がある（処理中フラグの解除や演出 claim の解放は UI を再描画しない）。
+// 押せない理由が一時ロックの間だけ短い間隔で再判定し、解除後に操作なしで押せるようにする。
+function _scheduleTransientActionLockRecheck(actionState: any) {
+    const blockedByTransientLock = !!(
+        actionState
+        && !actionState.isAutoMode
+        && actionState.canActThisTurn
+        && (!actionState.canInteract || (actionState.canShowPass && !actionState.canPass))
+    );
+    if (!blockedByTransientLock || _transientActionLockRecheckTimer !== null) return;
+    _transientActionLockRecheckTimer = setTimeout(() => {
+        _transientActionLockRecheckTimer = null;
+        _requestCardUiSyncForInteraction('card-interaction:transient-lock-recheck');
+    }, TRANSIENT_ACTION_LOCK_RECHECK_MS);
+}
+
 function updateCardDetailPanel() {
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
@@ -2986,6 +3006,7 @@ function updateCardDetailPanel() {
         _setCardUiDisabledIfChanged(passBtn, !actionState.canPass);
     }
     _syncReversiPassButton(actionState);
+    _scheduleTransientActionLockRecheck(actionState);
 
     const anchorSignature = JSON.stringify({
         selectedId: normalizedSelectedId || null,

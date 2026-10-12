@@ -1,5 +1,5 @@
 /**
- * Validates the tracked Worker asset mirror without regenerating it.
+ * Validates the generated (untracked) Worker asset mirror without regenerating it.
  * Run after `worker:prepare` to catch both stale content and stray manual files.
  */
 import * as path from 'path';

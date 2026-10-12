@@ -45,7 +45,7 @@ describe('DOM board source trajectory ownership', () => {
   });
 
   afterEach(() => {
-    jest.dontMock('../ui/animation-destroy-source-events');
+    jest.dontMock('../ui/board-dom-compat/animation-destroy-source-events');
     jest.resetModules();
     dom.window.close();
     delete (global as any).window;
@@ -55,7 +55,7 @@ describe('DOM board source trajectory ownership', () => {
   test('starts every raw source synchronously before target gates can commit', async () => {
     const log: string[] = [];
     const resolvers: Array<() => void> = [];
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateSniperProjectile: jest.fn((target: any) => {
         log.push(`source:${target.r},${target.col}`);
         return new Promise<void>((resolve) => resolvers.push(resolve));
@@ -100,7 +100,7 @@ describe('DOM board source trajectory ownership', () => {
 
   test('routes FIRE_WILL status through the board-owned flame beam and target gate', async () => {
     const animateDestroyDragonBreath = jest.fn(() => Promise.resolve());
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateDestroyDragonBreath
     }));
     const board = document.getElementById('board') as HTMLElement;
@@ -156,7 +156,7 @@ describe('DOM board source trajectory ownership', () => {
 
   test('routes GRASS_WILL seed status through the board-owned green beam and target gate', async () => {
     const animateDestroyDragonBreath = jest.fn(() => Promise.resolve());
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateDestroyDragonBreath
     }));
     const board = document.getElementById('board') as HTMLElement;
@@ -213,7 +213,7 @@ describe('DOM board source trajectory ownership', () => {
 
   test('routes WATER_WILL healing status through the board-owned blue beam and target gate', async () => {
     const animateDestroyDragonBreath = jest.fn(() => Promise.resolve());
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateDestroyDragonBreath
     }));
     const board = document.getElementById('board') as HTMLElement;

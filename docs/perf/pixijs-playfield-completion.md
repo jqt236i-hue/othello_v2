@@ -102,3 +102,5 @@ Full Jestの途中で、Vite boot contractがDOM-only `forceFullRender`を必須
 Phase 9のblocking desktop readiness、hardware WebGL、同期apply/lifecycle、cross-browser/mobile-viewport機能gateはPASSしており、`docs/perf/pixijs-playfield-precutover.md`と`docs/perf/pixijs-playfield-cutover.md`に保存されている。
 
 4 lane × 10分のstrict soakは共有workstationでのhistorical-candidate-failのままoptional diagnosticsとして保持する。今回のPhase 10完了判定のために再計測は行わず、failure sampleやthresholdを変更していない。physical Android Chrome、iPhone Safari実機GPU、paint/composite、thermal throttling、battery/power modeは未計測のresidual riskである。Playwright WebKitは機能互換性の証拠であり、Safari実機性能の証拠とは扱わない。
+
+2026-10-12 の desktop 再計測は [pixijs-playfield-recheck-2026-10-12.md](pixijs-playfield-recheck-2026-10-12.md) に記録した。Pixi のフレーム時間は全シナリオで 7 月と同等だった。

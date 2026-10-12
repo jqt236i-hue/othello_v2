@@ -1714,7 +1714,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const projectileSpy = jest.spyOn(destroySourceEvents, 'animateSniperProjectile').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -1754,7 +1754,7 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const projectileSpy = jest.spyOn(destroySourceEvents, 'animateSniperProjectile').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -1790,7 +1790,7 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const projectileSpy = jest.spyOn(destroySourceEvents, 'animateSniperProjectile').mockResolvedValue(undefined);
     setAnimationEngineDomBackendSleepControl();
 
@@ -1835,7 +1835,7 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const sourceAnimationSpy = jest.spyOn(destroySourceEvents, methodName).mockResolvedValue(undefined);
     setAnimationEngineDomBackendSleepControl();
 
@@ -1908,7 +1908,7 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const suctionSpy = jest.spyOn(destroySourceEvents, 'animateRobotVacuumSuction').mockImplementation(async () => {
       const liveDisc = targetCell.querySelector('.disc');
       expect(liveDisc).not.toBeNull();
@@ -2010,7 +2010,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const suctionSpy = jest.spyOn(destroySourceEvents, 'animateRobotVacuumSuction').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -2053,7 +2053,7 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -2088,7 +2088,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -2130,7 +2130,7 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
@@ -2165,7 +2165,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const destroySourceEvents = require('../ui/board-dom-compat/animation-destroy-source-events');
     const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({

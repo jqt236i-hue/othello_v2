@@ -1466,7 +1466,7 @@ async function processPassTurn(
             setPassHandlerProcessing(false);
             return publishOutcome;
         }
-        emitPassHandlerLog(passLogMessage);
+        // ネット対戦のパスのログは、権威が受理して届くパス通知から両者に出す（ui/network-client.ts）。
         return publishOutcome;
     }
 

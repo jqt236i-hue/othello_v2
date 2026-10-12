@@ -80,6 +80,23 @@ describe('custom skin storage and catalogs', () => {
       blackImagePath: 'blob:black',
       whiteImagePath: 'blob:white'
     }));
-    expect(boardCatalog.getAllBoardSkins(window).map((skin: { id: string }) => skin.id).slice(-1)).toEqual(['custom:board:1']);
+    expect(backgroundCatalog.BASE_BACKGROUND_SKINS).toHaveLength(1);
+    expect(boardCatalog.BASE_BOARD_SKINS).toHaveLength(1);
+    expect(boardCatalog.BASE_BOARD_FRAME_SKINS).toHaveLength(1);
+    expect(backgroundCatalog.getOwnedBackgroundSkins(window).map((skin: { id: string }) => skin.id))
+      .toEqual(['default-25', 'custom:background:1']);
+    expect(boardCatalog.getAllBoardSkins(window).map((skin: { id: string }) => skin.id))
+      .toEqual(['bluegreen-felt', 'custom:board:1']);
+    expect(boardCatalog.getAllBoardFrameSkins(window).map((skin: { id: string }) => skin.id))
+      .toEqual(['submerged-wood', 'custom:board-frame:1']);
+
+    const backgroundSelection = require('../ui/background-skin/selection.ts');
+    const boardSelection = require('../ui/board-skin/selection.ts');
+    expect(backgroundSelection.writeStoredBackgroundSkinId(window, 'custom:background:1')).toBe(true);
+    expect(boardSelection.writeStoredBoardSkinId(window, 'custom:board:1')).toBe(true);
+    expect(boardSelection.writeStoredBoardFrameSkinId(window, 'custom:board-frame:1')).toBe(true);
+    expect(backgroundSelection.readStoredBackgroundSkinId(window)).toBe('custom:background:1');
+    expect(boardSelection.readStoredBoardSkinId(window)).toBe('custom:board:1');
+    expect(boardSelection.readStoredBoardFrameSkinId(window)).toBe('custom:board-frame:1');
   });
 });

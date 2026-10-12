@@ -62,8 +62,8 @@ describe('special-stone playback phase batching', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    jest.dontMock('../ui/animation-destroy-events');
-    jest.dontMock('../ui/animation-destroy-source-events');
+    jest.dontMock('../ui/board-dom-compat/animation-destroy-events');
+    jest.dontMock('../ui/board-dom-compat/animation-destroy-source-events');
     delete (global as any).window;
     delete (global as any).document;
   });
@@ -119,7 +119,7 @@ describe('special-stone playback phase batching', () => {
   });
 
   test('transient overlays batch body mutations into one append and one removal per phase', async () => {
-    jest.doMock('../ui/animation-destroy-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-events', () => ({
       handleDestroyEvent: async (event: any, deps: any) => {
         await Promise.all(event.targets.map((target: any) => deps.playDestroySourceAnimation(
           target,
@@ -127,7 +127,7 @@ describe('special-stone playback phase batching', () => {
         )));
       }
     }));
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateUdgLightningStrike: async (_target: any, deps: any) => {
         deps.transientOverlayBatch.append(document.createElement('div'));
       }

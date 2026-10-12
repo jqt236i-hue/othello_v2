@@ -2126,6 +2126,19 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     },
                     readPlaybackRunning: () => {
                         try {
+                            // 持ち主のいる演出（ネット対戦の確定フレーム待ちを含む）は、アニメーション停止中でも再生中として扱う。
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (
+                                playbackState
+                                && typeof playbackState.getPlaybackActive === 'function'
+                                && typeof playbackState.isPlaybackStale === 'function'
+                                && playbackState.getPlaybackActive() === true
+                                && playbackState.isPlaybackStale() !== true
+                            ) {
+                                return true;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try {
                             const root = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
                             const engine = root && root.AnimationEngine;
                             if (engine && typeof engine.isPlaying === 'boolean') return engine.isPlaying === true;

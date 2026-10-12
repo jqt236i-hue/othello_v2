@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import optimizedUiImagePolicy from '../assets/optimized-ui-images.policy.json';
+import { analyzeLossyWebp } from '../assets/lossless-webp-pipeline';
 import {
   chromium,
   type Browser,
@@ -53,6 +55,7 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'logical-image-deduplication',
   'help-image-lazy-loading',
   'dom-compat-stylesheet-lazy-loading',
+  // Keep the legacy report/contract ID; admission now follows the current codec policy.
   'lossless-webp-admission',
   'feature-result',
   'feature-profile',
@@ -79,9 +82,9 @@ const NETWORK_STYLESHEET_PATHS = Object.freeze([
   'styles-feature-network-responsive.css'
 ]);
 const DEFAULT_FRAME_PNG_PATH =
-  'assets/images/board/board-frame-marsh-forged-iron-v1.png';
+  'assets/images/board/board-frame-submerged-wood-v1.png';
 const DEFAULT_FRAME_WEBP_PATH =
-  'assets/images/board/board-frame-marsh-forged-iron-v1.webp';
+  'assets/images/board/board-frame-submerged-wood-v1.webp';
 const INITIAL_HELP_IMAGE_PATHS = Object.freeze([
   'assets/images/help/player-guide/card-reversi-player-guide-slide-01.png',
   'assets/images/help/protection-penetration/protection-penetration-quick-reference.png'
@@ -3699,6 +3702,7 @@ async function readFrameAssetRuntimeEvidence(
     const frame = document.getElementById('board-frame');
     return !!frame && getComputedStyle(frame, '::before').backgroundImage !== 'none';
   }, null, { timeout: 60_000 });
+  await runtime.page.waitForLoadState('networkidle');
   const visual = await runtime.page.evaluate(() => {
     const frame = document.getElementById('board-frame') as HTMLElement | null;
     const root = document.documentElement;
@@ -3730,6 +3734,7 @@ async function readFrameAssetRuntimeEvidence(
   });
   return Object.freeze({
     variant,
+    sourceMode: variant === 'normal-webp' ? 'current-catalog' : 'policy-png-fallback-probe',
     ...visual,
     frameWebpRequestCount: countPath(runtime.requestPaths, DEFAULT_FRAME_WEBP_PATH),
     framePngRequestCount: countPath(runtime.requestPaths, DEFAULT_FRAME_PNG_PATH),
@@ -3768,21 +3773,47 @@ async function captureFrameAssetVariant(
           };
         });
       }
-      if (variant === 'forced-webp-failure') {
-        await page.route(`**/${DEFAULT_FRAME_WEBP_PATH}`, (route) => route.abort('failed'));
-      }
     }
   });
   try {
+    // The current catalog directly selects WebP. Exercise the PNG-keyed codec
+    // fallback separately, without pretending this is the normal boot path.
+    await runtime.page.waitForLoadState('networkidle');
+    runtime.requestPaths.length = 0;
+    runtime.responsePaths.length = 0;
+    // Keep boot errors: only frame request counts are scoped to the probe.
+    failedRequestPaths.length = 0;
+    if (variant === 'forced-webp-failure') {
+      await runtime.page.route(`**/${DEFAULT_FRAME_WEBP_PATH}`, (route) => route.abort('failed'));
+    }
+    await runtime.page.evaluate(async (sourcePath) => {
+      const root = window as any;
+      const catalog = root.__require?.('ui/board-skin/catalog');
+      const skinRuntime = root.__require?.('ui/board-skin/runtime');
+      const codec = root.__require?.('ui/assets/optimized-image-codec');
+      if (!catalog || !skinRuntime?.prepareBoardFrameSkin || !codec?.resetOptimizedImageCodecForTests) {
+        throw new Error('Current frame codec fallback probe runtime is unavailable');
+      }
+      codec.resetOptimizedImageCodecForTests();
+      root.BoardSkinCatalogModule = {
+        ...catalog,
+        getBoardFrameSkinDefinition(skinId: string) {
+          const definition = catalog.getBoardFrameSkinDefinition(skinId, root);
+          return definition ? { ...definition, imagePath: sourcePath } : null;
+        }
+      };
+      await skinRuntime.prepareBoardFrameSkin(root, catalog.DEFAULT_BOARD_FRAME_SKIN_ID);
+    }, DEFAULT_FRAME_PNG_PATH);
+    await runtime.page.waitForLoadState('networkidle');
     return await readFrameAssetRuntimeEvidence(runtime, variant, failedRequestPaths);
   } finally {
     await closeBootRuntime(runtime, true);
   }
 }
 
-function readOptimizedFrameAdmissionEvidence(
+export async function readOptimizedFrameAdmissionEvidence(
   rootDir: string
-): Readonly<Record<string, unknown>> {
+): Promise<Readonly<Record<string, any>>> {
   const manifestPath = path.join(
     rootDir,
     'assets',
@@ -3801,18 +3832,34 @@ function readOptimizedFrameAdmissionEvidence(
     (entry) => entry.source === DEFAULT_FRAME_PNG_PATH
   );
   if (!frame) throw new Error('Optimized UI image manifest is missing the default frame');
+  const policy = optimizedUiImagePolicy.images.find((entry) => entry.source === DEFAULT_FRAME_PNG_PATH);
+  if (!policy || policy.admission.status !== 'admitted' || policy.encoding.codec !== 'webp-lossy') {
+    throw new Error('Current default frame must have an admitted lossy WebP policy');
+  }
   const sourceBody = fs.readFileSync(path.join(rootDir, DEFAULT_FRAME_PNG_PATH));
   const outputBody = fs.readFileSync(path.join(rootDir, DEFAULT_FRAME_WEBP_PATH));
+  // Reproduce the admitted codec, not the legacy manifest-level codec. This
+  // binds q90 to actual encoded bytes instead of trusting a quality label.
+  const encoded = await analyzeLossyWebp(path.join(rootDir, DEFAULT_FRAME_PNG_PATH), {
+    quality: policy.encoding.quality
+  });
   return Object.freeze({
     manifestSha256: crypto.createHash('sha256').update(manifestBody).digest('hex'),
     schemaVersion: manifest.schemaVersion ?? null,
-    codec: manifest.codec || '',
+    codec: frame.codec || '',
+    quality: frame.quality ?? null,
+    sourcePath: frame.source,
+    policyEncoding: policy.encoding,
+    policyAdmissionStatus: policy.admission.status,
+    policyOutputSha256: encoded.outputSha256,
     minimumSavingsRatio: Number(manifest.minimumSavingsRatio),
     admittedMappingOutput: manifest.admittedMapping?.[DEFAULT_FRAME_PNG_PATH] || '',
     sourceBytes: Number(frame.sourceBytes),
     outputBytes: Number(frame.outputBytes),
     savingsRatio: Number(frame.savingsRatio),
-    visiblePixelsEqual: frame.visiblePixelsEqual === true,
+    visiblePixelsEqual: frame.visiblePixelsEqual,
+    actualSourceBytes: sourceBody.length,
+    actualOutputBytes: outputBody.length,
     width: Number(frame.width),
     height: Number(frame.height),
     sourceSha256: String(frame.sourceSha256 || ''),
@@ -3820,7 +3867,73 @@ function readOptimizedFrameAdmissionEvidence(
     actualSourceSha256: crypto.createHash('sha256').update(sourceBody).digest('hex'),
     actualOutputSha256: crypto.createHash('sha256').update(outputBody).digest('hex'),
     admissionStatus: String(frame.admission?.status || ''),
-    hardwareDecode: frame.measurement?.hardwareDecode || null
+    // A former image's desktop timings are not evidence for this output.
+    hardwareDecode: null
+  });
+}
+
+async function measureCurrentFrameHardwareDecode(
+  browser: Browser,
+  page: Page,
+  rootDir: string,
+  admission: Readonly<Record<string, any>>
+): Promise<Readonly<Record<string, unknown>>> {
+  const graphics = await readDesktopGraphicsEnvironment(browser);
+  const sourceBody = fs.readFileSync(path.join(rootDir, DEFAULT_FRAME_PNG_PATH));
+  const outputBody = fs.readFileSync(path.join(rootDir, DEFAULT_FRAME_WEBP_PATH));
+  const samples = await page.evaluate(async ({ png, webp }) => {
+    const blob = (base64: string, type: string) => new Blob([
+      Uint8Array.from(atob(base64), (character) => character.charCodeAt(0))
+    ], { type });
+    const blobs = { png: blob(png, 'image/png'), webp: blob(webp, 'image/webp') };
+    const values: Record<'png' | 'webp', number[]> = { png: [], webp: [] };
+    const decode = async (kind: 'png' | 'webp') => {
+      const url = URL.createObjectURL(blobs[kind]);
+      try {
+        const image = new Image();
+        image.src = url;
+        const start = performance.now();
+        await image.decode();
+        values[kind].push(performance.now() - start);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    await decode('png');
+    await decode('webp');
+    values.png = [];
+    values.webp = [];
+    for (let index = 0; index < 12; index += 1) {
+      await decode(index % 2 === 0 ? 'png' : 'webp');
+      await decode(index % 2 === 0 ? 'webp' : 'png');
+    }
+    return values;
+  }, {
+    png: sourceBody.toString('base64'),
+    webp: outputBody.toString('base64')
+  });
+  const median = (values: number[]) => {
+    const sorted = values.slice().sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+  };
+  const pngMedianMs = median(samples.png);
+  const webpMedianMs = median(samples.webp);
+  const allowedDeltaMs = Math.max(2, pngMedianMs * 0.1);
+  return Object.freeze({
+    measurementSource: 'current-frame-capture',
+    hardwareAccelerated: graphics.hardwareAccelerated,
+    sourceSha256: crypto.createHash('sha256').update(sourceBody).digest('hex'),
+    outputSha256: crypto.createHash('sha256').update(outputBody).digest('hex'),
+    codec: admission.codec,
+    quality: admission.quality,
+    sampleCountPerFormat: samples.png.length,
+    order: 'alternating',
+    pngMedianMs,
+    webpMedianMs,
+    allowedDeltaMs,
+    verdict: graphics.hardwareAccelerated && webpMedianMs - pngMedianMs <= allowedDeltaMs
+      ? 'admitted' : 'rejected'
   });
 }
 
@@ -3845,8 +3958,12 @@ async function captureWebpAdmissionScenario(
       definition,
       'forced-webp-failure'
     );
+    const admission = await readOptimizedFrameAdmissionEvidence(rootDir);
+    const hardwareDecode = await measureCurrentFrameHardwareDecode(
+      browser, normalRuntime.page, rootDir, admission
+    );
     return await captureRuntimeSnapshot(normalRuntime, definition, {
-      admission: readOptimizedFrameAdmissionEvidence(rootDir),
+      admission: Object.freeze({ ...admission, hardwareDecode }),
       normal,
       forcedPng,
       forcedWebpFailure
