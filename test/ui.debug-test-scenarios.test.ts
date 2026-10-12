@@ -185,7 +185,7 @@ describe('debug test scenarios', () => {
     expect(gameState.currentPlayer).toBe(1);
     expect(gameState.turnNumber).toBeGreaterThanOrEqual(18);
     expect(gameState.board[2][3]).toBe(1);
-    expect(gameState.board[2][4]).toBe(-1);
+    expect(gameState.board[2][4]).toBe(1);
     expect(gameState.board[3][5]).toBe(-1);
     expect(cardState.turnIndex).toBeGreaterThanOrEqual(18);
     expect(cardState.hands.black).toEqual([
@@ -210,7 +210,7 @@ describe('debug test scenarios', () => {
           destroyEvadeRemaining: 6
         })
       }),
-      expect.objectContaining({ kind: 'specialStone', row: 2, col: 4, owner: 'white', data: expect.objectContaining({ type: 'TRAP' }) }),
+      expect.objectContaining({ kind: 'specialStone', row: 2, col: 4, owner: 'black', data: expect.objectContaining({ type: 'TRAP' }) }),
       expect.objectContaining({ kind: 'bomb', row: 3, col: 5, owner: 'white', data: expect.objectContaining({ type: 'TIME_BOMB' }) })
     ]));
     expect(cardState.markers).toHaveLength(3);
