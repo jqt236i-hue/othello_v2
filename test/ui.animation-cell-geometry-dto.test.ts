@@ -83,7 +83,7 @@ describe('board animation cell geometry DTO boundary', () => {
   }
 
   test('MOVE の from/to/waypoint 座標は DTO だけからアニメーション経路を作る', async () => {
-    const moveEvents = require('../ui/animation-move-events.js');
+    const moveEvents = require('../ui/board-dom-compat/animation-move-events');
     const deps = createMoveDeps({
       '0,0': createRect(10, 20),
       '0,1': createRect(70, 20),
@@ -117,7 +117,7 @@ describe('board animation cell geometry DTO boundary', () => {
   });
 
   test('極端活発の強制交換は往路・復路とも DTO 座標だけを使う', async () => {
-    const moveEvents = require('../ui/animation-move-events.js');
+    const moveEvents = require('../ui/board-dom-compat/animation-move-events');
     const overlapCell = document.querySelector('.cell[data-row="0"][data-col="1"]') as HTMLElement;
     overlapCell.classList.add('has-disc');
     overlapCell.innerHTML = '<div class="disc white"></div>';

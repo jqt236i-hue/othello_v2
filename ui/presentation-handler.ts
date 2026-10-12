@@ -193,33 +193,6 @@ function resolveStoneVisuals(): any {
   return null;
 }
 
-function resolveCrossfadeStoneVisual(): any {
-  const visuals = resolveStoneVisuals();
-  if (visuals && typeof visuals.crossfadeStoneVisual === 'function') {
-    return visuals.crossfadeStoneVisual.bind(visuals);
-  }
-  if (typeof (crossfadeStoneVisual as any) === 'function') return crossfadeStoneVisual;
-  return null;
-}
-
-function resolveDiscVisualSync(): any {
-  const visuals = resolveStoneVisuals();
-  if (visuals && typeof visuals.syncDiscVisualToCurrentState === 'function') {
-    return visuals.syncDiscVisualToCurrentState.bind(visuals);
-  }
-  if (typeof (syncDiscVisualToCurrentState as any) === 'function') return syncDiscVisualToCurrentState;
-  return null;
-}
-
-function resolveApplyStoneVisualState(): any {
-  const visuals = resolveStoneVisuals();
-  if (visuals && typeof visuals.applyStoneVisualState === 'function') {
-    return visuals.applyStoneVisualState.bind(visuals);
-  }
-  if (typeof (applyStoneVisualState as any) === 'function') return applyStoneVisualState;
-  return null;
-}
-
 function ensureCommentaryBrokerInitialized(): any {
   const broker = resolveCommentaryBroker();
   if (!broker || typeof broker.initBroker !== 'function') return broker;

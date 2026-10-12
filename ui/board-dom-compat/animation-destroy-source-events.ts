@@ -159,7 +159,7 @@ function resolveStoneSkinRuntimeModule() {
     }
     if (typeof _require === 'function') {
         try {
-            cachedStoneSkinRuntimeModule = _require('./stone-skin/runtime');
+            cachedStoneSkinRuntimeModule = _require('../stone-skin/runtime');
         } catch (e) { /* ignore */ }
     }
     return cachedStoneSkinRuntimeModule;

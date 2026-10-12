@@ -1,6 +1,6 @@
 export {};
 
-import { isStonePreservingStatusPlaybackTarget } from './board-visual/playback-types';
+import { isStonePreservingStatusPlaybackTarget } from '../board-visual/playback-types';
 
 type AnimationStatusEventDeps = {
     eventTypes: any;

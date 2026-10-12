@@ -6,7 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
 
-const PlaybackFlipMarker = _require('./playback-flip-marker');
+const PlaybackFlipMarker = _require('../playback-flip-marker');
 
 type AnimationFlipEventDeps = {
     eventTypes: any;

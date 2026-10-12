@@ -54,7 +54,7 @@ describe('AnimationFlipEvents', () => {
   }
 
   test('dedupes repeated flip targets for the same cell in one event', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const triggerFlip = jest.fn();
     const deps = createDeps(triggerFlip);
 
@@ -76,7 +76,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('waits raw source membership even when a later duplicate overwrites the zombie profile', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const deps: any = createDeps(jest.fn());
     let releaseGate!: () => void;
     const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
@@ -113,7 +113,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('syncs flipped color before starting the CSS flip animation', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const calls: string[] = [];
     const triggerFlip = jest.fn();
     const deps = createDeps(triggerFlip);
@@ -140,7 +140,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('marks playback-flipped discs so final diff sync does not replay fallback flip', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const playbackFlipMarker = require('../ui/playback-flip-marker.js');
     const triggerFlip = jest.fn();
     const deps = createDeps(triggerFlip);
@@ -164,7 +164,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('keeps using the shared CSS flip helper when element.animate is available', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const triggerFlip = jest.fn();
     const deps = createDeps(triggerFlip);
     const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as any;
@@ -183,7 +183,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('plays the zombie bite, syncs the infected stone, and skips the regular flip pathway', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const playbackFlipMarker = require('../ui/playback-flip-marker.js');
     const calls: string[] = [];
     const triggerFlip = jest.fn(() => calls.push('trigger'));
@@ -244,7 +244,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('keeps the regular flip pathway for non-zombie-infection CHANGE events', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const playbackFlipMarker = require('../ui/playback-flip-marker.js');
     const triggerFlip = jest.fn();
     const deps = createDeps(triggerFlip);
@@ -265,7 +265,7 @@ describe('AnimationFlipEvents', () => {
   });
 
   test('skips zombie bite DOM when animations are disabled', async () => {
-    const flipEvents = require('../ui/animation-flip-events.js');
+    const flipEvents = require('../ui/board-dom-compat/animation-flip-events');
     const triggerFlip = jest.fn();
     const deps = createDeps(triggerFlip);
     deps.isNoAnim = () => true;

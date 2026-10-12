@@ -1,4 +1,4 @@
-import { REINCARNATION_SETTLE_MS, REINCARNATION_ROULETTE_DELAYS_MS } from '../constants/reincarnation-animation';
+import { REINCARNATION_SETTLE_MS, REINCARNATION_ROULETTE_DELAYS_MS } from '../../constants/reincarnation-animation';
 
 type TheoryAnimationDeps = {
     isNoAnim: () => boolean;

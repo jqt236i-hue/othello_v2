@@ -31,12 +31,12 @@ function directRectReadLines(source: string): string[] {
 
 describe('animation layout read batching source contract', () => {
   test('destroy source animations use readElementRect outside the helper fallback', () => {
-    const source = readRepoFile('ui/animation-destroy-source-events.ts');
+    const source = readRepoFile('ui/board-dom-compat/animation-destroy-source-events.ts');
     expect(directRectReadLines(source)).toEqual([]);
   });
 
   test('move animations use readElementRect outside the helper fallback', () => {
-    const source = readRepoFile('ui/animation-move-events.ts');
+    const source = readRepoFile('ui/board-dom-compat/animation-move-events.ts');
     expect(directRectReadLines(source)).toEqual([]);
   });
 });

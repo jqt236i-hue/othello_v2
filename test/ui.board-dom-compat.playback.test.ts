@@ -29,7 +29,7 @@ describe('DOM board playback phase ownership', () => {
     jest.dontMock('../ui/layout-read-batch');
     jest.dontMock('../ui/transient-overlay-batch');
     jest.dontMock('../ui/stone-visuals');
-    jest.dontMock('../ui/animation-destroy-source-events');
+    jest.dontMock('../ui/board-dom-compat/animation-destroy-source-events');
     jest.resetModules();
     dom.window.close();
     delete (global as any).window;
@@ -257,7 +257,7 @@ describe('DOM board playback phase ownership', () => {
     const animateDestroyDragonBreath = jest.fn(() => new Promise<void>((resolve) => {
       finishBeam = resolve;
     }));
-    jest.doMock('../ui/animation-destroy-source-events', () => ({
+    jest.doMock('../ui/board-dom-compat/animation-destroy-source-events', () => ({
       animateDestroyDragonBreath
     }));
     document.body.innerHTML = `
