@@ -76,6 +76,25 @@ function impactProfile(profileKey: string | null, target: any): Readonly<{
   }
 }
 
+const DEFAULT_SLASH_ANGLE = (-32 * Math.PI) / 180;
+
+function impactAngle(
+  profile: NonNullable<ReturnType<typeof impactProfile>>,
+  target: any,
+  coordinate: Readonly<{ row: number; col: number }>
+): number {
+  if (profile.family !== 'will-hunter-king-slash') return 0;
+  const meta = playbackTargetMeta(target);
+  const source = target && typeof target === 'object' ? target : {};
+  const sourceRow = Number(Object.prototype.hasOwnProperty.call(source, 'sourceRow') ? source.sourceRow : meta.sourceRow);
+  const sourceCol = Number(Object.prototype.hasOwnProperty.call(source, 'sourceCol') ? source.sourceCol : meta.sourceCol);
+  if (!Number.isFinite(sourceRow) || !Number.isFinite(sourceCol)) return DEFAULT_SLASH_ANGLE;
+  const deltaRow = coordinate.row - Math.trunc(sourceRow);
+  const deltaCol = coordinate.col - Math.trunc(sourceCol);
+  if (deltaRow === 0 && deltaCol === 0) return DEFAULT_SLASH_ANGLE;
+  return Math.atan2(deltaRow, deltaCol);
+}
+
 async function playTargetImpact(
   event: PresentationPlaybackEvent,
   target: any,
@@ -85,6 +104,9 @@ async function playTargetImpact(
   if (!profile) return;
   const coordinate = normalizePlaybackCoordinate(target);
   if (!coordinate) return;
+  const angle = impactAngle(profile, target, coordinate);
+  // A slash already points along source -> target; spinning it would lose that.
+  const spin = profile.family === 'will-hunter-king-slash' ? 0 : Math.PI * 0.36;
   let effect: PixiPlaybackEffectHandle | null = null;
   const release = () => {
     if (!effect) return;
@@ -102,14 +124,15 @@ async function playTargetImpact(
           ...coordinate,
           family: profile.family,
           kind: 'impact',
-          tone: profile.tone
+          tone: profile.tone,
+          angle
         });
       },
       onUpdate: (progress) => {
         if (effect) projection.updateEffect(effect, {
           alpha: 1 - progress,
           scale: interpolate(0.28, 1.72, progress),
-          rotation: progress * Math.PI * 0.36
+          rotation: progress * spin
         });
         if (progress >= 1) release();
       }

@@ -309,6 +309,8 @@ export interface PixiPlaybackEffectOptions {
   readonly label?: string | number | null;
   /** BOARD_FRAME topology effect edges that border final playable cells. */
   readonly innerBoundaryEdges?: readonly BoardFrameInnerBoundaryEdge[];
+  /** Painted direction in radians for directional impacts such as slashes. */
+  readonly angle?: number;
 }
 
 export interface PixiPlaybackEffectUpdate {
@@ -337,6 +339,7 @@ export interface PixiPlaybackEffectDiagnostics {
   readonly tone: PixiPlaybackEffectTone;
   readonly label: string | null;
   readonly innerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
+  readonly angle: number;
   readonly visible: boolean;
   readonly alpha: number;
   readonly scale: number;
@@ -626,6 +629,7 @@ interface PlaybackEffectRecord {
     tone: PixiPlaybackEffectTone;
     label: string | null;
     innerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
+    angle: number;
   }>;
   transform: Required<PixiPlaybackEffectUpdate>;
   paintedView: PlaybackEffectView | null;
@@ -788,6 +792,132 @@ const PLAYBACK_EFFECT_TONES = new Set<PixiPlaybackEffectTone>([
   'white'
 ]);
 
+type PixiImpactPalette = Readonly<{ fill: string; stroke: string }>;
+type PixiImpactPoint = Readonly<{ x: number; y: number }>;
+
+function polarImpactPoint(center: number, radius: number, angle: number): PixiImpactPoint {
+  return { x: center + Math.cos(angle) * radius, y: center + Math.sin(angle) * radius };
+}
+
+function drawPixiImpactPolyline(
+  graphics: any,
+  points: readonly PixiImpactPoint[],
+  stroke: Readonly<{ color: string; alpha: number; width: number }>
+): void {
+  for (let index = 1; index < points.length; index += 1) {
+    drawPixiLine(graphics, points[index - 1].x, points[index - 1].y, points[index].x, points[index].y, stroke);
+  }
+}
+
+/**
+ * Per-family target impacts for special destroys. Shapes follow the DOM
+ * compatibility visuals and stay within 0.66 cell of the center so the
+ * largest playback scale remains inside the destroy effect gutter.
+ */
+function paintPixiFamilyImpact(
+  graphics: any,
+  cellSize: number,
+  family: string,
+  angle: number,
+  palette: PixiImpactPalette
+): boolean {
+  const center = cellSize / 2;
+  const unit = (ratio: number) => cellSize * ratio;
+  const strokeWidth = (ratio: number, minimum = 1) => Math.max(minimum, cellSize * ratio);
+  if (family === 'will-hunter-king-slash') {
+    drawPixiCircle(graphics, center, center, unit(0.42), { color: '#fff4c6', alpha: 0.16 }, null);
+    const lens = (length: number, halfWidth: number): PixiImpactPoint[] => {
+      const along = { x: Math.cos(angle), y: Math.sin(angle) };
+      const across = { x: -along.y, y: along.x };
+      const point = (t: number, w: number) => ({
+        x: center + along.x * t + across.x * w,
+        y: center + along.y * t + across.y * w
+      });
+      return [
+        point(-length, 0),
+        point(-length * 0.45, halfWidth * 0.7),
+        point(0, halfWidth),
+        point(length * 0.45, halfWidth * 0.7),
+        point(length, 0),
+        point(length * 0.45, -halfWidth * 0.7),
+        point(0, -halfWidth),
+        point(-length * 0.45, -halfWidth * 0.7)
+      ];
+    };
+    drawPixiPolygon(graphics, lens(unit(0.64), unit(0.13)), { color: '#fff4be', alpha: 0.32 }, null);
+    drawPixiPolygon(graphics, lens(unit(0.6), unit(0.055)), { color: '#fffbe4', alpha: 0.95 }, null);
+    return true;
+  }
+  if (family === 'lightning-impact') {
+    drawPixiCircle(graphics, center, center, unit(0.44), null, {
+      color: '#adeeff', alpha: 0.9, width: strokeWidth(0.035, 2)
+    });
+    const zigzag = [0.16, 0.3, 0.44, 0.6];
+    const jitter = [0, 0.32, -0.28, 0.12];
+    for (let index = 0; index < 6; index += 1) {
+      const base = (Math.PI / 3) * index + Math.PI / 12;
+      const bolt = zigzag.map((radius, step) => polarImpactPoint(center, unit(radius), base + jitter[step]));
+      drawPixiImpactPolyline(graphics, bolt, { color: '#86e3ff', alpha: 0.85, width: strokeWidth(0.05, 2) });
+      drawPixiImpactPolyline(graphics, bolt, { color: '#ffffff', alpha: 0.96, width: strokeWidth(0.022) });
+    }
+    drawPixiCircle(graphics, center, center, unit(0.2), { color: '#ffffff', alpha: 0.95 }, {
+      color: palette.fill, alpha: 0.9, width: strokeWidth(0.03)
+    });
+    return true;
+  }
+  if (family === 'destroy-dragon-impact') {
+    const tongues: PixiImpactPoint[] = [];
+    for (let index = 0; index < 16; index += 1) {
+      const radius = index % 2 === 0 ? (index % 4 === 0 ? 0.64 : 0.54) : 0.3;
+      tongues.push(polarImpactPoint(center, unit(radius), (Math.PI / 8) * index - Math.PI / 2));
+    }
+    drawPixiPolygon(graphics, tongues, { color: '#ff4614', alpha: 0.42 }, {
+      color: '#ff9b2a', alpha: 0.8, width: strokeWidth(0.025)
+    });
+    drawPixiCircle(graphics, center, center, unit(0.36), { color: '#ff911e', alpha: 0.72 }, null);
+    drawPixiCircle(graphics, center, center, unit(0.18), { color: '#ffffdc', alpha: 0.95 }, null);
+    return true;
+  }
+  if (family === 'meteor-god-impact') {
+    drawPixiCircle(graphics, center, center, unit(0.58), null, {
+      color: palette.fill, alpha: 0.7, width: strokeWidth(0.04, 2)
+    });
+    drawPixiCircle(graphics, center, center, unit(0.46), { color: '#5f2d98', alpha: 0.56 }, {
+      color: '#180a2a', alpha: 0.92, width: strokeWidth(0.05, 2)
+    });
+    drawPixiCircle(graphics, center, center, unit(0.3), { color: '#0d0717', alpha: 0.98 }, null);
+    drawPixiCircle(graphics, center, center, unit(0.12), { color: '#000000', alpha: 1 }, null);
+    return true;
+  }
+  if (family === 'super-crush-impact') {
+    drawPixiCircle(graphics, center, center, unit(0.52), null, {
+      color: palette.fill, alpha: 0.88, width: strokeWidth(0.075, 3)
+    });
+    const cracks = [
+      [0.12, 0.2, 0.06],
+      [1.36, -0.24, 0.18],
+      [2.62, 0.18, -0.08],
+      [3.86, -0.16, 0.2],
+      [5.06, 0.22, -0.14]
+    ];
+    for (const [base, bend, tail] of cracks) {
+      const crack = [
+        polarImpactPoint(center, unit(0.08), base),
+        polarImpactPoint(center, unit(0.3), base + bend),
+        polarImpactPoint(center, unit(0.46), base + bend * 0.2),
+        polarImpactPoint(center, unit(0.62), base + tail)
+      ];
+      drawPixiImpactPolyline(graphics, crack, { color: '#2a0804', alpha: 0.82, width: strokeWidth(0.06, 2) });
+      drawPixiImpactPolyline(graphics, crack, { color: palette.stroke, alpha: 0.9, width: strokeWidth(0.026) });
+    }
+    drawPixiCircle(graphics, center, center, unit(0.16), { color: palette.fill, alpha: 0.85 }, {
+      color: palette.stroke, alpha: 0.95, width: strokeWidth(0.03)
+    });
+    return true;
+  }
+  return false;
+}
+
 function normalizePlaybackEffectOptions(
   value: PixiPlaybackEffectOptions
 ): PlaybackEffectRecord['options'] {
@@ -826,7 +956,8 @@ function normalizePlaybackEffectOptions(
     kind,
     tone,
     label,
-    innerBoundaryEdges: Object.freeze(innerBoundaryEdges)
+    innerBoundaryEdges: Object.freeze(innerBoundaryEdges),
+    angle: finiteNumber(source.angle, 0)
   });
 }
 
@@ -1854,6 +1985,11 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         cellSize,
         record.options.innerBoundaryEdges
       );
+    } else if (
+      record.options.kind === 'impact'
+      && paintPixiFamilyImpact(graphics, cellSize, record.options.family, record.options.angle, palette)
+    ) {
+      // Special destroy families paint their own impact silhouette.
     } else {
       const radius = record.options.kind === 'impact'
         ? cellSize * 0.48
@@ -2090,6 +2226,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       tone: record.options.tone,
       label: record.options.label,
       innerBoundaryEdges: Object.freeze(record.options.innerBoundaryEdges.slice()),
+      angle: record.options.angle,
       visible: !!record.view?.root.visible,
       alpha: record.transform.alpha,
       scale: record.transform.scale,
