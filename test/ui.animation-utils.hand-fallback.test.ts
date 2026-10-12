@@ -362,8 +362,6 @@ describe('animation-utils hand fallback', () => {
         finished: Promise.resolve()
       };
     });
-    global.applyStoneVisualEffect = jest.fn();
-
     const animationUtils = require('../ui/animation-utils.js');
     await animationUtils.playCaptureToHandAnimation({
       player: 'black',
@@ -377,14 +375,45 @@ describe('animation-utils hand fallback', () => {
 
     expect(boardQuery).not.toHaveBeenCalled();
     expect(sourceDisc.cloneNode).not.toHaveBeenCalled();
-    expect(global.applyStoneVisualEffect).toHaveBeenCalledWith(
-      expect.objectContaining({ className: expect.stringContaining('disc white') }),
-      'DRAGON',
-      { owner: 'white' }
-    );
-    expect(animatedElements[0]).toEqual(expect.objectContaining({
-      className: expect.stringContaining('disc white')
-    }));
+    // The flying stone lives outside #board, so it must carry its own image
+    // instead of relying on board-scoped `.disc` styles.
+    const movingStone = animatedElements[0];
+    expect(movingStone.classList.contains('thrown-stone')).toBe(true);
+    expect(movingStone.classList.contains('white')).toBe(true);
+    expect(movingStone.classList.contains('disc')).toBe(false);
+    expect(movingStone.getAttribute('data-thrown-stone-effect')).toBe('ultimateDragon');
+    expect(movingStone.style.getPropertyValue('--thrown-stone-image')).toMatch(/url\('.+'\)/);
+  });
+
+  test('playCaptureToHandAnimation flies a normal stone image when the captured type has no stone visual', async () => {
+    const hand = document.getElementById('hand-black');
+    const targetCard = document.createElement('div');
+    targetCard.className = 'card-item';
+    targetCard.dataset.ownerKey = 'black';
+    targetCard.dataset.handIndex = '0';
+    targetCard.getBoundingClientRect = () => ({ left: 420, top: 520, width: 90, height: 120, right: 510, bottom: 640 });
+    hand.appendChild(targetCard);
+    getBoardCellClientRectMock.mockImplementation(() => ({ left: 100, top: 200, width: 80, height: 80, right: 180, bottom: 280 }));
+    const animatedElements = [];
+    window.Element.prototype.animate = jest.fn(function () {
+      animatedElements.push(this);
+      return { addEventListener: jest.fn(), finished: Promise.resolve() };
+    });
+
+    const animationUtils = require('../ui/animation-utils.js');
+    await animationUtils.playCaptureToHandAnimation({
+      player: 'black',
+      sourceRow: 0,
+      sourceCol: 0,
+      sourceOwner: 'white',
+      sourceSpecialType: 'NOT_A_STONE_TYPE',
+      insertIndex: 0
+    });
+
+    const movingStone = animatedElements[0];
+    expect(movingStone.classList.contains('thrown-stone')).toBe(true);
+    expect(movingStone.hasAttribute('data-thrown-stone-effect')).toBe(false);
+    expect(movingStone.style.getPropertyValue('--thrown-stone-image')).toContain('--normal-stone-white-image');
   });
 
   test('playHandAnimation skips hand movement but keeps placement completion when place hand animation is disabled', async () => {

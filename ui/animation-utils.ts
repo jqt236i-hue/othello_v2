@@ -23,7 +23,6 @@ declare const handLayer: any;
 declare const handWrapper: any;
 declare const heldStone: any;
 declare const __uiImpl: any;
-declare const applyStoneVisualEffect: (...args: any[]) => any;
 declare const applyCardSpecialArtToFace: (...args: any[]) => any;
 declare const createCardFaceElement: (...args: any[]) => any;
 declare const fitCardNameElement: (...args: any[]) => any;
@@ -1832,17 +1831,9 @@ function _getVisualEffectsMapForThrownStone() {
  */
 function _resolveThrownStoneVisual(playerKey: any, row: any, col: any) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
-    const ownerValue = ownerKey === 'white' ? -1 : 1;
-    const normal = {
-        ownerKey,
-        baseImage: ownerKey === 'white' ? 'var(--normal-stone-white-image)' : 'var(--normal-stone-black-image)',
-        overlayImage: null as string | null,
-        renderMode: 'base-only',
-        effectKey: null as string | null
-    };
     const map = _getVisualEffectsMapForThrownStone();
     const cs = _resolveCardStateForHandAnimations();
-    if (!map || !cs) return normal;
+    if (!map || !cs) return _resolveOverlayStoneVisual(ownerKey, null, map);
 
     let effectKey: string | null = null;
     const markers = Array.isArray(cs.markers) ? cs.markers : [];
@@ -1865,6 +1856,24 @@ function _resolveThrownStoneVisual(playerKey: any, row: any, col: any) {
             effectKey = (map.PENDING_TYPE_TO_EFFECT_KEY && map.PENDING_TYPE_TO_EFFECT_KEY[pendingType]) || null;
         }
     }
+    return _resolveOverlayStoneVisual(ownerKey, effectKey, map);
+}
+
+/**
+ * Stone visual for a hand-layer overlay stone. Board stones are drawn by the
+ * board backend, so overlay stones carry their own image layers instead of the
+ * board-scoped `.disc` styles.
+ */
+function _resolveOverlayStoneVisual(ownerKey: string, effectKey: string | null, map: any) {
+    const ownerValue = ownerKey === 'white' ? -1 : 1;
+    const normal = {
+        ownerKey,
+        baseImage: ownerKey === 'white' ? 'var(--normal-stone-white-image)' : 'var(--normal-stone-black-image)',
+        overlayImage: null as string | null,
+        renderMode: 'base-only',
+        effectKey: null as string | null
+    };
+    if (!map) return normal;
     const effect = effectKey && map.STONE_VISUAL_EFFECTS ? map.STONE_VISUAL_EFFECTS[effectKey] : null;
     if (!effect || typeof map.resolveEffectImagePath !== 'function') return normal;
     const imagePath = map.resolveEffectImagePath(effect, { owner: ownerValue, player: ownerValue });
@@ -1894,7 +1903,7 @@ function _resolveThrownStoneOrigin(playerKey: any, fromBottom: boolean) {
     return { x: viewportWidth / 2, y: fromBottom ? viewportHeight : 0 };
 }
 
-function _createThrownStoneElement(layerEl: any, visual: any, size: number) {
+function _createOverlayStoneElement(visual: any) {
     const stoneEl = document.createElement('div');
     stoneEl.className = `${THROWN_STONE_CLASS} ${visual.ownerKey}`;
     stoneEl.setAttribute('aria-hidden', 'true');
@@ -1902,9 +1911,14 @@ function _createThrownStoneElement(layerEl: any, visual: any, size: number) {
     const layers = visual.renderMode === 'replace'
         ? [visual.overlayImage]
         : (visual.renderMode === 'overlay' ? [visual.overlayImage, visual.baseImage] : [visual.baseImage]);
+    stoneEl.style.setProperty('--thrown-stone-image', layers.join(', '));
+    return stoneEl;
+}
+
+function _createThrownStoneElement(layerEl: any, visual: any, size: number) {
+    const stoneEl = _createOverlayStoneElement(visual);
     stoneEl.style.width = `${size}px`;
     stoneEl.style.height = `${size}px`;
-    stoneEl.style.setProperty('--thrown-stone-image', layers.join(', '));
     stoneEl.style.opacity = '0';
     layerEl.appendChild(stoneEl);
     return stoneEl;
@@ -2607,14 +2621,12 @@ function playCaptureToHandAnimation(payload: any) {
             done();
         };
 
-        movingStone = document.createElement('div');
         const sourceOwnerKey = _normalizeHandOwnerKey(data.sourceOwner);
-        movingStone.className = `disc ${sourceOwnerKey === 'white' ? 'white' : 'black'}`;
-        if (data.sourceSpecialType && typeof applyStoneVisualEffect === 'function') {
-            try {
-                applyStoneVisualEffect(movingStone, data.sourceSpecialType, { owner: sourceOwnerKey });
-            } catch (e: any) { /* ignore */ }
-        }
+        const visualsMap = _getVisualEffectsMapForThrownStone();
+        const sourceEffectKey = (data.sourceSpecialType && visualsMap && visualsMap.SPECIAL_TYPE_TO_EFFECT_KEY)
+            ? (visualsMap.SPECIAL_TYPE_TO_EFFECT_KEY[data.sourceSpecialType] || null)
+            : null;
+        movingStone = _createOverlayStoneElement(_resolveOverlayStoneVisual(sourceOwnerKey, sourceEffectKey, visualsMap));
         movingStone.style.position = 'fixed';
         movingStone.style.pointerEvents = 'none';
         movingStone.style.zIndex = '1300';
@@ -2865,37 +2877,6 @@ function playDirectHandAddAnimation(payload: any) {
         _finalizeHandAddAnimation(data, { pulseDeck: false });
         resolve();
     });
-}
-
-function _canViewerSeeTrapPlacement(playerKey: any) {
-    try {
-        const root = (typeof window !== 'undefined' && window)
-            ? window
-            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
-        if (!root) return true;
-        if ((root as any).BOARD_VIEWER_KEY === 'black' || (root as any).BOARD_VIEWER_KEY === 'white') {
-            return (root as any).BOARD_VIEWER_KEY === playerKey;
-        }
-        if ((root as any).LOCAL_PLAYER_KEY === 'black' || (root as any).LOCAL_PLAYER_KEY === 'white') {
-            return (root as any).LOCAL_PLAYER_KEY === playerKey;
-        }
-        if ((root as any).DEBUG_HUMAN_VS_HUMAN === true) return true;
-    } catch (e: any) { /* ignore */ }
-    return true;
-}
-
-function _resolveTrapPlacementBoardElement() {
-    try {
-        if (typeof boardEl !== 'undefined' && boardEl && typeof boardEl.querySelector === 'function') {
-            return boardEl;
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
-            return document.getElementById('board');
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
 }
 
 function playTrapPlacementFlash(row: any, col: any, playerKey: any) {
