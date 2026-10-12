@@ -69,12 +69,18 @@ describe('network no-action pass monitor', () => {
     expect(harness.root.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
+  test('still passes in an AUTO-allowed room while this terminal does not use AUTO', () => {
+    const harness = createHarness({ client: { getNetworkAutoEnabled: () => true } });
+    harness.monitor.check();
+    harness.advance(800);
+    expect(harness.monitor.check()).toBe(true);
+  });
+
   test('does nothing for spectators, finished games, or AUTO matches', () => {
     for (const overrides of [
       { client: { isSpectator: () => true } },
       { root: { gameState: { currentPlayer: 1, consecutivePasses: 2 } } },
       { root: { AUTO_MODE_ACTIVE: true } },
-      { client: { getNetworkAutoEnabled: () => true } },
       { client: { isActive: () => false } }
     ]) {
       const harness = createHarness(overrides);

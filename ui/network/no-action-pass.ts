@@ -14,7 +14,6 @@ type NoActionPassClient = {
   isSpectator?: () => boolean;
   getRoomId?: () => any;
   getStateVersion?: () => any;
-  getNetworkAutoEnabled?: () => boolean;
 };
 
 type NoActionPassMonitorConfig = {
@@ -73,9 +72,8 @@ function createNetworkNoActionPassMonitor(config: NoActionPassMonitorConfig) {
     const key = readTurnKey();
     if (!key || key === evaluatedKey) return false;
     if (CardRuntimeIntegrity.isCardRuntimeIntegrityBlocked()) return false;
-    // AUTO は auto-play がパスを含めて送る。
+    // この端末で AUTO を使っている間は auto-play がパスを含めて送る。部屋の AUTO 許可だけでは止めない。
     if (root.AUTO_MODE_ACTIVE === true) return false;
-    if (typeof client.getNetworkAutoEnabled === 'function' && client.getNetworkAutoEnabled() === true) return false;
     if (
       isPlaybackBusy(root)
       || (typeof config.hasPendingLocalPublishes === 'function' && config.hasPendingLocalPublishes() === true)
