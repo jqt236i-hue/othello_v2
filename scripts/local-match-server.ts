@@ -954,6 +954,7 @@ function buildHeartbeatPayload(room: any, serverTime: any) {
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         serverTime
     });
@@ -1111,6 +1112,7 @@ function buildSnapshotPayload(room: any, meta: any, viewer: any) {
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
         effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
