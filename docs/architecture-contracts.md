@@ -826,7 +826,9 @@ The current asset contract is:
 - worker entry: `workers/match-worker.mjs`
 - asset directory: `worker-public/`
 - sync command: `npm run worker:prepare` (通常は `npm run worker:dev` / `npm run worker:deploy` が `&&` で連結して自動実行する)
-- drift guard: `npm run check:worker-mirror`（root と生成済み mirror の差分だけでなく、mirror 内の手編集だけの余分なファイルも拒否する読み取り専用検査）
+- drift guard: `npm run check:worker-mirror`（root と生成済み mirror の差分だけでなく、mirror 内の手編集だけの余分なファイルも拒否する読み取り専用検査。ビルド・再生成はせず、古い mirror は修復せずに失敗する。先に `npm run worker:prepare` で準備する）
+
+Preparation and checks are separate. `npm run checkall` compiles `dist/` once (`tsc -p tsconfig.build.json`) as its explicit preparation stage and then runs `dist/scripts/run-all-checks.js`; every check in the runner is read-only against the prepared snapshot and must not invoke a build, compile, or generator (it runs `build-vite-entry.js --check`, `check-worker-mirror.js`, and similar validators directly). For a tree that was just prepared (for example by `npm run worker:prepare`), `npm run checkall:prepared` skips compilation and fails fast when any `tsconfig.build.json` source is newer than its `dist/` output, so stale compiled checks are never run. Repository check scripts enumerate files through `scripts/lib/source-file-walk.ts`, which never follows links or junctions (external data roots such as `data/runs`, `output/`, `artifacts/` stay unread).
 
 Path changes or root file changes that affect the worker-served static surface are reflected automatically by `npm run worker:dev` / `npm run worker:deploy`, both of which run `npm run worker:prepare` via `&&`. Run `npm run worker:prepare` explicitly only when invoking `npx wrangler dev` / `npx wrangler deploy` directly.
 

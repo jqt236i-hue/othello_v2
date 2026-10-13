@@ -162,6 +162,106 @@ describe('NetworkTransportController', () => {
     await expect(pendingResult).resolves.toMatchObject({ name: 'AbortError' });
   });
 
+  function retryableResponse() {
+    return { ok: false, status: 503, json: async () => ({ ok: false, reason: 'TEMP' }) };
+  }
+
+  test('publish retries stay on the server the operation started with', async () => {
+    fetchImpl
+      .mockResolvedValueOnce(retryableResponse())
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) });
+
+    const promise = controller.publishRequestWithRetry({ operationId: 'op-pinned' });
+    await Promise.resolve();
+    stateObj.serverUrl = 'https://other-server.example';
+    await jest.advanceTimersByTimeAsync(25);
+    await promise;
+
+    expect(fetchImpl.mock.calls.map((call: any) => call[0])).toEqual([
+      'http://localhost:8787/api/match/publish',
+      'http://localhost:8787/api/match/publish'
+    ]);
+  });
+
+  test('a server switch during the retry wait sends nothing to either server', async () => {
+    fetchImpl.mockResolvedValue(retryableResponse());
+    const requestServerUrl = stateObj.serverUrl;
+    const context = {
+      serverUrl: requestServerUrl,
+      isCurrent: () => stateObj.serverUrl === requestServerUrl
+    };
+
+    const promise = controller.publishRequestWithRetry({ operationId: 'op-switch', roomId: 'ABC' }, context);
+    await Promise.resolve();
+    await Promise.resolve();
+    stateObj.serverUrl = 'https://server-b.example';
+    await jest.advanceTimersByTimeAsync(1000);
+    const res = await promise;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe('http://localhost:8787/api/match/publish');
+    expect(res).toEqual(expect.objectContaining({ ok: false, cancelled: true, reason: 'SESSION_CHANGED' }));
+  });
+
+  test('a transient failure in the same session is retried with the same operationId', async () => {
+    fetchImpl
+      .mockResolvedValueOnce(retryableResponse())
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    const context = { serverUrl: stateObj.serverUrl, isCurrent: () => true };
+
+    const promise = controller.publishRequestWithRetry({ operationId: 'op-same', baseVersion: 3 }, context);
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(25);
+    const res = await promise;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls.map((call: any) => JSON.parse(call[1].body).operationId)).toEqual(['op-same', 'op-same']);
+    expect(res).toEqual(expect.objectContaining({ ok: true, status: 200 }));
+  });
+
+  test('cancelPendingPublishRetries stops an unsent retry immediately', async () => {
+    fetchImpl.mockResolvedValue(retryableResponse());
+
+    const promise = controller.publishRequestWithRetry({ operationId: 'op-leave' }, { isCurrent: () => true });
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+    expect(controller.cancelPendingPublishRetries()).toBe(1);
+    const res = await promise;
+    await jest.advanceTimersByTimeAsync(1000);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(res).toEqual(expect.objectContaining({ cancelled: true }));
+  });
+
+  test('timeouts are retried but a cancelled request is not', async () => {
+    const hangingFetch = (_url: any, init: any) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => {
+        const error: any = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    });
+    fetchImpl
+      .mockImplementationOnce(hangingFetch)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) });
+
+    const publish = controller.publishRequestWithRetry({ operationId: 'op-timeout' }, { isCurrent: () => true });
+    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(25);
+    await expect(publish).resolves.toEqual(expect.objectContaining({ ok: true }));
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    fetchImpl.mockReset();
+    fetchImpl.mockImplementation(hangingFetch);
+    const read = controller.requestJson('GET', '/api/match/state?roomId=ABC').catch((error: any) => error);
+    await Promise.resolve();
+    await controller.cancelSessionReadRequests();
+    await expect(read).resolves.toMatchObject({ name: 'AbortError', cancelled: true, timedOut: false, code: 'REQUEST_CANCELLED' });
+
+    const timedOutRead = controller.requestJson('GET', '/api/match/state?roomId=ABC').catch((error: any) => error);
+    await jest.advanceTimersByTimeAsync(1000);
+    await expect(timedOutRead).resolves.toMatchObject({ name: 'AbortError', cancelled: false, timedOut: true, code: 'REQUEST_TIMEOUT' });
+  });
+
   test('isMatchApiMissing returns true only for 404', () => {
     expect(controller.isMatchApiMissing({ status: 404 })).toBe(true);
     expect(controller.isMatchApiMissing({ status: 500 })).toBe(false);

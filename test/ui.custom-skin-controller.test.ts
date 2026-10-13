@@ -109,4 +109,27 @@ describe('custom skin editor controls', () => {
     expect(storage.saveCustomSkin).toHaveBeenCalledWith(window, expect.objectContaining({ kind: 'board-frame' }));
     expect(window.localStorage.getItem('reversi.boardFrameSkin')).toBe('custom:board-frame:test');
   });
+
+  test('does not report success or persist the selection when the storage transaction aborts', async () => {
+    const { installFakeCustomSkinBrowser } = require('./helpers/fake-custom-skin-browser');
+    const browser = installFakeCustomSkinBrowser(dom.window as unknown as Window);
+    const realStorage = require('../ui/custom-skin/storage.ts');
+    (window as any).CustomSkinStorageModule = realStorage;
+    browser.writeOutcomes.push('abort-after-request');
+    const controller = require('../ui/board-skin/controller.ts');
+    controller.setupBoardSkinControls({ root: window });
+    const fileInput = document.querySelector('.custom-skin-editor--board input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [new Blob(['image'], { type: 'image/png' })] });
+    fileInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    (document.querySelector('.custom-skin-editor-name-input') as HTMLInputElement).value = '保存盤面';
+    (document.querySelector('.custom-skin-editor-save-button') as HTMLButtonElement).click();
+    for (let i = 0; i < 10; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const status = document.querySelector('.custom-skin-editor-status');
+    expect(status?.textContent).not.toContain('保存しました');
+    expect(status?.textContent).toBeTruthy();
+    expect(String(window.localStorage.getItem('reversi.boardSkin') || '')).not.toMatch(/^custom:board:/);
+    expect(browser.records.size).toBe(0);
+    expect(realStorage.getCustomSkinDefinitions(window, 'board')).toEqual([]);
+  });
 });

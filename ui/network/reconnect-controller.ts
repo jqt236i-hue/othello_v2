@@ -26,35 +26,57 @@ function createNetworkReconnectController(config?: any): any {
     return state;
   }
 
+  // Recovery syncs (reconnect / heartbeat) run one at a time. Each run owns a generation token; only the
+  // current owner may report success/failure or release the in-flight flags, so a run detached by
+  // closeStream() or superseded by a newer session can never unlock or act on its successor.
+  let recoveryGeneration = 0;
+  let activeRecoveryRun: { generation: number; kind: string } | null = null;
+
+  function isRecoveryRunCurrent(run: { generation: number }): boolean {
+    return !!activeRecoveryRun && activeRecoveryRun === run;
+  }
+
+  function releaseRecoveryFlags(state: NetworkReconnectState): void {
+    state.networkRecoverySyncInFlight = false;
+    state.heartbeatResyncInFlight = false;
+  }
+
+  function invalidateRecoveryRun(): void {
+    activeRecoveryRun = null;
+    releaseRecoveryFlags(readState());
+  }
+
   function runRecoverySync(kind: string, syncOptions: any, handlers?: any): boolean {
     const state = readState();
-    if (state.networkRecoverySyncInFlight === true || state.heartbeatResyncInFlight === true) {
+    if (activeRecoveryRun) {
       return false;
     }
+    recoveryGeneration += 1;
+    const run = { generation: recoveryGeneration, kind };
+    activeRecoveryRun = run;
     state.networkRecoverySyncInFlight = true;
-    if (kind === 'heartbeat') {
-      state.heartbeatResyncInFlight = true;
-    }
+    state.heartbeatResyncInFlight = kind === 'heartbeat';
     Promise.resolve(
       typeof cfg.syncLatestStateWithRetry === 'function'
         ? cfg.syncLatestStateWithRetry(syncOptions)
         : null
     )
       .then(function (result: any) {
+        if (!isRecoveryRunCurrent(run)) return;
         if (handlers && typeof handlers.onSuccess === 'function') {
           handlers.onSuccess(result);
         }
       })
       .catch(function (error: any) {
+        if (!isRecoveryRunCurrent(run)) return;
         if (handlers && typeof handlers.onFailure === 'function') {
           handlers.onFailure(error);
         }
       })
       .finally(function () {
-        state.networkRecoverySyncInFlight = false;
-        if (kind === 'heartbeat') {
-          state.heartbeatResyncInFlight = false;
-        }
+        if (!isRecoveryRunCurrent(run)) return;
+        activeRecoveryRun = null;
+        releaseRecoveryFlags(state);
       });
     return true;
   }
@@ -70,7 +92,7 @@ function createNetworkReconnectController(config?: any): any {
       ? cfg.getAppliedStateVersion()
       : null;
     if (localVersion !== null && remoteVersion <= localVersion) return;
-    if (state.heartbeatResyncInFlight || state.networkRecoverySyncInFlight === true) return;
+    if (activeRecoveryRun) return;
 
     if (typeof cfg.recordNetworkTelemetry === 'function') {
       cfg.recordNetworkTelemetry('heartbeat_resync_requested', {
@@ -218,7 +240,8 @@ function createNetworkReconnectController(config?: any): any {
     clearReconnectTimer();
     clearReconnectRecoveryTimer();
     state.reconnectRecoveryPending = false;
-    state.networkRecoverySyncInFlight = false;
+    // Detach any in-flight recovery: its late completion must not release a newer run.
+    invalidateRecoveryRun();
     clearStreamWatchdogTimer();
     if (state.eventSource) {
       try { state.eventSource.close(); } catch (e) { /* ignore */ }

@@ -244,6 +244,49 @@ describe('NetworkMatchClient queued publish', () => {
     expect(publishPayloads[1].presentationEnvelopeVersion).toBe(3);
   });
 
+  test('再送待ちの間に接続先を変えても旧 payload を新しい接続先へ送らない', async () => {
+    const publishUrls: string[] = [];
+    const baseFetch = global.fetch;
+    global.fetch = jest.fn(async (url, init: any = {}) => {
+      const parsedUrl = new URL(String(url));
+      if (parsedUrl.pathname === '/api/match/publish') {
+        publishUrls.push(parsedUrl.origin);
+        return jsonResponse(503, { ok: false, reason: 'TEMPORARY' });
+      }
+      if (parsedUrl.pathname === '/api/match/leave') {
+        return jsonResponse(200, { ok: true, seats: { black: false, white: false }, seatNames: { black: '', white: '' } });
+      }
+      return baseFetch(url, init);
+    });
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const publish = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+    for (let i = 0; i < 50 && publishUrls.length === 0; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(publishUrls).toEqual(['http://localhost:8787']);
+
+    // The only way to change servers is leave -> set the new server -> create/join there.
+    const left = await client.leaveRoom();
+    expect(left).toEqual(expect.objectContaining({ ok: true }));
+    expect(client.setServerUrl('http://server-b.example:8787')).not.toBe(false);
+    const recreated = await client.createRoom({ serverUrl: 'http://server-b.example:8787', playerName: 'くろ' });
+    expect(recreated.ok).toBe(true);
+    const result = await publish;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(result).toEqual(expect.objectContaining({ ok: false, reason: 'SESSION_CHANGED', stale: true }));
+    expect(publishUrls).toEqual(['http://localhost:8787']);
+  });
+
   test('stream snapshot適用後の次回publishは更新済みstateVersionをbaseVersionに使う', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

@@ -108,18 +108,24 @@ function createNetworkStreamSessionController(config?: any): any {
       return currentState.active === true
         && String(currentState.roomId || '') === streamRoomId;
     }
-    function guardStreamPayloadHandler(handler: any): any {
-      return function (payload: any) {
+    function recordStaleStreamEvent(): void {
+      if (typeof cfg.recordNetworkTelemetry === 'function') {
+        cfg.recordNetworkTelemetry('stream_event_stale_session_ignored', {
+          streamRoomId,
+          streamSessionEpoch
+        });
+      }
+    }
+    // The ownership check runs before the transport parser, so a stale stream cannot move the
+    // reconnect cursor (lastStreamEventId), mark activity, complete recovery, or apply payloads.
+    function createGuardedStreamHandler(payloadHandler: any): any {
+      const parsedEventHandler = makeHandler(payloadHandler);
+      return function (event: any) {
         if (!isCurrentStreamSession()) {
-          if (typeof cfg.recordNetworkTelemetry === 'function') {
-            cfg.recordNetworkTelemetry('stream_event_stale_session_ignored', {
-              streamRoomId,
-              streamSessionEpoch
-            });
-          }
+          recordStaleStreamEvent();
           return;
         }
-        if (typeof handler === 'function') handler(payload);
+        if (typeof parsedEventHandler === 'function') parsedEventHandler(event);
       };
     }
     if (typeof cfg.markStreamActivity === 'function') {
@@ -132,17 +138,18 @@ function createNetworkStreamSessionController(config?: any): any {
     const makeHandler = typeof cfg.createStreamPayloadHandler === 'function'
       ? cfg.createStreamPayloadHandler
       : function (_name: any) { return function () { }; };
-    const handleStreamEvent = makeHandler(guardStreamPayloadHandler(function (payload: any) {
+    const noop = function () { };
+    const handleStreamEvent = createGuardedStreamHandler(function (payload: any) {
       if (typeof cfg.completeReconnectRecoveryFromStream === 'function') {
         cfg.completeReconnectRecoveryFromStream();
       }
       if (typeof cfg.handleStreamSnapshotPayload === 'function') {
         cfg.handleStreamSnapshotPayload(payload);
       }
-    }));
-    const handlePresenceEvent = makeHandler(guardStreamPayloadHandler(cfg.handlePresencePayload));
-    const handleChatEvent = makeHandler(guardStreamPayloadHandler(cfg.handleChatPayload));
-    const handleHeartbeatEvent = makeHandler(guardStreamPayloadHandler(function (payload: any) {
+    });
+    const handlePresenceEvent = createGuardedStreamHandler(typeof cfg.handlePresencePayload === 'function' ? cfg.handlePresencePayload : noop);
+    const handleChatEvent = createGuardedStreamHandler(typeof cfg.handleChatPayload === 'function' ? cfg.handleChatPayload : noop);
+    const handleHeartbeatEvent = createGuardedStreamHandler(function (payload: any) {
       if (typeof cfg.completeReconnectRecoveryFromStream === 'function') {
         cfg.completeReconnectRecoveryFromStream();
       }
@@ -152,16 +159,16 @@ function createNetworkStreamSessionController(config?: any): any {
       if (typeof cfg.maybeSyncFromHeartbeat === 'function') {
         cfg.maybeSyncFromHeartbeat(payload);
       }
-    }));
+    });
 
     es.addEventListener('snapshot', handleStreamEvent);
     es.addEventListener('presence', handlePresenceEvent);
     es.addEventListener('chat', handleChatEvent);
     es.addEventListener('heartbeat', handleHeartbeatEvent);
-    es.addEventListener('transport-health', makeHandler(guardStreamPayloadHandler(function (payload: any) {
+    es.addEventListener('transport-health', createGuardedStreamHandler(function (payload: any) {
       // Auto-responses contain only the committed version, no stale server clock or session data.
       if (typeof cfg.maybeSyncFromHeartbeat === 'function') cfg.maybeSyncFromHeartbeat(payload);
-    })));
+    }));
     es.onmessage = handleStreamEvent;
 
     es.onopen = function () {

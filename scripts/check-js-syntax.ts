@@ -1,51 +1,83 @@
+import { spawnSync } from 'child_process';
 import * as fs from 'fs';
-import * as path from 'path';
 import * as vm from 'vm';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
+import {
+  GENERATED_OR_EXTERNAL_DIR_NAMES,
+  collectSourceFiles,
+  isExternalDataDir,
+  toPosixRelative
+} from './lib/source-file-walk';
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+// Syntax check for hand-maintained JavaScript in the checkout.
+// Targets: `.js` / `.cjs` files are parsed as CommonJS (the package is "type": "commonjs"),
+// using the same function wrapper as Node's CommonJS loader so top-level `return` is accepted.
+// `.mjs` files are ES modules and are checked with `node --check`.
+// Generated output, mirrors, and external data roots are not scanned, and links are not followed.
 
-function walk(dir: string): string[] {
-  const res: string[] = [];
-  const files = fs.readdirSync(dir);
-  for (const f of files) {
-    const p = path.join(dir, f);
-    const st = fs.statSync(p);
-    if (st.isDirectory()) {
-      res.push(...walk(p));
-    } else if (st.isFile() && p.endsWith('.js')) {
-      res.push(p);
-    }
-  }
-  return res;
+export type JsSyntaxError = { file: string; message: string };
+
+const COMMONJS_WRAPPER_PARAMS = ['exports', 'require', 'module', '__filename', '__dirname'];
+
+export function collectJsSyntaxTargets(root: string): string[] {
+  return collectSourceFiles(['.'], {
+    root,
+    skipDirNames: GENERATED_OR_EXTERNAL_DIR_NAMES,
+    skipDir: (relativeDir) => isExternalDataDir(relativeDir),
+    includeFile: (_relativePath, name) => /\.(?:c?js|mjs)$/.test(name)
+  });
 }
 
-const root = process.cwd();
-const jsFiles = walk(root);
-const smallFiles = jsFiles.filter(f => fs.statSync(f).size === 0);
-if (smallFiles.length) {
-  console.log('EMPTY FILES:');
-  smallFiles.forEach(f => console.log('  ' + path.relative(root, f)));
-}
-
-let errors: { file: string; message: string }[] = [];
-for (const f of jsFiles) {
+function checkCommonJs(file: string): string | null {
+  const code = fs.readFileSync(file, 'utf8').replace(/^#!.*/, '');
   try {
-    const code = fs.readFileSync(f, 'utf8');
-    // Try to parse using vm.Script
-    new vm.Script(code, { filename: f });
-  } catch (e: any) {
-    errors.push({ file: path.relative(root, f), message: e.message });
+    vm.compileFunction(code, COMMONJS_WRAPPER_PARAMS, { filename: file });
+    return null;
+  } catch (error: any) {
+    return error && error.message ? error.message : String(error);
   }
 }
 
-if (errors.length) {
-  console.log('\nSYNTAX ERRORS:');
-  errors.forEach(e => console.log('  ' + e.file + ' -> ' + e.message));
-  process.exit(2);
-} else {
-  console.log('\nAll JS files parsed OK (no syntax errors detected)');
+function checkEsModule(file: string): string | null {
+  const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+  if (result.error) return result.error.message;
+  if (result.status === 0) return null;
+  const lines = String(result.stderr || '').split(/\r?\n/).filter((line) => /Error/.test(line));
+  return lines[0] || `node --check exited with ${result.status}`;
+}
+
+export function checkJsSyntax(root: string): { files: string[]; emptyFiles: string[]; errors: JsSyntaxError[] } {
+  const files = collectJsSyntaxTargets(root);
+  const emptyFiles: string[] = [];
+  const errors: JsSyntaxError[] = [];
+  for (const file of files) {
+    const relative = toPosixRelative(root, file);
+    if (fs.statSync(file).size === 0) emptyFiles.push(relative);
+    const message = file.endsWith('.mjs') ? checkEsModule(file) : checkCommonJs(file);
+    if (message) errors.push({ file: relative, message });
+  }
+  return { files, emptyFiles, errors };
+}
+
+function main(): void {
+  const root = process.cwd();
+  const { files, emptyFiles, errors } = checkJsSyntax(root);
+  if (emptyFiles.length) {
+    console.log('EMPTY FILES:');
+    emptyFiles.forEach((f) => console.log('  ' + f));
+  }
+  if (errors.length) {
+    console.log('\nSYNTAX ERRORS:');
+    errors.forEach((e) => console.log('  ' + e.file + ' -> ' + e.message));
+    process.exit(2);
+  }
+  console.log(`\nAll ${files.length} JS files parsed OK (no syntax errors detected)`);
+}
+
+const isDirectRun = typeof require !== 'undefined'
+  && !!require.main
+  && /[\\/]check-js-syntax\.js$/.test(String(require.main.filename || ''));
+
+if (isDirectRun) {
+  main();
 }

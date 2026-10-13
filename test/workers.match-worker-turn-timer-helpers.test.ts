@@ -18,7 +18,9 @@ function createHelpers() {
     },
     now: () => currentTime++
   });
+}
 
+describe('match worker turn timer helpers', () => {
   test('uses the room-specific limit for paused, active, and public timers', () => {
     const helpers = createHelpers();
     const room = {
@@ -33,9 +35,7 @@ function createHelpers() {
     }));
     expect(helpers.toPublicTurnTimer(room, 5000).limitSeconds).toBe(3);
   });
-}
 
-describe('match worker turn timer helpers', () => {
   test('paused/active timer objects follow the current turn seat and fixed limit', () => {
     const helpers = createHelpers();
     const room = {
