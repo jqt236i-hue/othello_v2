@@ -3,7 +3,7 @@
 ## 1. この文書の役割
 
 - **役割**: 根拠を確認した改善対象を、次の実装担当者が全件解消するための計画書。新しいゲーム仕様の正本ではない。
-- **状態**: 実装中（2026-10-13 着手）。各項目の実装状態は下表、変更内容・検証結果・残件は「9. 実装記録」に記す。
+- **状態**: R01〜R24 実装・検証済み（2026-10-13）。各項目の実装状態は下表、変更内容・検証結果・残件は「9. 実装記録」に記す。本番 Worker へのデプロイは本計画の対象外で未実施。
 - **対象**: カードリバーシの画面、ゲーム処理、通信サーバー、CPU・学習、ビルド・検査・保守ツール。
 - **正本**: [ルールブック](../01-rulebook.md)、[内部契約](architecture-contracts.md)、各対象ディレクトリの `AGENTS.md`。作業・配信方法は [ルートの作業規約](../AGENTS.md)。
 - **非目標**: カード効果・CPUの強さ・演出の変更、全面書き直し、フレームワーク変更、互換経路の一括削除、過去の学習結果の書き換え、長時間訓練、本番デプロイ。
@@ -36,9 +36,9 @@
 | R01 | P1 | 古い配信イベントが再接続カーソルを更新する | 完了（Phase 2） |
 | R02 | P1 | 再送中に接続先が変わり、旧認証情報を別接続先へ送れる | 完了（Phase 2） |
 | R03 | P1 | 古い復旧処理が新しい復旧処理の実行中フラグを解除する | 完了（Phase 2） |
-| R04 | P1 | 個人画像の保存成功をDB確定前に通知する | 完了（Phase 2、実ブラウザ確認は Phase 6） |
-| R05 | P2 | プロフィールと遅延生成された名前入力の同期漏れ | 完了（Phase 5、実画面確認は Phase 6） |
-| R06 | P2 | 盤面拡張の矢印と透明入力領域の位置定義が不一致 | 完了（Phase 5、実画面確認は Phase 6） |
+| R04 | P1 | 個人画像の保存成功をDB確定前に通知する | 完了（Phase 2、実ブラウザ確認済み） |
+| R05 | P2 | プロフィールと遅延生成された名前入力の同期漏れ | 完了（Phase 5、実ブラウザ確認済み） |
+| R06 | P2 | 盤面拡張の矢印と透明入力領域の位置定義が不一致 | 完了（Phase 5、実ブラウザ確認済み） |
 | R07 | P1 | Lv13の通常CPUと自己対戦で継続計画・時間予算が異なる | 完了（Phase 3） |
 | R08 | P1 | 学習モデルの検証が通常配信用モデルを一時上書きする | 完了（Phase 3、実ブラウザでの gate 実行は対象外） |
 | R09 | P1 | 再開用chunkが設定・モデル・出力の同一性を確認しない | 完了（Phase 3） |
@@ -49,7 +49,7 @@
 | R14 | P2 | pending状態の生成規則が二重化し、既に差がある | 完了（Phase 4） |
 | R15 | P2 | ラウンド規則・手番交代の予備実装が二重化 | 完了（Phase 4） |
 | R16 | P2 | 顕現石の所属分類を10箇所で手書き管理 | 完了（Phase 4） |
-| R17 | P3 | 未使用の旧カードresolverが起動経路に残る | 完了（Phase 4、起動確認は Phase 6） |
+| R17 | P3 | 未使用の旧カードresolverが起動経路に残る | 完了（Phase 4、起動確認済み） |
 | R18 | P2 | Worker／ローカルでタイマー・演出履歴・チャット規則を重複管理 | 完了（Phase 5） |
 | R19 | P2 | 認証文字列生成の重複とWorker復旧コードの文字分布の偏り | 完了（Phase 5） |
 | R20 | P2 | 読み取り専用と説明された検査が配信物を再生成する | 完了（Phase 1） |
@@ -194,7 +194,7 @@
 
 ### R17 — 使用されなくなったカードresolverを起動対象から除く
 
-- **根拠**: [module-resolver.ts](../game/logic/cards-internal/module-resolver.ts):13–80の動的探索に実行呼出は見つからず、[entry-browser.js](../entry-browser.js):215、[Worker preload](../workers/match-worker-runtime-preload.ts):89と存在／順序テストだけが残る。静的composition移行後の残骸であり、全resolverの廃止を意味しない。
+- **根拠**: `game/logic/cards-internal/module-resolver.ts`（R17 で削除済み）:13–80の動的探索に実行呼出は見つからず、[entry-browser.js](../entry-browser.js):215、[Worker preload](../workers/match-worker-runtime-preload.ts):89と存在／順序テストだけが残る。静的composition移行後の残骸であり、全resolverの廃止を意味しない。
 - **解決**: 削除直前に最新の呼出・公開互換契約を再検索し、未使用の本体・隣接wrapper・起動登録・それだけを守るテスト・索引を同時に除去する。生成されたVite／registryは既存スクリプトで更新する。
 - **完了条件・検証**: 当該resolverが起動グラフに存在せず、facade identityとVite/classic/Worker起動が維持される。`test/game.cards-api-identity.test.ts`、`test/index.card-module-scripts.test.ts`、`test/game.card-runtime-composition.test.ts`、`test/game.card-runtime-characterization.test.ts`とcard-runtime境界検査を使用。専用`test/game.cards-internal.module-resolver.test.ts`は機能廃止に伴う撤去対象であり、他の起動保証は残す。
 
@@ -259,7 +259,7 @@
 | 3 | CPU評価・訓練の再現性と隔離を直す | R07、R09＋R10、R11→R12→R08 | 同じ判断方針、正しい再利用、全証跡、隔離された実bundleを確認 | 完了（9.3） |
 | 4 | ゲーム規則を一つの実装へ集約する | R13→R14→R16、R15、最後にR17 | ルール結果・PRNG・pending・演出順が変わらず、旧本体が残らない | 完了（9.4、起動確認は Phase 6） |
 | 5 | 残る画面同期・サーバー共通規則・保守CLIを整理 | R05、R06、R18、R19、R24 | 各項目の完了条件と横断比較が成功 | 完了（9.5、R24 は 9.1、実画面確認は Phase 6） |
-| 6 | 統合検証、生成物更新、通常配信、文書更新 | 全項目 | 下記の最終完了条件を全て満たす | 未着手 |
+| 6 | 統合検証、生成物更新、通常配信、文書更新 | 全項目 | 下記の最終完了条件を全て満たす | 完了（9.6） |
 
 ### 依存と実装上の判断
 
@@ -313,13 +313,13 @@
 
 ## 8. 最終完了条件
 
-- [ ] R01〜R24について、変更箇所・回帰テスト・結果が記録され、全項目の完了条件を満たしている。
-- [ ] 不具合修正と挙動維持の整理が区別され、カード仕様・公開情報・PRNG・CPU採用方針を無断で変えていない。
-- [ ] 二重管理の旧本体や到達不能分岐を残さず、必要な互換adapterだけが残っている。
-- [ ] 再開データ・診断証跡・通常配信用モデル・個人保存を、失敗や中断時にも破壊しない。
-- [ ] 変更対象に応じた限定テスト、型検査、parity、生成物検査、全体検査、実画面確認が成功している。未確認を成功扱いしていない。
-- [ ] 安定した所有者・runtime契約は`architecture-contracts.md`へ反映し、本計画だけを新しい正本にしていない。現行参照の説明も実際のコマンドと一致する。
-- [ ] 実装作業では通常配信へ反映し、作業規約に従って今回分だけを記録・バックアップする。既存の別作業を巻き込まない。
+- [x] R01〜R24について、変更箇所・回帰テスト・結果が記録され、全項目の完了条件を満たしている（9.1〜9.6。各項目の回帰テストは着手時実装で失敗することを確認）。
+- [x] 不具合修正と挙動維持の整理が区別され、カード仕様・公開情報・PRNG・CPU採用方針を無断で変えていない（カード定義・ルールブックは不変。特性テストの差は着手時と同一）。
+- [x] 二重管理の旧本体や到達不能分岐を残さず、必要な互換adapterだけが残っている（残した互換: DOM 互換描画の任意読込 fallback と、R18 で特性化したチャットの理由コード差。理由は 9.4・9.5）。
+- [x] 再開データ・診断証跡・通常配信用モデル・個人保存を、失敗や中断時にも破壊しない（R04・R08・R09・R10 の回帰テストと実ブラウザの中断注入で確認）。
+- [x] 変更対象に応じた限定テスト、型検査、parity、生成物検査、全体検査、実画面確認が成功している。未確認を成功扱いしていない（全体テストの失敗は着手時からの既知失敗のみ。未確認事項は 9.6 に列挙）。
+- [x] 安定した所有者・runtime契約は`architecture-contracts.md`へ反映し、本計画だけを新しい正本にしていない。現行参照の説明も実際のコマンドと一致する（§5.2/§5.3/§8/§11、`AGENTS.md` のコマンド説明、`refactor-boundary-debt.md`、`LARGE_FILES.md`、CI）。
+- [x] 実装作業では通常配信へ反映し、作業規約に従って今回分だけを記録・バックアップする。既存の別作業を巻き込まない（9.6）。
 
 各フェーズで問題が出た場合は、その変更を新しい編集で修正する。履歴の巻き戻しや作業ツリー破棄を復旧手順にしない。型検査や既存テストの成功だけで、本計画の未実装項目を完了へ変更しない。
 
@@ -374,7 +374,7 @@
 - **R14**: `card-usage-pending-stage.ts` の別 object 本体を撤去し、pending 生成を canonical `pending-state-manager` の factory に一本化（注入 manager・部分 manager は関数単位で上書き、欠けた関数は canonical）。stage には拡張神の選択数補正、縮小の意志の選択数、盤界の執行者の null pending、働き者の意志の armed 更新だけを残した。先に null 依存の特性テストを追加し、旧実装では選択が必要なカードでも `needsSelection=false`・手札位置が未正規化（"2"）になる差を確認したうえで、canonical と同じ結果になることを検証（旧実装で2件失敗）。消費→犠牲→即時効果→pending→演出の順序は effect-resolver 側で不変。pending/immediate/sacrifice/presentation stage 計16件成功。
 - **R16**: 顕現石の type 所属判定を `shared/manifest-stone-registry.ts` へ委譲。計画の10箇所に加え、調査で漏れていた `game/logic/board_ops.ts`、`game/cards/target-resolver.ts` の `isInviolableCell` fallback、`ui/board-visual/model-builder.ts` の DOM 互換 marker 変換も同じ手書きだったため委譲した。`protection-context.ts` は注入 port に canonical 既定値を追加。marker 種別・活動中判定・ボム優先・`kind: 'manifestStone'` の扱いは変えていない。registry を4種目に拡張した mock で utils・selectors-core-utils・markers が追従すること、ボム分類が優先されることを検証（旧 `selectors-core-utils` は追従できず失敗）。`ui/board-renderer.ts` の手書き判定は、DOM 互換描画が registry を任意読込（try/require＋window）する場合の fallback で静的依存ではないため残した。registry 関連6スイート72件成功。
 - **R15**: ラウンドの純粋規則を新設 `game/logic/round-rules.ts` に集約し、Core（自前の player 正規化を維持）と `game/turn/round-state.ts`（Core 不在時も同じ規則）が委譲。`turn_pipeline_phases.ts` の手番交代の予備本体 `applyNonPassTurnCompletion` はどこからも呼ばれない死んだ関数だったため撤去し、3箇所に重複していた round 進行 closure を1関数に統合。handoff/round-state の静的モジュール欠落は handoff 呼出前に `createCardRuntimeUnavailableError` で失敗させ、`applyTurnSafe` が元の状態のまま `RUNTIME_UNAVAILABLE` で拒否する（旧実装は途中まで変更した複製を `UNKNOWN` で返し失敗）。Core と Core 不在の adapter で同一系列（同色連続、round 10 の +5、`scheduleBonus:false`、1回だけの消費）が一致する比較テストを追加。R15 関連8スイート53件成功。
-- **R17**: 最新の参照を再検索し、`game/logic/cards-internal/module-resolver.ts` は起動登録（`entry-browser.js`、Worker preload の `CardModuleResolver` 登録）と存在/順序テストからしか参照されず、グローバル `CardModuleResolver` の利用者も無いことを確認。本体・隣接 wrapper（`cards-internal/module-resolver.js`、別名 `game/logic/module-resolver.js`）・起動登録2件・mirror 除外表の別名・専用テストを同時に除去し、順序テストの基準は `presentation-helpers` に置換。`cards-internal/AGENTS.md` を更新。起動関連テストは worker-public 未生成の項目を除き成功（Vite/classic/Worker の起動確認は Phase 6）。
+- **R17**: 最新の参照を再検索し、`game/logic/cards-internal/module-resolver.ts` は起動登録（`entry-browser.js`、Worker preload の `CardModuleResolver` 登録）と存在/順序テストからしか参照されず、グローバル `CardModuleResolver` の利用者も無いことを確認。本体・隣接 wrapper（`game/logic/cards-internal/module-resolver.js`、別名 `game/logic/module-resolver.js`、いずれも削除済み）・起動登録2件・mirror 除外表の別名・専用テストを同時に除去し、順序テストの基準は `presentation-helpers` に置換。`game/logic/cards-internal/AGENTS.md` を更新。起動関連テストは worker-public 未生成の項目を除き成功（Vite/classic/Worker の起動確認は Phase 6）。
 - 既知失敗の確認: `test/game.card-runtime-characterization.test.ts`（期待 edges 883 に対し着手時 884）と `test/game.cards-api-identity.test.ts`（期待 87 に対し着手時 88）は着手時点から失敗している特性テスト。今回の変更後の差分を着手時の書き出しと比較し、増減（node +1: `round-rules.ts`、edge +12/−1: registry・round-rules・Lv13 turn memory・サーバー共通規則への静的 import と旧 resolver 登録の削除）がすべて今回の意図した変更であることを確認した。着手時から未確認の差（edge +1）を含むため、期待値は書き換えていない。
 - `assets/fonts/font-build-manifest.json` のソース一覧は着手時点で既に31件不足・8件余分で古く（checkall 対象外）、再生成はフォントのバイナリ更新を伴うため今回は行っていない。
 
@@ -389,3 +389,24 @@
   - 検証: 新設 `test/match-server-shared-rules.parity.test.ts` で同じ入力を両 runtime に通し、制限時間5通り、publish・冪等再送・state・journal 復旧のフレーム（digest・イベント・盤面）、チャット9ケースが一致。共通規則の単体テスト3ファイル。実行結果は着手時から一致しており、本文重複の検査は着手時に失敗し修正後に成功。
 - **R19**（同上）: 新設 `shared/player-identity-generator.ts` に文字集合・長さ・書式と、乱数バイトを受け取る棄却法 helper を置き、Node は `crypto.randomBytes`、Worker は Web Crypto を差し込む（`Math.random` は不使用）。合成バイト0〜255で30文字が各8回、240〜255 を棄却することを確認。偏った乱数列で着手時の Worker は `CR-DLDLD-…` となり失敗、修正後は両 runtime とも一様。書式と旧データの認証互換を維持。ローカルのソース文字列で棄却法を確かめていた既存テストは、同じ乱数列による HTTP 経由の挙動テストへ置換。
 - 検証（Phase 4・5 の自分の担当分と R18/R19 の再実行）: 上記限定テスト、`test/refactor.dependency-boundary.test.ts` 成功、`npm run typecheck` は Phase 3 担当が作業中の1ファイル以外で成功。
+
+### 9.6 Phase 6（統合検証・通常配信）
+
+検証は日本語パスの環境問題（9.0）を避けるため、作業ブランチのコミットを英字パスへ書き出したツリーで行った。着手時点（`348683e82`）も同じ方法で書き出し、既知失敗や揺れの比較に使った。
+
+- **生成物**: 書き出し先で `npm run worker:prepare` 成功（vite-dist 53 ファイル、Worker mirror 1,089 ファイル一致）。今回のモジュール追加・削除を反映した `browser-vite/generated/startup-modules.ts`（768→774 モジュール、旧 resolver を除去）と `index.html`・`index.classic.html`・`index.vite.html` を再生成してコミット。`assets/asset-manifest.json` の差分は改行コード由来のハッシュ揺れだけなのでコミットしていない。別作業の `main` の更新（カード画像100件）は作業ブランチへ取り込んでから最終ビルドした。
+- **R20 の実地確認**: `npm run checkall:prepared` が全検査合格（dependency boundary、refactor safety、ts-migration safety、board kernel、board test selectors、card-runtime boundary、browser build、vite entry `--check`、asset case、artifact retention、worker mirror、shim forwarding、JS inventory）。実行前後で配信物 5,613 ファイル（vite-dist、worker-public、dist、生成 TS、module registry、index、manifest）の内容・更新時刻とも変化0件。`npm run checkall`（compile あり）も合格。追跡対象の生成物がコミットより古い時、prepared は dist の古さとして停止し、生成物のコミットを促す案内を出すことも確認した。
+- **全体テスト**: `npx jest --maxWorkers=4`（`npm test` と同じ全スイート。`pretest` の checkall は上記で別途実行）で 1,136 スイート・8,799 件中、失敗 9 スイート・34 件。うち8スイートは着手時点から失敗している既知の特性テスト等（battle.compatibility、battle.data-contract、godot.conformance、game.card-runtime-characterization、game.cards-api-identity、game.cpu-card-score.characterization、scripts.cpu-improvement-audit、training/tests/load-training-profile.sync）で、着手時点の書き出しと失敗したテスト名33件・差分の内容とも完全一致。残る `test/e2e/pending-selection-cpu-handoff.e2e.test.ts` は単独でも演出再生フラグの読み取りタイミングで揺れ、着手時点・現在とも4回中1回だけ同じ形で失敗する既存の揺れ。日本語パスで実行できなかった訓練系のテスト（policy-promotion、deploy-lane-model-to-root ほか）は書き出し先で成功。
+- **通信**: `test:network:parity`（36 スイート・601件）、`test:match:parity`（11 スイート・164件）成功。repo 外の2画面自動対局ツール（観戦者付き、カード使用率0.7、再読み込み率0.03）で 183 手・再接続8回・再戦2回を通し、盤面不一致・停止・サーバー拒否は0件（異常扱い2件はローカル環境にランキング送信 API が無いことによる 404）。退出→接続先 B に変更→新しい部屋の実ブラウザシナリオで、旧部屋への通信は退出要求1件のみ、B への publish は0件、新しい session は正常、エラー0件。Worker のバンドル起動確認（`worker-bundle-smoke`：WebSocket 認証・非公開手札・観戦・publish・replay・自動応答、create/join/state/place/冪等再送/leave、runtime-unavailable の原子性）成功。
+- **実ブラウザ確認**（Playwright、Chromium headless、`http://127.0.0.1:8091/` で書き出しを一時配信。比較は通常配信 8000＝変更前の main）:
+  - 起動: Vite（`/?debug=1`）と classic（`index.classic.html`）の UI 操作スモークとも成功。Pixi（`boardRenderer=pixi`）と DOM 互換（headless 既定で DOM に切替）の両方で起動・操作できることを確認。
+  - R04: 盤面デザインの個人画像を保存→「保存しました」・IndexedDB に記録、put 成功後に transaction を中断させる注入では「個人保存への書き込みが中断されました」と表示し保存済みデータ・選択を保持、再読込後も保持、削除→「削除しました」・再読込後も消えたまま。変更前は中断時にも「保存しました」と表示していた（再現と修正を確認）。
+  - R05: プロフィール先行・ネット対戦先行・ランキング先行の3順序で名前 A→B（ランキングからの変更を含む）が全画面で一致。変更前は「プロフィール先行→ネット対戦→名前変更」でネット対戦の名前が旧名のまま残った（再現と修正を確認）。
+  - R06（Pixi）: 拡張神の4隅の斜め矢印と拡張の意志の左右矢印（16個）が表示され、透明ボタンを可視化した拡大撮影で、ボタンの範囲と中心が矢印にちょうど重なることを目視確認（変更前は左上にずれて矢印がはみ出していた）。マウスで「↖」を押すと左上が選ばれ、キーボード（Enter）で「↗」を押すと2角目として確定。
+  - R07: 白を Lv13 にして8手番進め、破壊の意志・混沌召喚によるカード→対象→配置を確認。白の手番は概ね1〜6秒（カード演出込みの1手番のみ11秒）、エラー0件。強さの変化は測定・主張していない。
+  - R01〜R03: 上記の自動対局（再読み込みによる再接続を含む）と退出・接続先切替のシナリオで確認。
+- **確認できなかった・範囲外の観察**:
+  - `pixijs-runtime-fallback-browser-check` は「Vite manifest に pixi.js の項目が無い」で停止した。着手時点の書き出しでも同じで、node_modules をリンクで共有した書き出し環境で manifest のキーが変わるためとみられる（今回の変更とは無関係）。DOM 互換描画は上記の手動確認で代替した。
+  - デバッグ機能で手札に入れた「盤面拡張」（拡張の意志）は、矢印の選択（マウス・キーボードとも）で拡張が確定しなかった。変更前の配信でも同じで、今回の矢印位置の変更とは無関係。通常の対局経路での再現有無は確認していない（別途調査が必要）。
+  - 設定のサイドパネルが開いている時は盤面全体を覆い、盤上の操作を受け付けない（変更前と同じ。1400×900 の表示で確認）。
+  - 実ブラウザでの ONNX gate 実行、本物のモデルでの訓練・自己対戦、本番 Worker へのデプロイは本計画の対象外で未実施。
