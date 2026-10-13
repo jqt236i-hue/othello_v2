@@ -37,21 +37,21 @@
 | R02 | P1 | 再送中に接続先が変わり、旧認証情報を別接続先へ送れる | 完了（Phase 2） |
 | R03 | P1 | 古い復旧処理が新しい復旧処理の実行中フラグを解除する | 完了（Phase 2） |
 | R04 | P1 | 個人画像の保存成功をDB確定前に通知する | 完了（Phase 2、実ブラウザ確認は Phase 6） |
-| R05 | P2 | プロフィールと遅延生成された名前入力の同期漏れ | 未着手 |
-| R06 | P2 | 盤面拡張の矢印と透明入力領域の位置定義が不一致 | 未着手 |
+| R05 | P2 | プロフィールと遅延生成された名前入力の同期漏れ | 完了（Phase 5、実画面確認は Phase 6） |
+| R06 | P2 | 盤面拡張の矢印と透明入力領域の位置定義が不一致 | 完了（Phase 5、実画面確認は Phase 6） |
 | R07 | P1 | Lv13の通常CPUと自己対戦で継続計画・時間予算が異なる | 未着手 |
 | R08 | P1 | 学習モデルの検証が通常配信用モデルを一時上書きする | 未着手 |
 | R09 | P1 | 再開用chunkが設定・モデル・出力の同一性を確認しない | 未着手 |
 | R10 | P1 | chunk再利用時に不正着手の診断記録が統合から漏れ、消える | 未着手 |
 | R11 | P2 | 非対応のカード用ONNXを通常ブラウザ検証へ要求する | 未着手 |
 | R12 | P2 | 訓練を省略した回の未生成モデルを候補として渡す | 未着手 |
-| R13 | P2 | 対象選択registryと手書き分岐・転送一覧の多重管理 | 未着手 |
-| R14 | P2 | pending状態の生成規則が二重化し、既に差がある | 未着手 |
-| R15 | P2 | ラウンド規則・手番交代の予備実装が二重化 | 未着手 |
-| R16 | P2 | 顕現石の所属分類を10箇所で手書き管理 | 未着手 |
-| R17 | P3 | 未使用の旧カードresolverが起動経路に残る | 未着手 |
-| R18 | P2 | Worker／ローカルでタイマー・演出履歴・チャット規則を重複管理 | 未着手 |
-| R19 | P2 | 認証文字列生成の重複とWorker復旧コードの文字分布の偏り | 未着手 |
+| R13 | P2 | 対象選択registryと手書き分岐・転送一覧の多重管理 | 完了（Phase 4） |
+| R14 | P2 | pending状態の生成規則が二重化し、既に差がある | 完了（Phase 4） |
+| R15 | P2 | ラウンド規則・手番交代の予備実装が二重化 | 完了（Phase 4） |
+| R16 | P2 | 顕現石の所属分類を10箇所で手書き管理 | 完了（Phase 4） |
+| R17 | P3 | 未使用の旧カードresolverが起動経路に残る | 完了（Phase 4、起動確認は Phase 6） |
+| R18 | P2 | Worker／ローカルでタイマー・演出履歴・チャット規則を重複管理 | 完了（Phase 5） |
+| R19 | P2 | 認証文字列生成の重複とWorker復旧コードの文字分布の偏り | 完了（Phase 5） |
 | R20 | P2 | 読み取り専用と説明された検査が配信物を再生成する | 完了（Phase 1） |
 | R21 | P2 | 検査用ファイル探索がリンク先を辿り、同じ木を再走査する | 完了（Phase 1） |
 | R22 | P2 | 型検査抑制の検出範囲・認識方法・例外表が不整合 | 完了（Phase 1） |
@@ -257,8 +257,8 @@
 | 1 | 検査自体の安全性と有効性を整える | R21→R22、R23、R20 | リンク先非追跡、抑制検出、未登録テスト修正、生成と検査の分離を検証 | 完了（9.1） |
 | 2 | 通信の所有権と個人画像保存の確定境界を直す | R01→R02→R03、R04 | 旧処理・中断・失敗の回帰が成功し、通常操作が維持される | 完了（9.2、実画面確認は Phase 6） |
 | 3 | CPU評価・訓練の再現性と隔離を直す | R07、R09＋R10、R11→R12→R08 | 同じ判断方針、正しい再利用、全証跡、隔離された実bundleを確認 | 未着手 |
-| 4 | ゲーム規則を一つの実装へ集約する | R13→R14→R16、R15、最後にR17 | ルール結果・PRNG・pending・演出順が変わらず、旧本体が残らない | 未着手 |
-| 5 | 残る画面同期・サーバー共通規則・保守CLIを整理 | R05、R06、R18、R19、R24 | 各項目の完了条件と横断比較が成功 | 未着手 |
+| 4 | ゲーム規則を一つの実装へ集約する | R13→R14→R16、R15、最後にR17 | ルール結果・PRNG・pending・演出順が変わらず、旧本体が残らない | 完了（9.4、起動確認は Phase 6） |
+| 5 | 残る画面同期・サーバー共通規則・保守CLIを整理 | R05、R06、R18、R19、R24 | 各項目の完了条件と横断比較が成功 | 完了（9.5、R24 は 9.1、実画面確認は Phase 6） |
 | 6 | 統合検証、生成物更新、通常配信、文書更新 | 全項目 | 下記の最終完了条件を全て満たす | 未着手 |
 
 ### 依存と実装上の判断
@@ -350,3 +350,25 @@
 - **R03**: `reconnect-controller.ts` の復旧処理に世代付きの実行権を導入。開始・成功/失敗の報告・in-flight フラグの解除は現在の所有者だけが行い、`closeStream()` は実行中の復旧を無効化する。`turn-timer.ts` の `heartbeatResyncInFlight` 無条件解除も、所有者以外の解除になるため撤去した。`test/ui.network-reconnect-controller.test.ts` に deferred で完了順を逆転させた回帰（close 後の旧処理完了で新処理のフラグが外れない・3本目が始まらない、旧処理の成功/失敗を新 session へ報告しない、現行処理は従来通り報告）を追加。旧実装で 3件失敗。
 - **R04**: `ui/custom-skin/storage.ts` に共通の書込 transaction helper を作り、complete/error/abort を購読して commit 後だけ resolve。put/delete とも request 成功だけでは成功扱いにせず、失敗時はキャッシュ・object URL・通知・保存済みデータを変更しない。fake DB（`test/helpers/fake-custom-skin-browser.ts`）を transaction 単位の staging と complete/abort/request-error/pending を再現できる形に更新。`test/ui.custom-skin-object-url-lease.test.ts`（request 成功後 abort で保存データ・表示・lease 保持、初回保存失敗・削除失敗、commit まで未解決）と `test/ui.custom-skin-controller.test.ts`（abort 時に「保存しました」を出さず選択も保存しない）を追加。旧実装で 4件失敗。実ブラウザでの保存→再読込→削除は Phase 6 で確認する。
 - 検証: 上記限定テスト、`npm run typecheck` 成功、`npm run test:network:parity` 36 スイート・601件成功、`npm run test:match:parity` 11 スイート・164件成功。
+
+### 9.4 Phase 4（ゲーム規則の集約）
+
+- **R13**: `card-usage-prechecks.ts` の到達不能 switch（registry 登録済み30種、method・最小対象数とも registry と一致することを機械照合）と専用 helper `validateSelectionTargets` を除去。`card-usage-validation-stage.ts` の手書き33件の resolver 転送（registry 由来32件と、prechecks が読まない `getHyperactiveInheritTargets`）を撤去し、canonical registry（注入時はそれ）から `buildPendingSelectionTargetContext` で導出。`hand-manager.ts` の一覧は registry の target method ＋ 非 pending の `getMassFreezeWillTargetCount` だけを明示する形に変更。local/public/module の selector evidence とキャッシュは変えていない。source 文字列の形を固定していた契約テストを、registry 全 entry について validation stage 経由で実際に resolver を呼び、引数（argsKey 別）と最小対象数の受理/拒否を確かめるテストと、`getUsableCardIds` が selector module 側の各 resolver を実際に参照するテストへ置換（hand-manager から1件除外する一時変異で失敗を確認）。`test/cards.pending-selection-contract.test.ts`、`test/game.card-usage-validation-stage.test.ts`、`test/game.cards.usability-analysis.test.ts`、`test/game.cards.hand-manager-module.test.ts`、`test/game.turn-pipeline-card-usage-guard.test.ts` 計29件成功。
+- **R14**: `card-usage-pending-stage.ts` の別 object 本体を撤去し、pending 生成を canonical `pending-state-manager` の factory に一本化（注入 manager・部分 manager は関数単位で上書き、欠けた関数は canonical）。stage には拡張神の選択数補正、縮小の意志の選択数、盤界の執行者の null pending、働き者の意志の armed 更新だけを残した。先に null 依存の特性テストを追加し、旧実装では選択が必要なカードでも `needsSelection=false`・手札位置が未正規化（"2"）になる差を確認したうえで、canonical と同じ結果になることを検証（旧実装で2件失敗）。消費→犠牲→即時効果→pending→演出の順序は effect-resolver 側で不変。pending/immediate/sacrifice/presentation stage 計16件成功。
+- **R16**: 顕現石の type 所属判定を `shared/manifest-stone-registry.ts` へ委譲。計画の10箇所に加え、調査で漏れていた `game/logic/board_ops.ts`、`game/cards/target-resolver.ts` の `isInviolableCell` fallback、`ui/board-visual/model-builder.ts` の DOM 互換 marker 変換も同じ手書きだったため委譲した。`protection-context.ts` は注入 port に canonical 既定値を追加。marker 種別・活動中判定・ボム優先・`kind: 'manifestStone'` の扱いは変えていない。registry を4種目に拡張した mock で utils・selectors-core-utils・markers が追従すること、ボム分類が優先されることを検証（旧 `selectors-core-utils` は追従できず失敗）。`ui/board-renderer.ts` の手書き判定は、DOM 互換描画が registry を任意読込（try/require＋window）する場合の fallback で静的依存ではないため残した。registry 関連6スイート72件成功。
+- **R15**: ラウンドの純粋規則を新設 `game/logic/round-rules.ts` に集約し、Core（自前の player 正規化を維持）と `game/turn/round-state.ts`（Core 不在時も同じ規則）が委譲。`turn_pipeline_phases.ts` の手番交代の予備本体 `applyNonPassTurnCompletion` はどこからも呼ばれない死んだ関数だったため撤去し、3箇所に重複していた round 進行 closure を1関数に統合。handoff/round-state の静的モジュール欠落は handoff 呼出前に `createCardRuntimeUnavailableError` で失敗させ、`applyTurnSafe` が元の状態のまま `RUNTIME_UNAVAILABLE` で拒否する（旧実装は途中まで変更した複製を `UNKNOWN` で返し失敗）。Core と Core 不在の adapter で同一系列（同色連続、round 10 の +5、`scheduleBonus:false`、1回だけの消費）が一致する比較テストを追加。R15 関連8スイート53件成功。
+- **R17**: 最新の参照を再検索し、`game/logic/cards-internal/module-resolver.ts` は起動登録（`entry-browser.js`、Worker preload の `CardModuleResolver` 登録）と存在/順序テストからしか参照されず、グローバル `CardModuleResolver` の利用者も無いことを確認。本体・隣接 wrapper（`cards-internal/module-resolver.js`、別名 `game/logic/module-resolver.js`）・起動登録2件・mirror 除外表の別名・専用テストを同時に除去し、順序テストの基準は `presentation-helpers` に置換。`cards-internal/AGENTS.md` を更新。起動関連テストは worker-public 未生成の項目を除き成功（Vite/classic/Worker の起動確認は Phase 6）。
+- 既知失敗の確認: `test/game.card-runtime-characterization.test.ts`（期待 edges 883 に対し着手時 884）と `test/game.cards-api-identity.test.ts`（期待 87 に対し着手時 88）は着手時点から失敗している特性テスト。今回の変更後の差分を着手時の書き出しと比較し、増減（node +1: `round-rules.ts`、edge +12/−1: registry・round-rules・Lv13 turn memory・サーバー共通規則への静的 import と旧 resolver 登録の削除）がすべて今回の意図した変更であることを確認した。着手時から未確認の差（edge +1）を含むため、期待値は書き換えていない。
+- `assets/fonts/font-build-manifest.json` のソース一覧は着手時点で既に31件不足・8件余分で古く（checkall 対象外）、再生成はフォントのバイナリ更新を伴うため今回は行っていない。
+
+### 9.5 Phase 5（画面同期・サーバー共通規則）
+
+- **R05**: `ui/player-profile.ts` に `subscribePlayerProfile` を追加し、保存・クリアのたびに購読者へ通知（購読者の失敗は保存と他の購読者を止めず `console.error` に記録）。`player-profile-panel.ts` は他画面の入力の初回 capture と直接書込みを撤去。ネット対戦画面は遅延生成時に購読し、通知時点の現在の入力へ反映、画面破棄で解除。ランキング画面も通知時点の入力へ反映。無関係な再描画は従来どおり空欄だけを補完し、入力中の未保存の名前を消さない。`test/ui.match-mode.network-surface.test.ts` にネット対戦先行／プロフィール先行の A→B 保存、入力中の保持、失敗した画面の購読解除と再生成時の購読1件を追加（旧実装で3件失敗）、`test/ui.player-profile.test.ts` に購読の通知・解除・失敗分離、`test/ui.player-profile-panel.test.ts` は他画面 DOM の直接書込みの検査を購読通知の検査へ置換（他画面への反映は実際の遅延画面のテストで検証）。match-mode・ランキング・プロフィール関連15スイート129件成功。
+- **R06**: 方向の正規化・glyph・セル内中心位置を新設 `ui/board-direction-hint-geometry.ts` に集約し、Pixi の矢印（`ui/pixi/hint-view.ts`）と透明ボタン（`ui/board-accessibility-layer.ts`）の両方が使う。現在の Pixi 表示位置（20%/80%）を維持し、入力側（旧14%/86%・斜め18%/82%）を合わせた。透明ボタンは Pixi 表示時だけ使われるため、DOM 互換用の別 profile は不要。8方向で透明ボタンの中心と Pixi の描画中心が一致すること、`top`/`bottom` の旧キーも同じ位置になることを fake Pixi runtime で検証し、旧14%位置を埋め込んでいた既存アサーション2件を表示と一致する値へ更新（旧実装で3件失敗）。関連5スイート101件成功。zoom・スクロール・タッチ・キーボードの実画面確認は Phase 6。
+- **R18**（並行担当エージェントが実装、結果を再実行で確認）: 共通規則の置き場は、Worker とローカルサーバーが既に共用するサーバー処理と同じ `utils/` とした（計画の「shared/」から変更）。3群を別々に実施。
+  - タイマー: `utils/match-turn-timer-rules.ts`（制限時間の解決、停止中/計測中の生成、比較、公開残時間、更新判定）。Worker alarm と Node の定期処理は各 adapter に残した。
+  - 演出履歴: `utils/match-presentation-journal-rules.ts`（カーソル、初期 viewer snapshot、採用済みフレームの材料、viewer 別取得）。authority と viewer 別 cache は差し込み式。ローカルの cache キーが席名検証を省いていた差は、正規の席で結果が同じため Worker 側の厳密な判定に揃えた。
+  - チャット: `utils/match-chat-rules.ts`（席→トークン→両席→本文の判定、40件上限の履歴追加、公開整形）。本文検証は既存の `validateNetworkChatMessage`（文字数上限の既定値付き引数を追加、従来の呼出は同結果）へ委譲。トークン欠落時の理由コード差（Worker `SEAT_TOKEN_REQUIRED`／ローカル `SEAT_TOKEN_MISMATCH`、どちらも 403）は特性化して残した。
+  - 検証: 新設 `test/match-server-shared-rules.parity.test.ts` で同じ入力を両 runtime に通し、制限時間5通り、publish・冪等再送・state・journal 復旧のフレーム（digest・イベント・盤面）、チャット9ケースが一致。共通規則の単体テスト3ファイル。実行結果は着手時から一致しており、本文重複の検査は着手時に失敗し修正後に成功。
+- **R19**（同上）: 新設 `shared/player-identity-generator.ts` に文字集合・長さ・書式と、乱数バイトを受け取る棄却法 helper を置き、Node は `crypto.randomBytes`、Worker は Web Crypto を差し込む（`Math.random` は不使用）。合成バイト0〜255で30文字が各8回、240〜255 を棄却することを確認。偏った乱数列で着手時の Worker は `CR-DLDLD-…` となり失敗、修正後は両 runtime とも一様。書式と旧データの認証互換を維持。ローカルのソース文字列で棄却法を確かめていた既存テストは、同じ乱数列による HTTP 経由の挙動テストへ置換。
+- 検証（Phase 4・5 の自分の担当分と R18/R19 の再実行）: 上記限定テスト、`test/refactor.dependency-boundary.test.ts` 成功、`npm run typecheck` は Phase 3 担当が作業中の1ファイル以外で成功。

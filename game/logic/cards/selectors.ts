@@ -13,6 +13,7 @@ import CardUtilsImport = require('./utils');
 import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
 import SelectorsCoreUtilsImport = require('./selectors-core-utils');
 import SelectorsBoardShapeImport = require('./selectors-board-shape');
+import ManifestStoneRegistry = require('../../../shared/manifest-stone-registry');
 
 const SharedConstants: any = SharedConstantsImport;
 const CardUtils: any = CardUtilsImport;
@@ -62,18 +63,7 @@ function isBombCategoryMarker(marker: any): boolean {
 }
 
 function isManifestStoneMarkerForSelectors(marker: any): boolean {
-    if (CardUtils && typeof CardUtils.isManifestStoneMarker === 'function') {
-        return CardUtils.isManifestStoneMarker(marker) === true;
-    }
-    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isManifestStoneMarker === 'function') {
-        return SelectorsCoreUtils.isManifestStoneMarker(marker) === true;
-    }
-    const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-    return !!(
-        marker &&
-        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-        (type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL')
-    );
+    return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
 }
 
 function isFrozenCell(cardState: CardState, row: number, col: number): boolean {

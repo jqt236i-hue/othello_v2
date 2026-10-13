@@ -54,10 +54,13 @@ export type NetworkChatValidationResult =
   | { ok: true; text: string }
   | { ok: false; reason: 'MESSAGE_REQUIRED' | 'MESSAGE_TOO_LONG' };
 
-export function validateNetworkChatMessage(value: unknown): NetworkChatValidationResult {
+export function validateNetworkChatMessage(
+  value: unknown,
+  maxLength: number = NETWORK_CHAT_MAX_LENGTH
+): NetworkChatValidationResult {
   const normalized = normalizeNetworkChatText(value);
   if (!normalized) return { ok: false, reason: 'MESSAGE_REQUIRED' };
   const chars = Array.from(normalized);
-  if (chars.length > NETWORK_CHAT_MAX_LENGTH) return { ok: false, reason: 'MESSAGE_TOO_LONG' };
+  if (chars.length > maxLength) return { ok: false, reason: 'MESSAGE_TOO_LONG' };
   return { ok: true, text: chars.join('') };
 }

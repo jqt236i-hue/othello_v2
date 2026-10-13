@@ -8,6 +8,7 @@ import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-reg
 import SpecialCardRegistryImport = require('../../../shared/special-card-registry');
 import BoardExecutorResolutionImport = require('../card-resolution/board-executor');
 import CardUsagePrechecksImport = require('./card-usage-prechecks');
+import PendingSelectionRegistry = require('./pending-selection-registry');
 
 const CardMarkersModule: any = CardMarkersImport;
 const ManifestStoneRegistryModule: any = ManifestStoneRegistryImport;
@@ -162,11 +163,7 @@ function getHelpers(context: Context): any {
 }
 
 function isManifestStoneType(rawType: any): boolean {
-    if (ManifestStoneRegistryModule && typeof ManifestStoneRegistryModule.isManifestStoneType === 'function') {
-        return ManifestStoneRegistryModule.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    return ManifestStoneRegistryModule.isManifestStoneType(rawType) === true;
 }
 
 function getModules(context: Context): any {
@@ -675,41 +672,16 @@ function requireModuleTargets(context: Context, scope: SelectorEvidenceScope, me
         : hasTargets(targets, minimumCount);
 }
 
-const USAGE_PRECHECK_TARGET_METHODS = [
-    'getDestroyTargets',
-    'getReverseWillTargets',
-    'getTemptWillTargets',
-    'getCaptureWillTargets',
-    'getStrongWindTargets',
-    'getBuoyancyTargets',
-    'getSuperBuoyancyTargets',
-    'getGravityTargets',
-    'getSuperGravityTargets',
-    'getSuperAttractionTargets',
-    'getTrapTargets',
-    'getGuardTargets',
-    'getLivingWillTargets',
-    'getReincarnationTargets',
-    'getExtendLifeTargets',
-    'getCorrosionTargets',
-    'getTimeBombTargets',
-    'getTeleportTargets',
-    'getCellTeleportTargets',
-    'getCloneTargets',
-    'getSwapTargets',
-    'getPositionSwapTargets',
-    'getBoardExpansionTargets',
-    'getBoardExpansionGodTargets',
-    'getBoardShrinkTargets',
-    'getBoardShrinkGodTargets',
-    'getBlockadeTargets',
-    'getPoisonTargets',
-    'getMeteorTargets',
-    'getCausalReplayTargets',
-    'getFreezeTargets',
-    'getSeedTargets',
-    'getMassFreezeWillTargetCount'
-];
+// Usable-card analysis wraps every pending-selection target resolver from the registry with
+// selector evidence. getMassFreezeWillTargetCount is the only non-pending precheck count that the
+// hand manager wraps the same way.
+const HAND_MANAGER_NON_PENDING_PRECHECK_METHODS = ['getMassFreezeWillTargetCount'];
+const USAGE_PRECHECK_TARGET_METHODS: readonly string[] = Object.freeze(Array.from(new Set([
+    ...Object.values(PendingSelectionRegistry.getPendingSelectionRegistry())
+        .map((entry: any) => entry && entry.target && entry.target.method)
+        .filter((method: any): method is string => typeof method === 'string' && method.length > 0),
+    ...HAND_MANAGER_NON_PENDING_PRECHECK_METHODS
+])));
 
 function resolveUsagePrecheckTargetResolver(context: Context, scope: SelectorEvidenceScope, methodName: string): any {
     const helpers = getHelpers(context);

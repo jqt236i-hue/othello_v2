@@ -61,7 +61,6 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   const sharedBoardUtilsTag = '<script src="shared/shared-board-utils.js"></script>';
   const randomSourceTag = '<script src="game/logic/cards-internal/random-source.js"></script>';
   const stateFactoryTag = '<script src="game/logic/cards-internal/state-factory.js"></script>';
-  const moduleResolverTag = '<script src="game/logic/cards-internal/module-resolver.js"></script>';
   const presentationHelpersTag = '<script src="game/logic/cards-internal/presentation-helpers.js"></script>';
   const boardConfigurationTag = '<script src="game/logic/cards-internal/board-configuration.js"></script>';
   const spawnAndFlipTag = '<script src="game/logic/cards-internal/spawn-and-flip.js"></script>';
@@ -78,7 +77,6 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(html.includes(sharedBoardUtilsTag)).toBe(true);
   expect(html.includes(randomSourceTag)).toBe(true);
   expect(html.includes(stateFactoryTag)).toBe(true);
-  expect(html.includes(moduleResolverTag)).toBe(true);
   expect(html.includes(presentationHelpersTag)).toBe(true);
   expect(html.includes(boardConfigurationTag)).toBe(true);
   expect(html.includes(spawnAndFlipTag)).toBe(true);
@@ -92,8 +90,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(html.includes(chargeLedgerTag)).toBe(true);
   expect(html.indexOf(randomSourceTag)).toBeGreaterThan(html.indexOf(sharedBoardUtilsTag));
   expect(html.indexOf(stateFactoryTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
-  expect(html.indexOf(moduleResolverTag)).toBeGreaterThan(html.indexOf(stateFactoryTag));
-  expect(html.indexOf(presentationHelpersTag)).toBeGreaterThan(html.indexOf(moduleResolverTag));
+  expect(html.indexOf(presentationHelpersTag)).toBeGreaterThan(html.indexOf(stateFactoryTag));
   expect(html.indexOf(boardConfigurationTag)).toBeGreaterThan(html.indexOf(presentationHelpersTag));
   expect(html.indexOf(spawnAndFlipTag)).toBeGreaterThan(html.indexOf(boardConfigurationTag));
   expect(html.indexOf(generatedSpawnFlipResolverTag)).toBeGreaterThan(html.indexOf(spawnAndFlipTag));
@@ -108,7 +105,6 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'shared/shared-board-utils.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/random-source.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/state-factory.js'))).toBe(true);
-  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/module-resolver.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/presentation-helpers.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/board-configuration.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/spawn-and-flip.js'))).toBe(true);

@@ -10,7 +10,7 @@ Shared internal state/timing/pending helpers for canonical card logic. Read `../
 | Hand / copy / usability state | `hand-manager.ts`, `card-usage-prechecks.ts` | Hand invariants and card-usage validation. |
 | Timing / placement sequencing | `effect-timing.ts`, `charge-ledger.ts` | Sequencing-sensitive shared internals. |
 | Shared mutable state construction | `state-factory.ts` | Canonical card-state creation/copy path. |
-| Random / presentation / module lookup | `random-source.ts`, `presentation-helpers.ts`, `module-resolver.ts` | Shared side-channel helpers; avoid caller-local clones. |
+| Random / presentation helpers | `random-source.ts`, `presentation-helpers.ts` | Shared side-channel helpers; avoid caller-local clones. Card modules are composed statically; there is no runtime module lookup helper. |
 
 ## CONVENTIONS
 

@@ -590,12 +590,29 @@ describe('local match server publish contract', () => {
     }
   });
 
-  test('local randomFromChars uses rejection sampling instead of modulo bias', () => {
+  test('local credentials use rejection sampling instead of modulo bias', async () => {
+    // The generator lives in shared/player-identity-generator.ts (shared with the Worker). Feed the
+    // local server an adversarial CSPRNG stream: every other byte is in the biased tail (250), which a
+    // modulo mapping would turn into 'L' for the 30-character recovery charset.
+    const realCrypto = require('crypto');
+    let counter = 0;
+    const spy = jest.spyOn(realCrypto, 'randomBytes').mockImplementation((count: any) => {
+      const bytes = Buffer.alloc(Number(count));
+      for (let i = 0; i < bytes.length; i += 1) bytes[i] = (counter++ % 2 === 0) ? 250 : 3;
+      return bytes;
+    });
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    try {
+      const created: any = await requestJson(port, 'POST', '/api/player/identity/create', {});
+      expect(created.status).toBe(200);
+      expect(created.data.recoveryCode).toBe('CR-DDDDD-DDDDD-DDDDD-DDDDD-DDDDD');
+    } finally {
+      spy.mockRestore();
+      server.close();
+    }
     const source = fs.readFileSync(path.resolve(__dirname, '../scripts/local-match-server.ts'), 'utf8');
-    const match = source.match(/function randomFromChars[\s\S]*?\r?\n}\r?\n/);
-
-    expect(match && match[0]).toContain('maxUnbiasedByte');
-    expect(match && match[0]).toContain('if (byte >= maxUnbiasedByte) continue;');
+    expect(source).toContain("require('../shared/player-identity-generator')");
   });
 
   test('missing operationId publish is rejected before command handling', async () => {

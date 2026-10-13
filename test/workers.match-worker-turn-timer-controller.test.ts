@@ -39,11 +39,7 @@ describe('match worker turn timer controller', () => {
       }),
       loadCoreLogicModule: async () => ({ isGameOver: () => false }),
       hasTwoActiveSeats: () => true,
-      resolveTurnSeatKey: (currentRoom) => ((currentRoom as any).snapshot.gameState.currentPlayer === -1 ? 'white' : 'black'),
-      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
-      createPausedTurnTimer: helpers.createPausedTurnTimer,
-      createActiveTurnTimer: helpers.createActiveTurnTimer,
-      areTurnTimersEqual: helpers.areTurnTimersEqual
+      applyTurnTimerRefresh: helpers.applyTurnTimerRefresh
     });
 
     await expect(controller.syncTurnTimerAlarm()).resolves.toBe(true);
@@ -74,11 +70,7 @@ describe('match worker turn timer controller', () => {
       }),
       loadCoreLogicModule: async () => ({ isGameOver: () => gameOver }),
       hasTwoActiveSeats: () => true,
-      resolveTurnSeatKey: (currentRoom) => ((currentRoom as any).snapshot.gameState.currentPlayer === -1 ? 'white' : 'black'),
-      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
-      createPausedTurnTimer: helpers.createPausedTurnTimer,
-      createActiveTurnTimer: helpers.createActiveTurnTimer,
-      areTurnTimersEqual: helpers.areTurnTimersEqual
+      applyTurnTimerRefresh: helpers.applyTurnTimerRefresh
     });
 
     await expect(controller.refreshTurnTimer({ nowMs: 5000, forceRestart: false })).resolves.toBe(true);
@@ -118,11 +110,7 @@ describe('match worker turn timer controller', () => {
       }),
       loadCoreLogicModule: async () => ({ isGameOver: () => false }),
       hasTwoActiveSeats: () => true,
-      resolveTurnSeatKey: (currentRoom) => ((currentRoom as any).snapshot.gameState.currentPlayer === -1 ? 'white' : 'black'),
-      parseSeatKeyOptional: (value) => (value === 'black' || value === 'white' ? String(value) : null),
-      createPausedTurnTimer: helpers.createPausedTurnTimer,
-      createActiveTurnTimer: helpers.createActiveTurnTimer,
-      areTurnTimersEqual: helpers.areTurnTimersEqual
+      applyTurnTimerRefresh: helpers.applyTurnTimerRefresh
     });
 
     await expect(controller.refreshTurnTimer({ nowMs: 5000, forceRestart: false })).resolves.toBe(false);

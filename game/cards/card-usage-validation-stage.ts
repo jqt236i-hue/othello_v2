@@ -1,3 +1,5 @@
+import PendingSelectionRegistry = require('../logic/cards-internal/pending-selection-registry');
+
 type CardUsageValidationStageOptions = {
   cardState: any;
   playerKey: string;
@@ -35,39 +37,6 @@ function prepareCardUsageValidation(options: CardUsageValidationStageOptions): a
     canUseTimeStopDeityForPlayer,
     canUseChaosSummon,
     countOpponentOccupiedCornersForPlayer,
-    getDestroyTargets,
-    getReverseWillTargets,
-    getTemptWillTargets,
-    getCaptureWillTargets,
-    getStrongWindTargets,
-    getBuoyancyTargets,
-    getSuperBuoyancyTargets,
-    getGravityTargets,
-    getSuperGravityTargets,
-    getSuperAttractionTargets,
-    getTrapTargets,
-    getGuardTargets,
-    getLivingWillTargets,
-    getReincarnationTargets,
-    getHyperactiveInheritTargets,
-    getExtendLifeTargets,
-    getCorrosionTargets,
-    getTimeBombTargets,
-    getTeleportTargets,
-    getCellTeleportTargets,
-    getCloneTargets,
-    getSwapTargets,
-    getPositionSwapTargets,
-    getBoardExpansionTargets,
-    getBoardExpansionGodTargets,
-    getBoardShrinkTargets,
-    getBoardShrinkGodTargets,
-    getBlockadeTargets,
-    getPoisonTargets,
-    getMeteorTargets,
-    getCausalReplayTargets,
-    getFreezeTargets,
-    getSeedTargets,
     getTimeStopGodDestroyableCount,
     getLossWillRemovableCount,
     getMassFreezeWillTargetCount,
@@ -125,10 +94,9 @@ function prepareCardUsageValidation(options: CardUsageValidationStageOptions): a
   const heavenSeedHint = typeof buildHeavenBlessingSeedHint === 'function'
     ? buildHeavenBlessingSeedHint(options.cardState, chargeOwnerKey)
     : '';
-  const pendingSelectionTargetContext = options.PendingSelectionRegistryModule
-    && typeof options.PendingSelectionRegistryModule.buildPendingSelectionTargetContext === 'function'
-    ? options.PendingSelectionRegistryModule.buildPendingSelectionTargetContext(options.deps)
-    : {};
+  // Target resolvers are forwarded from the pending-selection registry, never from a hand-written list.
+  const registryModule = options.PendingSelectionRegistryModule || PendingSelectionRegistry;
+  const pendingSelectionTargetContext = registryModule.buildPendingSelectionTargetContext(options.deps);
   const precheckModule = CardUsagePrechecksModuleLocal || options.CardUsagePrechecksModule;
   const usagePrecheck = precheckModule && typeof precheckModule.validateCardUsagePreconditions === 'function'
     ? precheckModule.validateCardUsagePreconditions({
@@ -151,42 +119,9 @@ function prepareCardUsageValidation(options: CardUsageValidationStageOptions): a
       canUseTimeStopDeityForPlayer,
       canUseChaosSummon,
       countOpponentOccupiedCornersForPlayer,
-      getDestroyTargets,
-      getReverseWillTargets,
       buildHeavenBlessingOffers,
       buildCondemnOffers,
       buildObserverWillOffers,
-      getTemptWillTargets,
-      getCaptureWillTargets,
-      getStrongWindTargets,
-      getBuoyancyTargets,
-      getSuperBuoyancyTargets,
-      getGravityTargets,
-      getSuperGravityTargets,
-      getSuperAttractionTargets,
-      getTrapTargets,
-      getGuardTargets,
-      getLivingWillTargets,
-    getReincarnationTargets,
-      getHyperactiveInheritTargets,
-      getExtendLifeTargets,
-      getCorrosionTargets,
-      getTimeBombTargets,
-      getTeleportTargets,
-      getCellTeleportTargets,
-      getCloneTargets,
-      getSwapTargets,
-      getPositionSwapTargets,
-      getBoardExpansionTargets,
-      getBoardExpansionGodTargets,
-      getBoardShrinkTargets,
-      getBoardShrinkGodTargets,
-      getBlockadeTargets,
-      getPoisonTargets,
-      getMeteorTargets,
-      getCausalReplayTargets,
-      getFreezeTargets,
-      getSeedTargets,
       ...pendingSelectionTargetContext,
       getTimeStopGodDestroyableCount,
       timeStopGodSelfDestroyCount: timeStopSelfDestroyCount || options.TIME_STOP_GOD_SELF_DESTROY_COUNT,

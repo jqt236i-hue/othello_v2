@@ -302,12 +302,7 @@ function _getSpecialMarkersAt(cardState: any, row: number, col: number): any[] {
 }
 
 function _isManifestStoneType(type: any): boolean {
-    const registry = getManifestStoneRegistryModule();
-    if (registry && typeof registry.isManifestStoneType === 'function') {
-        return registry.isManifestStoneType(type) === true;
-    }
-    const typeUpper = String(type || '').toUpperCase();
-    return typeUpper === 'THEORY_INCARNATION' || typeUpper === 'BOARD_EXECUTOR' || typeUpper === 'OBSERVER_WILL';
+    return getManifestStoneRegistryModule().isManifestStoneType(type) === true;
 }
 
 function _isManifestStoneMarker(marker: any): boolean {

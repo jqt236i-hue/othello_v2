@@ -79,6 +79,7 @@ function createLeaderboardController(context: any) {
         DEFAULT_PLAYER_NAME,
         normalizePlayerName,
         getSharedPlayerName,
+        subscribeProfilePlayerName,
         setNetworkOverlayVisible,
         isNetworkOverlayOpen
 } = context;
@@ -1224,9 +1225,16 @@ function createLeaderboardController(context: any) {
         refreshLeaderboardPanel({ force: true, mode: leaderboardActiveFilter });
     }
 
+    let unsubscribeLeaderboardProfileName: (() => void) | null = null;
+
     function bindLeaderboardControls() {
         if (!uiRefs.leaderboardPanel || !uiRefs.leaderboardOverlay) return;
         ensureLeaderboardScaffold();
+        if (!unsubscribeLeaderboardProfileName && typeof subscribeProfilePlayerName === 'function') {
+            unsubscribeLeaderboardProfileName = subscribeProfilePlayerName((name: string) => {
+                if (uiRefs.leaderboardNameInput) uiRefs.leaderboardNameInput.value = name;
+            });
+        }
 
         if (uiRefs.leaderboardOpenBtn) {
             uiRefs.leaderboardOpenBtn.addEventListener('click', () => {

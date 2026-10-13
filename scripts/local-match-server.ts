@@ -1,4 +1,7 @@
 import { createMatchPublishPayloadBuilder } from '../utils/match-publish-payload';
+import { createMatchTurnTimerRules } from '../utils/match-turn-timer-rules';
+import { createMatchPresentationJournalRules } from '../utils/match-presentation-journal-rules';
+import { appendMatchChatMessage, evaluateMatchChatPost, toPublicMatchChatMessages } from '../utils/match-chat-rules';
 declare const __non_webpack_require__: NodeRequire | undefined;
 import type { MatchRoomDeckSelectionSuccess } from '../utils/match-room-deck';
 
@@ -48,6 +51,7 @@ const PlaybackEventHelpers = require('../shared/playback-event-helpers');
 const DeckCodecModule = require('../shared/deck-codec');
 const DeckSpecHelpers = require('../shared/deck-spec');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
+const PlayerIdentityGenerator = require('../shared/player-identity-generator');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 const PresentationEnvelopeContract = require('../shared/network-presentation-envelope');
 const PassTurnReturn = require('../shared/pass-turn-return');
@@ -134,71 +138,32 @@ function toPublicSnapshotForViewer(room: any, viewer: any) {
     return MatchAuthority.buildPublicSnapshotForViewer(room, viewer);
 }
 
+// Presentation-journal assembly is shared with the Worker (utils/match-presentation-journal-rules.ts).
+const LocalPresentationJournalRules = createMatchPresentationJournalRules({
+    authority: MatchAuthority,
+    parseSeatKeyOptional,
+    getPublishPresentationFrames: (options: any, viewerKey: string, build: () => unknown[]) =>
+        require('../utils/match-public-frame-cache').getPublishPresentationFrames(options, viewerKey, build)
+});
+
 function buildPresentationCursor(room: any) {
-    return {
-        visualSeq: Number.isFinite(Number(room && room.visualSeq)) ? Math.max(0, Math.trunc(Number(room.visualSeq))) : 0,
-        stateVersion: Number.isFinite(Number(room && room.stateVersion)) ? Math.max(0, Math.trunc(Number(room.stateVersion))) : 0
-    };
+    return LocalPresentationJournalRules.buildPresentationCursor(room);
 }
 
 function viewerFromSeatKey(viewerSeatKey: any) {
-    const seatKey = parseSeatKeyOptional(viewerSeatKey);
-    return seatKey ? { role: 'seat', seatKey } : { role: 'spectator', spectatorId: '' };
+    return LocalPresentationJournalRules.viewerFromSeatKey(viewerSeatKey);
 }
 
 function ensureInitialPresentationSnapshots(room: any) {
-    if (!room || room.initialSnapshotByViewer) return;
-    room.initialSnapshotByViewer = {
-        black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
-        white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
-        spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
-    };
-    if (!Number.isFinite(Number(room.visualSeq))) room.visualSeq = 0;
-    if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+    LocalPresentationJournalRules.ensureInitialPresentationSnapshots(room);
 }
 
 function appendPresentationFrameForAcceptedPublish(room: any, options: any) {
-    if (!room) return null;
-    ensureInitialPresentationSnapshots(room);
-    const playbackEvents = Array.isArray(options && options.playbackEvents) ? options.playbackEvents : [];
-    const effectLogs = MatchAuthority.normalizeEffectLogMessages(options && options.effectLogs);
-    const playbackDiagnostics = options && options.playbackDiagnostics ? options.playbackDiagnostics : null;
-    const publishViewerArtifacts = options && options.publishViewerArtifacts && typeof options.publishViewerArtifacts === 'object'
-        ? options.publishViewerArtifacts
-        : {};
-    const artifactSnapshots = publishViewerArtifacts.projectedSnapshots && typeof publishViewerArtifacts.projectedSnapshots === 'object'
-        ? publishViewerArtifacts.projectedSnapshots
-        : {};
-    return MatchAuthority.appendPresentationFrame(room, {
-        stateVersionFrom: options && options.previousStateVersion,
-        stateVersionTo: options && options.nextStateVersion,
-        operationId: options && options.operationId,
-        actorSeatKey: options && options.actorSeatKey,
-        actionType: options && options.actionType,
-        payloadByViewer: {
-            black: { playbackEvents, effectLogs, playbackDiagnostics },
-            white: { playbackEvents, effectLogs, playbackDiagnostics },
-            spectator: { playbackEvents, effectLogs, playbackDiagnostics }
-        },
-        snapshotAfterByViewer: {
-            black: artifactSnapshots.black || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
-            white: artifactSnapshots.white || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
-            spectator: artifactSnapshots.spectator || toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
-        },
-        createdAt: options && options.createdAt
-    });
+    return LocalPresentationJournalRules.appendPresentationFrameForAcceptedPublish(room, options);
 }
 
 function buildPresentationFramesForViewer(room: any, viewer: any, options: any) {
-    if (Array.isArray(options && options.presentationFrames)) return options.presentationFrames;
-    const presentationFrameEntry = options && options.presentationFrameEntry;
-    if (presentationFrameEntry && typeof presentationFrameEntry === 'object') {
-        return require('../utils/match-public-frame-cache').getPublishPresentationFrames(
-            options, viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator',
-            () => [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewer, room)]
-        );
-    }
-    return [];
+    return LocalPresentationJournalRules.buildPresentationFramesForViewer(room, viewer, options);
 }
 
 function buildNetworkActionEffectLogs(action: any, playerKey: any, rawEvents: any, presentationEvents: any) {
@@ -692,98 +657,32 @@ function resolveTurnSeatKey(room: any) {
     return getCurrentPlayerKey(room && room.snapshot && room.snapshot.gameState);
 }
 
-function resolveRoomTurnLimitSeconds(room: any) {
-    const timer = room && room.turnTimer && typeof room.turnTimer === 'object' ? room.turnTimer : null;
-    return MatchAuthority.normalizeNetworkTurnLimitSeconds(timer && timer.limitSeconds);
-}
+// Timer rules are shared with the Worker (utils/match-turn-timer-rules.ts); game-over detection
+// stays synchronous here and the heartbeat loop remains the local scheduler.
+const LocalTurnTimerRules = createMatchTurnTimerRules({
+    defaultLimitSeconds: Number(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS),
+    normalizeLimitSeconds: (value: unknown, fallback?: unknown) => MatchAuthority.normalizeNetworkTurnLimitSeconds(value, fallback),
+    resolveTurnSeatKey,
+    parseSeatKeyOptional
+});
 
 function createPausedTurnTimer(room: any) {
-    const limitSeconds = resolveRoomTurnLimitSeconds(room);
-    return {
-        limitSeconds,
-        active: false,
-        turnSeatKey: resolveTurnSeatKey(room),
-        turnStartedAt: null,
-        turnDeadlineAt: null
-    };
-}
-
-function createActiveTurnTimer(room: any, nowMs: any) {
-    const now = Number.isFinite(Number(nowMs)) ? Math.max(0, Math.trunc(Number(nowMs))) : Date.now();
-    const limitSeconds = resolveRoomTurnLimitSeconds(room);
-    return {
-        limitSeconds,
-        active: true,
-        turnSeatKey: resolveTurnSeatKey(room),
-        turnStartedAt: now,
-        turnDeadlineAt: now + (limitSeconds * 1000)
-    };
-}
-
-function areTurnTimersEqual(a: any, b: any) {
-    const left = (a && typeof a === 'object') ? a : {};
-    const right = (b && typeof b === 'object') ? b : {};
-    const leftSeat = parseSeatKeyOptional(left.turnSeatKey) || 'black';
-    const rightSeat = parseSeatKeyOptional(right.turnSeatKey) || 'black';
-    const leftStarted = Number.isFinite(Number(left.turnStartedAt)) ? Number(left.turnStartedAt) : null;
-    const rightStarted = Number.isFinite(Number(right.turnStartedAt)) ? Number(right.turnStartedAt) : null;
-    const leftDeadline = Number.isFinite(Number(left.turnDeadlineAt)) ? Number(left.turnDeadlineAt) : null;
-    const rightDeadline = Number.isFinite(Number(right.turnDeadlineAt)) ? Number(right.turnDeadlineAt) : null;
-
-    return (
-        !!left.active === !!right.active
-        && leftSeat === rightSeat
-        && leftStarted === rightStarted
-        && leftDeadline === rightDeadline
-        && Number(left.limitSeconds) === Number(right.limitSeconds)
-    );
+    return LocalTurnTimerRules.createPausedTurnTimer(room);
 }
 
 function refreshTurnTimer(room: any, options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
-    const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.max(0, Math.trunc(Number(opts.nowMs))) : Date.now();
     const shouldRunBySeats = hasTwoActiveSeats(room);
     const isGameOver = shouldRunBySeats && Core.isGameOver(room && room.snapshot && room.snapshot.gameState);
-    const shouldBeActive = shouldRunBySeats && !isGameOver;
-
-    if (!shouldBeActive) {
-        const pausedTimer = createPausedTurnTimer(room);
-        const changed = !areTurnTimersEqual(room.turnTimer, pausedTimer);
-        room.turnTimer = pausedTimer;
-        return changed;
-    }
-
-    const timer = (room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-    if (!opts.forceRestart && timer && timer.active === true) {
-        const timerSeatKey = parseSeatKeyOptional(timer.turnSeatKey);
-        const timerDeadline = Number(timer.turnDeadlineAt);
-        if (timerSeatKey === resolveTurnSeatKey(room) && Number.isFinite(timerDeadline)) {
-            timer.limitSeconds = resolveRoomTurnLimitSeconds(room);
-            return false;
-        }
-    }
-
-    const activeTimer = createActiveTurnTimer(room, nowMs);
-    const changed = !areTurnTimersEqual(room.turnTimer, activeTimer);
-    room.turnTimer = activeTimer;
-    return changed;
+    return LocalTurnTimerRules.applyTurnTimerRefresh(room, {
+        shouldBeActive: shouldRunBySeats && !isGameOver,
+        nowMs: opts.nowMs,
+        forceRestart: !!opts.forceRestart
+    }).changed;
 }
 
 function toPublicTurnTimer(room: any, nowMs: any) {
-    const timer = (room && room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-    const serverNow = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
-    const deadline = timer && Number.isFinite(Number(timer.turnDeadlineAt)) ? Number(timer.turnDeadlineAt) : null;
-    const startedAt = timer && Number.isFinite(Number(timer.turnStartedAt)) ? Number(timer.turnStartedAt) : null;
-    const active = !!(timer && timer.active === true && deadline !== null);
-
-    return {
-        limitSeconds: resolveRoomTurnLimitSeconds(room),
-        active,
-        turnSeatKey: parseSeatKeyOptional(timer && timer.turnSeatKey) || resolveTurnSeatKey(room),
-        turnStartedAt: active ? startedAt : null,
-        turnDeadlineAt: active ? deadline : null,
-        remainingMs: active && deadline !== null ? Math.max(0, Math.trunc(deadline - serverNow)) : null
-    };
+    return LocalTurnTimerRules.toPublicTurnTimer(room, nowMs);
 }
 
 function buildPublicSeatState(room: any) {
@@ -863,17 +762,7 @@ function toPublicNetworkAutoEnabled(room: any) {
 }
 
 function toPublicChatMessages(room: any) {
-    const messages = Array.isArray(room && room.chatMessages) ? room.chatMessages : [];
-    return messages.map((entry: any) => ({
-        id: Number.isFinite(Number(entry && entry.id)) ? Number(entry.id) : 0,
-        seatKey: normalizePlayerKey(entry && entry.seatKey),
-        text: String(entry && entry.text ? entry.text : ''),
-        serverTime: Number.isFinite(Number(entry && entry.serverTime)) ? Number(entry.serverTime) : Date.now()
-    }));
-}
-
-function parseChatMessageText(value: any) {
-    return MatchAuthority.parseNetworkChatMessage(value);
+    return toPublicMatchChatMessages(room, normalizePlayerKey);
 }
 
 function writeJson(res: any, statusCode: any, payload: any) {
@@ -1444,36 +1333,19 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     return { applied: true, stateVersion: room.stateVersion };
 }
 
-const PLAYER_ID_TOKEN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-const RECOVERY_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ234567';
-
-function randomFromChars(chars: string, length: number) {
-    if (!chars || !Number.isInteger(length) || length <= 0) return '';
-    if (chars.length > 256) throw new Error('randomFromChars charset must contain at most 256 characters.');
-    const maxUnbiasedByte = Math.floor(256 / chars.length) * chars.length;
-    let out = '';
-    while (out.length < length) {
-        const bytes = nodeCrypto.randomBytes(Math.max(16, length - out.length));
-        for (const byte of bytes) {
-            if (byte >= maxUnbiasedByte) continue;
-            out += chars[byte % chars.length];
-            if (out.length >= length) break;
-        }
-    }
-    return out;
-}
+// Node crypto adapter for the shared, unbiased credential generator.
+const nodeRandomByteSource = (count: number) => nodeCrypto.randomBytes(count);
 
 function makeLocalPlayerId() {
-    return `p_${randomFromChars(PLAYER_ID_TOKEN_CHARS, 26)}`;
+    return PlayerIdentityGenerator.makePlayerId(nodeRandomByteSource);
 }
 
 function makeLocalPlayerToken() {
-    return `pt_${randomFromChars(PLAYER_ID_TOKEN_CHARS, 43)}`;
+    return PlayerIdentityGenerator.makePlayerToken(nodeRandomByteSource);
 }
 
 function makeLocalRecoveryCode() {
-    const raw = randomFromChars(RECOVERY_CODE_CHARS, 25);
-    return `CR-${raw.slice(0, 5)}-${raw.slice(5, 10)}-${raw.slice(10, 15)}-${raw.slice(15, 20)}-${raw.slice(20, 25)}`;
+    return PlayerIdentityGenerator.makeRecoveryCode(nodeRandomByteSource);
 }
 
 function sha256HexLocal(value: string) {
@@ -2026,40 +1898,30 @@ async function handleChat(req: any, res: any) {
         writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
         return;
     }
-    if (!room.seats[seatKey]) {
-        writeJson(res, 403, { ok: false, reason: 'SEAT_NOT_JOINED', seats: toPublicSeats(room) });
-        return;
-    }
-    if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-        writeJson(res, 403, { ok: false, reason: 'SEAT_TOKEN_MISMATCH', seats: toPublicSeats(room) });
-        return;
-    }
-    if (!room.seats.black || !room.seats.white) {
-        writeJson(res, 409, { ok: false, reason: 'CHAT_DISABLED', seats: toPublicSeats(room) });
-        return;
-    }
-
-    const parsedText = parseChatMessageText(body.message);
-    if (!parsedText.ok) {
-        writeJson(res, 400, { ok: false, reason: parsedText.reason, seats: toPublicSeats(room), maxLength: CHAT_MAX_LENGTH });
-        return;
-    }
-
-    room.chatSeq = Number.isFinite(Number(room.chatSeq)) ? Number(room.chatSeq) : 0;
-    room.chatSeq += 1;
-    const message = {
-        id: room.chatSeq,
+    // Seat/token/validation rules are shared with the Worker (utils/match-chat-rules.ts). The local
+    // server keeps its historical SEAT_TOKEN_MISMATCH reason for a missing token as well.
+    const evaluation = evaluateMatchChatPost({
         seatKey,
-        text: parsedText.text,
-        serverTime: Date.now()
-    };
-
-    room.chatMessages = Array.isArray(room.chatMessages) ? room.chatMessages : [];
-    room.chatMessages.push(message);
-    if (room.chatMessages.length > CHAT_HISTORY_LIMIT) {
-        room.chatMessages.splice(0, room.chatMessages.length - CHAT_HISTORY_LIMIT);
+        seatToken,
+        seats: room.seats,
+        seatTokens: room.seatTokens,
+        message: body.message,
+        maxLength: CHAT_MAX_LENGTH,
+        seatTokenRejectionReason: () => 'SEAT_TOKEN_MISMATCH'
+    });
+    if (!evaluation.ok) {
+        const rejection: Record<string, unknown> = { ok: false, reason: evaluation.reason, seats: toPublicSeats(room) };
+        if (evaluation.maxLength !== undefined) rejection.maxLength = evaluation.maxLength;
+        writeJson(res, evaluation.status, rejection);
+        return;
     }
-    room.updatedAt = message.serverTime;
+
+    const message = appendMatchChatMessage(room, {
+        seatKey,
+        text: evaluation.text,
+        serverTime: Date.now(),
+        historyLimit: CHAT_HISTORY_LIMIT
+    });
 
     const payload = withPublicSeatState(room, {
         ok: true,

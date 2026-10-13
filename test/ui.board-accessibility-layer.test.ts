@@ -89,9 +89,9 @@ describe('board accessibility layer', () => {
     expect(buttons[0].style.pointerEvents).toBe('auto');
     expect(parseFloat(buttons[0].style.width)).toBeCloseTo(20);
     expect(parseFloat(buttons[0].style.height)).toBeCloseTo(20);
-    // Cell-local up is (50%, 14%); host/client offsets are removed.
+    // Cell-local up is (50%, 20%), the same center as the Pixi glyph; host/client offsets are removed.
     expect(parseFloat(buttons[0].style.left)).toBeCloseTo(56);
-    expect(parseFloat(buttons[0].style.top)).toBeCloseTo(84.16);
+    expect(parseFloat(buttons[0].style.top)).toBeCloseTo(86.8);
     // The layer itself cannot intercept any pointer outside the two controls.
     expect(harness.layer.getElement().style.pointerEvents).toBe('none');
   });
@@ -209,7 +209,8 @@ describe('board accessibility layer', () => {
     harness.layer.sync({ model, getCellClientRect: () => makeRect(188, 332) });
     expect(harness.host.querySelector('button')).toBe(button);
     expect(harness.document.activeElement).toBe(button);
-    expect(parseFloat(button.style.left)).toBeCloseTo(84.16);
+    // Left is centered at 20% of the moved cell, the same point as the Pixi glyph.
+    expect(parseFloat(button.style.left)).toBeCloseTo(86.8);
 
     harness.layer.sync({ model: { cells: [] }, getCellClientRect: () => null });
     expect(harness.host.querySelectorAll('button')).toHaveLength(0);
@@ -305,5 +306,137 @@ describe('board accessibility layer', () => {
       windowListenerCount: 0,
       visualViewportListenerCount: 0
     });
+  });
+});
+
+describe('expansion arrow display and hit area share one geometry', () => {
+  const { BOARD_DIRECTION_KEYS, getBoardDirectionHintGeometry } = require('../ui/board-direction-hint-geometry');
+  const HintView = require('../ui/pixi/hint-view');
+
+  class FakePoint {
+    x = 0;
+    y = 0;
+    set(x: number, y = x) { this.x = x; this.y = y; }
+  }
+  class FakeDisplayObject {
+    label = '';
+    parent: any = null;
+    children: any[] = [];
+    position = new FakePoint();
+    anchor = new FakePoint();
+    visible = true;
+    text = '';
+    constructor(options?: any) {
+      this.label = String(options && options.label || '');
+      if (options && typeof options.text === 'string') this.text = options.text;
+    }
+    addChild(...values: any[]) { for (const value of values) { value.parent = this; this.children.push(value); } return values[0]; }
+    removeChild(value: any) { this.children = this.children.filter((child) => child !== value); value.parent = null; return value; }
+    removeFromParent() { if (this.parent) this.parent.removeChild(this); }
+    destroy() { this.removeFromParent(); }
+    clear() { return this; }
+    rect() { return this; }
+    moveTo() { return this; }
+    lineTo() { return this; }
+    circle() { return this; }
+    roundRect() { return this; }
+    fill() { return this; }
+    stroke() { return this; }
+  }
+
+  function renderPixiGlyphCenters(cellSize: number, directionKeys: string[]) {
+    const view = HintView.createPixiHintView({
+      Container: FakeDisplayObject,
+      Graphics: FakeDisplayObject,
+      Text: FakeDisplayObject
+    });
+    const textStyle = { fontFamily: 'sans-serif', fontWeight: '700', fontSizeRatio: 0.4, lineHeight: 1, color: '#fff', doubleDigitScale: 1, shadows: [] };
+    view.update({
+      key: '2,3',
+      row: 2,
+      col: 3,
+      kind: 'playable',
+      hintPaintSignature: `paint:${directionKeys.join(',')}`,
+      hintInputSignature: 'input',
+      interaction: {
+        legal: false,
+        legalFree: false,
+        selectable: false,
+        selected: false,
+        keyboardCursor: false,
+        hovered: false,
+        interactionLocked: false,
+        previewKinds: [],
+        selectionKinds: [],
+        directionHints: directionKeys.map((directionKey) => ({ id: `expand:${directionKey}`, kind: 'board-expansion-will', directionKey }))
+      }
+    }, {
+      layout: { cellSize },
+      theme: { gridLineWidth: 1, legalHint: {}, directionHint: textStyle },
+      interactionRevisionSignature: 'interaction:1',
+      sceneX: 0,
+      sceneY: 0,
+      sceneOffsetX: 0,
+      sceneOffsetY: 0
+    });
+    const root = view.root || view.displayObject || null;
+    const texts: any[] = [];
+    const visit = (node: any) => {
+      if (!node) return;
+      if (String(node.label).startsWith('pixi-direction-hint:')) texts.push(node);
+      for (const child of node.children || []) visit(child);
+    };
+    for (const candidate of [root, ...(Object.values(view) as any[])]) visit(candidate);
+    const byKey = new Map<string, { glyph: string; x: number; y: number }>();
+    for (const text of texts) {
+      byKey.set(String(text.label).replace('pixi-direction-hint:expand:', ''), { glyph: text.text, x: text.position.x, y: text.position.y });
+    }
+    return byKey;
+  }
+
+  test('all eight directions put the transparent button center on the Pixi glyph center', () => {
+    expect([...BOARD_DIRECTION_KEYS].sort()).toEqual(['down', 'down-left', 'down-right', 'left', 'right', 'up', 'up-left', 'up-right']);
+    const cellSize = 44;
+    const glyphs = renderPixiGlyphCenters(cellSize, [...BOARD_DIRECTION_KEYS]);
+    expect(glyphs.size).toBe(8);
+
+    const harness = createHarness();
+    harness.layer.mount(harness.host, harness.canvas);
+    harness.layer.sync({
+      model: {
+        boardDigest: 'board.v1.geometry',
+        modelCommitId: 7,
+        cells: [makeCell(BOARD_DIRECTION_KEYS.map((directionKey: string) => ({ id: `expand:${directionKey}`, kind: 'board-expansion-will', directionKey })))]
+      },
+      getCellClientRect: () => makeRect()
+    });
+    const buttons = Array.from(harness.host.querySelectorAll('button')) as HTMLButtonElement[];
+    expect(buttons).toHaveLength(8);
+    const cellLocalLeft = 144 - 100;
+    const cellLocalTop = 288 - 200;
+    for (const button of buttons) {
+      const directionKey = String(button.dataset.direction);
+      const size = parseFloat(button.style.width);
+      const hitCenter = {
+        x: parseFloat(button.style.left) + size / 2 - cellLocalLeft,
+        y: parseFloat(button.style.top) + size / 2 - cellLocalTop
+      };
+      const glyph = glyphs.get(directionKey)!;
+      expect({ directionKey, glyph: button.textContent }).toEqual({ directionKey, glyph: glyph.glyph });
+      expect(hitCenter.x).toBeCloseTo(glyph.x, 6);
+      expect(hitCenter.y).toBeCloseTo(glyph.y, 6);
+      const geometry = getBoardDirectionHintGeometry(directionKey);
+      expect(glyph.x).toBeCloseTo(geometry.x * cellSize, 6);
+      expect(glyph.y).toBeCloseTo(geometry.y * cellSize, 6);
+    }
+  });
+
+  test('legacy top/bottom keys resolve to the same up/down geometry on both sides', () => {
+    const glyphs = renderPixiGlyphCenters(40, ['top', 'bottom']);
+    expect(glyphs.get('top')).toEqual({ glyph: '↑', x: 20, y: 8 });
+    expect(glyphs.get('bottom')).toEqual({ glyph: '↓', x: 20, y: 32 });
+    expect(getBoardDirectionHintGeometry('TOP')).toBe(getBoardDirectionHintGeometry('up'));
+    expect(getBoardDirectionHintGeometry('bottom')).toBe(getBoardDirectionHintGeometry('down'));
+    expect(getBoardDirectionHintGeometry('sideways')).toBeNull();
   });
 });

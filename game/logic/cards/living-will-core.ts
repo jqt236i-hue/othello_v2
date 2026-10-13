@@ -33,11 +33,7 @@ const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     : 0;
 
 function isManifestStoneType(rawType: any): boolean {
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
-        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
 }
 const MARKER_KIND_SPECIAL = 'specialStone';
 const MARKER_KIND_MANIFEST = 'manifestStone';

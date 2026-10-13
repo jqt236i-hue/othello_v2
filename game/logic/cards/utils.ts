@@ -14,14 +14,6 @@ const OwnerHelpersModule: any = {
     normalizePlayerKeyOptional: PlayerEncodingImport.parseSeatKeyOptional
 };
 
-function isManifestStoneTypeForUtils(rawType: any): boolean {
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
-        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
-}
-
 function normalizePlayerKey(playerKey: any): string | null {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
@@ -168,15 +160,7 @@ function isSpecialStoneMarker(marker: any): boolean {
 }
 
 function isManifestStoneMarker(marker: any): boolean {
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function') {
-        return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
-    }
-    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
-    return !!(
-        marker &&
-        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-        isManifestStoneTypeForUtils(type)
-    );
+    return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
 }
 
 function isBombCategoryMarker(marker: any): boolean {

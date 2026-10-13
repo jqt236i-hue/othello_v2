@@ -1,3 +1,5 @@
+import CardPendingStateManager = require('../logic/cards-internal/pending-state-manager');
+
 type CardUsagePendingStageOptions = {
     cardState: any;
     gameState: any;
@@ -16,35 +18,27 @@ type CardUsagePendingStageOptions = {
     workDebugLog?: (cardState: any, ...args: any[]) => void;
 };
 
+// The pending object always comes from the canonical pending-state manager factory. An injected
+// manager (or a partial one) may override individual functions; anything missing falls back to the
+// canonical implementation instead of a second hand-built object.
+function resolvePendingManagerFunction(injected: any, name: 'requiresTargetSelection' | 'createPendingEffectState'): any {
+    return injected && typeof injected[name] === 'function'
+        ? injected[name].bind(injected)
+        : (CardPendingStateManager as any)[name];
+}
+
 function commitCardUsagePendingState(options: CardUsagePendingStageOptions): any {
     const pendingOffers = options.heavenOffers || options.condemnOffers || options.observerWillOffers || undefined;
-    const pendingManager = options.CardPendingStateManagerModule;
-    const needsSelection = !!(
-        pendingManager &&
-        typeof pendingManager.requiresTargetSelection === 'function' &&
-        pendingManager.requiresTargetSelection(options.cardType)
-    );
-    const pendingEffectState = pendingManager && typeof pendingManager.createPendingEffectState === 'function'
-        ? pendingManager.createPendingEffectState({
-            cardType: options.cardType,
-            cardId: options.cardId,
-            sourceHandIndex: options.removedCard ? options.removedCard.handIndex : undefined,
-            needsSelection,
-            offers: pendingOffers
-        })
-        : {
-            type: options.cardType,
-            cardId: options.cardId,
-            sourceHandIndex: options.removedCard ? options.removedCard.handIndex : undefined,
-            stage: needsSelection ? 'selectTarget' : null,
-            offers: pendingOffers,
-            selectedCount: (options.cardType === 'BOARD_EXPANSION_GOD' || options.cardType === 'BOARD_SHRINK_WILL') ? 0 : undefined,
-            maxSelections: options.cardType === 'BOARD_EXPANSION_GOD'
-                ? 2
-                : (options.cardType === 'BOARD_SHRINK_WILL' ? (typeof options.getBoardShrinkSelectionCount === 'function' ? options.getBoardShrinkSelectionCount() : 3) : undefined),
-            selectedTargets: (options.cardType === 'BOARD_EXPANSION_GOD' || options.cardType === 'BOARD_SHRINK_WILL') ? [] : undefined,
-            placementsRemaining: options.cardType === 'LAST_RESORT' ? 3 : undefined
-        };
+    const requiresTargetSelection = resolvePendingManagerFunction(options.CardPendingStateManagerModule, 'requiresTargetSelection');
+    const createPendingEffectState = resolvePendingManagerFunction(options.CardPendingStateManagerModule, 'createPendingEffectState');
+    const needsSelection = !!requiresTargetSelection(options.cardType);
+    const pendingEffectState = createPendingEffectState({
+        cardType: options.cardType,
+        cardId: options.cardId,
+        sourceHandIndex: options.removedCard ? options.removedCard.handIndex : undefined,
+        needsSelection,
+        offers: pendingOffers
+    });
 
     if (typeof options.writeCardPendingEffect === 'function') {
         options.writeCardPendingEffect(

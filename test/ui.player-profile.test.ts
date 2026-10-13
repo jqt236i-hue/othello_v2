@@ -50,3 +50,47 @@ describe('browser player profile model', () => {
     expect(saved.bio).toBe('よろしくお願いします');
   });
 });
+
+describe('player profile change subscription', () => {
+  test('notifies subscribers after save and clear, and stops after unsubscribe', () => {
+    jest.resetModules();
+    const store = new Map<string, string>();
+    (global as any).localStorage = {
+      getItem: (key: string) => (store.has(key) ? store.get(key) : null),
+      setItem: (key: string, value: string) => { store.set(key, String(value)); },
+      removeItem: (key: string) => { store.delete(key); }
+    };
+    try {
+      const PlayerProfile = require('../ui/player-profile.ts');
+      const listener = jest.fn();
+      const unsubscribe = PlayerProfile.subscribePlayerProfile(listener);
+      PlayerProfile.savePlayerProfile({ displayName: 'なまえA' });
+      PlayerProfile.savePlayerProfile({ displayName: 'なまえB' });
+      PlayerProfile.clearPlayerProfile();
+      expect(listener.mock.calls.map((call: any[]) => call[0].displayName)).toEqual(['なまえA', 'なまえB', '']);
+      unsubscribe();
+      PlayerProfile.savePlayerProfile({ displayName: 'なまえC' });
+      expect(listener).toHaveBeenCalledTimes(3);
+    } finally {
+      delete (global as any).localStorage;
+    }
+  });
+
+  test('a failing subscriber does not stop the save or the other subscribers', () => {
+    jest.resetModules();
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const PlayerProfile = require('../ui/player-profile.ts');
+      const second = jest.fn();
+      const offFirst = PlayerProfile.subscribePlayerProfile(() => { throw new Error('screen failed'); });
+      const offSecond = PlayerProfile.subscribePlayerProfile(second);
+      expect(PlayerProfile.savePlayerProfile({ displayName: 'なまえ' }).displayName).toBe('なまえ');
+      expect(second).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'なまえ' }));
+      expect(errorSpy).toHaveBeenCalled();
+      offFirst();
+      offSecond();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+});
