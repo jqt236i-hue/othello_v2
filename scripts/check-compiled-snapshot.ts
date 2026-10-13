@@ -38,6 +38,9 @@ function main(): void {
   if (stale.length > 0) {
     console.error(`[compiled-snapshot] dist/ is stale for ${stale.length} source(s); run \`npm run build:ts\` (or use \`npm run checkall\`):`);
     for (const file of stale.slice(0, 20)) console.error(`  - ${file}`);
+    if (stale.some((file) => file.startsWith('browser-vite/generated/'))) {
+      console.error('[compiled-snapshot] browser-vite/generated/* was regenerated after compilation: commit the regenerated file (the build rewrites it only when the module set changed) or use `npm run checkall`.');
+    }
     process.exit(2);
   }
   console.log('[compiled-snapshot] dist/ is up to date with tsconfig.build.json sources');
