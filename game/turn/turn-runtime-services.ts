@@ -162,6 +162,12 @@ function assertServiceFunctions(services: TurnRuntimeServices): void {
     }
 }
 
+// Fails at the turn runtime-unavailable boundary when a statically required turn-phase module
+// (for example the turn handoff or round-state adapter) is missing, before any state is changed.
+export function requireTurnPhaseCapability(capability: string, available: boolean): void {
+    if (!available) unavailable(capability);
+}
+
 export function createTurnRuntimeServices(input: TurnRuntimeServices): TurnRuntimeServices {
     if (!input || typeof input !== 'object') {
         throw createCardRuntimeUnavailableError('turn-runtime-services', 'turn-phases');

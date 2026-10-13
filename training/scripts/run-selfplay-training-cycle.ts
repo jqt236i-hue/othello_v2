@@ -32,6 +32,7 @@ const {
     buildQuickAdoptionCommandArgs,
     buildQualityGateCommandArgs,
     buildFinalAdoptionCommandArgs,
+    resolveIterationOnnxBundle,
     buildCandidateOnnxBundleArgs,
     buildTargetOnnxBundleArgs,
     buildOnnxGateCommandArgs,
@@ -388,6 +389,7 @@ function buildIterationPaths(args, iterationIndex) {
         finalAdoptionPath: path.resolve(args.runsDir, `adoption.final.${tag}.json`),
         qualityGatePath: path.resolve(args.runsDir, `adoption.quality.${tag}.json`),
         onnxGatePath: path.resolve(args.runsDir, `adoption.onnx.${tag}.json`),
+        onnxBundlePath: path.resolve(args.runsDir, `onnx-bundle.${tag}.json`),
         warehouseManifestPath: path.resolve(args.runsDir, `training-warehouse.${tag}.json`)
     };
 }
@@ -999,7 +1001,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         reuseOutputs: [p.evalDataPath, p.evalHardcaseDataPath, p.evalDataSummaryPath]
     });
 
-    runManagedStep('train-policy', args.pythonPath, buildPolicyTrainingCommandArgs({
+    const onnxHeadSteps: any = {};
+    onnxHeadSteps.primary = runManagedStep('train-policy', args.pythonPath, buildPolicyTrainingCommandArgs({
         args,
         iterationPaths: p,
         resumeCheckpointPath: policyResumeCheckpointPath
@@ -1018,7 +1021,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const trainCardThisIteration = args.allowCardUsage && shouldRunPeriodicTraining(iterationIndex, args.trainCardEvery);
     if (args.allowCardUsage) {
         if (trainCardThisIteration) {
-            runManagedStep('train-card-policy', args.pythonPath, buildCardTrainingCommandArgs({
+            onnxHeadSteps.card = runManagedStep('train-card-policy', args.pythonPath, buildCardTrainingCommandArgs({
                 args,
                 iterationPaths: p,
                 resumeCheckpointPath: cardResumeCheckpointPath
@@ -1040,7 +1043,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         recordSkippedStep('train-target-policy', 'disabled', { trainTargetHeadEnabled: false });
     } else if (hasTargetTrainingData) {
         if (trainTargetThisIteration) {
-            runManagedStep('train-target-policy', args.pythonPath, buildTargetTrainingCommandArgs({
+            onnxHeadSteps.target = runManagedStep('train-target-policy', args.pythonPath, buildTargetTrainingCommandArgs({
                 args,
                 iterationPaths: p,
                 resumeCheckpointPath: targetResumeCheckpointPath
@@ -1058,7 +1061,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         console.log(`[training-cycle] skip train-value-policy iteration=${iterationIndex} reason=disabled`);
         recordSkippedStep('train-value-policy', 'disabled', { trainValueHeadEnabled: false });
     } else if (trainValueThisIteration) {
-        runManagedStep('train-value-policy', args.pythonPath, buildValueTrainingCommandArgs({
+        onnxHeadSteps.value = runManagedStep('train-value-policy', args.pythonPath, buildValueTrainingCommandArgs({
             args,
             iterationPaths: p,
             resumeCheckpointPath: valueResumeCheckpointPath
@@ -1069,6 +1072,23 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         console.log(`[training-cycle] skip train-value-policy iteration=${iterationIndex} cadence_every=${args.trainValueEvery}`);
         recordSkippedStep('train-value-policy', 'cadence', { every: args.trainValueEvery });
     }
+
+    // What each ONNX head actually is in this iteration (produced, reused, retained by cadence, or
+    // disabled). The gate and promotion receive exactly this bundle.
+    const toHeadStep = (step: any) => (step ? { ran: true, reused: !!step.reused } : { ran: false });
+    const onnxBundle = resolveIterationOnnxBundle({
+        args,
+        iterationPaths: p,
+        hasTargetTrainingData,
+        headSteps: {
+            primary: toHeadStep(onnxHeadSteps.primary),
+            card: toHeadStep(onnxHeadSteps.card),
+            target: toHeadStep(onnxHeadSteps.target),
+            value: toHeadStep(onnxHeadSteps.value)
+        }
+    });
+    fs.mkdirSync(path.dirname(p.onnxBundlePath), { recursive: true });
+    fs.writeFileSync(p.onnxBundlePath, JSON.stringify(onnxBundle, null, 2), 'utf8');
 
     let quickPayload = null;
     let quickPassed = false;
@@ -1197,7 +1217,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             const onnxStep = runManagedStep('adoption-onnx-gate', process.execPath, buildOnnxGateCommandArgs({
                 args,
                 iterationPaths: p,
-                hasTargetTrainingData,
+                onnxBundle,
                 onnxConfig: {
                     seed: onnxGateSeed,
                     seedCount: onnxGateSeedConfig.seedCount,
@@ -1245,7 +1265,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         const adoptionResultPath = (args.promotionMode !== 'strict' && !finalPassed)
             ? p.quickAdoptionPath
             : p.finalAdoptionPath;
-        const promoteArgs = buildPromotionCommandArgs(args, p, adoptionResultPath, hasTargetTrainingData);
+        const promoteArgs = buildPromotionCommandArgs(args, p, adoptionResultPath, onnxBundle);
         if (args.promotionMode === 'onnx-primary' && !finalPassed) {
             promoteArgs.push('--force');
         }
@@ -1689,6 +1709,7 @@ export = {
     shouldReuseStepArtifacts,
     buildInitialGuideModelPoolPaths,
     buildIterationPaths,
+    runIteration,
     collectTransientSelfplayArtifactPaths,
     cleanupTransientSelfplayArtifacts,
     hasCoordinatePendingSelectionRecords,
@@ -1701,6 +1722,7 @@ export = {
     getPrimaryResumeCheckpointPath,
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
+    resolveIterationOnnxBundle,
     buildCandidateOnnxBundleArgs,
     buildTargetOnnxBundleArgs,
     buildOnnxGateCommandArgs,

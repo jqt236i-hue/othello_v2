@@ -16,6 +16,11 @@ import { readSearchStoneSupply, resolveSearchRemainingPlacements } from './cpu-s
  * (destroyHandMargin) must beat the best root that does not by a margin.
  * The clock keeps a judgment within 5 s. Canonical actions and turn starts share the same
  * accounting and rules. */
+// The policy owns its decision memory (turn plan) so every caller, including
+// headless selfplay, gets the same per-turn behaviour from this version.
+export { createLv13DecisionMemory as createCpuDecisionMemory,
+    LV13_DECISION_MEMORY_PROTOCOL as CPU_DECISION_MEMORY_PROTOCOL } from './cpu-lv13-turn-memory';
+
 export const LV13_SEARCH_CONFIG = Object.freeze({
     version: 'lv13-keep-relocation', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,

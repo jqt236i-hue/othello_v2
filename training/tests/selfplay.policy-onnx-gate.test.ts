@@ -1,4 +1,6 @@
+import * as crypto from 'crypto';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 const {
     parseArgs,
@@ -7,8 +9,10 @@ const {
     buildUiLevelMatchArgs,
     buildPatchedModelAssetManifestPayload,
     collectOnnxDiagnostics,
-    computeOnnxGateDecision
+    computeOnnxGateDecision,
+    runOnnxGate
 } = require('../scripts/benchmark-policy-onnx-gate');
+const GateContract = require('../scripts/policy-onnx-browser-gate-contract');
 
 function writeOnnxPair(onnxPath, tag) {
     const metaPath = `${onnxPath}.meta.json`;
@@ -280,24 +284,51 @@ describe('selfplay onnx gate benchmark script', () => {
         ]);
     });
 
-    test('buildUiLevelMatchArgs waits for auxiliary models when requested', () => {
+    test('buildUiLevelMatchArgs emits only browser gate flags that the CLI parser and runtime status understand', () => {
         const args = buildUiLevelMatchArgs({
             blackLevel: 6,
             whiteLevel: 6,
             seed: 123,
             timeoutMs: 180000,
             onnxWaitMs: 45000,
-            requireCardModelLoaded: true,
             requireTargetModelLoaded: true,
             requireValueModelLoaded: true
         }, path.resolve('data', 'runs', 'onnx-gate.out.json'));
+        const flags = args.filter((value: string) => /^--require-.*loaded$/.test(value));
+        expect(flags).toEqual(['--require-onnx-loaded', '--require-target-model-loaded', '--require-value-model-loaded']);
 
-        expect(args).toEqual(expect.arrayContaining([
-            '--require-onnx-loaded',
-            '--require-card-model-loaded',
-            '--require-target-model-loaded',
-            '--require-value-model-loaded'
-        ]));
+        // Every emitted flag is a real CLI capability (not silently ignored) ...
+        const { parseArgs: parseUiLevelMatchArgs } = require('../../scripts/run-ui-level-match');
+        const parsed = parseUiLevelMatchArgs(flags);
+        expect([parsed.requireOnnxLoaded, parsed.requireTargetModelLoaded, parsed.requireValueModelLoaded]).toEqual([true, true, true]);
+        // ... backed by a field of the browser runtime status.
+        const runtime = require(path.resolve(__dirname, '..', '..', 'game', 'ai', 'policy-onnx-runtime.js'));
+        const status = runtime.getStatus();
+        for (const descriptor of GateContract.BROWSER_GATE_HEADS) {
+            expect(Object.prototype.hasOwnProperty.call(status, descriptor.statusField)).toBe(true);
+        }
+    });
+
+    test('a card head request is rejected by the gate builder, the gate CLI, and the browser match CLI', () => {
+        expect(() => buildUiLevelMatchArgs({ blackLevel: 6, whiteLevel: 6, seed: 1, timeoutMs: 180000, requireCardModelLoaded: true }, 'out.json'))
+            .toThrow(/unsupported head "card"/);
+        const { parseArgs: parseUiLevelMatchArgs } = require('../../scripts/run-ui-level-match');
+        expect(() => parseUiLevelMatchArgs(['--require-card-model-loaded'])).toThrow(/unsupported head "card"/);
+        expect(() => parseUiLevelMatchArgs(['--require-mystery-model-loaded'])).toThrow(/unsupported head "mystery"/);
+
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'onnx-gate-card-'));
+        try {
+            const candidate = writeOnnxPair(path.join(tempDir, 'candidate.onnx'), 'candidate');
+            const card = writeOnnxPair(path.join(tempDir, 'candidate-card.onnx'), 'card');
+            expect(() => parseArgs([
+                '--candidate-onnx', candidate.onnxPath,
+                '--target-onnx', path.join(tempDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(tempDir, 'policy-net.onnx.meta.json'),
+                '--candidate-card-onnx', card.onnxPath
+            ])).toThrow(/unsupported head "card"/);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 
     test('computeOnnxGateDecision enforces all constraints', () => {
@@ -402,5 +433,148 @@ describe('selfplay onnx gate benchmark script', () => {
         expect(diagnostics.averageLatencyMs).toBe(8);
         expect(diagnostics.p95LatencyMs).toBe(12);
         expect(diagnostics.maxLatencyMs).toBe(14);
+    });
+});
+
+describe('onnx gate model isolation (R08)', () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'onnx-gate-isolation-'));
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        jest.restoreAllMocks();
+    });
+
+    const sha = (bytes: Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
+
+    function snapshotDir(dir: string) {
+        const out: Record<string, { sha: string; mtimeMs: number }> = {};
+        const visit = (current: string) => {
+            if (!fs.existsSync(current)) return;
+            for (const name of fs.readdirSync(current).sort()) {
+                const full = path.join(current, name);
+                const stat = fs.statSync(full);
+                if (stat.isDirectory()) visit(full);
+                else out[path.relative(dir, full)] = { sha: sha(fs.readFileSync(full)), mtimeMs: stat.mtimeMs };
+            }
+        };
+        visit(dir);
+        return out;
+    }
+
+    function setupLane(name: string, bytes: number[]) {
+        const serveRoot = path.join(tempDir, 'repo');
+        const rootModels = path.join(serveRoot, 'data', 'models');
+        if (!fs.existsSync(rootModels)) {
+            fs.mkdirSync(rootModels, { recursive: true });
+            fs.writeFileSync(path.join(rootModels, 'policy-net.onnx'), Buffer.from([9, 9, 9]));
+            fs.writeFileSync(path.join(rootModels, 'policy-net.onnx.meta.json'), '{"tag":"root"}');
+            fs.writeFileSync(path.join(rootModels, 'model-assets.json'), JSON.stringify({ schemaVersion: 'model_assets.v1', files: ['data/models/othello/policy-table.json'] }));
+        }
+        const laneDir = path.join(tempDir, 'lanes', name);
+        fs.mkdirSync(laneDir, { recursive: true });
+        const candidatePath = path.join(laneDir, `policy-net.candidate.${name}.onnx`);
+        fs.writeFileSync(candidatePath, Buffer.from(bytes));
+        fs.writeFileSync(`${candidatePath}.meta.json`, JSON.stringify({ tag: name }));
+        const options = parseArgs([
+            '--candidate-onnx', candidatePath,
+            '--target-onnx', path.join(laneDir, 'policy-net.onnx'),
+            '--target-onnx-meta', path.join(laneDir, 'policy-net.onnx.meta.json'),
+            '--games', '1',
+            '--jobs', '1',
+            '--max-total-ms', '0'
+        ]);
+        return { serveRoot, rootModels, laneDir, options, candidateBytes: Buffer.from(bytes) };
+    }
+
+    // Stands in for run-ui-level-match: the "page" reads data/models/policy-net.onnx through the overlay.
+    function pageReadingOverlay(seen: Buffer[], options: { tamper?: boolean } = {}) {
+        return async (matchOptions: any) => {
+            const urlPath = 'data/models/policy-net.onnx';
+            const overlayFile = path.join(matchOptions.modelOverlayDir, ...urlPath.split('/'));
+            const bytes = fs.readFileSync(overlayFile);
+            seen.push(bytes);
+            await new Promise((resolve) => setImmediate(resolve));
+            return {
+                result: { winner: 'draw' },
+                runtimeStatus: { onnx: { loaded: true } },
+                modelOverlay: { dir: matchOptions.modelOverlayDir, served: [{ path: urlPath, sha256: options.tamper ? 'other' : sha(bytes) }] },
+                consoleMessages: []
+            };
+        };
+    }
+
+    test('two lanes in parallel each read only their own candidate; root and the lanes stay unchanged', async () => {
+        const a = setupLane('lane-a', [1, 1, 1]);
+        const b = setupLane('lane-b', [2, 2, 2]);
+        const before = snapshotDir(path.join(tempDir, 'repo'));
+        const lanesBefore = snapshotDir(path.join(tempDir, 'lanes'));
+        const seenA: Buffer[] = [];
+        const seenB: Buffer[] = [];
+        const bundleBase = path.join(tempDir, 'bundles');
+        fs.mkdirSync(bundleBase);
+
+        const [resultA, resultB] = await Promise.all([
+            runOnnxGate(a.options, { serveRoot: a.serveRoot, bundleBaseDir: bundleBase, runUiLevelMatch: pageReadingOverlay(seenA) }),
+            runOnnxGate(b.options, { serveRoot: b.serveRoot, bundleBaseDir: bundleBase, runUiLevelMatch: pageReadingOverlay(seenB) })
+        ]);
+
+        expect(seenA.length).toBeGreaterThan(0);
+        expect(seenA.every((bytes) => bytes.equals(a.candidateBytes))).toBe(true);
+        expect(seenB.every((bytes) => bytes.equals(b.candidateBytes))).toBe(true);
+        expect(resultA.decision.modelIdentityMismatchCount).toBe(0);
+        expect(resultA.modelBundle.files).toEqual(expect.arrayContaining([
+            expect.objectContaining({ head: 'primary', kind: 'model', urlPath: 'data/models/policy-net.onnx', sha256: sha(a.candidateBytes) })
+        ]));
+        expect(resultB.modelBundle.files[0].sha256).toBe(sha(b.candidateBytes));
+        expect(snapshotDir(path.join(tempDir, 'repo'))).toEqual(before);
+        expect(snapshotDir(path.join(tempDir, 'lanes'))).toEqual(lanesBefore);
+        expect(fs.readdirSync(bundleBase)).toEqual([]);
+    });
+
+    test('a failing match leaves root untouched and removes the gate bundle', async () => {
+        const a = setupLane('lane-a', [3, 3, 3]);
+        const before = snapshotDir(path.join(tempDir, 'repo'));
+        const bundleBase = path.join(tempDir, 'bundles');
+        fs.mkdirSync(bundleBase);
+        const result = await runOnnxGate(a.options, {
+            serveRoot: a.serveRoot,
+            bundleBaseDir: bundleBase,
+            runUiLevelMatch: async () => { throw new Error('browser crashed'); }
+        });
+        expect(result.decision.passed).toBe(false);
+        expect(snapshotDir(path.join(tempDir, 'repo'))).toEqual(before);
+        expect(fs.readdirSync(bundleBase)).toEqual([]);
+    });
+
+    test('an interrupted gate (unexpected error) still leaves root untouched and removes the bundle', async () => {
+        const a = setupLane('lane-a', [4, 4, 4]);
+        const before = snapshotDir(path.join(tempDir, 'repo'));
+        const bundleBase = path.join(tempDir, 'bundles');
+        fs.mkdirSync(bundleBase);
+        const interruptingOptions = { ...a.options, get matchRetries() { throw new Error('interrupted'); } };
+        await expect(runOnnxGate(interruptingOptions, {
+            serveRoot: a.serveRoot,
+            bundleBaseDir: bundleBase,
+            runUiLevelMatch: pageReadingOverlay([])
+        })).rejects.toThrow('interrupted');
+        expect(snapshotDir(path.join(tempDir, 'repo'))).toEqual(before);
+        expect(fs.readdirSync(bundleBase)).toEqual([]);
+    });
+
+    test('the gate fails when the page did not read the candidate bytes', async () => {
+        const a = setupLane('lane-a', [5, 5, 5]);
+        const result = await runOnnxGate(a.options, {
+            serveRoot: a.serveRoot,
+            bundleBaseDir: fs.mkdtempSync(path.join(tempDir, 'bundles-')),
+            runUiLevelMatch: pageReadingOverlay([], { tamper: true })
+        });
+        expect(result.decision.passedByModelIdentity).toBe(false);
+        expect(result.decision.passed).toBe(false);
+        expect(result.diagnostics.modelIdentityMismatches).toEqual(['data/models/policy-net.onnx']);
     });
 });

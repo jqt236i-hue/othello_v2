@@ -5,7 +5,8 @@ const {
     applyBenchmarkModeAfterInit,
     buildFailureSnapshot,
     buildMatchQuery,
-    resolveServeRoot
+    resolveServeRoot,
+    startServer
 } = require('../scripts/run-ui-level-match');
 
 describe('ui level match script args', () => {
@@ -148,5 +149,50 @@ describe('ui level match script args', () => {
                 url: 'http://127.0.0.1:8123/data/models/missing.onnx'
             }
         ]);
+    });
+});
+
+describe('ui level match gate-only model overlay (R08)', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const http = require('http');
+    const crypto = require('crypto');
+
+    function get(port: number, urlPath: string): Promise<{ status: number; body: Buffer }> {
+        return new Promise((resolve, reject) => {
+            http.get({ host: '127.0.0.1', port, path: urlPath }, (res: any) => {
+                const chunks: Buffer[] = [];
+                res.on('data', (chunk: Buffer) => chunks.push(chunk));
+                res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
+            }).on('error', reject);
+        });
+    }
+
+    test('serves overlay files in place of root model files, records them, and leaves root alone', async () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-level-overlay-'));
+        const rootDir = path.join(tempDir, 'root');
+        const overlayDir = path.join(tempDir, 'bundle');
+        fs.mkdirSync(path.join(rootDir, 'data', 'models'), { recursive: true });
+        fs.mkdirSync(path.join(overlayDir, 'data', 'models'), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, 'index.html'), '<html></html>');
+        fs.writeFileSync(path.join(rootDir, 'data', 'models', 'policy-net.onnx'), 'root-model');
+        fs.writeFileSync(path.join(rootDir, 'data', 'models', 'othello.json'), 'root-only');
+        fs.writeFileSync(path.join(overlayDir, 'data', 'models', 'policy-net.onnx'), 'candidate-model');
+        const served: any[] = [];
+        const server = startServer(rootDir, 0, overlayDir, served);
+        await new Promise((resolve) => server.once('listening', resolve));
+        try {
+            const port = server.address().port;
+            expect((await get(port, '/data/models/policy-net.onnx?v=1')).body.toString()).toBe('candidate-model');
+            expect((await get(port, '/data/models/othello.json')).body.toString()).toBe('root-only');
+            expect(served).toEqual([{ path: 'data/models/policy-net.onnx', bytes: 15,
+                sha256: crypto.createHash('sha256').update('candidate-model').digest('hex') }]);
+            expect(fs.readFileSync(path.join(rootDir, 'data', 'models', 'policy-net.onnx'), 'utf8')).toBe('root-model');
+            expect(parseArgs(['--model-overlay-dir', overlayDir]).modelOverlayDir).toBe(path.resolve(overlayDir));
+        } finally {
+            await new Promise((resolve) => server.close(resolve));
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 });

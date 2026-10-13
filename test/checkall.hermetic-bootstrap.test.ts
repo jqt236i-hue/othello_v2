@@ -4,9 +4,9 @@ import * as path from 'path';
 
 const {
   REQUIRED_DIST_SCRIPTS,
-  findStaleCompiledSources,
   runCheckallBootstrap
 } = require('../scripts/checkall-bootstrap.js');
+const { findStaleCompiledSources } = require('../scripts/check-compiled-snapshot');
 
 type FakeResult = {
   status: number | null;
@@ -85,35 +85,38 @@ describe('checkall hermetic bootstrap', () => {
     expect(spawnSync).toHaveBeenCalledTimes(2);
   });
 
-  test('prepared mode launches only the runner when the compiled snapshot is fresh', () => {
-    const spawnSync = jest.fn(() => success());
+  test('prepared mode skips compilation and checks snapshot freshness before the runner', () => {
+    const calls: string[][] = [];
+    const spawnSync = jest.fn((_command: string, args: string[]) => {
+      calls.push(args);
+      return success();
+    });
     const result = runCheckallBootstrap({
       rootDir: path.resolve('fixture-root'),
       prepared: true,
       spawnSync,
-      existsSync: () => true,
-      findStaleCompiledSources: () => []
+      existsSync: () => true
     });
 
     expect(result).toEqual({ stage: 'runner', status: 0, signal: null });
-    expect(spawnSync).toHaveBeenCalledTimes(1);
-    expect((spawnSync.mock.calls[0] as unknown[])[1]).toEqual([
-      expect.stringMatching(/fixture-root[\\/]dist[\\/]scripts[\\/]run-all-checks\.js$/)
+    expect(calls).toEqual([
+      [expect.stringMatching(/fixture-root[\\/]dist[\\/]scripts[\\/]check-compiled-snapshot\.js$/)],
+      [expect.stringMatching(/fixture-root[\\/]dist[\\/]scripts[\\/]run-all-checks\.js$/)]
     ]);
+    expect(calls.some((args) => args.some((arg) => /typescript[\\/]bin[\\/]tsc/.test(arg)))).toBe(false);
   });
 
   test('prepared mode fails fast on a stale snapshot instead of compiling or checking it', () => {
-    const spawnSync = jest.fn(() => success());
+    const spawnSync = jest.fn(() => ({ status: 2, signal: null }));
     const result = runCheckallBootstrap({
       rootDir: path.resolve('fixture-root'),
       prepared: true,
       spawnSync,
-      existsSync: () => true,
-      findStaleCompiledSources: () => ['scripts/check-worker-mirror.ts']
+      existsSync: () => true
     });
 
-    expect(result).toEqual({ stage: 'snapshot', status: 2, signal: null, stale: ['scripts/check-worker-mirror.ts'] });
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(result).toEqual({ stage: 'snapshot', status: 2, signal: null });
+    expect(spawnSync).toHaveBeenCalledTimes(1);
   });
 
   test('stale detection compares every tsconfig.build.json source with its dist output', () => {
@@ -143,5 +146,11 @@ describe('checkall hermetic bootstrap', () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  test('the bootstrap stays a thin CLI adapter in the JS inventory', () => {
+    const inventory = require('../scripts/inventory-js-legacy');
+    const source = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'checkall-bootstrap.js'), 'utf8');
+    expect(inventory.classify('scripts/checkall-bootstrap.js', source)).toBe('node-cli-adapter');
   });
 });

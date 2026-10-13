@@ -57,8 +57,12 @@ export type ProductionCpu = {
     memory: NonNullable<Lv10TurnDeps['rejectedActions']>;
 };
 
-export function createProductionCpu(advise: ProductionCpu['advise'], runTurn = runLv10Turn): ProductionCpu {
-    return { advise, runTurn, memory: { identity: null, actions: [] } };
+/** createMemory is the policy's own decision-memory factory (for example the
+ * Lv13 turn plan). Without one the CPU keeps the plain rejection memory; a
+ * frozen policy is never given a newer policy's memory from outside. */
+export function createProductionCpu(advise: ProductionCpu['advise'], runTurn = runLv10Turn,
+    createMemory?: () => ProductionCpu['memory']): ProductionCpu {
+    return { advise, runTurn, memory: createMemory ? createMemory() : { identity: null, actions: [] } };
 }
 
 /** Calls exactly the normal public-observation/rejection/cancellation policy.

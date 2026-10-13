@@ -5,6 +5,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { spawn } from 'child_process';
+import * as crypto from 'crypto';
+import GateContract = require('./policy-onnx-browser-gate-contract');
 import _training_resolved_config_utils from './training-resolved-config-utils';
 const { loadResolvedTrainingConfig, applyOnnxGateArgsFromResolvedConfig } = _training_resolved_config_utils;
 import _policy_seed_utils from './policy-seed-utils';
@@ -143,9 +145,9 @@ function parseArgs(argv: string[]) {
     if (!fs.existsSync(args.candidateOnnxMetaPath)) throw new Error(`candidate onnx meta not found: ${args.candidateOnnxMetaPath}`);
     if (!args.targetOnnxPath) throw new Error('--target-onnx is required unless provided by --resolved-config');
     if (!args.targetOnnxMetaPath) throw new Error('--target-onnx-meta is required unless provided by --resolved-config');
-    if (args.candidateCardOnnxPath) {
-        if (!args.targetCardOnnxPath) throw new Error('--target-card-onnx is required when --candidate-card-onnx is provided or must come from --resolved-config');
-        if (!args.targetCardOnnxMetaPath) throw new Error('--target-card-onnx-meta is required when --candidate-card-onnx is provided or must come from --resolved-config');
+    if (args.candidateCardOnnxPath || args.candidateCardOnnxMetaPath) {
+        // The browser runtime cannot load or report a card head; never accept and then ignore it.
+        GateContract.assertBrowserGateHeadsSupported(['card'], 'onnx-gate');
     }
     if (args.candidateTargetOnnxPath) {
         if (!args.targetTargetOnnxPath) throw new Error('--target-target-onnx is required when --candidate-target-onnx is provided or must come from --resolved-config');
@@ -154,11 +156,6 @@ function parseArgs(argv: string[]) {
     if (args.candidateValueOnnxPath) {
         if (!args.targetValueOnnxPath) throw new Error('--target-value-onnx is required when --candidate-value-onnx is provided or must come from --resolved-config');
         if (!args.targetValueOnnxMetaPath) throw new Error('--target-value-onnx-meta is required when --candidate-value-onnx is provided or must come from --resolved-config');
-    }
-    if (args.candidateCardOnnxPath) {
-        if (!args.candidateCardOnnxMetaPath) args.candidateCardOnnxMetaPath = `${args.candidateCardOnnxPath}.meta.json`;
-        if (!fs.existsSync(args.candidateCardOnnxPath)) throw new Error(`candidate card onnx not found: ${args.candidateCardOnnxPath}`);
-        if (!fs.existsSync(args.candidateCardOnnxMetaPath)) throw new Error(`candidate card onnx meta not found: ${args.candidateCardOnnxMetaPath}`);
     }
     if (args.candidateTargetOnnxPath) {
         if (!args.candidateTargetOnnxMetaPath) args.candidateTargetOnnxMetaPath = `${args.candidateTargetOnnxPath}.meta.json`;
@@ -199,8 +196,7 @@ function printHelp() {
         '      --max-total-ms <n>       Total gate time budget in ms (default: 900000, 0=off)',
         '      --candidate-onnx <path>  Candidate ONNX file path (required)',
         '      --candidate-onnx-meta <path> Candidate ONNX meta path (default: <candidate>.meta.json)',
-        '      --candidate-card-onnx <path> Optional candidate card-specialist ONNX path',
-        '      --candidate-card-onnx-meta <path> Candidate card-specialist meta path (default: <candidate-card>.meta.json)',
+        '      --candidate-card-onnx <path> Rejected: the card head is research-only and the browser runtime cannot verify it',
         '      --candidate-target-onnx <path> Optional candidate pending-target ONNX path',
         '      --candidate-target-onnx-meta <path> Candidate pending-target meta path (default: <candidate-target>.meta.json)',
         '      --candidate-value-onnx <path> Optional candidate value ONNX path',
@@ -218,20 +214,6 @@ function printHelp() {
         '      --verbose                Print match-level logs',
         '  -h, --help                   Show this help'
     ].join('\n'));
-}
-
-function backupFile(filePath: string) {
-    if (!fs.existsSync(filePath)) return null;
-    return fs.readFileSync(filePath);
-}
-
-function restoreFile(filePath: any, payload: any) {
-    if (payload === null) {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        return;
-    }
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, payload);
 }
 
 const MODEL_ASSET_MANIFEST_SCHEMA_VERSION = 'model_assets.v1';
@@ -282,42 +264,62 @@ function readModelAssetManifestPayload(manifestPath: string) {
     }
 }
 
-function captureModelAssetManifestBackups(descriptors: any[]) {
-    const byManifest = new Map<string, { manifestPath: string; backup: Buffer | null; assetPaths: string[] }>();
-    for (const descriptor of descriptors) {
-        if (!descriptor || !descriptor.targetPath || !descriptor.targetMetaPath) continue;
-        const manifestPath = path.join(path.dirname(descriptor.targetPath), MODEL_ASSET_MANIFEST_FILE);
-        const key = path.resolve(manifestPath);
-        if (!byManifest.has(key)) {
-            byManifest.set(key, {
-                manifestPath,
-                backup: backupFile(manifestPath),
-                assetPaths: []
-            });
+function sha256File(filePath: string) {
+    return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+/**
+ * Builds a gate-only model bundle. The browser page loads data/models/<file> exactly as in normal
+ * play; run-ui-level-match serves this bundle's files in place of those paths, so the page reads
+ * the candidate while the root delivery directory (and every other lane) is never written.
+ */
+function createOnnxGateModelBundle(descriptors: any[], options: { serveRoot?: string; baseDir?: string } = {}) {
+    const serveRoot = path.resolve(options.serveRoot || process.cwd());
+    const dir = fs.mkdtempSync(path.join(options.baseDir || os.tmpdir(), 'onnx-gate-bundle-'));
+    const files: Array<{ head: string; kind: 'model' | 'meta'; urlPath: string; sourcePath: string; sha256: string }> = [];
+    try {
+        for (const descriptor of descriptors) {
+            for (const [kind, sourcePath, targetPath] of [
+                ['model', descriptor.candidatePath, descriptor.targetPath],
+                ['meta', descriptor.candidateMetaPath, descriptor.targetMetaPath]
+            ] as const) {
+                if (!sourcePath || !targetPath) throw new Error(`[onnx-gate] ${descriptor.key} ${kind} path is required`);
+                const urlPath = `data/models/${path.basename(targetPath)}`;
+                const bundlePath = path.join(dir, ...urlPath.split('/'));
+                fs.mkdirSync(path.dirname(bundlePath), { recursive: true });
+                fs.copyFileSync(sourcePath, bundlePath);
+                files.push({ head: descriptor.key, kind, urlPath, sourcePath: path.resolve(sourcePath), sha256: sha256File(bundlePath) });
+            }
         }
-        const entry = byManifest.get(key)!;
-        entry.assetPaths.push(descriptor.targetPath, descriptor.targetMetaPath);
-    }
-    return Array.from(byManifest.values());
-}
-
-function patchModelAssetManifestsForOnnxGate(backups: any[]) {
-    for (const backup of backups) {
-        const existingPayload = readModelAssetManifestPayload(backup.manifestPath);
-        const patchedPayload = buildPatchedModelAssetManifestPayload(
-            existingPayload,
-            backup.assetPaths,
-            process.cwd()
+        const rootManifestPath = path.join(serveRoot, 'data', 'models', MODEL_ASSET_MANIFEST_FILE);
+        const manifest = buildPatchedModelAssetManifestPayload(
+            readModelAssetManifestPayload(rootManifestPath),
+            files.map((file) => file.urlPath),
+            serveRoot
         );
-        fs.mkdirSync(path.dirname(backup.manifestPath), { recursive: true });
-        fs.writeFileSync(backup.manifestPath, JSON.stringify(patchedPayload, null, 2), 'utf8');
+        fs.writeFileSync(path.join(dir, 'data', 'models', MODEL_ASSET_MANIFEST_FILE), JSON.stringify(manifest, null, 2), 'utf8');
+    } catch (err) {
+        fs.rmSync(dir, { recursive: true, force: true });
+        throw err;
     }
+    return {
+        dir,
+        files,
+        cleanup() {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
+    };
 }
 
-function restoreModelAssetManifestBackups(backups: any[]) {
-    for (const backup of backups) {
-        restoreFile(backup.manifestPath, backup.backup);
-    }
+/** Model files of the bundle that the page did not read with the bundle's exact bytes. */
+function findUnverifiedBundleModels(bundle: any, matchPayload: any, heads: readonly string[]) {
+    const served = matchPayload && matchPayload.modelOverlay && Array.isArray(matchPayload.modelOverlay.served)
+        ? matchPayload.modelOverlay.served
+        : [];
+    return bundle.files
+        .filter((file: any) => file.kind === 'model' && heads.includes(file.head))
+        .filter((file: any) => !served.some((entry: any) => entry && entry.path === file.urlPath && entry.sha256 === file.sha256))
+        .map((file: any) => file.urlPath);
 }
 
 const ONNX_ARTIFACT_VARIANTS = Object.freeze([
@@ -328,14 +330,6 @@ const ONNX_ARTIFACT_VARIANTS = Object.freeze([
         targetPathKey: 'targetOnnxPath',
         targetMetaPathKey: 'targetOnnxMetaPath',
         required: true
-    }),
-    Object.freeze({
-        key: 'card',
-        candidatePathKey: 'candidateCardOnnxPath',
-        candidateMetaPathKey: 'candidateCardOnnxMetaPath',
-        targetPathKey: 'targetCardOnnxPath',
-        targetMetaPathKey: 'targetCardOnnxMetaPath',
-        required: false
     }),
     Object.freeze({
         key: 'target',
@@ -370,32 +364,6 @@ function buildOnnxArtifactDescriptors(options: any) {
             targetMetaPath
         };
     }).filter(Boolean);
-}
-
-function captureOnnxArtifactBackups(descriptors: any) {
-    return descriptors.map((descriptor: any) => ({
-        ...descriptor,
-        targetBackup: backupFile(descriptor.targetPath),
-        targetMetaBackup: backupFile(descriptor.targetMetaPath)
-    }));
-}
-
-function copyOnnxArtifactsIntoTargets(descriptors: any) {
-    for (const descriptor of descriptors) {
-        fs.mkdirSync(path.dirname(descriptor.targetPath), { recursive: true });
-        fs.mkdirSync(path.dirname(descriptor.targetMetaPath), { recursive: true });
-        const sameTargetPath = path.resolve(descriptor.candidatePath) === path.resolve(descriptor.targetPath);
-        const sameTargetMetaPath = path.resolve(descriptor.candidateMetaPath) === path.resolve(descriptor.targetMetaPath);
-        if (!sameTargetPath) fs.copyFileSync(descriptor.candidatePath, descriptor.targetPath);
-        if (!sameTargetMetaPath) fs.copyFileSync(descriptor.candidateMetaPath, descriptor.targetMetaPath);
-    }
-}
-
-function restoreOnnxArtifactBackups(descriptors: any) {
-    for (const descriptor of descriptors) {
-        restoreFile(descriptor.targetPath, descriptor.targetBackup);
-        restoreFile(descriptor.targetMetaPath, descriptor.targetMetaBackup);
-    }
 }
 
 function scoreWinnerForCandidate(winner: any, candidateColor: any) {
@@ -550,6 +518,9 @@ function computeOnnxGateDecision(perSeed: any, options: any, diagnostics: any) {
     const passedByValueLoaded = !requireValueLoaded || (totalMatches > 0 && valueLoadedMatches >= totalMatches);
     const passedByNoValueRuntimeErrors = !requireValueLoaded || valueRuntimeErrorCount === 0;
     const passedByNoMatchErrors = matchErrorCount === 0;
+    // Every match must have loaded the candidate bytes from the gate bundle (never another lane or root).
+    const modelIdentityMismatchCount = Number(diagnostics && diagnostics.modelIdentityMismatchCount) || 0;
+    const passedByModelIdentity = modelIdentityMismatchCount === 0;
     const passedByAverageLatency = options.maxAverageLatencyMs <= 0
         ? true
         : (latencyCallCount > 0 && averageLatencyMs <= options.maxAverageLatencyMs);
@@ -571,6 +542,7 @@ function computeOnnxGateDecision(perSeed: any, options: any, diagnostics: any) {
         passedByValueLoaded &&
         passedByNoValueRuntimeErrors &&
         passedByNoMatchErrors &&
+        passedByModelIdentity &&
         passedByAverageLatency &&
         passedByP95Latency &&
         passedByMaxLatency;
@@ -612,6 +584,8 @@ function computeOnnxGateDecision(perSeed: any, options: any, diagnostics: any) {
         passedByValueLoaded,
         passedByNoValueRuntimeErrors,
         passedByNoMatchErrors,
+        passedByModelIdentity,
+        modelIdentityMismatchCount,
         passedByAverageLatency,
         passedByP95Latency,
         passedByMaxLatency,
@@ -620,18 +594,20 @@ function computeOnnxGateDecision(perSeed: any, options: any, diagnostics: any) {
 }
 
 function buildUiLevelMatchArgs(options: any, outPath: any) {
+    const heads = ['primary'];
+    if (options.requireCardModelLoaded) heads.push('card');
+    if (options.requireTargetModelLoaded) heads.push('target');
+    if (options.requireValueModelLoaded) heads.push('value');
     const args = [
         path.resolve('scripts', 'run-ui-level-match.js'),
         '--black', String(options.blackLevel),
         '--white', String(options.whiteLevel),
         '--seed', String(options.seed),
         '--timeout-ms', String(options.timeoutMs),
-        '--require-onnx-loaded'
+        // Wait flags come from the shared browser gate contract; an unsupported head throws here.
+        ...GateContract.buildBrowserGateRequireFlags(heads)
     ];
-
-    if (options.requireCardModelLoaded) args.push('--require-card-model-loaded');
-    if (options.requireTargetModelLoaded) args.push('--require-target-model-loaded');
-    if (options.requireValueModelLoaded) args.push('--require-value-model-loaded');
+    if (options.modelOverlayDir) args.push('--model-overlay-dir', options.modelOverlayDir);
 
     args.push(
         '--onnx-wait-ms', String(options.onnxWaitMs || Math.max(10000, Math.floor(options.timeoutMs * 0.5))),
@@ -724,12 +700,15 @@ function buildMatchTasks(options: any, seeds: any) {
     return tasks;
 }
 
-async function runOnnxGate(options: any) {
-    const requireCardLoaded = !!options.candidateCardOnnxPath;
+async function runOnnxGate(options: any, hooks: any = {}) {
+    if (options.candidateCardOnnxPath) GateContract.assertBrowserGateHeadsSupported(['card'], 'onnx-gate');
+    // The card head is research-only and never part of the browser gate (see policy-onnx-browser-gate-contract).
+    const requireCardLoaded = false;
     const requireTargetLoaded = !!options.candidateTargetOnnxPath;
     const requireValueLoaded = !!options.candidateValueOnnxPath;
-    const artifactDescriptors = captureOnnxArtifactBackups(buildOnnxArtifactDescriptors(options));
-    const manifestBackups = captureModelAssetManifestBackups(artifactDescriptors);
+    const verifiedHeads = ['primary', ...(requireTargetLoaded ? ['target'] : []), ...(requireValueLoaded ? ['value'] : [])];
+    const runMatch = typeof hooks.runUiLevelMatch === 'function' ? hooks.runUiLevelMatch : runUiLevelMatch;
+    const artifactDescriptors = buildOnnxArtifactDescriptors(options);
     const seeds = buildSeedList(options.seed, options.seedCount, options.seedStride);
     const seedState = seeds.map((seed: any) => ({
         seed,
@@ -757,13 +736,14 @@ async function runOnnxGate(options: any) {
         timedOut: false,
         requireCardLoaded,
         requireTargetLoaded,
-        requireValueLoaded
+        requireValueLoaded,
+        modelIdentityMismatchCount: 0,
+        modelIdentityMismatches: [] as string[]
     };
     const gateStartedAt = Date.now();
+    const bundle = createOnnxGateModelBundle(artifactDescriptors, { serveRoot: hooks.serveRoot, baseDir: hooks.bundleBaseDir });
 
     try {
-        copyOnnxArtifactsIntoTargets(artifactDescriptors);
-        patchModelAssetManifestsForOnnxGate(manifestBackups);
 
         const tasks = buildMatchTasks(options, seeds);
         const jobs = Math.max(1, Math.min(options.jobs, tasks.length));
@@ -795,17 +775,25 @@ async function runOnnxGate(options: any) {
                 while (!completed && attempt < maxAttempts) {
                     attempt += 1;
                     try {
-                    const payload: any = await runUiLevelMatch({
+                    const payload: any = await runMatch({
                         blackLevel: task.blackLevel,
                         whiteLevel: task.whiteLevel,
                         seed: task.gameSeed,
                         timeoutMs: options.timeoutMs,
                         onnxWaitMs: Math.max(10000, Math.min(options.timeoutMs, 45000)),
-                        requireCardModelLoaded: requireCardLoaded,
                         requireTargetModelLoaded: requireTargetLoaded,
                         requireValueModelLoaded: requireValueLoaded,
+                        modelOverlayDir: bundle.dir,
                         verbose: options.verbose
                     });
+                        // The page must have read exactly the candidate bytes of every verified head.
+                        const unverified = findUnverifiedBundleModels(bundle, payload, verifiedHeads);
+                        if (unverified.length > 0) {
+                            diagnostics.modelIdentityMismatchCount += 1;
+                            for (const urlPath of unverified) {
+                                if (!diagnostics.modelIdentityMismatches.includes(urlPath)) diagnostics.modelIdentityMismatches.push(urlPath);
+                            }
+                        }
                         const score = scoreWinnerForCandidate(payload.result.winner, task.candidateColor);
                         state.scoreSum += score;
                         if (score === 1) state.totals.win += 1;
@@ -855,8 +843,7 @@ async function runOnnxGate(options: any) {
         for (let i = 0; i < jobs; i++) workers.push(runWorker());
         await Promise.all(workers);
     } finally {
-        restoreModelAssetManifestBackups(manifestBackups);
-        restoreOnnxArtifactBackups(artifactDescriptors);
+        bundle.cleanup();
     }
 
     const perSeed = [];
@@ -908,6 +895,10 @@ async function runOnnxGate(options: any) {
         },
         seedSchedule,
         perSeed,
+        modelBundle: {
+            isolation: 'gate-only-overlay',
+            files: bundle.files.map((file: any) => ({ head: file.head, kind: file.kind, urlPath: file.urlPath, sourcePath: file.sourcePath, sha256: file.sha256 }))
+        },
         diagnostics,
         decision
     };
@@ -946,6 +937,8 @@ export = {
     parseArgs,
     buildSeedList,
     buildOnnxArtifactDescriptors,
+    createOnnxGateModelBundle,
+    findUnverifiedBundleModels,
     buildPatchedModelAssetManifestPayload,
     buildUiLevelMatchArgs,
     collectOnnxDiagnostics,

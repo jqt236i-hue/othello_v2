@@ -23,7 +23,8 @@ import TurnStartMarkerPhaseModule = require('./turn-start/marker-phase');
 import TurnStartPostProcessingModule = require('./turn-start/post-processing');
 import TurnStartTimerPhaseModule = require('./turn-start/timer-phase');
 import TheorySpawnResolutionModule = require('./theory-spawn-resolution');
-import { createCardRuntimeUnavailableError, isCardRuntimeUnavailableError } from '../logic/card-runtime-errors';
+import { isCardRuntimeUnavailableError } from '../logic/card-runtime-errors';
+import { requireTurnPhaseCapability } from './turn-runtime-services';
 
 const OwnerHelpersModule: any = Object.freeze({
     normalizePlayerKeyOptional: PlayerEncodingModule.parseSeatKeyOptional
@@ -430,12 +431,14 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
     // pure round rules). A missing static module fails at the runtime-unavailable boundary instead of
     // falling back to another rule body.
     function requireTurnHandoffPorts(handoffMethod: 'handOffCompletedTurn' | 'handOffTurnAfterSelection'): void {
-        if (!(ActionPhaseTurnHandoffModule && typeof (ActionPhaseTurnHandoffModule as any)[handoffMethod] === 'function')) {
-            throw createCardRuntimeUnavailableError(`turn-handoff.${handoffMethod}`, 'turn-phases');
-        }
-        if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-            throw createCardRuntimeUnavailableError('turn-round-state.advanceGameRoundAfterCompletedTurn', 'turn-phases');
-        }
+        requireTurnPhaseCapability(
+            `turn-handoff.${handoffMethod}`,
+            !!ActionPhaseTurnHandoffModule && typeof (ActionPhaseTurnHandoffModule as any)[handoffMethod] === 'function'
+        );
+        requireTurnPhaseCapability(
+            'turn-round-state.advanceGameRoundAfterCompletedTurn',
+            !!TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function'
+        );
     }
 
     function advanceRoundForHandoff(nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) {

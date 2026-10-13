@@ -7,6 +7,8 @@ import type { AddressInfo } from 'net';
 import * as path from 'path';
 import { chromium } from 'playwright';
 import CpuOpponentProfiles = require('../shared/cpu-opponent-profiles');
+import * as crypto from 'crypto';
+import GateContract = require('../training/scripts/policy-onnx-browser-gate-contract');
 
 function resolveMatchProfileId(level: number): string {
     if (!Number.isInteger(level) || level < 1 || level > 10) throw new Error('Unsupported CPU display level');
@@ -31,9 +33,18 @@ type LevelMatchArgs = {
     requireTargetModelLoaded: boolean;
     requireValueModelLoaded: boolean;
     onnxWaitMs: number;
+    /** Gate-only model bundle served in place of the matching data/models files (root is never modified). */
+    modelOverlayDir: string | null;
     headless: boolean;
     help: boolean;
 };
+
+// The browser gate capability contract decides which wait flags exist.
+const REQUIRE_FLAG_FIELDS: Readonly<Record<string, 'requireOnnxLoaded' | 'requireTargetModelLoaded' | 'requireValueModelLoaded'>> = Object.freeze({
+    primary: 'requireOnnxLoaded',
+    target: 'requireTargetModelLoaded',
+    value: 'requireValueModelLoaded'
+});
 
 type DiagnosticMessage = { type: string; text: string };
 type NetworkDiagnostic = {
@@ -57,6 +68,7 @@ function parseArgs(argv: string[]) {
         requireTargetModelLoaded: false,
         requireValueModelLoaded: false,
         onnxWaitMs: 30000,
+        modelOverlayDir: null,
         headless: true,
         help: false
     };
@@ -87,16 +99,18 @@ function parseArgs(argv: string[]) {
             args.timeoutMs = Number(argv[++i]);
             continue;
         }
-        if (a === '--require-onnx-loaded') {
-            args.requireOnnxLoaded = true;
+        const gateHead = GateContract.BROWSER_GATE_HEADS.find((descriptor) => descriptor.requireFlag === a);
+        if (gateHead) {
+            args[REQUIRE_FLAG_FIELDS[gateHead.head]] = true;
             continue;
         }
-        if (a === '--require-target-model-loaded') {
-            args.requireTargetModelLoaded = true;
-            continue;
+        if (/^--require-[a-z-]+-loaded$/.test(a)) {
+            // A capability this runtime cannot report must not be silently ignored.
+            const head = a.replace(/^--require-/, '').replace(/-(?:model-)?loaded$/, '');
+            GateContract.assertBrowserGateHeadsSupported([head], 'run-ui-level-match');
         }
-        if (a === '--require-value-model-loaded') {
-            args.requireValueModelLoaded = true;
+        if (a === '--model-overlay-dir') {
+            args.modelOverlayDir = path.resolve(process.cwd(), argv[++i]);
             continue;
         }
         if (a === '--onnx-wait-ms') {
@@ -114,6 +128,7 @@ function parseArgs(argv: string[]) {
     if (args.seed !== null && !Number.isFinite(args.seed)) throw new Error('--seed must be a number');
     if (!Number.isFinite(args.timeoutMs) || args.timeoutMs < 1000) throw new Error('--timeout-ms must be >= 1000');
     if (!Number.isFinite(args.onnxWaitMs) || args.onnxWaitMs < 1000) throw new Error('--onnx-wait-ms must be >= 1000');
+    if (args.modelOverlayDir !== null && !fs.existsSync(args.modelOverlayDir)) throw new Error(`--model-overlay-dir not found: ${args.modelOverlayDir}`);
 
     return args;
 }
@@ -133,17 +148,33 @@ function printHelp() {
         '  --require-target-model-loaded  Also wait for pending-target ONNX before start',
         '  --require-value-model-loaded  Also wait for value ONNX before start',
         '  --onnx-wait-ms <n>     Wait timeout for ONNX load check (default: 30000)',
+        '  --model-overlay-dir <dir>  Serve files under <dir> in place of the same paths (gate-only model bundle)',
         '  --headed          Run browser with UI',
         '  -h, --help        Show this help'
     ].join('\n'));
 }
 
-function startServer(rootDir: string, port = 0) {
+type ServedOverlayFile = { path: string; bytes: number; sha256: string };
+
+/** overlayDir: files that exist there are served instead of the same path under rootDir and
+ * recorded in servedOverlay, so a gate can prove which model bytes the page actually read. */
+function startServer(rootDir: string, port = 0, overlayDir: string | null = null, servedOverlay: ServedOverlayFile[] = []) {
     const server = http.createServer((req: any, res: any) => {
         let reqPath = req.url.split('?')[0];
         if (reqPath === '/') reqPath = '/index.html';
-        const filePath = path.join(rootDir, decodeURIComponent(reqPath));
+        const relativePath = decodeURIComponent(reqPath);
+        const overlayPath = overlayDir ? path.join(overlayDir, relativePath) : null;
+        const fromOverlay = !!(overlayPath && path.resolve(overlayPath).startsWith(path.resolve(overlayDir!) + path.sep)
+            && fs.existsSync(overlayPath) && fs.statSync(overlayPath).isFile());
+        const filePath = fromOverlay ? overlayPath! : path.join(rootDir, relativePath);
         fs.readFile(filePath, (err: any, data: any) => {
+            if (!err && fromOverlay) {
+                servedOverlay.push({
+                    path: relativePath.replace(/^\/+/, ''),
+                    bytes: data.length,
+                    sha256: crypto.createHash('sha256').update(data).digest('hex')
+                });
+            }
             if (err) {
                 res.statusCode = 404;
                 res.end('Not found');
@@ -342,7 +373,8 @@ async function closeMaintenanceNoticeIfPresent(page: any, timeoutMs = 5000) {
 async function runMatch(args: any) {
     const root = resolveServeRoot(__dirname);
     const startedAt = Date.now();
-    const server = startServer(root, 0);
+    const servedOverlay: ServedOverlayFile[] = [];
+    const server = startServer(root, 0, args.modelOverlayDir || null, servedOverlay);
     await new Promise(resolve => setTimeout(resolve, 200));
     const address = server.address() as AddressInfo | null;
     if (!address || typeof address === 'string') {
@@ -648,6 +680,7 @@ async function runMatch(args: any) {
             audit: typeof args.collectPage === 'function' ? await args.collectPage(page) : undefined,
             result,
             runtimeStatus,
+            modelOverlay: args.modelOverlayDir ? { dir: args.modelOverlayDir, served: servedOverlay.slice() } : null,
             consoleMessages,
             pageErrors,
             networkErrors
@@ -743,6 +776,7 @@ if (require.main === module) {
 export = {
     resolveMatchProfileId,
     parseArgs,
+    startServer,
     applyBenchmarkModeBeforeInit,
     applyBenchmarkModeAfterInit,
     buildFailureSnapshot,

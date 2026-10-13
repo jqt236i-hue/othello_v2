@@ -39,12 +39,12 @@
 | R04 | P1 | 個人画像の保存成功をDB確定前に通知する | 完了（Phase 2、実ブラウザ確認は Phase 6） |
 | R05 | P2 | プロフィールと遅延生成された名前入力の同期漏れ | 完了（Phase 5、実画面確認は Phase 6） |
 | R06 | P2 | 盤面拡張の矢印と透明入力領域の位置定義が不一致 | 完了（Phase 5、実画面確認は Phase 6） |
-| R07 | P1 | Lv13の通常CPUと自己対戦で継続計画・時間予算が異なる | 未着手 |
-| R08 | P1 | 学習モデルの検証が通常配信用モデルを一時上書きする | 未着手 |
-| R09 | P1 | 再開用chunkが設定・モデル・出力の同一性を確認しない | 未着手 |
-| R10 | P1 | chunk再利用時に不正着手の診断記録が統合から漏れ、消える | 未着手 |
-| R11 | P2 | 非対応のカード用ONNXを通常ブラウザ検証へ要求する | 未着手 |
-| R12 | P2 | 訓練を省略した回の未生成モデルを候補として渡す | 未着手 |
+| R07 | P1 | Lv13の通常CPUと自己対戦で継続計画・時間予算が異なる | 完了（Phase 3） |
+| R08 | P1 | 学習モデルの検証が通常配信用モデルを一時上書きする | 完了（Phase 3、実ブラウザでの gate 実行は対象外） |
+| R09 | P1 | 再開用chunkが設定・モデル・出力の同一性を確認しない | 完了（Phase 3） |
+| R10 | P1 | chunk再利用時に不正着手の診断記録が統合から漏れ、消える | 完了（Phase 3） |
+| R11 | P2 | 非対応のカード用ONNXを通常ブラウザ検証へ要求する | 完了（Phase 3） |
+| R12 | P2 | 訓練を省略した回の未生成モデルを候補として渡す | 完了（Phase 3） |
 | R13 | P2 | 対象選択registryと手書き分岐・転送一覧の多重管理 | 完了（Phase 4） |
 | R14 | P2 | pending状態の生成規則が二重化し、既に差がある | 完了（Phase 4） |
 | R15 | P2 | ラウンド規則・手番交代の予備実装が二重化 | 完了（Phase 4） |
@@ -256,7 +256,7 @@
 | 0 | 最新の作業状態・呼出・仕様を再確認し、問題を検出するfixtureを先に作る | 全項目 | 既存変更と今回分が分離され、未確認の仕様差が明示されている | 完了（9.0） |
 | 1 | 検査自体の安全性と有効性を整える | R21→R22、R23、R20 | リンク先非追跡、抑制検出、未登録テスト修正、生成と検査の分離を検証 | 完了（9.1） |
 | 2 | 通信の所有権と個人画像保存の確定境界を直す | R01→R02→R03、R04 | 旧処理・中断・失敗の回帰が成功し、通常操作が維持される | 完了（9.2、実画面確認は Phase 6） |
-| 3 | CPU評価・訓練の再現性と隔離を直す | R07、R09＋R10、R11→R12→R08 | 同じ判断方針、正しい再利用、全証跡、隔離された実bundleを確認 | 未着手 |
+| 3 | CPU評価・訓練の再現性と隔離を直す | R07、R09＋R10、R11→R12→R08 | 同じ判断方針、正しい再利用、全証跡、隔離された実bundleを確認 | 完了（9.3） |
 | 4 | ゲーム規則を一つの実装へ集約する | R13→R14→R16、R15、最後にR17 | ルール結果・PRNG・pending・演出順が変わらず、旧本体が残らない | 完了（9.4、起動確認は Phase 6） |
 | 5 | 残る画面同期・サーバー共通規則・保守CLIを整理 | R05、R06、R18、R19、R24 | 各項目の完了条件と横断比較が成功 | 完了（9.5、R24 は 9.1、実画面確認は Phase 6） |
 | 6 | 統合検証、生成物更新、通常配信、文書更新 | 全項目 | 下記の最終完了条件を全て満たす | 未着手 |
@@ -350,6 +350,23 @@
 - **R03**: `reconnect-controller.ts` の復旧処理に世代付きの実行権を導入。開始・成功/失敗の報告・in-flight フラグの解除は現在の所有者だけが行い、`closeStream()` は実行中の復旧を無効化する。`turn-timer.ts` の `heartbeatResyncInFlight` 無条件解除も、所有者以外の解除になるため撤去した。`test/ui.network-reconnect-controller.test.ts` に deferred で完了順を逆転させた回帰（close 後の旧処理完了で新処理のフラグが外れない・3本目が始まらない、旧処理の成功/失敗を新 session へ報告しない、現行処理は従来通り報告）を追加。旧実装で 3件失敗。
 - **R04**: `ui/custom-skin/storage.ts` に共通の書込 transaction helper を作り、complete/error/abort を購読して commit 後だけ resolve。put/delete とも request 成功だけでは成功扱いにせず、失敗時はキャッシュ・object URL・通知・保存済みデータを変更しない。fake DB（`test/helpers/fake-custom-skin-browser.ts`）を transaction 単位の staging と complete/abort/request-error/pending を再現できる形に更新。`test/ui.custom-skin-object-url-lease.test.ts`（request 成功後 abort で保存データ・表示・lease 保持、初回保存失敗・削除失敗、commit まで未解決）と `test/ui.custom-skin-controller.test.ts`（abort 時に「保存しました」を出さず選択も保存しない）を追加。旧実装で 4件失敗。実ブラウザでの保存→再読込→削除は Phase 6 で確認する。
 - 検証: 上記限定テスト、`npm run typecheck` 成功、`npm run test:network:parity` 36 スイート・601件成功、`npm run test:match:parity` 11 スイート・164件成功。
+
+### 9.3 Phase 3（CPU・訓練）
+
+並行担当エージェントが実装し、差分と主要テストを親担当が確認した。長時間の訓練・自己対戦・正式採用試験は行っていない。
+
+- **R07**: 新設 `game/ai/cpu-lv13-turn-memory.ts` に Lv13 の判断メモリ生成（4600ms/turn の計画、識別子 `lv13-turn-plan.v1`）と探索上限（request の残りターン予算と実験上限の小さい方）をまとめ、`cpu-lv13-search.ts` が `createCpuDecisionMemory`／`CPU_DECISION_MEMORY_PROTOCOL` として再公開。通常画面の `cpu-turn-handler.ts` は同じ生成関数を使い（メモリの形は従来と同一）、`production-match.ts`／`run-production-selfplay.ts` は生成関数を公開する方針だけその計画付きメモリを使い、`request.maxMs` を渡す。実行 identity に `decisionMemory` と `advisorBudget` を判断メモリがある時だけ追加し、旧 run を新方針で再開しない。Lv10〜12 と凍結した相手は生成関数を持たないため計画なしのメモリと identity のまま。`test/scripts.production-selfplay.test.ts` に、Lv13 のメモリが通常画面と同一、上限の選び方、3手で停止→再開した結果が止めずに打った結果と状態ハッシュ・計画とも一致、の3件を追加（旧実装で3件失敗）。関連6スイート32件成功。過去の評価結果を同等条件として再認定はしていない。
+- **R09＋R10**: `training/scripts/generate-selfplay-data.ts` に版付き完了 manifest（`selfplay-chunk-manifest.v2`、出力に影響する設定・deck・入力モデル内容 digest・カード定義 digest・schema/producer 版・各出力と illegal-move 診断 sidecar の digest と件数）を最後に書き、完全一致だけを再利用。attempt ごとに別名で書くため、旧 manifest や条件の合わない chunk は診断を出して残し、別 attempt で再生成する。統合は入力を残して行い、件数が manifest と一致してから今回統合した chunk だけを片付ける。前提の差: `mergeShardFiles` は各入力を統合直後に削除しており、統合失敗時に再開用証跡が消えていた（修正）。同一条件の再利用、設定・deck・hardcase・同名モデル内容・schema の変更、切断・欠損・途中終了の非再利用、新旧混在／全再利用での診断の件数・順序・内容の保持と片付け後の最終ファイル、0件時に sidecar を要求しないことを検証（旧実装で11件失敗）。偽の旧形式 manifest を再利用すると期待していた既存テストは、旧形式を保持して再生成するテストへ置換。
+- **R11**: 新設 `training/scripts/policy-onnx-browser-gate-contract.ts` に通常ブラウザ gate の対応 head（primary/target/value）ごとの待機フラグ・runtime status フィールド・モデルファイルを定義し、gate builder・gate CLI・`run-ui-level-match` の parser・`game/ai/policy-onnx-runtime.ts` の status が共有。card head と未知の `--require-*-loaded` は3経路とも明確に拒否し、訓練サイクルは `--onnx-gate` と card 訓練の組合せを引数解析の段階で拒否（既存プロファイルは該当なし）。builder のフラグを実 parser が受理し、対応する status フィールドが実 runtime に存在することまで検証（旧実装で card テストが失敗）。研究用 trainer・旧 checkpoint・研究レーンの card は保持し、ルールブック §14.1 の研究／本番分離を維持。
+- **R12**: `resolveIterationOnnxBundle` で各 head を「今回生成／再利用／据置（周期 skip、候補にしない）／無効」に一度だけ分類し、生成扱いの head のファイルが無ければ停止。分類を `onnx-bundle.<tag>.json` に記録し、gate と promotion に同じ bundle を渡す。spawnSync を mock した実際の `runIteration` で value・target 周期2の1〜3回目を通し、2回目は primary だけが候補、毎回 gate と promotion の候補が一致し実在することを検証（旧実装は2回目に未生成の it02 候補を渡して失敗）。cycle テスト65件成功。
+- **R08**: ONNX gate から root 配信ディレクトリへの backup/copy/restore と manifest 書換えを撤去し、一時ディレクトリに gate 専用のモデル bundle を作って `run-ui-level-match --model-overlay-dir` が `data/models/*` の代わりに配信（ページは通常の browser runtime）。実際に配信したファイルの sha256 を記録し、候補と同じバイトを読んだことを `passedByModelIdentity` で判定。builder の gate 対象は root ではなくレーン。2レーン並行・対局失敗・途中例外・別バイト読込のいずれでも root と他レーンの内容と mtime が不変で bundle が片付くことを検証し、root を期待していた cycle テストは隔離を検証するテストへ置換（overlay テストは旧実装で失敗）。root への反映は既存の明示 deploy だけ。
+- 設計資料 §5.2/§5.3/§8 に、bundle の分類、gate の隔離と対応 head、chunk manifest、Lv13 判断メモリの所有を反映。
+- 未検証: 実ブラウザでの gate 実行と本物のモデルでの訓練（長時間実行のため対象外）。日本語パスの worktree では Node 24 の `fs.rmSync(dir, { recursive: true })` がプロセスごと異常終了するため（素の node で再現、着手時の版でも同じ）、`training/tests/selfplay.policy-promotion.test.ts`、`test/scripts.deploy-lane-model-to-root.test.ts`、gate の1件は英字パスの書き出しでの全体検証で確認する（Phase 6）。
+
+### 9.3.1 Phase 3 と並行して見つかった Phase 1/4 の追加修正
+
+- R20 で `scripts/checkall-bootstrap.js` が大きくなり、JS inventory で「許可表にない legacy JS」と判定されていた（Phase 3 担当が検出）。古さ判定を新設 `scripts/check-compiled-snapshot.ts`（TypeScript、`dist/scripts/check-compiled-snapshot.js`）へ移し、bootstrap は prepared 時にそれを実行するだけの薄い Node CLI adapter（非空40行）に戻した。bootstrap が adapter に分類され続けることをテストで固定。inventory は再び PASS。
+- R15 の必須モジュール欠落時の失敗が `turn_pipeline_phases.ts` で runtime-unavailable エラーを直接生成しており、card-runtime 境界検査（レビュー済み生成元以外での生成を禁止）に違反していた（同上）。生成元の `game/turn/turn-runtime-services.ts` に `requireTurnPhaseCapability` を追加し、pipeline はそれを呼ぶ形に修正。`check-card-runtime-boundary` は PASS、R15 の回帰テストも成功。
 
 ### 9.4 Phase 4（ゲーム規則の集約）
 
