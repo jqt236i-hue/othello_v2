@@ -1,4 +1,5 @@
 import CardMarkers = require('../cards/markers');
+import ManifestStoneRegistry = require('../../../shared/manifest-stone-registry');
 
 type Marker = {
     kind?: string;
@@ -62,7 +63,7 @@ function buildCompatibilityMarkerContextIndex(cardState: any, deps: ProtectionCo
     const bombMarkers: Marker[] = [];
     const blockingMarkers: Marker[] = [];
     const frozenKeys = new Set<string>();
-    const manifestRegistry = deps.ManifestStoneRegistry || null;
+    const manifestRegistry = deps.ManifestStoneRegistry || ManifestStoneRegistry;
     for (const marker of markers) {
         if (!marker) continue;
         const data = marker.data && typeof marker.data === 'object' ? marker.data : {};
@@ -123,12 +124,13 @@ function normalizeMarkerType(marker: Marker, registry?: SpecialStoneRegistryLike
     return String(rawType || '').trim().toUpperCase();
 }
 
+// Type membership belongs to shared/manifest-stone-registry. An injected registry is an explicit
+// port; the canonical registry is the default.
 function isManifestStoneType(rawType: unknown, manifestRegistry?: ManifestStoneRegistryLike | null): boolean {
-    if (manifestRegistry && typeof manifestRegistry.isManifestStoneType === 'function') {
-        return manifestRegistry.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    const registry = manifestRegistry && typeof manifestRegistry.isManifestStoneType === 'function'
+        ? manifestRegistry
+        : ManifestStoneRegistry;
+    return registry.isManifestStoneType!(rawType) === true;
 }
 
 function isRegistryFlipProtectedMarker(marker: Marker, registry: SpecialStoneRegistryLike): boolean {

@@ -8,6 +8,7 @@ import SpecialStoneRegistryImport = require('../../shared/special-stone-registry
 import CardProtectionContextImport = require('../logic/cards-internal/protection-context');
 import PendingSelectionRegistryImport = require('../logic/cards-internal/pending-selection-registry');
 import SelectorOrchestratorImport = require('../logic/cards-internal/selector-orchestrator');
+import ManifestStoneRegistry = require('../../shared/manifest-stone-registry');
 
 const SharedConstants: any = SharedConstantsImport;
 const SharedBoardUtils: any = SharedBoardUtilsImport;
@@ -120,12 +121,7 @@ const Flips = CardFlips || {};
             m.row === row &&
             m.col === col &&
             m.data &&
-            (m.kind === 'manifestStone' ||
-                (m.kind === 'specialStone' && (
-                    m.data.type === 'THEORY_INCARNATION' ||
-                    m.data.type === 'BOARD_EXECUTOR' ||
-                    m.data.type === 'OBSERVER_WILL'
-                )))
+            (m.kind === 'manifestStone' || (m.kind === 'specialStone' && ManifestStoneRegistry.isManifestStoneType(m.data.type) === true))
         ));
     }
 
@@ -251,14 +247,7 @@ const Flips = CardFlips || {};
             return Markers.getManifestMarkers(cardState);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.filter((m: any) => {
-            const type = String(m && m.data && m.data.type || '').toUpperCase();
-            return !!(
-                m &&
-                (m.kind === 'manifestStone' || m.kind === 'specialStone') &&
-                (type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL')
-            );
-        });
+        return markers.filter((m: any) => ManifestStoneRegistry.isManifestStoneMarker(m) === true);
     }
 
     function getBombMarkers(cardState: any) {

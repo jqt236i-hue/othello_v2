@@ -7,6 +7,7 @@
 import SharedConstantsImport = require('../../shared-constants');
 import SharedBoardUtilsImport = require('../../shared/shared-board-utils');
 import StoneSupply = require('../../shared/stone-supply');
+import RoundRules = require('./round-rules');
 
 const SharedConstants: any = SharedConstantsImport;
 const SharedBoardUtils: any = SharedBoardUtilsImport;
@@ -41,11 +42,6 @@ interface ExpansionCell {
     row: number;
     col: number;
     owner: number;
-}
-
-interface RoundCompletion {
-    black: boolean;
-    white: boolean;
 }
 
 interface PendingRoundBonus {
@@ -167,95 +163,21 @@ function ensureBoardExpansionState(state: any): any {
     return expansion;
 }
 
-function normalizeRoundNumber(value: any): number {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 1;
-    const roundNumber = Math.trunc(numeric);
-    return roundNumber >= 1 ? roundNumber : 1;
-}
+const normalizeRoundNumber = RoundRules.normalizeRoundNumber;
+const createRoundCompletionByPlayer = RoundRules.createRoundCompletionByPlayer;
+const clonePendingRoundBonus = RoundRules.clonePendingRoundBonus;
+const ensureRoundState = RoundRules.ensureRoundState;
+const resolveRoundBonusAmount = RoundRules.resolveRoundBonusAmount;
+const consumePendingRoundBonus = RoundRules.consumePendingRoundBonus;
 
-function normalizeRoundPlayerKey(player: any): string | null {
+function normalizeRoundPlayerKey(player: any): 'black' | 'white' | null {
     if (player === BLACK || player === 'black' || player === 1 || player === '1' || player === '+1') return 'black';
     if (player === WHITE || player === 'white' || player === -1 || player === '-1') return 'white';
     return null;
 }
 
-function createRoundCompletionByPlayer(source: any): RoundCompletion {
-    const value = (source && typeof source === 'object') ? source : {};
-    return {
-        black: !!value.black,
-        white: !!value.white
-    };
-}
-
-function clonePendingRoundBonus(source: any): PendingRoundBonus | null {
-    if (!source || typeof source !== 'object') return null;
-    const roundNumber = normalizeRoundNumber(source.roundNumber);
-    const amountValue = Number(source.amount);
-    const amount = Number.isFinite(amountValue) ? Math.max(0, Math.trunc(amountValue)) : 0;
-    if (!(amount > 0)) return null;
-    return { roundNumber, amount };
-}
-
-function ensureRoundState(state: any): any {
-    if (!state || typeof state !== 'object') return state;
-    state.roundNumber = normalizeRoundNumber(state.roundNumber);
-    state.roundCompletionByPlayer = createRoundCompletionByPlayer(state.roundCompletionByPlayer);
-    state.pendingRoundBonus = clonePendingRoundBonus(state.pendingRoundBonus);
-    return state;
-}
-
-function resolveRoundBonusAmount(roundNumber: number): number {
-    const normalizedRound = normalizeRoundNumber(roundNumber);
-    if (normalizedRound % 10 !== 0) return 0;
-    return Math.max(0, Math.floor(normalizedRound / 2));
-}
-
 function advanceRoundAfterCompletedTurn(state: any, player: any, options?: any): { advanced: boolean; roundNumber: number; pendingRoundBonus: PendingRoundBonus | null } {
-    const targetState = ensureRoundState(state);
-    const playerKey = normalizeRoundPlayerKey(player);
-    const opts = (options && typeof options === 'object') ? options : {};
-    if (!targetState || !playerKey) {
-        return {
-            advanced: false,
-            roundNumber: targetState ? targetState.roundNumber : 1,
-            pendingRoundBonus: clonePendingRoundBonus(targetState && targetState.pendingRoundBonus)
-        };
-    }
-
-    targetState.roundCompletionByPlayer[playerKey] = true;
-    const completedBlack = !!targetState.roundCompletionByPlayer.black;
-    const completedWhite = !!targetState.roundCompletionByPlayer.white;
-    if (!completedBlack || !completedWhite) {
-        return {
-            advanced: false,
-            roundNumber: targetState.roundNumber,
-            pendingRoundBonus: clonePendingRoundBonus(targetState.pendingRoundBonus)
-        };
-    }
-
-    const nextRoundNumber = normalizeRoundNumber(targetState.roundNumber + 1);
-    targetState.roundNumber = nextRoundNumber;
-    targetState.roundCompletionByPlayer = createRoundCompletionByPlayer(null);
-    if (opts.scheduleBonus !== false) {
-        const amount = resolveRoundBonusAmount(nextRoundNumber);
-        targetState.pendingRoundBonus = amount > 0
-            ? { roundNumber: nextRoundNumber, amount }
-            : null;
-    }
-    return {
-        advanced: true,
-        roundNumber: targetState.roundNumber,
-        pendingRoundBonus: clonePendingRoundBonus(targetState.pendingRoundBonus)
-    };
-}
-
-function consumePendingRoundBonus(state: any): PendingRoundBonus | null {
-    const targetState = ensureRoundState(state);
-    if (!targetState) return null;
-    const pending = clonePendingRoundBonus(targetState.pendingRoundBonus);
-    targetState.pendingRoundBonus = null;
-    return pending;
+    return RoundRules.advanceRoundForPlayerKey(state, normalizeRoundPlayerKey(player), options);
 }
 
 function getExpansionCells(state: any): ExpansionCell[] {

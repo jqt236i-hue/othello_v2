@@ -104,3 +104,47 @@ describe('round bonus', () => {
     }));
   });
 });
+
+describe('round rules are shared by Core and the turn adapter', () => {
+  const TurnRoundState = require('../game/turn/round-state.ts');
+  const normalizePlayerKey = (player: any) => (player === 'white' || player === -1 ? 'white' : (player === 'black' || player === 1 ? 'black' : null));
+
+  function runSequence(advance: (state: any, player: any, options: any) => any, consume: (state: any) => any) {
+    const state: any = { roundNumber: 8, roundCompletionByPlayer: { black: false, white: false }, pendingRoundBonus: null };
+    const steps: any[] = [];
+    const sequence: Array<[any, any]> = [
+      ['black', null], ['black', null], ['white', null],          // round 8 -> 9 (same color twice first)
+      ['white', null], ['black', null],                          // round 9 -> 10, bonus +5 scheduled
+      ['black', { scheduleBonus: false }], ['white', { scheduleBonus: false }], // round 10 -> 11, keeps pending bonus
+      ['nobody', null]
+    ];
+    for (const [player, options] of sequence) {
+      steps.push({ result: advance(state, player, options), state: JSON.parse(JSON.stringify(state)) });
+    }
+    steps.push({ consumed: consume(state), again: consume(state), state: JSON.parse(JSON.stringify(state)) });
+    return steps;
+  }
+
+  test('Core and the Core-free adapter path produce identical rounds, bonuses, and single consumption', () => {
+    const viaCore = runSequence(
+      (state, player, options) => Core.advanceRoundAfterCompletedTurn(state, player, options),
+      (state) => Core.consumePendingRoundBonus(state)
+    );
+    const viaAdapter = runSequence(
+      (state, player, options) => TurnRoundState.advanceGameRoundAfterCompletedTurn({ Core: null, gameState: state, playerKey: player, options, normalizePlayerKey }),
+      (state) => TurnRoundState.applyPendingRoundBonusAtTurnStart({
+        CardLogic: null,
+        Core: null,
+        cardState: {},
+        gameState: state,
+        events: [],
+        addChargeWithTotal: () => 0
+      })
+    );
+    expect(viaAdapter.slice(0, -1)).toEqual(viaCore.slice(0, -1));
+    expect(viaCore[4].state.pendingRoundBonus).toEqual({ roundNumber: 10, amount: 5 });
+    expect(viaCore[6].state).toEqual(expect.objectContaining({ roundNumber: 11, pendingRoundBonus: { roundNumber: 10, amount: 5 } }));
+    expect(viaCore[viaCore.length - 1]).toEqual(expect.objectContaining({ consumed: { roundNumber: 10, amount: 5 }, again: null }));
+    expect(viaAdapter[viaAdapter.length - 1].state.pendingRoundBonus).toBeNull();
+  });
+});

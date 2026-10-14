@@ -34,10 +34,14 @@ test('a card must beat the best root that keeps the hand by the margin',()=>{
     expect(lv13.action?.type).toBe('place');
     expect(lv13.transitions).toBe(lv12.transitions);
     const deep=(result:typeof lv12)=>result.candidates!.filter(candidate=>candidate.retainedForDeepening);
+    // Lv13 scores a sampled terminal with its stone margin as a tie-break, so
+    // only roots without a terminal reply keep Lv12's exact score.
+    const ordinary=(candidate:any)=>candidate.replies.every((value:number)=>Math.abs(value)<100000);
+    expect(deep(lv13).filter(ordinary).length).toBeGreaterThan(0);
     deep(lv13).forEach((candidate,index)=>{
         const original=deep(lv12)[index];
         expect(candidate.action).toEqual(original.action);
-        expect(candidate.score).toBeCloseTo(original.score-marginOf(candidate.action),10);
+        if(ordinary(candidate))expect(candidate.score).toBeCloseTo(original.score-marginOf(candidate.action),10);
     });
 },120000);
 

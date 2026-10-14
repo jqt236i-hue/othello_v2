@@ -1,12 +1,6 @@
 import { spawnSync } from 'child_process';
 import * as path from 'path';
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
 function run(cmd: string, args: string[]): boolean {
   console.log(`\n=== running: ${cmd} ${args.join(' ')} ===`);
   const res = spawnSync(cmd, args, { stdio: 'inherit', cwd: path.resolve(__dirname, '..', '..') });
@@ -24,6 +18,9 @@ function runNpmScript(scriptName: string): boolean {
   return run('npm', ['run', '--silent', scriptName]);
 }
 
+// Every check below is read-only against the prepared snapshot (dist/ compiled by
+// checkall-bootstrap, browser outputs and worker-public/ prepared by `npm run worker:prepare`).
+// Nothing here may compile or regenerate delivery outputs; stale outputs fail instead.
 let ok = true;
 if (!run('node', ['scripts/check-window-usage.js'])) ok = false;
 if (!runNpmScript('check:dependency-boundaries')) ok = false;
@@ -33,9 +30,10 @@ if (!run('node', ['dist/scripts/check-board-kernel-boundary.js'])) ok = false;
 if (!run('node', ['dist/scripts/check-board-test-selectors.js'])) ok = false;
 if (!run('node', ['dist/scripts/check-card-runtime-boundary.js'])) ok = false;
 if (!run('node', ['dist/scripts/check-browser-build-up-to-date.js'])) ok = false;
+if (!run('node', ['dist/scripts/build-vite-entry.js', '--check'])) ok = false;
 if (!run('node', ['scripts/check-asset-file-case.js'])) ok = false;
-if (!runNpmScript('check:artifact-retention')) ok = false;
-if (!runNpmScript('check:worker-mirror')) ok = false;
+if (!run('node', ['dist/scripts/check-artifact-retention.js'])) ok = false;
+if (!run('node', ['dist/scripts/check-worker-mirror.js'])) ok = false;
 if (!run('node', ['scripts/test-shim-forwarding.js'])) ok = false;
 if (!run('node', ['dist/scripts/inventory-js-legacy.js'])) ok = false;
 

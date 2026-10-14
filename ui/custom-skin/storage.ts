@@ -445,24 +445,61 @@ async function readAllRecords(rootRef: any): Promise<CustomSkinRecord[]> {
   }
 }
 
-async function putRecord(rootRef: any, record: CustomSkinRecord): Promise<void> {
+// Resolves only after the readwrite transaction commits (`complete`). A successful request alone is
+// not durable: the transaction can still fail or abort, and callers must keep their cache, object
+// URLs, and displayed state unchanged in that case.
+async function runWriteTransaction(
+  rootRef: any,
+  operation: (store: IDBObjectStore) => IDBRequest<any>
+): Promise<void> {
   const db = await openDatabase(rootRef);
   try {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    await requestToPromise(transaction.objectStore(STORE_NAME).put(record));
+    await new Promise<void>((resolve, reject) => {
+      let transaction: IDBTransaction;
+      try {
+        transaction = db.transaction(STORE_NAME, 'readwrite');
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      let requestError: unknown = null;
+      let settled = false;
+      const fail = (fallback: Error) => {
+        if (settled) return;
+        settled = true;
+        reject(transaction.error || requestError || fallback);
+      };
+      transaction.oncomplete = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      transaction.onerror = () => fail(createError('個人保存に書き込めませんでした', 'indexeddb-write-failed'));
+      transaction.onabort = () => fail(createError('個人保存への書き込みが中断されました', 'indexeddb-write-aborted'));
+      let request: IDBRequest<any>;
+      try {
+        request = operation(transaction.objectStore(STORE_NAME));
+      } catch (error) {
+        requestError = error;
+        try { transaction.abort(); } catch { /* the transaction may already be finished */ }
+        fail(createError('個人保存に書き込めませんでした', 'indexeddb-write-failed'));
+        return;
+      }
+      request.onerror = () => {
+        requestError = request.error || requestError;
+      };
+    });
   } finally {
     db.close();
   }
 }
 
-async function deleteRecord(rootRef: any, skinId: string): Promise<void> {
-  const db = await openDatabase(rootRef);
-  try {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    await requestToPromise(transaction.objectStore(STORE_NAME).delete(skinId));
-  } finally {
-    db.close();
-  }
+function putRecord(rootRef: any, record: CustomSkinRecord): Promise<void> {
+  return runWriteTransaction(rootRef, (store) => store.put(record));
+}
+
+function deleteRecord(rootRef: any, skinId: string): Promise<void> {
+  return runWriteTransaction(rootRef, (store) => store.delete(skinId));
 }
 
 async function loadCustomSkins(rootRef: any): Promise<CustomSkinDefinition[]> {

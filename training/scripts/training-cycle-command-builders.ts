@@ -1,6 +1,8 @@
 'use strict';
 
+import * as fs from 'fs';
 import * as path from 'path';
+import GateContract = require('./policy-onnx-browser-gate-contract');
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -303,64 +305,119 @@ function buildFinalAdoptionCommandArgs(options: any) {
     ].concat(adoptionBaselineArgs || [], verboseArgs || []);
 }
 
-function buildCandidateOnnxBundleArgs(args: any, iterationPaths: any, hasTargetTrainingData: any) {
-    const includeTargetHead = isTargetHeadEnabled(args)
-        && !!(iterationPaths && iterationPaths.targetOnnxModelPath && iterationPaths.targetOnnxMetaPath)
-        && !!hasTargetTrainingData;
-    const includeValueHead = isValueHeadEnabled(args)
-        && !!(iterationPaths && iterationPaths.valueOnnxModelPath && iterationPaths.valueOnnxMetaPath);
-    return [
-        '--candidate-onnx', iterationPaths.onnxModelPath,
-        '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
-        ...(isCardSpecialistEnabled(args) ? [
-            '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
-            '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath
-        ] : []),
-        ...(includeTargetHead ? [
-            '--candidate-target-onnx', iterationPaths.targetOnnxModelPath,
-            '--candidate-target-onnx-meta', iterationPaths.targetOnnxMetaPath
-        ] : []),
-        ...(includeValueHead ? [
-            '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
-            '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
-        ] : [])
-    ];
+type OnnxHeadKey = 'primary' | 'card' | 'target' | 'value';
+/** generated: trained in this iteration; reused: this iteration's output reused on resume;
+ * retained: not trained this iteration (cadence) - the lane keeps its existing asset, which is
+ * never presented as a candidate; disabled: the head is off for this lane/iteration. */
+type OnnxHeadStatus = 'generated' | 'reused' | 'retained' | 'disabled';
+type OnnxHeadEntry = {
+    head: OnnxHeadKey;
+    status: OnnxHeadStatus;
+    candidatePath: string | null;
+    candidateMetaPath: string | null;
+    laneAssetPath: string | null;
+    laneAssetPresent: boolean | null;
+};
+type OnnxIterationBundle = { schema: 'onnx-iteration-bundle.v1'; heads: Record<OnnxHeadKey, OnnxHeadEntry> };
+
+const ONNX_HEAD_FILES: Readonly<Record<OnnxHeadKey, { candidate: string; candidateMeta: string; lane: string; laneMeta: string; flag: string }>> = Object.freeze({
+    primary: { candidate: 'onnxModelPath', candidateMeta: 'onnxMetaPath', lane: 'policy-net.onnx', laneMeta: 'policy-net.onnx.meta.json', flag: 'onnx' },
+    card: { candidate: 'cardOnnxModelPath', candidateMeta: 'cardOnnxMetaPath', lane: 'policy-card.onnx', laneMeta: 'policy-card.onnx.meta.json', flag: 'card-onnx' },
+    target: { candidate: 'targetOnnxModelPath', candidateMeta: 'targetOnnxMetaPath', lane: 'policy-target.onnx', laneMeta: 'policy-target.onnx.meta.json', flag: 'target-onnx' },
+    value: { candidate: 'valueOnnxModelPath', candidateMeta: 'valueOnnxMetaPath', lane: 'policy-value.onnx', laneMeta: 'policy-value.onnx.meta.json', flag: 'value-onnx' }
+});
+const ONNX_HEAD_ORDER: readonly OnnxHeadKey[] = Object.freeze(['primary', 'card', 'target', 'value'] as OnnxHeadKey[]);
+
+function isOnnxHeadEnabled(head: OnnxHeadKey, args: any, iterationPaths: any, hasTargetTrainingData: any) {
+    const files = ONNX_HEAD_FILES[head];
+    if (!(iterationPaths && iterationPaths[files.candidate] && iterationPaths[files.candidateMeta])) return false;
+    if (head === 'card') return isCardSpecialistEnabled(args);
+    if (head === 'target') return isTargetHeadEnabled(args) && !!hasTargetTrainingData;
+    if (head === 'value') return isValueHeadEnabled(args);
+    return true;
 }
 
-function buildTargetOnnxBundleArgs(args: any, hasTargetTrainingData: any) {
+/**
+ * Resolves, once per iteration, what each ONNX head actually is. Gate and promotion both consume
+ * this same bundle, so a head skipped by its training cadence is never passed on as a planned
+ * candidate path that was not produced. A head reported as produced must exist on disk.
+ */
+function resolveIterationOnnxBundle(options: {
+    args: any;
+    iterationPaths: any;
+    hasTargetTrainingData: any;
+    headSteps: Partial<Record<OnnxHeadKey, { ran: boolean; reused?: boolean }>>;
+    fileExists?: (filePath: string) => boolean;
+}): OnnxIterationBundle {
+    const { args, iterationPaths, hasTargetTrainingData, headSteps } = options;
+    const exists = options.fileExists || ((filePath: string) => fs.existsSync(filePath));
     const modelsDir = path.resolve(args.modelsDir);
-    return buildTargetOnnxBundleArgsForDir(args, hasTargetTrainingData, modelsDir);
+    const heads = {} as Record<OnnxHeadKey, OnnxHeadEntry>;
+    for (const head of ONNX_HEAD_ORDER) {
+        const files = ONNX_HEAD_FILES[head];
+        const laneAssetPath = path.join(modelsDir, files.lane);
+        const entry: OnnxHeadEntry = { head, status: 'disabled', candidatePath: null, candidateMetaPath: null, laneAssetPath: null, laneAssetPresent: null };
+        if (isOnnxHeadEnabled(head, args, iterationPaths, hasTargetTrainingData)) {
+            const step = headSteps[head];
+            if (step && step.ran) {
+                entry.status = step.reused ? 'reused' : 'generated';
+                entry.candidatePath = iterationPaths[files.candidate];
+                entry.candidateMetaPath = iterationPaths[files.candidateMeta];
+                for (const filePath of [entry.candidatePath, entry.candidateMetaPath]) {
+                    if (!exists(filePath as string)) {
+                        throw new Error(`[training-cycle] ${head} ONNX head was reported as ${entry.status} but ${filePath} does not exist`);
+                    }
+                }
+            } else {
+                entry.status = 'retained';
+                entry.laneAssetPath = laneAssetPath;
+                entry.laneAssetPresent = exists(laneAssetPath);
+            }
+        }
+        heads[head] = entry;
+    }
+    return { schema: 'onnx-iteration-bundle.v1', heads };
 }
 
-function buildOnnxGateTargetBundleArgs(args: any, hasTargetTrainingData: any) {
-    const rootModelsDir = path.resolve(args.deployPromotedRootModelsDir || path.resolve(process.cwd(), 'data', 'models'));
-    return buildTargetOnnxBundleArgsForDir(args, hasTargetTrainingData, rootModelsDir);
+function isCandidateHead(entry: OnnxHeadEntry | undefined) {
+    return !!entry && (entry.status === 'generated' || entry.status === 'reused');
 }
 
-function buildTargetOnnxBundleArgsForDir(args: any, hasTargetTrainingData: any, targetDir: string) {
-    const modelsDir = path.resolve(targetDir);
-    const includeTargetHead = isTargetHeadEnabled(args) && !!hasTargetTrainingData;
-    const includeValueHead = isValueHeadEnabled(args);
-    return [
-        '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
-        '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
-        ...(isCardSpecialistEnabled(args) ? [
-            '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
-            '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json')
-        ] : []),
-        ...(includeTargetHead ? [
-            '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
-            '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json')
-        ] : []),
-        ...(includeValueHead ? [
-            '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
-            '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json')
-        ] : [])
-    ];
+/** Candidate arguments for the heads produced in this iteration (optionally limited to `heads`). */
+function buildCandidateOnnxBundleArgs(bundle: OnnxIterationBundle, heads: readonly OnnxHeadKey[] = ONNX_HEAD_ORDER) {
+    if (!isCandidateHead(bundle.heads.primary)) throw new Error('[training-cycle] the primary ONNX head has no candidate in this iteration');
+    const out: string[] = [];
+    for (const head of ONNX_HEAD_ORDER) {
+        const entry = bundle.heads[head];
+        if (!heads.includes(head) || !isCandidateHead(entry)) continue;
+        const flag = ONNX_HEAD_FILES[head].flag;
+        out.push(`--candidate-${flag}`, entry.candidatePath as string, `--candidate-${flag}-meta`, entry.candidateMetaPath as string);
+    }
+    return out;
+}
+
+/** Lane target arguments for every head that is not disabled. */
+function buildTargetOnnxBundleArgs(args: any, bundle: OnnxIterationBundle, heads: readonly OnnxHeadKey[] = ONNX_HEAD_ORDER) {
+    const modelsDir = path.resolve(args.modelsDir);
+    const out: string[] = [];
+    for (const head of ONNX_HEAD_ORDER) {
+        if (!heads.includes(head) || bundle.heads[head].status === 'disabled') continue;
+        const files = ONNX_HEAD_FILES[head];
+        out.push(`--target-${files.flag}`, path.join(modelsDir, files.lane), `--target-${files.flag}-meta`, path.join(modelsDir, files.laneMeta));
+    }
+    return out;
+}
+
+/** Heads the browser ONNX gate verifies; a produced card head cannot be gated (research only). */
+function resolveOnnxGateHeads(bundle: OnnxIterationBundle): OnnxHeadKey[] {
+    if (isCandidateHead(bundle.heads.card)) GateContract.assertBrowserGateHeadsSupported(['card'], 'training-cycle onnx-gate');
+    return ONNX_HEAD_ORDER.filter((head) => head !== 'card' && !!GateContract.getBrowserGateHead(head));
 }
 
 function buildOnnxGateCommandArgs(options: any) {
-    const { args, iterationPaths, hasTargetTrainingData, onnxConfig } = options;
+    const { args, iterationPaths, onnxBundle, onnxConfig } = options;
+    if (!onnxBundle || onnxBundle.schema !== 'onnx-iteration-bundle.v1') throw new Error('[training-cycle] onnx gate requires the resolved iteration ONNX bundle');
+    const gateHeads = resolveOnnxGateHeads(onnxBundle);
     return [
         path.resolve('scripts', 'benchmark-policy-onnx-gate.js'),
         '--games', String(args.onnxGateGames),
@@ -378,21 +435,24 @@ function buildOnnxGateCommandArgs(options: any) {
         '--black-level', String(args.onnxGateBlackLevel),
         '--white-level', String(args.onnxGateWhiteLevel),
         '--candidate-color-mode', String(args.onnxGateCandidateColorMode),
-        ...buildCandidateOnnxBundleArgs(args, iterationPaths, hasTargetTrainingData),
-        ...buildOnnxGateTargetBundleArgs(args, hasTargetTrainingData),
+        ...buildCandidateOnnxBundleArgs(onnxBundle, gateHeads),
+        // The gate serves the candidates from its own bundle; these lane paths only name the
+        // browser model files. The root delivery directory is never a gate target.
+        ...buildTargetOnnxBundleArgs(args, onnxBundle, gateHeads),
         '--out', iterationPaths.onnxGatePath
     ];
 }
 
-function buildPromotionTargetBundleArgs(args: any, hasTargetTrainingData: any) {
+function buildPromotionTargetBundleArgs(args: any, onnxBundle: OnnxIterationBundle) {
     const modelsDir = path.resolve(args.modelsDir);
     return [
         '--target-model', path.join(modelsDir, 'policy-table.json'),
-        ...buildTargetOnnxBundleArgs(args, hasTargetTrainingData)
+        ...buildTargetOnnxBundleArgs(args, onnxBundle)
     ];
 }
 
-function buildPromotionCommandArgs(args: any, iterationPaths: any, adoptionResultPath: any, hasTargetTrainingData: any) {
+function buildPromotionCommandArgs(args: any, iterationPaths: any, adoptionResultPath: any, onnxBundle: OnnxIterationBundle) {
+    if (!onnxBundle || onnxBundle.schema !== 'onnx-iteration-bundle.v1') throw new Error('[training-cycle] promotion requires the resolved iteration ONNX bundle');
     const modelsDir = path.resolve(args.modelsDir);
     const gatePayloadArgs = [];
     if (iterationPaths.quickAdoptionPath) {
@@ -415,8 +475,9 @@ function buildPromotionCommandArgs(args: any, iterationPaths: any, adoptionResul
         '--adoption-result', adoptionResultPath,
         ...gatePayloadArgs,
         '--candidate-model', iterationPaths.candidateModelPath,
-        ...buildCandidateOnnxBundleArgs(args, iterationPaths, hasTargetTrainingData),
-        ...buildPromotionTargetBundleArgs(args, hasTargetTrainingData),
+        // Exactly the bundle the gate verified (card is a lane-local research asset, never browser-gated).
+        ...buildCandidateOnnxBundleArgs(onnxBundle),
+        ...buildPromotionTargetBundleArgs(args, onnxBundle),
         '--promoted-dir', path.join(modelsDir, 'promoted'),
         '--archive-dir', path.join(modelsDir, 'archive'),
         '--manifest', path.join(modelsDir, 'promoted', 'promotion-manifest.json')
@@ -448,6 +509,7 @@ export = {
     buildQuickAdoptionCommandArgs,
     buildQualityGateCommandArgs,
     buildFinalAdoptionCommandArgs,
+    resolveIterationOnnxBundle,
     buildCandidateOnnxBundleArgs,
     buildTargetOnnxBundleArgs,
     buildOnnxGateCommandArgs,

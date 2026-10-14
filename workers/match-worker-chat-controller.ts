@@ -1,4 +1,6 @@
 import type { MatchAuthoritySeatKey } from '../utils/match-authority-types';
+import { validateNetworkChatMessage } from '../shared/network-contract';
+import { appendMatchChatMessage, evaluateMatchChatPost } from '../utils/match-chat-rules';
 import type {
     MatchWorkerPublicSeatState,
     MatchWorkerRoomState
@@ -30,11 +32,7 @@ type MatchWorkerChatControllerConfig = {
 };
 
 function parseChatMessageText(value: unknown, maxLength: number): MatchWorkerParsedChatMessage {
-    const normalized = String(value || '').replace(/[\r\n]+/g, ' ').trim();
-    if (!normalized) return { ok: false, reason: 'MESSAGE_REQUIRED' };
-    const chars = Array.from(normalized);
-    if (chars.length > maxLength) return { ok: false, reason: 'MESSAGE_TOO_LONG' };
-    return { ok: true, text: chars.join('') };
+    return validateNetworkChatMessage(value, maxLength);
 }
 
 export function createMatchWorkerChatController(config: MatchWorkerChatControllerConfig) {
@@ -62,52 +60,28 @@ export function createMatchWorkerChatController(config: MatchWorkerChatControlle
         await cfg.applyExpiredTurnTimeoutIfNeeded();
 
         const seatKey = cfg.normalizePlayerKey(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const publicSeats = cfg.buildPublicSeatState(room).seats;
-        if (!publicSeats[seatKey]) {
-            return cfg.jsonResponse(403, buildTimedSeatPayload(room, {
-                ok: false,
-                reason: 'SEAT_NOT_JOINED'
-            }));
-        }
-        if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-            return cfg.jsonResponse(403, buildTimedSeatPayload(room, {
-                ok: false,
-                reason: cfg.classifySeatTokenRejectionReason(seatToken)
-            }));
-        }
-        if (!publicSeats.black || !publicSeats.white) {
-            return cfg.jsonResponse(409, buildTimedSeatPayload(room, {
-                ok: false,
-                reason: 'CHAT_DISABLED'
-            }));
-        }
-
-        const parsedText = parseChatMessageText(body.message, cfg.chatMaxLength);
-        if (!parsedText.ok) {
-            return cfg.jsonResponse(400, buildTimedSeatPayload(room, {
-                ok: false,
-                reason: parsedText.reason,
-                maxLength: cfg.chatMaxLength
-            }));
-        }
-
-        room.chatSeq = Number.isFinite(Number(room.chatSeq)) ? Number(room.chatSeq) : 0;
-        room.chatSeq += 1;
-
-        const message = {
-            id: room.chatSeq,
+        // Seat/token/validation rules are shared with the local server (utils/match-chat-rules.ts).
+        const evaluation = evaluateMatchChatPost({
             seatKey,
-            text: parsedText.text,
-            serverTime: now()
-        };
-
-        room.chatMessages = Array.isArray(room.chatMessages) ? room.chatMessages : [];
-        room.chatMessages.push(message);
-        if (room.chatMessages.length > cfg.chatHistoryLimit) {
-            room.chatMessages.splice(0, room.chatMessages.length - cfg.chatHistoryLimit);
+            seatToken: String(body.seatToken || ''),
+            seats: cfg.buildPublicSeatState(room).seats,
+            seatTokens: room.seatTokens,
+            message: body.message,
+            maxLength: cfg.chatMaxLength,
+            seatTokenRejectionReason: (seatToken) => cfg.classifySeatTokenRejectionReason(seatToken)
+        });
+        if (!evaluation.ok) {
+            const rejection: Record<string, unknown> = { ok: false, reason: evaluation.reason };
+            if (evaluation.maxLength !== undefined) rejection.maxLength = evaluation.maxLength;
+            return cfg.jsonResponse(evaluation.status, buildTimedSeatPayload(room, rejection));
         }
-        room.updatedAt = message.serverTime;
+
+        const message = appendMatchChatMessage(room, {
+            seatKey,
+            text: evaluation.text,
+            serverTime: now(),
+            historyLimit: cfg.chatHistoryLimit
+        });
         await cfg.saveRoom();
 
         const payload = cfg.withPublicSeatState(room, {

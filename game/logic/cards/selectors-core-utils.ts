@@ -1,5 +1,6 @@
 import type { CardState } from '../../../src/types';
 import SpecialStoneRegistry = require('../../../shared/special-stone-registry-static');
+import ManifestStoneRegistry = require('../../../shared/manifest-stone-registry');
 
 type SpecialStoneRegistryRuntimeLike = {
     isInviolableCell?: (markers: unknown, row: unknown, col: unknown) => boolean;
@@ -42,12 +43,7 @@ function isBombCategoryMarker(marker: any): boolean {
 }
 
 function isManifestStoneMarker(marker: any): boolean {
-    const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-    return !!(
-        marker &&
-        (marker.kind === 'manifestStone' || marker.kind === 'specialStone') &&
-        (type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL')
-    );
+    return ManifestStoneRegistry.isManifestStoneMarker(marker) === true;
 }
 
 function isFrozenCell(cardState: CardState, row: number, col: number, cardUtils?: any): boolean {

@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { hasActiveNoCheckDirective } from './lib/ts-nocheck-directive';
+
 const root = path.resolve(__dirname, '..', '..');
 
 type Finding = { file: string; message: string };
@@ -14,11 +16,9 @@ const boundaryTargets = [
   'game/ai/cpu-policy-core.ts'
 ];
 
-const existingNoCheckDebt = new Set([
-  'utils/match-authority.ts',
-  'workers/match-worker.ts',
-  'game/ai/cpu-policy-core.ts'
-]);
+// Authorized @ts-nocheck debt in high-risk targets. Keep empty, in line with
+// check-ts-migration-safety and docs/refactor-boundary-debt.md.
+const existingNoCheckDebt = new Set<string>();
 
 const requiredAuthorityContractTypes = [
   'MatchAuthorityPublishMeta',
@@ -60,15 +60,15 @@ function readSource(relativePath: string): string {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-function hasNoCheck(source: string): boolean {
-  return /@ts-nocheck\b/.test(source);
+function hasNoCheck(source: string, file: string): boolean {
+  return hasActiveNoCheckDirective(source, file);
 }
 
 const findings: Finding[] = [];
 
 for (const file of boundaryTargets) {
   const source = readSource(file);
-  if (hasNoCheck(source) && !existingNoCheckDebt.has(file)) {
+  if (hasNoCheck(source, file) && !existingNoCheckDebt.has(file)) {
     findings.push({
       file,
       message: 'new @ts-nocheck is forbidden in high-risk runtime boundary targets'

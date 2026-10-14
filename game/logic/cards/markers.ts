@@ -19,11 +19,7 @@ const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
 const ManifestStoneRegistry: any = ManifestStoneRegistryImport;
 
 function isManifestStoneType(rawType: any): boolean {
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
-        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
 }
 
 const MarkersAdapter = MarkersAdapterModule || null;

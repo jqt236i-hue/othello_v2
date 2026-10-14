@@ -185,4 +185,40 @@ describe('NetworkMatchClient leaveRoom cleanup', () => {
     expect(eventSources[0].close).toHaveBeenCalledTimes(1);
     expect(abortSpy).toHaveBeenCalledTimes(1);
   });
+
+  test('leaving during a publish retry wait cancels the unsent retry', async () => {
+    const publishBodies: any[] = [];
+    const baseFetch = global.fetch;
+    global.fetch = jest.fn(async (url, init: any = {}) => {
+      const path = new URL(String(url)).pathname;
+      if (path === '/api/match/publish') {
+        publishBodies.push(JSON.parse(init.body || '{}'));
+        return jsonResponse(503, { ok: false, reason: 'TEMPORARY' });
+      }
+      return baseFetch(url, init);
+    });
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const publish = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: { type: 'place', playerKey: 'black', row: 2, col: 3, turnIndex: 1 }
+    });
+    for (let i = 0; i < 50 && publishBodies.length === 0; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(publishBodies).toHaveLength(1);
+
+    const left = await client.leaveRoom();
+    const publishResult = await publish;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(left).toEqual(expect.objectContaining({ ok: true }));
+    expect(publishResult).toEqual(expect.objectContaining({ ok: false, reason: 'SESSION_CHANGED', stale: true }));
+    expect(publishBodies).toHaveLength(1);
+  });
 });

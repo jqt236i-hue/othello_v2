@@ -7,6 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 import type { CardState, GameState, PlayerKey } from '../src/types';
 import { isCardRuntimeUnavailableError } from './logic/card-runtime-errors';
 import { runLv10Turn, type Lv10TurnRecord, type Lv10TurnDeps } from './cpu-lv10-turn';
+import { createLv13DecisionMemory, createLv13PlanMemory } from './ai/cpu-lv13-turn-memory';
 import CpuOpponentStartupOptions = require('../shared/cpu-opponent-startup-options');
 import {
     createCpuTurnPerformanceScope,
@@ -182,14 +183,11 @@ const lv12RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedA
 };
 const lv13RecentDecisions: Lv10TurnRecord[] = [];
 const lv13DecisionTotals = { decisions: 0, fallback: 0, rejected: 0, stale: 0, noAction: 0 };
-// Lv13 follows its searched turn (card, targets, placement) and shares one
-// thinking budget per turn, so the player waits under 5 seconds a turn. A
-// search after a chance outcome may add a short minimum on top.
-const LV13_TURN_THINK_MS = 4600;
-const createLv13PlanMemory = () => ({ expectedIdentity: null, continuation: [], turnBudgetMs: LV13_TURN_THINK_MS, turnIdentity: null, spentMs: 0 });
+// Lv13 follows its searched turn with one thinking budget per turn. The memory
+// is created by the Lv13 policy itself (shared with headless selfplay).
 const lv13RejectedActions: Record<PlayerKey, NonNullable<Lv10TurnDeps['rejectedActions']>> = {
-    black: { identity: null, actions: [], plan: createLv13PlanMemory() },
-    white: { identity: null, actions: [], plan: createLv13PlanMemory() }
+    black: createLv13DecisionMemory(),
+    white: createLv13DecisionMemory()
 };
 // Presentation and extra-action handoffs may release the shared processing flag
 // while an advisory action is still awaiting completion. Keep the Lv10 request

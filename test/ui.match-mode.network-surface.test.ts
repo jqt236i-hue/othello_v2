@@ -186,6 +186,81 @@ describe('match-mode lazy network surface', () => {
     }
   });
 
+  async function openNetworkSurface(): Promise<HTMLInputElement> {
+    document.getElementById('modeNetworkBtn')!.click();
+    await flush(2);
+    settleFeatureLinks();
+    await waitForCondition(
+      () => document.getElementById('networkOverlay')!.classList.contains('is-open')
+    );
+    return document.getElementById('networkPlayerNameInput') as HTMLInputElement;
+  }
+
+  test('network surface first: later profile saves A then B are shown and used as the join name', async () => {
+    const PlayerProfile = require('../ui/player-profile.ts');
+    const input = await openNetworkSurface();
+    expect(input.value).toBe('');
+
+    PlayerProfile.savePlayerProfile({ displayName: 'なまえA' });
+    expect(input.value).toBe('なまえA');
+    PlayerProfile.savePlayerProfile({ displayName: 'なまえB' });
+    expect((document.getElementById('networkPlayerNameInput') as HTMLInputElement).value).toBe('なまえB');
+  });
+
+  test('profile first: the lazily created input starts from the saved name and follows a later save', async () => {
+    const PlayerProfile = require('../ui/player-profile.ts');
+    PlayerProfile.savePlayerProfile({ displayName: 'なまえA' });
+    const input = await openNetworkSurface();
+    expect(input.value).toBe('なまえA');
+
+    PlayerProfile.savePlayerProfile({ displayName: 'なまえB' });
+    expect(input.value).toBe('なまえB');
+  });
+
+  test('an unrelated re-projection keeps an unsaved name the player is typing', async () => {
+    const PlayerProfile = require('../ui/player-profile.ts');
+    PlayerProfile.savePlayerProfile({ displayName: 'なまえA' });
+    const input = await openNetworkSurface();
+    input.value = '入力中';
+    document.getElementById('networkCloseBtn')!.click();
+    document.getElementById('modeNetworkBtn')!.click();
+    await flush();
+    expect((document.getElementById('networkPlayerNameInput') as HTMLInputElement).value).toBe('入力中');
+  });
+
+  test('a destroyed surface stops following the profile and the recreated one subscribes once', async () => {
+    const PlayerProfile = require('../ui/player-profile.ts');
+    const originalSubscribe = PlayerProfile.subscribePlayerProfile;
+    let active = 0;
+    const subscribeSpy = jest.spyOn(PlayerProfile, 'subscribePlayerProfile').mockImplementation((listener: any) => {
+      active += 1;
+      const unsubscribe = originalSubscribe(listener);
+      let done = false;
+      return () => {
+        if (!done) { done = true; active -= 1; }
+        unsubscribe();
+      };
+    });
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      document.getElementById('modeNetworkBtn')!.click();
+      await flush(2);
+      settleFeatureLinks('load', 'network');
+      await flush();
+      expect(document.getElementById('networkPanel')).toBeNull();
+      expect(active).toBe(0);
+
+      (document.querySelector('#networkModal .btn-small') as HTMLButtonElement).click();
+      const input = await openNetworkSurface();
+      expect(active).toBe(1);
+      PlayerProfile.savePlayerProfile({ displayName: 'なまえB' });
+      expect(input.value).toBe('なまえB');
+    } finally {
+      warnSpy.mockRestore();
+      subscribeSpy.mockRestore();
+    }
+  });
+
   test('does not create the surface when no stored session exists', async () => {
     await matchMode.restoreStoredNetworkSessionOnBoot();
 

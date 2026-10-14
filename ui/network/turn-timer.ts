@@ -143,7 +143,8 @@ function createNetworkTurnTimerController(config?: any): any {
     state.turnTimer = normalizeTurnTimerPayload(null);
     state.turnTimerSyncRequestedDeadline = null;
     state.serverTimeOffsetMs = 0;
-    state.heartbeatResyncInFlight = false;
+    // heartbeatResyncInFlight is owned by the reconnect controller's recovery run (released on
+    // completion or closeStream); clearing it here would unlock a run that is still in flight.
     clearTurnTimerTick();
     emitTurnTimerChanged();
   }

@@ -202,7 +202,6 @@ describe('prepare-worker-assets', () => {
         ]) {
             expect(shouldMirrorRelativePath(excluded)).toBe(false);
         }
-        expect(shouldMirrorRelativePath('game/logic/module-resolver.js')).toBe(false);
     });
 
     test('detects worker-public index.html drift in a temp mirror', () => {

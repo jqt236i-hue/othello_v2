@@ -1,3 +1,5 @@
+import RoundRules = require('../logic/round-rules');
+
 type RoundStateOptions = {
     Core: any;
     gameState: any;
@@ -20,18 +22,6 @@ type ApplyPendingRoundBonusOptions = {
     addChargeWithTotal: (cardState: any, playerKey: any, amount: any, options: any) => any;
 };
 
-function clonePendingRoundBonusPayload(value: any) {
-    if (!value || typeof value !== 'object') return null;
-    const roundNumber = Number.isFinite(Number(value.roundNumber))
-        ? Math.max(1, Math.trunc(Number(value.roundNumber)))
-        : 1;
-    const amount = Number.isFinite(Number(value.amount))
-        ? Math.max(0, Math.trunc(Number(value.amount)))
-        : 0;
-    if (!(amount > 0)) return null;
-    return { roundNumber, amount };
-}
-
 function ensureGameRoundState(options: RoundStateOptions) {
     const opts = (options && typeof options === 'object') ? options : ({} as RoundStateOptions);
     const gameState = opts.gameState;
@@ -39,30 +29,7 @@ function ensureGameRoundState(options: RoundStateOptions) {
     if (opts.Core && typeof opts.Core.ensureRoundState === 'function') {
         return opts.Core.ensureRoundState(gameState);
     }
-    const roundNumber = Number.isFinite(Number(gameState.roundNumber))
-        ? Math.max(1, Math.trunc(Number(gameState.roundNumber)))
-        : 1;
-    const progress = (gameState.roundCompletionByPlayer && typeof gameState.roundCompletionByPlayer === 'object')
-        ? gameState.roundCompletionByPlayer
-        : {};
-    gameState.roundNumber = roundNumber;
-    gameState.roundCompletionByPlayer = {
-        black: !!progress.black,
-        white: !!progress.white
-    };
-    gameState.pendingRoundBonus = clonePendingRoundBonusPayload(gameState.pendingRoundBonus);
-    return gameState;
-}
-
-function resolveRoundBonusAmountForGame(Core: any, roundNumber: any) {
-    if (Core && typeof Core.resolveRoundBonusAmount === 'function') {
-        return Core.resolveRoundBonusAmount(roundNumber);
-    }
-    const normalizedRound = Number.isFinite(Number(roundNumber))
-        ? Math.max(1, Math.trunc(Number(roundNumber)))
-        : 1;
-    if (normalizedRound % 10 !== 0) return 0;
-    return Math.max(0, Math.floor(normalizedRound / 2));
+    return RoundRules.ensureRoundState(gameState);
 }
 
 function advanceGameRoundAfterCompletedTurn(options: AdvanceRoundOptions) {
@@ -70,48 +37,19 @@ function advanceGameRoundAfterCompletedTurn(options: AdvanceRoundOptions) {
     if (opts.Core && typeof opts.Core.advanceRoundAfterCompletedTurn === 'function') {
         return opts.Core.advanceRoundAfterCompletedTurn(opts.gameState, opts.playerKey, opts.options);
     }
-    const state = ensureGameRoundState({ Core: opts.Core, gameState: opts.gameState });
     const key = opts.normalizePlayerKey(opts.playerKey);
-    const advanceOptions = (opts.options && typeof opts.options === 'object') ? opts.options : {};
-    if (!state || !key) {
-        return {
-            advanced: false,
-            roundNumber: state ? state.roundNumber : 1,
-            pendingRoundBonus: clonePendingRoundBonusPayload(state && state.pendingRoundBonus)
-        };
-    }
-    state.roundCompletionByPlayer[key] = true;
-    if (!state.roundCompletionByPlayer.black || !state.roundCompletionByPlayer.white) {
-        return {
-            advanced: false,
-            roundNumber: state.roundNumber,
-            pendingRoundBonus: clonePendingRoundBonusPayload(state.pendingRoundBonus)
-        };
-    }
-    state.roundNumber = Math.max(1, Math.trunc(Number(state.roundNumber || 1))) + 1;
-    state.roundCompletionByPlayer = { black: false, white: false };
-    if (advanceOptions.scheduleBonus !== false) {
-        const amount = resolveRoundBonusAmountForGame(opts.Core, state.roundNumber);
-        state.pendingRoundBonus = amount > 0
-            ? { roundNumber: state.roundNumber, amount }
-            : null;
-    }
-    return {
-        advanced: true,
-        roundNumber: state.roundNumber,
-        pendingRoundBonus: clonePendingRoundBonusPayload(state.pendingRoundBonus)
-    };
+    return RoundRules.advanceRoundForPlayerKey(
+        opts.gameState,
+        key === 'black' || key === 'white' ? key : null,
+        opts.options
+    );
 }
 
 function consumePendingRoundBonusFromGame(Core: any, gameState: any) {
     if (Core && typeof Core.consumePendingRoundBonus === 'function') {
         return Core.consumePendingRoundBonus(gameState);
     }
-    const state = ensureGameRoundState({ Core, gameState });
-    if (!state) return null;
-    const pending = clonePendingRoundBonusPayload(state.pendingRoundBonus);
-    state.pendingRoundBonus = null;
-    return pending;
+    return RoundRules.consumePendingRoundBonus(gameState);
 }
 
 function emitRoundBonusBannerPresentation(CardLogic: any, cardState: any, payload: any) {

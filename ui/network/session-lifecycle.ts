@@ -1003,6 +1003,10 @@ function createNetworkSessionLifecycleController(config: any): any {
     // Detach queued snapshot/presentation work before the authority revokes the
     // current credentials. Failed leaves reopen the stream on this new epoch.
     advanceSessionEpoch('session_leave_requested');
+    if (typeof cfg.cancelPendingPublishRetries === 'function') {
+      // Publish retries that have not been sent yet belong to the leaving session.
+      cfg.cancelPendingPublishRetries();
+    }
     if (typeof cfg.cancelSessionReadRequests === 'function') {
       // Wait until aborted reads have settled before revoking the seat token.
       // Otherwise the leave POST can reach the authority first and turn the

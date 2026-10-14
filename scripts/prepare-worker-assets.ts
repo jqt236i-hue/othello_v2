@@ -237,7 +237,6 @@ const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'assets/images/Gacha/generation-record.json',
     'game/logic/card-usage-prechecks.js',
     'game/logic/charge-ledger.js',
-    'game/logic/module-resolver.js',
     'game/logic/presentation-helpers.js',
     'game/logic/random-source.js'
 ]);

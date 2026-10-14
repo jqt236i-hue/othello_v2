@@ -1,4 +1,5 @@
 import type { BoardCellDirectionHint, MaterializedBoardCellVisualState } from '../board-visual/types';
+import { getBoardDirectionHintGeometry } from '../board-direction-hint-geometry';
 import {
   addPixiChild,
   clearPixiGraphics,
@@ -78,24 +79,11 @@ function directionPresentation(directionKey: string, cellSize: number): Readonly
   x: number;
   y: number;
 }> {
-  const normalized = String(directionKey || '').trim().toLowerCase();
-  const low = cellSize * 0.2;
-  const high = cellSize * 0.8;
-  const center = cellSize * 0.5;
-  const values: Readonly<Record<string, readonly [string, number, number]>> = Object.freeze({
-    up: ['↑', center, low],
-    top: ['↑', center, low],
-    right: ['→', high, center],
-    down: ['↓', center, high],
-    bottom: ['↓', center, high],
-    left: ['←', low, center],
-    'up-left': ['↖', low, low],
-    'up-right': ['↗', high, low],
-    'down-right': ['↘', high, high],
-    'down-left': ['↙', low, high]
-  });
-  const value = values[normalized] || ['•', center, center];
-  return Object.freeze({ glyph: value[0], x: value[1], y: value[2] });
+  const geometry = getBoardDirectionHintGeometry(directionKey);
+  const glyph = geometry ? geometry.glyph : '•';
+  const x = geometry ? geometry.x : 0.5;
+  const y = geometry ? geometry.y : 0.5;
+  return Object.freeze({ glyph, x: cellSize * x, y: cellSize * y });
 }
 
 function renderDirectionHints(

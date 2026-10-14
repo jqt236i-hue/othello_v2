@@ -10,11 +10,10 @@ type MatchWorkerTurnTimerControllerConfig = {
     getStorage: () => DurableObjectStateLike['storage'] | null | undefined;
     loadCoreLogicModule: () => Promise<{ isGameOver?: (gameState: unknown) => boolean }>;
     hasTwoActiveSeats: (room: MatchWorkerRoomState | null | undefined) => boolean;
-    resolveTurnSeatKey: (room: MatchWorkerRoomState | null | undefined) => string;
-    parseSeatKeyOptional: (value: unknown) => string | null;
-    createPausedTurnTimer: (room: MatchWorkerRoomState | null | undefined) => Record<string, unknown>;
-    createActiveTurnTimer: (room: MatchWorkerRoomState | null | undefined, nowMs: unknown) => Record<string, unknown>;
-    areTurnTimersEqual: (left: unknown, right: unknown) => boolean;
+    applyTurnTimerRefresh: (
+        room: MatchWorkerRoomState,
+        options: { shouldBeActive: boolean; nowMs?: unknown; forceRestart?: boolean }
+    ) => { changed: boolean; replaced: boolean };
     now?: () => number;
 };
 
@@ -57,34 +56,16 @@ export function createMatchWorkerTurnTimerController(config: MatchWorkerTurnTime
         if (!room) return false;
 
         const nowMs = Number.isFinite(Number((opts as any).nowMs)) ? Math.max(0, Math.trunc(Number((opts as any).nowMs))) : now();
-        const turnSeatKey = cfg.resolveTurnSeatKey(room);
         const shouldRunBySeats = cfg.hasTwoActiveSeats(room);
         const isGameOver = shouldRunBySeats ? await isSnapshotGameOver(room.snapshot as MatchWorkerPublicSnapshot | null | undefined) : false;
-        const shouldBeActive = shouldRunBySeats && !isGameOver;
-
-        if (!shouldBeActive) {
-            const pausedTimer = cfg.createPausedTurnTimer(room);
-            const changed = !cfg.areTurnTimersEqual(room.turnTimer, pausedTimer);
-            room.turnTimer = pausedTimer;
-            await syncTurnTimerAlarm();
-            return changed;
-        }
-
-        const timer = (room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-        if (!(opts as any).forceRestart && timer && timer.active === true) {
-            const timerSeatKey = cfg.parseSeatKeyOptional((timer as any).turnSeatKey);
-            const timerDeadline = Number((timer as any).turnDeadlineAt);
-            if (timerSeatKey === turnSeatKey && Number.isFinite(timerDeadline)) {
-                (timer as any).limitSeconds = Number((cfg.createPausedTurnTimer(room) as any).limitSeconds);
-                return false;
-            }
-        }
-
-        const activeTimer = cfg.createActiveTurnTimer(room, nowMs);
-        const changed = !cfg.areTurnTimersEqual(room.turnTimer, activeTimer);
-        room.turnTimer = activeTimer;
-        await syncTurnTimerAlarm();
-        return changed;
+        // Timer rules are shared with the local server; only the alarm sync is Worker-specific.
+        const result = cfg.applyTurnTimerRefresh(room, {
+            shouldBeActive: shouldRunBySeats && !isGameOver,
+            nowMs,
+            forceRestart: !!(opts as any).forceRestart
+        });
+        if (result.replaced) await syncTurnTimerAlarm();
+        return result.changed;
     }
 
     return {

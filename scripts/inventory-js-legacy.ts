@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const TARGET_DIRS = ['.', 'game', 'ui', 'shared', 'scripts', 'cards', 'src', 'utils', 'constants', 'workers', 'cpu', 'public', 'tests', 'test'];
+import { collectSourceFiles } from './lib/source-file-walk';
 
 const SKIP_DIRS = new Set([
   '.git',
@@ -72,33 +72,35 @@ function loadAllowlist(): AllowlistFile {
   return { version: 1, updatedAt: 'n/a', entries: {} };
 }
 
-function walk(dir: string, root = process.cwd()): string[] {
-  const results: string[] = [];
-  const list = fs.readdirSync(dir);
-  for (const file of list) {
-    const filePath = path.join(dir, file);
-    const stat = fs.statSync(filePath);
-    if (stat.isDirectory()) {
-      // CPU comparison archives retain the exact old JS and diagnostic models
-      // needed to replay each recorded policy. Production sources live outside
-      // these evidence roots; never migrate or rewrite a frozen opponent here.
-      const relativeDir = path.relative(root, filePath).replace(/\\/g, '/');
-      // Generated distribution, rebuilt from canonical TS by build-battle-package.
-      if (relativeDir === 'output/battle-package') continue;
-      // Godot porting collections preserve an identified historical source and
-      // rebuild copy. Audit their source repository, not duplicated old shims.
-      if (/^output\/godot-source-[^/]+$/.test(relativeDir)) continue;
-      if (['data/cpu-lv10/baseline-v1', 'data/cpu-lv11', 'data/cpu-lv12', 'data/cpu-lv13', 'data/runs'].includes(relativeDir)) continue;
-      const relDir = path.relative(root, filePath).replace(/\\/g, '/');
-      const firstSegment = relDir.split('/')[0];
-      if (SKIP_DIRS.has(file) || SKIP_DIRS.has(firstSegment)) continue;
-      results.push(...walk(filePath, root));
-    } else if (file.endsWith('.js')) {
-      if (file.startsWith('tmp-')) continue;
-      results.push(filePath);
-    }
-  }
-  return results;
+// CPU comparison archives retain the exact old JS and diagnostic models
+// needed to replay each recorded policy. Production sources live outside
+// these evidence roots; never migrate or rewrite a frozen opponent here.
+const FROZEN_EVIDENCE_DIRS = new Set([
+  'data/cpu-lv10/baseline-v1',
+  'data/cpu-lv11',
+  'data/cpu-lv12',
+  'data/cpu-lv13',
+  'data/runs',
+  'othello-ai/data'
+]);
+
+function shouldSkipInventoryDir(relativeDir: string, name: string): boolean {
+  // Generated distribution, rebuilt from canonical TS by build-battle-package.
+  if (relativeDir === 'output/battle-package') return true;
+  // Godot porting collections preserve an identified historical source and
+  // rebuild copy. Audit their source repository, not duplicated old shims.
+  if (/^output\/godot-source-[^/]+$/.test(relativeDir)) return true;
+  if (FROZEN_EVIDENCE_DIRS.has(relativeDir)) return true;
+  const firstSegment = relativeDir.split('/')[0];
+  return SKIP_DIRS.has(name) || SKIP_DIRS.has(firstSegment);
+}
+
+function collectSourceJsFiles(rootDir: string): string[] {
+  return collectSourceFiles(['.'], {
+    root: path.resolve(rootDir),
+    skipDir: shouldSkipInventoryDir,
+    includeFile: (_relativePath, name) => name.endsWith('.js') && !name.startsWith('tmp-')
+  });
 }
 
 function classify(relPath: string, content: string): JsCategory {
@@ -196,10 +198,6 @@ function classify(relPath: string, content: string): JsCategory {
   return 'unknown';
 }
 
-function collectSourceJsFiles(rootDir: string): string[] {
-  return walk(path.resolve(rootDir), path.resolve(rootDir));
-}
-
 function isSubstantialRuntimeImplementation(content: string): boolean {
   const nonEmptyLines = content.split('\n').filter((line) => line.trim().length > 0);
   const declarationCount = (content.match(/\b(function|class)\s+\w+\b/g) || []).length;
@@ -240,13 +238,8 @@ function findHiddenRuntimeAuthorities(
 
 function main() {
   const allowlist = loadAllowlist();
-  const allJsSet = new Set<string>();
-  for (const dir of TARGET_DIRS) {
-    if (fs.existsSync(dir)) {
-      for (const jsPath of walk(dir)) allJsSet.add(path.resolve(jsPath));
-    }
-  }
-  const allJs = Array.from(allJsSet);
+  // One link-free pass over the checkout root covers every source directory exactly once.
+  const allJs = collectSourceJsFiles(process.cwd());
 
   const results: InventoryRow[] = allJs.map(jsPath => {
     const rel = path.relative(process.cwd(), jsPath).replace(/\\/g, '/');

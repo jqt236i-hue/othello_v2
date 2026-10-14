@@ -1,6 +1,7 @@
 import type { DurableObjectStateLike } from './match-worker-types';
 
 const Contract = require('../shared/player-identity-contract');
+import * as IdentityGenerator from '../shared/player-identity-generator';
 
 type IdentityRecord = {
     playerId: string;
@@ -19,13 +20,13 @@ type IdentityControllerConfig = {
     crypto?: Crypto;
 };
 
-const TOKEN_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
-const RECOVERY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ234567';
-
-function randomFromChars(chars: string, length: number, cryptoLike: Crypto): string {
-    const bytes = new Uint8Array(length);
-    cryptoLike.getRandomValues(bytes);
-    return Array.from(bytes).map((byte) => chars[byte % chars.length]).join('');
+// Web Crypto adapter for the shared, unbiased credential generator.
+function webCryptoByteSource(cryptoLike: Crypto): IdentityGenerator.RandomByteSource {
+    return (count: number) => {
+        const bytes = new Uint8Array(count);
+        cryptoLike.getRandomValues(bytes);
+        return bytes;
+    };
 }
 
 async function sha256Hex(value: string, cryptoLike: Crypto): Promise<string> {
@@ -44,16 +45,15 @@ function equalHex(left: string, right: string): boolean {
 }
 
 function makePlayerId(cryptoLike: Crypto): string {
-    return `p_${randomFromChars(TOKEN_CHARS, 26, cryptoLike)}`;
+    return IdentityGenerator.makePlayerId(webCryptoByteSource(cryptoLike));
 }
 
 function makePlayerToken(cryptoLike: Crypto): string {
-    return `pt_${randomFromChars(TOKEN_CHARS, 43, cryptoLike)}`;
+    return IdentityGenerator.makePlayerToken(webCryptoByteSource(cryptoLike));
 }
 
 function makeRecoveryCode(cryptoLike: Crypto): string {
-    const raw = randomFromChars(RECOVERY_CHARS, 25, cryptoLike);
-    return `CR-${raw.slice(0, 5)}-${raw.slice(5, 10)}-${raw.slice(10, 15)}-${raw.slice(15, 20)}-${raw.slice(20, 25)}`;
+    return IdentityGenerator.makeRecoveryCode(webCryptoByteSource(cryptoLike));
 }
 
 export function createMatchWorkerPlayerIdentityController(config: IdentityControllerConfig) {

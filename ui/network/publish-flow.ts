@@ -72,6 +72,8 @@ function createNetworkPublishFlowController(config?: any): any {
     const requestRoomId = String(state.roomId || '');
     const requestSeatKey = String(state.seatKey || '');
     const requestSeatToken = String(state.seatToken || '');
+    // The destination is pinned for every attempt of this operation; a later server change ends ownership.
+    const requestServerUrl = String(state.serverUrl || '');
     function isCurrentRequestSession(): boolean {
       const currentState = getState();
       if (!currentState || typeof currentState !== 'object') return false;
@@ -79,10 +81,15 @@ function createNetworkPublishFlowController(config?: any): any {
         return false;
       }
       return isActive()
+        && String(currentState.serverUrl || '') === requestServerUrl
         && String(currentState.roomId || '') === requestRoomId
         && String(currentState.seatKey || '') === requestSeatKey
         && String(currentState.seatToken || '') === requestSeatToken;
     }
+    const publishRequestContext = Object.freeze({
+      serverUrl: requestServerUrl,
+      isCurrent: isCurrentRequestSession
+    });
     function isResponseForRequestRoom(data: any): boolean {
       const responseRoomId = data && data.roomId
         ? String(data.roomId).trim().toUpperCase()
@@ -209,10 +216,13 @@ function createNetworkPublishFlowController(config?: any): any {
 
         if (typeof cfg.markTrackedPublishInFlight === 'function') cfg.markTrackedPublishInFlight(trackedPublish);
         let res = (typeof cfg.publishRequestWithRetry === 'function')
-          ? await cfg.publishRequestWithRetry(payload)
+          ? await cfg.publishRequestWithRetry(payload, publishRequestContext)
           : { ok: false, data: null };
         if (!isCurrentRequestSession()) {
           return discardStaleSessionResponse('initial_response');
+        }
+        if (res && res.cancelled === true) {
+          return discardStaleSessionResponse('retry_cancelled');
         }
         if (!isResponseForRequestRoom(res && res.data)) {
           return discardStaleSessionResponse('initial_response_room_mismatch');
@@ -338,10 +348,13 @@ function createNetworkPublishFlowController(config?: any): any {
                 });
               }
               const retryRes = (typeof cfg.publishRequestWithRetry === 'function')
-                ? await cfg.publishRequestWithRetry(retryPayload)
+                ? await cfg.publishRequestWithRetry(retryPayload, publishRequestContext)
                 : null;
               if (!isCurrentRequestSession()) {
                 return discardStaleSessionResponse('version_conflict_retry_response');
+              }
+              if (retryRes && retryRes.cancelled === true) {
+                return discardStaleSessionResponse('version_conflict_retry_cancelled');
               }
               if (!isResponseForRequestRoom(retryRes && retryRes.data)) {
                 return discardStaleSessionResponse('version_conflict_retry_room_mismatch');

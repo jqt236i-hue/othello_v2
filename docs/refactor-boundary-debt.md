@@ -7,8 +7,10 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 ## Migration safety gate
 
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
-It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
-It also fails if an allowed file carries duplicate `@ts-nocheck` directives, so the allowlist cannot hide redundant suppressions.
+It scans every canonical TypeScript root (`browser-vite/`, `cards/`, `constants/`, `cpu/`, `game/`, `othello-ai/`, `scripts/`, `shared/`, `src/`, `ui/`, `utils/`, `workers/`), the test/training roots (`test/`, `tests/`, `training/`), and root-level `*.ts` files, and fails on any file with a file-level `@ts-nocheck` that is not in the current migration debt allowlist.
+Detection follows TypeScript itself (`scripts/lib/ts-nocheck-directive.ts`): the directive counts anywhere in the leading single-line comment block, after an optional BOM or shebang and with no line limit; mentions in strings, block comments, or later comments are not directives.
+File enumeration (`scripts/lib/source-file-walk.ts`) never follows links/junctions and skips generated and external data roots.
+It also fails if a file carries duplicate `@ts-nocheck` directives, so the allowlist cannot hide redundant suppressions.
 
 Current authorized `@ts-nocheck` debt: 0 files.
 
@@ -111,4 +113,4 @@ Diagnostic counts were previously measured by running TypeScript with only the f
 
 Keep the allowlist empty. Any future `@ts-nocheck` requires removing it before merge or documenting a new, explicitly reviewed migration exception.
 
-Until those conditions are met, `scripts/check-refactor-safety.ts` should keep preventing new `@ts-nocheck` in high-risk targets and keep requiring each public boundary to route exports through checked contract adapters or assertions outside the legacy implementation body.
+`scripts/check-refactor-safety.ts` also keeps an empty high-risk allowlist (the three former entries were removed with their suppressions) and uses the same directive detection. It should keep preventing new `@ts-nocheck` in high-risk targets and keep requiring each public boundary to route exports through checked contract adapters or assertions outside the legacy implementation body.

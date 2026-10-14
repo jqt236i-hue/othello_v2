@@ -25,6 +25,7 @@ function getOwnerValueForDiff(owner: any, BLACK: any, WHITE: any): any {
 const BoardVisualModel = _require('./model');
 const SharedBoardUtils = _require('../../shared/shared-board-utils');
 const SpecialStoneRegistry = _require('../../shared/special-stone-registry');
+const ManifestStoneRegistry = _require('../../shared/manifest-stone-registry');
 
 function cloneSemanticValue(value: any): any {
     if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -1150,7 +1151,7 @@ function createCompatibilityMarker(cell: any, marker: any): any {
     if (marker.kind === 'special') {
         type = String(data.type || (cell.stone && cell.stone.specialType) || '');
         if (!type) return null;
-        const manifest = type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+        const manifest = ManifestStoneRegistry.isManifestStoneType(type) === true;
         kind = manifest ? 'manifestStone' : 'specialStone';
     } else if (marker.kind === 'living-will-aura') {
         type = 'LIVING_WILL';

@@ -1444,6 +1444,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             resetSessionState,
             resetTurnTimerState,
             cancelSessionReadRequests,
+            cancelPendingPublishRetries,
             closeStream,
             teardownActionBridge,
             normalizeNetworkSnapshotEnvelope,
@@ -3582,6 +3583,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 }
                 lastError = new Error(result && result.reason ? String(result.reason) : 'STATE_SYNC_FAILED');
             } catch (e: any) {
+                // A cancelled read belongs to a session that is being left; only timeouts and
+                // transport failures are retried.
+                if (e && e.cancelled === true) {
+                    return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
+                }
                 lastError = e;
             }
 
@@ -3924,12 +3930,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.closeStream();
     }
 
-    function publishRequestWithRetry(payload: any) {
+    function publishRequestWithRetry(payload: any, requestContext?: any) {
         const controller = getNetworkTransportController();
         if (!controller || typeof controller.publishRequestWithRetry !== 'function') {
             throw new Error('NetworkTransportModule unavailable');
         }
-        return controller.publishRequestWithRetry(payload);
+        return controller.publishRequestWithRetry(payload, requestContext);
+    }
+
+    function cancelPendingPublishRetries() {
+        const controller = getNetworkTransportController();
+        if (!controller || typeof controller.cancelPendingPublishRetries !== 'function') return 0;
+        return controller.cancelPendingPublishRetries();
     }
 
     function handleStreamSnapshotPayload(payload: any) {

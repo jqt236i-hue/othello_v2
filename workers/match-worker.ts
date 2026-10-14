@@ -57,6 +57,8 @@ import { createMatchRoomStorage } from './match-room-storage';
 import { createMatchWorkerWebSocketController } from './match-worker-websocket-controller';
 import type { MatchWorkerWebSocket } from './match-worker-types';
 import { getPublishPresentationFrames } from '../utils/match-public-frame-cache';
+import { createMatchPresentationJournalRules } from '../utils/match-presentation-journal-rules';
+import { toPublicMatchChatMessages } from '../utils/match-chat-rules';
 import { createMatchWorkerChatController } from './match-worker-chat-controller';
 import { createMatchWorkerLeaderboardHelpers } from './match-worker-leaderboard';
 import { buildMatchWorkerLeaderboardProof } from './match-worker-leaderboard-proof';
@@ -1059,55 +1061,27 @@ function toPublicSnapshotForViewer(room: MatchWorkerRoomState | null | undefined
     return MatchAuthority.buildPublicSnapshotForViewer(room, viewerValue) as MatchWorkerPublicSnapshot;
 }
 
+// Presentation-journal assembly is shared with the local server (utils/match-presentation-journal-rules.ts).
+const MatchWorkerPresentationJournalRules = createMatchPresentationJournalRules({
+    authority: MatchAuthority,
+    parseSeatKeyOptional,
+    getPublishPresentationFrames
+});
+
 function buildPresentationCursor(room: MatchWorkerRoomState | null | undefined): Record<string, number> {
-    return {
-        visualSeq: Number.isFinite(Number(room && room.visualSeq)) ? Math.max(0, Math.trunc(Number(room && room.visualSeq))) : 0,
-        stateVersion: Number.isFinite(Number(room && room.stateVersion)) ? Math.max(0, Math.trunc(Number(room && room.stateVersion))) : 0
-    };
+    return MatchWorkerPresentationJournalRules.buildPresentationCursor(room);
 }
 
 function viewerFromSeatKey(viewerSeatKey: unknown): MatchAuthorityViewer {
-    const seatKey = parseSeatKeyOptional(viewerSeatKey);
-    return seatKey ? { role: 'seat', seatKey } : { role: 'spectator', spectatorId: '' };
+    return MatchWorkerPresentationJournalRules.viewerFromSeatKey(viewerSeatKey) as MatchAuthorityViewer;
 }
 
 function ensureInitialPresentationSnapshots(room: MatchWorkerRoomState | null | undefined): void {
-    if (!room || room.initialSnapshotByViewer) return;
-    room.initialSnapshotByViewer = {
-        black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
-        white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
-        spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
-    };
-    if (!Number.isFinite(Number(room.visualSeq))) room.visualSeq = 0;
-    if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
+    MatchWorkerPresentationJournalRules.ensureInitialPresentationSnapshots(room);
 }
 
 function appendPresentationFrameForAcceptedPublish(room: MatchWorkerRoomState | null | undefined, options: Record<string, unknown>): unknown {
-    if (!room) return null;
-    ensureInitialPresentationSnapshots(room);
-    const playbackEvents = Array.isArray(options.playbackEvents) ? options.playbackEvents : [];
-    const effectLogs = MatchAuthority.normalizeEffectLogMessages(options.effectLogs);
-    const playbackDiagnostics = options.playbackDiagnostics || null;
-    const publishViewerArtifacts = asRecord(options.publishViewerArtifacts);
-    const artifactSnapshots = asRecord(publishViewerArtifacts.projectedSnapshots);
-    return MatchAuthority.appendPresentationFrame(room, {
-        stateVersionFrom: options.previousStateVersion,
-        stateVersionTo: options.nextStateVersion,
-        operationId: options.operationId,
-        actorSeatKey: options.actorSeatKey,
-        actionType: options.actionType,
-        payloadByViewer: {
-            black: { playbackEvents, effectLogs, playbackDiagnostics },
-            white: { playbackEvents, effectLogs, playbackDiagnostics },
-            spectator: { playbackEvents, effectLogs, playbackDiagnostics }
-        },
-        snapshotAfterByViewer: {
-            black: artifactSnapshots.black || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
-            white: artifactSnapshots.white || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
-            spectator: artifactSnapshots.spectator || toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
-        },
-        createdAt: options.createdAt
-    });
+    return MatchWorkerPresentationJournalRules.appendPresentationFrameForAcceptedPublish(room, options);
 }
 
 function buildPresentationFramesForViewer(
@@ -1115,14 +1089,7 @@ function buildPresentationFramesForViewer(
     viewerValue: unknown,
     options: Record<string, unknown>
 ): unknown[] {
-    if (Array.isArray(options.presentationFrames)) return options.presentationFrames;
-    const presentationFrameEntry = options.presentationFrameEntry;
-    if (presentationFrameEntry && typeof presentationFrameEntry === 'object') {
-        const viewer = asRecord(viewerValue);
-        const key = viewer.role === 'seat' && (viewer.seatKey === 'black' || viewer.seatKey === 'white') ? viewer.seatKey : 'spectator';
-        return getPublishPresentationFrames(options, key, () => [MatchAuthority.toPublicPresentationFrame(presentationFrameEntry, viewerValue, room)]);
-    }
-    return [];
+    return MatchWorkerPresentationJournalRules.buildPresentationFramesForViewer(room, viewerValue, options);
 }
 
 function buildPublicSeatState(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSeatState {
@@ -1319,16 +1286,7 @@ function toPublicNetworkAutoEnabled(room: MatchWorkerRoomState | null | undefine
 }
 
 function toPublicChatMessages(room: MatchWorkerRoomState | null | undefined): Array<Record<string, unknown>> {
-    const messages: unknown[] = Array.isArray(room?.chatMessages) ? room.chatMessages : [];
-    return messages.map((entry) => {
-        const entryRecord = asRecord(entry);
-        return {
-            id: Number.isFinite(Number(entryRecord.id)) ? Number(entryRecord.id) : 0,
-            seatKey: normalizePlayerKey(entryRecord.seatKey),
-            text: String(entryRecord.text ? entryRecord.text : ''),
-            serverTime: Number.isFinite(Number(entryRecord.serverTime)) ? Number(entryRecord.serverTime) : Date.now()
-        };
-    });
+    return toPublicMatchChatMessages(room, normalizePlayerKey);
 }
 
 function hasTwoActiveSeats(room: MatchWorkerRoomState | null | undefined): boolean {
@@ -1342,14 +1300,6 @@ function resolveTurnSeatKey(room: MatchWorkerRoomState | null | undefined): Matc
 
 function createPausedTurnTimer(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> {
     return MatchWorkerTurnTimerHelpers.createPausedTurnTimer(room);
-}
-
-function createActiveTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
-    return MatchWorkerTurnTimerHelpers.createActiveTurnTimer(room, nowMs);
-}
-
-function areTurnTimersEqual(a: unknown, b: unknown): boolean {
-    return MatchWorkerTurnTimerHelpers.areTurnTimersEqual(a, b);
 }
 
 function toPublicTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
@@ -1912,11 +1862,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 getStorage: () => this.state && this.state.storage ? this.state.storage : null,
                 loadCoreLogicModule,
                 hasTwoActiveSeats,
-                resolveTurnSeatKey,
-                parseSeatKeyOptional,
-                createPausedTurnTimer,
-                createActiveTurnTimer,
-                areTurnTimersEqual
+                applyTurnTimerRefresh: MatchWorkerTurnTimerHelpers.applyTurnTimerRefresh
             });
         }
         return this.turnTimerController;
@@ -2579,13 +2525,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             seatTokens: { black: makeSeatToken(), white: makeSeatToken() },
             spectators: {},
             maxSpectators: MatchAuthority.MAX_SPECTATORS || 4,
-            turnTimer: {
-                limitSeconds: turnTimeSeconds,
-                active: false,
-                turnSeatKey: getCurrentPlayerKey(snapshot && snapshot.gameState),
-                turnStartedAt: null,
-                turnDeadlineAt: null
-            },
+            turnTimer: createPausedTurnTimer({
+                snapshot,
+                turnTimer: { limitSeconds: turnTimeSeconds }
+            } as MatchWorkerRoomState),
             lastAcceptedOperationBySeat: {
                 black: null,
                 white: null

@@ -6,6 +6,7 @@ const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? _
 
 const fs = require('fs');
 const path = require('path');
+const GateContract = require('./policy-onnx-browser-gate-contract');
 const os = require('os');
 const {
     TRAINING_CHECKPOINT_HEAD_SPECS,
@@ -303,6 +304,12 @@ function parseSelfplayTrainingCycleArgs(argv) {
     }
 
     if (args.help) return args;
+
+    if (args.onnxGateEnabled && args.allowCardUsage && Number.isFinite(Number(args.trainCardEvery)) && Number(args.trainCardEvery) > 0) {
+        // Card specialist training is research only; the browser ONNX gate cannot verify a card head.
+        // Reject the combination before training instead of failing (or ignoring it) after hours of work.
+        GateContract.assertBrowserGateHeadsSupported(['card'], 'training-cycle --onnx-gate with --train-card-every');
+    }
 
     if (!Number.isFinite(args.iterations) || args.iterations < 1) throw new Error('--iterations must be >= 1');
     if (!Number.isFinite(args.maxHours) || args.maxHours < 0) throw new Error('--max-hours must be >= 0');

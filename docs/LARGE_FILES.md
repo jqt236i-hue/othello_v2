@@ -11,7 +11,7 @@
 ## 付属ツール（このリポジトリに追加済み） 🔧
 
 - `node scripts/list-large-files.js` — ワークスペース内の上位 N 個の大きいファイルを一覧表示（デフォルトで `.venv` と `data` を除外）。
-- `node scripts/preview-file.js <path>` — 大きいファイルでも安全に「head + tail」を表示。バイナリ検出あり。全文は `--full` 指定でのみ表示。
+- `node scripts/preview-file.js <path>` — 大きいファイルでも安全に「head + tail」を表示。バイナリ検出あり。`--threshold <MB>`（既定 5）以下のファイルは全文表示するが、自動の全文表示は常に 512 KB までに制限される。それより大きいファイルの全文は `--full` 指定でのみ表示。`--bytes` や `--threshold` に数値以外・負数・未知のオプションを渡すとエラーで終了する。
 
 例:
 

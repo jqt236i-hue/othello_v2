@@ -167,4 +167,4 @@
 | Worker mirror の生成 / 検査 | `npm run worker:prepare` / `npm run check:worker-mirror` |
 | Worker のローカル実行 / 本番デプロイ | `npm run worker:dev` / `npm run worker:deploy`（`worker:prepare` を含む） |
 
-`worker:prepare`、`check:worker-mirror`、`dev:vite` はブラウザビルドも実行するため、LOCAL DEV SERVER の配信中ビルド制約を確認する。
+`worker:prepare`、`dev:vite` はブラウザビルドも実行するため、LOCAL DEV SERVER の配信中ビルド制約を確認する。`check:worker-mirror` は準備済みの mirror を読むだけの検査で、ビルドしない（先に `worker:prepare` が必要）。

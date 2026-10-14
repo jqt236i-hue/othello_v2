@@ -212,7 +212,6 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/game/logic/markers_adapter" },
   { moduleKey: "./dist/game/logic/cards-internal/random-source" },
   { moduleKey: "./dist/game/logic/cards-internal/state-factory" },
-  { moduleKey: "./dist/game/logic/cards-internal/module-resolver" },
   { moduleKey: "./dist/game/logic/cards-internal/presentation-helpers" },
   { moduleKey: "./dist/game/logic/cards-internal/board-configuration" },
   { moduleKey: "./dist/game/logic/cards-internal/spawn-and-flip" },

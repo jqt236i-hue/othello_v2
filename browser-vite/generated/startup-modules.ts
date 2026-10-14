@@ -45,6 +45,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-lv10-advisor-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-advisor-contract.js"),
   "game/ai/cpu-lv10-observation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-observation.js"),
   "game/ai/cpu-lv10-position": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv10-position.js"),
+  "game/ai/cpu-lv13-turn-memory": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv13-turn-memory.js"),
   "game/ai/cpu-lv6-lookahead-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv6-lookahead-profile.js"),
   "game/ai/cpu-movement-target-feasibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-movement-target-feasibility.js"),
   "game/ai/cpu-policy-board-counts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-counts.js"),
@@ -264,7 +265,6 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/cards-internal/hand-access": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/hand-access.js"),
   "game/logic/cards-internal/hand-manager": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/hand-manager.js"),
   "game/logic/cards-internal/loss-effect": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/loss-effect.js"),
-  "game/logic/cards-internal/module-resolver": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/module-resolver.js"),
   "game/logic/cards-internal/offer-builders": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/offer-builders.js"),
   "game/logic/cards-internal/pending-selection-registry": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/pending-selection-registry.js"),
   "game/logic/cards-internal/pending-state-manager": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards-internal/pending-state-manager.js"),
@@ -330,6 +330,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/markers_adapter": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/markers_adapter.js"),
   "game/logic/position-weights": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/position-weights.js"),
   "game/logic/presentation": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/presentation.js"),
+  "game/logic/round-rules": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/round-rules.js"),
   "game/move-executor": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/move-executor.js"),
   "game/move-executor-visuals": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/move-executor-visuals.js"),
   "game/move-generator": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/move-generator.js"),
@@ -482,6 +483,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/playback-planner": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/playback-planner.js"),
   "shared/player-encoding": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/player-encoding.js"),
   "shared/player-identity-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/player-identity-contract.js"),
+  "shared/player-identity-generator": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/player-identity-generator.js"),
   "shared/player-profile-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/player-profile-contract.js"),
   "shared/player-seat-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/player-seat-contract.js"),
   "shared/presentation-effect-profiles": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/presentation-effect-profiles.js"),
@@ -518,6 +520,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/battle/embedded-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/battle/embedded-runtime.js"),
   "ui/battle/host": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/battle/host.js"),
   "ui/board-accessibility-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-accessibility-layer.js"),
+  "ui/board-direction-hint-geometry": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-direction-hint-geometry.js"),
   "ui/board-input-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-input-controller.js"),
   "ui/board-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer.js"),
   "ui/board-skin/catalog": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-skin/catalog.js"),
@@ -758,9 +761,11 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-authority/snapshot-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/snapshot-state.js"),
   "utils/match-authority/trap-visibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/trap-visibility.js"),
   "utils/match-auto-command": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-auto-command.js"),
+  "utils/match-chat-rules": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-chat-rules.js"),
   "utils/match-command-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-command-runtime.js"),
   "utils/match-join-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-join-controller.js"),
   "utils/match-leave-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-leave-controller.js"),
+  "utils/match-presentation-journal-rules": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-presentation-journal-rules.js"),
   "utils/match-public-frame-cache": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-public-frame-cache.js"),
   "utils/match-publish-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-publish-controller.js"),
   "utils/match-publish-payload": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-publish-payload.js"),
@@ -771,6 +776,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-spectate-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-spectate-controller.js"),
   "utils/match-state-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-state-controller.js"),
   "utils/match-stream-preparation-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-stream-preparation-controller.js"),
+  "utils/match-turn-timer-rules": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-turn-timer-rules.js"),
   "utils/owner-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/owner-helpers.js")
 };
 
@@ -818,6 +824,7 @@ installBootModuleMetadata({
     "game/ai/cpu-lv10-advisor-contract",
     "game/ai/cpu-lv10-observation",
     "game/ai/cpu-lv10-position",
+    "game/ai/cpu-lv13-turn-memory",
     "game/ai/cpu-lv6-lookahead-profile",
     "game/ai/cpu-movement-target-feasibility",
     "game/ai/cpu-policy-board-counts",
@@ -1037,7 +1044,6 @@ installBootModuleMetadata({
     "game/logic/cards-internal/hand-access",
     "game/logic/cards-internal/hand-manager",
     "game/logic/cards-internal/loss-effect",
-    "game/logic/cards-internal/module-resolver",
     "game/logic/cards-internal/offer-builders",
     "game/logic/cards-internal/pending-selection-registry",
     "game/logic/cards-internal/pending-state-manager",
@@ -1103,6 +1109,7 @@ installBootModuleMetadata({
     "game/logic/markers_adapter",
     "game/logic/position-weights",
     "game/logic/presentation",
+    "game/logic/round-rules",
     "game/move-executor",
     "game/move-executor-visuals",
     "game/move-generator",
@@ -1255,6 +1262,7 @@ installBootModuleMetadata({
     "shared/playback-planner",
     "shared/player-encoding",
     "shared/player-identity-contract",
+    "shared/player-identity-generator",
     "shared/player-profile-contract",
     "shared/player-seat-contract",
     "shared/presentation-effect-profiles",
@@ -1291,6 +1299,7 @@ installBootModuleMetadata({
     "ui/battle/embedded-runtime",
     "ui/battle/host",
     "ui/board-accessibility-layer",
+    "ui/board-direction-hint-geometry",
     "ui/board-dom-compat/animation-destroy-events",
     "ui/board-dom-compat/animation-destroy-source-events",
     "ui/board-dom-compat/animation-flip-events",
@@ -1548,9 +1557,11 @@ installBootModuleMetadata({
     "utils/match-authority/snapshot-state",
     "utils/match-authority/trap-visibility",
     "utils/match-auto-command",
+    "utils/match-chat-rules",
     "utils/match-command-runtime",
     "utils/match-join-controller",
     "utils/match-leave-controller",
+    "utils/match-presentation-journal-rules",
     "utils/match-public-frame-cache",
     "utils/match-publish-controller",
     "utils/match-publish-payload",
@@ -1561,6 +1572,7 @@ installBootModuleMetadata({
     "utils/match-spectate-controller",
     "utils/match-state-controller",
     "utils/match-stream-preparation-controller",
+    "utils/match-turn-timer-rules",
     "utils/owner-helpers"
   ],
   "optional": [
@@ -1647,4 +1659,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 768;
+export const startupModuleCount = 774;

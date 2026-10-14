@@ -37,15 +37,6 @@ function hasTargets(targets: any[], minimumCount: number): boolean {
     return Array.isArray(targets) && targets.length >= safeMinimumCount;
 }
 
-function validateSelectionTargets(context: CardUsageContext, resolverName: string, minimumCount: number): boolean {
-    if (!context || !context.gameState)
-        return false;
-    const resolver = context[resolverName];
-    if (typeof resolver !== 'function')
-        return false;
-    return hasTargets(resolver(context.cardState, context.gameState, context.playerKey), minimumCount);
-}
-
 function buildSelectionTargetArgs(context: CardUsageContext, argsKey: string): any[] {
     switch (argsKey) {
         case 'board':
@@ -88,25 +79,11 @@ function isInviolableSpecialCardId(cardId: any): boolean {
 }
 
 function isManifestStoneType(rawType: any): boolean {
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneType === 'function') {
-        return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    return ManifestStoneRegistry.isManifestStoneType(rawType) === true;
 }
 
 function isActiveManifestStoneMarker(marker: any): boolean {
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isActiveManifestStoneMarker === 'function') {
-        return ManifestStoneRegistry.isActiveManifestStoneMarker(marker) === true;
-    }
-    const type = marker && marker.data ? String(marker.data.type || '').toUpperCase() : '';
-    if (!marker || (marker.kind !== 'manifestStone' && marker.kind !== 'specialStone')) return false;
-    if (!isManifestStoneType(type)) return false;
-    if (Object.prototype.hasOwnProperty.call(marker.data || {}, 'remainingOwnerTurns')) {
-        const remaining = Number(marker.data.remainingOwnerTurns);
-        return Number.isFinite(remaining) && remaining > 0;
-    }
-    return true;
+    return ManifestStoneRegistry.isActiveManifestStoneMarker(marker) === true;
 }
 
 function hasActiveManifestStone(cardState: any): boolean {
@@ -289,70 +266,12 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             : [];
         return opponentHand.length > 0 ? result : buildFailureResult();
     }
+    // Every target-selection card is described by the pending-selection registry (method, args, minimum).
     const registryEntry = PendingSelectionRegistry.getPendingSelectionEntry(cardType);
     if (registryEntry && registryEntry.target && registryEntry.target.method) {
         return validateRegistrySelectionTargets(context, registryEntry) ? result : buildFailureResult();
     }
-    switch (cardType) {
-        case 'TEMPT_WILL':
-            return validateSelectionTargets(context, 'getTemptWillTargets', 1) ? result : buildFailureResult();
-        case 'CAPTURE_WILL':
-            return validateSelectionTargets(context, 'getCaptureWillTargets', 1) ? result : buildFailureResult();
-        case 'STRONG_WIND_WILL':
-            return validateSelectionTargets(context, 'getStrongWindTargets', 1) ? result : buildFailureResult();
-        case 'BUOYANCY_WILL':
-            return validateSelectionTargets(context, 'getBuoyancyTargets', 1) ? result : buildFailureResult();
-        case 'SUPER_BUOYANCY_WILL':
-            return validateSelectionTargets(context, 'getSuperBuoyancyTargets', 1) ? result : buildFailureResult();
-        case 'GRAVITY_WILL':
-            return validateSelectionTargets(context, 'getGravityTargets', 1) ? result : buildFailureResult();
-        case 'SUPER_GRAVITY_WILL':
-            return validateSelectionTargets(context, 'getSuperGravityTargets', 1) ? result : buildFailureResult();
-        case 'TRAP_WILL':
-            return validateSelectionTargets(context, 'getTrapTargets', 1) ? result : buildFailureResult();
-        case 'GUARD_WILL':
-        case 'GUARDIAN_GOD':
-            return validateSelectionTargets(context, 'getGuardTargets', 1) ? result : buildFailureResult();
-        case 'REINCARNATION_WILL':
-            return validateSelectionTargets(context, 'getReincarnationTargets', 1) ? result : buildFailureResult();
-        case 'LIVING_WILL':
-            return validateSelectionTargets(context, 'getLivingWillTargets', 1) ? result : buildFailureResult();
-        case 'EXTEND_LIFE_WILL':
-        case 'EXTEND_LIFE_GOD':
-            return validateSelectionTargets(context, 'getExtendLifeTargets', 1) ? result : buildFailureResult();
-        case 'CORROSION_WILL':
-            return validateSelectionTargets(context, 'getCorrosionTargets', 1) ? result : buildFailureResult();
-        case 'TIME_BOMB':
-            return validateSelectionTargets(context, 'getTimeBombTargets', 1) ? result : buildFailureResult();
-        case 'TELEPORT_WILL':
-            return validateSelectionTargets(context, 'getTeleportTargets', 1) ? result : buildFailureResult();
-        case 'CLONE_WILL':
-            return validateSelectionTargets(context, 'getCloneTargets', 1) ? result : buildFailureResult();
-        case 'POSITION_SWAP_WILL':
-            return validateSelectionTargets(context, 'getPositionSwapTargets', 2) ? result : buildFailureResult();
-        case 'BOARD_EXPANSION_WILL':
-            return validateSelectionTargets(context, 'getBoardExpansionTargets', 1) ? result : buildFailureResult();
-        case 'BOARD_EXPANSION_GOD':
-            return validateSelectionTargets(context, 'getBoardExpansionGodTargets', 1) ? result : buildFailureResult();
-        case 'BOARD_SHRINK_WILL':
-            return validateSelectionTargets(context, 'getBoardShrinkTargets', 3) ? result : buildFailureResult();
-        case 'BOARD_SHRINK_GOD':
-            return validateSelectionTargets(context, 'getBoardShrinkGodTargets', 1) ? result : buildFailureResult();
-        case 'BLOCKADE_WILL':
-            return validateSelectionTargets(context, 'getBlockadeTargets', 1) ? result : buildFailureResult();
-        case 'POISON_WILL':
-            return validateSelectionTargets(context, 'getPoisonTargets', 1) ? result : buildFailureResult();
-        case 'METEOR_WILL':
-            return validateSelectionTargets(context, 'getMeteorTargets', 1) ? result : buildFailureResult();
-        case 'CAUSAL_REPLAY_WILL':
-            return validateSelectionTargets(context, 'getCausalReplayTargets', 1) ? result : buildFailureResult();
-        case 'FREEZE_WILL':
-            return validateSelectionTargets(context, 'getFreezeTargets', 1) ? result : buildFailureResult();
-        case 'SEED_WILL':
-            return validateSelectionTargets(context, 'getSeedTargets', 1) ? result : buildFailureResult();
-        default:
-            return result;
-    }
+    return result;
 }
 
 export = {

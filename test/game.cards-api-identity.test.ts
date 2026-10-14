@@ -137,14 +137,14 @@ describe('CardLogic facade identity contract', () => {
     const entry = fs.readFileSync(path.join(root, 'entry-browser.js'), 'utf8');
     const registryMatches = registry.match(/_r\("game\/logic\/cards",/g) || [];
     const globalMatches = entry.match(/moduleKey:\s*"\.\/dist\/game\/logic\/cards",\s*globalNames:\s*\["CardLogic"\]/g) || [];
-    const resolverIndex = entry.indexOf('./dist/game/logic/cards-internal/module-resolver');
+    const internalsIndex = entry.indexOf('./dist/game/logic/cards-internal/presentation-helpers');
     const facadeIndex = entry.indexOf('./dist/game/logic/cards", globalNames: ["CardLogic"]');
     const bootstrapIndex = entry.indexOf('./dist/ui/bootstrap", initUIBootstrap: true');
 
     expect(registryMatches).toHaveLength(FACADE_IDENTITY_BASELINE.classicRegistrationCount);
     expect(globalMatches).toHaveLength(FACADE_IDENTITY_BASELINE.classicGlobalInstallCount);
-    expect(resolverIndex).toBeGreaterThanOrEqual(0);
-    expect(facadeIndex).toBeGreaterThan(resolverIndex);
+    expect(internalsIndex).toBeGreaterThanOrEqual(0);
+    expect(facadeIndex).toBeGreaterThan(internalsIndex);
     expect(bootstrapIndex).toBeGreaterThan(facadeIndex);
   });
 });

@@ -127,6 +127,8 @@ describe('player profile panel controller', () => {
       updatePublicProfile: jest.fn(async () => ({ ok: true }))
     };
     panel.setupPlayerProfilePanel({ root: window });
+    const profileListener = jest.fn();
+    const unsubscribe = require('../ui/player-profile.ts').subscribePlayerProfile(profileListener);
 
     await openProfile();
     expect((document.getElementById('profileNameInput') as HTMLInputElement).value).toBe('保存名');
@@ -142,8 +144,10 @@ describe('player profile panel controller', () => {
 
     const storedProfile = JSON.parse(storage.get('card_reversi_player_profile_v1') || '{}');
     expect(storedProfile).toMatchObject({ displayName: 'さかな', avatarStoneType: 'SNIPER', bio: 'よろしく' });
-    expect((document.getElementById('leaderboardNameInput') as HTMLInputElement).value).toBe('さかな');
-    expect((document.getElementById('networkPlayerNameInput') as HTMLInputElement).value).toBe('さかな');
+    // Other screens follow the saved profile through their own subscriptions (covered with the real
+    // lazy network surface in ui.match-mode.network-surface.test.ts); the panel only notifies.
+    expect(profileListener).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'さかな', bio: 'よろしく' }));
+    unsubscribe();
     expect((window as any).LeaderboardClient.setPlayerName).toHaveBeenCalledWith('さかな');
     expect((window as any).LeaderboardClient.updatePublicProfile).toHaveBeenCalled();
 

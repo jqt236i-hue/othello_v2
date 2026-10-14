@@ -59,11 +59,8 @@ function isActiveMarker(marker: any): boolean {
 
 function isManifestStoneType(rawType: any, deps?: any): boolean {
     const registry = getManifestRegistry(deps);
-    if (registry && typeof registry.isManifestStoneType === 'function') {
-        return registry.isManifestStoneType(rawType) === true;
-    }
-    const type = String(rawType || '').trim().toUpperCase();
-    return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
+    return (typeof registry.isManifestStoneType === 'function' ? registry : ManifestStoneRegistryFallback)
+        .isManifestStoneType(rawType) === true;
 }
 
 function isActiveBoardExecutorMarker(marker: any, deps?: any): boolean {

@@ -78,8 +78,65 @@ describe('NetworkPublishFlowController contract', () => {
       sessionEpoch: 9,
       actionType: 'place'
     }));
-    expect(publishRequestWithRetry).toHaveBeenCalledWith(expect.not.objectContaining({
+    expect(publishRequestWithRetry).toHaveBeenCalledTimes(1);
+    const [wirePayload, requestContext] = (publishRequestWithRetry.mock.calls[0] as unknown) as [any, any];
+    expect(wirePayload).toEqual(expect.not.objectContaining({
       placementFeedbackToken: expect.anything()
+    }));
+    expect(requestContext).toEqual(expect.objectContaining({ serverUrl: '', isCurrent: expect.any(Function) }));
+  });
+
+  test('pins the destination server and treats a cancelled retry as a stale session', async () => {
+    const publishFlowModule = require('../ui/network/publish-flow');
+    const state: any = {
+      serverUrl: 'https://server-a.example',
+      roomId: 'ABC',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      stateVersion: 1,
+      publishChain: Promise.resolve()
+    };
+    const contexts: any[] = [];
+    const applySnapshotThroughCoordinator = jest.fn();
+    const recordNetworkTelemetry = jest.fn();
+    const controller = publishFlowModule.createNetworkPublishFlowController({
+      getState: () => state,
+      getSessionEpoch: () => 1,
+      isActive: () => true,
+      normalizePlayerKey: () => 'black',
+      emitStatus: jest.fn(),
+      createOperationId: () => 'op-pinned',
+      resolveNetworkPublishRequestModule: () => ({
+        buildPublishRequest: () => ({
+          commandPayload: { actor: 'black', params: {} },
+          requestPayload: { actionType: 'place' },
+          queuedActionType: 'place'
+        })
+      }),
+      createTrackedPublish: () => ({ sequence: 1 }),
+      settleTrackedPublish: jest.fn(),
+      publishRequestWithRetry: jest.fn(async (_payload: any, context: any) => {
+        contexts.push(context);
+        expect(context.isCurrent()).toBe(true);
+        state.serverUrl = 'https://server-b.example';
+        expect(context.isCurrent()).toBe(false);
+        return { ok: false, status: 0, data: null, cancelled: true, reason: 'SESSION_CHANGED' };
+      }),
+      applySnapshotThroughCoordinator,
+      recordNetworkTelemetry,
+      pruneTrackedPublishes: jest.fn()
+    });
+
+    await expect(controller.publishSnapshot({ playerKey: 'black', actionType: 'place' })).resolves.toEqual({
+      ok: false,
+      reason: 'SESSION_CHANGED',
+      stale: true
+    });
+    expect(contexts).toEqual([expect.objectContaining({ serverUrl: 'https://server-a.example' })]);
+    expect(Object.isFrozen(contexts[0])).toBe(true);
+    expect(applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    expect(recordNetworkTelemetry).toHaveBeenCalledWith('publish_response_stale_session_ignored', expect.objectContaining({
+      operationId: 'op-pinned'
     }));
   });
 

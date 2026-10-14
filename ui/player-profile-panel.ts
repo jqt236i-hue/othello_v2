@@ -145,9 +145,7 @@ function createProfileSurface(context: any): PlayerProfileSurface {
     regenerateRecoveryBtn: modalElement.querySelector('#profileRegenerateRecoveryBtn') as HTMLElement | null,
     recoveryInput: modalElement.querySelector('#profileRecoveryCodeInput') as HTMLInputElement | null,
     recoverIdentityBtn: modalElement.querySelector('#profileRecoverIdentityBtn') as HTMLElement | null,
-    status: modalElement.querySelector('#profileIdentityStatus') as HTMLElement | null,
-    leaderboardNameInput: doc.getElementById('leaderboardNameInput') as HTMLInputElement | null,
-    networkPlayerNameInput: doc.getElementById('networkPlayerNameInput') as HTMLInputElement | null
+    status: modalElement.querySelector('#profileIdentityStatus') as HTMLElement | null
   };
 
   let activeAvatarStoneType = 'REGEN';
@@ -267,8 +265,7 @@ function createProfileSurface(context: any): PlayerProfileSurface {
     });
     if (refs.nameInput) refs.nameInput.value = saved.displayName;
     if (refs.bioInput) refs.bioInput.value = saved.bio;
-    if (refs.leaderboardNameInput) refs.leaderboardNameInput.value = saved.displayName;
-    if (refs.networkPlayerNameInput) refs.networkPlayerNameInput.value = saved.displayName;
+    // Network/ranking name inputs follow PlayerProfile.subscribePlayerProfile in their own screens.
     try {
       const leaderboard = root && (root as any).LeaderboardClient;
       if (leaderboard && typeof leaderboard.setPlayerName === 'function') {

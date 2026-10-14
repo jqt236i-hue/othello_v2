@@ -4,6 +4,7 @@ import type {
   BoardDirectionHintKind,
   BoardRenderModel
 } from './board-visual/types';
+import { getBoardDirectionHintGeometry } from './board-direction-hint-geometry';
 
 const ACCESSIBILITY_LAYER_CLASS = 'board-accessibility-layer';
 const DIRECTION_BUTTON_CLASS = 'board-accessibility-direction-button';
@@ -11,28 +12,6 @@ const EXPANSION_HINT_KINDS = new Set<BoardDirectionHintKind>([
   'board-expansion-god',
   'board-expansion-will'
 ]);
-
-const DIRECTION_POSITIONS: Readonly<Record<string, Readonly<{ x: number; y: number }>>> = Object.freeze({
-  up: Object.freeze({ x: 0.5, y: 0.14 }),
-  down: Object.freeze({ x: 0.5, y: 0.86 }),
-  left: Object.freeze({ x: 0.14, y: 0.5 }),
-  right: Object.freeze({ x: 0.86, y: 0.5 }),
-  'up-left': Object.freeze({ x: 0.18, y: 0.18 }),
-  'up-right': Object.freeze({ x: 0.82, y: 0.18 }),
-  'down-left': Object.freeze({ x: 0.18, y: 0.82 }),
-  'down-right': Object.freeze({ x: 0.82, y: 0.82 })
-});
-
-const DIRECTION_GLYPHS: Readonly<Record<string, string>> = Object.freeze({
-  up: '↑',
-  down: '↓',
-  left: '←',
-  right: '→',
-  'up-left': '↖',
-  'up-right': '↗',
-  'down-left': '↙',
-  'down-right': '↘'
-});
 
 // The legacy expansion direction control is 20px inside a 44px cell. Keeping
 // the ratio makes the transparent semantic hit area coincide with the Pixi
@@ -100,15 +79,9 @@ interface DirectionButtonRecord {
   focused: boolean;
 }
 
-function normalizeDirection(value: unknown): string {
-  const normalized = String(value == null ? '' : value).trim().toLowerCase();
-  if (normalized === 'top') return 'up';
-  if (normalized === 'bottom') return 'down';
-  return normalized;
-}
-
 function directionGlyph(directionKey: string): string {
-  return DIRECTION_GLYPHS[normalizeDirection(directionKey)] || '•';
+  const geometry = getBoardDirectionHintGeometry(directionKey);
+  return geometry ? geometry.glyph : '•';
 }
 
 export function getBoardExpansionDirectionAriaLabel(directionKey: string): string {
@@ -145,8 +118,9 @@ function semanticHints(
       : [];
     for (const rawHint of hints) {
       if (!rawHint || !isExpansionHint(rawHint)) continue;
-      const directionKey = normalizeDirection(rawHint.directionKey);
-      if (!DIRECTION_POSITIONS[directionKey]) continue;
+      const geometry = getBoardDirectionHintGeometry(rawHint.directionKey);
+      if (!geometry) continue;
+      const directionKey = geometry.directionKey;
       const rawId = String(rawHint.id == null ? '' : rawHint.id).trim();
       const id = rawId || `${rawHint.kind}:${cell.key}:${directionKey}`;
       if (seen.has(id)) continue;
@@ -173,7 +147,7 @@ function localButtonGeometry(
   directionKey: string
 ): Readonly<{ left: number; top: number; size: number }> {
   const hostRect = host.getBoundingClientRect();
-  const position = DIRECTION_POSITIONS[directionKey] || DIRECTION_POSITIONS.right;
+  const position = getBoardDirectionHintGeometry(directionKey) || getBoardDirectionHintGeometry('right')!;
   const size = Math.max(1, Math.min(rect.width, rect.height) * DIRECTION_HIT_SIZE_RATIO);
   return Object.freeze({
     left: rect.left - hostRect.left + rect.width * position.x - size / 2,
@@ -208,7 +182,7 @@ function isDirectionButtonVisible(
   rect: BoardClientRect,
   directionKey: string
 ): boolean {
-  const position = DIRECTION_POSITIONS[directionKey] || DIRECTION_POSITIONS.right;
+  const position = getBoardDirectionHintGeometry(directionKey) || getBoardDirectionHintGeometry('right')!;
   const size = Math.max(1, Math.min(rect.width, rect.height) * DIRECTION_HIT_SIZE_RATIO);
   const left = rect.left + rect.width * position.x - size / 2;
   const top = rect.top + rect.height * position.y - size / 2;

@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as PendingSelectionRegistry from '../game/logic/cards-internal/pending-selection-registry.js';
 import * as PendingStateManager from '../game/logic/cards-internal/pending-state-manager.js';
 import * as CardUsagePrechecks from '../game/logic/cards-internal/card-usage-prechecks.js';
+import * as CardUsageValidationStage from '../game/cards/card-usage-validation-stage';
 import * as PendingTargetSelector from '../game/turn-handlers/pending-target-selector.js';
 import * as CpuTurnHandler from '../game/cpu-turn-handler.js';
 import * as CardInteractionDetailActions from '../cards/card-interaction-detail-actions.js';
@@ -19,27 +20,6 @@ function readCardTypeUnion(): string[] {
   const match = source.match(/export type CardType\s*=\s*([\s\S]*?);/);
   if (!match) return [];
   return Array.from(match[1].matchAll(/'([^']+)'/g)).map((entry) => entry[1]);
-}
-
-function sliceBalancedObject(source: string, startToken: string): string {
-  const tokenIndex = source.indexOf(startToken);
-  if (tokenIndex < 0) return '';
-  const openIndex = source.indexOf('{', tokenIndex);
-  if (openIndex < 0) return '';
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    if (source[index] === '{') depth += 1;
-    if (source[index] !== '}') continue;
-    depth -= 1;
-    if (depth === 0) return source.slice(openIndex + 1, index);
-  }
-  return '';
-}
-
-function extractShorthandIdentifiers(source: string): Set<string> {
-  return new Set(Array.from(source.matchAll(
-    /^\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*,\s*$/gm
-  )).map((match) => match[1]));
 }
 
 describe('pending selection card contracts', () => {
@@ -141,31 +121,95 @@ describe('pending selection card contracts', () => {
     }
   });
 
-  test('card usage validation explicitly forwards every registry target resolver', () => {
-    const validationSource = fs.readFileSync(
-      path.join(repoRoot, 'game/cards/card-usage-validation-stage.ts'),
-      'utf8'
-    );
-    const dependencyBlock = validationSource.slice(
-      validationSource.indexOf('const {'),
-      validationSource.indexOf('} = options.deps || {};')
-    );
-    const precheckBlock = sliceBalancedObject(
-      validationSource,
-      'validateCardUsagePreconditions({'
-    );
-    const destructuredDependencies = extractShorthandIdentifiers(dependencyBlock);
-    const forwardedDependencies = extractShorthandIdentifiers(precheckBlock);
-    const registryTargetMethods = Array.from(new Set(
-      Object.values(PendingSelectionRegistry.PENDING_SELECTION_REGISTRY as any)
-        .map((entry: any) => entry && entry.target && entry.target.method)
-        .filter(Boolean)
-    )).sort();
+  test('card usage validation calls every registry target resolver with its registry args and minimum', () => {
+    const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY as any;
+    const targetEntries = Object.entries(registry).filter(([, entry]: any) => entry && entry.target && entry.target.method);
+    const cardState: any = { hands: { black: ['card-under-test'] }, charge: { black: 99 }, turnIndex: 30 };
+    const gameState: any = { board: [], turnNumber: 30 };
+    const pending = { type: 'pending-marker' };
+    expect(new Set(targetEntries.map(([, entry]: any) => entry.target.method)).size).toBe(32);
 
-    expect(registryTargetMethods).toHaveLength(32);
-    expect(precheckBlock).not.toBe('');
-    expect(registryTargetMethods.filter((method) => !destructuredDependencies.has(method))).toEqual([]);
-    expect(registryTargetMethods.filter((method) => !forwardedDependencies.has(method))).toEqual([]);
+    for (const [cardType, entry] of targetEntries as any[]) {
+      const minimumCount = Number.isFinite(Number(entry.target.minimumCount))
+        ? Math.max(1, Math.trunc(Number(entry.target.minimumCount)))
+        : 1;
+      const expectedArgs = entry.target.argsKey === 'board'
+        ? [cardState, gameState]
+        : entry.target.argsKey === 'player_pending'
+          ? [cardState, gameState, 'black', null]
+          : [cardState, gameState, 'black'];
+      const enoughTargets = Array.from({ length: minimumCount }, (_, index) => ({ row: index, col: index + 1 }));
+      const run = (targets: any[]) => {
+        const resolver = jest.fn(() => targets);
+        const result = CardUsageValidationStage.prepareCardUsageValidation({
+          cardState,
+          playerKey: 'black',
+          cardId: 'card-under-test',
+          deps: { gameState, [entry.target.method]: resolver },
+          getCardCost: () => 0,
+          getCardType: () => cardType,
+          CardHandManagerModule: { canConsumeCardUseForTurn: () => true, resolveHandIndexForCard: () => 0 },
+          CardMarkersModule: null,
+          CardUsagePrechecksModule: CardUsagePrechecks,
+          PendingSelectionRegistryModule: undefined,
+          RIBO_WILL_UNLOCK_TURN_INDEX: 0,
+          TIME_STOP_GOD_SELF_DESTROY_COUNT: 3
+        } as any);
+        return { resolver, result };
+      };
+
+      const accepted = run(enoughTargets);
+      expect({ cardType, ok: accepted.result.ok }).toEqual({ cardType, ok: true });
+      expect(accepted.resolver).toHaveBeenCalledTimes(1);
+      expect(accepted.resolver).toHaveBeenCalledWith(...expectedArgs);
+
+      const rejected = run(enoughTargets.slice(0, minimumCount - 1));
+      expect({ cardType, ok: rejected.result.ok }).toEqual({ cardType, ok: false });
+    }
+    expect(pending.type).toBe('pending-marker');
+  });
+
+  test('usable-card analysis consults every registry target resolver from the selector module', () => {
+    const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY as any;
+    const targetEntries = Object.entries(registry).filter(([, entry]: any) => entry && entry.target && entry.target.method);
+    const results: Array<{ cardType: string; withTargets: boolean; withoutTargets: boolean }> = [];
+    for (const [cardType, entry] of targetEntries as any[]) {
+      const minimumCount = Number.isFinite(Number(entry.target.minimumCount))
+        ? Math.max(1, Math.trunc(Number(entry.target.minimumCount)))
+        : 1;
+      const enoughTargets = Array.from({ length: minimumCount }, (_, index) => ({ row: index, col: index + 1 }));
+      const usableWith = (targets: any[]) => {
+        jest.resetModules();
+        const HandManager = require('../game/logic/cards-internal/hand-manager.js');
+        const selectorsModule: any = { [entry.target.method]: jest.fn(() => targets) };
+        const context = {
+          constants: { MAX_HAND_SIZE: 5, RIBO_WILL_UNLOCK_TURN_INDEX: 0 },
+          modules: {
+            CardDefsModule: {
+              getCardDef: (cardId: string) => (cardId === 'card-under-test' ? { id: cardId, type: cardType, cost: 0, name: cardId } : null),
+              getCardType: (cardId: string) => (cardId === 'card-under-test' ? cardType : null)
+            },
+            CardCostsModule: { getCardCost: () => 0 },
+            CardSelectorsModule: selectorsModule
+          },
+          // Position swap also requires two occupied cells; that gate is independent of the selector.
+          helpers: { getOccupiedBoardShapeCellsForCard: () => [{ row: 0, col: 0 }, { row: 0, col: 1 }] }
+        };
+        const cardState = {
+          hands: { black: ['card-under-test'], white: [] },
+          charge: { black: 0, white: 0 },
+          hasUsedCardThisTurnByPlayer: { black: false, white: false },
+          turnIndex: 30
+        };
+        const usable = HandManager.getUsableCardIds(cardState, { board: [], turnNumber: 30 }, 'black', context);
+        return { usable: usable.includes('card-under-test'), calls: selectorsModule[entry.target.method].mock.calls.length };
+      };
+      const accepted = usableWith(enoughTargets);
+      const rejected = usableWith(enoughTargets.slice(0, minimumCount - 1));
+      expect({ cardType, consulted: accepted.calls > 0 }).toEqual({ cardType, consulted: true });
+      results.push({ cardType, withTargets: accepted.usable, withoutTargets: rejected.usable });
+    }
+    expect(results.filter((row) => !row.withTargets || row.withoutTargets)).toEqual([]);
   });
 
   test('registry action fields drive pending target action construction', () => {

@@ -5,6 +5,7 @@ const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? _
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { fork } = require('child_process');
 const SeededPRNG = require('../game/schema/prng');
 const {
@@ -643,14 +644,18 @@ function buildChunkArtifactDir(outPath) {
     return path.join(path.dirname(resolvedOutPath), `${path.basename(resolvedOutPath)}.resume-chunks`);
 }
 
-function buildChunkArtifactPaths(chunkDir, chunkIndex, includeHardcase) {
+function buildChunkArtifactPaths(chunkDir, chunkIndex, includeHardcase, attemptId = null) {
     const chunkLabel = String(chunkIndex).padStart(4, '0');
+    // Each attempt writes its own files, so a non-reusable earlier attempt is never overwritten.
+    const attemptLabel = attemptId ? `.${attemptId}` : '';
     return {
-        outPath: path.join(chunkDir, `selfplay.chunk.${chunkLabel}.ndjson`),
+        outPath: path.join(chunkDir, `selfplay.chunk.${chunkLabel}${attemptLabel}.ndjson`),
         hardcaseOutPath: includeHardcase
-            ? path.join(chunkDir, `selfplay.hardcase.chunk.${chunkLabel}.ndjson`)
+            ? path.join(chunkDir, `selfplay.hardcase.chunk.${chunkLabel}${attemptLabel}.ndjson`)
             : null,
-        summaryPath: path.join(chunkDir, `selfplay.chunk.${chunkLabel}.summary.json`)
+        // Legacy (pre-manifest) completion record; never trusted for reuse.
+        summaryPath: path.join(chunkDir, `selfplay.chunk.${chunkLabel}.summary.json`),
+        manifestPath: attemptId ? path.join(chunkDir, `selfplay.chunk.${chunkLabel}${attemptLabel}.manifest.json`) : null
     };
 }
 
@@ -668,58 +673,187 @@ function readJsonFile(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-function buildChunkSummaryPayload(chunk, chunkCount, result, elapsedMs) {
+// Completion manifest of one resumable chunk. It is written last (atomically), so a chunk without
+// one is incomplete. Reuse requires the exact generation identity, schema/producer and output digests.
+const CHUNK_MANIFEST_SCHEMA = 'selfplay-chunk-manifest.v2';
+const CHUNK_MANIFEST_PRODUCER = Object.freeze({ script: 'training/scripts/generate-selfplay-data', version: 2 });
+
+function sha256Bytes(bytes) {
+    return crypto.createHash('sha256').update(bytes).digest('hex');
+}
+
+function stableStringify(value) {
+    return JSON.stringify(value, (_key, item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+        return Object.fromEntries(Object.keys(item).sort().map((name) => [name, item[name]]));
+    });
+}
+
+function countNdjsonRecords(bytes) {
+    const text = bytes.toString('utf8');
+    if (!text) return 0;
+    return text.split('\n').filter((line) => line.length > 0).length;
+}
+
+function describeChunkOutput(filePath) {
+    if (!filePath || !fileExists(filePath)) return null;
+    const bytes = fs.readFileSync(filePath);
+    return { file: path.basename(filePath), bytes: bytes.length, records: countNdjsonRecords(bytes), sha256: sha256Bytes(bytes) };
+}
+
+function digestInputFile(filePath) {
+    try {
+        return sha256Bytes(fs.readFileSync(filePath));
+    } catch (err) {
+        return null;
+    }
+}
+
+/** Everything that determines a chunk's records. Execution-only settings (jobs, retries, verbose,
+ * chunk count, paths) are excluded; input models are identified by content, not by name. */
+function buildChunkGenerationIdentity(args, chunk) {
+    const modelPaths = buildPolicyModelPathPool(args);
     return {
-        generatedAt: new Date().toISOString(),
-        elapsedMs,
-        schemaVersion: SELFPLAY_SCHEMA_VERSION,
         chunk: {
             chunkIndex: chunk.chunkIndex,
-            chunkCount,
             games: chunk.games,
             seed: chunk.seed,
             gameIndexOffset: chunk.gameIndexOffset
         },
-        summary: result.summary
+        config: {
+            maxPlies: args.maxPlies,
+            allowCardUsage: !!args.allowCardUsage,
+            stoneSupplyEnabled: args.stoneSupplyEnabled === true,
+            cardUsageRate: args.cardUsageRate,
+            policyMixRate: args.policyMixRate,
+            cardUsageRateJitter: args.cardUsageRateJitter,
+            tacticalWeightMin: args.tacticalWeightMin,
+            tacticalWeightMax: args.tacticalWeightMax,
+            tacticalDepthOpening: args.tacticalDepthOpening,
+            tacticalDepthMid: args.tacticalDepthMid,
+            tacticalDepthEnd: args.tacticalDepthEnd,
+            tacticalBeamWidth: args.tacticalBeamWidth,
+            teacherCommitteeWeightMin: args.teacherCommitteeWeightMin,
+            teacherCommitteeWeightMax: args.teacherCommitteeWeightMax,
+            teacherCommitteeConsensusBonusMin: args.teacherCommitteeConsensusBonusMin,
+            teacherCommitteeConsensusBonusMax: args.teacherCommitteeConsensusBonusMax,
+            policyScoreWeightMin: args.policyScoreWeightMin,
+            policyScoreWeightMax: args.policyScoreWeightMax,
+            heuristicWeightMin: args.heuristicWeightMin,
+            heuristicWeightMax: args.heuristicWeightMax,
+            policyPoolSampling: args.policyPoolSampling,
+            policyPoolRecencyDecay: args.policyPoolRecencyDecay,
+            policyCurrentAnchorRate: args.policyCurrentAnchorRate,
+            blackDeckCode: args.blackDeckCode == null ? null : args.blackDeckCode,
+            whiteDeckCode: args.whiteDeckCode == null ? null : args.whiteDeckCode,
+            seedFamily: args.seedFamily == null ? null : args.seedFamily,
+            dataLane: args.dataLane == null ? null : args.dataLane,
+            hardcaseEnabled: !!args.hardcaseOut
+        },
+        inputs: {
+            hasCurrentPolicyModel: !!args.policyModelPath,
+            policyModelSha256: modelPaths.map((onePath) => digestInputFile(onePath)),
+            cardCatalogSha256: digestInputFile(path.resolve(__dirname, '..', '..', 'cards', 'catalog.json'))
+        }
     };
 }
 
-function isReusableChunkPayload(payload, chunk, chunkCount) {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
-    const chunkMeta = payload.chunk;
-    const summary = payload.summary;
-    if (!chunkMeta || typeof chunkMeta !== 'object' || !summary || typeof summary !== 'object') return false;
-    if (Number(chunkMeta.chunkIndex) !== chunk.chunkIndex) return false;
-    if (Number(chunkMeta.chunkCount) !== chunkCount) return false;
-    if (Number(chunkMeta.games) !== chunk.games) return false;
-    if (Number(chunkMeta.seed) !== chunk.seed) return false;
-    if (Number(chunkMeta.gameIndexOffset) !== chunk.gameIndexOffset) return false;
-    if (summary.aborted === true) return false;
-    return Number(summary.totalGames || 0) === chunk.games;
+function buildChunkManifest(args, chunk, attemptId, chunkResult, chunkPaths, elapsedMs) {
+    const identity = buildChunkGenerationIdentity(args, chunk);
+    return {
+        schema: CHUNK_MANIFEST_SCHEMA,
+        producer: CHUNK_MANIFEST_PRODUCER,
+        schemaVersion: SELFPLAY_SCHEMA_VERSION,
+        attemptId,
+        identitySha256: sha256Bytes(stableStringify(identity)),
+        identity,
+        outputs: {
+            selfplay: describeChunkOutput(chunkPaths.outPath),
+            hardcase: chunkPaths.hardcaseOutPath ? describeChunkOutput(chunkPaths.hardcaseOutPath) : null,
+            illegalMove: describeChunkOutput(chunkResult.illegalMoveHardcaseOutPath)
+        },
+        summary: chunkResult.summary,
+        completedAt: new Date().toISOString(),
+        elapsedMs
+    };
 }
 
-function loadReusableChunkResult(chunk, chunkCount, chunkPaths) {
-    if (!fileExists(chunkPaths.outPath) || !fileExists(chunkPaths.summaryPath)) {
-        return null;
+function writeJsonAtomically(filePath, payload) {
+    const pending = `${filePath}.pending-${process.pid}`;
+    fs.writeFileSync(pending, JSON.stringify(payload, null, 2), 'utf8');
+    fs.renameSync(pending, filePath);
+}
+
+/** Returns null when reusable, otherwise the reason the manifest is rejected. */
+function validateChunkManifest(manifest, chunkDir, expectedIdentitySha256, chunk) {
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return 'unreadable manifest';
+    if (manifest.schema !== CHUNK_MANIFEST_SCHEMA) return `schema ${manifest.schema || 'none'}`;
+    if (stableStringify(manifest.producer) !== stableStringify(CHUNK_MANIFEST_PRODUCER)) return 'producer version differs';
+    if (manifest.schemaVersion !== SELFPLAY_SCHEMA_VERSION) return `record schema ${manifest.schemaVersion || 'none'}`;
+    if (manifest.identitySha256 !== expectedIdentitySha256) return 'generation identity differs (settings, models, or card catalog changed)';
+    const summary = manifest.summary;
+    if (!summary || typeof summary !== 'object' || summary.aborted === true) return 'incomplete summary';
+    if (Number(summary.totalGames || 0) !== chunk.games) return 'game count differs';
+    const outputs = manifest.outputs || {};
+    const expectHardcase = !!(manifest.identity && manifest.identity.config && manifest.identity.config.hardcaseEnabled);
+    if (!outputs.selfplay) return 'missing selfplay output';
+    if (expectHardcase !== !!outputs.hardcase) return 'hardcase output mismatch';
+    const illegalCount = Number(summary.illegalMoveHardcaseRecords || 0);
+    if (illegalCount > 0 && !outputs.illegalMove) return 'missing illegal-move sidecar';
+    if (outputs.illegalMove && Number(outputs.illegalMove.records) !== illegalCount) return 'illegal-move sidecar count differs';
+    for (const [kind, described] of Object.entries(outputs)) {
+        if (!described) continue;
+        const actual = describeChunkOutput(path.join(chunkDir, (described as any).file));
+        if (!actual) return `missing ${kind} file`;
+        if (actual.sha256 !== (described as any).sha256 || actual.records !== (described as any).records) return `${kind} file changed or truncated`;
     }
-    if (chunkPaths.hardcaseOutPath && !fileExists(chunkPaths.hardcaseOutPath)) {
-        return null;
+    return null;
+}
+
+function toChunkResult(chunk, manifest, chunkDir, manifestPath) {
+    const outputs = manifest.outputs;
+    return {
+        chunkIndex: chunk.chunkIndex,
+        summary: manifest.summary,
+        outPath: path.join(chunkDir, outputs.selfplay.file),
+        hardcaseOutPath: outputs.hardcase ? path.join(chunkDir, outputs.hardcase.file) : null,
+        illegalMoveHardcaseOutPath: outputs.illegalMove ? path.join(chunkDir, outputs.illegalMove.file) : null,
+        manifest,
+        manifestPath
+    };
+}
+
+function loadReusableChunkResult(args, chunk, chunkDir, warn = (message) => console.warn(message)) {
+    const chunkLabel = String(chunk.chunkIndex).padStart(4, '0');
+    const expectedIdentitySha256 = sha256Bytes(stableStringify(buildChunkGenerationIdentity(args, chunk)));
+    const legacy = buildChunkArtifactPaths(chunkDir, chunk.chunkIndex, false).summaryPath;
+    if (fileExists(legacy)) {
+        warn(`[selfplay] chunk ${chunk.chunkIndex}: legacy completion record without a manifest is not reused; kept ${path.basename(legacy)} and regenerating in a new attempt`);
     }
-    let payload = null;
+    let names = [];
     try {
-        payload = readJsonFile(chunkPaths.summaryPath);
+        names = fs.readdirSync(chunkDir);
     } catch (err) {
         return null;
     }
-    if (!isReusableChunkPayload(payload, chunk, chunkCount)) {
-        return null;
+    const pattern = new RegExp(`^selfplay\\.chunk\\.${chunkLabel}\\.(.+)\\.manifest\\.json$`);
+    for (const name of names.filter((one) => pattern.test(one)).sort()) {
+        const manifestPath = path.join(chunkDir, name);
+        let manifest = null;
+        try {
+            manifest = readJsonFile(manifestPath);
+        } catch (err) {
+            manifest = null;
+        }
+        const reason = validateChunkManifest(manifest, chunkDir, expectedIdentitySha256, chunk);
+        if (!reason) return toChunkResult(chunk, manifest, chunkDir, manifestPath);
+        warn(`[selfplay] chunk ${chunk.chunkIndex}: ${name} not reused (${reason}); its files are kept`);
     }
-    return {
-        chunkIndex: chunk.chunkIndex,
-        summary: payload.summary,
-        outPath: chunkPaths.outPath,
-        hardcaseOutPath: chunkPaths.hardcaseOutPath
-    };
+    return null;
+}
+
+function createChunkAttemptId() {
+    return `a${Date.now().toString(36)}-${process.pid}`;
 }
 
 function runSelfPlayShard(options) {
@@ -996,7 +1130,9 @@ async function closeWritableStream(stream) {
     });
 }
 
-async function mergeShardFiles(shardPaths, outPath) {
+// keepSources: resumable chunks keep their files until the merged outputs are verified;
+// temporary worker shards are removed as soon as they are appended.
+async function mergeShardFiles(shardPaths, outPath, options: { keepSources?: boolean } = {}) {
     const resolvedOutPath = path.resolve(process.cwd(), outPath);
     const resolvedShardPaths = shardPaths.map((one) => path.resolve(process.cwd(), one));
     const partialPath = buildMergePartialPath(resolvedOutPath);
@@ -1047,9 +1183,11 @@ async function mergeShardFiles(shardPaths, outPath) {
                 throw new Error(`merge source not found: ${onePath}`);
             }
             await appendFileToStream(onePath, outStream);
-            try {
-                fs.rmSync(onePath, { force: true });
-            } catch (err) { /* ignore */ }
+            if (!options.keepSources) {
+                try {
+                    fs.rmSync(onePath, { force: true });
+                } catch (err) { /* ignore */ }
+            }
         }
     } finally {
         await closeWritableStream(outStream);
@@ -1410,7 +1548,7 @@ function buildSummaryPayload(args, summary, policyModelPaths, policyModelCount, 
     };
 }
 
-async function runSelfPlayWithResumeChunks(args) {
+async function runSelfPlayWithResumeChunks(args, options: any = {}) {
     const chunkSize = Math.floor(Number(args.resumeChunkSize) || 0);
     if (!(chunkSize > 0) || chunkSize >= Number(args.games || 0)) {
         return runSelfPlayJob(args, {});
@@ -1419,6 +1557,8 @@ async function runSelfPlayWithResumeChunks(args) {
     const chunkPlan = createChunkPlan(args.games, args.seed, chunkSize, args.gameIndexOffset);
     const chunkDir = buildChunkArtifactDir(args.out);
     ensureDir(chunkDir);
+    const attemptId = options.attemptId || createChunkAttemptId();
+    const warn = typeof options.warn === 'function' ? options.warn : (message) => console.warn(message);
 
     const chunkResults = [];
     let completedGames = 0;
@@ -1432,9 +1572,8 @@ async function runSelfPlayWithResumeChunks(args) {
     };
 
     for (const chunk of chunkPlan) {
-        const chunkPaths = buildChunkArtifactPaths(chunkDir, chunk.chunkIndex, !!args.hardcaseOut);
         const reused = args.reuseCompletedChunks
-            ? loadReusableChunkResult(chunk, chunkPlan.length, chunkPaths)
+            ? loadReusableChunkResult(args, chunk, chunkDir, warn)
             : null;
         if (reused) {
             console.log(`[selfplay] reuse chunk ${chunk.chunkIndex + 1}/${chunkPlan.length} games=${chunk.games} offset=${chunk.gameIndexOffset}`);
@@ -1444,6 +1583,7 @@ async function runSelfPlayWithResumeChunks(args) {
             continue;
         }
 
+        const chunkPaths = buildChunkArtifactPaths(chunkDir, chunk.chunkIndex, !!args.hardcaseOut, attemptId);
         console.log(`[selfplay] run chunk ${chunk.chunkIndex + 1}/${chunkPlan.length} games=${chunk.games} offset=${chunk.gameIndexOffset}`);
         const chunkStartedAt = Date.now();
         const chunkResult = await runSelfPlayJob(Object.assign({}, args, {
@@ -1457,24 +1597,20 @@ async function runSelfPlayWithResumeChunks(args) {
                 logProgress(completedGames + Number(progress.completed || 0), progress.winner || null);
             }
         });
-        const chunkPayload = buildChunkSummaryPayload(chunk, chunkPlan.length, chunkResult, Date.now() - chunkStartedAt);
-        fs.writeFileSync(chunkPaths.summaryPath, JSON.stringify(chunkPayload, null, 2), 'utf8');
-        chunkResults.push({
-            chunkIndex: chunk.chunkIndex,
-            summary: chunkResult.summary,
-            outPath: chunkPaths.outPath,
-            hardcaseOutPath: chunkPaths.hardcaseOutPath,
-            illegalMoveHardcaseOutPath: chunkResult.illegalMoveHardcaseOutPath
-        });
+        const manifest = buildChunkManifest(args, chunk, attemptId, chunkResult, chunkPaths, Date.now() - chunkStartedAt);
+        writeJsonAtomically(chunkPaths.manifestPath, manifest);
+        chunkResults.push(toChunkResult(chunk, manifest, chunkDir, chunkPaths.manifestPath));
         completedGames += Number(chunkResult.summary && chunkResult.summary.totalGames || 0);
     }
 
     const sorted = chunkResults.slice().sort((a, b) => Number(a.chunkIndex) - Number(b.chunkIndex));
-    await mergeShardFiles(sorted.map((one) => one.outPath), args.out);
+    const keepSources = { keepSources: true };
+    await mergeShardFiles(sorted.map((one) => one.outPath), args.out, keepSources);
     if (args.hardcaseOut) {
         await mergeShardFiles(
             sorted.map((one) => one.hardcaseOutPath).filter(Boolean),
-            args.hardcaseOut
+            args.hardcaseOut,
+            keepSources
         );
     }
     const illegalMoveChunkPaths = sorted
@@ -1484,12 +1620,38 @@ async function runSelfPlayWithResumeChunks(args) {
         ? buildIllegalMoveHardcaseOutPath(args.out)
         : null;
     if (illegalMoveHardcaseOutPath) {
-        await mergeShardFiles(illegalMoveChunkPaths, illegalMoveHardcaseOutPath);
+        await mergeShardFiles(illegalMoveChunkPaths, illegalMoveHardcaseOutPath, keepSources);
     }
+
+    // Confirm every merged output holds exactly the manifest records before removing any chunk.
+    const expectRecords = (kind) => sorted.reduce((sum, one) => sum + Number(one.manifest.outputs[kind] ? one.manifest.outputs[kind].records : 0), 0);
+    const verifyMerged = (kind, filePath) => {
+        const expected = expectRecords(kind);
+        const actual = filePath && fileExists(filePath) ? countNdjsonRecords(fs.readFileSync(filePath)) : 0;
+        if (actual !== expected) {
+            throw new Error(`[selfplay] merged ${kind} records ${actual} != chunk manifests ${expected}; chunk files kept in ${chunkDir}`);
+        }
+    };
+    verifyMerged('selfplay', args.out);
+    if (args.hardcaseOut) verifyMerged('hardcase', args.hardcaseOut);
+    verifyMerged('illegalMove', illegalMoveHardcaseOutPath);
+
     const summary = combineSummary(sorted);
+    // Remove only the chunks this attempt merged (produced now or adopted by reuse). Earlier
+    // attempts that were not reusable stay in place as evidence.
+    for (const one of sorted) {
+        const owned = [one.outPath, one.hardcaseOutPath, one.illegalMoveHardcaseOutPath, one.manifestPath].filter(Boolean);
+        for (const filePath of owned) {
+            try { fs.rmSync(filePath, { force: true }); } catch (err) { /* keep on failure */ }
+        }
+    }
     try {
-        fs.rmSync(chunkDir, { recursive: true, force: true });
-    } catch (err) { /* ignore */ }
+        fs.rmdirSync(chunkDir);
+    } catch (err) {
+        if (err && err.code === 'ENOTEMPTY') {
+            warn(`[selfplay] kept non-reused chunk artifacts in ${chunkDir}`);
+        }
+    }
     return {
         summary,
         outPath: args.out,
@@ -1610,5 +1772,6 @@ export = {
     runShardWorker,
     runSelfPlayParallel,
     runSelfPlayWithResumeChunks,
+    buildChunkGenerationIdentity,
     isRetriableWorkerFailure
 };

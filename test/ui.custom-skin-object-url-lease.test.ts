@@ -120,4 +120,89 @@ describe('custom skin object URL leases', () => {
     runtime.releaseAppliedBoardSkinLeases(window);
     expect(storage.getCustomSkinObjectUrlLeaseDiagnostics(window).activeLeaseCount).toBe(0);
   });
+
+  test('an update whose request succeeded but whose transaction aborted keeps the saved data, cache, and leases', async () => {
+    const browser = installFakeCustomSkinBrowser(dom.window as unknown as Window);
+    const storage = require('../ui/custom-skin/storage.ts');
+    const first = await storage.saveCustomSkin(window, {
+      kind: 'board',
+      label: '最初の盤面',
+      boardImage: new Blob(['first'], { type: 'image/png' })
+    });
+    const lease = storage.acquireCustomSkinObjectUrlLease(window, first.id, [first.imagePath]);
+    const storedBefore = browser.records.get(first.id);
+    const createdBefore = browser.createdUrls.length;
+    const notifications = jest.fn();
+    storage.subscribeCustomSkins(window, notifications);
+
+    browser.writeOutcomes.push('abort-after-request');
+    await expect(storage.saveCustomSkin(window, {
+      id: first.id,
+      kind: 'board',
+      label: '更新した盤面',
+      boardImage: new Blob(['second'], { type: 'image/png' })
+    })).rejects.toEqual(expect.objectContaining({ name: 'QuotaExceededError' }));
+
+    expect(browser.records.get(first.id)).toBe(storedBefore);
+    expect(storage.getCustomSkinDefinitions(window, 'board')).toEqual([
+      expect.objectContaining({ id: first.id, label: '最初の盤面', imagePath: first.imagePath })
+    ]);
+    expect(browser.createdUrls).toHaveLength(createdBefore);
+    expect(browser.revokedUrls).toEqual([]);
+    expect(notifications).not.toHaveBeenCalled();
+    expect(() => storage.acquireCustomSkinObjectUrlLease(window, first.id, [first.imagePath]).release()).not.toThrow();
+    expect(lease.release()).toBe(true);
+  });
+
+  test('a failed first save adds nothing and a failed delete keeps the record and its URL', async () => {
+    const browser = installFakeCustomSkinBrowser(dom.window as unknown as Window);
+    const storage = require('../ui/custom-skin/storage.ts');
+
+    browser.writeOutcomes.push('request-error');
+    await expect(storage.saveCustomSkin(window, {
+      kind: 'board',
+      boardImage: new Blob(['never'], { type: 'image/png' })
+    })).rejects.toBeTruthy();
+    expect(browser.records.size).toBe(0);
+    expect(storage.getCustomSkinDefinitions(window, 'board')).toEqual([]);
+    expect(browser.createdUrls).toEqual([]);
+
+    const saved = await storage.saveCustomSkin(window, {
+      kind: 'board',
+      boardImage: new Blob(['kept'], { type: 'image/png' })
+    });
+    browser.writeOutcomes.push('abort-after-request');
+    await expect(storage.deleteCustomSkin(window, saved.id)).rejects.toBeTruthy();
+    expect(browser.records.has(saved.id)).toBe(true);
+    expect(storage.getCustomSkinDefinitions(window, 'board')).toEqual([
+      expect.objectContaining({ id: saved.id, imagePath: saved.imagePath })
+    ]);
+    expect(browser.revokedUrls).toEqual([]);
+  });
+
+  test('save is reported only after the transaction commits', async () => {
+    const browser = installFakeCustomSkinBrowser(dom.window as unknown as Window);
+    const storage = require('../ui/custom-skin/storage.ts');
+    browser.writeOutcomes.push('pending');
+    let resolved = false;
+    const saving = storage.saveCustomSkin(window, {
+      kind: 'board',
+      boardImage: new Blob(['slow'], { type: 'image/png' })
+    }).then((definition: any) => {
+      resolved = true;
+      return definition;
+    });
+
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(resolved).toBe(false);
+    expect(browser.records.size).toBe(0);
+    expect(storage.getCustomSkinDefinitions(window, 'board')).toEqual([]);
+
+    browser.settlePendingWrites('commit');
+    const definition = await saving;
+    expect(resolved).toBe(true);
+    expect(browser.records.has(definition.id)).toBe(true);
+    expect(storage.getCustomSkinDefinitions(window, 'board')).toEqual([expect.objectContaining({ id: definition.id })]);
+  });
 });

@@ -35,10 +35,13 @@ const RECURRING_POWER: Readonly<Record<string, number>> = Object.freeze({
 /** A sampled terminal is uncertain at the live root. Keep sampled outcomes
  * and unresolved positions on a comparable bounded scale; this is a search
  * utility, not a calibrated win probability. Immediate proven wins are still
- * selected separately by the search. */
+ * selected separately by the search. A sampled terminal keeps its final stone
+ * margin as a small tie-break, so a lost game still loses by as little as
+ * possible and a won game wins by as much as possible. */
 export function aggregateLv13ScenarioValues(values: readonly number[]): number {
     if (!values.length) throw new Error('Scenario comparison needs a completed value');
-    const bounded = values.map(value => Math.tanh(value / 64));
+    const bounded = values.map(value => Math.abs(value) >= 100000
+        ? Math.sign(value) * (.996 + .004 * Math.tanh((Math.abs(value) - 100000) / 16)) : Math.tanh(value / 64));
     return .85 * bounded.reduce((sum, value) => sum + value, 0) / bounded.length + .15 * Math.min(...bounded);
 }
 

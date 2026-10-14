@@ -71,6 +71,32 @@ function getDefaultPlayerProfile(): PlayerProfile {
   };
 }
 
+type PlayerProfileListener = (profile: PlayerProfile) => void;
+const profileListeners = new Set<PlayerProfileListener>();
+
+// Screens that show the player's name (network match, ranking, ...) subscribe while they exist and
+// unsubscribe when they are destroyed, so a lazily created input never keeps a stale name.
+function subscribePlayerProfile(listener: PlayerProfileListener): () => void {
+  if (typeof listener !== 'function') return () => undefined;
+  profileListeners.add(listener);
+  return () => {
+    profileListeners.delete(listener);
+  };
+}
+
+function notifyPlayerProfileListeners(profile: PlayerProfile): void {
+  for (const listener of Array.from(profileListeners)) {
+    try {
+      listener(profile);
+    } catch (error) {
+      // A failing screen must not undo the saved profile or stop the other screens.
+      if (typeof console !== 'undefined' && console && typeof console.error === 'function') {
+        console.error('[PlayerProfile] listener failed', error);
+      }
+    }
+  }
+}
+
 function readPlayerProfile(): PlayerProfile {
   if (!canUseStorage()) return getDefaultPlayerProfile();
   try {
@@ -96,6 +122,7 @@ function writePlayerProfile(profile: unknown): PlayerProfile {
       localStorage.setItem(PLAYER_PROFILE_STORAGE_KEY, JSON.stringify(nextProfile));
     } catch (e) { /* ignore */ }
   }
+  notifyPlayerProfileListeners(nextProfile);
   return nextProfile;
 }
 
@@ -114,6 +141,7 @@ function clearPlayerProfile(): void {
   try {
     localStorage.removeItem(PLAYER_PROFILE_STORAGE_KEY);
   } catch (e) { /* ignore */ }
+  notifyPlayerProfileListeners(getDefaultPlayerProfile());
 }
 
 const PlayerProfileModel = {
@@ -130,7 +158,8 @@ const PlayerProfileModel = {
   writePlayerProfile,
   savePlayerProfile,
   updatePlayerProfile,
-  clearPlayerProfile
+  clearPlayerProfile,
+  subscribePlayerProfile
 };
 
 try {

@@ -287,6 +287,17 @@ const MODE_OTHELLO = 'othello';
         return normalized;
     }
 
+    // Calls listener with the saved display name after every profile write; returns the unsubscribe.
+    function subscribeProfilePlayerName(listener: (name: string) => void): () => void {
+        if (!PlayerProfileModule || typeof PlayerProfileModule.subscribePlayerProfile !== 'function') {
+            return () => undefined;
+        }
+        return PlayerProfileModule.subscribePlayerProfile((profile: any) => {
+            const name = normalizePlayerName(profile && profile.displayName);
+            if (name) listener(name);
+        });
+    }
+
     function getSharedPlayerName() {
         const profileName = getProfilePlayerName();
         if (profileName) return profileName;
@@ -1182,7 +1193,14 @@ const MODE_OTHELLO = 'othello';
         context.recordDomCreated(modal.childElementCount + chatPanel.childElementCount);
 
         const refs = collectNetworkSurfaceRefs(documentRef);
+        // Resolve the surface's current input at notification time (the lobby may rebuild it); the
+        // subscription lives exactly as long as this surface.
+        const unsubscribeProfileName = subscribeProfilePlayerName((name) => {
+            const input = uiRefs.networkPlayerNameInput || refs.networkPlayerNameInput;
+            if (input) input.value = name;
+        });
         context.addCleanup(() => {
+            unsubscribeProfileName();
             detachNetworkUiRefs(refs);
             modal.replaceChildren();
             chatPanel.replaceChildren();
@@ -1336,6 +1354,7 @@ const MODE_OTHELLO = 'othello';
             DEFAULT_PLAYER_NAME,
             normalizePlayerName,
             getSharedPlayerName,
+            subscribeProfilePlayerName,
             setNetworkOverlayVisible,
             isNetworkOverlayOpen,
         };

@@ -17,8 +17,9 @@ jobs:
         run: npm ci
       - name: Run checks
         # Generated mirrors may contain retired paths in the checkout. Rebuild
-        # from canonical sources before validating the complete inventory.
-        run: npm run worker:prepare && npm run checkall
+        # from canonical sources once, then run the read-only checks against
+        # that prepared snapshot without compiling or regenerating again.
+        run: npm run worker:prepare && npm run checkall:prepared
 
   test:
     needs: check

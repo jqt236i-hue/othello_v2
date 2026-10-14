@@ -37,6 +37,7 @@ const {
     getPrimaryResumeCheckpointPath,
     resolveResumeCheckpointPathsFromArgs,
     resolveNextCarryOverState,
+    resolveIterationOnnxBundle,
     buildCandidateOnnxBundleArgs,
     buildTargetOnnxBundleArgs,
     buildOnnxGateCommandArgs,
@@ -51,6 +52,31 @@ const {
     extractTrainingCycleFailureDetail,
     annotateTrainingCycleError
 } = require('../scripts/run-selfplay-training-cycle');
+
+
+// Every enabled head trained in this iteration (the files are assumed produced).
+function fullIterationPaths(modelsDir: string) {
+    return {
+        onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.onnx'),
+        onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.onnx.meta.json'),
+        cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.onnx'),
+        cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.onnx.meta.json'),
+        targetOnnxModelPath: path.join(modelsDir, 'policy-target.candidate.test.onnx'),
+        targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.onnx.meta.json'),
+        valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.onnx'),
+        valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.onnx.meta.json')
+    };
+}
+
+function trainedBundle(args: any, iterationPaths: any, hasTargetTrainingData: boolean) {
+    return resolveIterationOnnxBundle({
+        args,
+        iterationPaths,
+        hasTargetTrainingData,
+        headSteps: { primary: { ran: true }, card: { ran: true }, target: { ran: true }, value: { ran: true } },
+        fileExists: () => true
+    });
+}
 
 describe('selfplay training cycle script', () => {
     test('parseArgs uses long-run defaults', () => {
@@ -566,7 +592,7 @@ describe('selfplay training cycle script', () => {
                 '--train-card-every', '1',
                 '--train-target-head'
             ]);
-            const promoteArgs = buildPromotionCommandArgs(args, {
+            const promotionPaths = {
                 candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
                 onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx'),
                 onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
@@ -581,7 +607,8 @@ describe('selfplay training cycle script', () => {
                 targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx.meta.json'),
                 valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx'),
                 valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx.meta.json')
-            }, path.join(tempDir, 'adoption.quick.test.it01.json'), true);
+            };
+            const promoteArgs = buildPromotionCommandArgs(args, promotionPaths, path.join(tempDir, 'adoption.quick.test.it01.json'), trainedBundle(args, promotionPaths, true));
 
             expect(promoteArgs).toEqual(expect.arrayContaining([
                 '--target-model', path.join(modelsDir, 'policy-table.json'),
@@ -650,7 +677,7 @@ describe('selfplay training cycle script', () => {
                 '--train-target-head',
                 '--no-train-value-head'
             ]);
-            const promoteArgs = buildPromotionCommandArgs(args, {
+            const promotionPaths = {
                 candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
                 onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx'),
                 onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
@@ -660,7 +687,8 @@ describe('selfplay training cycle script', () => {
                 targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx.meta.json'),
                 valueOnnxModelPath: null,
                 valueOnnxMetaPath: null
-            }, path.join(tempDir, 'adoption.quick.test.it01.json'), true);
+            };
+            const promoteArgs = buildPromotionCommandArgs(args, promotionPaths, path.join(tempDir, 'adoption.quick.test.it01.json'), trainedBundle(args, promotionPaths, true));
 
             expect(promoteArgs).not.toContain('--candidate-value-onnx');
             expect(promoteArgs).not.toContain('--candidate-value-onnx-meta');
@@ -683,7 +711,7 @@ describe('selfplay training cycle script', () => {
                 '--train-card-every', '1',
                 '--no-train-target-head'
             ]);
-            const promoteArgs = buildPromotionCommandArgs(args, {
+            const promotionPaths = {
                 candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
                 onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx'),
                 onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
@@ -693,7 +721,8 @@ describe('selfplay training cycle script', () => {
                 targetOnnxMetaPath: null,
                 valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx'),
                 valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx.meta.json')
-            }, path.join(tempDir, 'adoption.quick.test.it01.json'), true);
+            };
+            const promoteArgs = buildPromotionCommandArgs(args, promotionPaths, path.join(tempDir, 'adoption.quick.test.it01.json'), trainedBundle(args, promotionPaths, true));
 
             expect(promoteArgs).not.toContain('--candidate-target-onnx');
             expect(promoteArgs).not.toContain('--candidate-target-onnx-meta');
@@ -716,8 +745,8 @@ describe('selfplay training cycle script', () => {
                 '--train-card-every', '1',
                 '--train-target-head'
             ]);
-            const targetBundleArgs = buildTargetOnnxBundleArgs(args, true);
-            const promotionTargetBundleArgs = buildPromotionTargetBundleArgs(args, true);
+            const targetBundleArgs = buildTargetOnnxBundleArgs(args, trainedBundle(args, fullIterationPaths(modelsDir), true));
+            const promotionTargetBundleArgs = buildPromotionTargetBundleArgs(args, trainedBundle(args, fullIterationPaths(modelsDir), true));
 
             expect(targetBundleArgs).toEqual([
                 '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
@@ -738,8 +767,8 @@ describe('selfplay training cycle script', () => {
         }
     });
 
-    test('buildOnnxGateCommandArgs targets browser root models for runtime load verification', () => {
-        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-gate-root-'));
+    test('buildOnnxGateCommandArgs never points the gate at the browser root delivery directory', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-gate-isolated-'));
         const laneModelsDir = path.join(tempDir, 'models', 'production_v3');
         const rootModelsDir = path.join(tempDir, 'models');
         fs.mkdirSync(laneModelsDir, { recursive: true });
@@ -763,7 +792,7 @@ describe('selfplay training cycle script', () => {
             const gateArgs = buildOnnxGateCommandArgs({
                 args,
                 iterationPaths,
-                hasTargetTrainingData: false,
+                onnxBundle: trainedBundle(args, iterationPaths, false),
                 onnxConfig: {
                     seed: 800001,
                     seedCount: 1,
@@ -774,10 +803,30 @@ describe('selfplay training cycle script', () => {
             expect(gateArgs).toEqual(expect.arrayContaining([
                 '--candidate-onnx', iterationPaths.onnxModelPath,
                 '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
-                '--target-onnx', path.join(rootModelsDir, 'policy-net.onnx'),
-                '--target-onnx-meta', path.join(rootModelsDir, 'policy-net.onnx.meta.json')
+                '--target-onnx', path.join(laneModelsDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(laneModelsDir, 'policy-net.onnx.meta.json')
             ]));
-            expect(gateArgs).not.toContain(path.join(laneModelsDir, 'policy-net.onnx'));
+            expect(gateArgs.filter((value: string) => path.dirname(value) === rootModelsDir)).toEqual([]);
+            expect(gateArgs.some((value: string) => value.startsWith(path.resolve('data', 'models')))).toBe(false);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildOnnxGateCommandArgs refuses a produced card head and the cycle rejects card + browser gate before training', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-gate-card-'));
+        try {
+            const modelsDir = path.join(tempDir, 'models');
+            expect(() => parseArgs(['--models-dir', modelsDir, '--with-cards', '--train-card-every', '1', '--onnx-gate']))
+                .toThrow(/unsupported head "card"/);
+            const args = parseArgs(['--models-dir', modelsDir, '--with-cards', '--train-card-every', '1']);
+            const iterationPaths = { ...fullIterationPaths(modelsDir), onnxGatePath: path.join(tempDir, 'gate.json') };
+            expect(() => buildOnnxGateCommandArgs({
+                args,
+                iterationPaths,
+                onnxBundle: trainedBundle(args, iterationPaths, true),
+                onnxConfig: { seed: 1, seedCount: 1, seedStride: 1 }
+            })).toThrow(/unsupported head "card"/);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
@@ -797,7 +846,7 @@ describe('selfplay training cycle script', () => {
                 '--no-train-value-head'
             ]);
 
-            expect(buildTargetOnnxBundleArgs(args, true)).toEqual([
+            expect(buildTargetOnnxBundleArgs(args, trainedBundle(args, fullIterationPaths(modelsDir), true))).toEqual([
                 '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
                 '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
                 '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
@@ -823,7 +872,7 @@ describe('selfplay training cycle script', () => {
                 '--no-train-target-head'
             ]);
 
-            expect(buildTargetOnnxBundleArgs(args, true)).toEqual([
+            expect(buildTargetOnnxBundleArgs(args, trainedBundle(args, fullIterationPaths(modelsDir), true))).toEqual([
                 '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
                 '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
                 '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
@@ -859,7 +908,7 @@ describe('selfplay training cycle script', () => {
                 valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.onnx.meta.json')
             };
 
-            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, true)).toEqual([
+            expect(buildCandidateOnnxBundleArgs(trainedBundle(args, iterationPaths, true))).toEqual([
                 '--candidate-onnx', iterationPaths.onnxModelPath,
                 '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
                 '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
@@ -869,7 +918,7 @@ describe('selfplay training cycle script', () => {
                 '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
                 '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
             ]);
-            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, false)).toEqual([
+            expect(buildCandidateOnnxBundleArgs(trainedBundle(args, iterationPaths, false))).toEqual([
                 '--candidate-onnx', iterationPaths.onnxModelPath,
                 '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
                 '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
@@ -906,7 +955,7 @@ describe('selfplay training cycle script', () => {
                 valueOnnxMetaPath: null
             };
 
-            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, true)).toEqual([
+            expect(buildCandidateOnnxBundleArgs(trainedBundle(args, iterationPaths, true))).toEqual([
                 '--candidate-onnx', iterationPaths.onnxModelPath,
                 '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
                 '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
@@ -942,7 +991,7 @@ describe('selfplay training cycle script', () => {
                 valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.onnx.meta.json')
             };
 
-            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, true)).toEqual([
+            expect(buildCandidateOnnxBundleArgs(trainedBundle(args, iterationPaths, true))).toEqual([
                 '--candidate-onnx', iterationPaths.onnxModelPath,
                 '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
                 '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,

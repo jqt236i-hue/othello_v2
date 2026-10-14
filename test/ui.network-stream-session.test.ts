@@ -148,3 +148,150 @@ describe('NetworkStreamSessionController', () => {
     expect(callbacks.handleStreamSnapshotPayload).toHaveBeenCalledWith({ roomId: 'XYZ' });
   });
 });
+
+describe('NetworkStreamSessionController with the real transport parser and reconnect markers', () => {
+  function createRealHarness() {
+    jest.resetModules();
+    const { createNetworkStreamSessionController } = require('../ui/network/stream-session.js');
+    const { createNetworkTransportController } = require('../ui/network/transport.js');
+    const { createNetworkReconnectController } = require('../ui/network/reconnect-controller.js');
+
+    let sessionEpoch = 1;
+    const eventSources: any[] = [];
+    const EventSourceMock = class {
+      static OPEN = 1;
+      url: string;
+      readyState = 1;
+      listeners: Record<string, any> = {};
+      onmessage: any = null;
+      onopen: any = null;
+      onerror: any = null;
+      constructor(url: string) {
+        this.url = url;
+        eventSources.push(this);
+      }
+      addEventListener(name: string, handler: any) {
+        this.listeners[name] = handler;
+      }
+      close() {
+        this.readyState = 2;
+      }
+    };
+    const state: any = {
+      active: true,
+      roomId: 'ROOM1',
+      seatKey: 'black',
+      seatToken: 'token-black',
+      serverUrl: 'http://localhost:8787',
+      lastStreamEventId: '',
+      lastStreamActivityAt: 0,
+      reconnectAttempt: 0,
+      reconnectTimerId: null,
+      reconnectRecoveryTimerId: null,
+      reconnectRecoveryPending: false,
+      networkRecoverySyncInFlight: false,
+      heartbeatResyncInFlight: false,
+      streamWatchdogTimerId: 0,
+      eventSource: null
+    };
+    const reconnect = createNetworkReconnectController({
+      state,
+      isActive: () => state.active === true,
+      scheduleTimeout: () => 0,
+      clearScheduledTimeout: () => undefined
+    });
+    const transport = createNetworkTransportController({ getState: () => state });
+    const effects = {
+      snapshot: jest.fn(),
+      presence: jest.fn(),
+      chat: jest.fn(),
+      sessionState: jest.fn(),
+      heartbeatSync: jest.fn(),
+      telemetry: jest.fn()
+    };
+    const markStreamActivity = jest.fn(() => reconnect.markStreamActivity());
+    const controller = createNetworkStreamSessionController({
+      state,
+      getSessionEpoch: () => sessionEpoch,
+      eventSourceClass: EventSourceMock,
+      closeExistingStream: () => { state.eventSource = null; },
+      createStreamPayloadHandler: (handler: any) => transport.createStreamPayloadHandler(handler, {
+        rememberStreamEventId: (event: any) => reconnect.rememberStreamEventId(event),
+        markStreamActivity
+      }),
+      completeReconnectRecoveryFromStream: () => reconnect.completeReconnectRecoveryFromStream(),
+      handleStreamSnapshotPayload: effects.snapshot,
+      handlePresencePayload: effects.presence,
+      handleChatPayload: effects.chat,
+      applyPayloadSessionState: effects.sessionState,
+      maybeSyncFromHeartbeat: effects.heartbeatSync,
+      recordNetworkTelemetry: effects.telemetry,
+      isActive: () => state.active === true
+    });
+    return {
+      controller,
+      effects,
+      eventSources,
+      markStreamActivity,
+      state,
+      advanceEpoch: () => { sessionEpoch += 1; }
+    };
+  }
+
+  function emitAll(stream: any, eventId: string) {
+    const data = JSON.stringify({ roomId: 'ROOM1', stateVersion: 99 });
+    for (const name of ['snapshot', 'presence', 'chat', 'heartbeat', 'transport-health']) {
+      stream.listeners[name]({ data, lastEventId: `${eventId}-${name}` });
+    }
+    stream.onmessage({ data, lastEventId: `${eventId}-message` });
+  }
+
+  function expectNoStaleEffects(harness: any, before: { cursor: string; activityCalls: number; recoveryPending: boolean }) {
+    expect(harness.state.lastStreamEventId).toBe(before.cursor);
+    expect(harness.markStreamActivity).toHaveBeenCalledTimes(before.activityCalls);
+    expect(harness.state.reconnectRecoveryPending).toBe(before.recoveryPending);
+    expect(harness.effects.snapshot).not.toHaveBeenCalled();
+    expect(harness.effects.presence).not.toHaveBeenCalled();
+    expect(harness.effects.chat).not.toHaveBeenCalled();
+    expect(harness.effects.sessionState).not.toHaveBeenCalled();
+    expect(harness.effects.heartbeatSync).not.toHaveBeenCalled();
+    expect(harness.effects.telemetry).toHaveBeenCalledWith('stream_event_stale_session_ignored', expect.any(Object));
+  }
+
+  test.each([
+    ['same-room reconnect', (h: any) => { h.controller.openStream({ reconnect: true }); }],
+    ['switch to another room', (h: any) => { h.advanceEpoch(); h.state.roomId = 'ROOM2'; h.controller.openStream(); }],
+    ['leave the room', (h: any) => { h.advanceEpoch(); h.state.active = false; h.state.roomId = ''; }]
+  ])('a stale stream callback after %s changes no cursor, activity, recovery state, or board', (_label, transition) => {
+    const harness = createRealHarness();
+    harness.controller.openStream();
+    const staleStream = harness.eventSources[0];
+    staleStream.listeners.snapshot({ data: JSON.stringify({ roomId: 'ROOM1' }), lastEventId: 'evt-current' });
+    expect(harness.state.lastStreamEventId).toBe('evt-current');
+    harness.effects.snapshot.mockClear();
+
+    transition(harness);
+    harness.state.reconnectRecoveryPending = true;
+    const before = {
+      cursor: harness.state.lastStreamEventId,
+      activityCalls: harness.markStreamActivity.mock.calls.length,
+      recoveryPending: harness.state.reconnectRecoveryPending
+    };
+
+    emitAll(staleStream, 'evt-stale');
+
+    expectNoStaleEffects(harness, before);
+  });
+
+  test('the current stream still records the cursor and applies payloads after a same-room reconnect', () => {
+    const harness = createRealHarness();
+    harness.controller.openStream();
+    harness.controller.openStream({ reconnect: true });
+    const currentStream = harness.eventSources[1];
+
+    currentStream.listeners.snapshot({ data: JSON.stringify({ roomId: 'ROOM1' }), lastEventId: 'evt-new' });
+
+    expect(harness.state.lastStreamEventId).toBe('evt-new');
+    expect(harness.effects.snapshot).toHaveBeenCalledWith({ roomId: 'ROOM1' });
+  });
+});

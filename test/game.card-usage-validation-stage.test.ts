@@ -32,7 +32,7 @@ describe('card usage validation stage', () => {
       },
       CardMarkersModule: null,
       CardUsagePrechecksModule: null,
-      PendingSelectionRegistryModule: { buildPendingSelectionTargetContext: jest.fn(() => ({ extraTarget: true })) },
+      PendingSelectionRegistryModule: undefined,
       RIBO_WILL_UNLOCK_TURN_INDEX: 19,
       TIME_STOP_GOD_SELF_DESTROY_COUNT: 3
     });
@@ -54,10 +54,39 @@ describe('card usage validation stage', () => {
       playerKey: 'black',
       handKey: 'black',
       heavenSeedHint: 'seed',
-      extraTarget: true,
       getPoisonTargets,
       timeStopGodSelfDestroyCount: 3
     }));
+  });
+
+  test('forwards target resolvers through the injected pending-selection registry', () => {
+    const validateCardUsagePreconditions = jest.fn(() => ({ ok: true }));
+    const buildPendingSelectionTargetContext = jest.fn(() => ({ extraTarget: true }));
+    const getPoisonTargets = jest.fn(() => [{ row: 1, col: 2 }]);
+    const deps = {
+      gameState: { board: [] },
+      getPoisonTargets,
+      CardUsagePrechecksModule: { validateCardUsagePreconditions }
+    };
+    CardUsageValidationStage.prepareCardUsageValidation({
+      cardState: { hands: { black: ['poison'] }, charge: { black: 8 } },
+      playerKey: 'black',
+      cardId: 'poison',
+      deps,
+      getCardCost: jest.fn(() => 0),
+      getCardType: jest.fn(() => 'POISON_WILL'),
+      CardHandManagerModule: { canConsumeCardUseForTurn: jest.fn(() => true), resolveHandIndexForCard: jest.fn(() => 0) },
+      CardMarkersModule: null,
+      CardUsagePrechecksModule: null,
+      PendingSelectionRegistryModule: { buildPendingSelectionTargetContext },
+      RIBO_WILL_UNLOCK_TURN_INDEX: 19,
+      TIME_STOP_GOD_SELF_DESTROY_COUNT: 3
+    });
+
+    expect(buildPendingSelectionTargetContext).toHaveBeenCalledWith(deps);
+    const forwarded = (validateCardUsagePreconditions.mock.calls[0] as unknown as [any])[0];
+    expect(forwarded.extraTarget).toBe(true);
+    expect(forwarded.getPoisonTargets).toBeUndefined();
   });
 
   test('rejects a second card use before hand, charge, or precheck mutation', () => {

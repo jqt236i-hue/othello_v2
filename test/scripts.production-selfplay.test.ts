@@ -1,7 +1,7 @@
 import fs = require('node:fs');
 import os = require('node:os');
 import path = require('node:path');
-import { replaceProductionCheckpoint, runProductionGame, type ProductionGameSpec } from '../scripts/run-production-selfplay';
+import { loadProductionPolicy, replaceProductionCheckpoint, runProductionGame, type ProductionGameSpec } from '../scripts/run-production-selfplay';
 import { verifyProductionSelfplay } from '../scripts/verify-production-selfplay';
 import {recoverCpuExperiment} from '../scripts/recover-cpu-experiment';
 
@@ -132,3 +132,71 @@ test('confirmed simultaneous termination preserves original exits and refuses CP
         expect(verifyProductionSelfplay(entry.output)).toMatchObject({valid:true,status:'stopped',decisions:3});
     }
 },120000);
+
+// R07: headless selfplay must run the Lv13 policy with the same turn plan and
+// per-turn budget as the normal browser turn handler.
+const lv13Policy = (extra: Record<string, unknown> = {}) => ({ root: process.cwd(), module: 'game/ai/cpu-lv13-search',
+    search: 'searchLv13', config: 'LV13_SEARCH_CONFIG', ...extra });
+
+test('the Lv13 policy keeps its own turn plan memory in selfplay; other policies keep plain memory', () => {
+    const lv13 = loadProductionPolicy(lv13Policy({ maxTransitions: 16 }));
+    expect(lv13.cpu.memory).toEqual({ identity: null, actions: [],
+        plan: { expectedIdentity: null, continuation: [], turnBudgetMs: 4600, turnIdentity: null, spentMs: 0 } });
+    expect(lv13.decisionMemory).toEqual({ version: 'lv13-turn-plan.v1', turnBudgetMs: 4600 });
+    const lv10 = loadProductionPolicy({ root: process.cwd(), module: 'game/ai/cpu-lv10-search', search: 'searchLv10', config: 'LV10_SEARCH_CONFIG' });
+    expect(lv10.cpu.memory).toEqual({ identity: null, actions: [] });
+    expect(lv10.decisionMemory).toBeNull();
+    // The normal browser turn handler uses the identical policy-created memory.
+    const handler = require(path.join(process.cwd(), 'dist/game/cpu-turn-handler.js'));
+    expect(handler.exportBattleCpuMemory().lv13.black).toEqual(lv13.cpu.memory);
+});
+
+test('the search limit is the rest of the turn budget or the experiment limit, whichever is smaller', async () => {
+    const policyModule = require(path.join(process.cwd(), 'dist/game/ai/cpu-lv13-search.js'));
+    const seen: any[] = [];
+    const spy = jest.spyOn(policyModule, 'searchLv13').mockImplementation((_observation: any, options: any) => {
+        seen.push(options.maxMs);
+        return { action: null } as any;
+    });
+    try {
+        const request = { observation: {} as any, publicRecipes: {} as any, excludedActions: [] };
+        const limited = loadProductionPolicy(lv13Policy({ maxMs: 1000 }));
+        await limited.cpu.advise({ ...request, maxMs: 300 });
+        await limited.cpu.advise({ ...request, maxMs: 2500 });
+        await limited.cpu.advise(request);
+        const unlimited = loadProductionPolicy(lv13Policy());
+        await unlimited.cpu.advise({ ...request, maxMs: 3100 });
+        await unlimited.cpu.advise(request);
+        expect(seen).toEqual([300, 1000, 1000, 3100, undefined]);
+    } finally {
+        spy.mockRestore();
+    }
+});
+
+test('an Lv13 game records the turn plan in its identity and checkpoints, and resumes it unchanged', async () => {
+    const lv13Spec = (name: string): ProductionGameSpec => ({ seed: 20260914, out: path.join(directory, name), profiles: { black: 13, white: 13 },
+        policies: { black: lv13Policy({ maxTransitions: 24 }), white: lv13Policy({ maxTransitions: 24 }) }, maxDecisions: 1000, timeoutMs: 120000 });
+    const stopAt = (stopFile: string, limit: number) => (_record: any, count: number) => { if (count >= limit) fs.writeFileSync(stopFile, '{}'); };
+    const firstStop = path.join(directory, 'stop-first.json');
+    const first = await runProductionGame({ ...lv13Spec('lv13-first'), stopFile: firstStop }, stopAt(firstStop, 3));
+    expect(first.status).toBe('stopped');
+    const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'lv13-first/manifest.json'), 'utf8'));
+    expect(manifest.identity.policies.black.decisionMemory).toEqual({ version: 'lv13-turn-plan.v1', turnBudgetMs: 4600 });
+    expect(manifest.identity.advisorBudget).toBe('min(turn-remaining,experiment-max).v1');
+    const checkpoint = JSON.parse(fs.readFileSync(path.join(directory, 'lv13-first/checkpoint.json'), 'utf8'));
+    for (const player of ['black', 'white']) {
+        expect(checkpoint.memories[player].plan).toEqual(expect.objectContaining({ turnBudgetMs: 4600 }));
+    }
+    const resumedStop = path.join(directory, 'stop-resumed.json');
+    const resumed = await runProductionGame({ ...lv13Spec('lv13-resumed'), stopFile: resumedStop,
+        resumeFrom: path.join(directory, 'lv13-first/checkpoint.json') }, stopAt(resumedStop, 6));
+    const straightStop = path.join(directory, 'stop-straight.json');
+    const straight = await runProductionGame({ ...lv13Spec('lv13-straight'), stopFile: straightStop }, stopAt(straightStop, 6));
+    expect(resumed.decisions).toBe(6); expect(straight.decisions).toBe(6);
+    expect(resumed.finalStateHash).toBe(straight.finalStateHash);
+    const plan = (name: string) => {
+        const memory = JSON.parse(fs.readFileSync(path.join(directory, name, 'checkpoint.json'), 'utf8')).memories;
+        return ['black', 'white'].map(player => ({ expectedIdentity: memory[player].plan.expectedIdentity, continuation: memory[player].plan.continuation }));
+    };
+    expect(plan('lv13-resumed')).toEqual(plan('lv13-straight'));
+}, 300000);

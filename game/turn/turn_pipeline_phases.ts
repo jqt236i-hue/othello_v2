@@ -24,6 +24,7 @@ import TurnStartPostProcessingModule = require('./turn-start/post-processing');
 import TurnStartTimerPhaseModule = require('./turn-start/timer-phase');
 import TheorySpawnResolutionModule = require('./theory-spawn-resolution');
 import { isCardRuntimeUnavailableError } from '../logic/card-runtime-errors';
+import { requireTurnPhaseCapability } from './turn-runtime-services';
 
 const OwnerHelpersModule: any = Object.freeze({
     normalizePlayerKeyOptional: PlayerEncodingModule.parseSeatKeyOptional
@@ -426,47 +427,28 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         return timeStopPassRes;
     }
 
-    function applyNonPassTurnCompletion(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any) {
-        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
-        const turnNumberAfterCompletion = Number(gameState && gameState.turnNumber || 0) + 1;
-        if (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function') {
-            return ActionPhaseTurnHandoffModule.handOffCompletedTurn({
-                Core,
-                CardLogic,
-                cardState,
-                gameState,
-                playerKey,
-                turnNumberAfterCompletion,
-                advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                    if (TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function') {
-                        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                            Core: nextCore,
-                            gameState: nextGameState,
-                            playerKey: nextPlayerKey,
-                            options,
-                            normalizePlayerKey
-                        });
-                    }
-                    if (nextCore && typeof nextCore.advanceRoundAfterCompletedTurn === 'function') {
-                        return nextCore.advanceRoundAfterCompletedTurn(nextGameState, nextPlayerKey, options);
-                    }
-                    return null;
-                }
-            });
-        }
-        if (Core && typeof Core.advanceRoundAfterCompletedTurn === 'function') {
-            Core.advanceRoundAfterCompletedTurn(gameState, playerKey, null);
-        }
-        const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
-            ? ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn({ CardLogic, cardState, playerKey })
-            : { consumed: false, remaining: 0, continueTurn: false };
-        gameState.currentPlayer = timeStopPassRes.continueTurn === true ? playerValue : -playerValue;
-        gameState.consecutivePasses = 0;
-        gameState.turnNumber = turnNumberAfterCompletion;
-        if (timeStopPassRes.continueTurn === true && cardState) {
-            cardState.lastTurnStartedFor = null;
-        }
-        return timeStopPassRes;
+    // Round progression for every handoff goes through the turn round-state adapter (and therefore the
+    // pure round rules). A missing static module fails at the runtime-unavailable boundary instead of
+    // falling back to another rule body.
+    function requireTurnHandoffPorts(handoffMethod: 'handOffCompletedTurn' | 'handOffTurnAfterSelection'): void {
+        requireTurnPhaseCapability(
+            `turn-handoff.${handoffMethod}`,
+            !!ActionPhaseTurnHandoffModule && typeof (ActionPhaseTurnHandoffModule as any)[handoffMethod] === 'function'
+        );
+        requireTurnPhaseCapability(
+            'turn-round-state.advanceGameRoundAfterCompletedTurn',
+            !!TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function'
+        );
+    }
+
+    function advanceRoundForHandoff(nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) {
+        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+            Core: nextCore,
+            gameState: nextGameState,
+            playerKey: nextPlayerKey,
+            options,
+            normalizePlayerKey
+        });
     }
 
     function handOffTurnAfterResolvedSelection(
@@ -476,27 +458,14 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         gameState: any,
         playerKey: any
     ): void {
-        if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
-            throw new Error('TurnPipeline handoff module unavailable');
-        }
+        requireTurnHandoffPorts('handOffTurnAfterSelection');
         ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
             Core,
             CardLogic,
             cardState,
             gameState,
             playerKey,
-            advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                    throw new Error('TurnPipeline round state module unavailable');
-                }
-                return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                    Core: nextCore,
-                    gameState: nextGameState,
-                    playerKey: nextPlayerKey,
-                    options,
-                    normalizePlayerKey
-                });
-            }
+            advanceGameRoundAfterCompletedTurn: advanceRoundForHandoff
         });
     }
 
@@ -1731,9 +1700,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                     gameState.turnNumber = turnNumberBeforePlace;
                 },
                 handOffCompletedTurn: () => {
-                    if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function')) {
-                        throw new Error('TurnPipeline handoff module unavailable');
-                    }
+                    requireTurnHandoffPorts('handOffCompletedTurn');
                     ActionPhaseTurnHandoffModule.handOffCompletedTurn({
                         Core,
                         CardLogic,
@@ -1741,18 +1708,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                         gameState,
                         playerKey,
                         turnNumberAfterCompletion: turnNumberBeforePlace + 1,
-                        advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                            if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                                throw new Error('TurnPipeline round state module unavailable');
-                            }
-                            return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                                Core: nextCore,
-                                gameState: nextGameState,
-                                playerKey: nextPlayerKey,
-                                options,
-                                normalizePlayerKey
-                            });
-                        }
+                        advanceGameRoundAfterCompletedTurn: advanceRoundForHandoff
                     });
                 }
             });

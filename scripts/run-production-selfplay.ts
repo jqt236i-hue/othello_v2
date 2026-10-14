@@ -9,6 +9,7 @@ import { ProductionMatch, createProductionPosition, createProductionCpu, stepPro
 import type { Lv10Player } from '../game/ai/cpu-lv10-position';
 import type { Lv10TurnRecord } from '../game/cpu-lv10-turn';
 import Startup = require('../shared/cpu-opponent-startup-options');
+import { resolveAdvisorMaxMs } from '../game/ai/cpu-lv13-turn-memory';
 
 export type ProductionPolicySpec = {
     root: string; module: string; search: string; config: string; turnModule?: string;
@@ -59,7 +60,7 @@ export function productionRuntimeManifest(rootInput: string) {
     return { root, files, sha256: hash(JSON.stringify(files)) };
 }
 
-function loadPolicy(spec: ProductionPolicySpec): { cpu: ProductionCpu; config: any; manifest: ReturnType<typeof productionRuntimeManifest> } {
+export function loadProductionPolicy(spec: ProductionPolicySpec): { cpu: ProductionCpu; config: any; decisionMemory: any; manifest: ReturnType<typeof productionRuntimeManifest> } {
     if (!spec || !/^[a-zA-Z0-9_/-]+$/.test(spec.module) || spec.module.includes('..')) throw new Error('Invalid policy module');
     const root = path.resolve(spec.root);
     const policy = require(path.join(root, 'dist', spec.module));
@@ -70,12 +71,17 @@ function loadPolicy(spec: ProductionPolicySpec): { cpu: ProductionCpu; config: a
         if (spec[key] !== undefined && (!Number.isFinite(spec[key]) || spec[key]! <= 0 || spec[key]! > config[key])) throw new Error(`Invalid ${key} override`);
     }
     if (spec.maxTransitions !== undefined && !Number.isInteger(spec.maxTransitions)) throw new Error('Transition budget must be an integer');
+    // The policy module owns its decision memory (e.g. the Lv13 turn plan); a
+    // policy without a factory, including every frozen one, keeps its own plain memory.
+    const createMemory = typeof policy.createCpuDecisionMemory === 'function' ? policy.createCpuDecisionMemory : undefined;
+    const decisionMemory = createMemory ? (policy.CPU_DECISION_MEMORY_PROTOCOL || { version: 'policy-owned' }) : null;
     const cpu = createProductionCpu(async request => policy[spec.search](request.observation, {
         publicRecipes: request.publicRecipes, excludedActions: request.excludedActions,
-        maxTransitions: spec.maxTransitions, maxMs: spec.maxMs, now: () => performance.now()
-    }), turn.runLv10Turn);
+        // The rest of the turn budget and the experiment limit, whichever is smaller.
+        maxTransitions: spec.maxTransitions, maxMs: resolveAdvisorMaxMs(request.maxMs, spec.maxMs), now: () => performance.now()
+    }), turn.runLv10Turn, createMemory);
     return { cpu, config: { ...config, maxTransitions: spec.maxTransitions ?? config.maxTransitions, maxMs: spec.maxMs ?? config.maxMs },
-        manifest: productionRuntimeManifest(root) };
+        decisionMemory, manifest: productionRuntimeManifest(root) };
 }
 
 function quantiles(values: number[]) {
@@ -101,13 +107,18 @@ export async function runProductionGame(spec: ProductionGameSpec, onStep?: (reco
     const out = path.resolve(spec.out);
     if (fs.existsSync(out)) throw new Error('Output already exists; resume into a new attempt directory');
     const started = performance.now(), wallStarted = new Date().toISOString();
-    const policies = { black: loadPolicy(spec.policies.black), white: loadPolicy(spec.policies.white) };
+    const policies = { black: loadProductionPolicy(spec.policies.black), white: loadProductionPolicy(spec.policies.white) };
     const cpus = { black: policies.black.cpu, white: policies.white.cpu };
     const currentManifest = productionRuntimeManifest(process.cwd());
     const identity = { seed: spec.seed, profiles: spec.profiles,
         policies: Object.fromEntries((['black', 'white'] as const).map(player => [player, {
-            spec: spec.policies[player], config: policies[player].config, sha256: policies[player].manifest.sha256
-        }])), runtimeSha256: currentManifest.sha256, node: process.version,
+            spec: spec.policies[player], config: policies[player].config, sha256: policies[player].manifest.sha256,
+            // A policy-owned decision memory (Lv13 turn plan) is part of the run identity;
+            // omitted for plain-memory policies, whose identity stays unchanged.
+            ...(policies[player].decisionMemory ? { decisionMemory: policies[player].decisionMemory } : {})
+        }])), ...(policies.black.decisionMemory || policies.white.decisionMemory
+            ? { advisorBudget: 'min(turn-remaining,experiment-max).v1' } : {}),
+        runtimeSha256: currentManifest.sha256, node: process.version,
         limits: { maxDecisions: spec.maxDecisions || 2000, timeoutMs: spec.timeoutMs || 1200000 },
         ...(spec.stoneSupplyEnabled === true ? { rules: { stoneSupplyEnabled: true } } : {}) };
     const identityHash = hash(JSON.stringify(identity));
