@@ -3531,7 +3531,7 @@ async function cpuSelectReverseWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 /**
- * テレポート 対象選択
+ * 転位の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectTeleportWillWithPolicy(playerKey: any): Promise<any> {
