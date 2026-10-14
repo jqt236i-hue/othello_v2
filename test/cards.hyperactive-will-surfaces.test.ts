@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '躍動の意志',
   type: 'HYPERACTIVE_WILL',
   cost: 5,
-  desc_ja: '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。',
+  desc_ja: '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避と破壊回避を1回ずつ持つ。',
   display_type_ja: '戦闘'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '躍動の意志',
-  desc: '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。'
+  desc: '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避と破壊回避を1回ずつ持つ。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。';
-const EXPECTED_DETAIL_TEXT = 'ターン開始移動の移動先は周囲の空きマスから選ばれる。\nターン開始移動で空きが無い場合は同色の通常石に戻る。\n移動後に挟める列があれば反転する。\n反転対象時は、盤面上の最も近い有効な空きマスへ1回だけ移動して回避する。\n回避移動後、移動先で挟める列があればその石の色で反転する。\n有効な空きマスが1つも無い場合だけ回避不成立となり、回数は消費しない。';
+const EXPECTED_QUICK_TEXT = '次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避と破壊回避を1回ずつ持つ。';
+const EXPECTED_DETAIL_TEXT = 'ターン開始移動の移動先は周囲の空きマスから選ばれる。\nターン開始移動で空きが無い場合は同色の通常石に戻る。\n移動後に挟める列があれば反転する。\n反転対象時は1回、破壊対象時も1回だけ、盤面上の最も近い有効な空きマスへ移動して回避する。\n回避移動後、移動先で挟める列があればその石の色で反転する。\n有効な空きマスが1つも無い場合だけ回避不成立となり、回数は消費しない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

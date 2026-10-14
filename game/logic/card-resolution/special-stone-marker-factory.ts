@@ -171,7 +171,8 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
         case 'HYPERACTIVE_WILL':
             return {
                 type: readRegistryMarkerType(type, deps) || 'HYPERACTIVE',
-                flipEvadeRemaining: readPositiveInt(constants.HYPERACTIVE_FLIP_EVADE_LIMIT, 1)
+                flipEvadeRemaining: readPositiveInt(constants.HYPERACTIVE_FLIP_EVADE_LIMIT, 1),
+                destroyEvadeRemaining: readSpecialStoneInfoInt(deps, 'HYPERACTIVE', 'tagDestroyEvadeDefault', 1)
             };
         case 'EXTREME_HYPERACTIVE_WILL':
             return {
@@ -182,7 +183,8 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
         case 'ESCAPE_WILL':
             return {
                 type: readRegistryMarkerType(type, deps) || 'ESCAPE_HYPERACTIVE',
-                flipEvadeRemaining: readPositiveInt(constants.ESCAPE_HYPERACTIVE_FLIP_EVADE_LIMIT, 3)
+                flipEvadeRemaining: readPositiveInt(constants.ESCAPE_HYPERACTIVE_FLIP_EVADE_LIMIT, 3),
+                destroyEvadeRemaining: readSpecialStoneInfoInt(deps, 'ESCAPE_HYPERACTIVE', 'tagDestroyEvadeDefault', 3)
             };
         case 'ROBOT_VACUUM':
         case 'ROBOT_VACUUM_WILL':

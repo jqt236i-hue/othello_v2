@@ -42,11 +42,13 @@ const EvasionStatus: any = (function () {
     const EVASION_PROFILES: Readonly<EvasionProfileMap> = Object.freeze({
         HYPERACTIVE: Object.freeze({
             flipDefault: 1,
+            destroyDefault: 1,
             flipCause: 'HYPERACTIVE',
             flipMoveReason: 'hyperactive_flip_evade_move'
         }),
         ESCAPE_HYPERACTIVE: Object.freeze({
             flipDefault: 3,
+            destroyDefault: 3,
             flipCause: 'ESCAPE_HYPERACTIVE',
             flipMoveReason: 'escape_hyperactive_flip_evade_move'
         }),
@@ -138,6 +140,7 @@ const EvasionStatus: any = (function () {
 
     function readDestroyEvadeRemaining(rawTypeOrSource: unknown, options: EvasionReadOptions = {}): number | null {
         const source = resolveEvasionData(rawTypeOrSource);
+        if (source && source.instantPlacementOnly === true) return null;
         const remaining = toCounterOrNull(source && source.destroyEvadeRemaining);
         if (remaining !== null) return remaining;
         return getDestroyEvadeDefault(rawTypeOrSource, options);

@@ -1728,6 +1728,8 @@ function _resolveFlipEvadeDisplayForDiff(special: any) {
 function _resolveDestroyEvadeDisplayForDiff(special: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsDestroyEvade = (
+        specialTypeUpper === 'HYPERACTIVE' ||
+        specialTypeUpper === 'ESCAPE_HYPERACTIVE' ||
         specialTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
         specialTypeUpper === 'EXTREME_HYPERACTIVE' ||
         specialTypeUpper === 'WILL_HUNTER_KING' ||

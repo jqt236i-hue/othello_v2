@@ -871,7 +871,7 @@ class DomBoardPlaybackRuntime {
       && Number.isFinite(flipEvadeRemaining)) {
       appendTimer('stone-timer flip-evade-timer', flipEvadeRemaining, true);
     }
-    if (['ULTIMATE_HYPERACTIVE', 'EXTREME_HYPERACTIVE', 'WILL_HUNTER_KING', 'AFTERIMAGE_WILL'].includes(specialType)
+    if (['HYPERACTIVE', 'ESCAPE_HYPERACTIVE', 'ULTIMATE_HYPERACTIVE', 'EXTREME_HYPERACTIVE', 'WILL_HUNTER_KING', 'AFTERIMAGE_WILL'].includes(specialType)
       && Number.isFinite(destroyEvadeRemaining)) {
       appendTimer('stone-timer destroy-evade-timer', destroyEvadeRemaining, true);
     }

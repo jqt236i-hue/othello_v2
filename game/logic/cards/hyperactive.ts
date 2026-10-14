@@ -1376,10 +1376,15 @@ function moveHyperactiveOnce(
                 }
             }
 
+            const forbiddenEvadeCells = blastTargets.map((pos) => ({ row: pos.row, col: pos.col }));
             for (const pos of blastTargets) {
                 let destroyedRes = false;
                 if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(cardState, gameState, pos.row, pos.col, moveCause, noCandidateReason);
+                    const isSelf = pos.row === entry.row && pos.col === entry.col;
+                    const res = deps.BoardOps.destroyAt(cardState, gameState, pos.row, pos.col, moveCause, noCandidateReason, {
+                        forbiddenEvadeCells,
+                        ignoreDestroyEvade: isSelf
+                    });
                     destroyedRes = !!(res && res.destroyed);
                 } else {
                     destroyedRes = !!destroyAt(cardState, gameState, pos.row, pos.col);

@@ -1232,6 +1232,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'HYPERACTIVE',
             flipEvadeRemaining: getFlipEvadeDefault('HYPERACTIVE', 1),
+            destroyEvadeRemaining: getDestroyEvadeDefault('HYPERACTIVE', 1),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;
@@ -1254,6 +1255,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ESCAPE_HYPERACTIVE',
             flipEvadeRemaining: getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 3),
+            destroyEvadeRemaining: getDestroyEvadeDefault('ESCAPE_HYPERACTIVE', 3),
             hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
         });
         effects.hyperactivePlaced = true;

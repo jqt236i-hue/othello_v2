@@ -438,13 +438,15 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         break;
     case 'HYPERACTIVE':
         markerData.flipEvadeRemaining = getFlipEvadeDefault('HYPERACTIVE', 1);
+        markerData.destroyEvadeRemaining = getDestroyEvadeDefault('HYPERACTIVE', 1);
         break;
     case 'EXTREME_HYPERACTIVE':
         markerData.flipEvadeRemaining = defaults.extremeHyperactiveFlipEvadeLimit;
         markerData.destroyEvadeRemaining = defaults.extremeHyperactiveDestroyEvadeLimit;
         break;
     case 'ESCAPE_HYPERACTIVE':
-        markerData.flipEvadeRemaining = getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 1);
+        markerData.flipEvadeRemaining = getFlipEvadeDefault('ESCAPE_HYPERACTIVE', 3);
+        markerData.destroyEvadeRemaining = getDestroyEvadeDefault('ESCAPE_HYPERACTIVE', 3);
         break;
     case 'ROBOT_VACUUM':
         markerData.remainingOwnerTurns = defaults.robotVacuumTurns;

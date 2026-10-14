@@ -442,6 +442,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
                     : null,
                 destroyEvadeRemaining: (!isManifestType && (
+                    markerTypeUpper === 'HYPERACTIVE' ||
+                    markerTypeUpper === 'ESCAPE_HYPERACTIVE' ||
                     markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
                     markerTypeUpper === 'EXTREME_HYPERACTIVE' ||
                     markerTypeUpper === 'WILL_HUNTER_KING' ||

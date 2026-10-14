@@ -303,7 +303,8 @@ function createSpecialStoneRegistry(
             name: '躍動石',
             desc: 'ターン開始時に移動し、移動後に反転する。',
             mobility: true,
-            tagFlipEvadeDefault: readFlipDefault('HYPERACTIVE')
+            tagFlipEvadeDefault: readFlipDefault('HYPERACTIVE'),
+            tagDestroyEvadeDefault: readDestroyDefault('HYPERACTIVE')
         }),
         EXTREME_HYPERACTIVE: Object.freeze({
             name: '極悪躍動魔',
@@ -317,7 +318,8 @@ function createSpecialStoneRegistry(
             name: '逃亡石',
             desc: 'ターン開始時に近くの石から逃げる。',
             mobility: true,
-            tagFlipEvadeDefault: readFlipDefault('ESCAPE_HYPERACTIVE')
+            tagFlipEvadeDefault: readFlipDefault('ESCAPE_HYPERACTIVE'),
+            tagDestroyEvadeDefault: readDestroyDefault('ESCAPE_HYPERACTIVE')
         }),
         ROBOT_VACUUM: Object.freeze({
             name: 'ロボット掃除機石',
