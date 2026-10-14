@@ -22,7 +22,7 @@ export { createLv13DecisionMemory as createCpuDecisionMemory,
     LV13_DECISION_MEMORY_PROTOCOL as CPU_DECISION_MEMORY_PROTOCOL } from './cpu-lv13-turn-memory';
 
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-keep-relocation', maxTransitions: 6144, maxMs: 4700,
+    version: 'lv13-late-cards', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -31,6 +31,9 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
     maxAdditionalDeepCandidates: 1, maxDeepCandidates: 3, shallowBudgetFraction: .3, repairBudgetFraction: .25,
     // Score margin (aggregated scale -1..1) a card-using root must win by.
     cardUseMargin: .1,
+    // The margin once at most lateCardOpenPlacements placements remain: unused
+    // cards are worth nothing at the end, so they are spent on any gain.
+    cardUseMarginLate: 0, lateCardOpenPlacements: 12,
     // Per card type adjustment added to cardUseMargin (positive: use only when clearly better).
     cardUseMarginByType: Object.freeze({}) as Readonly<Record<string, number>>,
     // Score margin a root that destroys a hand card must win by over a root that does not.
@@ -672,12 +675,17 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     // card: the shallow comparison already preferred cards there, and forcing
     // a holding root into the deep set was measured to lose (see
     // docs/cpu-lv13-development-plan.md, 第5段階).
-    if(comparable.some(candidate=>candidate.plan.actions[0]?.type!=='use_card')){
+    const cardMargin=resolveSearchRemainingPlacements(initialEmpty,readSearchStoneSupply(initial.cardState,player))<=cfg.lateCardOpenPlacements
+        ?cfg.cardUseMarginLate:cfg.cardUseMargin;
+    // When every compared line ends the game, the values are final stone
+    // margins: the cards are spent on whatever loses least or wins most.
+    const allTerminal=comparable.every(candidate=>candidate.replies.every(value=>value===null||Math.abs(value)>=100000));
+    if(!allTerminal&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='use_card')){
         for(const candidate of comparable){
             const first=candidate.plan.actions[0];
             if(first?.type!=='use_card')continue;
             const type=lv13CardDefinition(first.useCardId)?.type;
-            candidate.value-=cfg.cardUseMargin+((type&&cfg.cardUseMarginByType[type])||0);
+            candidate.value-=cardMargin+((type&&cfg.cardUseMarginByType[type])||0);
         }
     }
     if(cfg.cornerRootBonus>0||cfg.dangerRootPenalty>0){
@@ -690,7 +698,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
             else if(emptyCorners.some((cell:any)=>Math.abs(cell.row-first.row)<=1&&Math.abs(cell.col-first.col)<=1))candidate.value-=cfg.dangerRootPenalty;
         }
     }
-    if(cfg.destroyHandMargin>0&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='destroy_hand_card')){
+    if(!allTerminal&&cfg.destroyHandMargin>0&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='destroy_hand_card')){
         for(const candidate of comparable)if(candidate.plan.actions[0]?.type==='destroy_hand_card')candidate.value-=cfg.destroyHandMargin;
     }
     comparable.sort((a,b)=>b.value-a.value);
