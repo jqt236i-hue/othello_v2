@@ -33,7 +33,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'GRAVITY_WILL',
         'SUPER_GRAVITY_WILL',
         'TELEPORT_WILL',
-        'CELL_TELEPORT_WILL',
         'CLONE_WILL',
         'METEOR_WILL',
         'CAUSAL_REPLAY_WILL'
@@ -1049,26 +1048,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
-    function shouldSuppressBoardExpansionRevealSound(playbackEvents: any) {
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-        return playbackEvents.some((event) => {
-            if (!event || event.type !== 'move' || !Array.isArray(event.targets)) return false;
-            return event.targets.some((target: any) => normalizePendingType(target && target.cause) === 'CELL_TELEPORT_WILL');
-        });
-    }
-
-    function armSelectionBoardUpdateContext(playbackEvents: any) {
-        if (!shouldSuppressBoardExpansionRevealSound(playbackEvents)) return false;
-
-        const context = {
-            source: 'selection-flow',
-            reason: 'pre_playback_state_sync',
-            suppressBoardExpansionRevealSound: true
-        };
-
-        return invokeSignalBridgeMethod('armSelectionBoardUpdateContext', [context]) === true;
-    }
-
     function armSelectionStateBoardUpdateDuringPlayback(playbackEvents: any) {
         if (Array.isArray(playbackEvents) && playbackEvents.length > 0) return false;
         if (!isSelectionSettlementLocked()) return false;
@@ -1083,7 +1062,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function emitSelectionStateChangeSignals(playbackEvents: any) {
-        armSelectionBoardUpdateContext(playbackEvents);
         armSelectionStateBoardUpdateDuringPlayback(playbackEvents);
         const emitStateChangesViaBridge = readSignalBridgeMethod('emitStateChanges');
         if (typeof emitStateChangesViaBridge === 'function') {

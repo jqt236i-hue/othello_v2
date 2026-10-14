@@ -1045,7 +1045,6 @@ const {
                 getCorrosionTargets,
                 getTimeBombTargets,
                 getTeleportTargets,
-                getCellTeleportTargets,
                 getCloneTargets,
                 getSwapTargets,
                 getPositionSwapTargets,
@@ -1329,12 +1328,6 @@ const {
 
     function bindSetCellValueForCard(cardState: any) {
         return (gameState: any, row: any, col: any, value: any) => setCellValueForCard(cardState, gameState, row, col, value);
-    }
-
-    function bindEnsureExpansionCellForCard(cardState: any) {
-        return (gameState: any, row: any, col: any, owner: any) => (
-            ensureExpansionCellForCard(cardState, gameState, row, col, owner)
-        );
     }
 
     function clearStoneIdAtForCard(cardState: any, gameState: any, row: any, col: any) {
@@ -2296,7 +2289,6 @@ const {
             getCorrosionTargets,
             getTimeBombTargets,
             getTeleportTargets,
-            getCellTeleportTargets,
             getCloneTargets,
             getSwapTargets,
             getPositionSwapTargets: (nextCardState: any, nextGameState: any, nextPlayerKey: any) => getPositionSwapTargets(
@@ -2520,10 +2512,6 @@ const {
         return CardTargetAccessModule.getBoardExpansionGodPendingSelectionsForCard(pending, getCardTargetAccessDeps());
     }
 
-    function ensureExpansionCellForCard(cardState: any, gameState: any, row: any, col: any, owner: any) {
-        return CardTargetAccessModule.ensureExpansionCellForCard(cardState, gameState, row, col, owner, getCardTargetAccessDeps());
-    }
-
     function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getBoardExpansionGodTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -2546,14 +2534,6 @@ const {
 
     function getBoardShrinkGodTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getBoardShrinkGodTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
-    }
-
-    function getCellTeleportDestinations(cardState: any, gameState: any) {
-        return CardTargetAccessModule.getCellTeleportDestinations(cardState, gameState, getCardTargetAccessDeps());
-    }
-
-    function getCellTeleportTargets(cardState: any, gameState: any) {
-        return CardTargetAccessModule.getCellTeleportTargets(cardState, gameState, getCardTargetAccessDeps());
     }
 
     function getBlockadeTargets(cardState: any, gameState: any, playerKey: any) {
@@ -3157,32 +3137,6 @@ const {
             setCellValueForCard: bindSetCellValueForCard(cardState),
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
-                : null,
-            getMarkers,
-            isBoardMarker: (marker: any) => getMarkerRuleClass(marker) === 'board_marker'
-        });
-    }
-
-    function applyCellTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        return CardTeleportModule.applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng, {
-            getCellTeleportTargets,
-            getCellTeleportDestinations,
-            getCellValueForCard: bindGetCellValueForCard(cardState),
-            ensureExpansionCellForCard: bindEnsureExpansionCellForCard(cardState),
-            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                ? BoardOpsModule.moveAt
-                : null,
-            setCellValueForCard: bindSetCellValueForCard(cardState),
-            getStoneIdAtForCard,
-            clearStoneIdAtForCard,
-            setStoneIdAtForCard,
-            removeMarkersAt,
-            addMarker,
-            applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
-                ? BoardOpsModule.applyCellRemovalAt
-                : null,
-            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
-                ? BoardOpsModule.runCellRemovalBlock
                 : null,
             getMarkers,
             isBoardMarker: (marker: any) => getMarkerRuleClass(marker) === 'board_marker'
@@ -5070,7 +5024,6 @@ const cardsApi: any = {
         applyReincarnationWill,
         applyTimeBombWill,
         applyTeleportWill,
-        applyCellTeleportWill,
         applyCloneWill,
         applyBoardExpansionWill,
         applyBoardExpansionGod,
@@ -5186,7 +5139,6 @@ const cardsApi: any = {
         getGuardTargets,
         getTimeBombTargets,
         getTeleportTargets,
-        getCellTeleportTargets,
         getCloneTargets,
         getBreedingTargets,
         getBoardExpansionTargets,

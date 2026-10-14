@@ -466,14 +466,6 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             score += destructiveMarkerScore;
             score += (oppAdj - ownAdj) * 45;
             return score;
-        case 'CELL_TELEPORT_WILL':
-            score += opp ? 220 : (own ? -280 : 60);
-            if (corner) score += opp ? 3000 : -4200;
-            else if (edge) score += opp ? 900 : -1200;
-            if (!onBoard) score += opp ? 420 : (own ? -520 : 80);
-            score += destructiveMarkerScore * 1.15;
-            score += (oppAdj - ownAdj) * 70;
-            return score;
         case 'TEMPT_WILL':
         case 'CAPTURE_WILL':
             score += opp ? 300 : -400;

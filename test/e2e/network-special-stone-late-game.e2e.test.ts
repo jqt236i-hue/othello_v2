@@ -223,7 +223,7 @@ describe('Network late-special-20 playback E2E', () => {
       const fixture = createNetworkSpecialStonePerformanceFixture('late-special-20');
       fixture.snapshot.cardState.hands = { black: ['chest_01'], white: ['free_01'] };
       const turn = runHeadlessFixtureTurnStart(fixture);
-      expect(turn.comparison.playbackDigest).toBe('fnv1a32:810666ff');
+      expect(turn.comparison.playbackDigest).toBe('fnv1a32:0743f7b1');
       expect(turn.playbackEvents).toHaveLength(43);
       expect(new Set(turn.playbackEvents.map((event: any) => event.phase)).size).toBe(9);
       const soundKeys = turn.playbackEvents.flatMap((event: any) => {

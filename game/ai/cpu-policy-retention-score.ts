@@ -84,7 +84,6 @@ type CpuPolicyRetentionFlags = {
     isDestroyDragonWill: boolean;
     isGluttonousWill: boolean;
     isTeleportWill: boolean;
-    isCellTeleportWill: boolean;
     isSuperCrushWill: boolean;
     isDefensiveCard: boolean;
     isHighVarianceCard: boolean;
@@ -172,7 +171,6 @@ export function createCpuPolicyRetentionScore() {
             isDestroyDragonWill,
             isGluttonousWill,
             isTeleportWill,
-            isCellTeleportWill,
             isSuperCrushWill,
             isDefensiveCard,
             isHighVarianceCard
@@ -434,11 +432,6 @@ export function createCpuPolicyRetentionScore() {
             score += 140;
             if (cornerEmergency) score += 120;
             if (ctx.discDiff >= 6 && !cornerEmergency && hasCornerMoveNow) score -= 40;
-        }
-        if (isCellTeleportWill) {
-            score -= 30;
-            if (cornerEmergency) score += 36;
-            if (ctx.discDiff >= 6 && !cornerEmergency) score -= 48;
         }
 
         if (ctx.handSize >= 5) {

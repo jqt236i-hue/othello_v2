@@ -38,7 +38,6 @@ export const CARD_DEMO_VIDEO_IDS: readonly string[] = Object.freeze([
     "clone_01",
     "seed_01",
     "teleport_01",
-    "cell_teleport_01",
     "cross_bomb_01",
     "x_bomb_01",
     "hyperactive_01",

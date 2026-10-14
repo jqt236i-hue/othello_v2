@@ -1108,7 +1108,6 @@ function scoreCardRetentionPriority(
         isDestroyDragonWill,
         isGluttonousWill,
         isTeleportWill,
-        isCellTeleportWill,
         isSuperCrushWill,
         isDefensiveCard,
         isHighVarianceCard
@@ -1209,7 +1208,6 @@ function scoreCardRetentionPriority(
             isDestroyDragonWill,
             isGluttonousWill,
             isTeleportWill,
-            isCellTeleportWill,
             isSuperCrushWill,
             isDefensiveCard,
             isHighVarianceCard

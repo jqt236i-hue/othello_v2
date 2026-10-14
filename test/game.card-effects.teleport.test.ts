@@ -23,13 +23,13 @@ describe('teleport', () => {
         expect(callArg.row).toBe(3);
         expect(callArg.col).toBe(4);
         expect(callArg.playerKey).toBe('black');
-        expect(callArg.pendingTypes).toEqual(['TELEPORT_WILL', 'CELL_TELEPORT_WILL']);
+        expect(callArg.pendingType).toBe('TELEPORT_WILL');
         expect(callArg.actionPayload).toEqual({ teleportTarget: { row: 3, col: 4 } });
         expect(typeof callArg.validateResult).toBe('function');
         expect(typeof callArg.buildPlaybackMeta).toBe('function');
     });
 
-    test('正常系: CELL_TELEPORT_WILLで正しく動作する', async () => {
+    test('正常系: 白番でもexecutePendingSelectionにplayerKeyが渡る', async () => {
         mockExecutePendingSelection.mockResolvedValue({
             ok: true,
             rawEvents: [{ type: 'teleport_selected', applied: true }]
@@ -102,20 +102,9 @@ describe('teleport', () => {
         await handleTeleportSelection(3, 4, 'black');
     });
 
-    test('invalidMessage: TELEPORT_WILLの場合のメッセージ', async () => {
+    test('invalidMessage: 対象選択のやり直しメッセージ', async () => {
         mockExecutePendingSelection.mockImplementation((options) => {
-            const message = options.invalidMessage({ pendingType: 'TELEPORT_WILL' });
-            expect(message).toBe('テレポートさせる石を選んでください');
-            return Promise.resolve({ ok: true });
-        });
-
-        await handleTeleportSelection(3, 4, 'black');
-    });
-
-    test('invalidMessage: CELL_TELEPORT_WILLの場合のメッセージ', async () => {
-        mockExecutePendingSelection.mockImplementation((options) => {
-            const message = options.invalidMessage({ pendingType: 'CELL_TELEPORT_WILL' });
-            expect(message).toBe('マステレポートさせるマスを選んでください');
+            expect(options.invalidMessage).toBe('テレポートさせる石を選んでください');
             return Promise.resolve({ ok: true });
         });
 
@@ -127,19 +116,6 @@ describe('teleport', () => {
             const isValid = options.validateResult({ result: null });
             expect(isValid).toBe(false);
             return Promise.resolve({ ok: false });
-        });
-
-        await handleTeleportSelection(3, 4, 'black');
-    });
-
-    test('buildPlaybackMeta: CELL_TELEPORT_WILLの場合', async () => {
-        mockExecutePendingSelection.mockImplementation((options) => {
-            const meta = options.buildPlaybackMeta({ pendingType: 'CELL_TELEPORT_WILL' });
-            expect(meta).toEqual({
-                cause: 'CELL_TELEPORT_WILL',
-                target: { row: 3, col: 4 }
-            });
-            return Promise.resolve({ ok: true });
         });
 
         await handleTeleportSelection(3, 4, 'black');

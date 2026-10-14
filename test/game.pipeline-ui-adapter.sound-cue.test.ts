@@ -1413,60 +1413,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('マステレポート成功時も teleport move の phase で teleport_select を再生する', () => {
-    const base = [{
-      type: 'move',
-      phase: 11,
-      targets: [{ from: { r: 4, col: 4 }, to: { r: 2, col: 8 }, cause: 'CELL_TELEPORT_WILL', reason: 'teleport_move' }]
-    }];
-    const raw = [{
-      type: 'teleport_selected',
-      applied: true,
-      cardType: 'CELL_TELEPORT_WILL',
-      from: { row: 4, col: 4 },
-      to: { row: 2, col: 8 },
-      createdDestination: true
-    }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'teleport_select');
-
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(11);
-  });
-
-  test('CELL_TELEPORT_WILL source hole keeps teleport sound policy and does not emit meteor_hole', () => {
-    const base = [
-      {
-        type: 'move',
-        phase: 11,
-        targets: [{ from: { r: 4, col: 4 }, to: { r: -1, col: 0 }, cause: 'CELL_TELEPORT_WILL', reason: 'teleport_move' }]
-      },
-      {
-        type: 'status_applied',
-        phase: 12,
-        targets: [{ r: 4, col: 4, after: { special: 'METEOR_HOLE' } }],
-        meta: { special: 'METEOR_HOLE', cellRemovalCause: 'CELL_TELEPORT_WILL', cellRemovalReason: 'cell_teleport_source_cell_remove' }
-      }
-    ];
-    const raw = [{
-      type: 'teleport_selected',
-      applied: true,
-      cardType: 'CELL_TELEPORT_WILL',
-      from: { row: 4, col: 4 },
-      to: { row: -1, col: 0 },
-      createdDestination: true
-    }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const meteorCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'meteor_hole');
-    const teleportCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'teleport_select');
-
-    expect(meteorCue).toBeUndefined();
-    expect(teleportCue).toBeTruthy();
-    expect(teleportCue.phase).toBe(11);
-  });
-
   test('super_buoyancy_selected 成功時は super move の phase で super_buoyancy_move を再生する', () => {
     const base = [{
       type: 'move',

@@ -12,12 +12,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 const PendingSelectionFlow = _require('./selection-flow');
 const PendingCoordinator = _require('../turn/pending-coordinator');
 
-function getTeleportSelectionPrompt(pendingType: string): string {
-    return pendingType === 'CELL_TELEPORT_WILL'
-        ? 'マステレポートさせるマスを選んでください'
-        : 'テレポートさせる石を選んでください';
-}
-
 function getTeleportSelectedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
         ? result.rawEvents.find((event: any) => event && event.type === 'teleport_selected')
@@ -30,14 +24,14 @@ async function handleTeleportSelection(row: number, col: number, playerKey: stri
         row,
         col,
         playerKey,
-        pendingTypes: ['TELEPORT_WILL', 'CELL_TELEPORT_WILL'],
-        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['TELEPORT_WILL', 'CELL_TELEPORT_WILL'], row, col),
-        invalidMessage: ({ pendingType }: any) => getTeleportSelectionPrompt(pendingType),
+        pendingType: 'TELEPORT_WILL',
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload('TELEPORT_WILL', row, col),
+        invalidMessage: 'テレポートさせる石を選んでください',
         validateResult: ({ result }: any) => {
             const selected = getTeleportSelectedEvent(result);
             return !!(selected && selected.applied);
         },
-        buildPlaybackMeta: ({ pendingType }: any) => ({ cause: pendingType, target: { row, col } })
+        buildPlaybackMeta: () => ({ cause: 'TELEPORT_WILL', target: { row, col } })
     });
 }
 

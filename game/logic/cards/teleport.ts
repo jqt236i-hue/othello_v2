@@ -7,12 +7,10 @@ import { CardState, GameState } from '../../../src/types';
 import SharedConstantsImport = require('../../../shared-constants');
 import RandomSourceImport = require('../cards-internal/random-source');
 import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
-import CardCellRemovalImport = require('./cell-removal');
 
 const SharedConstants: any = SharedConstantsImport;
 const RandomSourceModule: any = RandomSourceImport;
 const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
-const CardCellRemoval: any = CardCellRemovalImport;
 
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)
@@ -26,16 +24,6 @@ interface TeleportDeps {
     moveAt?(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, toRow: number, toCol: number, source: string, tag: string): any;
     getMarkers?(cardState: CardState): any[];
     isBoardMarker?(marker: any): boolean;
-    clearStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number): void;
-    removeMarkersAt?(cardState: CardState, row: number, col: number): void;
-    addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
-    applyCellRemovalAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, options: any): any;
-    runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
-    getCellTeleportTargets?(cardState: CardState, gameState: GameState): Array<{row: number; col: number}>;
-    getCellTeleportDestinations?(cardState: CardState, gameState: GameState): Array<{row: number; col: number; active?: boolean}>;
-    ensureExpansionCellForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
-    getStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number): string | null;
-    setStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number, id: string | null): boolean;
 }
 
 interface TeleportResult {
@@ -43,7 +31,6 @@ interface TeleportResult {
     reason?: string;
     from?: { row: number; col: number };
     to?: { row: number; col: number };
-    createdDestination?: boolean;
 }
 
 function resolveRandomSource(prng?: { random(): number }) {
@@ -139,99 +126,6 @@ function applyTeleportWill(cardState: CardState, gameState: GameState, playerKey
     return { applied: true, from: { row, col }, to };
 }
 
-function applyCellTeleportWill(cardState: CardState, gameState: GameState, playerKey: string, row: number, col: number, prng?: { random(): number }, deps: TeleportDeps = {}): TeleportResult {
-    const cs = cardState as any;
-    const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
-    if (!pending || pending.type !== 'CELL_TELEPORT_WILL' || pending.stage !== 'selectTarget') {
-        return { applied: false, reason: 'not_pending' };
-    }
-
-    const getCellTeleportTargets = deps.getCellTeleportTargets || (() => []);
-    const getCellTeleportDestinations = deps.getCellTeleportDestinations || (() => []);
-    const getCellValueForCard = deps.getCellValueForCard || (() => null);
-    const ensureExpansionCellForCard = deps.ensureExpansionCellForCard || (() => false);
-    const moveAt = deps.moveAt || null;
-    const setCellValueForCard = deps.setCellValueForCard || (() => false);
-    const getStoneIdAtForCard = deps.getStoneIdAtForCard || (() => null);
-    const clearStoneIdAtForCard = deps.clearStoneIdAtForCard || (() => {});
-    const setStoneIdAtForCard = deps.setStoneIdAtForCard || (() => false);
-
-    const targets = getCellTeleportTargets(cardState, gameState);
-    const allowed = Array.isArray(targets) && targets.some((target) => target && target.row === row && target.col === col);
-    if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-    const cellValue = getCellValueForCard(gameState, row, col);
-    if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-    if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-
-    const destinations = getCellTeleportDestinations(cardState, gameState)
-        .filter((target) => !(target && target.row === row && target.col === col));
-    if (!destinations.length) return { applied: false, reason: 'no_destination' };
-
-    const randomSource = resolveRandomSource(prng);
-    const to = destinations[resolveRandomIndex(randomSource, destinations.length)] || destinations[0];
-    const createdDestination = !to.active;
-
-    if (!ensureExpansionCellForCard(gameState, to.row, to.col, EMPTY)) {
-        return { applied: false, reason: 'invalid_destination' };
-    }
-
-    let moved = false;
-    let markerHandled = false;
-    if (typeof moveAt === 'function') {
-        const result = moveAt(cardState, gameState, row, col, to.row, to.col, 'CELL_TELEPORT_WILL', 'teleport_move');
-        if (result && result.reason === 'out_of_board') {
-            return { applied: false, reason: 'move_failed' };
-        }
-        if (result && result.reason === 'inviolable_source') {
-            return { applied: false, reason: 'inviolable' };
-        }
-        moved = !!(result && result.moved);
-        markerHandled = !!(result && result.markerHandled === true);
-        if (!moved) {
-            return { applied: false, reason: 'move_failed' };
-        }
-    }
-
-    if (!moved) {
-        const sourceStoneId = getStoneIdAtForCard(cardState, gameState, row, col);
-        const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-        const placed = setCellValueForCard(gameState, to.row, to.col, cellValue);
-        if (!cleared || !placed) {
-            return { applied: false, reason: 'move_failed' };
-        }
-        clearStoneIdAtForCard(cardState, gameState, row, col);
-        setStoneIdAtForCard(cardState, gameState, to.row, to.col, sourceStoneId);
-    }
-
-    if (!markerHandled) {
-        moveMarkers(cardState, row, col, to.row, to.col, deps);
-    }
-    const holeResult = CardCellRemoval.applyHoleStyleCellRemoval(
-        cardState,
-        gameState,
-        row,
-        col,
-        playerKey,
-        'CELL_TELEPORT_WILL',
-        'cell_teleport_source_cell_remove',
-        deps,
-        {}
-    );
-    if (!holeResult || !holeResult.applied) {
-        return { applied: false, reason: (holeResult && holeResult.reason) || 'hole_failed' };
-    }
-
-    cs.pendingEffectByPlayer[playerKey] = null;
-    return {
-        applied: true,
-        from: { row, col },
-        to: { row: to.row, col: to.col },
-        createdDestination
-    };
-}
-
 export = {
-    applyTeleportWill,
-    applyCellTeleportWill
+    applyTeleportWill
 };

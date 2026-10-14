@@ -521,10 +521,7 @@ function getPositionSwapTargets(cardState: CardState, gameState: GameState, play
     return res;
 }
 
-interface DestinationCell extends TargetCell {
-    side?: string | null;
-    active?: boolean;
-}
+type DestinationCell = TargetCell;
 
 function _getStrongWindDirectionDestination(cardState: CardState, gameState: GameState, row: number, col: number, dr: number, dc: number): DestinationCell | null {
     const nr = row + dr;
@@ -968,13 +965,6 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
     return res;
 }
 
-function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState): string | null {
-    if (!SelectorsBoardShape || typeof SelectorsBoardShape.resolveExpansionSide !== 'function') {
-        throw new Error('CardSelectorsBoardShape.resolveExpansionSide is required');
-    }
-    return SelectorsBoardShape.resolveExpansionSide(side, row, col, gameState, getSelectorsBoardShapeDeps());
-}
-
 interface ExpansionCell {
     side: string | null;
     row: number;
@@ -1077,69 +1067,6 @@ function getBoardExpansionGodTargets(cardState: CardState, gameState: GameState,
         if (selectedAnchorKeys.has(`${target.row},${target.col}`)) return false;
         return !(Array.isArray(target.additions) && target.additions.some((cell) => selectedAdditionKeys.has(`${cell.row},${cell.col}`)));
     });
-}
-
-function getCellTeleportDestinations(cardState: CardState, gameState: GameState): DestinationCell[] {
-    const gs = gameState as any;
-    if (!gs || !gs.board) return [];
-
-    const activeExpansionCells = getExpansionCells(cardState, gameState);
-    const activeByKey = new Map<string, ExpansionCell>();
-    for (const cell of activeExpansionCells) {
-        if (!cell) continue;
-        activeByKey.set(`${cell.row},${cell.col}`, cell);
-    }
-
-    const candidates: DestinationCell[] = [];
-    const seen = new Set<string>();
-    const pushCandidate = (row: number, col: number, side: string | null) => {
-        const key = `${row},${col}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        const activeCell = activeByKey.get(key) || null;
-        const owner = activeCell ? Number(activeCell.owner) : P_EMPTY;
-        if (owner !== P_EMPTY) return;
-        if (isBlockedCell(cardState, row, col)) return;
-        candidates.push({
-            row,
-            col,
-            side: resolveExpansionSide(side, row, col, gameState),
-            active: !!activeCell
-        });
-    };
-
-    for (const cell of activeExpansionCells) {
-        if (!cell) continue;
-        pushCandidate(cell.row, cell.col, cell.side);
-    }
-    const socketTargets = getBoardExpansionSocketTargets(cardState, gameState)
-        .concat(getBoardExpansionGodSocketTargets(cardState, gameState));
-    for (const target of socketTargets) {
-        for (const cell of Array.isArray(target.additions) ? target.additions : []) {
-            pushCandidate(cell.row, cell.col, resolveExpansionSide(null, cell.row, cell.col, gameState));
-        }
-    }
-
-    return candidates;
-}
-
-function getCellTeleportTargets(cardState: CardState, gameState: GameState): TargetCell[] {
-    const gs = gameState as any;
-    if (!gs || !gs.board) return [];
-    const destinations = getCellTeleportDestinations(cardState, gameState);
-    if (!destinations.length) return [];
-
-    const res: TargetCell[] = [];
-    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
-        if (owner === P_EMPTY) return;
-        if (isFrozenCell(cardState, r, c)) return;
-        if (isInviolableCell(cardState, r, c)) return;
-        if (isMeteorHoleCell(cardState, r, c)) return;
-        if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
-        res.push({ row: r, col: c });
-    });
-
-    return res;
 }
 
 function normalizeTargetCell(target: any): TargetCell | null {
@@ -1450,8 +1377,6 @@ export = {
     getCorrosionTargets,
     getTimeBombTargets,
     getTeleportTargets,
-    getCellTeleportTargets,
-    getCellTeleportDestinations,
     getCloneTargets,
     getBoardExpansionSocketTargets,
     getBoardExpansionGodSocketTargets,

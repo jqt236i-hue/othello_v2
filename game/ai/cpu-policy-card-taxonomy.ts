@@ -78,7 +78,6 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'METEOR_WILL',
     'METEOR_GOD',
     'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
     'RIBO_WILL',
     'LOSS_WILL',
     'MASS_FREEZE_WILL',
@@ -98,7 +97,6 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
     ? SharedCardHeuristics.createExtendedTypeSet(
         SharedCardHeuristics.DEFAULT_CORNER_RECOVERY_CARD_TYPES,
         [
-            'CELL_TELEPORT_WILL',
             'FREE_PLACEMENT',
             'LAST_RESORT',
             'DESTROY_DRAGON_WILL',
@@ -123,7 +121,6 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
         'METEOR_GOD',
         'BOARD_SHRINK_WILL',
         'BOARD_SHRINK_GOD',
-        'CELL_TELEPORT_WILL',
         'TABOO_REVERSE_WILL',
         'FREE_PLACEMENT',
         'LAST_RESORT',
@@ -277,7 +274,6 @@ const SWING_CARD_TYPES = new Set([
     'CLONE_WILL',
     ...CHAIN_WILL_CARD_TYPES,
     'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
     'EXTREME_HYPERACTIVE_WILL',
     'LOSS_WILL',
     'MASS_FREEZE_WILL',
@@ -309,7 +305,6 @@ const EDGE_CONTEST_CARD_TYPES = new Set([
     'SNIPER_WILL',
     'BLOCKADE_WILL',
     'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
     'EXTREME_HYPERACTIVE_WILL',
     'DESTROY_DRAGON_WILL',
     'BUOYANCY_WILL',
@@ -355,7 +350,6 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
     'BOARD_EXPANSION_WILL',
     'BOARD_EXPANSION_GOD',
     'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
     'BUOYANCY_WILL',
@@ -396,7 +390,6 @@ const WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES = new Set([
     'METEOR_GOD',
     'BOARD_SHRINK_WILL',
     'BOARD_SHRINK_GOD',
-    'CELL_TELEPORT_WILL',
     'GLUTTONOUS_WILL',
     'TREASURE_BOX',
     'LOSS_WILL',
@@ -415,7 +408,6 @@ const IMMEDIATE_DESTROY_CARD_TYPES = new Set([
     'TIME_STOP_GOD',
 
     'TIME_STOP_DEITY',
-    'CELL_TELEPORT_WILL',
     'FREEZE_WILL'
 ]);
 

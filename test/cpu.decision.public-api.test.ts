@@ -20,7 +20,6 @@ describe('cpu-decision public api', () => {
       'cpuSelectBuoyancyWillWithPolicy',
       'cpuSelectCaptureWillWithPolicy',
       'cpuSelectCausalReplayWillWithPolicy',
-      'cpuSelectCellTeleportWillWithPolicy',
       'cpuSelectCloneWillWithPolicy',
       'cpuSelectCondemnWillWithPolicy',
       'cpuSelectCorrosionWillWithPolicy',

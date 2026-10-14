@@ -264,15 +264,6 @@ describe('Network snapshot move-source empty handling', () => {
       dest: { row: 5, col: 5 },
       beforeMarkers: [],
       afterMarkers: []
-    },
-    {
-      name: 'cell teleport ordinary move',
-      cause: 'CELL_TELEPORT_WILL',
-      reason: 'teleport_move',
-      source: { row: 4, col: 4 },
-      dest: { row: 2, col: 6 },
-      beforeMarkers: [],
-      afterMarkers: []
     }
   ])('network snapshot keeps $name source from destroy-fading when source is already empty', ({ cause, reason, source, dest, beforeMarkers, afterMarkers }) => {
     const beforeBoard = createBoard();

@@ -45,7 +45,6 @@ function getMoveSemantics(target: any, deps: AnimationMoveEventDeps) {
         reason.indexOf('destroy_evade_move') === 0;
     const isTeleportMove =
         moveIntent === 'teleport_move' ||
-        cause === 'CELL_TELEPORT_WILL' ||
         cause === 'TELEPORT_WILL' ||
         reason === 'teleport_move';
     const isCloneMove = !!(target && target.clone === true);

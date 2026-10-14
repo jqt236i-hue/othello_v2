@@ -1658,80 +1658,6 @@ describe('pending selection flow contracts', () => {
     }
   });
 
-  test('CELL_TELEPORT_WILL arms board update context before selection state sync', async () => {
-    const playbackStateManager = attachPlaybackStateManager();
-    playbackStateManager.clearBoardUpdateContext();
-
-    global.cardState = {
-      turnIndex: 4,
-      pendingEffectByPlayer: {
-        black: { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget', cardId: 'cell_tp_01' },
-        white: null
-      },
-      presentationEvents: [],
-      _presentationEventsPersist: []
-    };
-    global.gameState = {
-      currentPlayer: 1,
-      turnNumber: 7,
-      board: Array.from({ length: 8 }, () => Array(8).fill(0))
-    };
-    global.PlaybackStateManager = playbackStateManager;
-    global.emitCardStateChange = jest.fn();
-    global.emitBoardUpdate = jest.fn();
-    global.emitGameStateChange = jest.fn();
-    global.TurnPipeline = {};
-    global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: jest.fn(() => ({
-        ok: true,
-        rawEvents: [{
-          type: 'teleport_selected',
-          applied: true,
-          cardType: 'CELL_TELEPORT_WILL',
-          from: { row: 4, col: 4 },
-          to: { row: -1, col: 0 }
-        }],
-        nextCardState: {
-          ...global.cardState,
-          pendingEffectByPlayer: { black: null, white: null }
-        },
-        nextGameState: {
-          ...global.gameState
-        },
-        playbackEvents: [{
-          type: 'move',
-          phase: 1,
-          targets: [{
-            from: { r: 4, col: 4 },
-            to: { r: -1, col: 0 },
-            cause: 'CELL_TELEPORT_WILL',
-            reason: 'teleport_move'
-          }]
-        }]
-      }))
-    };
-
-    const result = await flow.executePendingSelection({
-      row: 4,
-      col: 4,
-      playerKey: 'black',
-      pendingType: 'CELL_TELEPORT_WILL',
-      actionPayload: {
-        teleportTarget: { row: 4, col: 4 }
-      },
-      validateResult: () => true
-    });
-
-    expect(result && result.ok).toBe(true);
-    expect(playbackStateManager.getBoardUpdateContext()).toEqual(expect.objectContaining({
-      source: 'selection-flow',
-      reason: 'pre_playback_state_sync',
-      suppressBoardExpansionRevealSound: true
-    }));
-    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(2);
-    playbackStateManager.clearBoardUpdateContext();
-  });
-
   test('network deferred selection publishes directly and keeps busy until authoritative ack', async () => {
     let resolvePublish = null;
     attachPlaybackStateManager();
@@ -2709,12 +2635,6 @@ describe('pending selection flow contracts', () => {
   test.each([
     {
       pendingType: 'TELEPORT_WILL',
-      row: 4,
-      col: 4,
-      actionPayload: { teleportTarget: { row: 4, col: 4 } }
-    },
-    {
-      pendingType: 'CELL_TELEPORT_WILL',
       row: 4,
       col: 4,
       actionPayload: { teleportTarget: { row: 4, col: 4 } }

@@ -127,7 +127,7 @@ describe('pending selection card contracts', () => {
     const cardState: any = { hands: { black: ['card-under-test'] }, charge: { black: 99 }, turnIndex: 30 };
     const gameState: any = { board: [], turnNumber: 30 };
     const pending = { type: 'pending-marker' };
-    expect(new Set(targetEntries.map(([, entry]: any) => entry.target.method)).size).toBe(32);
+    expect(new Set(targetEntries.map(([, entry]: any) => entry.target.method)).size).toBe(31);
 
     for (const [cardType, entry] of targetEntries as any[]) {
       const minimumCount = Number.isFinite(Number(entry.target.minimumCount))

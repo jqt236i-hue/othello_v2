@@ -1154,7 +1154,6 @@ function analyzeCardUsability(
             if (type === 'CORROSION_WILL' && !requireLocalTargets(context, scope, 'getCorrosionTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TIME_BOMB' && !requireLocalTargets(context, scope, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TELEPORT_WILL' && !requireLocalTargets(context, scope, 'getTeleportTargets', [cardState, gameState], 1)) continue;
-            if (type === 'CELL_TELEPORT_WILL' && !requireLocalTargets(context, scope, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
             if (type === 'BUOYANCY_WILL' && !requireLocalTargets(context, scope, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_BUOYANCY_WILL' && !requireLocalTargets(context, scope, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'GRAVITY_WILL' && !requireLocalTargets(context, scope, 'getGravityTargets', [cardState, gameState], 1)) continue;
@@ -1196,7 +1195,6 @@ function analyzeCardUsability(
             if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireModuleTargets(context, scope, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TIME_BOMB' && !requireModuleTargets(context, scope, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TELEPORT_WILL' && !requireModuleTargets(context, scope, 'getTeleportTargets', [cardState, gameState], 1)) continue;
-            if (type === 'CELL_TELEPORT_WILL' && !requireModuleTargets(context, scope, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
             if (type === 'CLONE_WILL' && !requireModuleTargets(context, scope, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'BOARD_EXPANSION_GOD' && !requireModuleTargets(context, scope, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'BOARD_SHRINK_WILL' && !requireModuleTargets(context, scope, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;

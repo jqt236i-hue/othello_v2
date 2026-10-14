@@ -63,7 +63,6 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   PROLIFERATION_WILL: '増殖石を配置する',
   CLONE_WILL: '自分の石を複製する',
   TELEPORT_WILL: '石を別の空きマスへ移す',
-  CELL_TELEPORT_WILL: 'マスを移動させて穴を作る',
   CROSS_BOMB: '十字範囲を爆破する',
   X_BOMB: '斜め範囲を爆破する',
   HYPERACTIVE_WILL: '次の石を躍動化する',

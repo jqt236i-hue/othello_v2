@@ -378,16 +378,6 @@ window.CardCatalog = {
       "desc": "盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。"
     },
     {
-      "id": "cell_teleport_01",
-      "name_ja": "マステレポート",
-      "type": "CELL_TELEPORT_WILL",
-      "cost": 18,
-      "desc_ja": "マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。",
-      "display_type_ja": "執行",
-      "name": "マステレポート",
-      "desc": "マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。"
-    },
-    {
       "id": "cross_bomb_01",
       "name_ja": "十字爆弾",
       "type": "CROSS_BOMB",

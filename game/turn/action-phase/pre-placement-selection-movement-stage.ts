@@ -111,7 +111,7 @@ function resolveSuperAttractionSelection(options: MovementSelectionStageOptions)
 
 function resolveTeleportSelection(options: MovementSelectionStageOptions): any {
     const pending = options.pending;
-    if (!pending || (pending.type !== 'TELEPORT_WILL' && pending.type !== 'CELL_TELEPORT_WILL')) return null;
+    if (!pending || pending.type !== 'TELEPORT_WILL') return null;
 
     const target = options.action && options.action.teleportTarget;
     if (target == null) {
@@ -119,23 +119,14 @@ function resolveTeleportSelection(options: MovementSelectionStageOptions): any {
     }
     if (!target) return { matched: true, result: false };
 
-    const result = pending.type === 'CELL_TELEPORT_WILL'
-        ? options.CardLogic.applyCellTeleportWill(
-            options.cardState,
-            options.gameState,
-            options.playerKey,
-            target.row,
-            target.col,
-            options.prng || undefined
-        )
-        : options.CardLogic.applyTeleportWill(
-            options.cardState,
-            options.gameState,
-            options.playerKey,
-            target.row,
-            target.col,
-            options.prng || undefined
-        );
+    const result = options.CardLogic.applyTeleportWill(
+        options.cardState,
+        options.gameState,
+        options.playerKey,
+        target.row,
+        target.col,
+        options.prng || undefined
+    );
     options.events.push({
         type: 'teleport_selected',
         player: options.playerKey,
@@ -143,8 +134,7 @@ function resolveTeleportSelection(options: MovementSelectionStageOptions): any {
         target,
         applied: !!(result && result.applied),
         from: result && result.from ? result.from : null,
-        to: result && result.to ? result.to : null,
-        createdDestination: !!(result && result.createdDestination)
+        to: result && result.to ? result.to : null
     });
     options.applyTrapEffectsAfterSelection();
     return { matched: true, result: true };

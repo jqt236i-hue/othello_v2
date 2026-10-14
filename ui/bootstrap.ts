@@ -2190,7 +2190,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             super_gravity: 'handleSuperGravitySelection',
                             super_attraction: 'handleSuperAttractionSelection',
                             teleport: 'handleTeleportSelection',
-                            cell_teleport: 'handleTeleportSelection',
                             tempt: 'handleTemptSelection',
                             capture: 'handleCaptureSelection',
                             trap: 'handleTrapSelection',

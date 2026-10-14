@@ -41,7 +41,6 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     GRAVITY_WILL: '下方向へ移動させる石を選んでください',
     SUPER_GRAVITY_WILL: '下方向へ移動させる石を選んでください',
     TELEPORT_WILL: 'テレポートさせる石を選んでください',
-    CELL_TELEPORT_WILL: 'マステレポートさせるマスを選んでください',
     SWAP_WITH_ENEMY: '交換する敵石を選んでください',
     TRAP_WILL: '罠を設置する自分の石を選んでください（選択後にターン終了）',
     REVERSE_WILL: '反転を起動する石を選んでください',

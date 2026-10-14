@@ -86,7 +86,6 @@ let cellCacheMap = new Map();
 let boardDomSignature: any = null;
 let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
-let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
 let BoardRendererCapabilitiesForDiff: any = Object.freeze({});
 let BoardVisualRenderStateSourceForDiff: any = BoardVisualRenderStateSourceModule
@@ -553,7 +552,6 @@ function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys: any, boa
         ? revealExpansionKeys.slice()
         : Array.from(revealExpansionKeys || []);
     if (!keys.length) return;
-    if (suppressBoardExpansionRevealSoundThisRender) return;
 
     const soundKey = `${String(boardSignature || '')}:${keys.sort().join('|')}`;
     if (soundKey === lastBoardExpansionRevealSoundKey) return;
@@ -2564,7 +2562,6 @@ function renderBoardDiff(
     _consumeBoardUpdateSyncContextForDiff();
     const boardUpdateContext = _consumeBoardUpdateContextForDiff();
     suppressFallbackFlipThisRender = !!(boardUpdateContext && boardUpdateContext.suppressFallbackFlip === true);
-    suppressBoardExpansionRevealSoundThisRender = !!(boardUpdateContext && boardUpdateContext.suppressBoardExpansionRevealSound === true);
     pendingMoveSourceKeysThisRender = _mergeBoardUpdateContextKeySetsForDiff(
         _normalizeBoardUpdateContextKeySetForDiff(boardUpdateContext && boardUpdateContext.pendingMoveSourceKeys),
         _collectPendingMoveSourceKeysForDiff()
@@ -2670,7 +2667,6 @@ function renderBoardDiff(
         return updatedCount;
     } finally {
         suppressFallbackFlipThisRender = false;
-        suppressBoardExpansionRevealSoundThisRender = false;
         pendingMoveSourceKeysThisRender = null;
         pendingFlipTargetKeysThisRender = null;
     }

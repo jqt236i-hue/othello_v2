@@ -3022,53 +3022,6 @@ describe('animation-engine guard timer rendering', () => {
     removeSpy.mockRestore();
   });
 
-  test('cell teleport move applies and clears purple cell highlight at destination', async () => {
-    const engine = require('../ui/animation-engine');
-    const board = document.getElementById('board')!;
-
-    const fromCell = document.createElement('div');
-    fromCell.className = 'cell';
-    fromCell.dataset.row = '2';
-    fromCell.dataset.col = '2';
-
-    const toCell = document.createElement('div');
-    toCell.className = 'cell';
-    toCell.dataset.row = '-1';
-    toCell.dataset.col = '0';
-
-    const disc = document.createElement('div');
-    disc.className = 'disc black';
-    fromCell.appendChild(disc);
-
-    board.appendChild(fromCell);
-    board.appendChild(toCell);
-
-    const addSpy = jest.spyOn(toCell.classList, 'add');
-    const removeSpy = jest.spyOn(toCell.classList, 'remove');
-
-    await engine.handleMove({
-      type: 'move',
-      targets: [{
-        from: { r: 2, col: 2 },
-        to: { r: -1, col: 0 },
-        ownerAfter: 'black',
-        cause: 'CELL_TELEPORT_WILL',
-        reason: 'teleport_move',
-        meta: { moveIntent: 'teleport_move' },
-        after: { color: 1, special: null, timer: null, owner: 'black' }
-      }]
-    });
-
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
-
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
-  });
-
   test('destroy evade move applies and clears red cell highlight at source', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;

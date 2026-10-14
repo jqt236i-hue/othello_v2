@@ -358,7 +358,6 @@ S.super_attraction_01 = async (rec, page) => {
     await outro(rec, 1300);
 };
 S.teleport_01 = async (rec, page) => { await intro(rec); await useOn(rec, 'teleport_01', await pickStone(page, isW)); await outro(rec, 1300); };
-S.cell_teleport_01 = async (rec, page) => { await intro(rec); await useOn(rec, 'cell_teleport_01', await pickStone(page, isW)); await outro(rec, 1300); };
 S.reverse_will_01 = async (rec, page) => {
     await intro(rec);
     await useOn(rec, 'reverse_will_01', async (t) => {

@@ -654,19 +654,6 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
-    async function cpuSelectCellTeleportWillWithPolicy(playerKey: any): Promise<any> {
-        return runTargetAction({
-            playerKey,
-            pendingType: 'CELL_TELEPORT_WILL',
-            targets: getSelectableTargets(playerKey),
-            noTargetLabel: 'マステレポート対象なし',
-            targetLabel: 'マステレポートターゲット',
-            payloadKey: 'teleportTarget',
-            applyMethodName: 'applyCellTeleportWill',
-            extraApplyArgs: () => [cfg.getCpuRng()]
-        });
-    }
-
     async function cpuSelectTemptWillWithPolicy(playerKey: any): Promise<any> {
         return runTargetAction({
             playerKey,
@@ -1036,7 +1023,6 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cpuSelectBuoyancyWillWithPolicy,
         cpuSelectCaptureWillWithPolicy,
         cpuSelectCausalReplayWillWithPolicy,
-        cpuSelectCellTeleportWillWithPolicy,
         cpuSelectCondemnWillWithPolicy,
         cpuSelectCloneWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,

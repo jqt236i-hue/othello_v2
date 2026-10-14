@@ -36,7 +36,6 @@ describe('selfplay advanced simulation choosers module', () => {
             CardLogic: {
                 applyStrongWindWill: jest.fn()
             },
-            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
@@ -81,7 +80,6 @@ describe('selfplay advanced simulation choosers module', () => {
                 applySuperBuoyancyWill: jest.fn(),
                 applySuperGravityWill: jest.fn()
             },
-            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
@@ -117,7 +115,6 @@ describe('selfplay advanced simulation choosers module', () => {
                 applyTrapWill: jest.fn(),
                 applyCloneWill: jest.fn()
             },
-            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
@@ -135,15 +132,13 @@ describe('selfplay advanced simulation choosers module', () => {
         expect(calls[2][5]({ row: 2, col: 3 })).toBe(23 * 1.25);
     });
 
-    test('hyperactive inherit, teleport, and cell teleport preserve adjustment heuristics', () => {
+    test('hyperactive inherit and teleport preserve adjustment heuristics', () => {
         const calls = [];
         const choosers = createSelfplayAdvancedSimulationChoosers({
             CardLogic: {
                 applyHyperactiveInheritWill: jest.fn(),
-                applyTeleportWill: jest.fn(),
-                applyCellTeleportWill: jest.fn()
+                applyTeleportWill: jest.fn()
             },
-            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
@@ -160,22 +155,9 @@ describe('selfplay advanced simulation choosers module', () => {
 
         choosers.chooseHyperactiveInheritTarget({ board: [[1, 0], [0, 1]] }, {}, 'black', {});
         choosers.chooseTeleportTarget({ board: [[0, -1]] }, {}, 'black', {});
-        choosers.chooseCellTeleportTarget({ board: [[-1]] }, {}, 'black', {});
 
         expect(calls[0][6]({ row: 1, col: 1 }, {}, { board: [[0, 0], [0, 1]] }, {}, {}, {}, 'black')).toBe(-350);
         expect(calls[1][5]({ row: 0, col: 1 }, { board: [[0, -1]] }, {}, 'black')).toBeCloseTo((1 * 1.4) + 900, 5);
-        const expandedGameState = {
-            board: Array.from({ length: 8 }, () => Array(8).fill(0)),
-            boardExpansion: { cells: [{ row: 8, col: 8, owner: 0 }] }
-        };
-        expect(calls[2][6](
-            {},
-            { to: { row: 8, col: 8 } },
-            expandedGameState,
-            {},
-            {},
-            {}
-        )).toBe(1800 + 1600 + 1800);
     });
 
     test('extend life uses marker priority and owner-position bonuses', () => {
@@ -184,7 +166,6 @@ describe('selfplay advanced simulation choosers module', () => {
             CardLogic: {
                 applyExtendLifeWill: jest.fn()
             },
-            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;

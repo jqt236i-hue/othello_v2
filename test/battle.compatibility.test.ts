@@ -11,12 +11,12 @@ test('historical pre-Reincarnation save is explicitly incompatible and remains a
     expect(initialSave.contentVersion).toBe('fnv1a32:fce6c0f5');
     expect(() => restoreBattle(initialSave as any)).toThrow(BattleSaveCompatibilityError);
     expect(baseline.sourceCommit).toBe('592359fec1b263ab8c2c652c5fbe232ef848ecca');
-    // Adding a default-deck candidate changes shuffle calls and the following number cells.
+    // Adding or removing a default-deck candidate changes shuffle calls and the following number cells.
     const now = createBattle({ version: 1, battleId: 'baseline', seed: baseline.seed,
         players: { black: { controller: 'human', profile: '10' }, white: { controller: 'cpu', profile: '10' } } });
     const after = now.startTurn()!.after;
     expect(baseline.records[0].prng.calls).toBe(273);
-    expect(after.prngState.calls).toBe(275);
+    expect(after.prngState.calls).toBe(273);
     expect(Hash.computeStableHash(comparableProductionState(after))).not.toBe(baseline.records[0].hash);
 });
 

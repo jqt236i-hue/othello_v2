@@ -484,25 +484,6 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
-  test('CELL_TELEPORT_WILL invokes cpuSelectCellTeleportWillWithPolicy when available', async () => {
-    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
-    global.cpuSelectCellTeleportWillWithPolicy = mock;
-    cardState.pendingEffectByPlayer.white = { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget' };
-
-    cpuHandler.processCpuTurn();
-    await waitTick();
-    expect(mock).toHaveBeenCalledWith('white');
-  });
-
-  test('CELL_TELEPORT_WILL clears pending when function absent', async () => {
-    delete global.cpuSelectCellTeleportWillWithPolicy;
-    cardState.pendingEffectByPlayer.white = { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget' };
-
-    cpuHandler.processCpuTurn();
-    await waitTick();
-    expect(cardState.pendingEffectByPlayer.white).toBeNull();
-  });
-
   test('SUPER_BUOYANCY_WILL invokes cpuSelectSuperBuoyancyWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectSuperBuoyancyWillWithPolicy = mock;

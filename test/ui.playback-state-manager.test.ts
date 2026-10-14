@@ -192,38 +192,32 @@ describe('PlaybackStateManager runtime helpers', () => {
     const manager = require('../ui/playback-state-manager.js');
     const armed = manager.armBoardUpdateContext({
       suppressFallbackFlip: true,
-      suppressBoardExpansionRevealSound: true,
       source: 'unit-test',
       reason: 'post_playback_sync'
     });
 
     expect(armed).toMatchObject({
       suppressFallbackFlip: true,
-      suppressBoardExpansionRevealSound: true,
       source: 'unit-test',
       reason: 'post_playback_sync'
     });
     expect(manager.getSuppressNextDiffFlip()).toBe(true);
     expect(manager.getBoardUpdateContext()).toMatchObject({
       suppressFallbackFlip: true,
-      suppressBoardExpansionRevealSound: true,
       source: 'unit-test',
       reason: 'post_playback_sync'
     });
     expect(global.window.__suppressNextDiffFlip).toBe(true);
-    expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(true);
 
     const consumed = manager.consumeBoardUpdateContext();
     expect(consumed).toMatchObject({
       suppressFallbackFlip: true,
-      suppressBoardExpansionRevealSound: true,
       source: 'unit-test',
       reason: 'post_playback_sync'
     });
     expect(manager.getBoardUpdateContext()).toBeNull();
     expect(manager.getSuppressNextDiffFlip()).toBe(false);
     expect(global.window.__suppressNextDiffFlip).toBe(false);
-    expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
   });
 
   test('clearPlaybackLock clears stale board update context', () => {
@@ -240,7 +234,6 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getPlaybackActive()).toBe(false);
     expect(manager.getBoardUpdateContext()).toBeNull();
     expect(global.window.__suppressNextDiffFlip).toBe(false);
-    expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
   });
 
   test('clearPlaybackLock clears selection settlement locks by default', () => {

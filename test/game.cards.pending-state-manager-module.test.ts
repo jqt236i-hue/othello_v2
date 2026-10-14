@@ -109,7 +109,6 @@ describe('CardPendingStateManager', () => {
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('GUARD_WILL')).toBe('guard');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('GUARDIAN_GOD')).toBe('guard');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('TELEPORT_WILL')).toBe('teleport');
-    expect(PendingStateManager.resolvePendingSelectionDispatchKey('CELL_TELEPORT_WILL')).toBe('cell_teleport');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_EXPANSION_GOD')).toBe('board_expansion');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_SHRINK_WILL')).toBe('board_shrink');
     expect(PendingStateManager.resolvePendingSelectionDispatchKey('BOARD_SHRINK_GOD')).toBe('board_shrink');

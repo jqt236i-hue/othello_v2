@@ -53,13 +53,6 @@ export function createBoardFrameRuntime(dependencies: BoardFrameRuntimeDependenc
       frame: any
   ) {
       if (!Array.isArray(keys) || keys.length === 0) return;
-      const captured = frame && typeof frame === 'object'
-          ? BoardVisualWorldStateByFrameForBoardRenderer.get(frame)
-          : null;
-      if (captured && captured.boardUpdateContext
-          && captured.boardUpdateContext.suppressBoardExpansionRevealSound === true) {
-          return;
-      }
       const soundKey = `${String(frame && frame.frameToken || '')}:${keys.slice().sort().join('|')}`;
       if (soundKey === LastPixiBoardExpansionRevealSoundKeyForBoardRenderer) return;
       LastPixiBoardExpansionRevealSoundKeyForBoardRenderer = soundKey;

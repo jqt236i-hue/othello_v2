@@ -37,7 +37,6 @@ const Flips = CardFlips || {};
             !BoardUtils ||
             typeof BoardUtils.createBoardContext !== 'function' ||
             typeof BoardUtils.createBoardView !== 'function' ||
-            typeof BoardUtils.resolveExpansionSide !== 'function' ||
             typeof BoardUtils.getBoardExpansionEdgeSockets !== 'function' ||
             typeof BoardUtils.getBoardExpansionCornerSockets !== 'function' ||
             typeof BoardUtils.mapBoardExpansionSocketTarget !== 'function'
@@ -399,11 +398,6 @@ const Flips = CardFlips || {};
             .filter((target: any) => !!target);
     }
 
-    function resolveExpansionSide(cardState: any, gameState: any, side: any, row: any, col: any) {
-        const context = createBoardContext(cardState, gameState);
-        return requireBoardUtils().resolveExpansionSide(side, row, col, context.gameState);
-    }
-
     // ---- 29 Target Functions ----
 
     function getTrapTargets(cardState: any, gameState: any, playerKey: any) {
@@ -569,7 +563,6 @@ const Flips = CardFlips || {};
             getGuardTargets,
             getTimeBombTargets,
             getTeleportTargets,
-            getCellTeleportTargets,
             getCloneTargets,
             getBoardExpansionTargets,
             getBoardShrinkTargets,
@@ -868,68 +861,6 @@ const Flips = CardFlips || {};
         return res;
     }
 
-    function getCellTeleportTargets(cardState: any, gameState: any) {
-        if (typeof Selectors.getCellTeleportTargets === 'function') {
-            return Selectors.getCellTeleportTargets(cardState, gameState);
-        }
-        if (!gameState || !gameState.board) return [];
-
-        const activeExpansionCells = getExpansionCells(cardState, gameState);
-        const activeByKey = new Map();
-        for (const cell of activeExpansionCells) {
-            if (!cell) continue;
-            activeByKey.set(`${cell.row},${cell.col}`, cell);
-        }
-
-        const destinations: any[] = [];
-        const seen = new Set();
-        const pushCandidate = (row: any, col: any, side: any) => {
-            const key = `${row},${col}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            const activeCell = activeByKey.get(key) || null;
-            const owner = activeCell ? Number(activeCell.owner) : EMPTY;
-            if (owner !== EMPTY) return;
-            if (isBlockedCell(cardState, row, col)) return;
-            destinations.push({
-                row,
-                col,
-                side: resolveExpansionSide(cardState, gameState, side, row, col),
-                active: !!activeCell
-            });
-        };
-
-        for (const cell of activeExpansionCells) {
-            if (!cell) continue;
-            pushCandidate(cell.row, cell.col, cell.side);
-        }
-        const socketTargets = getExpansionSocketTargets(cardState, gameState, 'edge')
-            .concat(getExpansionSocketTargets(cardState, gameState, 'corner'));
-        for (const target of socketTargets) {
-            for (const cell of Array.isArray(target.additions) ? target.additions : []) {
-                if (!cell) continue;
-                pushCandidate(
-                    cell.row,
-                    cell.col,
-                    resolveExpansionSide(cardState, gameState, null, cell.row, cell.col)
-                );
-            }
-        }
-
-        if (!destinations.length) return [];
-
-        const res: any[] = [];
-        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
-            if (owner === EMPTY) return;
-            if (isFrozenCell(cardState, r, c)) return;
-            if (isInviolableCell(cardState, r, c)) return;
-            if (isMeteorHoleCell(cardState, r, c)) return;
-            if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
-            res.push({ row: r, col: c });
-        });
-        return res;
-    }
-
     function getSniperTargets(cardState: any, gameState: any, playerKey: any) {
         // SNIPER_WILL is a next-stone effect; no board targets to select.
         return [];
@@ -1152,7 +1083,6 @@ export = {
     getPoisonTargets,
     getScorchTargets,
     getHealingCellTargets,
-    getCellTeleportTargets,
     getSniperTargets,
     getTimeBombTargets,
     getLightningTargets,

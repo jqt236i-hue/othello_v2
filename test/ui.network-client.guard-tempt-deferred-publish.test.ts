@@ -551,54 +551,31 @@ const CASES = [
     }
   },
   {
-    label: 'CELL_TELEPORT_WILL',
+    label: 'TELEPORT_WILL',
     modulePath: path.resolve(__dirname, '..', 'game', 'card-effects', 'teleport.js'),
     handlerName: 'handleTeleportSelection',
-    pendingType: 'CELL_TELEPORT_WILL',
+    pendingType: 'TELEPORT_WILL',
     rawEventType: 'teleport_selected',
-    cardId: 'cell_teleport_01',
+    cardId: 'teleport_01',
     initialBoardEntries: [
       { row: 2, col: 2, value: 1 }
     ],
     expectPublishOnlySelection: true,
     buildNextCardState: (cardState) => ({
       ...cloneJson(cardState),
-      pendingEffectByPlayer: { black: null, white: null },
-      markers: [
-        {
-          id: 72,
-          kind: 'specialStone',
-          row: 2,
-          col: 2,
-          owner: 'black',
-          data: { type: 'METEOR_HOLE' }
-        }
-      ]
+      pendingEffectByPlayer: { black: null, white: null }
     }),
     buildNextGameState: (gameState) => {
       const nextGameState = cloneJson(gameState);
       nextGameState.board[2][2] = 0;
-      nextGameState.boardExpansion = {
-        cells: [
-          { row: -1, col: 2, owner: 1 }
-        ]
-      };
+      nextGameState.board[5][5] = 1;
       nextGameState.currentPlayer = global.WHITE;
       nextGameState.turnNumber = 12;
       return nextGameState;
     },
-    assertAppliedState: ({ gameState, cardState }) => {
+    assertAppliedState: ({ gameState }) => {
       expect(gameState.board[2][2]).toBe(0);
-      expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
-        expect.objectContaining({ row: -1, col: 2, owner: 1 })
-      ]));
-      expect(cardState.markers).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          row: 2,
-          col: 2,
-          data: expect.objectContaining({ type: 'METEOR_HOLE' })
-        })
-      ]));
+      expect(gameState.board[5][5]).toBe(1);
     }
   }
 ];
