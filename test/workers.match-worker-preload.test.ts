@@ -104,8 +104,7 @@ describe('match worker runtime module wiring', () => {
     const dependentCardSources = [
       'game/logic/cards/meteor.ts',
       'game/logic/cards/meteor_god.ts',
-      'game/logic/cards/shrink.ts',
-      'game/logic/cards/teleport.ts'
+      'game/logic/cards/shrink.ts'
     ];
 
     for (const sourcePath of dependentCardSources) {

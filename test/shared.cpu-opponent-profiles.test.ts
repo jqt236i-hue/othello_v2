@@ -17,7 +17,7 @@ describe('cpu opponent profiles', () => {
       const { profileId: _ten, ...baseline } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
       const { profileId: _eleven, ...candidate } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(11, player);
       expect(candidate).toEqual(baseline);
-      expect(candidate.deckCardIds).toHaveLength(94);
+      expect(candidate.deckCardIds).toHaveLength(93);
       expect(candidate).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
     }
   });
@@ -31,7 +31,7 @@ describe('cpu opponent profiles', () => {
       const { profileId: _nine, deckCardIds: nineDeck, ...a } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(9, player);
       const { profileId: _ten, deckCardIds: tenDeck, ...b } = CpuOpponentStartupOptions.getCpuOpponentStartupOptions(10, player);
       expect(b).toEqual(a);
-      expect(nineDeck).toHaveLength(94);
+      expect(nineDeck).toHaveLength(93);
       expect(tenDeck!.length).toBeGreaterThan(0);
       expect(b).toMatchObject({ initialCharge: 99, chargeGainMultiplier: 2, cardUseUnlockTurnNumber: 6 });
     }

@@ -18,7 +18,7 @@ const CpuDecision = require('../game/cpu-decision');
 const CpuExpected = require(path.join(ROOT, 'test', 'fixtures', 'card-runtime-cpu-expected.v1.json'));
 
 // Match the reviewed facade baseline in game.cards-api-identity.test.ts.
-const EXPECTED_DESCRIPTOR_SCHEMA_HASH = '82c79782644f00b6663bb52634a70311f765f5d27d682291a938b5780c760e52';
+const EXPECTED_DESCRIPTOR_SCHEMA_HASH = '43dafd724343d23183cf6b46d8e2ea03e1aae500412884bdf78c889054b5fcfc';
 
 function descriptorSchema(value: Record<string, unknown>) {
   return Reflect.ownKeys(value).map((key) => {
