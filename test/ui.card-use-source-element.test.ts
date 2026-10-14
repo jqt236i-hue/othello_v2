@@ -975,7 +975,7 @@ describe('card use source element selection', () => {
 
   test.each([
     ['seed_01', 'SEED_WILL'],
-    ['cell_teleport_01', 'CELL_TELEPORT_WILL']
+    ['teleport_01', 'TELEPORT_WILL']
   ])('useSelectedCard assigns an identity to pipeline-owned %s board pending', (cardId, cardType) => {
     global.cardState.selectedCardId = cardId;
     global.cardState.selectedCardOwnerKey = 'black';
@@ -1018,7 +1018,7 @@ describe('card use source element selection', () => {
 
   test.each([
     ['seed_01', 'SEED_WILL'],
-    ['cell_teleport_01', 'CELL_TELEPORT_WILL']
+    ['teleport_01', 'TELEPORT_WILL']
   ])('debug useSelectedCard assigns an identity to pipeline-owned %s board pending', (cardId, cardType) => {
     window.DEBUG_UNLIMITED_USAGE = true;
     global.cardState.selectedCardId = cardId;
@@ -1056,9 +1056,9 @@ describe('card use source element selection', () => {
 
   test.each([
     ['seed_01', 'SEED_WILL', false],
-    ['cell_teleport_01', 'CELL_TELEPORT_WILL', false],
+    ['teleport_01', 'TELEPORT_WILL', false],
     ['seed_01', 'SEED_WILL', true],
-    ['cell_teleport_01', 'CELL_TELEPORT_WILL', true]
+    ['teleport_01', 'TELEPORT_WILL', true]
   ])('useSelectedCard does not recreate cancelled %s pending (%s, debug=%s)', (cardId, cardType, debug) => {
     window.DEBUG_UNLIMITED_USAGE = debug;
     global.cardState.selectedCardId = cardId;
@@ -1127,7 +1127,7 @@ describe('card use source element selection', () => {
     };
 
     const firstId = useActiveCard();
-    activeCard = { id: 'cell_teleport_01', type: 'CELL_TELEPORT_WILL' };
+    activeCard = { id: 'teleport_01', type: 'TELEPORT_WILL' };
     const secondId = useActiveCard();
 
     expect(firstId).toMatch(/^pending_1_\d+$/);

@@ -53,7 +53,6 @@ export type CardType =
   | 'PROLIFERATION_WILL'
   | 'CLONE_WILL'
   | 'TELEPORT_WILL'
-  | 'CELL_TELEPORT_WILL'
   | 'CROSS_BOMB'
   | 'X_BOMB'
   | 'HYPERACTIVE_WILL'

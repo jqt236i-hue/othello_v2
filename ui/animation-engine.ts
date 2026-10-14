@@ -819,12 +819,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             // Otherwise, if flip events were dropped (e.g., missing BoardOps CHANGE events), suppressing would remove
             // the last-resort visual cue and make flips appear instantaneous.
             const shouldSuppressNextDiffFlip = normalizedEvents.some(e => e && e.type === EVENT_TYPES.FLIP);
-            const shouldSuppressBoardExpansionRevealSound = normalizedEvents.some((event) => (
-                event &&
-                event.type === EVENT_TYPES.MOVE &&
-                Array.isArray(event.targets) &&
-                event.targets.some((target: any) => String(target && target.cause ? target.cause : '').toUpperCase() === 'CELL_TELEPORT_WILL')
-            ));
 
             const hasActivePlaybackRun = this.isPlaying === true || this._activePlaybackRunId !== null;
             if (
@@ -1046,7 +1040,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 const shouldArmBoardUpdateContext = isCurrentRun
                     && localWriterSettlementResolved
                     && !runState.externallyAborted
-                    && (shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound)
+                    && shouldSuppressNextDiffFlip
                     && !abortedDuringPlay
                     && !this._watchdogFired
                     && !this.isAborted;
@@ -1054,8 +1048,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     ? {
                         source: 'animation-engine',
                         reason: 'post_playback_sync',
-                        suppressFallbackFlip: shouldSuppressNextDiffFlip === true,
-                        suppressBoardExpansionRevealSound: shouldSuppressBoardExpansionRevealSound === true
+                        suppressFallbackFlip: shouldSuppressNextDiffFlip === true
                     }
                     : null;
                 const strictNetworkPlaybackFailed = strictNetworkPlaybackThisRun

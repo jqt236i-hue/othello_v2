@@ -326,8 +326,6 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getTimeBombTargets', 1) ? result : buildFailureResult();
         case 'TELEPORT_WILL':
             return validateSelectionTargets(context, 'getTeleportTargets', 1) ? result : buildFailureResult();
-        case 'CELL_TELEPORT_WILL':
-            return validateSelectionTargets(context, 'getCellTeleportTargets', 1) ? result : buildFailureResult();
         case 'CLONE_WILL':
             return validateSelectionTargets(context, 'getCloneTargets', 1) ? result : buildFailureResult();
         case 'POSITION_SWAP_WILL':

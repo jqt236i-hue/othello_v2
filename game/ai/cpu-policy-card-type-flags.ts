@@ -96,7 +96,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isDestroyDragonWill = cardType === 'DESTROY_DRAGON_WILL';
         const isBreedingWill = cardType === 'BREEDING_WILL';
         const isTeleportWill = cardType === 'TELEPORT_WILL';
-        const isCellTeleportWill = cardType === 'CELL_TELEPORT_WILL';
         const isRobotVacuumWill = cardType === 'ROBOT_VACUUM_WILL';
         const isExtremeHyperactiveWill = cardType === 'EXTREME_HYPERACTIVE_WILL';
         const isGluttonousWill = cardType === 'GLUTTONOUS_WILL';
@@ -200,7 +199,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isDestroyDragonWill,
             isBreedingWill,
             isTeleportWill,
-            isCellTeleportWill,
             isRobotVacuumWill,
             isExtremeHyperactiveWill,
             isGluttonousWill,

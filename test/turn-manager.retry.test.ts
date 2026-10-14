@@ -80,7 +80,6 @@ function buildTurnManagerUIBridge() {
         super_gravity: 'handleSuperGravitySelection',
         super_attraction: 'handleSuperAttractionSelection',
         teleport: 'handleTeleportSelection',
-        cell_teleport: 'handleTeleportSelection',
         tempt: 'handleTemptSelection',
         capture: 'handleCaptureSelection',
         trap: 'handleTrapSelection',
@@ -347,7 +346,7 @@ describe('turn-manager scheduling', () => {
   });
 
   test.each([
-    ['CELL_TELEPORT_WILL', 'cell_teleport_01', 'handleTeleportSelection'],
+    ['TELEPORT_WILL', 'teleport_01', 'handleTeleportSelection'],
     ['SEED_WILL', 'seed_01', 'handleSeedSelection']
   ])('handleCellClick reads latest runtime pending for %s after card-use state replacement', (_type, cardId, handlerName) => {
     const staleCardState = {

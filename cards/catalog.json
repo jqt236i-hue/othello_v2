@@ -302,14 +302,6 @@
       "display_type_ja": "執行"
     },
     {
-      "id": "cell_teleport_01",
-      "name_ja": "マステレポート",
-      "type": "CELL_TELEPORT_WILL",
-      "cost": 18,
-      "desc_ja": "マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴マスにする。",
-      "display_type_ja": "執行"
-    },
-    {
       "id": "cross_bomb_01",
       "name_ja": "十字爆弾",
       "type": "CROSS_BOMB",

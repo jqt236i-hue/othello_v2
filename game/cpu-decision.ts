@@ -686,7 +686,6 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
     'BOARD_SHRINK_WILL',
     'BOARD_SHRINK_GOD',
     'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
     'BUOYANCY_WILL',
@@ -3540,14 +3539,6 @@ async function cpuSelectTeleportWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 /**
- * マステレポート 対象選択
- * @param {string} playerKey - 'black' または 'white'
- */
-async function cpuSelectCellTeleportWillWithPolicy(playerKey: any): Promise<any> {
-    return CpuDecisionPendingActions.cpuSelectCellTeleportWillWithPolicy(playerKey);
-}
-
-/**
  * 意志の反転 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -3630,7 +3621,6 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectSuperGravityWillWithPolicy,
         cpuSelectSuperAttractionWillWithPolicy,
         cpuSelectTeleportWillWithPolicy,
-        cpuSelectCellTeleportWillWithPolicy,
         cpuSelectTimeBombWithPolicy,
         cpuSelectBoardExpansionWillWithPolicy,
         cpuSelectBoardShrinkWithPolicy,

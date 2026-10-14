@@ -2,7 +2,6 @@
 
 type SelfplayAdvancedSimulationChoosersConfig = {
     CardLogic?: any;
-    SharedBoardUtils?: any;
     chooseTargetBySimulation?: (
         gameState: any,
         cardState: any,
@@ -56,7 +55,6 @@ function getSpecialMarkerAt(cardState: any, row: any, col: any, ownerKey: any = 
 export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvancedSimulationChoosersConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as SelfplayAdvancedSimulationChoosersConfig;
     const cardLogic = cfg.CardLogic || null;
-    const sharedBoardUtils = cfg.SharedBoardUtils || null;
     const chooseTargetBySimulation = typeof cfg.chooseTargetBySimulation === 'function'
         ? cfg.chooseTargetBySimulation
         : (() => null);
@@ -96,18 +94,6 @@ export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvanc
     const clonePrng = typeof cfg.clonePrng === 'function'
         ? cfg.clonePrng
         : ((value: any) => value);
-
-    function isExpansionCell(board: any, row: any, col: any) {
-        if (
-            !sharedBoardUtils ||
-            typeof sharedBoardUtils.buildBoardTopology !== 'function' ||
-            typeof sharedBoardUtils.toBoardCellKey !== 'function'
-        ) {
-            return false;
-        }
-        const topology = sharedBoardUtils.buildBoardTopology(board);
-        return topology.expansionKeys.has(sharedBoardUtils.toBoardCellKey(row, col));
-    }
 
     function chooseStrongWindTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
         return chooseTargetBySimulation(
@@ -346,38 +332,6 @@ export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvanc
         );
     }
 
-    function chooseCellTeleportTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
-        return chooseTargetBySimulation(
-            gameState,
-            cardState,
-            playerKey,
-            rng,
-            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
-                cardLogic.applyCellTeleportWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-            (target: any, sourceGameState: any, sourceCardState: any, onePlayerKey: any) => {
-                const board = getSelfplayBoard(sourceGameState, sourceCardState);
-                const selfVal = toPlayerValue(onePlayerKey);
-                const occupant = getCellOwnerValueForSelfplay(sourceGameState, sourceCardState, target.row, target.col);
-                const isEnemy = occupant === -selfVal;
-                const base = evaluatePositionValue(target.row, target.col, board);
-                if (isEnemy) return (base * 1.6) + 1500;
-                return (base * -0.55) - 120;
-            },
-            (_target: any, result: any, simGameState: any, simCardState: any, _sourceGameState: any, sourceCardState: any) => {
-                const board = getSelfplayBoard(simGameState, simCardState);
-                let extra = 0;
-                if (result && result.to) {
-                    const toOuter = isExpansionCell(board, result.to.row, result.to.col);
-                    const toOuterCorner = toOuter && isCorner(result.to.row, result.to.col, board);
-                    if (toOuter) extra += 1800;
-                    if (toOuterCorner) extra += 1600;
-                    extra += getBoardBonusAtCell(sourceCardState, result.to.row, result.to.col) * 900;
-                }
-                return extra;
-            }
-        );
-    }
-
     function chooseExtendLifeTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
         return chooseTargetBySimulation(
             gameState,
@@ -416,7 +370,6 @@ export function createSelfplayAdvancedSimulationChoosers(config?: SelfplayAdvanc
         chooseCloneTarget,
         chooseHyperactiveInheritTarget,
         chooseTeleportTarget,
-        chooseCellTeleportTarget,
         chooseExtendLifeTarget
     };
 }

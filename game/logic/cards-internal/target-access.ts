@@ -127,10 +127,6 @@ function getBoardExpansionGodPendingSelectionsForCard(pending: any, deps: Target
     return deps.CardExpansionModule.getBoardExpansionGodPendingSelectionsForCard(pending);
 }
 
-function ensureExpansionCellForCard(cardState: any, gameState: any, row: any, col: any, owner: any, deps: TargetAccessDeps) {
-    return deps.CardExpansionModule.ensureExpansionCellForCard(cardState, gameState, row, col, owner);
-}
-
 function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
     return deps.CardSelectorsModule.getBoardExpansionGodTargets(cardState, gameState, playerKey);
 }
@@ -162,14 +158,6 @@ function getBoardShrinkTargets(cardState: any, gameState: any, playerKey: any, d
 
 function getBoardShrinkGodTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
     return deps.CardSelectorsModule.getBoardShrinkGodTargets(cardState, gameState, playerKey);
-}
-
-function getCellTeleportDestinations(cardState: any, gameState: any, deps: TargetAccessDeps) {
-    return deps.CardSelectorsModule.getCellTeleportDestinations(cardState, gameState);
-}
-
-function getCellTeleportTargets(cardState: any, gameState: any, deps: TargetAccessDeps) {
-    return resolveTargetResolverTargets('getCellTeleportTargets', [cardState, gameState], deps);
 }
 
 function getBlockadeTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
@@ -265,15 +253,12 @@ const CardTargetAccess = {
     getBoardExpansionTargets,
     getBoardExpansionGodSocketTargets,
     getBoardExpansionGodPendingSelectionsForCard,
-    ensureExpansionCellForCard,
     getBoardExpansionGodTargets,
     getBoardExpansionGodRequiredSelectionCount,
     getBoardShrinkSelectionCount,
     getBoardShrinkPendingSelectionsForCard,
     getBoardShrinkTargets,
     getBoardShrinkGodTargets,
-    getCellTeleportDestinations,
-    getCellTeleportTargets,
     getBlockadeTargets,
     getPoisonTargets,
     getScorchTargets,

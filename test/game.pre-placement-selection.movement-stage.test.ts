@@ -73,19 +73,19 @@ describe('pre-placement movement selection stage', () => {
     test.each([
         ['stage', (options: any) => MovementSelectionStage.resolveMovementSelection(options).result],
         ['public facade', (options: any) => PrePlacementSelection.resolvePrePlacementSelectionAction(options)]
-    ])('%s preserves cell teleport selection and PRNG injection', (_label, resolve) => {
-        const CardLogic = { applyCellTeleportWill: jest.fn(() => ({ applied: true, from: { row: 3, col: 3 }, to: { row: 5, col: 5 }, createdDestination: true })) };
+    ])('%s preserves teleport selection and PRNG injection', (_label, resolve) => {
+        const CardLogic = { applyTeleportWill: jest.fn(() => ({ applied: true, from: { row: 3, col: 3 }, to: { row: 5, col: 5 } })) };
         const { options, events, applyTrapEffectsAfterSelection } = createOptions(
-            { type: 'CELL_TELEPORT_WILL' },
+            { type: 'TELEPORT_WILL' },
             { type: 'place', teleportTarget: { row: 3, col: 3 } },
             CardLogic
         );
 
         expect(resolve(options)).toBe(true);
-        expect(CardLogic.applyCellTeleportWill).toHaveBeenCalledWith(options.cardState, options.gameState, 'black', 3, 3, options.prng);
+        expect(CardLogic.applyTeleportWill).toHaveBeenCalledWith(options.cardState, options.gameState, 'black', 3, 3, options.prng);
         expect(events).toEqual([{
-            type: 'teleport_selected', player: 'black', cardType: 'CELL_TELEPORT_WILL', target: { row: 3, col: 3 },
-            applied: true, from: { row: 3, col: 3 }, to: { row: 5, col: 5 }, createdDestination: true
+            type: 'teleport_selected', player: 'black', cardType: 'TELEPORT_WILL', target: { row: 3, col: 3 },
+            applied: true, from: { row: 3, col: 3 }, to: { row: 5, col: 5 }
         }]);
         expect(applyTrapEffectsAfterSelection).toHaveBeenCalledTimes(1);
     });

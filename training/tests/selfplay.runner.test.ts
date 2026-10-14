@@ -1202,45 +1202,6 @@ describe('selfplay runner', () => {
         expect(Number.isInteger(decision.action.col)).toBe(true);
     });
 
-    test('decideAction resolves CELL_TELEPORT_WILL pending target instead of canceling', () => {
-        const gameState = Core.createGameState();
-        gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
-        gameState.board[3][3] = 1;
-        gameState.boardExpansion = {
-            active: true,
-            side: 'left',
-            row: 2,
-            owner: 0,
-            usedByPlayer: { black: false, white: false },
-            cells: [
-                { side: 'left', row: 2, col: -1, owner: -1 }
-            ]
-        };
-        gameState.currentPlayer = 1;
-
-        const cardState = {
-            pendingEffectByPlayer: {
-                black: { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget' },
-                white: null
-            },
-            markers: [],
-            charge: { black: 0, white: 0 },
-            hands: { black: [], white: [] },
-            hasUsedCardThisTurnByPlayer: { black: true, white: false }
-        };
-
-        const decision = decideAction(
-            gameState,
-            cardState,
-            'black',
-            { random: () => 0.2 },
-            { allowCardUsage: true, cardUsageRate: 0.25 },
-            { gameState, cardState }
-        );
-        expect(decision.action.type).toBe('place');
-        expect(decision.action.teleportTarget).toBeTruthy();
-    });
-
     test('decideAction resolves DESTROY_ONE_STONE on occupied expansion cells', () => {
         const gameState = Core.createGameState();
         gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));

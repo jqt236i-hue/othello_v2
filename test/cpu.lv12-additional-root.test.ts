@@ -39,7 +39,7 @@ describe.each(fixture.cases)('additional-root regression $id (baseline $baseline
         expect(extra[0].scenarioSeeds).toEqual([...LV12_SEARCH_CONFIG.scenarioSeeds]);
         expect(extra[0].score).toBeGreaterThan(Math.max(...originals.map((c:any)=>c.score)));
         expect(result.action).toEqual(extra[0].action);
-        // A higher score is not a match-win assertion: one fixture is an actual regression.
+        // A higher score is not a match-win assertion.
     },60000);
 
     test('interrupting the extra work keeps the original decision and completed values',()=>{

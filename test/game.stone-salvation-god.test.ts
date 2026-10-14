@@ -685,27 +685,6 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
   });
 
-  test('cell teleport creates a hole without destruction or salvation god revive', () => {
-    const { cardState, gameState } = createState([0.67]);
-    gameState.board[0][0] = Shared.BLACK;
-    gameState.board[4][4] = Shared.BLACK;
-    cardState.markers.push(
-      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 12 } },
-      { id: 2, kind: 'specialStone', row: 4, col: 4, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 3 } }
-    );
-    cardState.pendingEffectByPlayer.black = { type: 'CELL_TELEPORT_WILL', stage: 'selectTarget', cardId: 'cell_teleport_01' };
-
-    const result = CardIogic.applyCellTeleportWill(cardState, gameState, 'black', 4, 4, createPrng([0.67]));
-    const destroyEvents = (cardState.presentationEvents || []).filter((event: any) => event && event.type === 'DESTROY');
-    const reviveEvents = (cardState.presentationEvents || []).filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
-
-    expect(result && result.applied).toBe(true);
-    expect(destroyEvents).toHaveLength(0);
-    expect(reviveEvents).toHaveLength(0);
-    expect(cardState.markers.some((marker: any) => marker && marker.row === 4 && marker.col === 4 && marker.data && marker.data.type === 'METEOR_HOLE')).toBe(true);
-    expect(cardState.markers.some((marker: any) => marker && marker.id === 2 && marker.row !== 4 && marker.col !== 4 && marker.data && marker.data.type === 'SNIPER')).toBe(true);
-  });
-
   test('board shrink completes hole application before salvation god revives', () => {
     const { cardState, gameState } = createState([0]);
     gameState.board[3][3] = Shared.BLACK;

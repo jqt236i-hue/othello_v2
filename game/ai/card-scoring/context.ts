@@ -88,7 +88,6 @@ export interface CardUseScoreContext {
     readonly isDestroyDragonWill: boolean;
     readonly isBreedingWill: boolean;
     readonly isTeleportWill: boolean;
-    readonly isCellTeleportWill: boolean;
     readonly isHyperactiveInheritWill: boolean | undefined;
     readonly isRobotVacuumWill: boolean;
     readonly isEqualityWill: boolean;

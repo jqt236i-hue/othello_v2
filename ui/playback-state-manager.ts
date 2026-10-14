@@ -849,9 +849,6 @@ function normalizeBoardUpdateContext(context: any): any {
   if (context.suppressFallbackFlip === true || context.suppressNextDiffFlip === true) {
     next.suppressFallbackFlip = true;
   }
-  if (context.suppressBoardExpansionRevealSound === true || context.suppressNextBoardExpansionRevealSound === true) {
-    next.suppressBoardExpansionRevealSound = true;
-  }
   if (typeof context.reason === 'string' && context.reason.trim()) {
     next.reason = context.reason.trim();
   }
@@ -875,17 +872,12 @@ function normalizeBoardUpdateContext(context: any): any {
 function getBoardUpdateContext(): any {
   const explicit = normalizeBoardUpdateContext(readMirroredValue('__boardUpdateContext'));
   if (explicit) return cloneBoardUpdateContext(explicit);
-  const suppressFallbackFlip = readMirroredValue('__suppressNextDiffFlip') === true;
-  const suppressBoardExpansionRevealSound = readMirroredValue('__suppressNextBoardExpansionRevealSound') === true;
-  if (suppressFallbackFlip || suppressBoardExpansionRevealSound) {
-    return Object.assign(
-      {
-        reason: 'legacy_board_update_context',
-        source: 'legacy_window_flag'
-      },
-      suppressFallbackFlip ? { suppressFallbackFlip: true } : null,
-      suppressBoardExpansionRevealSound ? { suppressBoardExpansionRevealSound: true } : null
-    );
+  if (readMirroredValue('__suppressNextDiffFlip') === true) {
+    return {
+      reason: 'legacy_board_update_context',
+      source: 'legacy_window_flag',
+      suppressFallbackFlip: true
+    };
   }
   return null;
 }
@@ -1003,7 +995,6 @@ function setBoardUpdateContext(context: any): any {
   const next = normalizeBoardUpdateContext(context);
   setMirroredValue('__boardUpdateContext', next ? cloneBoardUpdateContext(next) : null);
   setMirroredValue('__suppressNextDiffFlip', !!(next && next.suppressFallbackFlip === true));
-  setMirroredValue('__suppressNextBoardExpansionRevealSound', !!(next && next.suppressBoardExpansionRevealSound === true));
   return getBoardUpdateContext();
 }
 
@@ -1016,9 +1007,6 @@ function armBoardUpdateContext(context: any): any {
   const current = getBoardUpdateContext();
   if (current && current.suppressFallbackFlip === true) {
     next.suppressFallbackFlip = true;
-  }
-  if (current && current.suppressBoardExpansionRevealSound === true) {
-    next.suppressBoardExpansionRevealSound = true;
   }
   const merged = current ? Object.assign({}, current, next) : next;
   const mergedMoveSourceKeys = normalizeBoardUpdateKeyList([
@@ -1047,7 +1035,6 @@ function consumeBoardUpdateContext(): any {
 function clearBoardUpdateContext(): boolean {
   setMirroredValue('__boardUpdateContext', null);
   setMirroredValue('__suppressNextDiffFlip', false);
-  setMirroredValue('__suppressNextBoardExpansionRevealSound', false);
   return true;
 }
 

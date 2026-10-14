@@ -19,7 +19,7 @@
 - `game/turn/pipeline_ui_adapter.ts`: presentation event を playback event に変換し、phase と sound cue を決める。
 - `ui/animation-engine.ts` / `ui/presentation/dispatcher.ts`: ordered playbackを進行し、board eventをactive backendの`playPhase()`へ、global/cross-surface eventと効果音を各presentation ownerへ振り分ける。盤面pixel自体はAnimationEngineが直接書かない。
 - `ui/board-visual/controller.ts`: writer claim、backend排他mount、context recovery、strict-network visual settlementを所有する。通常は`ui/pixi/board-backend.ts`、明示debug/Pixi初期化失敗/復旧不能context loss時だけ`ui/board-dom-compat/`を使う。
-- 関連テスト: `test/game.stone-salvation-god.test.ts`, `test/game.pipeline-ui-adapter.spawn.test.ts`, `test/game.pipeline-ui-adapter.sound-cue.test.ts`, `test/ui.animation-engine.guard-timer.test.ts`, `test/game.x-bomb.test.ts`, `test/game.meteor-will.test.ts`, `test/game.logic.meteor-module.test.ts`, `test/game.freeze-will.test.ts`, `test/game.seed-will.test.ts`, `test/game.cell-teleport-will.test.ts`, `test/game.udg-duration.test.ts`, `test/game.will-hunter-king.test.ts`, `test/game.proliferation-will.test.ts`, `test/game.destroy-dragon-will.test.ts`, `test/game.lightning-will.test.ts`, `test/game.sniper-will.test.ts`, `test/game.pipeline-ui-adapter.move-metadata.test.ts`。
+- 関連テスト: `test/game.stone-salvation-god.test.ts`, `test/game.pipeline-ui-adapter.spawn.test.ts`, `test/game.pipeline-ui-adapter.sound-cue.test.ts`, `test/ui.animation-engine.guard-timer.test.ts`, `test/game.x-bomb.test.ts`, `test/game.meteor-will.test.ts`, `test/game.logic.meteor-module.test.ts`, `test/game.freeze-will.test.ts`, `test/game.seed-will.test.ts`, `test/game.udg-duration.test.ts`, `test/game.will-hunter-king.test.ts`, `test/game.proliferation-will.test.ts`, `test/game.destroy-dragon-will.test.ts`, `test/game.lightning-will.test.ts`, `test/game.sniper-will.test.ts`, `test/game.pipeline-ui-adapter.move-metadata.test.ts`。
 
 ## 共通 event / playback / animation 経路
 
@@ -210,7 +210,7 @@
 ## 石を移動する系
 
 **代表カード**
-- 躍動の意志、瞬間躍動、逃げる意志、極悪躍動魔、究極躍動神、究極反転龍、究極破壊神、悪食、意志狩りの王、ロボット掃除機、強風、テレポート、マステレポート、位置交換。
+- 躍動の意志、瞬間躍動、逃げる意志、極悪躍動魔、究極躍動神、究極反転龍、究極破壊神、悪食、意志狩りの王、ロボット掃除機、強風、テレポート、位置交換。
 
 **仕様上の説明**
 - `01-rulebook.md` では、移動系は空きマスへの移動、敵石マスへの進入前破壊、位置交換、移動元穴化など複数パターンがある。石移動は通常は布石獲得を伴わず、カードにより移動後反転するものとしないものがある。
@@ -229,7 +229,6 @@
 **発生する presentation event**
 - `MOVE`。位置交換は 2 つの `MOVE`。
 - 敵マスへ入るカードは先に `DESTROY` してから `MOVE` するもの、同一効果内で destroy/move を同 phase に寄せるものがある。
-- マステレポートは移動後、移動元へ `METEOR_HOLE` の `STATUS_APPLIED` を伴う。
 
 **playback phase の決まり方**
 - `pipeline_ui_adapter.ts`: `_planMovePlaybackPhase()`。
@@ -264,7 +263,7 @@
 **関連コード参照**
 - `game/logic/board_ops.ts`: `moveAt()`, `swapOccupiedCells()`, `_inferMoveIntent()`。
 - `game/logic/cards/movement.ts`: `applyStrongWindWill()` / super crush 系。
-- `game/logic/cards/teleport.ts`: `TELEPORT_WILL`, `CELL_TELEPORT_WILL`。
+- `game/logic/cards/teleport.ts`: `TELEPORT_WILL`。
 - `game/logic/cards/hyperactive.ts`: hyperactive / gluttonous / robot vacuum paths。
 - `game/logic/cards/udg.ts`: ultimate destroy god move/destroy。
 - `game/logic/cards/will_hunter_king.ts`。
@@ -274,7 +273,6 @@
 
 **関連テスト**
 - `test/game.pipeline-ui-adapter.move-metadata.test.ts`
-- `test/game.cell-teleport-will.test.ts`
 - `test/game.teleport-will.test.ts`
 - `test/game.will-hunter-king.test.ts`
 - `test/game.udg-duration.test.ts`
@@ -354,18 +352,16 @@
 ## マス状態を変える系
 
 **代表カード**
-- 穴マス化、隕石、盤面縮小、マステレポート、封鎖、凍結、種。
+- 穴マス化、隕石、盤面縮小、封鎖、凍結、種。
 
 **仕様上の説明**
-- `01-rulebook.md` では、隕石/盤面縮小は穴化し、石破壊を伴う穴化では救済神の対象になる。空きマス穴化やマステレポート移動元穴化など、石破壊を伴わない穴化では救済神は発動しない。封鎖/凍結/種はセルに状態を付ける。
+- `01-rulebook.md` では、隕石/盤面縮小は穴化し、石破壊を伴う穴化では救済神の対象になる。空きマス穴化など、石破壊を伴わない穴化では救済神は発動しない。封鎖/凍結/種はセルに状態を付ける。
 
 **実装上の処理順**
 - `BoardOps.applyHoleAt()` はセルを `EMPTY` にし、既存 marker を削除し、`METEOR_HOLE` marker を追加して `STATUS_APPLIED` を emit する。
 - `game/logic/cards/meteor.ts` は対象セルを `BoardOps.applyCellRemovalAt(..., 'METEOR_WILL', 'meteor_cell_destroy')` へ渡し、不可侵の顕現石がなければ石・封鎖・凍結・種など既存状態ごと穴化する。
 - `game/logic/cards/shrink.ts` も `BOARD_SHRINK_*` cause と `visualVariant: BOARD_FRAME` 付きで同じセル消滅経路を使う。
-- `game/logic/cards/teleport.ts` の `CELL_TELEPORT_WILL` は移動後の空いた元マスに対して `BoardOps.applyCellRemovalAt(..., 'CELL_TELEPORT_WILL', 'cell_teleport_source_cell_remove')` を呼び、同じ穴化 metadata を使う。
 - occupied cell removal は `DESTROY` と `STATUS_APPLIED(METEOR_HOLE)` を emit し、`LIVING_WILL` / `REGEN` / 破壊回避は発火しない。
-- `CELL_TELEPORT_WILL` は移動後の空いた元マスに対して `applyCellRemovalAt()` を呼ぶため、`STATUS_APPLIED(METEOR_HOLE)` だけを emit する。
 - `game/cards/effects/status-cells.ts`: `applyBlockadeWill()`, `applyFreezeWill()`, `applySeedWill()` は pending target を確認し、既存同 type marker を除去して `addMarker()` で `BLOCKADE` / `FREEZE` / `SEED` を付ける。
 
 **主な BoardOps API**
@@ -421,7 +417,6 @@
 - `test/game.logic.meteor-module.test.ts`
 - `test/game.freeze-will.test.ts`
 - `test/game.seed-will.test.ts`
-- `test/game.cell-teleport-will.test.ts`
 - `test/game.stone-salvation-god.test.ts`
 - `test/ui.animation-engine.guard-timer.test.ts`
 
@@ -766,7 +761,6 @@
 | `test/game.will-hunter-king.test.ts` | 意志狩りの王の破壊・移動・持続処理。 |
 | `test/game.x-bomb.test.ts` | X爆弾の範囲破壊と presentation event。 |
 | `test/game.meteor-will.test.ts` / `test/game.logic.meteor-module.test.ts` | 隕石の破壊+穴化、空きマス穴化。 |
-| `test/game.cell-teleport-will.test.ts` | マステレポートの移動と穴化、破壊ではない穴マス化。 |
 | `test/game.freeze-will.test.ts` | 凍結 marker、`STATUS_APPLIED`、状態付与。 |
 | `test/game.seed-will.test.ts` | 種 marker、芽生え spawn、seed invalidation。 |
 | `test/game.proliferation-will.test.ts` | 増殖石、破壊時 preserve outcome、spawn/clone-like 表示。 |

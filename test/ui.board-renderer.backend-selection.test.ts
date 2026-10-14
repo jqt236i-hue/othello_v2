@@ -403,68 +403,6 @@ describe('board renderer backend selection and initial compatibility fallback', 
     delete (global as any).SoundEngine;
   });
 
-  test('suppresses the Pixi expansion sound captured by the post-playback frame context', async () => {
-    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi');
-    const soundEngine = { init: jest.fn(), playEffectByKey: jest.fn() };
-    (global as any).SoundEngine = soundEngine;
-    (global as any).window.SoundEngine = soundEngine;
-    (global as any).window.requestAnimationFrame = jest.fn((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
-    Object.assign(global as any, {
-      BLACK: 1,
-      WHITE: -1,
-      EMPTY: 0,
-      getPlayerKey: (player: any) => player === -1 ? 'white' : 'black',
-      getLegalMoves: jest.fn(() => []),
-      countDiscs: jest.fn(() => ({ black: 1, white: 0 })),
-      applyStoneVisualEffect: jest.fn(),
-      CardLogic: {
-        getCardContext: () => ({ protectedStones: [], permaProtectedStones: [], bombs: [] }),
-        getSelectableTargets: () => []
-      }
-    });
-    const createPixiBackend = jest.fn(() => createBackend('pixi'));
-    renderer.configureBoardVisualBackendForTest({ createPixiBackend });
-    controller = renderer.getBoardVisualController();
-    await controller.waitUntilReady();
-    const playbackState = require('../ui/playback-state-manager.js');
-    playbackState.armBoardUpdateContext({
-      suppressBoardExpansionRevealSound: true,
-      source: 'unit-test',
-      reason: 'cell_teleport_post_playback_sync'
-    });
-    const frame = renderer.buildBoardVisualFrame(controller, {
-      gameState: {
-        currentPlayer: 1,
-        board: [
-          [1, 0, 0, 0],
-          [0, 0, 0, 0],
-          [0, 0, 0, 0],
-          [0, 0, 0, 0]
-        ],
-        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
-        boardExpansion: { cells: [] }
-      },
-      cardState: {
-        markers: [],
-        hands: { black: [], white: [] },
-        pendingEffectByPlayer: { black: null, white: null }
-      }
-    });
-
-    createPixiBackend.mock.calls[0][0].onTopologyRevealStart(['0,1'], frame);
-    expect(soundEngine.init).not.toHaveBeenCalled();
-    expect(soundEngine.playEffectByKey).not.toHaveBeenCalled();
-
-    playbackState.clearBoardUpdateContext();
-    for (const key of [
-      'SoundEngine', 'BLACK', 'WHITE', 'EMPTY', 'getPlayerKey', 'getLegalMoves',
-      'countDiscs', 'applyStoneVisualEffect', 'CardLogic'
-    ]) delete (global as any)[key];
-  });
-
   test('destroys failed Pixi before exclusively mounting DOM and restores the queued initial frame', async () => {
     const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
     const order: string[] = [];

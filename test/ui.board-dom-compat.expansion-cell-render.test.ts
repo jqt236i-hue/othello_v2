@@ -269,38 +269,6 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
-  test('suppresses board_expansion_reveal when post-playback context requests it', () => {
-    const manager = require('../ui/playback-state-manager.js');
-    const diff = require('../ui/board-dom-compat/renderer');
-    diff.resetRenderStats();
-
-    global.gameState.boardExpansion = null;
-    diff.renderBoardDiff(boardEl);
-
-    global.SoundEngine.init.mockClear();
-    global.SoundEngine.playEffectByKey.mockClear();
-
-    manager.armBoardUpdateContext({
-      suppressBoardExpansionRevealSound: true,
-      source: 'unit-test',
-      reason: 'cell_teleport_post_playback_sync'
-    });
-
-    global.gameState.boardExpansion = {
-      active: true,
-      side: 'left',
-      row: 2,
-      owner: global.EMPTY,
-      usedByPlayer: { black: true, white: false }
-    };
-    diff.renderBoardDiff(boardEl);
-
-    expect(global.SoundEngine.init).not.toHaveBeenCalled();
-    expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
-    expect(manager.getBoardUpdateContext()).toBeNull();
-    expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
-  });
-
   test('board expansion uses the same contour frame and reveal animation as base cells', () => {
     const boardCss = readRepoTextFile('styles-board-dom-compat.css')
       .replace(/\[data-board-renderer="dom"\]\s+/g, '')

@@ -187,7 +187,6 @@ export function isTeleportMoveTarget(target: unknown): boolean {
   const intent = String(playbackTargetMeta(target).moveIntent || '').trim().toLowerCase();
   const cause = playbackTargetCause(target);
   return intent === 'teleport_move'
-    || cause === 'CELL_TELEPORT_WILL'
     || cause === 'TELEPORT_WILL'
     || playbackTargetReason(target) === 'teleport_move';
 }

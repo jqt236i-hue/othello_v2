@@ -57,7 +57,6 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 getCorrosionTargets: helpers.getCorrosionTargets,
                 getTimeBombTargets: helpers.getTimeBombTargets,
                 getTeleportTargets: helpers.getTeleportTargets,
-                getCellTeleportTargets: helpers.getCellTeleportTargets,
                 getCloneTargets: helpers.getCloneTargets,
                 getSwapTargets: helpers.getSwapTargets,
                 getPositionSwapTargets: helpers.getPositionSwapTargets,

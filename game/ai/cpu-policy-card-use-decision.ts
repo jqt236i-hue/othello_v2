@@ -165,7 +165,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isDestroyDragonWill,
             isBreedingWill,
             isTeleportWill,
-            isCellTeleportWill,
             isHyperactiveInheritWill,
             isRobotVacuumWill,
             isExtremeHyperactiveWill,
@@ -396,7 +395,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
                     isBoardExpansionWill ||
                     isBoardShrinkCard ||
                     isTeleportWill ||
-                    isCellTeleportWill ||
                     isDestroyDragonWill ||
                     isSuperCrushWill ||
                     isWorkWill
@@ -587,7 +585,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isDestroyDragonWill,
             isBreedingWill,
             isTeleportWill,
-            isCellTeleportWill,
             isHyperactiveInheritWill,
             isRobotVacuumWill,
             isEqualityWill,

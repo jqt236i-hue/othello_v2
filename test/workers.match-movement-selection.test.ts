@@ -193,16 +193,7 @@ describe('worker movement pending selection publish', () => {
       actionKey: 'teleportTarget',
       source: { row: 4, col: 4 },
       destination: null,
-      moveIntent: 'teleport_move'
-    },
-    {
-      cardId: 'cell_teleport_01',
-      pendingType: 'CELL_TELEPORT_WILL',
-      actionKey: 'teleportTarget',
-      source: { row: 4, col: 4 },
-      destination: null,
       moveIntent: 'teleport_move',
-      createsMeteorHole: true,
       expectSameTurnCardUseState: true,
       expectTeleportSound: true
     }
@@ -263,22 +254,6 @@ describe('worker movement pending selection publish', () => {
           })
         ])
       }));
-    }
-    if (config.createsMeteorHole) {
-      expect(result.sourceMarkers).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          row: config.source.row,
-          col: config.source.col,
-          data: expect.objectContaining({ type: 'METEOR_HOLE' })
-        })
-      ]));
-      expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          type: 'status_applied',
-          rawType: 'STATUS_APPLIED',
-          meta: expect.objectContaining({ special: 'METEOR_HOLE' })
-        })
-      ]));
     }
   });
 });

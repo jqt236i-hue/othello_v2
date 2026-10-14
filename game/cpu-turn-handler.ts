@@ -47,7 +47,6 @@ declare const cpuSelectHyperactiveInheritWillWithPolicy: any;
 declare const cpuSelectExtendLifeWillWithPolicy: any;
 declare const cpuSelectCorrosionWillWithPolicy: any;
 declare const cpuSelectTeleportWillWithPolicy: any;
-declare const cpuSelectCellTeleportWillWithPolicy: any;
 declare const cpuSelectTemptWillWithPolicy: any;
 declare const cpuSelectCaptureWillWithPolicy: any;
 declare const cpuSelectTimeBombWithPolicy: any;

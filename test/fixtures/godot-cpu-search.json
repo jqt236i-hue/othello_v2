@@ -2644,7 +2644,7 @@
           },
           "discard": [
             "free_01",
-            "cell_teleport_01",
+            "teleport_01",
             "freeze_01",
             "meteor_01",
             "lightning_01",
@@ -3148,7 +3148,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -3243,7 +3243,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -3328,7 +3328,7 @@
           "type": "pass"
         },
         "continuation": [],
-        "value": 8.919725959490238,
+        "value": 9.099725959490238,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -3340,23 +3340,24 @@
             "action": {
               "type": "pass"
             },
-            "immediate": 8.576825738605752,
+            "immediate": 8.756825738605752,
             "replies": [
-              8.919725959490238,
+              9.099725959490238,
               12.699725959490237
             ],
-            "score": 8.919725959490238
+            "score": 9.099725959490238
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "extend_life_01"
             },
-            "immediate": 7.496825738605753,
+            "immediate": 7.676825738605753,
             "replies": [
-              7.839725959490238
+              8.019725959490238,
+              11.619725959490237
             ],
-            "score": 7.839725959490238
+            "score": 8.019725959490238
           },
           {
             "action": {
@@ -3365,44 +3366,44 @@
               "useCardHandIndex": 0,
               "useCardOwnerKey": "white"
             },
-            "immediate": 7.43053361559589,
+            "immediate": 7.61053361559589,
             "replies": [
-              8.040100503147041
+              8.22010050314704
             ],
-            "score": 8.040100503147041
+            "score": 8.22010050314704
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "breeding_01"
             },
-            "immediate": 6.416825738605753,
+            "immediate": 6.5968257386057525,
             "replies": [
-              6.759725959490238
+              6.939725959490238
             ],
-            "score": 6.759725959490238
+            "score": 6.939725959490238
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "double_01"
             },
-            "immediate": 6.416825738605753,
+            "immediate": 6.5968257386057525,
             "replies": [
-              6.759725959490238
+              6.939725959490238
             ],
-            "score": 6.759725959490238
+            "score": 6.939725959490238
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "taboo_reverse_01"
             },
-            "immediate": 6.416825738605753,
+            "immediate": 6.5968257386057525,
             "replies": [
-              6.759725959490238
+              6.939725959490238
             ],
-            "score": 6.759725959490238
+            "score": 6.939725959490238
           }
         ]
       },
@@ -3415,7 +3416,7 @@
         -0.875,
         -4.049910873440283,
         -0.1438242201761222,
-        3.109447382335654,
+        3.5906973823356547,
         -0.7117806071095071,
         -2.823529411764706,
         -2.6666666666666665,
@@ -3604,7 +3605,7 @@
           },
           "discard": [
             "free_01",
-            "cell_teleport_01",
+            "teleport_01",
             "freeze_01",
             "meteor_01",
             "lightning_01",
@@ -4108,7 +4109,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -4203,7 +4204,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -4305,7 +4306,7 @@
             "type": "pass"
           }
         ],
-        "value": -0.3226440013429678,
+        "value": -0.3222581154485578,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -4322,32 +4323,32 @@
             "action": {
               "type": "pass"
             },
-            "immediate": -9.67723645766697,
+            "immediate": -9.59061145766697,
             "replies": [
-              -21.68375734651522,
+              -21.65619484651522,
               -21.18274554292127
             ],
             "scenarioSeeds": [
               100901,
               100909
             ],
-            "score": -0.3264134445985729
+            "score": -0.3260286118820413
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "extend_life_01"
             },
-            "immediate": -9.74220520766697,
+            "immediate": -9.65558020766697,
             "replies": [
-              -21.766444846515217,
+              -21.73888234651522,
               -21.26543304292127
             ],
             "scenarioSeeds": [
               100901,
               100909
             ],
-            "score": -0.3275672932792358
+            "score": -0.32718278539414414
           },
           {
             "action": {
@@ -4356,56 +4357,56 @@
               "useCardHandIndex": 0,
               "useCardOwnerKey": "white"
             },
-            "immediate": -9.842352968624365,
+            "immediate": -9.755727968624365,
             "replies": [
-              -21.414113966521597
+              -21.3865514665216
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.3226440013429678
+            "score": -0.3222581154485578
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "taboo_reverse_01"
             },
-            "immediate": -9.89070520766697,
+            "immediate": -9.804080207666969,
             "replies": [
-              -21.955444846515217
+              -21.92788234651522
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.3302009916306632
+            "score": -0.32981722948204345
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "breeding_01"
             },
-            "immediate": -10.286436986487388,
+            "immediate": -10.199811986487388,
             "replies": [
-              -22.45910347410484
+              -22.43154097410484
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.3371942898350233
+            "score": -0.3368125368581369
           },
           {
             "action": {
               "type": "destroy_hand_card",
               "destroyCardId": "double_01"
             },
-            "immediate": -10.41045520766697,
+            "immediate": -10.323830207666969,
             "replies": [
-              -22.616944846515217
+              -22.58938234651522
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.3393783255428063
+            "score": -0.33899720867430216
           }
         ]
       },
@@ -4418,7 +4419,7 @@
         -0.875,
         -4.049910873440283,
         -0.1438242201761222,
-        3.109447382335654,
+        3.5906973823356547,
         -0.7117806071095071,
         -2.823529411764706,
         -2.6666666666666665,
@@ -4607,7 +4608,7 @@
           },
           "discard": [
             "free_01",
-            "cell_teleport_01",
+            "teleport_01",
             "freeze_01",
             "meteor_01",
             "lightning_01",
@@ -5111,7 +5112,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -5206,7 +5207,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -5302,34 +5303,50 @@
       "result": {
         "version": "lv12-a04-additional-complete-root",
         "action": {
-          "type": "pass"
+          "type": "use_card",
+          "useCardId": "extend_life_01",
+          "useCardHandIndex": 0,
+          "useCardOwnerKey": "white"
         },
-        "continuation": [],
-        "value": -0.3779796509357406,
-        "transitions": 124,
+        "continuation": [
+          {
+            "type": "place",
+            "extendTarget": {
+              "row": 5,
+              "col": 8
+            }
+          },
+          {
+            "type": "pass"
+          }
+        ],
+        "value": -0.37877482895913506,
+        "transitions": 125,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
         "rejected": [],
         "evaluatedCandidates": 3,
         "comparisonScenarioSeeds": [
-          100901
+          100901,
+          100913
         ],
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          350943333,
-          4059954829,
-          3181021129
+          3528102667,
+          4114058467,
+          2649168967
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
         "additionalDeepeningCompleted": 0,
         "additionalDeepeningStartedAtTransitions": null,
         "comparisonDepths": [
+          2,
           2
         ],
-        "evaluationCalls": 132,
+        "evaluationCalls": 133,
         "evaluationCacheHits": 14,
         "candidates": [
           {
@@ -5337,20 +5354,20 @@
               "type": "pass"
             },
             "continuation": [],
-            "immediate": -11.690120551632521,
+            "immediate": -12.358788533681405,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -25.452828051929707,
-              -39.82308558644454,
-              -26.59494633813554
+              -25.050469759548168,
+              -23.788505518521173,
+              -27.17806320754549
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.3779796509357406
+            "score": -0.3888325644514657
           },
           {
             "action": {
@@ -5371,43 +5388,18 @@
                 "type": "pass"
               }
             ],
-            "immediate": -11.922721579511979,
+            "immediate": -12.591389561560861,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -25.461118130733105
-            ],
-            "scenarioSeeds": [
-              100901
-            ],
-            "score": -0.3780906718543689
-          },
-          {
-            "action": {
-              "type": "use_card",
-              "useCardId": "breeding_01",
-              "useCardHandIndex": 1,
-              "useCardOwnerKey": "white"
-            },
-            "continuation": [
-              {
-                "type": "pass"
-              }
-            ],
-            "immediate": -13.279496142578225,
-            "retainedForDeepening": true,
-            "additionalDeepeningAttempted": false,
-            "replies": [
-              -26.792105712965018,
-              -26.76260794624812,
-              -57.13434467867906
+              -24.838429619029707,
+              -26.01371377783551
             ],
             "scenarioSeeds": [
               100901,
-              100909,
               100913
             ],
-            "score": -0.3957728296504311
+            "score": -0.37877482895913506
           },
           {
             "action": {
@@ -5421,16 +5413,20 @@
                 "type": "pass"
               }
             ],
-            "immediate": -14.699237829606169,
-            "retainedForDeepening": false,
+            "immediate": -15.367905811655053,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -28.54531130654015
+              -28.91240755335802,
+              -27.579708544275565,
+              -58.39945761222167
             ],
             "scenarioSeeds": [
-              100901
+              100901,
+              100909,
+              100913
             ],
-            "score": -0.418622358416307
+            "score": -0.5952576372876421
           }
         ]
       },
@@ -5443,7 +5439,7 @@
         -0.875,
         -4.049910873440283,
         -0.1438242201761222,
-        3.109447382335654,
+        3.5906973823356547,
         -0.7117806071095071,
         -2.823529411764706,
         -2.6666666666666665,
@@ -5632,7 +5628,7 @@
           },
           "discard": [
             "free_01",
-            "cell_teleport_01",
+            "teleport_01",
             "freeze_01",
             "meteor_01",
             "lightning_01",
@@ -6136,7 +6132,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -6231,7 +6227,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -6348,31 +6344,33 @@
           "type": "pass"
         },
         "continuation": [],
-        "value": -0.3779796509357406,
-        "transitions": 124,
+        "value": -0.3790157434107932,
+        "transitions": 125,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
         "rejected": [],
         "evaluatedCandidates": 3,
         "comparisonScenarioSeeds": [
-          100901
+          100901,
+          100913
         ],
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          350943333,
-          4059954829,
-          3181021129
+          3528102667,
+          4114058467,
+          2649168967
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
         "additionalDeepeningCompleted": 0,
         "additionalDeepeningStartedAtTransitions": null,
         "comparisonDepths": [
+          2,
           2
         ],
-        "evaluationCalls": 132,
+        "evaluationCalls": 133,
         "evaluationCacheHits": 14,
         "candidates": [
           {
@@ -6380,20 +6378,20 @@
               "type": "pass"
             },
             "continuation": [],
-            "immediate": -10.100120551632521,
+            "immediate": -10.768788533681406,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -25.452828051929707,
-              -39.82308558644454,
-              -24.89494633813554
+              -23.35046975954817,
+              -22.088505518521174,
+              -27.17806320754549
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.3779796509357406
+            "score": -0.3790157434107932
           },
           {
             "action": {
@@ -6414,43 +6412,18 @@
                 "type": "pass"
               }
             ],
-            "immediate": -10.33272157951198,
+            "immediate": -11.001389561560861,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -25.461118130733105
-            ],
-            "scenarioSeeds": [
-              100901
-            ],
-            "score": -0.47809067185436893
-          },
-          {
-            "action": {
-              "type": "use_card",
-              "useCardId": "breeding_01",
-              "useCardHandIndex": 1,
-              "useCardOwnerKey": "white"
-            },
-            "continuation": [
-              {
-                "type": "pass"
-              }
-            ],
-            "immediate": -11.689496142578225,
-            "retainedForDeepening": true,
-            "additionalDeepeningAttempted": false,
-            "replies": [
-              -26.792105712965018,
-              -25.06260794624812,
-              -55.65434467867906
+              -23.138429619029708,
+              -24.31371377783551
             ],
             "scenarioSeeds": [
               100901,
-              100909,
               100913
             ],
-            "score": -0.4957728296504311
+            "score": -0.4557991417232581
           },
           {
             "action": {
@@ -6464,16 +6437,20 @@
                 "type": "pass"
               }
             ],
-            "immediate": -13.109237829606169,
-            "retainedForDeepening": false,
+            "immediate": -13.777905811655053,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -28.54531130654015
+              -27.21240755335802,
+              -25.879708544275566,
+              -56.91945761222167
             ],
             "scenarioSeeds": [
-              100901
+              100901,
+              100909,
+              100913
             ],
-            "score": -0.418622358416307
+            "score": -0.6794226074441573
           }
         ]
       },
@@ -6486,7 +6463,7 @@
         -0.875,
         -4.049910873440283,
         -0.1438242201761222,
-        3.109447382335654,
+        3.5906973823356547,
         -0.7117806071095071,
         -2.823529411764706,
         -2.6666666666666665,
@@ -7116,7 +7093,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -7211,7 +7188,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -8022,7 +7999,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -8117,7 +8094,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -8958,7 +8935,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -9053,7 +9030,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -9149,12 +9126,19 @@
       "result": {
         "version": "lv12-a04-additional-complete-root",
         "action": {
-          "type": "place",
-          "row": 4,
-          "col": 6
+          "type": "use_card",
+          "useCardId": "udg_01",
+          "useCardHandIndex": 3,
+          "useCardOwnerKey": "black"
         },
-        "continuation": [],
-        "value": -0.49268565069587045,
+        "continuation": [
+          {
+            "type": "place",
+            "row": 4,
+            "col": 4
+          }
+        ],
+        "value": -0.5111173479721002,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -9167,9 +9151,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          2002779764,
-          1416823964,
-          537890264
+          1457523166,
+          871567366,
+          578589466
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -9195,16 +9179,16 @@
                 "col": 4
               }
             ],
-            "immediate": -23.69907013908799,
+            "immediate": -24.433976820183723,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -43.224280094599415
+              -36.11142836610511
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.5885072946762454
+            "score": -0.5111173479721002
           },
           {
             "action": {
@@ -9213,16 +9197,16 @@
               "col": 6
             },
             "continuation": [],
-            "immediate": -29.473240739515273,
+            "immediate": -30.42861942493973,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -34.53444469748734
+              -77.31429565911976
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.49268565069587045
+            "score": -0.8360893448925182
           },
           {
             "action": {
@@ -9245,16 +9229,16 @@
                 "col": 6
               }
             ],
-            "immediate": -30.130573804369153,
-            "retainedForDeepening": true,
+            "immediate": -31.08595248979361,
+            "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -46.347191772531005
+              -42.623469369102104
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6194886557524427
+            "score": -0.5823370521799884
           },
           {
             "action": {
@@ -9263,16 +9247,16 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": -30.4009244908648,
+            "immediate": -31.466539178453612,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -87.42440796079731
+              -51.35598807106538
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.8777788457402518
+            "score": -0.6653971586012605
           },
           {
             "action": {
@@ -9288,16 +9272,16 @@
                 "col": 2
               }
             ],
-            "immediate": -24.010529680788885,
+            "immediate": -24.74543636188462,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -61.63649705321755
+              -45.79021967510097
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7456432390575363
+            "score": -0.6140968322067406
           },
           {
             "action": {
@@ -9320,16 +9304,16 @@
                 "col": 6
               }
             ],
-            "immediate": -30.130573804369153,
-            "retainedForDeepening": false,
+            "immediate": -31.08595248979361,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -47.353334805130345
+              -77.51439464927348
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6290822361473348
+            "score": -0.837027837188547
           }
         ]
       },
@@ -9972,7 +9956,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -10067,7 +10051,7 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
+          "teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -10181,12 +10165,19 @@
       "result": {
         "version": "lv13-keep-relocation",
         "action": {
-          "type": "place",
-          "row": 4,
-          "col": 6
+          "type": "use_card",
+          "useCardId": "udg_01",
+          "useCardHandIndex": 3,
+          "useCardOwnerKey": "black"
         },
-        "continuation": [],
-        "value": -0.5065204065533861,
+        "continuation": [
+          {
+            "type": "place",
+            "row": 4,
+            "col": 4
+          }
+        ],
+        "value": -0.6227384300798688,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -10199,9 +10190,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          2002779764,
-          1416823964,
-          537890264
+          1457523166,
+          871567366,
+          578589466
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -10227,16 +10218,16 @@
                 "col": 4
               }
             ],
-            "immediate": -24.65907013908799,
+            "immediate": -25.393976820183724,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -45.254280094599416
+              -37.12642836610511
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7088539186613773
+            "score": -0.6227384300798688
           },
           {
             "action": {
@@ -10245,16 +10236,16 @@
               "col": 6
             },
             "continuation": [],
-            "immediate": -30.543240739515273,
+            "immediate": -31.49861942493973,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -35.71444469748734
+              -77.31429565911976
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.5065204065533861
+            "score": -0.8360893448925182
           },
           {
             "action": {
@@ -10277,16 +10268,16 @@
                 "col": 6
               }
             ],
-            "immediate": -31.200573804369153,
-            "retainedForDeepening": true,
+            "immediate": -32.15595248979361,
+            "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -47.417191772531005
+              -43.638469369102104
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7296847628545537
+            "score": -0.5927214763703498
           },
           {
             "action": {
@@ -10295,16 +10286,16 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": -31.5259244908648,
+            "immediate": -32.591539178453615,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -88.38440796079732
+              -52.315988071065384
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.8811764206053714
+            "score": -0.6736726400417938
           },
           {
             "action": {
@@ -10320,16 +10311,16 @@
                 "col": 2
               }
             ],
-            "immediate": -24.970529680788886,
+            "immediate": -25.705436361884622,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -63.11649705321755
+              -46.53021967510097
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7557352965152025
+            "score": -0.6212478465396668
           },
           {
             "action": {
@@ -10352,16 +10343,16 @@
                 "col": 6
               }
             ],
-            "immediate": -31.200573804369153,
-            "retainedForDeepening": false,
+            "immediate": -32.15595248979361,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -48.313334805130346
+              -77.51439464927348
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6380606732477868
+            "score": -0.937027837188547
           }
         ]
       },
@@ -10978,7 +10969,6 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -11082,7 +11072,6 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -11202,7 +11191,6 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -11306,7 +11294,6 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -11426,7 +11413,6 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",
@@ -11530,7 +11516,6 @@
           "clone_01",
           "seed_01",
           "teleport_01",
-          "cell_teleport_01",
           "cross_bomb_01",
           "x_bomb_01",
           "hyperactive_01",

@@ -75,7 +75,6 @@ describe('CardInteractionEffects effect tags', () => {
   });
 
   test('hole-cell tag audit covers cards that make permanent hole cells', () => {
-    expect(getEffectTagLabels('CELL_TELEPORT_WILL')).toEqual(['穴マス']);
     expect(getEffectTagLabels('METEOR_WILL')).toEqual(['穴マス', '抹消']);
     expect(getEffectTagLabels('BOARD_SHRINK_WILL')).toEqual(['穴マス', '抹消']);
     expect(getEffectTagLabels('BOARD_SHRINK_GOD')).toEqual(['穴マス', '抹消']);

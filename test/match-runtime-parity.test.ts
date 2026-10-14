@@ -196,7 +196,6 @@ function buildPendingSelectorContext(snapshot, playerKey, pending) {
       chooseCloneTarget: pickFirstTarget('getCloneTargets'),
       chooseHyperactiveInheritTarget: pickFirstTarget('getHyperactiveInheritTargets'),
       chooseTeleportTarget: pickFirstTarget('getTeleportTargets'),
-      chooseCellTeleportTarget: pickFirstTarget('getCellTeleportTargets'),
       chooseExtendLifeTarget: pickFirstTarget('getExtendLifeTargets'),
       chooseCorrosionTarget: pickFirstTarget('getCorrosionTargets')
     }

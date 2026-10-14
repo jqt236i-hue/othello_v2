@@ -128,17 +128,6 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseTeleportTarget', field: 'teleportTarget' },
         cpuHandlerNames: ['cpuSelectTeleportWillWithPolicy']
     },
-    CELL_TELEPORT_WILL: {
-        kind: 'continue_turn',
-        turnOutcome: 'continue_turn',
-        deferNetworkPublish: true,
-        waitForPlaybackIdle: true,
-        needsTargetSelection: true,
-        dispatchKey: 'cell_teleport',
-        target: { method: 'getCellTeleportTargets', argsKey: 'board' },
-        action: { policyMethod: 'chooseCellTeleportTarget', field: 'teleportTarget' },
-        cpuHandlerNames: ['cpuSelectCellTeleportWillWithPolicy']
-    },
     TEMPT_WILL: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',

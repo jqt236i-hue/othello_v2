@@ -1310,11 +1310,9 @@ const {
     chooseCloneTarget,
     chooseHyperactiveInheritTarget,
     chooseTeleportTarget,
-    chooseCellTeleportTarget,
     chooseExtendLifeTarget
 } = SelfplayAdvancedSimulationChoosers.createSelfplayAdvancedSimulationChoosers({
     CardLogic,
-    SharedBoardUtils,
     chooseTargetBySimulation,
     evaluatePositionValue,
     toPlayerValue,
@@ -1400,7 +1398,6 @@ const SELFPLAY_PENDING_TARGET_SELECTORS = Object.freeze({
     chooseCloneTarget,
     chooseHyperactiveInheritTarget,
     chooseTeleportTarget,
-    chooseCellTeleportTarget,
     chooseExtendLifeTarget,
     chooseCorrosionTarget,
     chooseReverseWillTarget,

@@ -75,7 +75,6 @@
 | `SUPER_GRAVITY_WILL` | continue_turn | continue_turn | 不可/未指定 | super_gravity | getSuperGravityTargets(board) |
 | `SUPER_ATTRACTION_WILL` | multi_stage | continue_turn | 不可/未指定 | super_attraction | getSuperAttractionTargets(player_pending) |
 | `TELEPORT_WILL` | continue_turn | continue_turn | 不可/未指定 | teleport | getTeleportTargets(board) |
-| `CELL_TELEPORT_WILL` | continue_turn | continue_turn | 不可/未指定 | cell_teleport | getCellTeleportTargets(board) |
 | `TEMPT_WILL` | continue_turn | continue_turn | 不可/未指定 | tempt | getTemptWillTargets(player) |
 | `CAPTURE_WILL` | continue_turn | continue_turn | 不可/未指定 | capture | getCaptureWillTargets(player) |
 | `TRAP_WILL` | end_turn | end_turn | 不可/未指定 | trap | getTrapTargets(player) |
@@ -194,7 +193,6 @@
 | 種まきの意志 | `SEED_WILL` | 7 | 有効 | 空きマス1つに種をまく。種マスは通常どおり配置でき、石が置かれると種は消える。所有者ターン開始時だけ減算し、5回目で空いたままなら同色の通常石が1個芽生えて通常反転する。 | 対象選択あり | 専用の特殊石画像マップなし / 発芽は通常spawnとflipを順番に再生する。 |
 | 草の意志 | `GRASS_WILL` | 20 | 有効 | 次に置く石を10ターン持続・反転無効の草石にする。配置時と自ターン開始時にランダムな有効空きマスへ種をまき、種は5回目の所有者ターン開始で通常石として芽生えて通常反転する。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`grassWillStone` / 種マスと発芽は種まきの意志のstatus・spawn・flip表示を共有する。 |
 | テレポート | `TELEPORT_WILL` | 10 | 有効 | 盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。 | 対象選択あり | 専用の特殊石画像マップなし / 移動先マスを演出中だけ赤ハイライト。 |
-| マステレポート | `CELL_TELEPORT_WILL` | 18 | 有効 | マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。 | 対象選択あり | 専用の特殊石画像マップなし / 移動先マスを演出中だけ赤ハイライトし、元マスは穴化する。 |
 | 十字爆弾 | `CROSS_BOMB` | 18 | 有効 | 次に置く石を十字爆弾化。通常反転後に即起爆し、その石を起点に縦横2マス（中心含む十字）の石を爆破する。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`crossBombStone` / 通常反転後に即起爆し、爆破対象は destroy フェーズで再生。 |
 | クロス爆弾 | `X_BOMB` | 18 | 有効 | 次に置く石をクロス爆弾化。通常反転後に即起爆し、その石を起点に斜め2マス（中心含むX字）の石を爆破する。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`xBombStone` / 通常反転後に即起爆し、爆破対象は destroy フェーズで再生。 |
 | 躍動の意志 | `HYPERACTIVE_WILL` | 8 | 有効 | 次に置く石を躍動化。両者ターン開始時に1マス移動、反転回避を1回持つ。 | 対象選択なし/配置時または即時処理 | 特殊石見た目=`hyperactiveStone` / カード共通の使用/手札/盤面イベント再生のみ確認。 |

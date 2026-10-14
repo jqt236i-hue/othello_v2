@@ -736,7 +736,7 @@ function buildTeleportFixture(kind) {
   snapshot.cardState.pendingEffectByPlayer.black = {
     type: kind,
     stage: 'selectTarget',
-    cardId: kind === 'CELL_TELEPORT_WILL' ? 'cell_teleport_01' : 'teleport_01'
+    cardId: 'teleport_01'
   };
   return {
     name: kind,
@@ -1219,7 +1219,6 @@ function buildPlaybackParityFixtures() {
     buildBoardShrinkGodFixture(),
     buildPositionSwapFixture(),
     buildTeleportFixture('TELEPORT_WILL'),
-    buildTeleportFixture('CELL_TELEPORT_WILL'),
     buildMovementSelectionFixture({
       cardId: 'strong_wind_01',
       pendingType: 'STRONG_WIND_WILL',
@@ -2472,7 +2471,7 @@ describe('network playback event assembly contract', () => {
           })
         ]));
       }
-      if (fixture.name === 'TELEPORT_WILL' || fixture.name === 'CELL_TELEPORT_WILL') {
+      if (fixture.name === 'TELEPORT_WILL') {
         expect(expected.playbackEvents).toEqual(expect.arrayContaining([
           expect.objectContaining({
             type: 'move',
@@ -2483,22 +2482,6 @@ describe('network playback event assembly contract', () => {
                 reason: 'teleport_move'
               })
             ])
-          })
-        ]));
-      }
-      if (fixture.name === 'CELL_TELEPORT_WILL') {
-        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
-          expect.objectContaining({
-            type: 'status_applied',
-            rawType: 'STATUS_APPLIED',
-            targets: expect.arrayContaining([
-              expect.objectContaining({ r: 3, col: 4 })
-            ]),
-            meta: expect.objectContaining({
-              special: 'METEOR_HOLE',
-              cellRemovalCause: 'CELL_TELEPORT_WILL',
-              cellRemovalReason: 'cell_teleport_source_cell_remove'
-            })
           })
         ]));
       }

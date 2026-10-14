@@ -196,28 +196,6 @@ export function applyIsTeleportWillScore(context: Pick<CardUseScoreContext, "isT
     return score;
 }
 
-export function applyIsCellTeleportWillScore(context: Pick<CardUseScoreContext, "isCellTeleportWill" | "cornerEmergency" | "trailingHard" | "trailing" | "leadStable" | "ctx" | "endgamePhase" | "hasCornerMoveNow">, score: number): number {
-    const {
-        isCellTeleportWill,
-        cornerEmergency,
-        trailingHard,
-        trailing,
-        leadStable,
-        ctx,
-        endgamePhase,
-        hasCornerMoveNow
-    } = context;
-    if (isCellTeleportWill) {
-        score -= 58;
-        if (cornerEmergency || trailingHard) score += 96;
-        else if (trailing) score += 34;
-        if (leadStable && !ctx.forceUseCard) score -= 112;
-        if (endgamePhase) score -= 62;
-        if (hasCornerMoveNow && !cornerEmergency && !ctx.forceUseCard) score -= 36;
-    }
-    return score;
-}
-
 export function applyIsHyperactiveInheritWillScore(context: Pick<CardUseScoreContext, "isHyperactiveInheritWill" | "openingPhase" | "midLatePhase" | "endgamePhase" | "trailing" | "leadStable" | "ctx" | "hasCornerMoveNow">, score: number): number {
     const {
         isHyperactiveInheritWill,

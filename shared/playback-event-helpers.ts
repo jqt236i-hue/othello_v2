@@ -432,11 +432,11 @@
 
     function resolveRawSelectionMoveIntent(type: string, cause: string | null): string {
         if (type === 'strong_wind_selected') return 'wind_move';
-        if (type === 'teleport_selected' || cause === 'TELEPORT_WILL' || cause === 'CELL_TELEPORT_WILL') return 'teleport_move';
+        if (type === 'teleport_selected' || cause === 'TELEPORT_WILL') return 'teleport_move';
         return 'crush_move';
     }
 
-    function resolveRawSelectionMoveReason(type: string, cause: string | null, moveIntent: string): string {
+    function resolveRawSelectionMoveReason(type: string, moveIntent: string): string {
         switch (type) {
             case 'strong_wind_selected': return 'strong_wind_move';
             case 'buoyancy_selected': return 'buoyancy_move';
@@ -444,8 +444,7 @@
             case 'gravity_selected': return 'gravity_move';
             case 'super_gravity_selected': return 'super_gravity_move';
             case 'super_attraction_selected': return 'super_attraction_move';
-            case 'teleport_selected':
-                return cause === 'CELL_TELEPORT_WILL' ? 'cell_teleport_move' : 'teleport_move';
+            case 'teleport_selected': return 'teleport_move';
             default:
                 return moveIntent;
         }
@@ -562,7 +561,7 @@
             const cause = resolveRawSelectionMoveCause(type, ev);
             if (!cause) continue;
             const moveIntent = resolveRawSelectionMoveIntent(type, cause);
-            const moveReason = resolveRawSelectionMoveReason(type, cause, moveIntent);
+            const moveReason = resolveRawSelectionMoveReason(type, moveIntent);
             const moveMeta = createRawSelectionMoveMeta(ev, moveIntent);
             const fallbackOwner = ev.ownerAfter || ev.ownerBefore || null;
             const afterVisual = createMoveVisualStateFromSnapshot(snapshot, to.row, to.col, fallbackOwner);

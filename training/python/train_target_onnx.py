@@ -36,7 +36,6 @@ TARGET_PENDING_TYPES = [
     "TIME_BOMB",
     "CLONE_WILL",
     "TELEPORT_WILL",
-    "CELL_TELEPORT_WILL",
     # Expansion sockets are identified by (row, col, directionKey), while this
     # head is coordinate-only. Keep them on the direction-aware heuristic lane.
     "BLOCKADE_WILL",

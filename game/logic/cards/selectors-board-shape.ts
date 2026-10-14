@@ -47,21 +47,6 @@ function isMainBoardCell(
   return requireBoardUtils(deps).isMainBoardCell(row, col, gameState);
 }
 
-function resolveExpansionSide(
-  side: string | null,
-  row: number,
-  col: number,
-  gameState: GameState,
-  deps?: SelectorsBoardShapeDeps,
-): string | null {
-  return requireBoardUtils(deps).resolveExpansionSide(
-    side,
-    row,
-    col,
-    gameState,
-  );
-}
-
 function getExpansionCells(
   cardState: unknown,
   gameState: GameState,
@@ -131,7 +116,6 @@ function getMeteorHoleCells(
 const CardSelectorsBoardShape = {
   resolveBoardConfig,
   isMainBoardCell,
-  resolveExpansionSide,
   getExpansionCells,
   getCellValue,
   hasBoardShapeCell,

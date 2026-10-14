@@ -198,13 +198,6 @@ describe('custom board config foundations', () => {
         ])
       })
     ]));
-
-    const teleportDestinations = CardSelectors.getCellTeleportDestinations(cardState, gameState);
-    expect(teleportDestinations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 0, col: -1, side: 'left' }),
-      expect.objectContaining({ row: 0, col: 4, side: 'right' }),
-      expect.objectContaining({ row: 4, col: 3, side: 'bottom' })
-    ]));
   });
 
   test('capture target helpers can read custom-board expansion cells', () => {

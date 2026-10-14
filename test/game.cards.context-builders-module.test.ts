@@ -79,7 +79,6 @@ describe('CardContextBuilders module', () => {
         getCorrosionTargets: jest.fn(),
         getTimeBombTargets: jest.fn(),
         getTeleportTargets: jest.fn(),
-        getCellTeleportTargets: jest.fn(),
         getCloneTargets: jest.fn(),
         getSwapTargets: jest.fn(),
         getPositionSwapTargets: jest.fn(),
