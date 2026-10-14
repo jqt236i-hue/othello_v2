@@ -60,7 +60,7 @@ describe('card use → board target selection: pending は pipeline の結果だ
     PendingCoordinator.clearPendingSelectionActionCache();
   });
 
-  test('犠牲の意志で無効化されたテレポートは pending を残さず、対象選択は成立しない', () => {
+  test('犠牲の意志で無効化された転位の意志は pending を残さず、対象選択は成立しない', () => {
     const cardState = createCardState();
     const gameState = createEmptyGameState();
     addSacrificeStone(cardState, gameState, 'black', 2, 2);
@@ -88,7 +88,7 @@ describe('card use → board target selection: pending は pipeline の結果だ
     });
   });
 
-  test('通常のテレポート使用は pipeline が対象選択の pending を残す', () => {
+  test('通常の転位の意志使用は pipeline が対象選択の pending を残す', () => {
     const cardState = createCardState();
     const gameState = createEmptyGameState();
     gameState.board[5][5] = SharedConstants.WHITE;

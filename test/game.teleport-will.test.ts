@@ -9,7 +9,7 @@ function createPrng(randomValue = 0.5) {
   };
 }
 
-describe('TELEPORT_WILL（テレポート）', () => {
+describe('TELEPORT_WILL（転位の意志）', () => {
   test('カード定義が存在し、コスト11である', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'TELEPORT_WILL');
     expect(def).toBeTruthy();
@@ -32,7 +32,7 @@ describe('TELEPORT_WILL（テレポート）', () => {
     expect(noTargets).toEqual([]);
   });
 
-  test('凍結された石はテレポート対象にならない', () => {
+  test('凍結された石は転位の意志の対象にならない', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
 
