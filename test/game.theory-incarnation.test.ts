@@ -374,7 +374,7 @@ expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
       expect.objectContaining({
         cardType: 'EXTREME_HYPERACTIVE_WILL',
         cardCost: 32,
-        markerData: expect.objectContaining({ type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 5, destroyEvadeRemaining: 5 })
+        markerData: expect.objectContaining({ type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 4, destroyEvadeRemaining: 4 })
       }),
       expect.objectContaining({
         cardType: 'ESCAPE_WILL',

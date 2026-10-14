@@ -176,8 +176,8 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
         case 'EXTREME_HYPERACTIVE_WILL':
             return {
                 type: readRegistryMarkerType(type, deps) || 'EXTREME_HYPERACTIVE',
-                flipEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT, 5),
-                destroyEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT, 5)
+                flipEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT, 4),
+                destroyEvadeRemaining: readPositiveInt(constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT, 4)
             };
         case 'ESCAPE_WILL':
             return {

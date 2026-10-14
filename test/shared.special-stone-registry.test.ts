@@ -382,9 +382,9 @@ describe('special stone registry rule classification', () => {
         tagDestroyEvadeDefault: 6
       });
       expect(lateRegistry.getSpecialStoneInfo('EXTREME_HYPERACTIVE')).toMatchObject({
-        tagFlipEvadeDefault: 5,
-        tagDestroyEvadeDefault: 5,
-        visualFlipEvadeDefault: 5
+        tagFlipEvadeDefault: 4,
+        tagDestroyEvadeDefault: 4,
+        visualFlipEvadeDefault: 4
       });
       expect(lateRegistry.getSpecialStoneInfo('ULTIMATE_HYPERACTIVE')).toMatchObject({
         tagFlipEvadeDefault: 5,

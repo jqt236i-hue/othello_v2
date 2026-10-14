@@ -71,7 +71,7 @@ describe('転生の意志', () => {
         expect(roulette.after).toMatchObject({ timer: 4, regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
         expect(roulette.previews.find((preview: any) => preview.special === 'REGEN')).toMatchObject({ timer: 3, regenRemaining: 3, destroyEvadeRemaining: 2, livingWillAura: true });
         expect(roulette.previews.find((preview: any) => preview.special === 'ZOMBIE')).toMatchObject({ timer: 4, regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
-        expect(roulette.previews.find((preview: any) => preview.special === 'EXTREME_HYPERACTIVE')).toMatchObject({ flipEvadeRemaining: 5, destroyEvadeRemaining: 7, livingWillAura: true });
+        expect(roulette.previews.find((preview: any) => preview.special === 'EXTREME_HYPERACTIVE')).toMatchObject({ flipEvadeRemaining: 4, destroyEvadeRemaining: 6, livingWillAura: true });
     });
 
     test.each(['EXTREME_HYPERACTIVE_WILL', 'ULTIMATE_HYPERACTIVE_GOD'])('旧形式の特殊石名でも元の種類へ再転生しない: %s', (alias) => {
