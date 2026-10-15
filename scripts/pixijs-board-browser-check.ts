@@ -55,7 +55,8 @@ const SPECIAL_TIMER_BADGE_EXPECTATIONS = Object.freeze({
   '1,3': Object.freeze({ specialType: 'REGEN', statusLabels: Object.freeze(['regen:3']) }),
   '1,4': Object.freeze({
     specialType: 'ZOMBIE',
-    statusLabels: Object.freeze(['countdown:3', 'regen:1'])
+    // Zombies have no bite countdown; a legacy turnsUntilInfection field must stay hidden.
+    statusLabels: Object.freeze(['regen:1'])
   }),
   '2,1': Object.freeze({ specialType: 'TIME_STOP', statusLabels: Object.freeze(['countdown:4']) }),
   '2,2': Object.freeze({ specialType: 'TIME_BOMB', statusLabels: Object.freeze(['bomb:10']) }),
