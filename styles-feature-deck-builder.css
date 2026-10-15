@@ -3686,11 +3686,12 @@
    文字・ボタン・状態表示は DOM と CSS のまま描く。
    寸法は --deck-u で指定する。モーダルは画面に固定して重なるため、
    ステージ拡大率（ブラウザ枠の補正で表示領域より大きくなることがある）
-   ではなく表示領域の幅と高さから決め、横長画面では幅 85% に収める。
+   ではなく表示領域の幅と高さから決める。横長画面では幅・高さとも約 7 割に
+   収め、4:3 に近い画面ほど幅いっぱいに近づけて文字を小さくしすぎない。
    旧デザインの層を確実に上書きするため、ID 2 つの指定でまとめる。
    ============================================================ */
 #deckBuilderOverlay #deckBuilderModal {
-    --deck-u: min(calc(100vw / 2279), calc(100dvh / 1079));
+    --deck-u: min(max(calc(100vw / 2700), calc(100dvh / 1500)), calc((100vw - 40px) / 1944), calc(100dvh / 1280));
     --deck-ob-serif: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
     --deck-ob-latin: "CR-Cinzel Subset", "CR-Cinzel Full", 'Cinzel', Georgia, serif;
     --deck-ob-ink: #0f1213;
@@ -3712,6 +3713,7 @@
     --deck-ob-fletch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M1 5H39' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M29 1.5L33 5 29 8.5M34 1.5L38 5 34 8.5' fill='none' stroke='%23b39a6c' stroke-width='1'/%3E%3C/svg%3E");
     --deck-ob-fletch-lead: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M1 1.5L5 5 1 8.5M6 1.5L10 5 6 8.5' fill='none' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M10 5H40' stroke='%23b39a6c' stroke-width='1'/%3E%3C/svg%3E");
     --deck-ob-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'%3E%3Cpath d='M2.5 8.6L7.4 13.2 17.5 2.8' fill='none' stroke='%236cc7b0' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --deck-ob-pencil: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.8 2.4l2.8 2.8-7.9 7.9-3.4.6.6-3.4z' fill='none' stroke='%23d9bd88' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpath d='M9.2 4l2.8 2.8' stroke='%23d9bd88' stroke-width='1.4'/%3E%3C/svg%3E");
     --deck-ob-ring-nubs: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='%23c9a96e'%3E%3Cpath d='M50 0.5L53 4 50 7.5 47 4z'/%3E%3Cpath d='M50 92.5L53 96 50 99.5 47 96z'/%3E%3Cpath d='M0.5 50L4 47 7.5 50 4 53z'/%3E%3Cpath d='M92.5 50L96 47 99.5 50 96 53z'/%3E%3C/g%3E%3C/svg%3E");
     /* 外枠画像の元寸 1px を何 --deck-u で描くか */
     --deck-ob-frame-k: 0.66;
@@ -4446,6 +4448,74 @@
     min-height: calc(62 * var(--deck-u)) !important;
 }
 
+/* 保存済みの枠: 番号の横の「名前変更」から、その場でデッキ名を変える */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-slot-label-row {
+    display: flex;
+    align-items: center;
+    gap: calc(10 * var(--deck-u));
+    min-height: calc(28 * var(--deck-u));
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    min-height: max(22px, calc(28 * var(--deck-u)));
+    padding: 0 calc(12 * var(--deck-u)) !important;
+    color: #d9bd88 !important;
+    border: 1px solid rgba(179, 154, 108, 0.55) !important;
+    border-radius: 999px !important;
+    background: rgba(5, 7, 8, 0.6) !important;
+    box-shadow: none !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(11px, calc(15 * var(--deck-u))) !important;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1 !important;
+    cursor: pointer;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-btn::before {
+    content: "";
+    width: 1em;
+    height: 1em;
+    background: var(--deck-ob-pencil) center / contain no-repeat;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-btn.is-confirm::before {
+    background-image: var(--deck-ob-check);
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-btn:hover,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-btn:focus-visible {
+    color: #f1dcae !important;
+    border-color: #d9bd88 !important;
+    background: rgba(32, 38, 36, 0.8) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-input {
+    display: block;
+    width: 100%;
+    height: calc(46 * var(--deck-u));
+    margin-top: calc(6 * var(--deck-u));
+    padding: 0 calc(10 * var(--deck-u));
+    box-sizing: border-box;
+    color: var(--deck-ob-text);
+    border: 1px solid #b99c66;
+    border-radius: calc(3 * var(--deck-u));
+    background: rgba(4, 6, 7, 0.92);
+    font-family: var(--deck-ob-serif);
+    font-size: max(13px, calc(23 * var(--deck-u)));
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-rename-input:focus {
+    outline: none;
+    border-color: #dcc08a;
+    box-shadow: 0 0 0 2px rgba(220, 192, 138, 0.28);
+}
+
 /* 保存済みの枠: 名前・概要・枚数・種類の比率を同じ真鍮調で */
 #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta {
     margin: calc(4 * var(--deck-u)) 0 calc(10 * var(--deck-u)) !important;
@@ -4547,6 +4617,20 @@
     color: var(--deck-ob-text) !important;
 }
 
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-name-label {
+    flex: 0 0 auto;
+    color: #d9bd88;
+    font-family: var(--deck-ob-serif);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-name-hint {
+    flex: 0 0 auto;
+    color: var(--deck-ob-muted);
+    white-space: nowrap;
+}
+
 #deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .btn-small {
     color: #e6e3dc !important;
     border: 1px solid rgba(128, 139, 160, 0.62) !important;
@@ -4611,13 +4695,6 @@
     #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
         height: 100% !important;
         min-height: 0 !important;
-    }
-}
-
-/* 4:3〜16:10 の画面は幅いっぱいに近づけて文字を小さくしすぎない */
-@media (min-width: 901px) and (max-aspect-ratio: 8/5) {
-    #deckBuilderOverlay #deckBuilderModal {
-        --deck-u: min(calc((100vw - 40px) / 1944), calc(100dvh / 1079));
     }
 }
 

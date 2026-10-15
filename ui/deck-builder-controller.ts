@@ -84,6 +84,11 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 draft: DeckBuilderStateModule.createEmptyDraft(),
                 codeInputValue: '',
                 detailCardId: ''
+            },
+            // 一覧画面で名前を変更中の保存スロットと入力途中の名前
+            rename: {
+                presetId: '',
+                value: ''
             }
         };
         let surfaceReadyPromise: Promise<any> | null = null;
@@ -1122,9 +1127,16 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                     };
                 }
 
+                const isRenaming = state.rename.presetId === preset.id;
+                const renameFields = {
+                    canRename: true,
+                    isRenaming,
+                    renameValue: isRenaming ? state.rename.value : '',
+                    renamePlaceholder: `保存スロット ${index + 1}`
+                };
                 const deckSpec = decodeDeckSpecOrNull(preset.deckCode);
                 if (!deckSpec) {
-                    return {
+                    return Object.assign({
                         id: preset.id,
                         displayName: getPresetDisplayName(preset, index),
                         summaryText: '読み込み不可',
@@ -1136,13 +1148,13 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                         typeBreakdown: [],
                         slotNumberLabel,
                         isEmpty: false
-                    };
+                    }, renameFields);
                 }
 
                 const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
                 const breakdown = summarizeDeckTypeBreakdown(deckSpec);
                 const isActive = preset.id === state.presetState.activePresetId;
-                return {
+                return Object.assign({
                     id: preset.id,
                     displayName: getPresetDisplayName(preset, index),
                     summaryText: `${summary.deckSize}枚 / ${summary.distinctCount}種`,
@@ -1156,7 +1168,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                     distinctCount: summary.distinctCount,
                     slotNumberLabel,
                     isEmpty: false
-                };
+                }, renameFields);
             });
         }
 
@@ -1305,6 +1317,12 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                         state.editor.presetId = String(presetId || '').trim();
                     }
                 },
+                onStartRenamePreset: startRenamePreset,
+                onRenamePresetInput: function (value: any) {
+                    state.rename.value = String(value || '');
+                },
+                onCommitRenamePreset: commitRenamePreset,
+                onCancelRenamePreset: cancelRenamePreset,
                 onEditorBack: backToPresetList,
                 onEditorNameInput: function (value: any) {
                     state.editor.nameValue = String(value || '');
@@ -1354,6 +1372,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
 
         function openReadySurface() {
             clearNotice();
+            resetRenameState();
             state.overlayOpen = true;
             state.view = 'presets';
             render();
@@ -1392,6 +1411,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
         function close() {
             const wasOpen = state.overlayOpen;
             state.overlayOpen = false;
+            resetRenameState();
             render();
             if (wasOpen && refs.openBtn && typeof refs.openBtn.focus === 'function') {
                 try { refs.openBtn.focus({ preventScroll: true }); } catch (_error) { /* detached/legacy host */ }
@@ -1455,7 +1475,62 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
             render();
         }
 
+        function resetRenameState() {
+            state.rename = { presetId: '', value: '' };
+        }
+
+        function startRenamePreset(presetId: any) {
+            const preset = findPresetById(presetId);
+            if (!preset || !preset.deckCode) return;
+            state.rename = { presetId: preset.id, value: String(preset.name || '') };
+            clearNotice();
+            render();
+        }
+
+        function cancelRenamePreset() {
+            resetRenameState();
+            render();
+        }
+
+        // 一覧画面から保存スロットの名前だけを変える。空欄なら `保存スロット N` 表示に戻る。
+        function commitRenamePreset(presetId: any, value: any) {
+            if (!state.rename.presetId || state.rename.presetId !== presetId) return;
+            resetRenameState();
+            const preset = findPresetById(presetId);
+            if (!preset || !preset.deckCode) {
+                render();
+                return;
+            }
+
+            const nextName = DeckPresetStorage.normalizePresetName(value);
+            if (nextName === DeckPresetStorage.normalizePresetName(preset.name)) {
+                render();
+                return;
+            }
+
+            state.presetState.presets = state.presetState.presets.map((candidate: any) => (
+                candidate.id === preset.id
+                    ? Object.assign({}, candidate, { name: nextName, updatedAt: Date.now() })
+                    : candidate
+            ));
+            if (savePresetState()) {
+                refreshActivePresetChoiceName(preset.id);
+                emitNotice('デッキ名を変更しました', false, false);
+            }
+            render();
+        }
+
+        // 使用中デッキの名前はヘッダーや左の操作欄にも出るので、保存した名前に合わせる。
+        function refreshActivePresetChoiceName(presetId: any) {
+            const choice = state.activeLocalChoice;
+            if (!choice || choice.source !== 'preset' || choice.presetId !== presetId) return;
+            const preset = findPresetById(presetId);
+            if (!preset) return;
+            state.activeLocalChoice = Object.assign({}, choice, { name: getPresetChoiceName(preset) });
+        }
+
         function editPreset(presetId: any) {
+            resetRenameState();
             const preset = findPresetById(presetId);
             state.editor.presetId = presetId;
             state.editor.sourceName = '';
@@ -1585,6 +1660,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 });
             });
             if (!savePresetState()) return null;
+            refreshActivePresetChoiceName(state.editor.presetId);
             return deckCode;
         }
 

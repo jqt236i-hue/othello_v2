@@ -482,6 +482,68 @@ function createTypeSwatchBarElement(breakdown: any[]): HTMLElement | null {
   return bar;
 }
 
+// 描画し直しで入力欄が外れた時の blur を、名前の確定と取り違えないための目印。
+let isRebuildingBody = false;
+// 名前変更を始めた最初の描画だけ全選択し、描画し直しでは入力途中の文字を残す。
+let focusedRenamePresetId = '';
+
+function createRenameControls(preset: any, opts: any): { button: HTMLButtonElement; input: HTMLInputElement | null } {
+  const displayName = String(preset && preset.displayName || '');
+  if (!preset.isRenaming) {
+    const button = createButton('名前変更', 'deck-builder-rename-btn', () => opts.onStartRename(preset.id));
+    button.setAttribute('aria-label', `${displayName} の名前を変更`);
+    button.title = 'デッキ名を変更';
+    return { button, input: null };
+  }
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'deck-builder-rename-input';
+  input.dataset.presetId = String(preset.id || '');
+  input.maxLength = 24;
+  input.value = String(preset.renameValue || '');
+  input.placeholder = String(preset.renamePlaceholder || '');
+  input.setAttribute('aria-label', 'デッキ名');
+  input.title = 'Enter で決定、Esc で取り消し';
+
+  let settled = false;
+  const commit = () => {
+    if (settled) return;
+    settled = true;
+    opts.onCommitRename(preset.id, input.value);
+  };
+  const cancel = () => {
+    if (settled) return;
+    settled = true;
+    opts.onCancelRename();
+  };
+  input.addEventListener('input', () => {
+    if (typeof opts.onRenameInput === 'function') opts.onRenameInput(input.value);
+  });
+  input.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      // 変換中の Esc でもデッキ構築画面ごと閉じないようにする。
+      event.stopPropagation();
+      if (event.isComposing) return;
+      event.preventDefault();
+      cancel();
+      return;
+    }
+    if (event.key === 'Enter' && !event.isComposing && event.keyCode !== 229) {
+      event.preventDefault();
+      commit();
+    }
+  });
+  input.addEventListener('blur', () => {
+    if (isRebuildingBody) return;
+    commit();
+  });
+
+  const button = createButton('決定', 'deck-builder-rename-btn is-confirm', commit);
+  button.setAttribute('aria-label', 'デッキ名を決定');
+  return { button, input };
+}
+
 function createEmptySlotCtaElements() {
   const halo = document.createElement('div');
   halo.className = 'deck-builder-empty-halo';
@@ -558,14 +620,29 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
 
   const labelEnText = preset.slotNumberLabel || '';
   const labelEn = createSlotLabelEnElement(labelEnText);
-  if (labelEn) meta.appendChild(labelEn);
+  const renameControls = preset.canRename && typeof opts.onStartRename === 'function'
+    ? createRenameControls(preset, opts)
+    : null;
+  if (renameControls) {
+    const labelRow = document.createElement('div');
+    labelRow.className = 'deck-builder-slot-label-row';
+    if (labelEn) labelRow.appendChild(labelEn);
+    labelRow.appendChild(renameControls.button);
+    meta.appendChild(labelRow);
+  } else if (labelEn) {
+    meta.appendChild(labelEn);
+  }
 
-  const title = document.createElement('div');
-  title.className = 'deck-builder-preset-title';
-  title.textContent = preset.displayName;
-  // 長い名前は2行で省略するため、全文はツールチップで読めるようにする。
-  title.title = String(preset.displayName || '');
-  meta.appendChild(title);
+  if (renameControls && renameControls.input) {
+    meta.appendChild(renameControls.input);
+  } else {
+    const title = document.createElement('div');
+    title.className = 'deck-builder-preset-title';
+    title.textContent = preset.displayName;
+    // 長い名前は2行で省略するため、全文はツールチップで読めるようにする。
+    title.title = String(preset.displayName || '');
+    meta.appendChild(title);
+  }
 
   const summary = document.createElement('div');
   summary.className = 'deck-builder-preset-summary';
@@ -794,7 +871,13 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
       actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
     }
 
-    const presetCard = createPresetCard(preset, actions, { slotIndex });
+    const presetCard = createPresetCard(preset, actions, {
+      slotIndex,
+      onStartRename: handlers.onStartRenamePreset,
+      onRenameInput: handlers.onRenamePresetInput,
+      onCommitRename: handlers.onCommitRenamePreset,
+      onCancelRename: handlers.onCancelRenamePreset
+    });
     if (isEmptySlot) {
       // 「クリックして構築」の表示どおり、カード全体を押しても構築画面を開く。
       presetCard.addEventListener('click', (event: Event) => {
@@ -884,17 +967,23 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   const nameRow = document.createElement('label');
   nameRow.className = 'deck-builder-name-row';
   const nameLabel = document.createElement('span');
-  nameLabel.textContent = '名前';
+  nameLabel.className = 'deck-builder-name-label';
+  nameLabel.textContent = 'デッキ名';
   nameRow.appendChild(nameLabel);
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.maxLength = 24;
   nameInput.value = editor.nameValue;
-  nameInput.placeholder = 'プリセット名';
+  nameInput.placeholder = 'デッキ名を入力';
   nameInput.addEventListener('input', () => {
     handlers.onEditorNameInput(nameInput.value);
   });
   nameRow.appendChild(nameInput);
+  // 「戻る」では保存されないため、名前も保存操作で反映されることを示す。
+  const nameHint = document.createElement('span');
+  nameHint.className = 'deck-builder-name-hint';
+  nameHint.textContent = '「保存」で反映';
+  nameRow.appendChild(nameHint);
   wrapper.appendChild(nameRow);
 
   const actionRow = document.createElement('div');
@@ -1009,7 +1098,12 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
   }
 
   if (!uiRefs.body) return;
-  clearElement(uiRefs.body);
+  isRebuildingBody = true;
+  try {
+    clearElement(uiRefs.body);
+  } finally {
+    isRebuildingBody = false;
+  }
 
   if (model.noticeText) {
     const notice = document.createElement('div');
@@ -1019,6 +1113,7 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
   }
 
   if (model.view === 'editor') {
+    focusedRenamePresetId = '';
     renderEditorView(uiRefs.body, model, callbacks);
     restoreBodyScrollState(uiRefs.body, bodyScrollState);
     return;
@@ -1026,6 +1121,21 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
 
   renderPresetView(uiRefs.body, model, callbacks);
   restoreBodyScrollState(uiRefs.body, bodyScrollState);
+  focusRenameInput(uiRefs.body);
+}
+
+function focusRenameInput(container: HTMLElement): void {
+  const renameInput = container.querySelector('.deck-builder-rename-input') as HTMLInputElement | null;
+  if (!renameInput) {
+    focusedRenamePresetId = '';
+    return;
+  }
+  const presetId = renameInput.dataset.presetId || '';
+  const isNewSession = presetId !== focusedRenamePresetId;
+  focusedRenamePresetId = presetId;
+  try { renameInput.focus({ preventScroll: true }); } catch (e) { /* focus is best-effort */ }
+  const end = renameInput.value.length;
+  try { renameInput.setSelectionRange(isNewSession ? 0 : end, end); } catch (e) { /* selection is best-effort */ }
 }
 
 const DeckBuilderRendererModule = {
