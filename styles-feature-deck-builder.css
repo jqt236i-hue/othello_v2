@@ -3679,3 +3679,1029 @@
     right: 7px;
     font-size: 11px;
 }
+
+/* ============================================================
+   Obsidian Brass — デッキ構築の最終デザイン
+   黒曜石の地に真鍮の装飾枠。外枠とカード枠は生成画像を 9 分割で伸縮し、
+   文字・ボタン・状態表示は DOM と CSS のまま描く。
+   寸法は --deck-u で指定する。モーダルは画面に固定して重なるため、
+   ステージ拡大率（ブラウザ枠の補正で表示領域より大きくなることがある）
+   ではなく表示領域の幅と高さから決め、横長画面では幅 85% に収める。
+   旧デザインの層を確実に上書きするため、ID 2 つの指定でまとめる。
+   ============================================================ */
+#deckBuilderOverlay #deckBuilderModal {
+    --deck-u: min(calc(100vw / 2279), calc(100dvh / 1079));
+    --deck-ob-serif: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
+    --deck-ob-latin: "CR-Cinzel Subset", "CR-Cinzel Full", 'Cinzel', Georgia, serif;
+    --deck-ob-ink: #0f1213;
+    --deck-ob-text: #efe8da;
+    --deck-ob-muted: #bdb5a5;
+    --deck-ob-green: linear-gradient(180deg, #1a4239 0%, #0e2f29 50%, #051e1b 100%);
+    --deck-ob-green-hover: linear-gradient(180deg, #22554a 0%, #133b33 50%, #082722 100%);
+    --deck-ob-slate: linear-gradient(180deg, #1d2430 0%, #161e28 50%, #0e131b 100%);
+    --deck-ob-slate-hover: linear-gradient(180deg, #262f3d 0%, #1d2632 50%, #131a24 100%);
+    --deck-ob-texture: url('assets/images/ui/deck-obsidian-brass-texture.webp');
+    --deck-ob-modal-frame: url('assets/images/ui/deck-obsidian-brass-modal-frame.webp');
+    --deck-ob-panel-frame: url('assets/images/ui/deck-obsidian-brass-panel-frame.webp');
+    --deck-ob-divider-line: url('assets/images/ui/deck-obsidian-brass-divider-line.webp');
+    --deck-ob-divider-gem: url('assets/images/ui/deck-obsidian-brass-divider-gem.webp');
+    --deck-ob-button-gem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 18'%3E%3Cpath d='M6 1.5L10.5 9 6 16.5 1.5 9z' fill='none' stroke='%23c9a96e' stroke-width='1'/%3E%3Cpath d='M6 6.4L7.6 9 6 11.6 4.4 9z' fill='%23c9a96e'/%3E%3C/svg%3E");
+    --deck-ob-rail-gem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M9 1L17 9 9 17 1 9z' fill='%230d0f10' stroke='%23c2a571' stroke-width='1.2'/%3E%3Cpath d='M9 5L13 9 9 13 5 9z' fill='%23c2a571'/%3E%3C/svg%3E");
+    --deck-ob-stem-gem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 34'%3E%3Cpath d='M7 0V10M7 24V34' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M7 10L11.5 17 7 24 2.5 17z' fill='%230d0f10' stroke='%23c2a571' stroke-width='1'/%3E%3Ccircle cx='7' cy='17' r='1.7' fill='%23c2a571'/%3E%3C/svg%3E");
+    --deck-ob-title-stem: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 52'%3E%3Cpath d='M6 0V20M6 32V52' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M6 20L10 26 6 32 2 26z' fill='none' stroke='%23c9ab74' stroke-width='1'/%3E%3Cpath d='M6 23.6L7.6 26 6 28.4 4.4 26z' fill='%23c9ab74'/%3E%3C/svg%3E");
+    --deck-ob-fletch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M1 5H39' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M29 1.5L33 5 29 8.5M34 1.5L38 5 34 8.5' fill='none' stroke='%23b39a6c' stroke-width='1'/%3E%3C/svg%3E");
+    --deck-ob-fletch-lead: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M1 1.5L5 5 1 8.5M6 1.5L10 5 6 8.5' fill='none' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M10 5H40' stroke='%23b39a6c' stroke-width='1'/%3E%3C/svg%3E");
+    --deck-ob-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'%3E%3Cpath d='M2.5 8.6L7.4 13.2 17.5 2.8' fill='none' stroke='%236cc7b0' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --deck-ob-ring-nubs: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='%23c9a96e'%3E%3Cpath d='M50 0.5L53 4 50 7.5 47 4z'/%3E%3Cpath d='M50 92.5L53 96 50 99.5 47 96z'/%3E%3Cpath d='M0.5 50L4 47 7.5 50 4 53z'/%3E%3Cpath d='M92.5 50L96 47 99.5 50 96 53z'/%3E%3C/g%3E%3C/svg%3E");
+    /* 外枠画像の元寸 1px を何 --deck-u で描くか */
+    --deck-ob-frame-k: 0.66;
+    width: min(calc(1944 * var(--deck-u)), calc(100vw - 48px)) !important;
+    max-width: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: var(--deck-ob-text);
+    background: var(--deck-ob-ink) var(--deck-ob-texture) center / calc(620 * var(--deck-u)) repeat !important;
+    box-shadow:
+        0 calc(30 * var(--deck-u)) calc(80 * var(--deck-u)) rgba(0, 0, 0, 0.82),
+        0 0 0 1px rgba(0, 0, 0, 0.72) !important;
+    backdrop-filter: none !important;
+}
+
+/* 外枠: 四隅の装飾を崩さず辺だけ伸ばす。操作を妨げないよう最前面で透過。 */
+#deckBuilderOverlay #deckBuilderModal::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 6 !important;
+    width: auto !important;
+    height: auto !important;
+    opacity: 1 !important;
+    background: none !important;
+    border: 1px solid transparent !important;
+    border-image-source: var(--deck-ob-modal-frame) !important;
+    border-image-slice: 80 162 160 162 !important;
+    border-image-width:
+        calc(80 * var(--deck-ob-frame-k) * var(--deck-u))
+        calc(162 * var(--deck-ob-frame-k) * var(--deck-u))
+        calc(160 * var(--deck-ob-frame-k) * var(--deck-u))
+        calc(162 * var(--deck-ob-frame-k) * var(--deck-u)) !important;
+    border-image-repeat: stretch !important;
+    pointer-events: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal::after {
+    background:
+        radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255, 236, 200, 0.035), transparent 70%),
+        radial-gradient(ellipse 80% 50% at 50% 100%, rgba(0, 0, 0, 0.32), transparent 72%) !important;
+    opacity: 1 !important;
+    mix-blend-mode: normal !important;
+}
+
+#deckBuilderOverlay #deckBuilderModalHeader {
+    z-index: 2 !important;
+    min-height: calc(104 * var(--deck-u)) !important;
+    padding: calc(12 * var(--deck-u)) calc(60 * var(--deck-u)) calc(14 * var(--deck-u)) calc(69 * var(--deck-u)) !important;
+    border-bottom: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* ヘッダー下の真鍮の二重線と中央の菱形 */
+#deckBuilderOverlay #deckBuilderModalHeader::after {
+    content: "";
+    position: absolute;
+    left: calc(13 * var(--deck-u));
+    right: calc(13 * var(--deck-u));
+    bottom: calc(-15 * var(--deck-u));
+    height: calc(30 * var(--deck-u));
+    background:
+        var(--deck-ob-divider-gem) center / auto 100% no-repeat,
+        var(--deck-ob-divider-line) center / auto 100% repeat-x;
+    pointer-events: none;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-title-wrap {
+    align-items: flex-end !important;
+    gap: calc(16 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-title {
+    position: relative !important;
+    padding: 0 calc(24 * var(--deck-u)) 0 0 !important;
+    color: #eed9ab !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(24px, calc(45 * var(--deck-u))) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.04em !important;
+    line-height: 1.15 !important;
+    text-shadow: 0 calc(2 * var(--deck-u)) calc(6 * var(--deck-u)) rgba(0, 0, 0, 0.75) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-title::before {
+    content: "DECK BUILDER" !important;
+    display: block !important;
+    width: max-content !important;
+    margin: 0 0 calc(3 * var(--deck-u)) calc(2 * var(--deck-u)) !important;
+    padding-right: calc(46 * var(--deck-u)) !important;
+    color: #c9ab74 !important;
+    background: var(--deck-ob-fletch) right center / calc(40 * var(--deck-u)) calc(10 * var(--deck-u)) no-repeat !important;
+    font-family: var(--deck-ob-latin) !important;
+    font-size: max(9px, calc(17 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.24em !important;
+    line-height: 1.2 !important;
+    text-shadow: none !important;
+}
+
+/* タイトルと設定表示の間の縦飾り */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-title::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: calc(3 * var(--deck-u));
+    width: calc(12 * var(--deck-u));
+    height: calc(48 * var(--deck-u));
+    background: var(--deck-ob-title-stem) center / 100% 100% no-repeat;
+}
+
+#deckBuilderOverlay #deckBuilderModal #deckBuilderHeaderSummary {
+    margin-bottom: calc(7 * var(--deck-u));
+    padding: calc(9 * var(--deck-u)) calc(20 * var(--deck-u)) !important;
+    color: #e7e0d1 !important;
+    border: 1px solid rgba(179, 154, 108, 0.6) !important;
+    border-radius: 999px !important;
+    background: rgba(6, 8, 9, 0.62) !important;
+    box-shadow: inset 0 0 0 calc(3 * var(--deck-u)) rgba(0, 0, 0, 0.28) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(16 * var(--deck-u))) !important;
+    letter-spacing: 0.05em;
+    line-height: 1.3 !important;
+}
+
+#deckBuilderOverlay #deckBuilderCloseBtn {
+    position: relative;
+    top: calc(6 * var(--deck-u));
+    width: calc(70 * var(--deck-u)) !important;
+    min-width: calc(70 * var(--deck-u)) !important;
+    height: calc(70 * var(--deck-u)) !important;
+    min-height: calc(70 * var(--deck-u)) !important;
+    padding: 0 !important;
+    color: #e4c486 !important;
+    border: calc(2 * var(--deck-u)) solid #b79c6a !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 50% 40%, #1a1c1e, #090a0b 72%) !important;
+    box-shadow:
+        inset 0 0 0 calc(4 * var(--deck-u)) #0b0c0d,
+        inset 0 0 0 calc(5 * var(--deck-u)) rgba(183, 156, 106, 0.72),
+        0 calc(4 * var(--deck-u)) calc(10 * var(--deck-u)) rgba(0, 0, 0, 0.6) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(18px, calc(40 * var(--deck-u))) !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModalHeader .mobile-command-current-location {
+    color: #c9ab74 !important;
+}
+
+#deckBuilderOverlay #deckBuilderCloseBtn:hover,
+#deckBuilderOverlay #deckBuilderCloseBtn:focus-visible {
+    color: #f6dca4 !important;
+    border-color: #dcc08a !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal #deckBuilderBody {
+    padding: 0 !important;
+    background: transparent !important;
+    scrollbar-gutter: auto !important;
+}
+
+/* 本文が収まらない画面では縮めずに本文ごとスクロールさせる */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-shell {
+    flex: 0 0 auto !important;
+    grid-template-columns: calc(120 * var(--deck-u)) minmax(0, 1fr) !important;
+    background: transparent !important;
+    background-image: none !important;
+}
+
+/* 左端の帯: CARD ARCHIVE、菱形、縦書きの 01 — DECKS、飾り付きの縦線 */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-rail {
+    align-self: stretch !important;
+    gap: 0 !important;
+    justify-content: flex-start !important;
+    padding: calc(24 * var(--deck-u)) 0 calc(34 * var(--deck-u)) calc(12 * var(--deck-u)) !important;
+    border-right: 0 !important;
+    background:
+        linear-gradient(90deg, rgba(179, 154, 108, 0.34) 0 1px, transparent 1px calc(100% - 1px), rgba(179, 154, 108, 0.78) calc(100% - 1px)) right top / calc(8 * var(--deck-u)) 100% no-repeat,
+        linear-gradient(rgba(0, 0, 0, 0.36), rgba(0, 0, 0, 0.36)) !important;
+    box-shadow: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-rail::after {
+    content: "";
+    flex: 1 1 auto;
+    width: calc(14 * var(--deck-u));
+    min-height: calc(80 * var(--deck-u));
+    margin-top: calc(44 * var(--deck-u));
+    background:
+        var(--deck-ob-stem-gem) center 32% / calc(14 * var(--deck-u)) calc(34 * var(--deck-u)) no-repeat,
+        linear-gradient(180deg, transparent, rgba(179, 154, 108, 0.62) 10%, rgba(179, 154, 108, 0.62) 78%, transparent) center / 1px 100% no-repeat;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-mark {
+    color: #d3b57e !important;
+    font-family: var(--deck-ob-latin) !important;
+    font-size: max(8px, calc(14 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    line-height: 1.7 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-rail-line {
+    position: relative;
+    flex: 0 0 auto !important;
+    width: 1px !important;
+    height: calc(44 * var(--deck-u)) !important;
+    min-height: 0 !important;
+    margin: calc(22 * var(--deck-u)) 0 calc(62 * var(--deck-u)) !important;
+    background: rgba(179, 154, 108, 0.7) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-rail-line::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 16 * var(--deck-u));
+    width: calc(20 * var(--deck-u));
+    height: calc(20 * var(--deck-u));
+    transform: translateX(-50%);
+    background: var(--deck-ob-rail-gem) center / 100% 100% no-repeat;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-index {
+    color: #cdb487 !important;
+    font-family: var(--deck-ob-latin) !important;
+    font-size: max(8px, calc(15 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.2em !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage {
+    padding: calc(27 * var(--deck-u)) calc(48 * var(--deck-u)) calc(29 * var(--deck-u)) calc(26 * var(--deck-u)) !important;
+    background: transparent !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage .deck-builder-view-presets {
+    gap: calc(19 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage .deck-builder-intro {
+    display: block !important;
+    max-width: none !important;
+    min-height: calc(60 * var(--deck-u));
+    padding: calc(15 * var(--deck-u)) calc(28 * var(--deck-u)) !important;
+    color: var(--deck-ob-text) !important;
+    border: 1px solid rgba(179, 154, 108, 0.48) !important;
+    border-radius: 0 !important;
+    background:
+        linear-gradient(90deg, transparent calc(4 * var(--deck-u)), rgba(201, 171, 116, 0.82) calc(4 * var(--deck-u)) calc(6 * var(--deck-u)), transparent calc(6 * var(--deck-u))),
+        rgba(5, 7, 8, 0.66) !important;
+    box-shadow: inset 0 0 calc(16 * var(--deck-u)) rgba(0, 0, 0, 0.4) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(20 * var(--deck-u))) !important;
+    letter-spacing: 0.09em !important;
+    line-height: 1.45 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-loadout-column {
+    position: relative;
+    gap: 0 !important;
+    padding-right: 0 !important;
+    border-right: 0 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-fixed-library {
+    gap: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* ----- 共通のパネル枠 ----- */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+    position: relative;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+    border: 1px solid transparent !important;
+    border-style: solid !important;
+    border-image-source: var(--deck-ob-panel-frame) !important;
+    border-image-slice: 60 66 !important;
+    border-image-width: calc(34 * var(--deck-u)) calc(37 * var(--deck-u)) !important;
+    border-image-repeat: stretch !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: 0 calc(8 * var(--deck-u)) calc(18 * var(--deck-u)) rgba(0, 0, 0, 0.34) !important;
+    background:
+        radial-gradient(ellipse 90% 70% at 50% 35%, rgba(34, 44, 46, 0.32), transparent 70%),
+        linear-gradient(180deg, rgba(14, 20, 22, 0.42), rgba(6, 9, 10, 0.62)),
+        var(--deck-ob-texture) center / calc(520 * var(--deck-u)) repeat !important;
+    background-blend-mode: normal !important;
+    color: var(--deck-ob-text);
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero::before,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero::after,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card::before,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card::after,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card::before,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* 現在使用中: 枠の外側に控えめな青緑の線を足す */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero.is-active,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card.is-active,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-active {
+    background:
+        radial-gradient(ellipse 70% 60% at 12% 8%, rgba(56, 92, 80, 0.34), transparent 70%),
+        linear-gradient(160deg, rgba(20, 38, 34, 0.7) 0%, rgba(7, 15, 16, 0.8) 52%, rgba(4, 13, 14, 0.86) 100%),
+        var(--deck-ob-texture) center / calc(520 * var(--deck-u)) repeat !important;
+    box-shadow:
+        0 0 0 calc(3 * var(--deck-u)) rgba(8, 17, 17, 0.92),
+        0 0 0 calc(3 * var(--deck-u) + 1px) rgba(108, 199, 176, 0.72),
+        0 0 calc(14 * var(--deck-u)) rgba(108, 199, 176, 0.16) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-active-indicator {
+    top: calc(24 * var(--deck-u)) !important;
+    right: calc(30 * var(--deck-u)) !important;
+    gap: 0.5em !important;
+    color: #c4e9de !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(19 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em;
+}
+
+/* 文字の ✓ は読み上げ用に残し、見た目は太いチェックを描く */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-active-check {
+    display: inline-block;
+    width: 1.4em;
+    height: 1.15em;
+    overflow: hidden;
+    color: transparent !important;
+    background: var(--deck-ob-check) center / contain no-repeat;
+    line-height: 1;
+}
+
+/* ----- 共通ボタン: 主操作は深緑、編集は青灰 ----- */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .btn-small {
+    width: 100%;
+    min-width: 0 !important;
+    padding: 0 calc(10 * var(--deck-u)) !important;
+    color: #f3eee3 !important;
+    border: 1px solid #b99c66 !important;
+    border-radius: calc(4 * var(--deck-u)) !important;
+    background: var(--deck-ob-green) !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07),
+        0 calc(2 * var(--deck-u)) calc(6 * var(--deck-u)) rgba(0, 0, 0, 0.42) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(11px, calc(19 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    line-height: 1.2 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+    opacity: 1;
+    transform: none;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .btn-small:hover:not(:disabled) {
+    border-color: #d9bd88 !important;
+    background: var(--deck-ob-green-hover) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .deck-builder-actions-row .btn-small + .btn-small {
+    color: #e3e6ec !important;
+    border-color: rgba(128, 139, 160, 0.62) !important;
+    background: var(--deck-ob-slate) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .deck-builder-actions-row .btn-small + .btn-small:hover:not(:disabled) {
+    border-color: rgba(176, 186, 206, 0.8) !important;
+    background: var(--deck-ob-slate-hover) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .btn-small:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* 幅の広い主操作には両端に真鍮の菱形を添える */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .deck-builder-default-hero > .deck-builder-hero-cta,
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single .deck-builder-build-btn {
+    background:
+        var(--deck-ob-button-gem) left calc(12 * var(--deck-u)) center / calc(11 * var(--deck-u)) calc(17 * var(--deck-u)) no-repeat,
+        var(--deck-ob-button-gem) right calc(12 * var(--deck-u)) center / calc(11 * var(--deck-u)) calc(17 * var(--deck-u)) no-repeat,
+        var(--deck-ob-green) !important;
+    font-size: max(12px, calc(25 * var(--deck-u))) !important;
+    letter-spacing: 0.2em !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .deck-builder-default-hero > .deck-builder-hero-cta:hover:not(:disabled),
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single .deck-builder-build-btn:hover:not(:disabled) {
+    background:
+        var(--deck-ob-button-gem) left calc(12 * var(--deck-u)) center / calc(11 * var(--deck-u)) calc(17 * var(--deck-u)) no-repeat,
+        var(--deck-ob-button-gem) right calc(12 * var(--deck-u)) center / calc(11 * var(--deck-u)) calc(17 * var(--deck-u)) no-repeat,
+        var(--deck-ob-green-hover) !important;
+}
+
+/* ----- デフォルトデッキ ----- */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero {
+    min-height: calc(310 * var(--deck-u)) !important;
+    padding: calc(28 * var(--deck-u)) calc(26 * var(--deck-u)) calc(19 * var(--deck-u)) !important;
+    transform: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero .deck-builder-preset-title {
+    margin: calc(36 * var(--deck-u)) 0 calc(8 * var(--deck-u)) calc(4 * var(--deck-u)) !important;
+    padding: 0 !important;
+    color: var(--deck-ob-text) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(16px, calc(40 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1.1 !important;
+    text-shadow: 0 calc(2 * var(--deck-u)) calc(5 * var(--deck-u)) rgba(0, 0, 0, 0.7);
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero .deck-builder-preset-summary {
+    margin: 0 0 calc(17 * var(--deck-u)) calc(2 * var(--deck-u)) !important;
+    color: #d7d0c1 !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(19 * var(--deck-u))) !important;
+    letter-spacing: 0.06em;
+    line-height: 1.4 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-hero-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: calc(14 * var(--deck-u)) !important;
+    margin: 0 0 calc(19 * var(--deck-u)) !important;
+    color: #cdc6b7 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-format-pill {
+    padding: calc(6 * var(--deck-u)) calc(14 * var(--deck-u)) !important;
+    color: #d3ece4 !important;
+    border: 1px solid rgba(108, 199, 176, 0.6) !important;
+    border-radius: calc(6 * var(--deck-u)) !important;
+    background: rgba(108, 199, 176, 0.07) !important;
+    font-family: var(--deck-ob-latin) !important;
+    font-size: max(9px, calc(16 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.14em !important;
+    line-height: 1.3 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-hero-meta-text {
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(17.5 * var(--deck-u))) !important;
+    letter-spacing: 0.05em;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-hero-cta {
+    flex: 0 0 auto;
+    margin-top: auto !important;
+    height: calc(60 * var(--deck-u)) !important;
+    min-height: calc(60 * var(--deck-u)) !important;
+}
+
+/* ----- 固定プリセットライブラリ ----- */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-section {
+    margin-top: calc(14 * var(--deck-u)) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-section .deck-builder-section-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: calc(12 * var(--deck-u)) !important;
+    min-height: calc(31 * var(--deck-u));
+    margin: 0 0 calc(15 * var(--deck-u)) !important;
+    padding: 0 0 0 calc(8 * var(--deck-u)) !important;
+    color: var(--deck-ob-text) !important;
+    border: 0 !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(12px, calc(22 * var(--deck-u))) !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-section .deck-builder-section-title::before {
+    content: none !important;
+    display: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-section .deck-builder-section-title::after {
+    content: "";
+    flex: 1 1 auto;
+    min-width: calc(24 * var(--deck-u));
+    height: calc(10 * var(--deck-u));
+    background:
+        var(--deck-ob-fletch-lead) left center / calc(40 * var(--deck-u)) 100% no-repeat,
+        linear-gradient(90deg, rgba(179, 154, 108, 0.62), rgba(179, 154, 108, 0.2)) left center / 100% 1px no-repeat;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-section-icon {
+    width: calc(24 * var(--deck-u)) !important;
+    height: calc(24 * var(--deck-u)) !important;
+    color: #c9ab74 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: calc(12 * var(--deck-u)) calc(18 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card {
+    height: auto !important;
+    min-height: calc(140 * var(--deck-u)) !important;
+    padding: calc(15 * var(--deck-u)) calc(17 * var(--deck-u)) calc(14 * var(--deck-u)) !important;
+    border-image-width: calc(24 * var(--deck-u)) calc(26 * var(--deck-u)) !important;
+    background:
+        linear-gradient(180deg, rgba(10, 15, 17, 0.72), rgba(6, 9, 10, 0.86)),
+        var(--deck-ob-texture) center / calc(520 * var(--deck-u)) repeat !important;
+    transform: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-meta {
+    display: block !important;
+    margin: 0 0 calc(10 * var(--deck-u)) !important;
+    padding: 0 !important;
+    text-align: center;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-card.is-active .deck-builder-builtin-meta {
+    padding-top: calc(10 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-meta .deck-builder-preset-title {
+    color: var(--deck-ob-text) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(12px, calc(24 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1.2 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-meta .deck-builder-preset-summary {
+    margin-top: calc(1 * var(--deck-u));
+    color: var(--deck-ob-muted) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(9px, calc(17 * var(--deck-u))) !important;
+    letter-spacing: 0.04em;
+    line-height: 1.25 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-builtin-card > .deck-builder-actions-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: calc(12 * var(--deck-u)) !important;
+    margin-top: auto !important;
+    padding: 0 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-card .deck-builder-actions-row .btn-small {
+    height: calc(45 * var(--deck-u)) !important;
+    min-height: calc(45 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-card .deck-builder-active-indicator {
+    top: calc(10 * var(--deck-u)) !important;
+    right: calc(16 * var(--deck-u)) !important;
+    font-size: max(9px, calc(13 * var(--deck-u))) !important;
+}
+
+/* ----- 保存スロット ----- */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-saved-deck-column {
+    gap: 0 !important;
+    padding-top: calc(5 * var(--deck-u));
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: calc(14 * var(--deck-u)) !important;
+    min-height: calc(46 * var(--deck-u)) !important;
+    margin: 0 0 calc(17 * var(--deck-u)) !important;
+    padding: 0 0 calc(12 * var(--deck-u)) calc(6 * var(--deck-u)) !important;
+    color: var(--deck-ob-text) !important;
+    border-bottom: 1px solid rgba(179, 154, 108, 0.52) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(16px, calc(37 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1em !important;
+    line-height: 1.2 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-title .deck-builder-section-icon {
+    width: calc(40 * var(--deck-u)) !important;
+    height: calc(32 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-section-counter {
+    margin-left: auto !important;
+    padding: calc(8 * var(--deck-u)) calc(24 * var(--deck-u)) !important;
+    color: var(--deck-ob-text) !important;
+    border: 1px solid transparent !important;
+    border-image: var(--deck-ob-panel-frame) 60 66 / calc(12 * var(--deck-u)) calc(13 * var(--deck-u)) / 0 stretch !important;
+    border-radius: 0 !important;
+    background: rgba(6, 7, 8, 0.82) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(16 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1.3 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid {
+    gap: calc(22 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+    padding: calc(24 * var(--deck-u)) !important;
+    transition: transform 180ms ease, filter 180ms ease !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card:hover {
+    transform: translateY(calc(-2 * var(--deck-u))) !important;
+    filter: brightness(1.08);
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-empty {
+    border-style: solid !important;
+}
+
+/* 空き枠: 真鍮の輪と十字、外側に薄い方位円 */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 0;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 auto;
+    width: calc(92 * var(--deck-u)) !important;
+    height: calc(92 * var(--deck-u)) !important;
+    margin: calc(10 * var(--deck-u)) auto 0 !important;
+    border: calc(1.5 * var(--deck-u)) solid rgba(201, 169, 110, 0.86) !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle, rgba(15, 20, 22, 0.94), rgba(9, 12, 13, 0.9) 70%) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo::before {
+    content: "" !important;
+    display: block !important;
+    position: absolute;
+    inset: calc(-32 * var(--deck-u));
+    z-index: -1;
+    border: 1px solid rgba(150, 132, 98, 0.16);
+    border-radius: 50%;
+    background:
+        linear-gradient(90deg, transparent 2%, rgba(160, 140, 100, 0.26) 8%, rgba(160, 140, 100, 0.26) 20%, transparent 21% 79%, rgba(160, 140, 100, 0.26) 80%, rgba(160, 140, 100, 0.26) 92%, transparent 98%) center / 100% 1px no-repeat,
+        linear-gradient(180deg, transparent 2%, rgba(160, 140, 100, 0.2) 8%, rgba(160, 140, 100, 0.2) 20%, transparent 21% 79%, rgba(160, 140, 100, 0.2) 80%, rgba(160, 140, 100, 0.2) 92%, transparent 98%) center / 1px 100% no-repeat;
+    pointer-events: none;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo::after {
+    content: "" !important;
+    display: block !important;
+    position: absolute;
+    inset: calc(-5.5 * var(--deck-u));
+    background: var(--deck-ob-ring-nubs) center / 100% 100% no-repeat;
+    pointer-events: none;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo > .deck-builder-empty-plus {
+    color: transparent !important;
+    font-size: 0 !important;
+    background:
+        linear-gradient(#dcb37a, #dcb37a) center / calc(31 * var(--deck-u)) calc(4.4 * var(--deck-u)) no-repeat,
+        linear-gradient(#dcb37a, #dcb37a) center / calc(4.4 * var(--deck-u)) calc(31 * var(--deck-u)) no-repeat !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-empty:hover > .deck-builder-empty-halo {
+    border-color: #e2c48c !important;
+    background: radial-gradient(circle, rgba(32, 38, 36, 0.95), rgba(12, 15, 16, 0.92) 70%) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta {
+    margin: calc(18 * var(--deck-u)) 0 calc(16 * var(--deck-u)) !important;
+    color: var(--deck-ob-text) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(10px, calc(20 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1.4 !important;
+    text-align: center;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta::before {
+    content: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: calc(12 * var(--deck-u)) !important;
+    margin-top: auto !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row .btn-small {
+    height: calc(54 * var(--deck-u)) !important;
+    min-height: calc(54 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single .deck-builder-build-btn {
+    height: calc(62 * var(--deck-u)) !important;
+    min-height: calc(62 * var(--deck-u)) !important;
+}
+
+/* 保存済みの枠: 名前・概要・枚数・種類の比率を同じ真鍮調で */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta {
+    margin: calc(4 * var(--deck-u)) 0 calc(10 * var(--deck-u)) !important;
+    padding: 0 calc(70 * var(--deck-u)) 0 calc(4 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-label-en {
+    color: #c9ab74 !important;
+    font-family: var(--deck-ob-latin) !important;
+    font-size: max(8px, calc(13 * var(--deck-u))) !important;
+    font-weight: 700;
+    letter-spacing: 0.18em !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta .deck-builder-preset-title {
+    margin-top: calc(4 * var(--deck-u));
+    color: var(--deck-ob-text) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(13px, calc(26 * var(--deck-u))) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-preset-summary {
+    margin-top: calc(4 * var(--deck-u));
+    color: var(--deck-ob-muted) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(9px, calc(15 * var(--deck-u))) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-count-orb {
+    top: calc(24 * var(--deck-u)) !important;
+    right: calc(24 * var(--deck-u)) !important;
+    width: calc(58 * var(--deck-u)) !important;
+    height: calc(44 * var(--deck-u)) !important;
+    border: 1px solid rgba(179, 154, 108, 0.6) !important;
+    border-radius: calc(3 * var(--deck-u)) !important;
+    background: rgba(5, 7, 8, 0.7) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-save-slot-card.is-active .deck-builder-slot-count-orb {
+    top: calc(58 * var(--deck-u)) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-count-value {
+    flex-direction: row !important;
+    align-items: baseline !important;
+    gap: calc(2 * var(--deck-u)) !important;
+    color: var(--deck-ob-text) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(12px, calc(21 * var(--deck-u))) !important;
+    text-shadow: none !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-count-unit {
+    margin: 0 !important;
+    color: var(--deck-ob-muted) !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(9px, calc(13 * var(--deck-u))) !important;
+    letter-spacing: 0 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-type-bar {
+    height: calc(6 * var(--deck-u)) !important;
+    margin: auto 0 calc(14 * var(--deck-u)) !important;
+}
+
+/* ----- 構築画面: 配置は従来のまま、面・罫線・ボタンを黒曜石と真鍮に揃える ----- */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor {
+    background: transparent !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-editor-top {
+    border: 1px solid rgba(179, 154, 108, 0.5) !important;
+    background: rgba(11, 14, 15, 0.94) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-editor-title {
+    color: var(--deck-ob-text) !important;
+    font-family: var(--deck-ob-serif) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-editor-summary {
+    color: var(--deck-ob-muted) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor :is(.deck-builder-name-row, .deck-builder-code-block, .deck-builder-section) {
+    border-color: rgba(179, 154, 108, 0.34) !important;
+    background: rgba(9, 12, 13, 0.8) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor :is(.deck-builder-name-row input, .deck-builder-name-row select, .deck-builder-code-input) {
+    color: var(--deck-ob-text) !important;
+    border-color: rgba(179, 154, 108, 0.42) !important;
+    background: rgba(4, 6, 7, 0.88) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-section-title {
+    color: var(--deck-ob-text) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .btn-small {
+    color: #e6e3dc !important;
+    border: 1px solid rgba(128, 139, 160, 0.62) !important;
+    background: var(--deck-ob-slate) !important;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-editor-actions .btn-small:nth-child(-n + 2) {
+    color: #f3eee3 !important;
+    border-color: #b99c66 !important;
+    background: var(--deck-ob-green) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .btn-small:disabled {
+    opacity: 0.45;
+}
+
+@media (min-width: 901px) {
+    #deckBuilderOverlay #deckBuilderModal {
+        max-height: calc(100dvh - 32px) !important;
+    }
+
+    /* 一覧は参照どおり、空きの 1/3 を上に置いて少し上寄せにする */
+    #deckBuilderOverlay #deckBuilderModal:has(.deck-builder-view-presets) {
+        margin-bottom: calc(57 * var(--deck-u));
+        max-height: calc(100dvh - 32px - 57 * var(--deck-u)) !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workspace {
+        grid-template-columns: calc(494 * var(--deck-u)) minmax(0, 1fr) !important;
+        column-gap: calc(64 * var(--deck-u)) !important;
+        row-gap: 0 !important;
+        align-items: start !important;
+    }
+
+    /* 左右の列を分ける飾り付きの縦線 */
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-loadout-column::after {
+        content: "";
+        position: absolute;
+        top: calc(-6 * var(--deck-u));
+        bottom: calc(-29 * var(--deck-u));
+        right: calc(-39 * var(--deck-u));
+        width: calc(14 * var(--deck-u));
+        background:
+            var(--deck-ob-stem-gem) center calc(34 * var(--deck-u)) / calc(14 * var(--deck-u)) calc(34 * var(--deck-u)) no-repeat,
+            var(--deck-ob-stem-gem) center calc(206 * var(--deck-u)) / calc(14 * var(--deck-u)) calc(34 * var(--deck-u)) no-repeat,
+            linear-gradient(180deg, rgba(179, 154, 108, 0.66), rgba(179, 154, 108, 0.5) 85%, transparent) center / 1px 100% no-repeat;
+        pointer-events: none;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-fixed-library {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        grid-template-rows: repeat(2, calc(277 * var(--deck-u))) !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+}
+
+/* 4:3〜16:10 の画面は幅いっぱいに近づけて文字を小さくしすぎない */
+@media (min-width: 901px) and (max-aspect-ratio: 8/5) {
+    #deckBuilderOverlay #deckBuilderModal {
+        --deck-u: min(calc((100vw - 40px) / 1944), calc(100dvh / 1079));
+    }
+}
+
+@media (max-width: 900px) {
+    #deckBuilderOverlay #deckBuilderModal {
+        --deck-u: calc((100vw - 24px) / 1150);
+        width: calc(100vw - 24px) !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-loadout-column {
+        padding-bottom: calc(24 * var(--deck-u)) !important;
+        border-bottom: 1px solid rgba(179, 154, 108, 0.42) !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero {
+        min-height: 0 !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-default-hero .deck-builder-preset-title {
+        margin-top: calc(34 * var(--deck-u)) !important;
+        font-size: max(16px, calc(32 * var(--deck-u))) !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-built-in-preset-section {
+        margin-top: 0 !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        min-height: calc(277 * var(--deck-u)) !important;
+    }
+}
+
+@media (max-width: 760px) {
+    #deckBuilderOverlay #deckBuilderModal {
+        --deck-u: clamp(0.46px, calc(100vw / 820), 0.9px);
+        --deck-ob-frame-k: 0.5;
+        width: calc(100vw - 12px) !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModalHeader {
+        min-height: 58px !important;
+        padding: 10px 16px 12px 22px !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-title {
+        font-size: 24px !important;
+        padding-right: 0 !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-title::after {
+        content: none;
+    }
+
+    #deckBuilderOverlay #deckBuilderCloseBtn {
+        width: 44px !important;
+        min-width: 44px !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        font-size: 24px !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-shell {
+        grid-template-columns: 1fr !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage {
+        padding: 22px 16px 22px !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage .deck-builder-intro {
+        padding: 10px 16px !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        min-height: 0 !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-view-presets .btn-small,
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-hero-cta,
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-builtin-card .deck-builder-actions-row .btn-small,
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row .btn-small,
+    #deckBuilderOverlay #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row.is-single .deck-builder-build-btn {
+        height: 44px !important;
+        min-height: 44px !important;
+        font-size: 14px !important;
+    }
+}

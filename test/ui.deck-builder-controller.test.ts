@@ -209,6 +209,8 @@ describe('deck builder controller', () => {
     expect(defaultCard.classList.contains('is-active')).toBe(true);
     expect(defaultCard.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
     expect(defaultCard.querySelector('button').textContent).toBe('使用中');
+    expect(defaultCard.querySelector('.deck-builder-preset-summary').textContent).toBe('30枚・有効カードから重複なしランダム');
+    expect(body.querySelector('.deck-builder-section-counter').textContent).toBe('0/6 保存済み');
     expect(body.querySelector('.deck-builder-active-seal')).toBeNull();
     expect(body.textContent).not.toContain('IN USE');
 

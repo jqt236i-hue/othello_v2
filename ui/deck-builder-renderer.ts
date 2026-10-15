@@ -653,12 +653,6 @@ function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): H
     card.appendChild(createActiveIndicatorElement('デフォルトデッキ'));
   }
 
-  const sigil = document.createElement('div');
-  sigil.className = 'deck-builder-hero-sigil';
-  sigil.setAttribute('aria-hidden', 'true');
-  sigil.textContent = 'DEFAULT HERALD';
-  card.appendChild(sigil);
-
   const title = document.createElement('div');
   title.className = 'deck-builder-preset-title';
   title.textContent = 'デフォルトデッキ';
@@ -666,7 +660,7 @@ function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): H
 
   const sub = document.createElement('div');
   sub.className = 'deck-builder-preset-summary';
-  sub.innerHTML = '<b>30枚</b> · 有効カードから重複なしランダム';
+  sub.textContent = '30枚・有効カードから重複なしランダム';
   card.appendChild(sub);
 
   const metaRow = document.createElement('div');
@@ -695,9 +689,10 @@ function createSectionIcon(svgInner: string): HTMLElement {
   return wrap;
 }
 
-const BUILT_IN_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5l5-2 5 2v6.6c0 .9-.45 1.74-1.2 2.24L8 14.8l-3.8-1.46A2.5 2.5 0 0 1 3 11.1V4.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5.6 7.6L7.2 9.2l3.2-3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// 固定プリセットは真鍮の菱形、保存スロットは宝箱で示す。
+const BUILT_IN_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 1.2L14.8 8 8 14.8 1.2 8z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 4.7L11.3 8 8 11.3 4.7 8z" fill="currentColor"/></svg>';
 
-const SAVE_SLOT_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.6" stroke="currentColor" stroke-width="1.3"/><path d="M2.2 6.4h11.6" stroke="currentColor" stroke-width="1.3"/><path d="M5 9.4h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+const SAVE_SLOT_SECTION_ICON_SVG = '<svg viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.4 7.2V5.5c0-1.9 1.5-3.4 3.4-3.4h8.4c1.9 0 3.4 1.5 3.4 3.4v1.7" stroke="currentColor" stroke-width="1.3"/><rect x="2.4" y="7.2" width="15.2" height="6.8" rx="0.9" stroke="currentColor" stroke-width="1.3"/><path d="M8.6 6.1h2.8v3.4H8.6z" fill="currentColor"/></svg>';
 
 function renderPresetView(container: HTMLElement, viewModel: any, handlers: any): void {
   const atelier = document.createElement('section');
@@ -781,7 +776,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   const saveSlotCounter = document.createElement('span');
   saveSlotCounter.className = 'deck-builder-section-counter';
   const filledCount = (Array.isArray(viewModel.presets) ? viewModel.presets : []).filter((p: any) => p && p.canUse).length;
-  saveSlotCounter.textContent = `${filledCount}/6 使用中`;
+  saveSlotCounter.textContent = `${filledCount}/6 保存済み`;
   saveSlotTitle.appendChild(saveSlotCounter);
 
   const presetGrid = document.createElement('div');
