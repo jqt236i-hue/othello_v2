@@ -123,7 +123,7 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     }
 
     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-        BoardOpsModule.changeAt(
+        const changeRes = BoardOpsModule.changeAt(
             cardState,
             gameState,
             row,
@@ -133,9 +133,14 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
             'tempt_applied',
             { ownershipChangeMode: 'transfer', countAsFlip: false }
         );
+        // The stone must actually change colour before its markers change hands.
+        // A frozen cell refuses the change, so the special stone stays the opponent's.
+        if (!changeRes || changeRes.changed !== true) {
+            return { applied: false, reason: (changeRes && changeRes.reason) || 'change_refused' };
+        }
     } else if (typeof setCellValueForCard === 'function') {
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        setCellValueForCard(gameState, row, col, playerVal);
+        if (!setCellValueForCard(gameState, row, col, playerVal)) return { applied: false, reason: 'change_refused' };
     } else {
         return { applied: false, reason: 'deps_missing' };
     }

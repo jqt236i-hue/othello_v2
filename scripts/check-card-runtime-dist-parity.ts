@@ -18,7 +18,7 @@ const CpuDecision = require('../game/cpu-decision');
 const CpuExpected = require(path.join(ROOT, 'test', 'fixtures', 'card-runtime-cpu-expected.v1.json'));
 
 // Match the reviewed facade baseline in game.cards-api-identity.test.ts.
-const EXPECTED_DESCRIPTOR_SCHEMA_HASH = '43dafd724343d23183cf6b46d8e2ea03e1aae500412884bdf78c889054b5fcfc';
+const EXPECTED_DESCRIPTOR_SCHEMA_HASH = '083d1944dbc53dfa959198e9534daee5f45e1b6095557411dcaec47910307058';
 
 function descriptorSchema(value: Record<string, unknown>) {
   return Reflect.ownKeys(value).map((key) => {
@@ -209,7 +209,7 @@ async function runBuiltLocalAuthorityScenario(): Promise<any> {
 async function main(): Promise<void> {
   const schema = descriptorSchema(CardLogic);
   const schemaHash = sha256(schema);
-  if (schema.length !== 291 || schemaHash !== EXPECTED_DESCRIPTOR_SCHEMA_HASH) {
+  if (schema.length !== 290 || schemaHash !== EXPECTED_DESCRIPTOR_SCHEMA_HASH) {
     throw new Error(`built CardLogic facade drift keys=${schema.length} schemaHash=${schemaHash}`);
   }
   const legacyWrapper = require(path.join(ROOT, 'game', 'logic', 'cards.js'));

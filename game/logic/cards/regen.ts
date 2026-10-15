@@ -329,11 +329,14 @@ const CardRegen = (function (
         if (!cardState || !Array.isArray(cardState.markers)) return;
         const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         if (getCellValue(cardState, gameState, row, col) !== ownerColor) return;
+        // A depleted zombie only becomes a normal stone when the *enemy* flips it.
+        // Its own owner re-flipping (or re-settling) the cell must leave the zombie intact.
         const marker = cardState.markers.find((candidate: any) =>
             candidate &&
             candidate.kind === 'specialStone' &&
             candidate.row === row &&
             candidate.col === col &&
+            candidate.owner !== ownerKey &&
             String(candidate.data && candidate.data.type || '').toUpperCase() === 'ZOMBIE' &&
             (Number(candidate.data.regenRemaining) || 0) <= 0
         );

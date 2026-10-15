@@ -110,6 +110,9 @@ function pushBreedingTurnStartEvents(options: ProcessTurnStartSpecialStoneOption
             sourceType: 'breeding_turn_start'
         });
         options.events.push({ type: 'breeding_flipped_start', details: res.flipped });
+        // Breeding flips are ownership changes like any other turn-start flip:
+        // queue them so revival / living-will reactions run for the flipped stones.
+        ensureHyperAggregatedOwnerBucket(options.processingState.hyperAggregated, options.playerKey).push(...res.flipped);
     }
     pushTurnStartDetailsEvent(options.events, 'breeding_destroyed_anchor_start', res && res.destroyed);
 }

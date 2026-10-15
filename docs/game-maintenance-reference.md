@@ -10,6 +10,7 @@
 | 説明・タグ・画像 | `ui/handlers/rules-help.ts`, `cards/card-interaction-effects.ts`, `cards/card-last-used-panel-copy.ts` | 日本語名が画像ファイル名や生成される画像対応表にも使われる。 |
 | カード使用の各段階 | `game/cards/effect-resolver.ts`, `game/cards/card-usage-validation-stage.ts`, `game/cards/card-usage-consumption-stage.ts`, `game/cards/card-usage-pending-stage.ts` | 設計資料 §7.1。呼び出し元から即時効果と presentation の担当も追える。 |
 | 効果・対象判定 | `game/logic/cards.ts`, `game/cards/target-resolver.ts` | 設計資料 §6.5–6.6、§10。保護・回避・復活によって低水準操作の成否と最終結果が異なる場合がある。 |
+| 所有者変更と復活反応 | `game/logic/cards/regen.ts`, `game/logic/cards-runtime-factory.ts` の `applyPostFlipRevives` / `settleOwnershipChangeReactions`, `game/turn/turn_pipeline_phases.ts` | 設計資料 §10.3–10.3.1。特殊石本体の持ち主と石の色の食い違いは `test/game.special-stone-ownership.fuzz.test.ts`（ランダム対局の不変条件）と `test/game.ownership-change-reactions.test.ts` で検出する。 |
 | 盤面形状・穴・拡張 | `shared/board/state-kernel.ts`, `shared/board/topology.ts` | 設計資料 §6.1.1。 |
 | 対象選択・複数段階・ターン移行 | `game/logic/cards-internal/pending-selection-registry.ts`, `game/turn/pending-coordinator.ts` | 設計資料 §6.3、§7.2.1–7.2.2。 |
 | カード使用後の対象選択の開始（ブラウザ） | `cards/card-interaction.ts` の `_ensureBoardPendingSelectionAfterCardUse` | pending の正本は headless 側。UI は pipeline の結果にある pending へ ID を同期するだけで、カード種別から対象選択を作り直さない（犠牲の意志で無効化された使用が復活しないように）。 |

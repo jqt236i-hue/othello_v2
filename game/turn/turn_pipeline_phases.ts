@@ -1287,6 +1287,8 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                 CardLogic.drawForTurnStart(cardState, playerKey, p, turnStartStage.turnStartOptions);
             }
 
+            settleOwnershipChangeReactionsForPhase(CardLogic, cardState, gameState, events, '_start');
+
             delete cardState._frozenCellsActiveAtTurnStart;
 
         }
@@ -1751,6 +1753,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             throw error;
         } finally {
             if (!actionFailed) {
+                settleOwnershipChangeReactionsForPhase(CardLogic, cardState, gameState, events, '');
                 resolveShinraBanshoGodFusions(CardLogic, cardState, gameState, events, ctx.prng, 'action');
             }
             if (CardLogic && typeof CardLogic.syncHazardContacts === 'function') {
@@ -1758,6 +1761,22 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
             }
             finalizeActionPhasePresentation(ctx, phaseSnapshot);
         }
+    }
+
+    /**
+     * Ownership changes made outside the ordinary flip paths (evasion-move
+     * captures, destroy-triggered revivals, recaptured placements, ...) are
+     * settled here so that every phase ends with revival and 生きる意志
+     * reactions applied. Events reuse the ordinary revive event names so logs
+     * and playback treat them like any other reaction.
+     */
+    function settleOwnershipChangeReactionsForPhase(CardLogic: any, cardState: any, gameState: any, events: any[], suffix: string) {
+        if (!CardLogic || typeof CardLogic.settleOwnershipChangeReactions !== 'function') return;
+        const settled = CardLogic.settleOwnershipChangeReactions(cardState, gameState);
+        if (!settled || !settled.settled) return;
+        if (settled.regened.length) events.push({ type: `regen_triggered${suffix}`, details: settled.regened });
+        if (settled.captureFlips.length) events.push({ type: `regen_capture_flipped${suffix}`, details: settled.captureFlips });
+        if (settled.restored.length) events.push({ type: `living_will_triggered${suffix}`, details: settled.restored });
     }
 
 export = { applyTurnStartPhase, applyCardUsagePhase, applyActionPhase, setTurnPipelinePhasesRuntime };

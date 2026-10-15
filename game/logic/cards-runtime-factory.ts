@@ -3468,7 +3468,8 @@ const {
             setCellValueForCard: bindSetCellValueForCard(cardState),
             helpers: Object.assign({}, context && context.helpers, {
                 getBoardCellForCard,
-                setBoardCellForCard
+                setBoardCellForCard,
+                transferCellMarkerOwnership
             })
         });
     }
@@ -3807,6 +3808,63 @@ const {
         const livingWillRes: any = { restored };
         if (livingWillFlips.length) livingWillRes.flipped = livingWillFlips;
         return { regenRes, livingWillRes, batches };
+    }
+
+    /**
+     * Settle every ownership-change reaction that an effect path left behind.
+     * A 復活石 / 屍石 body whose owner no longer matches the stone colour was
+     * flipped (or captured) without `applyPostFlipRevives` running for it, and a
+     * 生きる意志 overlay whose baseline owner lost the stone was not restored.
+     * The turn pipeline calls this at the end of the turn-start and action
+     * phases, so the state handed to the next observer always obeys the
+     * rulebook reaction order no matter which effect produced the flip.
+     */
+    function settleOwnershipChangeReactions(cardState: any, gameState: any) {
+        const regened: any[] = [];
+        const captureFlips: any[] = [];
+        const restored: any[] = [];
+        const ownerKeyOfValue = (value: any) => (value === (WHITE || -1) ? 'white' : (value === (BLACK || 1) ? 'black' : null));
+        const collectPending = () => {
+            const buckets: Record<string, Array<{ row: number; col: number }>> = { black: [], white: [] };
+            const seen = new Set<string>();
+            const markers = Array.isArray(cardState && cardState.markers) ? cardState.markers : [];
+            for (const marker of markers) {
+                if (!marker || marker.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') || !marker.data) continue;
+                const type = String(marker.data.type || '').toUpperCase();
+                let expectedOwner: string | null = null;
+                if (type === 'REGEN' || type === 'ZOMBIE') {
+                    expectedOwner = marker.owner === 'white' ? 'white' : (marker.owner === 'black' ? 'black' : null);
+                } else if (type === 'LIVING_WILL') {
+                    const baselineOwner = marker.data.baseline && marker.data.baseline.owner;
+                    expectedOwner = baselineOwner === 'white' ? 'white' : (baselineOwner === 'black' ? 'black' : null);
+                }
+                if (!expectedOwner) continue;
+                const cellOwner = ownerKeyOfValue(getCellValueForCard(cardState, gameState, marker.row, marker.col));
+                if (!cellOwner || cellOwner === expectedOwner) continue;
+                const key = `${marker.row},${marker.col}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                buckets[cellOwner].push({ row: marker.row, col: marker.col });
+            }
+            return buckets;
+        };
+        for (let pass = 0; pass < 8; pass += 1) {
+            const buckets = collectPending();
+            const pendingCount = buckets.black.length + buckets.white.length;
+            if (!pendingCount) break;
+            for (const flipperKey of ['black', 'white']) {
+                if (!buckets[flipperKey].length) continue;
+                const reaction = applyPostFlipRevives(cardState, gameState, buckets[flipperKey], flipperKey);
+                if (reaction && reaction.regenRes) {
+                    if (Array.isArray(reaction.regenRes.regened)) regened.push(...reaction.regenRes.regened);
+                    if (Array.isArray(reaction.regenRes.captureFlips)) captureFlips.push(...reaction.regenRes.captureFlips);
+                }
+                if (reaction && reaction.livingWillRes && Array.isArray(reaction.livingWillRes.restored)) {
+                    restored.push(...reaction.livingWillRes.restored);
+                }
+            }
+        }
+        return { regened, captureFlips, restored, settled: regened.length + captureFlips.length + restored.length > 0 };
     }
 
     /**
@@ -5082,6 +5140,7 @@ const cardsApi: any = {
         applyRegenAfterFlips,
         applyLivingWillAfterFlips,
         applyPostFlipRevives,
+        settleOwnershipChangeReactions,
         createZombieMarkerData,
         processZombieEffectsAtTurnStartAnchor,
         processUltimateWorkGodAtTurnStartAnchor,

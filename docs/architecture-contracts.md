@@ -816,6 +816,18 @@ When adding a new destroy-protected stone status:
 
 When adding a new stone effect, define its ownership-change policy in the registry and cover both the ordinary change path and any explicit transfer exception with focused tests.
 
+#### 10.3.1 Reaction settlement at phase end
+
+Not every colour change reaches the post-flip reaction queue at its source: evasion-move captures (`hyperactive.ts::resolveEvasionMoveFlips`, `board_ops.ts::_tryDestroyEvadeMove`), capture flips of a destroy-triggered revival (`board_ops.ts::_tryRegenDestroy`), and similar nested effects apply `changeAt` without a caller that runs `applyPostFlipRevives`. The turn pipeline therefore settles the remainder:
+
+- `CardLogic.settleOwnershipChangeReactions(cardState, gameState)` scans `REGEN` / `ZOMBIE` bodies whose `owner` differs from the stone colour and `LIVING_WILL` overlays whose baseline owner lost the stone, and runs the ordinary reaction queue for those cells with the current stone owner as the flipper. It is idempotent on a consistent board and bounded (8 passes).
+- `turn_pipeline_phases.ts` calls it at the end of `applyTurnStartPhase` and in the `finally` of `applyActionPhase`; the results are reported with the ordinary `regen_triggered` / `regen_capture_flipped` / `living_will_triggered` events (`_start` suffix at turn start).
+- Effect paths should still react at their source when they can (placement, chain, dragons, breeding, card immediate effects do). The settlement is the invariant guard, not a replacement for source-level reactions.
+- `regen.ts::_removeDepletedZombieAt` only removes a depleted zombie when the flipper is not its owner, so a settlement run with the current owner never demotes a zombie that merely spent its last revival.
+- `effect-timing.ts::resolveRecapturedPlacementMarkers` handles the next-stone body attached to a stone that a revival already captured back during the same placement: `revert` bodies are removed, `preserve` bodies transfer to the new owner, and `REGEN` / `ZOMBIE` stay for the settlement reaction.
+
+`test/game.special-stone-ownership.fuzz.test.ts` plays deterministic random games through the production pipeline and asserts the body/colour invariant after every transition; `test/game.ownership-change-reactions.test.ts` pins the individual paths.
+
 ## 11. Root vs mirror contracts
 
 Root files are canonical.

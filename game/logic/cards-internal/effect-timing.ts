@@ -1421,7 +1421,62 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         (cardState as any).pendingEffectByPlayer[playerKey] = null;
     }
 
+    resolveRecapturedPlacementMarkers(cardState, gameState, playerKey, row, col, effects, context);
+
     return effects;
+}
+
+/**
+ * The placed stone can already belong to the opponent when the next-stone body
+ * markers are attached: a revival (復活石 / 屍石 / 生きる意志) triggered by this
+ * placement's flips may have captured it back. Apply the ownership-change policy
+ * of each body marker that was just attached so the marker never disagrees with
+ * the stone's colour: reverting bodies are lost with the stone, preserved bodies
+ * follow the new owner, and revival bodies stay for the ownership-change
+ * reaction that the turn pipeline settles after the action.
+ */
+function resolveRecapturedPlacementMarkers(cardState: any, gameState: any, playerKey: string, row: number, col: number, effects: PlacementEffects, context: Context): void {
+    const helpers = getHelpers(context);
+    const constants = getConstants(context);
+    if (typeof helpers.getCellValueForCard !== 'function') return;
+    const cellValue = helpers.getCellValueForCard(cardState, gameState, row, col);
+    const placerValue = playerKey === 'white' ? constants.WHITE : constants.BLACK;
+    if (cellValue === placerValue || cellValue === constants.EMPTY || cellValue === null || cellValue === undefined) return;
+    const newOwnerKey = cellValue === constants.WHITE ? 'white' : 'black';
+    const specialStoneKind = getSpecialStoneKind(constants);
+    const markers = Array.isArray((cardState as any).markers) ? (cardState as any).markers : [];
+    const attached = markers.filter((marker: any) => (
+        marker &&
+        marker.kind === specialStoneKind &&
+        marker.row === row &&
+        marker.col === col &&
+        marker.owner === playerKey &&
+        marker.data &&
+        !(SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarkerType === 'function' && SpecialStoneRegistry.isBoardMarkerType(marker.data.type))
+    ));
+    if (!attached.length) return;
+    const getPolicy = SpecialStoneRegistry && typeof SpecialStoneRegistry.getOwnershipChangePolicy === 'function'
+        ? SpecialStoneRegistry.getOwnershipChangePolicy
+        : (() => 'revert');
+    const lost: string[] = [];
+    const transferred: string[] = [];
+    const reacting: string[] = [];
+    for (const marker of attached) {
+        const type = String(marker.data.type || '').toUpperCase();
+        const policy = getPolicy(type, marker.data);
+        if (policy === 'resolve_after_change' && (type === 'REGEN' || type === 'ZOMBIE')) {
+            reacting.push(type);
+            continue;
+        }
+        if (policy === 'preserve' && typeof helpers.transferCellMarkerOwnership === 'function') {
+            helpers.transferCellMarkerOwnership(cardState, row, col, newOwnerKey);
+            transferred.push(type);
+            continue;
+        }
+        (cardState as any).markers = (cardState as any).markers.filter((entry: any) => entry !== marker);
+        lost.push(type);
+    }
+    effects.recapturedPlacement = { newOwner: newOwnerKey, lost, transferred, reacting };
 }
 
 export = {

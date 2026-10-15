@@ -99,6 +99,7 @@ function resolveImmediateEffects(context: ImmediateEffectContext): void {
                 sourceType: 'breeding_immediate'
             });
             ctx.events.push({ type: 'breeding_flipped_immediate', details: breedingNow.flipped });
+            pushOwnershipChangeReactionEvents(ctx, breedingNow.flipped, 'breeding_immediate');
         }
         return;
     }

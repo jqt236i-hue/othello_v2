@@ -156,6 +156,8 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
     forEachBoardShapeCell(cardState, gameState, (r, c) => {
         if (blocksTemptAt(CardUtils, cardState, r, c)) return;
         const markersAtCell = getMarkersAtCell(cardState, r, c);
+        // 凍結マス上の石は反転されない（01-rulebook 10.x 凍結）ので、色を変える誘惑の対象にもできない。
+        if (markersAtCell.some((marker: any) => normalizeMarkerType(marker) === 'FREEZE')) return;
         const targetMarker = markersAtCell.find((marker: any) => (
             marker &&
             marker.owner === opponentKey &&
