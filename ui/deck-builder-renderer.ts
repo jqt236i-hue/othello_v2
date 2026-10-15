@@ -486,6 +486,8 @@ function createTypeSwatchBarElement(breakdown: any[]): HTMLElement | null {
 let isRebuildingBody = false;
 // 名前変更を始めた最初の描画だけ全選択し、描画し直しでは入力途中の文字を残す。
 let focusedRenamePresetId = '';
+// 編集画面で削除の確認を表示していたか（出した直後・閉じた直後のフォーカス移動に使う）
+let isDeleteConfirmShown = false;
 
 function createRenameControls(preset: any, opts: any): { button: HTMLButtonElement; input: HTMLInputElement | null } {
   const displayName = String(preset && preset.displayName || '');
@@ -505,6 +507,8 @@ function createRenameControls(preset: any, opts: any): { button: HTMLButtonEleme
   input.placeholder = String(preset.renamePlaceholder || '');
   input.setAttribute('aria-label', 'デッキ名');
   input.title = 'Enter で決定、Esc で取り消し';
+  // Esc は名前変更の取り消しに使うので、スマホ縦画面の画面全体の Esc 処理に構築画面を閉じさせない。
+  input.dataset.ownsEscape = 'true';
 
   let settled = false;
   const commit = () => {
@@ -907,6 +911,31 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   container.appendChild(atelier);
 }
 
+function createDeleteConfirmRow(editor: any, handlers: any): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'deck-builder-delete-confirm';
+  row.setAttribute('role', 'alertdialog');
+  row.setAttribute('aria-label', 'デッキの削除');
+  const message = document.createElement('div');
+  message.className = 'deck-builder-delete-confirm-text';
+  const lead = document.createElement('span');
+  lead.textContent = `${editor.deleteTargetLabel} を削除して空きスロットに戻します。元には戻せません。`;
+  message.appendChild(lead);
+  if (editor.deleteTargetIsActive) {
+    const note = document.createElement('span');
+    note.className = 'deck-builder-delete-confirm-note';
+    note.textContent = '使用中のデッキです。削除するとデフォルトデッキに切り替わります。';
+    message.appendChild(note);
+  }
+  row.appendChild(message);
+  const actions = document.createElement('div');
+  actions.className = 'deck-builder-delete-confirm-actions';
+  actions.appendChild(createButton('削除する', 'btn-small deck-builder-delete-confirm-btn', handlers.onEditorConfirmDelete));
+  actions.appendChild(createButton('やめる', 'btn-small deck-builder-delete-cancel-btn', handlers.onEditorCancelDelete));
+  row.appendChild(actions);
+  return row;
+}
+
 function renderEditorView(container: HTMLElement, viewModel: any, handlers: any): void {
   const editor = viewModel.editor;
   const wrapper = document.createElement('div');
@@ -962,7 +991,34 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   randomizeDie.setAttribute('aria-hidden', 'true');
   randomizeButton.appendChild(randomizeDie);
   destinationRow.appendChild(randomizeButton);
+  // 削除は保存先に選んでいるスロットに対して働く。空きスロットには消すものがないので押せない。
+  const deleteButton = createButton(
+    '削除',
+    `btn-small deck-builder-delete-btn${editor.isConfirmingDelete ? ' is-pressed' : ''}`,
+    handlers.onEditorRequestDelete,
+    {
+      disabled: !editor.canDelete,
+      title: editor.canDelete ? '保存先のスロットを削除して空きスロットに戻す' : '保存先のスロットは空です'
+    }
+  );
+  if (editor.canDelete) {
+    deleteButton.setAttribute('aria-label', `${editor.deleteTargetLabel} を削除`);
+  }
+  deleteButton.setAttribute('aria-expanded', editor.isConfirmingDelete ? 'true' : 'false');
+  destinationRow.appendChild(deleteButton);
   wrapper.appendChild(destinationRow);
+
+  if (editor.isConfirmingDelete) {
+    wrapper.appendChild(createDeleteConfirmRow(editor, handlers));
+    // 確認中の Esc は確認だけを取り消す。スマホ縦画面の画面全体の Esc 処理にも構築画面を閉じさせない。
+    wrapper.dataset.ownsEscape = 'true';
+    wrapper.addEventListener('keydown', (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      handlers.onEditorCancelDelete();
+    });
+  }
 
   const nameRow = document.createElement('label');
   nameRow.className = 'deck-builder-name-row';
@@ -1098,6 +1154,7 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
   }
 
   if (!uiRefs.body) return;
+  const keepDestinationFocus = isDestinationSelectFocused(uiRefs.body);
   isRebuildingBody = true;
   try {
     clearElement(uiRefs.body);
@@ -1116,12 +1173,40 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
     focusedRenamePresetId = '';
     renderEditorView(uiRefs.body, model, callbacks);
     restoreBodyScrollState(uiRefs.body, bodyScrollState);
+    focusEditorControls(uiRefs.body, keepDestinationFocus);
     return;
   }
 
+  isDeleteConfirmShown = false;
   renderPresetView(uiRefs.body, model, callbacks);
   restoreBodyScrollState(uiRefs.body, bodyScrollState);
   focusRenameInput(uiRefs.body);
+}
+
+function isDestinationSelectFocused(container: HTMLElement): boolean {
+  const ownerDocument = container.ownerDocument;
+  const activeElement = ownerDocument ? ownerDocument.activeElement : null;
+  return !!activeElement
+    && activeElement.id === 'deckBuilderPresetDestinationSelect'
+    && container.contains(activeElement);
+}
+
+// 描き直しで失われるフォーカスを、操作していた場所か次に押すべき場所へ戻す。
+function focusEditorControls(container: HTMLElement, keepDestinationFocus: boolean): void {
+  const cancelButton = container.querySelector('.deck-builder-delete-cancel-btn') as HTMLButtonElement | null;
+  const wasConfirming = isDeleteConfirmShown;
+  isDeleteConfirmShown = !!cancelButton;
+  let target: HTMLElement | null = null;
+  if (keepDestinationFocus) {
+    target = container.querySelector('#deckBuilderPresetDestinationSelect');
+  } else if (cancelButton && !wasConfirming) {
+    // 確認を出した直後は、Enter で誤って消さないよう「やめる」に合わせる。
+    target = cancelButton;
+  } else if (!cancelButton && wasConfirming) {
+    target = container.querySelector('.deck-builder-delete-btn');
+  }
+  if (!target || (target as HTMLButtonElement).disabled) return;
+  try { target.focus({ preventScroll: true }); } catch (e) { /* focus is best-effort */ }
 }
 
 function focusRenameInput(container: HTMLElement): void {

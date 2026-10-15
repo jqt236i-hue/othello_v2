@@ -464,6 +464,7 @@ describe('deck builder controller', () => {
     const input = body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-rename-input');
     expect(input.value).toBe('理論デッキ');
     expect(document.activeElement).toBe(input);
+    expect(input.dataset.ownsEscape).toBe('true');
     input.value = '  新しい   名前 ';
     input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
     input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
@@ -520,6 +521,130 @@ describe('deck builder controller', () => {
     expect(nameRow.querySelector('.deck-builder-name-hint').textContent).toBe('「保存」で反映');
   });
 
+  test('編集画面から確認つきで保存先のデッキを削除すると空きスロットに戻り、使用中ならデフォルトデッキへ切り替える', () => {
+    const body = document.getElementById('body');
+    const activeDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '理論デッキ', activeDeck.deckCode)));
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+
+    const deleteButton = body.querySelector('.deck-builder-destination-row .deck-builder-delete-btn');
+    expect(deleteButton.textContent).toBe('削除');
+    expect(deleteButton.disabled).toBe(false);
+    expect(deleteButton.getAttribute('aria-label')).toBe('保存スロット 1（理論デッキ） を削除');
+    expect(deleteButton.previousElementSibling.classList.contains('deck-builder-randomize-btn')).toBe(true);
+    expect(body.querySelector('.deck-builder-view-editor').dataset.ownsEscape).toBeUndefined();
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+
+    deleteButton.click();
+
+    const confirmRow = body.querySelector('.deck-builder-delete-confirm');
+    expect(body.querySelector('.deck-builder-view-editor').dataset.ownsEscape).toBe('true');
+    expect(confirmRow.textContent).toContain('保存スロット 1（理論デッキ） を削除して空きスロットに戻します。');
+    expect(confirmRow.textContent).toContain('使用中のデッキです。削除するとデフォルトデッキに切り替わります。');
+    expect(document.activeElement).toBe(confirmRow.querySelector('.deck-builder-delete-cancel-btn'));
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+
+    confirmRow.querySelector('.deck-builder-delete-confirm-btn').click();
+
+    const stored = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
+    expect(stored.activePresetId).toBe('');
+    expect(stored.presets[0]).toMatchObject({ id: 'preset_1', name: '', deckCode: '', updatedAt: 0 });
+    expect(body.querySelector('.deck-builder-view-editor')).toBeNull();
+    const slotCard = body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"]');
+    expect(slotCard.classList.contains('is-empty')).toBe(true);
+    expect(slotCard.textContent).toContain('クリックして構築');
+    expect(controller.getActiveLocalChoice().source).toBe('standard');
+    expect(document.getElementById('header').textContent).toContain('ローカル設定: デフォルトデッキ');
+    expect(body.querySelector('.deck-builder-notice').textContent).toBe('保存スロット 1（理論デッキ） を削除しました。使用中だったためデフォルトデッキに切り替えました');
+  });
+
+  test('削除の確認は「やめる」と Esc で取り消せ、空きスロットを保存先にすると押せない', () => {
+    const body = document.getElementById('body');
+    const overlay = document.getElementById('overlay');
+    const savedDeck = createThirtyCardDeck(0);
+    const presetState = buildPresetState('preset_1', '保存デッキ', savedDeck.deckCode);
+    presetState.activePresetId = '';
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(presetState));
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+
+    body.querySelector('.deck-builder-delete-btn').click();
+    expect(body.querySelector('.deck-builder-delete-confirm').textContent).not.toContain('使用中のデッキです');
+    // スマホ縦画面の画面全体の Esc 処理（document で受ける）へ届かせず、確認だけを取り消す。
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    try {
+      document.activeElement.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    } finally {
+      document.removeEventListener('keydown', documentEscape);
+    }
+    expect(documentEscape).not.toHaveBeenCalled();
+    expect(overlay.classList.contains('is-open')).toBe(true);
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+    expect(document.activeElement).toBe(body.querySelector('.deck-builder-delete-btn'));
+
+    // 編集画面の外にフォーカスがあっても、Esc は確認の取り消しを優先して画面を閉じない。
+    body.querySelector('.deck-builder-delete-btn').click();
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(overlay.classList.contains('is-open')).toBe(true);
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+
+    body.querySelector('.deck-builder-delete-btn').click();
+    body.querySelector('.deck-builder-delete-cancel-btn').click();
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+
+    // 削除は保存先のスロットに対して働くので、選び直すと確認を閉じ、空きスロットでは押せない。
+    body.querySelector('.deck-builder-delete-btn').click();
+    let destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    destinationSelect.focus();
+    destinationSelect.value = 'preset_2';
+    destinationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+    expect(body.querySelector('.deck-builder-delete-btn').disabled).toBe(true);
+    expect(body.querySelector('.deck-builder-delete-btn').title).toBe('保存先のスロットは空です');
+    destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    expect(document.activeElement).toBe(destinationSelect);
+
+    destinationSelect.value = 'preset_1';
+    destinationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    body.querySelector('.deck-builder-delete-btn').click();
+    body.querySelector('.deck-builder-delete-confirm-btn').click();
+
+    expect(JSON.parse(localStorage.getItem('deck_builder_presets_v1')).presets[0].deckCode).toBe('');
+    expect(controller.getActiveLocalChoice().source).toBe('standard');
+    expect(body.querySelector('.deck-builder-notice').textContent).toBe('保存スロット 1（保存デッキ） を削除しました');
+  });
+
+  test('削除を保存できない時は編集画面に残り、スロットを消さない', () => {
+    const body = document.getElementById('body');
+    const savedDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '保存デッキ', savedDeck.deckCode)));
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+    const before = controller.getActiveLocalChoice();
+    body.querySelector('.deck-builder-delete-btn').click();
+    const setter = jest.spyOn(dom.window.Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    try {
+      body.querySelector('.deck-builder-delete-confirm-btn').click();
+    } finally { setter.mockRestore(); }
+
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+    expect(controller.getActiveLocalChoice()).toEqual(before);
+    expect(body.querySelector('.deck-builder-view-editor')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-delete-btn').disabled).toBe(false);
+    expect(body.querySelector('.deck-builder-notice.is-error').textContent).toContain('保存できませんでした');
+  });
+
   test('デッキコード入力をコードコピーの右側へ1行で表示する', () => {
     const body = document.getElementById('body');
 
@@ -556,7 +681,8 @@ describe('deck builder controller', () => {
     expect(randomizeButton.textContent).toBe('ランダム生成');
     expect(randomizeButton.getAttribute('aria-label')).toBe('ランダムな30枚デッキを生成');
     expect(randomizeButton.querySelector('.deck-builder-randomize-die')?.getAttribute('aria-hidden')).toBe('true');
-    expect(randomizeButton.previousElementSibling).toBe(destinationSelect);
+    // 保存先を選び直すと削除ボタンの対象を合わせるため描き直すので、描き直し後の選択欄と比べる。
+    expect(randomizeButton.previousElementSibling).toBe(body.querySelector('.deck-builder-preset-destination-select'));
     randomizeButton.click();
 
     const refreshedNameInput = body.querySelector('.deck-builder-name-row input');

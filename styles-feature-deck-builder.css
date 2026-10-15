@@ -3714,6 +3714,9 @@
     --deck-ob-fletch-lead: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M1 1.5L5 5 1 8.5M6 1.5L10 5 6 8.5' fill='none' stroke='%23b39a6c' stroke-width='1'/%3E%3Cpath d='M10 5H40' stroke='%23b39a6c' stroke-width='1'/%3E%3C/svg%3E");
     --deck-ob-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'%3E%3Cpath d='M2.5 8.6L7.4 13.2 17.5 2.8' fill='none' stroke='%236cc7b0' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --deck-ob-pencil: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10.8 2.4l2.8 2.8-7.9 7.9-3.4.6.6-3.4z' fill='none' stroke='%23d9bd88' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpath d='M9.2 4l2.8 2.8' stroke='%23d9bd88' stroke-width='1.4'/%3E%3C/svg%3E");
+    --deck-ob-trash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23e8b4a6' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.6 4.2h10.8M6.2 4.2V2.6h3.6v1.6M3.9 4.2l.7 9.2h6.8l.7-9.2M6.6 6.6v4.6M9.4 6.6v4.6'/%3E%3C/svg%3E");
+    --deck-ob-rust: linear-gradient(180deg, #4a1f18 0%, #351511 50%, #220c09 100%);
+    --deck-ob-rust-hover: linear-gradient(180deg, #5c271e 0%, #431a15 50%, #2c100c 100%);
     --deck-ob-ring-nubs: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='%23c9a96e'%3E%3Cpath d='M50 0.5L53 4 50 7.5 47 4z'/%3E%3Cpath d='M50 92.5L53 96 50 99.5 47 96z'/%3E%3Cpath d='M0.5 50L4 47 7.5 50 4 53z'/%3E%3Cpath d='M92.5 50L96 47 99.5 50 96 53z'/%3E%3C/g%3E%3C/svg%3E");
     /* 外枠画像の元寸 1px を何 --deck-u で描くか */
     --deck-ob-frame-k: 0.66;
@@ -4677,6 +4680,77 @@
 
 #deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .btn-small:disabled {
     opacity: 0.45;
+}
+
+/* 削除: 取り返しのつかない操作なので、ほかのボタンと分けて錆色にする */
+#deckBuilderOverlay #deckBuilderModal .deck-builder-destination-row .deck-builder-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: calc(7px * var(--layout-stage-scale));
+    min-height: max(42px, calc(42px * var(--layout-stage-scale)));
+    white-space: nowrap;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor :is(.deck-builder-delete-btn, .deck-builder-delete-confirm-btn) {
+    color: #f3dcd3 !important;
+    border-color: rgba(196, 112, 92, 0.72) !important;
+    background: var(--deck-ob-rust) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-delete-btn::before {
+    content: "";
+    width: max(14px, calc(14px * var(--layout-stage-scale)));
+    aspect-ratio: 1;
+    background: var(--deck-ob-trash) center / contain no-repeat;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor :is(.deck-builder-delete-btn, .deck-builder-delete-confirm-btn):not(:disabled):is(:hover, :focus-visible),
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-delete-btn.is-pressed {
+    border-color: #e08a72 !important;
+    background: var(--deck-ob-rust-hover) !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-view-editor .deck-builder-delete-btn:disabled {
+    opacity: 0.35;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-delete-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
+    margin: calc(-4px * var(--layout-stage-scale)) 0 calc(12px * var(--layout-stage-scale));
+    padding: calc(10px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+    color: #ffe2dc;
+    border: 1px solid rgba(220, 112, 100, 0.6);
+    background: rgba(38, 13, 11, 0.9);
+    font-size: max(12px, calc(12px * var(--layout-stage-scale)));
+    line-height: 1.5;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-delete-confirm-text {
+    display: flex;
+    flex: 1 1 18em;
+    flex-direction: column;
+    min-width: 0;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-delete-confirm-note {
+    color: #f2b9a8;
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-delete-confirm-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+#deckBuilderOverlay #deckBuilderModal .deck-builder-delete-confirm-actions .btn-small {
+    min-height: max(36px, calc(36px * var(--layout-stage-scale)));
+    white-space: nowrap;
 }
 
 @media (min-width: 901px) {
