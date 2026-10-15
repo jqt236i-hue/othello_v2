@@ -13,7 +13,13 @@ export const OPTIMIZED_UI_IMAGES = Object.freeze({
   "assets/images/other/turn-banner-your-v1.png": "assets/images/other/turn-banner-your-v1.webp",
   "assets/images/other/turn-banner-your-white-v1.png": "assets/images/other/turn-banner-your-white-v1.webp",
   "assets/images/other/turn-banner-enemy-v1.png": "assets/images/other/turn-banner-enemy-v1.webp",
-  "assets/images/other/turn-banner-enemy-black-v1.png": "assets/images/other/turn-banner-enemy-black-v1.webp"
+  "assets/images/other/turn-banner-enemy-black-v1.png": "assets/images/other/turn-banner-enemy-black-v1.webp",
+  "assets/images/background/background-default-midnight-teal-v1.png": "assets/images/background/background-default-midnight-teal-v1.webp",
+  "assets/images/board/board-frame-default-midnight-teal-v1.png": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+  "assets/images/background/background-default-classic-walnut-v1.png": "assets/images/background/background-default-classic-walnut-v1.webp",
+  "assets/images/board/board-frame-default-classic-walnut-v1.png": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+  "assets/images/background/background-default-quiet-slate-v1.png": "assets/images/background/background-default-quiet-slate-v1.webp",
+  "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp"
 } as const);
 
 export type OptimizedUiImageSource = keyof typeof OPTIMIZED_UI_IMAGES;

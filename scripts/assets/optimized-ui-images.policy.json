@@ -225,6 +225,102 @@
         "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       }
+    },
+    {
+      "source": "assets/images/background/background-default-midnight-teal-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-default-midnight-teal-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-default-classic-walnut-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-default-classic-walnut-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-default-quiet-slate-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-default-quiet-slate-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
     }
   ]
 }

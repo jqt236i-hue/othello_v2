@@ -152,6 +152,7 @@ describe('hand skin handler', () => {
 
     const api = mod.setupHandSkinControls({ root: window, loadLazyRuntimeGroup });
     expect(api).toBeTruthy();
+    expect(loadLazyRuntimeGroup).not.toHaveBeenCalled();
 
     document.getElementById('handSkinBtn').click();
     expect(document.getElementById('handSkinBtn').getAttribute('aria-busy')).toBe('true');
@@ -169,6 +170,32 @@ describe('hand skin handler', () => {
     expect(api.getHandAnimationPreferences()).toEqual({ draw: true, place: true });
     expect(document.getElementById('handSkinBtn').getAttribute('aria-busy')).toBeNull();
     expect(document.getElementById('handSkinBtn').getAttribute('data-lazy-load-state')).toBe('loaded');
+  });
+
+  test.each(['reversi.backgroundSkin', 'othello.backgroundSkin'])('restores saved background through lazy cosmetics at startup: %s', async (key) => {
+    window.localStorage.setItem(key, 'default-midnight-teal');
+    let optionalLoaded = false;
+    const openPanel = jest.fn();
+    const setup = jest.fn(() => {
+      document.getElementById('handSkinBtn')!.addEventListener('click', openPanel);
+      return { openPanel };
+    });
+    jest.doMock('../ui/hand-skin/controller.js', () => {
+      if (!optionalLoaded) throw new Error('optional controller not registered');
+      return { setupHandSkinControls: setup };
+    });
+    const loadLazyRuntimeGroup = jest.fn(async () => { optionalLoaded = true; });
+    const mod = require('../ui/handlers/hand-skin.js');
+    mod.setupHandSkinControls({ root: window, loadLazyRuntimeGroup });
+    await flushMicrotasks(8);
+
+    expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
+    expect(setup).toHaveBeenCalledTimes(1);
+    expect(openPanel).not.toHaveBeenCalled();
+    document.getElementById('handSkinBtn')!.click();
+    await flushMicrotasks(8);
+    expect(openPanel).toHaveBeenCalledTimes(1);
+    expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
   });
 
   test('re-resolves hand skin runtime helpers after optional modules become available', () => {

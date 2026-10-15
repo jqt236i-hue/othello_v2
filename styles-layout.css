@@ -130,6 +130,32 @@
     --board-contour-shadow: rgba(12, 8, 5, 0.98);
 }
 
+/* 候補画像の透過余白には既定の茶色い下地を出さない。 */
+#board-frame[data-board-frame-skin-id="default-midnight-teal"],
+#board-frame[data-board-frame-skin-id="default-classic-walnut"],
+#board-frame[data-board-frame-skin-id="default-quiet-slate"] {
+    --board-frame-fill-background: transparent;
+    box-shadow: none;
+}
+
+#board-frame[data-board-frame-skin-id="default-midnight-teal"] {
+    --board-contour-highlight: rgba(111, 181, 179, 0.86);
+    --board-contour-metal: rgba(29, 58, 62, 0.98);
+    --board-contour-shadow: rgba(5, 14, 18, 0.98);
+}
+
+#board-frame[data-board-frame-skin-id="default-classic-walnut"] {
+    --board-contour-highlight: rgba(188, 147, 74, 0.86);
+    --board-contour-metal: rgba(83, 48, 28, 0.98);
+    --board-contour-shadow: rgba(19, 10, 6, 0.98);
+}
+
+#board-frame[data-board-frame-skin-id="default-quiet-slate"] {
+    --board-contour-highlight: rgba(116, 179, 183, 0.86);
+    --board-contour-metal: rgba(54, 66, 78, 0.98);
+    --board-contour-shadow: rgba(12, 18, 25, 0.98);
+}
+
 /* Occupancy Indicators */
 .occupancy-badge {
     position: fixed;

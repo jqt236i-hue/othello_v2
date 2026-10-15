@@ -1,6 +1,8 @@
 import { JSDOM } from 'jsdom';
 
-const DEFAULT_BACKGROUND_SKIN_IDS = ['default-25'];
+const DEFAULT_BACKGROUND_SKIN_IDS = [
+  'default-25', 'default-classic-walnut', 'default-midnight-teal', 'default-quiet-slate'
+];
 
 describe('gacha progress storage', () => {
   let dom;

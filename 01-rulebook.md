@@ -1731,9 +1731,9 @@ emainingOwnerTurns など持続情報は、複製元の値をそのまま引き�
 - `SKIN` の手タブにある `配置方法` で `手で置く`（既定）と `石を投げる` を選べる。`石を投げる` では手を出さず、画面の横中央かつ配置する側の手札カードの縦中央あたりから、置かれる石そのもの（通常石は現在の通常石スキン、特殊石はその特殊石の見た目。公開前の罠の石は通常石）が約 `0.36秒` の直線で着手点へ飛ぶ。着地の瞬間を手置き演出の接触タイミングと同じに扱い、配置音と完成状態の石の表示を行う。`配置演出` がオフの場合はどちらの方法でも移動演出を出さない
 - `HELP` ボタンの下にある `SKIN` ボタンから、自分側の手の見た目スキン・背景画像・盤面下地・盤面フレーム・文字フォント・通常石スキンを切り替えられる
 - 手の見た目スキンの初期所持は `既定` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
-- 背景画像の標準スキン・初期所持は `既定` (`default-25`、`assets/images/background/デフォルト25.webp`) のみとする。選択は次回起動後も保持してよい
+- 背景画像の標準スキン・初期所持は `既定` (`default-25`、`assets/images/background/デフォルト25.webp`)、`青緑ミニマル` (`default-midnight-teal`)、`クラシック木製` (`default-classic-walnut`)、`静かな石造り` (`default-quiet-slate`) とする。追加3種はデフォルトUIの比較候補であり、既定の選択は変更しない。選択は次回起動後も保持してよい
 - 盤面下地の標準スキン・初期所持は `既定` (`bluegreen-felt`) のみとする。選択は次回起動後も保持してよい
-- 盤面フレームの標準スキン・初期所持は現在のデフォルト `沈木枠` (`submerged-wood`) のみとする。欠けマスのない通常盤面ではフレーム画像を表示し、特殊盤面では同じ選択をCSS外周フレームの色・質感プリセットとして扱って盤面形状に追従させる。選択は次回起動後も保持してよい
+- 盤面フレームの標準スキン・初期所持は現在のデフォルト `沈木枠` (`submerged-wood`)、`青緑ミニマル枠` (`default-midnight-teal`)、`クラシック木枠` (`default-classic-walnut`)、`静かな石枠` (`default-quiet-slate`) とする。追加3種はデフォルトUIの比較候補であり、既定の選択は変更しない。欠けマスのない通常盤面ではフレーム画像を表示し、特殊盤面では同じ選択をCSS外周フレームの色・質感プリセットとして扱って盤面形状に追従させる。選択は次回起動後も保持してよい
 - 削除された背景・盤面下地・盤面フレームの標準スキンIDが保存済み選択やプリセットに残っている場合は、各カテゴリの現在のデフォルトへ戻す。個人用カスタムスキンの作成・保存と選択は引き続き利用できる
 - 文字フォントの初期所持は `既定` (`shippori-mincho`) と `DotGothic16` とし、初期選択は `既定` とする。選択は次回起動後も保持してよい
 - 通常石スキンの初期所持は `クラシック石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `既定` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい

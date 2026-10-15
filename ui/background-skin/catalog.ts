@@ -44,6 +44,24 @@ const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
     label: '既定',
     note: '初期所持',
     imagePath: 'assets/images/background/デフォルト25.webp'
+  }),
+  Object.freeze({
+    id: 'default-midnight-teal',
+    label: '青緑ミニマル',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-default-midnight-teal-v1.webp'
+  }),
+  Object.freeze({
+    id: 'default-classic-walnut',
+    label: 'クラシック木製',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-default-classic-walnut-v1.webp'
+  }),
+  Object.freeze({
+    id: 'default-quiet-slate',
+    label: '静かな石造り',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-default-quiet-slate-v1.webp'
   })
 ]);
 

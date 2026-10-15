@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-10",
-  "generatedAt": "2026-10-10T13:41:12.396Z",
+  "version": "2026-10-15",
+  "generatedAt": "2026-10-15T12:29:46.485Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -693,6 +693,30 @@
     {
       "path": "assets/images/special-cards/characters/終焉の冥灰.png",
       "sha256": "193f8057d0e525713ae8def34eb3b25187a36802bdf9ae6f73a00230e6494f53"
+    },
+    {
+      "path": "assets/images/background/background-default-classic-walnut-v1.png",
+      "sha256": "4cdfcc0533c7f56513dddea94f74fb169194eae46b075c6b0e6d60d9a24ca5a2"
+    },
+    {
+      "path": "assets/images/background/background-default-classic-walnut-v1.webp",
+      "sha256": "ec8ef9aa49a89246e23713d250f5bd5c608dde9120a827da25f24bdf9807ca9a"
+    },
+    {
+      "path": "assets/images/background/background-default-midnight-teal-v1.png",
+      "sha256": "975699340918f9452535ae3b7553013008af665ce79b2072a82b775ce1496391"
+    },
+    {
+      "path": "assets/images/background/background-default-midnight-teal-v1.webp",
+      "sha256": "c53f7ec067ccdd44781e99f1c62a38293586d596a2d4de6903b67e0e1d300331"
+    },
+    {
+      "path": "assets/images/background/background-default-quiet-slate-v1.png",
+      "sha256": "35c4a768e52141c32e101a2f2a6e7b0810d3fb6dc1a8d9d71b71113e44817aaf"
+    },
+    {
+      "path": "assets/images/background/background-default-quiet-slate-v1.webp",
+      "sha256": "f4cd38f8f117e3f99894d9506dfd704c297f071c24b9260b00783bd320e7e5c5"
     },
     {
       "path": "assets/images/background/manifest-worlds/執行の世界.png",

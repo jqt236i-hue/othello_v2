@@ -103,6 +103,36 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
       paddingLeft: 20,
       artOffsetY: 2
     })
+  }),
+  Object.freeze({
+    id: 'default-midnight-teal',
+    label: '青緑ミニマル枠',
+    note: '青緑の内縁と落ち着いた金属の枠',
+    imagePath: 'assets/images/board/board-frame-default-midnight-teal-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 50, paddingRight: 50, paddingBottom: 50, paddingLeft: 50,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'default-classic-walnut',
+    label: 'クラシック木枠',
+    note: '胡桃材に細い真鍮の縁を添えた定番の木枠',
+    imagePath: 'assets/images/board/board-frame-default-classic-walnut-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 36, paddingRight: 36, paddingBottom: 36, paddingLeft: 36,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'default-quiet-slate',
+    label: '静かな石枠',
+    note: '青灰色の石に控えめな青緑の細縁',
+    imagePath: 'assets/images/board/board-frame-default-quiet-slate-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 38, paddingRight: 38, paddingBottom: 38, paddingLeft: 38,
+      artOffsetY: 0
+    })
   })
 ]);
 

@@ -371,6 +371,162 @@
       "sourceSha256": "4b87688dc79d22c5ca5795f35fa89d11771f6f624f8e3a21eb98f9ecdbcb2bb6",
       "outputSha256": "144f8e3a1ec5c4e48ef1f8c5fa43aaf696e0608c33a88874bd4301923aeff719",
       "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-default-midnight-teal-v1.png",
+      "candidateOutput": "assets/images/background/background-default-midnight-teal-v1.webp",
+      "output": "assets/images/background/background-default-midnight-teal-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 940,
+      "hasAlpha": false,
+      "sourceBytes": 2686314,
+      "outputBytes": 266002,
+      "savedBytes": 2420312,
+      "savingsRatio": 0.9009788133479556,
+      "sourceSha256": "975699340918f9452535ae3b7553013008af665ce79b2072a82b775ce1496391",
+      "outputSha256": "c53f7ec067ccdd44781e99f1c62a38293586d596a2d4de6903b67e0e1d300331",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-default-midnight-teal-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+      "output": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 728139,
+      "outputBytes": 110028,
+      "savedBytes": 618111,
+      "savingsRatio": 0.848891489125016,
+      "sourceSha256": "787a0758ef4f36ee1cac0107779a67ad3ee09ec4c8eb62b7cc178d3011e5bba4",
+      "outputSha256": "795fc4cb5b5bfbbd4a28c34f53611d075467eacf3735ecd8820037a21cbd544b",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-default-classic-walnut-v1.png",
+      "candidateOutput": "assets/images/background/background-default-classic-walnut-v1.webp",
+      "output": "assets/images/background/background-default-classic-walnut-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 2205704,
+      "outputBytes": 208624,
+      "savedBytes": 1997080,
+      "savingsRatio": 0.9054161392462452,
+      "sourceSha256": "4cdfcc0533c7f56513dddea94f74fb169194eae46b075c6b0e6d60d9a24ca5a2",
+      "outputSha256": "ec8ef9aa49a89246e23713d250f5bd5c608dde9120a827da25f24bdf9807ca9a",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-default-classic-walnut-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+      "output": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 677591,
+      "outputBytes": 125524,
+      "savedBytes": 552067,
+      "savingsRatio": 0.8147496055880317,
+      "sourceSha256": "5103aa777224e3391e2b7db1aa1e4268a0f9fa240687779fec09cc412c9a95af",
+      "outputSha256": "b2c680d51e38b0296ef861428b31cc995b0de000f6197e35e392c8b392aa8408",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-default-quiet-slate-v1.png",
+      "candidateOutput": "assets/images/background/background-default-quiet-slate-v1.webp",
+      "output": "assets/images/background/background-default-quiet-slate-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 2825144,
+      "outputBytes": 332140,
+      "savedBytes": 2493004,
+      "savingsRatio": 0.8824343113129809,
+      "sourceSha256": "35c4a768e52141c32e101a2f2a6e7b0810d3fb6dc1a8d9d71b71113e44817aaf",
+      "outputSha256": "f4cd38f8f117e3f99894d9506dfd704c297f071c24b9260b00783bd320e7e5c5",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-default-quiet-slate-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+      "output": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1065962,
+      "outputBytes": 191068,
+      "savedBytes": 874894,
+      "savingsRatio": 0.8207553364941714,
+      "sourceSha256": "8deda02721c8849d507082c29dd8ada3b2357685d3b95db64d12c0b9b6dd181e",
+      "outputSha256": "72306a1bbc36449ffe3bfc9bd197f9a8621d1d78eacf0373b689fdea86fdb0d0",
+      "visiblePixelsEqual": false
     }
   ],
   "admittedMapping": {
@@ -387,6 +543,12 @@
     "assets/images/other/turn-banner-your-v1.png": "assets/images/other/turn-banner-your-v1.webp",
     "assets/images/other/turn-banner-your-white-v1.png": "assets/images/other/turn-banner-your-white-v1.webp",
     "assets/images/other/turn-banner-enemy-v1.png": "assets/images/other/turn-banner-enemy-v1.webp",
-    "assets/images/other/turn-banner-enemy-black-v1.png": "assets/images/other/turn-banner-enemy-black-v1.webp"
+    "assets/images/other/turn-banner-enemy-black-v1.png": "assets/images/other/turn-banner-enemy-black-v1.webp",
+    "assets/images/background/background-default-midnight-teal-v1.png": "assets/images/background/background-default-midnight-teal-v1.webp",
+    "assets/images/board/board-frame-default-midnight-teal-v1.png": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+    "assets/images/background/background-default-classic-walnut-v1.png": "assets/images/background/background-default-classic-walnut-v1.webp",
+    "assets/images/board/board-frame-default-classic-walnut-v1.png": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+    "assets/images/background/background-default-quiet-slate-v1.png": "assets/images/background/background-default-quiet-slate-v1.webp",
+    "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp"
   }
 }
