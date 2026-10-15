@@ -30,7 +30,10 @@ export const OPTIMIZED_UI_IMAGES = Object.freeze({
   "assets/images/board/board-frame-study-grimoire-leather-v1.png": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
   "assets/images/board/board-surface-study-forest-baize-v1.png": "assets/images/board/board-surface-study-forest-baize-v1.webp",
   "assets/images/board/board-surface-study-jade-slate-v1.png": "assets/images/board/board-surface-study-jade-slate-v1.webp",
-  "assets/images/board/board-surface-study-olive-leather-v1.png": "assets/images/board/board-surface-study-olive-leather-v1.webp"
+  "assets/images/board/board-surface-study-olive-leather-v1.png": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+  "assets/images/ui/card-area-walnut-felt-v1.png": "assets/images/ui/card-area-walnut-felt-v1.webp",
+  "assets/images/ui/card-area-scholars-oxblood-v1.png": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+  "assets/images/ui/card-area-midnight-bookcloth-v1.png": "assets/images/ui/card-area-midnight-bookcloth-v1.webp"
 } as const);
 
 export type OptimizedUiImageSource = keyof typeof OPTIMIZED_UI_IMAGES;

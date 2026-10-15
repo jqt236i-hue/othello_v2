@@ -2495,6 +2495,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             ) {
                 throw new Error('board_frame_skin_runtime_unavailable');
             }
+            // Restore the shared hand mat before first paint, without loading the SKIN panel.
+            const handMatSelection = _require('./hand-mat-skin/selection');
+            const handMatRuntime = _require('./hand-mat-skin/runtime');
+            handMatRuntime.syncDisplayedHandMatSkin(root, handMatSelection.readStoredHandMatSkinId(root));
             // Restore the surface before the first render, without waiting for the lazy SKIN panel.
             // Previously the only standard surface was the default, masking this missing boot step.
             runtime.syncDisplayedBoardSkin(root, selection.readStoredBoardSkinId(root));

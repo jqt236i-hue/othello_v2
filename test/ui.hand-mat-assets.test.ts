@@ -3,20 +3,21 @@ import * as path from 'path';
 import sharp from 'sharp';
 
 const root = path.resolve(__dirname, '..');
-const matPath = 'assets/images/ui/card-area-espresso-leather-v1';
+const matPath = 'assets/images/ui/card-area-midnight-bookcloth-v1';
 
 describe('espresso leather hand mat', () => {
   test('uses the same decorative image for both hands without intercepting input', () => {
     const css = fs.readFileSync(path.join(root, 'styles-layout.css'), 'utf8');
     for (const owner of ['black', 'white']) {
       const rule = css.match(new RegExp(`#hand-${owner}::before\\s*\\{[\\s\\S]*?\\n\\}`))?.[0];
-      expect(rule).toContain(`background-image: url("${matPath}.webp")`);
+      expect(rule).toContain(`background-image: var(--hand-mat-image, url("${matPath}.webp"))`);
     }
     expect(css.match(/\.hand-container::before\s*\{[\s\S]*?\n\}/)?.[0])
       .toContain('pointer-events: none');
   });
 
-  test('ships an optimized mat with identical dimensions and transparent corners', async () => {
+  test.each(['espresso-leather', 'walnut-felt', 'scholars-oxblood', 'midnight-bookcloth'])('ships optimized mat %s with identical dimensions and transparent corners', async (id) => {
+    const matPath = `assets/images/ui/card-area-${id}-v1`;
     const source = sharp(path.join(root, `${matPath}.png`));
     const output = sharp(path.join(root, `${matPath}.webp`));
     const [sourceMeta, outputMeta] = await Promise.all([source.metadata(), output.metadata()]);

@@ -37,7 +37,7 @@
 #backgroundSkinOptions,
 #boardSkinOptions,
 #boardFrameSkinOptions,
-#fontSkinOptions,
+#handMatSkinOptions, #fontSkinOptions,
 #stoneSkinOptions {
         grid-template-columns: 1fr;
     }

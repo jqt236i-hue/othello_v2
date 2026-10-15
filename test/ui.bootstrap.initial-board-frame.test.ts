@@ -43,6 +43,23 @@ describe('UIBootstrap initial board frame preparation', () => {
     dom.window.close();
   });
 
+  test.each(['espresso-leather', 'walnut-felt', 'scholars-oxblood', 'midnight-bookcloth'])(
+    'restores hand mat %s before opening the skin panel', async (id) => {
+      jest.resetModules();
+      const dom = new JSDOM('<!doctype html><html><body><div id="board-frame"></div><div id="board"></div></body></html>', { url: 'https://example.test/' });
+      (global as any).window = dom.window;
+      (global as any).document = dom.window.document;
+      dom.window.localStorage.setItem('reversi.handMatSkin', id);
+      const bootstrap = require('../ui/bootstrap.ts');
+      await bootstrap.prepareInitialBoardFrameSkin(dom.window);
+      expect(dom.window.document.documentElement.dataset.handMatSkinId).toBe(id);
+      expect(dom.window.document.documentElement.style.getPropertyValue('--hand-mat-image'))
+        .toBe(`url("assets/images/ui/card-area-${id}-v1.webp")`);
+      expect(dom.window.document.getElementById('handMatSkinOptions')).toBeNull();
+      dom.window.close();
+    }
+  );
+
   test.each(['forest-baize', 'jade-slate', 'olive-leather'])(
     'restores study surface %s through the real startup runtime', async (name) => {
       jest.resetModules();

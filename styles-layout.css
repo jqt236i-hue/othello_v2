@@ -316,7 +316,7 @@ html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-
     top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)) - 10px);
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-espresso-leather-v1.webp");
+    background-image: var(--hand-mat-image, url("assets/images/ui/card-area-midnight-bookcloth-v1.webp"));
     background-position: bottom center;
     background-size: 100% 100%;
     background-repeat: no-repeat;
@@ -336,7 +336,7 @@ html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-
     top: calc(-13px * var(--layout-stage-scale));
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-espresso-leather-v1.webp");
+    background-image: var(--hand-mat-image, url("assets/images/ui/card-area-midnight-bookcloth-v1.webp"));
     background-position: top center;
     background-size: 100% 100%;
     background-repeat: no-repeat;

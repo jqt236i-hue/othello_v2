@@ -388,14 +388,14 @@
     },
     {
       "source": "assets/images/ui/card-area-espresso-leather-v1.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
       },
       "admission": {
         "status": "admitted",
-        "reason": "shared default leather hand mat referenced directly by the stylesheet; preserve alpha while reducing transfer"
+        "reason": "optional espresso leather hand mat; preserve alpha while reducing transfer"
       },
       "measurement": {
         "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
@@ -443,6 +443,54 @@
       "encoding": { "codec": "webp-lossy", "quality": 90 },
       "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
       "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/ui/card-area-walnut-felt-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-scholars-oxblood-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-midnight-bookcloth-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      }
     }
   ]
 }

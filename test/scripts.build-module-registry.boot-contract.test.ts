@@ -31,12 +31,16 @@ describe('browser module registry boot contract', () => {
     expect(classifyBrowserBootModule('dist/ui/hand-skin/catalog')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/hand-skin/selection')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/hand-skin/runtime')).toBe('required');
+    for (const module of ['catalog', 'selection', 'runtime']) {
+      expect(classifyBrowserBootModule(`dist/ui/hand-mat-skin/${module}`)).toBe('required');
+    }
   });
 
   test('classifies diagnostics, cosmetics, and heavyweight optional modules as optional', () => {
     expect(classifyBrowserBootModule('dist/ui/debug-test-scenarios')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/background-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/font-skin/controller')).toBe('optional');
+    expect(classifyBrowserBootModule('dist/ui/hand-mat-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/hand-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/game/ai/policy-onnx-runtime')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/gacha/gacha-overlay-controller')).toBe('optional');
@@ -46,6 +50,7 @@ describe('browser module registry boot contract', () => {
   test('assigns optional modules to one canonical feature owner with required overrides', () => {
     expect(classifyBrowserOptionalGroup('ui/gacha/gacha-overlay-controller')).toBe('gacha');
     expect(classifyBrowserOptionalGroup('ui/background-skin/controller')).toBe('cosmetic');
+    expect(classifyBrowserOptionalGroup('ui/hand-mat-skin/controller')).toBe('cosmetic');
     expect(classifyBrowserOptionalGroup('ui/leaderboard-client')).toBe('leaderboard');
     expect(classifyBrowserOptionalGroup('othello-ai/runtime/browser-cpu')).toBe('cpu');
     expect(classifyBrowserOptionalGroup('game/ai/policy-onnx-runtime')).toBe('onnx');
@@ -95,6 +100,9 @@ describe('browser module registry boot contract', () => {
     expect(result && result.groupContents.gacha).toContain('_r("ui/gacha/gacha-overlay-controller"');
     expect(result && result.groupContents.gacha).not.toContain('_r("ui/background-skin/controller"');
     expect(result && result.groupContents.cosmetic).toContain('_r("ui/background-skin/controller"');
+    expect(result && result.startupContent).toContain('_r("ui/hand-mat-skin/runtime"');
+    expect(result && result.startupContent).not.toContain('_r("ui/hand-mat-skin/controller"');
+    expect(result && result.groupContents.cosmetic).toContain('_r("ui/hand-mat-skin/controller"');
     expect(result && result.startupContent).toContain('_r("ui/gacha/gacha-events"');
     expect(result && result.groupContents.cosmetic).not.toContain('_r("ui/gacha/gacha-events"');
     expect(result && result.groupContents.leaderboard).toContain('_r("ui/leaderboard-client"');

@@ -18,6 +18,7 @@ describe('hand skin handler', () => {
           <button id="appearanceTabBackground" type="button"></button>
           <button id="appearanceTabBoard" type="button"></button>
           <button id="appearanceTabBoardFrame" type="button"></button>
+          <button id="appearanceTabHandMat" type="button"></button>
           <button id="appearanceTabFont" type="button"></button>
           <button id="appearanceTabStone" type="button"></button>
           <button id="appearanceTabPreset" type="button"></button>
@@ -34,6 +35,7 @@ describe('hand skin handler', () => {
         <div id="boardFrameSkinSection" hidden>
           <div id="boardFrameSkinOptions"></div>
         </div>
+        <div id="handMatSkinSection" hidden><div id="handMatSkinOptions"></div></div>
         <div id="fontSkinSection" hidden>
           <div id="fontSkinOptions"></div>
         </div>
@@ -201,6 +203,36 @@ describe('hand skin handler', () => {
     await flushMicrotasks(8);
     expect(openPanel).toHaveBeenCalledTimes(1);
     expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
+  });
+
+  test('switches hand mat tabs and includes the selection in presets and appearance codes', async () => {
+    const api = require('../ui/handlers/hand-skin.js').setupHandSkinControls({ root: window });
+    expect(api.selectAppearanceTab('hand-mat')).toBe('hand-mat');
+    expect(document.getElementById('handMatSkinSection')!.hidden).toBe(false);
+    expect(document.getElementById('handSkinSection')!.hidden).toBe(true);
+    expect(document.getElementById('appearanceTabHandMat')!.getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelectorAll('.hand-mat-skin-option')).toHaveLength(4);
+    const choose = (id: string) => (document.querySelector(`.hand-mat-skin-option[data-hand-mat-skin-id="${id}"]`) as HTMLButtonElement).click();
+    choose('walnut-felt');
+    document.getElementById('appearancePresetSaveBtn')!.click();
+    const state = JSON.parse(window.localStorage.getItem('reversi.appearancePresets')!);
+    expect(state.presets[0].appearance.handMatSkinId).toBe('walnut-felt');
+    const code = api.copyCurrentAppearanceCode();
+    const decoded = JSON.parse(Buffer.from(code.slice('appearance:v1:'.length), 'base64url').toString('utf8'));
+    expect(decoded.appearance.handMatSkinId).toBe('walnut-felt');
+    choose('espresso-leather');
+    api.selectAppearanceTab('preset');
+    (document.querySelector('.appearance-preset-use') as HTMLButtonElement).click();
+    expect(document.documentElement.dataset.handMatSkinId).toBe('walnut-felt');
+    choose('midnight-bookcloth');
+    window.prompt = jest.fn(() => code);
+    expect(await api.loadAppearancePresetCode()).toBe(true);
+    expect(document.documentElement.dataset.handMatSkinId).toBe('walnut-felt');
+    choose('midnight-bookcloth');
+    const legacyCode = 'appearance:v1:' + Buffer.from(JSON.stringify({ version: 1, appearance: { fontSkinId: 'shippori-mincho' } })).toString('base64url');
+    window.prompt = jest.fn(() => legacyCode);
+    expect(await api.loadAppearancePresetCode()).toBe(true);
+    expect(document.documentElement.dataset.handMatSkinId).toBe('midnight-bookcloth');
   });
 
   test('re-resolves hand skin runtime helpers after optional modules become available', () => {

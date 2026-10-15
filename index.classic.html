@@ -35,7 +35,7 @@
     <!-- CSS Split Modules -->
     <link rel="stylesheet" href="styles-variables.css?v=27450893054797">
     <link rel="stylesheet" href="styles-base.css?v=196676480425447">
-    <link rel="stylesheet" href="styles-layout.css?v=112679771475247">
+    <link rel="stylesheet" href="styles-layout.css?v=16064224146589">
     <link rel="stylesheet" href="styles-charge-hud.css?v=202479173618870">
     <link rel="stylesheet" href="styles-layout-controls.css?v=53621162346781">
     <meta data-card-reversi-feature-style-slot="network-layout-controls"
@@ -283,6 +283,7 @@
             <button id="appearanceTabBackground" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="backgroundSkinSection">背景</button>
             <button id="appearanceTabBoard" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardSkinSection">盤面デザイン</button>
             <button id="appearanceTabBoardFrame" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardFrameSkinSection">盤面フレーム</button>
+            <button id="appearanceTabHandMat" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="handMatSkinSection">手札置き</button>
             <button id="appearanceTabFont" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="fontSkinSection">フォント</button>
             <button id="appearanceTabStone" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="stoneSkinSection">石</button>
             <button id="appearanceTabMySkin" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="mySkinSection">マイスキン</button>
@@ -299,6 +300,9 @@
         </div>
         <div id="boardFrameSkinSection" class="appearance-panel-section" data-appearance-section="board-frame" hidden>
             <div id="boardFrameSkinOptions" role="radiogroup" aria-label="盤面フレーム"></div>
+        </div>
+        <div id="handMatSkinSection" class="appearance-panel-section" data-appearance-section="hand-mat" hidden>
+            <div id="handMatSkinOptions" role="radiogroup" aria-label="手札置きスキン"></div>
         </div>
         <div id="fontSkinSection" class="appearance-panel-section" data-appearance-section="font" hidden>
             <div id="fontSkinOptions" role="radiogroup" aria-label="文字フォント"></div>
@@ -599,7 +603,7 @@
     <script src="public/vendor/pixi-8.18.1.min.js"></script>
     <script src="public/vendor/pixi-unsafe-eval-8.18.1.min.js"></script>
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=204256713241211"></script>
+    <script src="public/module-registry.js?v=142223735592824"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=196653200051231"></script>
 </body>

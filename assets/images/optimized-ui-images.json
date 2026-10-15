@@ -636,12 +636,12 @@
       "source": "assets/images/ui/card-area-espresso-leather-v1.png",
       "candidateOutput": "assets/images/ui/card-area-espresso-leather-v1.webp",
       "output": "assets/images/ui/card-area-espresso-leather-v1.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
         "status": "admitted",
-        "reason": "shared default leather hand mat referenced directly by the stylesheet; preserve alpha while reducing transfer"
+        "reason": "optional espresso leather hand mat; preserve alpha while reducing transfer"
       },
       "measurement": {
         "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
@@ -813,6 +813,84 @@
       "sourceSha256": "787749f9d2dba1f3726fcb2b698b71e3eb6f73e85200d06312c1ca973ab78ab2",
       "outputSha256": "d58b79ab84e42711f149680847ca0e8c197526069dffbd64c3d2342e2e323cbe",
       "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-walnut-felt-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-walnut-felt-v1.webp",
+      "output": "assets/images/ui/card-area-walnut-felt-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      },
+      "width": 2134,
+      "height": 582,
+      "hasAlpha": true,
+      "sourceBytes": 2154069,
+      "outputBytes": 308324,
+      "savedBytes": 1845745,
+      "savingsRatio": 0.8568643808531667,
+      "sourceSha256": "354ae5f3c838a89910b1d2b472118aa136505c2e247a6e90e4d61857d34d189a",
+      "outputSha256": "8ce9cfe35f7b1e284602765c1d2d381d74111f7de2bd661b74335b4b93ad9e87",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-scholars-oxblood-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+      "output": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      },
+      "width": 2123,
+      "height": 633,
+      "hasAlpha": true,
+      "sourceBytes": 2711032,
+      "outputBytes": 398944,
+      "savedBytes": 2312088,
+      "savingsRatio": 0.8528442305365632,
+      "sourceSha256": "644e1b8738db3ce1118f2994099620c557d8be657574e9eb3e80430d62274036",
+      "outputSha256": "6cdd3a77612b194b2b2597c35987a7c0b072530c2cfdc20f1596a4b8c2846a12",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-midnight-bookcloth-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-midnight-bookcloth-v1.webp",
+      "output": "assets/images/ui/card-area-midnight-bookcloth-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      },
+      "width": 2108,
+      "height": 600,
+      "hasAlpha": true,
+      "sourceBytes": 2458447,
+      "outputBytes": 390962,
+      "savedBytes": 2067485,
+      "savingsRatio": 0.840971963194651,
+      "sourceSha256": "5473f9f769ea66089e414daaeb56933e69cc69eb9fa61f3475151d84b29ce95f",
+      "outputSha256": "93744c1cee4f24915a1436f4346cb04ab30b4171550fb07121cbddaab064d030",
+      "visiblePixelsEqual": false
     }
   ],
   "admittedMapping": {
@@ -846,6 +924,9 @@
     "assets/images/board/board-frame-study-grimoire-leather-v1.png": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
     "assets/images/board/board-surface-study-forest-baize-v1.png": "assets/images/board/board-surface-study-forest-baize-v1.webp",
     "assets/images/board/board-surface-study-jade-slate-v1.png": "assets/images/board/board-surface-study-jade-slate-v1.webp",
-    "assets/images/board/board-surface-study-olive-leather-v1.png": "assets/images/board/board-surface-study-olive-leather-v1.webp"
+    "assets/images/board/board-surface-study-olive-leather-v1.png": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+    "assets/images/ui/card-area-walnut-felt-v1.png": "assets/images/ui/card-area-walnut-felt-v1.webp",
+    "assets/images/ui/card-area-scholars-oxblood-v1.png": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+    "assets/images/ui/card-area-midnight-bookcloth-v1.png": "assets/images/ui/card-area-midnight-bookcloth-v1.webp"
   }
 }
