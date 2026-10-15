@@ -525,7 +525,7 @@ export const CARD_RUNTIME_REQUIRED_EXPORTS = Object.freeze({
             'processBreedingEffectsAtTurnStartAnchor'
         ),
         hyperactive: requiredFunctions(
-            'moveHyperactiveOnce', 'moveRandomAdjacentStoneAtAnchor', 'resolveHyperactiveFlipEvasion',
+            'moveHyperactiveOnce', 'moveAdjacentStoneTowardTargetsAtAnchor', 'resolveHyperactiveFlipEvasion',
             'processHyperactiveMoveAtAnchor', 'processInstantHyperactiveMoveAtAnchor',
             'processUltimateHyperactiveMoveAtAnchor', 'processGluttonousMoveAtAnchor',
             'processRobotVacuumMoveAtAnchor'

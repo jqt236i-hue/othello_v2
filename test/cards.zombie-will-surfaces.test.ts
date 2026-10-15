@@ -7,17 +7,17 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: 'ゾンビの意志',
   type: 'ZOMBIE_WILL',
   cost: 19,
-  desc_ja: '次に置く石を屍石化、自ターン開始時に隣接1マスへランダム移動し、4ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。移動先がない場合は移動しない。',
+  desc_ja: '次に置く石を屍石化。自ターン開始時に一番近い敵通常石へ1マス寄り、隣に敵通常石がいれば20%の確率で1個噛んで自色の屍石に変える。噛まれた石も同じ能力を持つ。反転・破壊されても1回だけ元に戻る。',
   display_type_ja: '守護'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: 'ゾンビの意志',
-  desc: '次に置く石を屍石化、自ターン開始時に隣接1マスへランダム移動し、4ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。移動先がない場合は移動しない。'
+  desc: '次に置く石を屍石化。自ターン開始時に一番近い敵通常石へ1マス寄り、隣に敵通常石がいれば20%の確率で1個噛んで自色の屍石に変える。噛まれた石も同じ能力を持つ。反転・破壊されても1回だけ元に戻る。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を屍石化、自ターン開始時に隣接1マスへランダム移動し、4ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。移動先がない場合は移動しない。';
+const EXPECTED_QUICK_TEXT = '次に置く石を屍石化。自ターン開始時に一番近い敵通常石へ1マス寄り、隣に敵通常石がいれば20%の確率で1個噛んで自色の屍石に変える。噛まれた石も同じ能力を持つ。反転・破壊されても1回だけ元に戻る。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -74,8 +74,9 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
 
     expect(CardInteractionEffects.quickCardEffectByType.ZOMBIE_WILL).toBe(EXPECTED_QUICK_TEXT);
     expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('屍石');
-    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('感染カウントを4へ戻して');
-    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('躍動の意志と同じ隣接1マス');
+    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('一番近い獲物へ1マス寄る');
+    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('20%の確率で噛み');
+    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).not.toContain('感染カウント');
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).toBe(EXPECTED_QUICK_TEXT);
     const tagLabels = CardInteractionEffects.resolveCardEffectTags(cardDef).map((tag) => tag.label);
     expect(tagLabels).toEqual(['特殊石', '復活1回']);
@@ -94,8 +95,8 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
     }));
     expect(rulebook).toContain('### 10.20.5 ZOMBIE_WILL（ゾンビの意志）');
     expect(rulebook).toContain('次に置く石を屍石化する');
-    expect(rulebook).toContain('所有者ターン開始を4回');
-    expect(rulebook).toContain('感染カウントを4へ戻して');
-    expect(rulebook).toContain('躍動の意志と同じく隣接1マス');
+    expect(rulebook).toContain('盤面上で最も近い獲物');
+    expect(rulebook).toContain('20%の確率で噛みつく');
+    expect(rulebook).not.toContain('感染カウント');
   });
 });

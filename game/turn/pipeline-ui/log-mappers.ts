@@ -329,7 +329,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 push('時間停石: 親石消失で不発');
                 break;
             case 'zombie_infected_start':
-                if (_detailCount(ev) > 0) push(`ゾンビの意志: 屍石が感染させた個`);
+                if (_detailCount(ev) > 0) push(`ゾンビの意志: 屍石が${_detailCount(ev)}個を噛んで屍石にした`);
                 break;
             case 'zombie_moved_start':
                 push(`ゾンビの意志: ${_detailCount(ev)}回移動`);

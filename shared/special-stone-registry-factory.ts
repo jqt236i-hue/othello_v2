@@ -344,8 +344,7 @@ function createSpecialStoneRegistry(
         }),
         ZOMBIE: Object.freeze({
             name: '屍石',
-            desc: '所有者ターン開始時に隣接1マスへ移動し、4回ごとに移動後位置から隣接敵通常石を屍石へ感染させ、失われた時に1回だけ復活する。',
-            timerClass: 'countdown-timer'
+            desc: '自ターン開始時に一番近い敵通常石へ1マス寄り、隣に敵通常石がいれば20%の確率で噛んで屍石に変える。復活可能回数があれば、失われた時に元の色へ戻る。'
         }),
         LIVING_WILL: Object.freeze({
             name: '生きる意志',

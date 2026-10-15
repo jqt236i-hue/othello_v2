@@ -86,20 +86,20 @@ describe('turn-start marker ordering', () => {
     expect(destroyEvents[1].details[0]).toMatchObject({ sourceRow: 4, sourceCol: 4, row: 4, col: 5 });
   });
 
-  test('moves the zombie before infection and reports the moved infection source', () => {
+  test('moves the zombie toward prey before biting and reports the moved bite source', () => {
     const prng = createPrng();
     const cardState = CardLogic.createCardState(prng);
     cardState.markers.push({
       id: 'zombie-anchor',
       kind: 'specialStone',
-      row: 1,
+      row: 2,
       col: 1,
       owner: 'black',
       createdSeq: 1,
-      data: { type: 'ZOMBIE', turnsUntilInfection: 1, regenRemaining: 1 }
+      data: { type: 'ZOMBIE', regenRemaining: 1 }
     });
     const gameState = createEmptyGameState();
-    gameState.board[1][1] = Shared.BLACK;
+    gameState.board[2][1] = Shared.BLACK;
     gameState.board[0][1] = Shared.WHITE;
     const events: any[] = [];
 
@@ -115,16 +115,16 @@ describe('turn-start marker ordering', () => {
 
     expect(events).toContainEqual(expect.objectContaining({
       type: 'zombie_moved_start',
-      source: { row: 1, col: 1 },
+      source: { row: 2, col: 1 },
       details: [{
-        from: { row: 1, col: 1 },
-        to: { row: 0, col: 0 },
+        from: { row: 2, col: 1 },
+        to: { row: 1, col: 0 },
         specialType: 'ZOMBIE'
       }]
     }));
     expect(events).toContainEqual(expect.objectContaining({
       type: 'zombie_infected_start',
-      source: { row: 0, col: 0 },
+      source: { row: 1, col: 0 },
       details: [{ row: 0, col: 1 }]
     }));
   });

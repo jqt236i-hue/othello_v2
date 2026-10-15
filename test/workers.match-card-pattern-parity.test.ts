@@ -385,7 +385,7 @@ describe('worker card pattern parity', () => {
     expect(worker).toEqual(local);
     expect(worker.targets[0].after.special).not.toBe('GHOST');
     expect(worker.targets[0].previewStates).toEqual(expect.arrayContaining([
-      expect.objectContaining({ special: 'ZOMBIE', timer: 4 })
+      expect.objectContaining({ special: 'ZOMBIE', regenRemaining: 1 })
     ]));
     expect(results.workerPlace.payload.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(results.workerPlace.payload.snapshot.gameState.currentPlayer).toBe(Core.BLACK);

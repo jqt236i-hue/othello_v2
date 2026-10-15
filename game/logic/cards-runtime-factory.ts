@@ -3662,10 +3662,11 @@ const {
     }
 
     /**
-     * Move a ZOMBIE owner-turn-start anchor, then optionally infect an adjacent enemy normal stone.
+     * Move a ZOMBIE owner-turn-start anchor toward prey, then roll to infect an adjacent enemy normal stone.
      */
     function processZombieEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps: any = {}) {
         const zombieDeps = Object.assign({ BoardOps: BoardOpsModule, CardMarkers: CardMarkersModule }, deps);
+        const randomSource = prng && typeof prng.random === 'function' ? prng : defaultPrng;
         if (typeof zombieDeps.moveAtTurnStart !== 'function') {
             const movementDeps = Object.assign({
                 defaultPrng,
@@ -3682,18 +3683,18 @@ const {
                 nextPlayerKey: any,
                 nextRow: any,
                 nextCol: any,
-                nextPrng: any
-            ) => CardHyperactiveModule.moveRandomAdjacentStoneAtAnchor(
+                nextPrng: any,
+                moveOptions: any
+            ) => CardHyperactiveModule.moveAdjacentStoneTowardTargetsAtAnchor(
                 nextCardState,
                 nextGameState,
                 nextPlayerKey,
                 nextRow,
                 nextCol,
                 nextPrng,
-                movementDeps
+                Object.assign({}, movementDeps, moveOptions)
             );
         }
-        const randomSource = prng && typeof prng.random === 'function' ? prng : defaultPrng;
         const blockMeta = randomSource && typeof randomSource.random === 'function' ? { randomSource } : {};
         return runBoardOpsDestroyBlock(cardState, gameState, () =>
             CardZombieWillModule.processZombieEffectsAtTurnStartAnchor(
@@ -3702,7 +3703,7 @@ const {
                 playerKey,
                 row,
                 col,
-                prng,
+                randomSource,
                 zombieDeps
             ),
             blockMeta

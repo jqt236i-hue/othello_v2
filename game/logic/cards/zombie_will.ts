@@ -2,8 +2,8 @@
  * @file zombie_will.ts
  * @description ZOMBIE_WILL effect helpers (Shared between Browser and Headless)
  *  - Next-stone marker placement (ZOMBIE: permanent, one revival)
- *  - Owner turn-start movement followed by infection: every 4th owner turn start, convert one adjacent
- *    enemy normal stone to a fresh ZOMBIE marker owned by the infected owner.
+ *  - Owner turn-start movement toward the nearest infectable enemy normal stone, followed by a
+ *    20% bite roll: on success, convert one adjacent enemy normal stone to a fresh ZOMBIE marker.
  */
 
 import SharedConstantsImport = require('../../../shared-constants');
@@ -20,7 +20,7 @@ const CardZombieWill = (function (
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
-    const ZOMBIE_INFECTION_INTERVAL = 4;
+    const ZOMBIE_INFECTION_CHANCE = 0.2;
 
     function getCardMarkersModule(deps?: any) {
         if (deps && Object.prototype.hasOwnProperty.call(deps, 'CardMarkers')) {
@@ -45,7 +45,6 @@ const CardZombieWill = (function (
         return {
             type: 'ZOMBIE',
             ownerColor: ownerValue(ownerKey),
-            turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL,
             regenRemaining: 1
         };
     }
@@ -217,14 +216,21 @@ const CardZombieWill = (function (
         return 0;
     }
 
+    function rollInfection(prng: any): boolean {
+        if (!prng || typeof prng.random !== 'function') {
+            throw new Error('[zombie-will] deterministic PRNG is required for the infection roll');
+        }
+        const r = Number(prng.random());
+        return Number.isFinite(r) && r < ZOMBIE_INFECTION_CHANCE;
+    }
+
     function buildTurnStartResult(
         moved: any[],
         sourceRow: number,
         sourceCol: number,
-        infected: any[],
-        anchors: any[]
+        infected: any[]
     ): any {
-        const result: any = { infected, anchors };
+        const result: any = { infected };
         if (Array.isArray(moved) && moved.length > 0) {
             result.moved = moved;
             result.source = { row: sourceRow, col: sourceCol };
@@ -245,7 +251,9 @@ const CardZombieWill = (function (
         let currentCol = col;
         let moved: any[] = [];
         if (deps && typeof deps.moveAtTurnStart === 'function') {
-            const movement = deps.moveAtTurnStart(cardState, gameState, playerKey, row, col, prng);
+            const movement = deps.moveAtTurnStart(cardState, gameState, playerKey, row, col, prng, {
+                isApproachTarget: (r: number, c: number) => isEnemyNormalStone(cardState, gameState, r, c, playerKey)
+            });
             moved = Array.isArray(movement && movement.moved) ? movement.moved : [];
             const lastMove = moved.length > 0 ? moved[moved.length - 1] : null;
             if (
@@ -260,38 +268,14 @@ const CardZombieWill = (function (
         }
 
         const zombie = findZombieMarkerAt(cardState, currentRow, currentCol, playerKey);
-        if (!zombie) return buildTurnStartResult(moved, currentRow, currentCol, [], []);
+        if (!zombie) return buildTurnStartResult(moved, currentRow, currentCol, []);
         if (getCell(cardState, gameState, currentRow, currentCol) !== ownerValue(playerKey)) {
-            return buildTurnStartResult(moved, currentRow, currentCol, [], []);
-        }
-
-        const data = zombie.data || {};
-        const before = Number.isFinite(Number(data.turnsUntilInfection))
-            ? Math.max(1, Math.trunc(Number(data.turnsUntilInfection)))
-            : ZOMBIE_INFECTION_INTERVAL;
-        const after = before - 1;
-        if (after > 0) {
-            data.turnsUntilInfection = after;
-            return buildTurnStartResult(
-                moved,
-                currentRow,
-                currentCol,
-                [],
-                [{ row: currentRow, col: currentCol, turnsUntilInfection: after }]
-            );
+            return buildTurnStartResult(moved, currentRow, currentCol, []);
         }
 
         const candidates = findAdjacentInfectionCandidates(cardState, gameState, currentRow, currentCol, playerKey);
-        if (candidates.length === 0) {
-            data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
-            return buildTurnStartResult(
-                moved,
-                currentRow,
-                currentCol,
-                [],
-                [{ row: currentRow, col: currentCol, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }]
-            );
-        }
+        if (candidates.length === 0) return buildTurnStartResult(moved, currentRow, currentCol, []);
+        if (!rollInfection(prng)) return buildTurnStartResult(moved, currentRow, currentCol, []);
 
         const boardOps = requireBoardOps(deps);
         requireCardMarkers(deps);
@@ -308,15 +292,8 @@ const CardZombieWill = (function (
             'zombie_infection',
             { sourceRow: currentRow, sourceCol: currentCol }
         );
-        data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
         if (!changeResult || changeResult.changed !== true) {
-            return buildTurnStartResult(
-                moved,
-                currentRow,
-                currentCol,
-                [],
-                [{ row: currentRow, col: currentCol, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }]
-            );
+            return buildTurnStartResult(moved, currentRow, currentCol, []);
         }
         removeStoneStatusMarkersAt(cardState, target.row, target.col);
         try {
@@ -327,19 +304,13 @@ const CardZombieWill = (function (
             }
             throw error;
         }
-        return buildTurnStartResult(
-            moved,
-            currentRow,
-            currentCol,
-            [target],
-            [{ row: currentRow, col: currentCol, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }]
-        );
+        return buildTurnStartResult(moved, currentRow, currentCol, [target]);
     }
 
     return {
         createZombieMarkerData,
         processZombieEffectsAtTurnStartAnchor,
-        ZOMBIE_INFECTION_INTERVAL
+        ZOMBIE_INFECTION_CHANCE
     };
 })(SharedConstantsImport, SharedBoardUtilsImport, CardMarkersImport, SpecialStoneRegistryImport);
 

@@ -227,7 +227,7 @@ describe('UI stone rendering', () => {
 
   });
 
-  test('diff-renderer shows zombie infection countdown and purple revival badge together', () => {
+  test('diff-renderer shows only the purple revival badge on a zombie', () => {
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';
     global.boardEl = boardEl;
@@ -238,14 +238,15 @@ describe('UI stone rendering', () => {
       row: 3,
       col: 3,
       owner: 'black',
-      data: { type: 'ZOMBIE', turnsUntilInfection: 3, regenRemaining: 1 }
+      data: { type: 'ZOMBIE', regenRemaining: 1 }
     }];
 
     const diffRenderer = require('../ui/board-dom-compat/renderer');
     diffRenderer.renderBoardDiff(boardEl);
 
     const zombieDisc = boardEl.querySelector('.cell[data-row="3"][data-col="3"] .disc');
-    assert.strictEqual(zombieDisc.querySelector('.countdown-timer').textContent, '3');
+    assert.strictEqual(zombieDisc.querySelector('.countdown-timer'), null);
+    assert.strictEqual(zombieDisc.querySelector('.stone-timer'), null);
     assert.strictEqual(zombieDisc.querySelector('.stone-regen-badge').textContent, '1');
     assert.strictEqual(zombieDisc.querySelector('.stone-regen-badge').classList.contains('stone-regen-badge--zombie'), true);
   });
@@ -933,7 +934,7 @@ describe('UI stone rendering', () => {
     assert.ok(document.getElementById('stone-info-desc').textContent.includes('時間停止'));
   });
 
-  test('diff renderer shows the zombie infection countdown', () => {
+  test('diff renderer ignores a legacy zombie infection countdown field', () => {
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';
     global.boardEl = boardEl;
@@ -954,9 +955,10 @@ describe('UI stone rendering', () => {
     const diffRenderer = require('../ui/board-dom-compat/renderer');
     diffRenderer.renderBoardDiff(boardEl);
 
-    const timer = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .countdown-timer');
-    assert.ok(timer, 'expected zombie infection countdown');
-    assert.strictEqual(timer.textContent, '3');
+    const disc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
+    assert.ok(disc, 'expected zombie disc');
+    assert.strictEqual(disc.querySelector('.countdown-timer'), null);
+    assert.strictEqual(disc.querySelector('.stone-timer'), null);
   });
 
   test('board stylesheet references ICE overlay asset for frozen cells', () => {

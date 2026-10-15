@@ -196,6 +196,7 @@ interface HyperactiveDeps {
     expectedSpecialType?: string;
     moveCause?: string;
     moveReason?: string;
+    isApproachTarget?: (row: number, col: number) => boolean;
 }
 
 function resolveDeterministicPrng(prng: any, deps: HyperactiveDeps | undefined, label: string): any {
@@ -329,13 +330,33 @@ function getNeighborEmptyCandidates(
     return includeOccupied ? emptyOut.concat(occupiedOut) : emptyOut;
 }
 
+function findAnchoredSpecialStoneEntry(
+    cardState: CardState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    expectedSpecialType: string
+): MarkerEntry | undefined {
+    return ((cardState as any).markers || []).find((marker: any) => (
+        marker &&
+        marker.kind === 'specialStone' &&
+        marker.data &&
+        (!expectedSpecialType || String(marker.data.type || '').toUpperCase() === expectedSpecialType) &&
+        marker.owner === playerKey &&
+        marker.row === row &&
+        marker.col === col
+    ));
+}
+
 /**
- * Move one anchored special stone to a random adjacent empty cell without
- * applying the hyperactive-specific flip or no-candidate destruction rules.
- * Card-specific turn-start effects can use this to share the canonical
- * topology, PRNG, marker-transfer, and presentation path.
+ * Move one anchored special stone one step toward the nearest cell accepted by
+ * `deps.isApproachTarget` (Chebyshev distance). The stone stays when a target is
+ * already adjacent, no target exists, or no adjacent empty cell gets strictly
+ * closer. Ties prefer the cell adjacent to more targets, then use the PRNG.
+ * Card-specific turn-start effects use this to share the canonical topology,
+ * PRNG, marker-transfer, and presentation path.
  */
-function moveRandomAdjacentStoneAtAnchor(
+function moveAdjacentStoneTowardTargetsAtAnchor(
     cardState: CardState,
     gameState: GameState,
     playerKey: PlayerKey,
@@ -345,42 +366,75 @@ function moveRandomAdjacentStoneAtAnchor(
     deps: HyperactiveDeps = {}
 ): HyperactiveMoveResult {
     const expectedSpecialType = String(deps && deps.expectedSpecialType ? deps.expectedSpecialType : '').toUpperCase();
-    const entry: MarkerEntry | undefined = ((cardState as any).markers || []).find((marker: any) => (
-        marker &&
-        marker.kind === 'specialStone' &&
-        marker.data &&
-        (!expectedSpecialType || String(marker.data.type || '').toUpperCase() === expectedSpecialType) &&
-        marker.owner === playerKey &&
-        marker.row === row &&
-        marker.col === col
-    ));
+    const entry = findAnchoredSpecialStoneEntry(cardState, playerKey, row, col, expectedSpecialType);
     const ownerKey = playerKey === 'white' ? 'white' : 'black';
-    if (!entry) return { moved: [], destroyed: [], flipped: [], ownerKey };
+    const stay: HyperactiveMoveResult = { moved: [], destroyed: [], flipped: [], ownerKey };
+    if (!entry || typeof deps.isApproachTarget !== 'function') return stay;
 
     const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-    if (getBoardCell(cardState, gameState, row, col) !== ownerVal) {
-        return { moved: [], destroyed: [], flipped: [], ownerKey };
-    }
+    if (getBoardCell(cardState, gameState, row, col) !== ownerVal) return stay;
+
+    const isApproachTarget = deps.isApproachTarget;
+    const targets: Position[] = [];
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
+        if (r === row && c === col) return;
+        if (isApproachTarget(r, c)) targets.push({ row: r, col: c });
+    });
+    if (targets.length === 0) return stay;
+
+    const nearestDistanceFrom = (point: Position) => {
+        let nearest = Number.POSITIVE_INFINITY;
+        for (const target of targets) {
+            const dist = getChebyshevDistance(point, target);
+            if (dist < nearest) nearest = dist;
+        }
+        return nearest;
+    };
+    const currentNearest = nearestDistanceFrom({ row, col });
+    if (currentNearest <= 1) return stay;
 
     const isBlockedCell = typeof deps.isBlockedCell === 'function'
         ? deps.isBlockedCell
         : (() => false);
-    const candidates = getNeighborEmptyCandidates(
-        cardState,
-        gameState,
-        row,
-        col,
-        { isBlockedCell }
-    );
-    if (candidates.length === 0) {
-        return { moved: [], destroyed: [], flipped: [], ownerKey };
+    const candidates = getNeighborEmptyCandidates(cardState, gameState, row, col, { isBlockedCell });
+    let bestCandidates: Candidate[] = [];
+    let bestNearest = currentNearest;
+    let bestAdjacentCount = -1;
+    for (const candidate of candidates) {
+        const nearest = nearestDistanceFrom(candidate);
+        if (nearest >= currentNearest) continue;
+        const adjacentCount = targets.filter((target) => getChebyshevDistance(candidate, target) === 1).length;
+        if (nearest < bestNearest || (nearest === bestNearest && adjacentCount > bestAdjacentCount)) {
+            bestCandidates = [candidate];
+            bestNearest = nearest;
+            bestAdjacentCount = adjacentCount;
+        } else if (nearest === bestNearest && adjacentCount === bestAdjacentCount) {
+            bestCandidates.push(candidate);
+        }
+    }
+    if (bestCandidates.length === 0) return stay;
+
+    let target = bestCandidates[0];
+    if (bestCandidates.length > 1) {
+        const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveAdjacentStoneTowardTargetsAtAnchor');
+        target = bestCandidates[Math.floor(p.random() * bestCandidates.length)] || bestCandidates[0];
     }
 
-    const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveRandomAdjacentStoneAtAnchor');
-    const index = Math.floor(p.random() * candidates.length);
-    const target = candidates[index] || candidates[0] || null;
-    if (!target) return { moved: [], destroyed: [], flipped: [], ownerKey };
+    const moved = moveAnchoredStoneToAdjacentCell(cardState, gameState, entry, row, col, ownerVal, target, expectedSpecialType, deps);
+    return moved ? { moved: [moved], destroyed: [], flipped: [], ownerKey } : stay;
+}
 
+function moveAnchoredStoneToAdjacentCell(
+    cardState: CardState,
+    gameState: GameState,
+    entry: MarkerEntry,
+    row: number,
+    col: number,
+    ownerVal: number,
+    target: Position,
+    expectedSpecialType: string,
+    deps: HyperactiveDeps
+): MoveResult | null {
     const moveCause = String(deps.moveCause || 'HYPERACTIVE');
     const moveReason = String(deps.moveReason || 'hyperactive_move');
     let movedRes = false;
@@ -406,7 +460,7 @@ function moveRandomAdjacentStoneAtAnchor(
         setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
         movedRes = true;
     }
-    if (!movedRes) return { moved: [], destroyed: [], flipped: [], ownerKey };
+    if (!movedRes) return null;
 
     if (!usedBoardOpsMove) {
         moveCoexistingSpecialMarkers(cardState, entry, row, col, target.row, target.col);
@@ -415,14 +469,9 @@ function moveRandomAdjacentStoneAtAnchor(
     entry.col = target.col;
 
     return {
-        moved: [{
-            from: { row, col },
-            to: { row: target.row, col: target.col },
-            specialType: String(entry.data && entry.data.type || expectedSpecialType || '').toUpperCase() || undefined
-        }],
-        destroyed: [],
-        flipped: [],
-        ownerKey
+        from: { row, col },
+        to: { row: target.row, col: target.col },
+        specialType: String(entry.data && entry.data.type || expectedSpecialType || '').toUpperCase() || undefined
     };
 }
 
@@ -2429,7 +2478,7 @@ function processRobotVacuumMoveAtAnchor(
 const _exports: any = {
     setHyperactiveRuntime,
     moveHyperactiveOnce,
-    moveRandomAdjacentStoneAtAnchor,
+    moveAdjacentStoneTowardTargetsAtAnchor,
     resolveHyperactiveFlipEvasion,
     resolveEvasionMoveFlips,
     processHyperactiveMoves,

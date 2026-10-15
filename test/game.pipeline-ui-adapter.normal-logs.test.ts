@@ -145,4 +145,11 @@ describe('pipeline_ui_adapter normal logs', () => {
     ], [], 'black');
     expect(out).toEqual(['黒: 時間停神: 親石消失で不発']);
   });
+
+  test('zombie bite log includes the number of bitten stones', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'zombie_infected_start', source: { row: 1, col: 1 }, details: [{ row: 0, col: 1 }, { row: 2, col: 2 }] }
+    ], [], 'black');
+    expect(out).toEqual(['黒: ゾンビの意志: 屍石が2個を噛んで屍石にした']);
+  });
 });

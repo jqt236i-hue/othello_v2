@@ -175,18 +175,18 @@ describe('special stone speech rollout', () => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
-    gameState.board[1][1] = Core.BLACK;
+    gameState.board[2][1] = Core.BLACK;
     gameState.board[0][1] = Core.WHITE;
     cardState.markers.push({
-      id: 9201, kind: 'specialStone', row: 1, col: 1, owner: 'black', createdSeq: 1,
-      data: { type: 'ZOMBIE', ownerColor: Core.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      id: 9201, kind: 'specialStone', row: 2, col: 1, owner: 'black', createdSeq: 1,
+      data: { type: 'ZOMBIE', ownerColor: Core.BLACK, regenRemaining: 1 }
     });
 
     TurnPipelinePhases.applyTurnStartPhase(CardLogic, CORE_API, cardState, gameState, 'black', [], prng);
 
     const bubbles = getSpecialStoneBubbles(CardLogic.flushPresentationEvents(cardState));
     expect(bubbles.filter((event) => event.scenario === 'zombie_infection')).toEqual([
-      expect.objectContaining({ special: 'ZOMBIE', row: 0, col: 0 })
+      expect.objectContaining({ special: 'ZOMBIE', row: 1, col: 0 })
     ]);
     expect(bubbles.some((event) => event.scenario === 'place' && event.row === 0 && event.col === 1)).toBe(false);
   });
@@ -296,7 +296,7 @@ describe('special stone speech rollout', () => {
     gameState.board[2][6] = Core.WHITE;
     cardState.markers.push({
       id: 42, kind: 'specialStone', row: 2, col: 3, owner: 'black',
-      data: { type: 'ZOMBIE', ownerColor: Core.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+      data: { type: 'ZOMBIE', ownerColor: Core.BLACK, regenRemaining: 1 }
     });
 
     const res = TurnPipeline.applyTurn(

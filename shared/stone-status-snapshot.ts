@@ -45,7 +45,6 @@ const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, Evasi
         destroyEvadeRemaining?: unknown;
         remainingOwnerTurns?: unknown;
         remainingTurns?: unknown;
-        turnsUntilInfection?: unknown;
         flipEvadeRemaining?: unknown;
         regenRemaining?: unknown;
     }
@@ -208,7 +207,6 @@ const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, Evasi
             if (rawTimer === undefined) {
                 if (Object.prototype.hasOwnProperty.call(obj, 'timer')) rawTimer = obj.timer;
                 else if (Object.prototype.hasOwnProperty.call(obj, 'remainingOwnerTurns')) rawTimer = obj.remainingOwnerTurns;
-                else if (Object.prototype.hasOwnProperty.call(obj, 'turnsUntilInfection')) rawTimer = obj.turnsUntilInfection;
             }
             if (rawRegenRemaining === undefined) rawRegenRemaining = obj.regenRemaining;
         }
@@ -296,6 +294,9 @@ const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, Evasi
         };
         const displayTimer = primarySnapshot ? toCounterOrNull(primarySnapshot.displayTimer) : null;
         const primaryType = normalizeSpecialStoneType(primarySnapshot && primarySnapshot.type);
+        const primaryRegenRemaining = primaryType !== 'REGEN' && primaryInput && typeof primaryInput === 'object'
+            ? toCounterOrNull((primaryInput as Record<string, unknown>).regenRemaining)
+            : null;
         const flipEvadeTotal = sumCounters('flipEvadeRemaining');
         const destroyEvadeTotal = sumCounters('destroyEvadeRemaining');
 
@@ -307,6 +308,7 @@ const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, Evasi
         if ((!opts || opts.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
         if (displayTimer !== null && primaryType === 'REGEN') tags.push(`復活 残り${displayTimer}回`);
         else if (displayTimer !== null) tags.push(`残り${displayTimer}T`);
+        if (primaryRegenRemaining !== null && primaryRegenRemaining > 0) tags.push(`復活 残り${primaryRegenRemaining}回`);
         if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
         if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('躍動状態');
@@ -362,10 +364,7 @@ const StoneStatusSnapshot: any = (function (SpecialStoneRegistry: unknown, Evasi
                 kind: visualSpecial.kind,
                 marker: visualSpecial,
                 type: visualSpecial.data && visualSpecial.data.type,
-                timer: visualSpecial.data && (
-                    visualSpecial.data.remainingOwnerTurns ??
-                    visualSpecial.data.turnsUntilInfection
-                ),
+                timer: visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
                 regenRemaining: visualSpecial.data && visualSpecial.data.regenRemaining,
                 flipEvadeRemaining: visualSpecial.data && visualSpecial.data.flipEvadeRemaining,
                 destroyEvadeRemaining: out.destroyEvadeRemaining !== null

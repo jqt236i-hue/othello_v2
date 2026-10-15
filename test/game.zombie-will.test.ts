@@ -13,6 +13,18 @@ function createPrng(randomValue = 0) {
   };
 }
 
+function createCountingPrng(values: number[]) {
+  const prng = {
+    calls: 0,
+    random: () => {
+      const value = values[Math.min(prng.calls, values.length - 1)];
+      prng.calls += 1;
+      return value;
+    }
+  };
+  return prng;
+}
+
 function createState(randomValue = 0, board, cardStateOverrides = {}) {
   const prng = createPrng(randomValue);
   const cardState = Object.assign({
@@ -31,12 +43,28 @@ function createState(randomValue = 0, board, cardStateOverrides = {}) {
   return { cardState, gameState, prng };
 }
 
+function zombieMarker(id: string, row: number, col: number, owner = 'black') {
+  return {
+    id,
+    kind: 'specialStone',
+    row,
+    col,
+    owner,
+    createdSeq: 1,
+    data: { type: 'ZOMBIE', ownerColor: owner === 'black' ? Shared.BLACK : Shared.WHITE, regenRemaining: 1 }
+  };
+}
+
+function emptyBoard(size: number) {
+  return Array.from({ length: size }, () => Array(size).fill(Shared.EMPTY));
+}
+
 describe('ZOMBIE special stone registry', () => {
   test('ZOMBIE_WILL maps to a true special stone body', () => {
     expect(SpecialStoneRegistry.getMarkerTypeForSpecialStoneCard('ZOMBIE_WILL')).toBe('ZOMBIE');
     expect(SpecialStoneRegistry.getSpecialStoneDisplayName('ZOMBIE')).toBe('屍石');
-    expect(SpecialStoneRegistry.getSpecialStoneDescription('ZOMBIE')).toContain('4回ごと');
-    expect(SpecialStoneRegistry.getSpecialStoneDescription('ZOMBIE')).toContain('移動後位置');
+    expect(SpecialStoneRegistry.getSpecialStoneDescription('ZOMBIE')).toContain('一番近い敵通常石へ1マス寄り');
+    expect(SpecialStoneRegistry.getSpecialStoneDescription('ZOMBIE')).toContain('20%の確率で噛んで');
     expect(SpecialStoneRegistry.countsAsSpecialStone('ZOMBIE')).toBe(true);
     expect(SpecialStoneRegistry.canLossWillRevert('ZOMBIE')).toBe(true);
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('ZOMBIE')).toBe('true_special_stone');
@@ -48,7 +76,7 @@ describe('ZOMBIE special stone registry', () => {
 });
 
 describe('ZOMBIE placement', () => {
-  test('uses the canonical four-turn countdown through the card timing context', () => {
+  test('places a permanent zombie with one revival and no bite countdown', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
@@ -76,33 +104,48 @@ describe('ZOMBIE placement', () => {
 
     expect(effects).toMatchObject({ zombiePlaced: true });
     expect(marker && marker.data).toMatchObject(ZombieWill.createZombieMarkerData('black'));
+    expect(marker.data).not.toHaveProperty('turnsUntilInfection');
+    expect(marker.data).not.toHaveProperty('remainingOwnerTurns');
   });
 });
 
 describe('ZOMBIE status display and revival', () => {
-  test('shows turns until infection as the countdown timer', () => {
+  test('shows no stone timer and lists the remaining revival in stone info', () => {
     const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
       type: 'ZOMBIE',
-      turnsUntilInfection: 4,
       regenRemaining: 1
     }, { mode: 'raw' });
+    const marker = zombieMarker('zombie-info', 0, 0);
+    const tags = StoneStatusSnapshot.buildSpecialStoneStatusTags([{
+      kind: marker.kind,
+      marker,
+      type: 'ZOMBIE',
+      timer: undefined,
+      regenRemaining: 1
+    }], {});
 
-    expect(snapshot.displayTimer).toBe(4);
-    expect(snapshot.timerClass).toBe('countdown-timer');
+    expect(snapshot.displayTimer).toBeNull();
+    expect(snapshot.timerClass).not.toBe('countdown-timer');
+    expect(tags).toEqual(['特殊石', '復活 残り1回']);
   });
 
-  test('revives once after a flip and keeps the zombie infection marker', () => {
+  test('stone info omits the revival tag once the revival is spent', () => {
+    const marker = zombieMarker('zombie-info-spent', 0, 0);
+    const tags = StoneStatusSnapshot.buildSpecialStoneStatusTags([{
+      kind: marker.kind,
+      marker,
+      type: 'ZOMBIE',
+      regenRemaining: 0
+    }], {});
+
+    expect(tags).toEqual(['特殊石']);
+  });
+
+  test('revives once after a flip and keeps the zombie marker', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.WHITE;
     const cardState = {
-      markers: [{
-        id: 1,
-        kind: 'specialStone',
-        row: 3,
-        col: 3,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
-      }],
+      markers: [zombieMarker('zombie-flip', 3, 3)],
       presentationEvents: []
     };
 
@@ -117,7 +160,6 @@ describe('ZOMBIE status display and revival', () => {
         owner: 'black',
         data: expect.objectContaining({
           type: 'ZOMBIE',
-          turnsUntilInfection: 2,
           regenRemaining: 0
         })
       })
@@ -130,14 +172,7 @@ describe('ZOMBIE status display and revival', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.WHITE;
     const cardState = {
-      markers: [{
-        id: 1,
-        kind: 'specialStone',
-        row: 3,
-        col: 3,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
-      }],
+      markers: [zombieMarker('zombie-flip-twice', 3, 3)],
       presentationEvents: []
     };
 
@@ -155,14 +190,7 @@ describe('ZOMBIE status display and revival', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.WHITE;
     const cardState = {
-      markers: [1, 2].map((id) => ({
-        id,
-        kind: 'specialStone',
-        row: 3,
-        col: 3,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
-      })),
+      markers: [1, 2].map((id) => zombieMarker(`zombie-dup-${id}`, 3, 3)),
       presentationEvents: []
     };
 
@@ -176,18 +204,11 @@ describe('ZOMBIE status display and revival', () => {
     expect(cardState.markers).toHaveLength(0);
   });
 
-  test('revives once after destruction and keeps the zombie infection marker', () => {
+  test('revives once after destruction and keeps the zombie marker', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.BLACK;
     const cardState = CardLogic.createCardState(createPrng());
-    cardState.markers.push({
-      id: 1,
-      kind: 'specialStone',
-      row: 3,
-      col: 3,
-      owner: 'black',
-      data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
-    });
+    cardState.markers.push(zombieMarker('zombie-destroy', 3, 3));
 
     const result = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
 
@@ -200,7 +221,6 @@ describe('ZOMBIE status display and revival', () => {
         owner: 'black',
         data: expect.objectContaining({
           type: 'ZOMBIE',
-          turnsUntilInfection: 2,
           regenRemaining: 0
         })
       })
@@ -213,14 +233,7 @@ describe('ZOMBIE status display and revival', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.BLACK;
     const cardState = CardLogic.createCardState(createPrng());
-    cardState.markers.push({
-      id: 1,
-      kind: 'specialStone',
-      row: 3,
-      col: 3,
-      owner: 'black',
-      data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
-    });
+    cardState.markers.push(zombieMarker('zombie-destroy-twice', 3, 3));
 
     const first = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
     const second = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
@@ -232,35 +245,14 @@ describe('ZOMBIE status display and revival', () => {
   });
 });
 
-describe('ZOMBIE infection logic', () => {
-  test('fourth owner turn start infects one adjacent enemy normal stone', () => {
+describe('ZOMBIE bite roll', () => {
+  test('bites one adjacent enemy normal stone when the 20% roll succeeds', () => {
     const { cardState, gameState, prng } = createState(0, null, {
-      markers: [{
-        id: 'zombie-1',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 4, regenRemaining: 1 }
-      }],
+      markers: [zombieMarker('zombie-1', 1, 1)],
       _nextMarkerId: 2,
       _nextCreatedSeq: 2
     });
 
-    for (let turn = 1; turn < 4; turn += 1) {
-      const waiting = ZombieWill.processZombieEffectsAtTurnStartAnchor(
-        cardState,
-        gameState,
-        'black',
-        1,
-        1,
-        prng,
-        { BoardOps }
-      );
-      expect(waiting.infected).toEqual([]);
-      expect(cardState.markers[0].data.turnsUntilInfection).toBe(4 - turn);
-    }
     const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
       cardState,
       gameState,
@@ -273,25 +265,70 @@ describe('ZOMBIE infection logic', () => {
 
     expect(result.infected).toEqual([{ row: 1, col: 2 }]);
     expect(gameState.board[1][2]).toBe(Shared.BLACK);
-    const infectedMarker = cardState.markers.find((m) => m.row === 1 && m.col === 2 && m.owner === 'black');
-    expect(infectedMarker).toBeTruthy();
-    expect(infectedMarker.data.type).toBe('ZOMBIE');
-    expect(infectedMarker.data.turnsUntilInfection).toBe(4);
-    expect(infectedMarker.data.regenRemaining).toBe(1);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(4);
+    const bittenMarker = cardState.markers.find((m) => m.row === 1 && m.col === 2 && m.owner === 'black');
+    expect(bittenMarker).toBeTruthy();
+    expect(bittenMarker.data).toEqual(ZombieWill.createZombieMarkerData('black'));
   });
 
-  test('passes the zombie source position to the infection change event', () => {
+  test('a roll at or above 20% misses and leaves the board unchanged', () => {
+    const { cardState, gameState } = createState(0, null, {
+      markers: [zombieMarker('zombie-miss', 1, 1)]
+    });
+    const prng = createCountingPrng([ZombieWill.ZOMBIE_INFECTION_CHANCE]);
+
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      1,
+      prng,
+      { BoardOps }
+    );
+
+    expect(result).toEqual({ infected: [] });
+    expect(gameState.board[1][2]).toBe(Shared.WHITE);
+    expect(cardState.markers).toHaveLength(1);
+    expect(prng.calls).toBe(1);
+  });
+
+  test('the roll just below 20% still bites', () => {
+    const { cardState, gameState } = createState(0, null, {
+      markers: [zombieMarker('zombie-edge', 1, 1)]
+    });
+    const prng = createCountingPrng([0.1999, 0]);
+
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      1,
+      prng,
+      { BoardOps }
+    );
+
+    expect(result.infected).toEqual([{ row: 1, col: 2 }]);
+    expect(prng.calls).toBe(2);
+  });
+
+  test('does not roll when no prey is adjacent', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[1][1] = Shared.BLACK;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-no-target', 1, 1)]
+    });
+    const prng = createCountingPrng([0]);
+
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+
+    expect(result).toEqual({ infected: [] });
+    expect(prng.calls).toBe(0);
+  });
+
+  test('passes the zombie source position to the bite change event', () => {
     const { cardState, gameState, prng } = createState(0, null, {
-      markers: [{
-        id: 'zombie-source',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
+      markers: [zombieMarker('zombie-source', 1, 1)]
     });
     const changeAt = jest.fn(BoardOps.changeAt);
 
@@ -317,188 +354,10 @@ describe('ZOMBIE infection logic', () => {
     );
   });
 
-  test('emits the infection change event through the production CardLogic wrapper', () => {
-    const board = Array.from({ length: 4 }, () => Array(4).fill(Shared.EMPTY));
-    board[1][1] = Shared.BLACK;
-    board[0][1] = Shared.WHITE;
-    const { cardState, gameState, prng } = createState(0, board, {
-      markers: [{
-        id: 'zombie-production-source',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
-    });
-
-    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
-
-    expect(result.moved).toEqual([{
-      from: { row: 1, col: 1 },
-      to: { row: 0, col: 0 },
-      specialType: 'ZOMBIE'
-    }]);
-    expect(result.source).toEqual({ row: 0, col: 0 });
-    expect(cardState.presentationEvents[0]).toEqual(expect.objectContaining({
-      type: 'MOVE',
-      prevRow: 1,
-      prevCol: 1,
-      row: 0,
-      col: 0,
-      cause: 'ZOMBIE',
-      reason: 'zombie_move',
-      meta: expect.objectContaining({ moveIntent: 'hyperactive_move' })
-    }));
-    expect(cardState.presentationEvents).toContainEqual(expect.objectContaining({
-      type: 'CHANGE',
-      row: 0,
-      col: 1,
-      cause: 'ZOMBIE',
-      reason: 'zombie_infection',
-      meta: expect.objectContaining({ sourceRow: 0, sourceCol: 0 })
-    }));
-  });
-
-  test('moves on every owner turn start before the infection countdown is resolved', () => {
-    const { cardState, gameState, prng } = createState(0, null, {
-      markers: [{
-        id: 'zombie-moves-each-turn',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 4, regenRemaining: 1 }
-      }]
-    });
-
-    const first = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
-    expect(first.moved).toHaveLength(1);
-    expect(first.infected).toEqual([]);
-    expect(cardState.markers[0]).toMatchObject({ row: 0, col: 0 });
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
-
-    const second = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 0, 0, prng);
-    expect(second.moved).toHaveLength(1);
-    expect(second.infected).toEqual([]);
-    expect(cardState.markers[0]).toMatchObject({ row: 0, col: 1 });
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(2);
-
-    const third = CardLogic.processZombieEffectsAtTurnStartAnchor(
-      cardState,
-      gameState,
-      'black',
-      cardState.markers[0].row,
-      cardState.markers[0].col,
-      prng
-    );
-    expect(third.moved).toHaveLength(1);
-    expect(third.infected).toEqual([]);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(1);
-  });
-
-  test('does not move or consume a random value when no adjacent destination exists', () => {
-    const board = Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK));
-    board[3][3] = Shared.BLACK;
-    let randomCalls = 0;
-    const prng = {
-      random: () => {
-        randomCalls += 1;
-        return 0;
-      }
-    };
-    const { cardState, gameState } = createState(0, board, {
-      markers: [{
-        id: 'zombie-no-move-destination',
-        kind: 'specialStone',
-        row: 3,
-        col: 3,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 4, regenRemaining: 1 }
-      }]
-    });
-
-    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
-
-    expect(result.moved || []).toEqual([]);
-    expect(result.infected).toEqual([]);
-    expect(cardState.markers[0]).toMatchObject({ row: 3, col: 3 });
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
-    expect(randomCalls).toBe(0);
-    expect(cardState.presentationEvents.some((event) => event.type === 'MOVE')).toBe(false);
-  });
-
-  test('non-triggering owner turn only decrements infection counter', () => {
-    const { cardState, gameState, prng } = createState(0, null, {
-      markers: [{
-        id: 'zombie-2',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 4, regenRemaining: 1 }
-      }],
-      _nextMarkerId: 2,
-      _nextCreatedSeq: 2
-    });
-
-    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
-
-    expect(result.infected).toEqual([]);
-    expect(gameState.board[1][2]).toBe(Shared.WHITE);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
-  });
-
-  test('restarts a full four-turn countdown when no infection target exists at zero', () => {
-    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
-    board[1][1] = Shared.BLACK;
-    const { cardState, gameState, prng } = createState(0, board, {
-      markers: [{
-        id: 'zombie-no-target',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
-    });
-
-    const missed = ZombieWill.processZombieEffectsAtTurnStartAnchor(
-      cardState,
-      gameState,
-      'black',
-      1,
-      1,
-      prng
-    );
-
-    expect(missed).toEqual({
-      infected: [],
-      anchors: [{ row: 1, col: 1, turnsUntilInfection: 4 }]
-    });
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(4);
-
-    ZombieWill.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
-    expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
-  });
-
-  test('infection ignores stones protected by GUARD status markers', () => {
+  test('bites ignore stones protected by GUARD status markers', () => {
     const { cardState, gameState, prng } = createState(0, null, {
       markers: [
-        {
-          id: 'zombie-3',
-          kind: 'specialStone',
-          row: 1,
-          col: 1,
-          owner: 'black',
-          createdSeq: 1,
-          data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-        },
+        zombieMarker('zombie-3', 1, 1),
         {
           id: 'guard-1',
           kind: 'specialStone',
@@ -519,18 +378,11 @@ describe('ZOMBIE infection logic', () => {
     expect(gameState.board[1][2]).toBe(Shared.WHITE);
   });
 
-  test('infection crosses from a base anchor into an adjacent expansion cell', () => {
+  test('bites cross from a base anchor into an adjacent expansion cell', () => {
     const board = Array.from({ length: 4 }, () => Array(4).fill(0));
     board[1][3] = Shared.BLACK;
     const { cardState, gameState, prng } = createState(0, board, {
-      markers: [{
-        id: 'zombie-base',
-        kind: 'specialStone',
-        row: 1,
-        col: 3,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
+      markers: [zombieMarker('zombie-base', 1, 3)]
     });
     gameState.boardExpansion = {
       cells: [{ side: 'right', row: 1, col: 4, owner: Shared.WHITE }]
@@ -556,18 +408,11 @@ describe('ZOMBIE infection logic', () => {
     }));
   });
 
-  test('infection crosses from an expansion anchor back into the base board', () => {
+  test('bites cross from an expansion anchor back into the base board', () => {
     const board = Array.from({ length: 4 }, () => Array(4).fill(0));
     board[1][3] = Shared.WHITE;
     const { cardState, gameState, prng } = createState(0, board, {
-      markers: [{
-        id: 'zombie-expansion',
-        kind: 'specialStone',
-        row: 1,
-        col: 4,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
+      markers: [zombieMarker('zombie-expansion', 1, 4)]
     });
     gameState.boardExpansion = {
       cells: [{ side: 'right', row: 1, col: 4, owner: Shared.BLACK }]
@@ -587,17 +432,10 @@ describe('ZOMBIE infection logic', () => {
     expect(gameState.board[1][3]).toBe(Shared.BLACK);
   });
 
-  test('meteor holes are neither infection sources nor targets', () => {
+  test('meteor holes are neither bite sources nor targets', () => {
     const { cardState, gameState, prng } = createState(0, null, {
       markers: [
-        {
-          id: 'zombie-hole-check',
-          kind: 'specialStone',
-          row: 1,
-          col: 1,
-          owner: 'black',
-          data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-        },
+        zombieMarker('zombie-hole-check', 1, 1),
         {
           id: 'target-hole',
           kind: 'specialStone',
@@ -635,19 +473,12 @@ describe('ZOMBIE infection logic', () => {
       1,
       prng,
       { BoardOps }
-    )).toEqual({ infected: [], anchors: [] });
+    )).toEqual({ infected: [] });
   });
 
-  test('triggering infection fails fast when BoardOps or CardMarkers is unavailable', () => {
+  test('a successful bite fails fast when BoardOps or CardMarkers is unavailable', () => {
     const first = createState(0, null, {
-      markers: [{
-        id: 'missing-board-ops',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
+      markers: [zombieMarker('missing-board-ops', 1, 1)]
     });
     expect(() => ZombieWill.processZombieEffectsAtTurnStartAnchor(
       first.cardState,
@@ -658,17 +489,9 @@ describe('ZOMBIE infection logic', () => {
       first.prng
     )).toThrow('BoardOps.changeAt is required');
     expect(first.gameState.board[1][2]).toBe(Shared.WHITE);
-    expect(first.cardState.markers[0].data.turnsUntilInfection).toBe(1);
 
     const second = createState(0, null, {
-      markers: [{
-        id: 'missing-card-markers',
-        kind: 'specialStone',
-        row: 1,
-        col: 1,
-        owner: 'black',
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
-      }]
+      markers: [zombieMarker('missing-card-markers', 1, 1)]
     });
     expect(() => ZombieWill.processZombieEffectsAtTurnStartAnchor(
       second.cardState,
@@ -682,12 +505,183 @@ describe('ZOMBIE infection logic', () => {
     expect(second.gameState.board[1][2]).toBe(Shared.WHITE);
   });
 
-  test('createZombieMarkerData produces marker data with one revival', () => {
-    const data = ZombieWill.createZombieMarkerData('white');
-    expect(ZombieWill.ZOMBIE_INFECTION_INTERVAL).toBe(4);
-    expect(data.type).toBe('ZOMBIE');
-    expect(data.ownerColor).toBe(Shared.WHITE);
-    expect(data.turnsUntilInfection).toBe(ZombieWill.ZOMBIE_INFECTION_INTERVAL);
-    expect(data.regenRemaining).toBe(1);
+  test('createZombieMarkerData produces marker data with one revival and no countdown', () => {
+    expect(ZombieWill.ZOMBIE_INFECTION_CHANCE).toBe(0.2);
+    expect(ZombieWill.createZombieMarkerData('white')).toEqual({
+      type: 'ZOMBIE',
+      ownerColor: Shared.WHITE,
+      regenRemaining: 1
+    });
+  });
+});
+
+describe('ZOMBIE movement toward prey', () => {
+  test('moves one step toward the nearest prey, then bites from the new position', () => {
+    const board = emptyBoard(4);
+    board[2][0] = Shared.BLACK;
+    board[0][1] = Shared.WHITE;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-production-source', 2, 0)]
+    });
+    const prng = createCountingPrng([0]);
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 2, 0, prng);
+
+    // (1,0) and (1,1) are both one step from the prey and touch it once; the tie uses the PRNG.
+    expect(result.moved).toEqual([{
+      from: { row: 2, col: 0 },
+      to: { row: 1, col: 0 },
+      specialType: 'ZOMBIE'
+    }]);
+    expect(result.source).toEqual({ row: 1, col: 0 });
+    expect(result.infected).toEqual([{ row: 0, col: 1 }]);
+    expect(prng.calls).toBe(3);
+    expect(cardState.presentationEvents[0]).toEqual(expect.objectContaining({
+      type: 'MOVE',
+      prevRow: 2,
+      prevCol: 0,
+      row: 1,
+      col: 0,
+      cause: 'ZOMBIE',
+      reason: 'zombie_move',
+      meta: expect.objectContaining({ moveIntent: 'hyperactive_move' })
+    }));
+    expect(cardState.presentationEvents).toContainEqual(expect.objectContaining({
+      type: 'CHANGE',
+      row: 0,
+      col: 1,
+      cause: 'ZOMBIE',
+      reason: 'zombie_infection',
+      meta: expect.objectContaining({ sourceRow: 1, sourceCol: 0 })
+    }));
+  });
+
+  test('stays put when prey is already adjacent and only rolls the bite', () => {
+    const board = emptyBoard(4);
+    board[1][1] = Shared.BLACK;
+    board[0][1] = Shared.WHITE;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-adjacent', 1, 1)]
+    });
+    const prng = createCountingPrng([0.5]);
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+
+    expect(result).toEqual({ infected: [] });
+    expect(cardState.markers[0]).toMatchObject({ row: 1, col: 1 });
+    expect(prng.calls).toBe(1);
+    expect(cardState.presentationEvents.some((event) => event.type === 'MOVE')).toBe(false);
+  });
+
+  test('prefers the closer cell that touches more prey without using the PRNG', () => {
+    const board = emptyBoard(8);
+    board[3][3] = Shared.BLACK;
+    board[1][2] = Shared.WHITE;
+    board[1][4] = Shared.WHITE;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-tiebreak', 3, 3)]
+    });
+    const prng = createCountingPrng([0.9]);
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 3, 3, prng);
+
+    expect(result.moved).toEqual([expect.objectContaining({
+      from: { row: 3, col: 3 },
+      to: { row: 2, col: 3 }
+    })]);
+    expect(result.infected).toEqual([]);
+    expect(prng.calls).toBe(1);
+  });
+
+  test('walks over several owner turns until prey is adjacent', () => {
+    const board = emptyBoard(8);
+    board[7][0] = Shared.BLACK;
+    board[3][0] = Shared.WHITE;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-walker', 7, 0)]
+    });
+    const prng = createPrng(0.9);
+    const distanceToPrey = () => Math.max(Math.abs(cardState.markers[0].row - 3), Math.abs(cardState.markers[0].col - 0));
+
+    for (const expectedDistance of [3, 2, 1]) {
+      const result = CardLogic.processZombieEffectsAtTurnStartAnchor(
+        cardState,
+        gameState,
+        'black',
+        cardState.markers[0].row,
+        cardState.markers[0].col,
+        prng
+      );
+      expect(result.moved).toHaveLength(1);
+      expect(result.infected).toEqual([]);
+      expect(distanceToPrey()).toBe(expectedDistance);
+    }
+    const settled = { row: cardState.markers[0].row, col: cardState.markers[0].col };
+    const adjacent = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', settled.row, settled.col, prng);
+    expect(adjacent.moved || []).toEqual([]);
+    expect(cardState.markers[0]).toMatchObject(settled);
+    expect(gameState.board[3][0]).toBe(Shared.WHITE);
+  });
+
+  test('does not move or consume a random value when the board has no prey', () => {
+    const board = emptyBoard(4);
+    board[1][1] = Shared.BLACK;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-alone', 1, 1)]
+    });
+    const prng = createCountingPrng([0]);
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+
+    expect(result).toEqual({ infected: [] });
+    expect(cardState.markers[0]).toMatchObject({ row: 1, col: 1 });
+    expect(prng.calls).toBe(0);
+  });
+
+  test('does not chase prey that cannot be bitten', () => {
+    const board = emptyBoard(8);
+    board[5][5] = Shared.BLACK;
+    board[1][1] = Shared.WHITE;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [
+        zombieMarker('zombie-guarded-prey', 5, 5),
+        {
+          id: 'guard-far',
+          kind: 'specialStone',
+          row: 1,
+          col: 1,
+          owner: 'white',
+          createdSeq: 2,
+          data: { type: 'GUARD', remainingOwnerTurns: 3 }
+        }
+      ]
+    });
+    const prng = createCountingPrng([0]);
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 5, 5, prng);
+
+    expect(result.moved || []).toEqual([]);
+    expect(prng.calls).toBe(0);
+  });
+
+  test('stays when no adjacent empty cell gets closer to the prey', () => {
+    const board = emptyBoard(8);
+    board[4][3] = Shared.BLACK;
+    board[3][2] = Shared.BLACK;
+    board[3][3] = Shared.BLACK;
+    board[3][4] = Shared.BLACK;
+    board[0][3] = Shared.WHITE;
+    const { cardState, gameState } = createState(0, board, {
+      markers: [zombieMarker('zombie-boxed', 4, 3)]
+    });
+    // The prey is 4 steps away; the free neighbours (4,2), (4,4) and row 5 are not closer.
+    const prng = createCountingPrng([0]);
+
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 3, prng);
+
+    expect(result.moved || []).toEqual([]);
+    expect(cardState.markers[0]).toMatchObject({ row: 4, col: 3 });
+    expect(prng.calls).toBe(0);
+    expect(cardState.presentationEvents.some((event) => event.type === 'MOVE')).toBe(false);
   });
 });

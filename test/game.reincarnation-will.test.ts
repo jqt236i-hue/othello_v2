@@ -43,7 +43,7 @@ describe('転生の意志', () => {
         expect(actual).toEqual(expected);
     });
 
-    test.each(['black', 'white'])('屍石に転生すると感染カウント4・復活1回で始まり、付与状態とマス効果を維持する: %s', (owner) => {
+    test.each(['black', 'white'])('屍石に転生するとカウント無し・復活1回で始まり、付与状態とマス効果を維持する: %s', (owner) => {
         const s = setup(owner);
         const guard = CardLogic.addMarker(s.cardState, 'specialStone', s.row, s.col, owner, { type: 'GUARD', destroyEvadeRemaining: 2 });
         const aura = CardLogic.addMarker(s.cardState, 'specialStone', s.row, s.col, owner, { type: 'LIVING_WILL' });
@@ -58,9 +58,10 @@ describe('転生の意志', () => {
         const zombie = s.cardState.markers.find((marker: any) => marker.data.type === 'ZOMBIE');
         expect(zombie).toMatchObject({ row: s.row, col: s.col, owner, data: {
             ownerColor: owner === 'white' ? Shared.WHITE : Shared.BLACK,
-            turnsUntilInfection: 4, regenRemaining: 1, sourceType: 'REINCARNATION_WILL'
+            regenRemaining: 1, sourceType: 'REINCARNATION_WILL'
         } });
         expect(zombie.data.remainingOwnerTurns).toBeUndefined();
+        expect(zombie.data.turnsUntilInfection).toBeUndefined();
         expect(s.cardState.markers).toEqual(expect.arrayContaining(preservedBefore));
         expect(JSON.stringify(s.gameState.board)).toBe(boardBefore);
         expect(s.cardState.stoneIdMap[s.row][s.col]).toBe(stoneIdBefore);
@@ -68,9 +69,10 @@ describe('転生の意志', () => {
         expect(s.cardState.pendingEffectByPlayer[owner]).toBeNull();
         expect(s.gameState.currentPlayer).toBe(owner === 'white' ? Shared.WHITE : Shared.BLACK);
         const roulette = result.presentationEvents.find((event: any) => event.meta?.reincarnationRoulette)?.meta.reincarnationRoulette;
-        expect(roulette.after).toMatchObject({ timer: 4, regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
+        expect(roulette.after).toMatchObject({ regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
+        expect(roulette.after.timer).toBeUndefined();
         expect(roulette.previews.find((preview: any) => preview.special === 'REGEN')).toMatchObject({ timer: 3, regenRemaining: 3, destroyEvadeRemaining: 2, livingWillAura: true });
-        expect(roulette.previews.find((preview: any) => preview.special === 'ZOMBIE')).toMatchObject({ timer: 4, regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
+        expect(roulette.previews.find((preview: any) => preview.special === 'ZOMBIE')).toMatchObject({ regenRemaining: 1, destroyEvadeRemaining: 2, livingWillAura: true });
         expect(roulette.previews.find((preview: any) => preview.special === 'EXTREME_HYPERACTIVE')).toMatchObject({ flipEvadeRemaining: 4, destroyEvadeRemaining: 6, livingWillAura: true });
     });
 

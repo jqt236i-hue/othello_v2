@@ -179,12 +179,10 @@ function collectStoneStatusLabels(
   const normalizedSpecialType = String(specialType || '').trim().toUpperCase();
   const specialTimerValue = finiteStatusLabel(status, [
     'remainingOwnerTurns',
-    'remainingTurns',
-    'turnsUntilInfection'
+    'remainingTurns'
   ]) || finiteStatusLabel(specialMarker?.data || {}, [
     'remainingOwnerTurns',
-    'remainingTurns',
-    'turnsUntilInfection'
+    'remainingTurns'
   ]);
   const timerMarkerKindByType: Readonly<Record<string, string>> = Object.freeze({
     GUARD: 'guard',
