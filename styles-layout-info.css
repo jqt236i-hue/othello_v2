@@ -1160,14 +1160,14 @@
     align-items: center;
     justify-content: center;
     width: calc(188px * var(--layout-stage-scale));
-    height: calc(42px * var(--layout-stage-scale));
+    height: calc(26px * var(--layout-stage-scale));
     min-width: 0;
     max-width: calc(100vw - calc(16px * var(--layout-stage-scale)));
     min-height: 0;
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: center / 100% 100% no-repeat;
+    background: center / contain no-repeat;
     filter:
         drop-shadow(0 calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55))
         drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(238, 196, 94, 0.18));
@@ -1201,20 +1201,20 @@
 
 .turn-arrival-toast.is-self,
 .turn-arrival-toast.is-self.is-black-turn {
-    background-image: url("assets/images/other/turn-banner-your-v1.webp");
+    background-image: url("assets/images/other/turn-banner-your-obsidian-v2.webp");
 }
 
 .turn-arrival-toast.is-self.is-white-turn {
-    background-image: url("assets/images/other/turn-banner-your-white-v1.webp");
+    background-image: url("assets/images/other/turn-banner-your-ivory-v2.webp");
 }
 
 .turn-arrival-toast.is-enemy,
 .turn-arrival-toast.is-enemy.is-white-turn {
-    background-image: url("assets/images/other/turn-banner-enemy-v1.webp");
+    background-image: url("assets/images/other/turn-banner-enemy-ivory-v2.webp");
 }
 
 .turn-arrival-toast.is-enemy.is-black-turn {
-    background-image: url("assets/images/other/turn-banner-enemy-black-v1.webp");
+    background-image: url("assets/images/other/turn-banner-enemy-obsidian-v2.webp");
 }
 
 @keyframes turn-arrival-toast-enter {

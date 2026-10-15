@@ -27,22 +27,37 @@ describe('charge HUD image assets', () => {
 });
 
 describe('turn arrival image assets', () => {
-  test('ships same-sized turn banners for self/enemy and black/white turn colors', () => {
+  const banners = [
+    ['your-obsidian', 'black'],
+    ['your-ivory', 'white'],
+    ['enemy-ivory', 'white'],
+    ['enemy-obsidian', 'black']
+  ];
+
+  test.each(banners)('ships a clean, correctly colored %s plaque', async (name, color) => {
+    const sharp = require('sharp');
     const root = path.resolve(__dirname, '..');
-    const bannerPaths = [
-      path.join(root, 'assets/images/other/turn-banner-your-v1.png'),
-      path.join(root, 'assets/images/other/turn-banner-your-white-v1.png'),
-      path.join(root, 'assets/images/other/turn-banner-enemy-v1.png'),
-      path.join(root, 'assets/images/other/turn-banner-enemy-black-v1.png')
-    ];
+    const pngPath = path.join(root, `assets/images/other/turn-banner-${name}-v2.png`);
+    const webpPath = pngPath.replace(/\.png$/, '.webp');
+    expect(readPngSize(pngPath)).toEqual({ width: 1080, height: 150 });
+    expect(fs.existsSync(webpPath)).toBe(true);
 
-    bannerPaths.forEach((filePath) => {
-      expect(fs.existsSync(filePath)).toBe(true);
-    });
-
-    expect(readPngSize(bannerPaths[0])).toEqual({ width: 720, height: 139 });
-    expect(readPngSize(bannerPaths[1])).toEqual({ width: 720, height: 139 });
-    expect(readPngSize(bannerPaths[2])).toEqual({ width: 720, height: 158 });
-    expect(readPngSize(bannerPaths[3])).toEqual({ width: 720, height: 158 });
+    for (const filePath of [pngPath, webpPath]) {
+      const { data, info } = await sharp(filePath).ensureAlpha().raw()
+        .toBuffer({ resolveWithObject: true });
+      expect(info.width).toBe(1080);
+      expect(info.height).toBe(150);
+      // Transparent margins must not contain a sheet background or another badge.
+      for (let x = 0; x < info.width; x++) {
+        expect(data[x * 4 + 3]).toBe(0);
+        expect(data[((info.height - 1) * info.width + x) * 4 + 3]).toBe(0);
+      }
+      // Clear face area to the right of the title, inside the brass trim.
+      const i = (75 * info.width + 940) * 4;
+      expect(data[i + 3]).toBe(255);
+      const luminance = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      if (color === 'black') expect(luminance).toBeLessThan(70);
+      else expect(luminance).toBeGreaterThan(180);
+    }
   });
 });

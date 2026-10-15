@@ -1,6 +1,6 @@
 {
   "version": "2026-10-15",
-  "generatedAt": "2026-10-15T13:04:17.769Z",
+  "generatedAt": "2026-10-15T14:17:35.064Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -499,12 +499,44 @@
       "sha256": "144f8e3a1ec5c4e48ef1f8c5fa43aaf696e0608c33a88874bd4301923aeff719"
     },
     {
+      "path": "assets/images/other/turn-banner-enemy-ivory-v2.png",
+      "sha256": "108fa58f088591da171648d17aff851b01eadab48211fd45337ffa4f4c54fa1e"
+    },
+    {
+      "path": "assets/images/other/turn-banner-enemy-ivory-v2.webp",
+      "sha256": "f17034cf735306369ecf6a855a0be49a2d2a61a2f4be460ad28ac467a6293f84"
+    },
+    {
+      "path": "assets/images/other/turn-banner-enemy-obsidian-v2.png",
+      "sha256": "5cc8f8770f94e978ca92b68f22558ed0f95fe50e940c21f0e13469ef22836451"
+    },
+    {
+      "path": "assets/images/other/turn-banner-enemy-obsidian-v2.webp",
+      "sha256": "214988c1e2f40a8fd46db7f684b0dfd2c73602353037e951f3f6ab3b81b686fb"
+    },
+    {
       "path": "assets/images/other/turn-banner-enemy-v1.png",
       "sha256": "8f9d64aceb11340f07811d4a94431e9eda224a0c2a0e06f8921f8e8ac077ed7a"
     },
     {
       "path": "assets/images/other/turn-banner-enemy-v1.webp",
       "sha256": "bd016173c179183f8c6e1513262d1891a2821cc0167a4df70dc62f643879a04c"
+    },
+    {
+      "path": "assets/images/other/turn-banner-your-ivory-v2.png",
+      "sha256": "4c31f5ba3ad914ca22ff27d0c8256a712effa773c821ff61d03b693cc90b50f2"
+    },
+    {
+      "path": "assets/images/other/turn-banner-your-ivory-v2.webp",
+      "sha256": "88ffaf041682b6b0b005ad0738936fc7d9d66474f5a154a8783ff913871aea4f"
+    },
+    {
+      "path": "assets/images/other/turn-banner-your-obsidian-v2.png",
+      "sha256": "a18a687b90d70f97b80ead5e9db4a229a0691085603f01b02a5b076d0720314a"
+    },
+    {
+      "path": "assets/images/other/turn-banner-your-obsidian-v2.webp",
+      "sha256": "c5b34beca4f78ba60cea5ede82097e72437bed0e6e592ec9f215a069d263b9d1"
     },
     {
       "path": "assets/images/other/turn-banner-your-v1.png",

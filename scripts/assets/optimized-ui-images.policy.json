@@ -163,7 +163,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-your-v1.png",
+      "source": "assets/images/other/turn-banner-your-obsidian-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -179,7 +179,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-your-white-v1.png",
+      "source": "assets/images/other/turn-banner-your-ivory-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -195,7 +195,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-enemy-v1.png",
+      "source": "assets/images/other/turn-banner-enemy-ivory-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -211,7 +211,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-enemy-black-v1.png",
+      "source": "assets/images/other/turn-banner-enemy-obsidian-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
