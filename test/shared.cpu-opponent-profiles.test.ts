@@ -10,7 +10,7 @@ describe('cpu opponent profiles', () => {
   test('Lv11 uses the supplied portrait and preserves evaluated Lv10 game conditions on both colors', () => {
     expect(CpuOpponentProfiles.getCpuOpponentProfile(11)).toMatchObject({
       id: '11-execution-chaos-dragon', decisionLevel: 11,
-      name: '執行エグゼキューションカオスドラゴン',
+      name: '執行エグゼキューションサクリファイスドラゴン',
       portraitSrc: 'assets/images/cpu/execution-chaos-dragon.png'
     });
     for (const player of ['black', 'white']) {
@@ -48,8 +48,8 @@ describe('cpu opponent profiles', () => {
       { value: '8-theory-incarnation', label: 'Lv8: 理論の化身' },
       { value: '9-ending-ash', label: 'Lv9: 終焉の冥灰' },
       { value: '10-observed-dark-dragon', label: 'Lv10: 観測ダークドラゴン' },
-      { value: '11-execution-chaos-dragon', label: 'Lv11: 執行エグゼキューションカオスドラゴン' },
-      { value: '12-strategy-cpu', label: 'Lv12: 執行エグゼキューションサクリファイスドラゴン' },
+      { value: '11-execution-chaos-dragon', label: 'Lv11: 執行エグゼキューションサクリファイスドラゴン' },
+      { value: '12-strategy-cpu', label: 'Lv12: 理論カオスロジカルエンペラービースト' },
       { value: '13-truth-chaos-emperor-beast', label: 'Lv13: 宇宙' }
     ]);
   });
@@ -333,7 +333,7 @@ describe('cpu opponent profiles', () => {
 
 test('Lv12 keeps every evaluated Lv11 startup condition for both colors',()=>{
   expect(CpuOpponentProfiles.getCpuOpponentProfile(12)).toMatchObject({
-    name:'執行エグゼキューションサクリファイスドラゴン',
+    name:'理論カオスロジカルエンペラービースト',
     portraitSrc:'assets/images/cpu/theory-chaos-logical-emperor-beast.png'
   });
   expect(CpuOpponentProfiles.getCpuOpponentDecisionLevel(12)).toBe(12);

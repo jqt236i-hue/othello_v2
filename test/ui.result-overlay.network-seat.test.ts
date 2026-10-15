@@ -377,10 +377,10 @@ describe('result overlay seat perspective', () => {
     expect(document.querySelector('.character-name')?.textContent).toBe('終局を告げる者');
   });
 
-  test.each([[10, 'black'], [10, 'white'], [12, 'black'], [12, 'white']])('Lv%sが%s側でもプロフィールIDをレベル別記録と名前へ反映する', (level, cpuSide) => {
-    const id = level === 12 ? '12-strategy-cpu' : '10-observed-dark-dragon';
-    const expectedName = level === 12 ? '執行エグゼキューションサクリファイスドラゴン' : '観測ダークドラゴン';
-    const expectedImage = level === 12 ? 'theory-chaos-logical-emperor-beast.png' : 'observed-dark-dragon-transparent.png';
+  test.each([[10, 'black'], [10, 'white'], [11, 'black'], [11, 'white'], [12, 'black'], [12, 'white']])('Lv%sが%s側でもプロフィールIDをレベル別記録と名前へ反映する', (level, cpuSide) => {
+    const id = level === 12 ? '12-strategy-cpu' : level === 11 ? '11-execution-chaos-dragon' : '10-observed-dark-dragon';
+    const expectedName = level === 12 ? '理論カオスロジカルエンペラービースト' : level === 11 ? '執行エグゼキューションサクリファイスドラゴン' : '観測ダークドラゴン';
+    const expectedImage = level === 12 ? 'theory-chaos-logical-emperor-beast.png' : level === 11 ? 'execution-chaos-dragon.png' : 'observed-dark-dragon-transparent.png';
     delete global.cpuSmartness;
     const viewer = cpuSide === 'white' ? 'black' : 'white';
     window.NetworkMatchClient = { getSeatKey: () => viewer };
@@ -394,7 +394,7 @@ describe('result overlay seat perspective', () => {
     expect(mod.resolveCpuLevelForViewer(viewer)).toBe(level);
     expect(document.querySelector('.character-name')?.textContent).toBe(expectedName);
     expect((document.querySelector('.character-name') as HTMLElement).style.getPropertyValue('--result-character-image')).toContain(expectedImage);
-    expect(document.querySelector('.dialogue-text')?.textContent).toBe('「その一手は、読み切れなかった。」');
+    expect(document.querySelector('.dialogue-text')?.textContent).toBe(level === 11 ? '' : '「その一手は、読み切れなかった。」');
     expect(document.querySelector('.result-score-meta')?.textContent).toContain(`CPU Lv${level}`);
     const saved = JSON.parse(localStorage.getItem('othello_cpu_leaderboard_v5') || '{}');
     expect(saved.cpu[String(level)].bestScore).toBeGreaterThan(0);

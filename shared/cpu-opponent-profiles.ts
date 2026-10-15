@@ -141,8 +141,8 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         id: '11-execution-chaos-dragon',
         level: 11,
         decisionLevel: 11,
-        name: '執行エグゼキューションカオスドラゴン',
-        menuLabel: 'Lv11: 執行エグゼキューションカオスドラゴン',
+        name: '執行エグゼキューションサクリファイスドラゴン',
+        menuLabel: 'Lv11: 執行エグゼキューションサクリファイスドラゴン',
         portraitSrc: 'assets/images/cpu/execution-chaos-dragon.png',
         ...ENDING_ASH_GAME_CONDITIONS
     },
@@ -150,8 +150,8 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         id: '12-strategy-cpu',
         level: 12,
         decisionLevel: 12,
-        name: '執行エグゼキューションサクリファイスドラゴン',
-        menuLabel: 'Lv12: 執行エグゼキューションサクリファイスドラゴン',
+        name: '理論カオスロジカルエンペラービースト',
+        menuLabel: 'Lv12: 理論カオスロジカルエンペラービースト',
         portraitSrc: 'assets/images/cpu/theory-chaos-logical-emperor-beast.png',
         ...ENDING_ASH_GAME_CONDITIONS
     },
