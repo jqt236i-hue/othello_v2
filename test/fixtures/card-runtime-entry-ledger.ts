@@ -145,8 +145,8 @@ const FACADE_CANONICAL_EVENT_MUTATION = Object.freeze([
 
 const FACADE_COLD_CACHE_CANONICAL_EVENT_MUTATION = Object.freeze([
   'applyDestroyEffect', 'applyDestroyEffectDetailed', 'applySwapEffect', 'applySwapEffectDetailed',
-  'applyLivingWill', 'applyLivingWillAfterFlips', 'applyPostFlipRevives', 'applyReverseWill',
-  'swapOccupiedCellsWithPresentation', 'applyLossWill', 'applyFateWill'
+  'applyLivingWill', 'applyLivingWillAfterFlips', 'applyPostFlipRevives', 'settleOwnershipChangeReactions',
+  'applyReverseWill', 'swapOccupiedCellsWithPresentation', 'applyLossWill', 'applyFateWill'
 ]);
 
 const FACADE_CANONICAL_RNG_EVENT_MUTATION = Object.freeze([
