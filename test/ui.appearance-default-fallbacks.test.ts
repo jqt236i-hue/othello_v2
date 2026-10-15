@@ -25,10 +25,10 @@ describe('appearance default fallbacks without catalog globals', () => {
     });
     const selection = require('../ui/background-skin/selection.ts');
 
-    expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
+    expect(selection.readStoredBackgroundSkinId(window)).toBe('desk-quiet-fantasy');
     expect(selection.writeStoredBackgroundSkinId(window, 'missing')).toBe(true);
-    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
-    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
+    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
   });
 
   test('migrates the old stored background default to the current background default', () => {
@@ -39,14 +39,14 @@ describe('appearance default fallbacks without catalog globals', () => {
     window.localStorage.setItem(selection.BACKGROUND_SKIN_STORAGE_KEY, 'default');
     window.localStorage.setItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY, 'default');
 
-    expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
-    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
-    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+    expect(selection.readStoredBackgroundSkinId(window)).toBe('desk-quiet-fantasy');
+    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
+    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
 
     expect(selection.writeStoredBackgroundSkinId(window, 'default')).toBe(true);
-    expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
-    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
-    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+    expect(selection.readStoredBackgroundSkinId(window)).toBe('desk-quiet-fantasy');
+    expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
+    expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
   });
 
   test.each([
@@ -63,12 +63,22 @@ describe('appearance default fallbacks without catalog globals', () => {
         window.localStorage.setItem(selection.BACKGROUND_SKIN_STORAGE_VERSION_KEY, '2');
         window.localStorage.setItem(key, skinId);
 
-        expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
-        expect(catalog.getBackgroundSkinDefinition(skinId, window)?.id).toBe('default-25');
+        expect(selection.readStoredBackgroundSkinId(window)).toBe('desk-quiet-fantasy');
+        expect(catalog.getBackgroundSkinDefinition(skinId, window)?.id).toBe('desk-quiet-fantasy');
         expect(selection.writeStoredBackgroundSkinId(window, skinId)).toBe(true);
-        expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
-        expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('default-25');
+        expect(window.localStorage.getItem(selection.BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
+        expect(window.localStorage.getItem(selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY)).toBe('desk-quiet-fantasy');
       });
+  });
+
+  test('preserves an explicitly saved previous default background', () => {
+    (window as any).GachaProgressStorageModule = require('../ui/storage/gacha-progress.ts');
+    const selection = require('../ui/background-skin/selection.ts');
+    for (const key of [selection.BACKGROUND_SKIN_STORAGE_KEY, selection.LEGACY_BACKGROUND_SKIN_STORAGE_KEY]) {
+      window.localStorage.clear();
+      window.localStorage.setItem(key, 'default-25');
+      expect(selection.readStoredBackgroundSkinId(window)).toBe('default-25');
+    }
   });
 
   test('uses the configured board defaults when the board catalog is unavailable', () => {
@@ -77,10 +87,10 @@ describe('appearance default fallbacks without catalog globals', () => {
     });
     const selection = require('../ui/board-skin/selection.ts');
 
-    expect(selection.readStoredBoardSkinId(window)).toBe('bluegreen-felt');
+    expect(selection.readStoredBoardSkinId(window)).toBe('study-forest-baize');
     expect(selection.writeStoredBoardSkinId(window, 'missing')).toBe(true);
-    expect(window.localStorage.getItem(selection.BOARD_SKIN_STORAGE_KEY)).toBe('bluegreen-felt');
-    expect(window.localStorage.getItem(selection.LEGACY_BOARD_SKIN_STORAGE_KEY)).toBe('bluegreen-felt');
+    expect(window.localStorage.getItem(selection.BOARD_SKIN_STORAGE_KEY)).toBe('study-forest-baize');
+    expect(window.localStorage.getItem(selection.LEGACY_BOARD_SKIN_STORAGE_KEY)).toBe('study-forest-baize');
 
     expect(selection.readStoredBoardFrameSkinId(window)).toBe('submerged-wood');
     expect(selection.writeStoredBoardFrameSkinId(window, 'missing')).toBe(true);

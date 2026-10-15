@@ -171,6 +171,7 @@ function createLazyHandSkinControls(options: Record<string, unknown>, rootRef: a
         if (!delegate) {
           throw new Error('hand skin controls are unavailable after lazy runtime load');
         }
+        button.removeEventListener('click', onOpenClick);
         loadStatus.succeed();
         return delegate;
       }).catch((error) => {
@@ -200,6 +201,20 @@ function createLazyHandSkinControls(options: Record<string, unknown>, rootRef: a
   };
 
   button.addEventListener('click', onOpenClick);
+
+  // A saved background must be restored without waiting for the panel to open.
+  // Keep the optional cosmetic group lazy for players using the default background.
+  try {
+    const storedBackground = rootRef.localStorage && (
+      rootRef.localStorage.getItem('reversi.backgroundSkin')
+      || rootRef.localStorage.getItem('othello.backgroundSkin')
+    );
+    if (storedBackground && storedBackground !== 'desk-quiet-fantasy' && storedBackground !== 'default') {
+      void ensureDelegate().catch((error) => {
+        console.error('[hand-skin] saved appearance restore failed', error && error.message ? error.message : error);
+      });
+    }
+  } catch (e) { /* Storage may be unavailable; the panel remains usable. */ }
 
   return {
     closePanel: function () {

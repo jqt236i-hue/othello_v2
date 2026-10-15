@@ -186,7 +186,12 @@ describe('deck builder controller', () => {
     const activeCard = body.querySelector('.deck-builder-save-slot-card.is-active');
     expect(activeCard).toBeTruthy();
     expect(activeCard.textContent).toContain('理論デッキ');
-    expect(activeCard.textContent).toContain('IN USE');
+    expect(activeCard.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
+    expect(activeCard.querySelector('.deck-builder-active-indicator').getAttribute('aria-label')).toBe('理論デッキ は現在使用中です');
+    expect(activeCard.querySelector('.deck-builder-actions-row button').textContent).toBe('使用中');
+    expect(body.querySelectorAll('.deck-builder-active-indicator')).toHaveLength(1);
+    expect(body.querySelector('.deck-builder-active-seal')).toBeNull();
+    expect(body.textContent).not.toContain('IN USE');
 
     expect(body.querySelector('.deck-builder-workspace')).toBeTruthy();
     expect(body.querySelector('.deck-builder-loadout-column')).toBeTruthy();
@@ -202,7 +207,26 @@ describe('deck builder controller', () => {
 
     const defaultCard = body.querySelector('.deck-builder-default-hero');
     expect(defaultCard.classList.contains('is-active')).toBe(true);
-    expect(defaultCard.textContent).toContain('IN USE');
+    expect(defaultCard.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
+    expect(defaultCard.querySelector('button').textContent).toBe('使用中');
+    expect(defaultCard.querySelector('.deck-builder-preset-summary').textContent).toBe('30枚・有効カードから重複なしランダム');
+    expect(body.querySelector('.deck-builder-section-counter').textContent).toBe('0/6 保存済み');
+    expect(body.querySelector('.deck-builder-active-seal')).toBeNull();
+    expect(body.textContent).not.toContain('IN USE');
+
+    const builtIn = body.querySelector('.deck-builder-builtin-card');
+    builtIn.querySelector('button').click();
+    const activeBuiltIn = body.querySelector('.deck-builder-builtin-card.is-active');
+    expect(activeBuiltIn).toBeTruthy();
+    expect(activeBuiltIn.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
+    expect(activeBuiltIn.querySelector('button').textContent).toBe('使用中');
+    expect(body.querySelectorAll('.deck-builder-active-indicator')).toHaveLength(1);
+    expect(body.querySelector('.deck-builder-default-hero.is-active')).toBeNull();
+
+    body.querySelector('.deck-builder-default-hero button').click();
+    expect(body.querySelectorAll('.deck-builder-active-indicator')).toHaveLength(1);
+    expect(body.querySelector('.deck-builder-default-hero.is-active')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-builtin-card.is-active')).toBeNull();
   });
 
   test('デッキ構築画面には全カードデッキの選択肢を置かない', () => {
@@ -225,8 +249,9 @@ describe('deck builder controller', () => {
     createController().open();
 
     const slotCards = Array.from(body.querySelectorAll('.deck-builder-workshop-grid > .deck-builder-save-slot-card'));
-    const filledButtons = Array.from(slotCards[0].querySelectorAll('button')).map((button) => button.textContent);
+    const filledButtons = Array.from(slotCards[0].querySelectorAll('.deck-builder-actions-row button')).map((button) => button.textContent);
     expect(filledButtons).toEqual(['使用', '編集']);
+    expect(slotCards[0].querySelector('.deck-builder-rename-btn').textContent).toBe('名前変更');
     expect(slotCards[0].querySelector('.deck-builder-preset-title').getAttribute('title')).toBe('保存デッキ');
 
     const emptyCard = slotCards[1];
@@ -423,6 +448,203 @@ describe('deck builder controller', () => {
     });
   });
 
+  test('保存スロットの名前を一覧画面で変更でき、使用中デッキの表示名も更新する', () => {
+    const body = document.getElementById('body');
+    const activeDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '理論デッキ', activeDeck.deckCode)));
+
+    createController().open();
+
+    expect(body.querySelectorAll('.deck-builder-save-slot-card.is-empty .deck-builder-rename-btn')).toHaveLength(0);
+    const renameButton = body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-rename-btn');
+    expect(renameButton.textContent).toBe('名前変更');
+    expect(renameButton.getAttribute('aria-label')).toBe('理論デッキ の名前を変更');
+    renameButton.click();
+
+    const input = body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-rename-input');
+    expect(input.value).toBe('理論デッキ');
+    expect(document.activeElement).toBe(input);
+    expect(input.dataset.ownsEscape).toBe('true');
+    input.value = '  新しい   名前 ';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+    const stored = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
+    expect(stored.presets.find((preset) => preset.id === 'preset_1').name).toBe('新しい 名前');
+    expect(stored.presets.find((preset) => preset.id === 'preset_1').deckCode).toBe(activeDeck.deckCode);
+    expect(body.querySelector('.deck-builder-rename-input')).toBeNull();
+    expect(body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-preset-title').textContent).toBe('新しい 名前');
+    expect(document.getElementById('header').textContent).toBe('ローカル設定: 新しい 名前 / 30枚');
+    expect(document.getElementById('summary').textContent).toBe('新しい 名前 / 30枚');
+    expect(body.querySelector('.deck-builder-notice')).toBeNull();
+  });
+
+  test('名前変更は Esc で取り消してもデッキ構築画面を閉じず、空欄で確定すると既定名に戻る', () => {
+    const body = document.getElementById('body');
+    const savedDeck = createThirtyCardDeck(0);
+    const presetState = buildPresetState('preset_1', '保存デッキ', savedDeck.deckCode);
+    presetState.activePresetId = '';
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(presetState));
+    const overlay = document.getElementById('overlay');
+
+    createController().open();
+    body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-rename-btn').click();
+    let input = body.querySelector('.deck-builder-rename-input');
+    input.value = '取り消す名前';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+    expect(overlay.classList.contains('is-open')).toBe(true);
+    expect(body.querySelector('.deck-builder-rename-input')).toBeNull();
+    expect(body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-preset-title').textContent).toBe('保存デッキ');
+    expect(JSON.parse(localStorage.getItem('deck_builder_presets_v1')).presets[0].name).toBe('保存デッキ');
+
+    body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-rename-btn').click();
+    input = body.querySelector('.deck-builder-rename-input');
+    input.value = '   ';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    input.dispatchEvent(new dom.window.Event('blur'));
+
+    expect(JSON.parse(localStorage.getItem('deck_builder_presets_v1')).presets[0].name).toBe('');
+    expect(body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-preset-title').textContent).toBe('保存スロット 1');
+  });
+
+  test('編集画面の名前欄はデッキ名と分かる表記で、保存で反映されることを示す', () => {
+    const body = document.getElementById('body');
+
+    createController().open();
+    openEditor(body);
+
+    const nameRow = body.querySelector('.deck-builder-name-row:not(.deck-builder-destination-row)');
+    expect(nameRow.querySelector('.deck-builder-name-label').textContent).toBe('デッキ名');
+    expect(nameRow.querySelector('input').placeholder).toBe('デッキ名を入力');
+    expect(nameRow.querySelector('.deck-builder-name-hint').textContent).toBe('「保存」で反映');
+  });
+
+  test('編集画面から確認つきで保存先のデッキを削除すると空きスロットに戻り、使用中ならデフォルトデッキへ切り替える', () => {
+    const body = document.getElementById('body');
+    const activeDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '理論デッキ', activeDeck.deckCode)));
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+
+    const deleteButton = body.querySelector('.deck-builder-destination-row .deck-builder-delete-btn');
+    expect(deleteButton.textContent).toBe('削除');
+    expect(deleteButton.disabled).toBe(false);
+    expect(deleteButton.getAttribute('aria-label')).toBe('保存スロット 1（理論デッキ） を削除');
+    expect(deleteButton.previousElementSibling.classList.contains('deck-builder-randomize-btn')).toBe(true);
+    expect(body.querySelector('.deck-builder-view-editor').dataset.ownsEscape).toBeUndefined();
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+
+    deleteButton.click();
+
+    const confirmRow = body.querySelector('.deck-builder-delete-confirm');
+    expect(body.querySelector('.deck-builder-view-editor').dataset.ownsEscape).toBe('true');
+    expect(confirmRow.textContent).toContain('保存スロット 1（理論デッキ） を削除して空きスロットに戻します。');
+    expect(confirmRow.textContent).toContain('使用中のデッキです。削除するとデフォルトデッキに切り替わります。');
+    expect(document.activeElement).toBe(confirmRow.querySelector('.deck-builder-delete-cancel-btn'));
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+
+    confirmRow.querySelector('.deck-builder-delete-confirm-btn').click();
+
+    const stored = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
+    expect(stored.activePresetId).toBe('');
+    expect(stored.presets[0]).toMatchObject({ id: 'preset_1', name: '', deckCode: '', updatedAt: 0 });
+    expect(body.querySelector('.deck-builder-view-editor')).toBeNull();
+    const slotCard = body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"]');
+    expect(slotCard.classList.contains('is-empty')).toBe(true);
+    expect(slotCard.textContent).toContain('クリックして構築');
+    expect(controller.getActiveLocalChoice().source).toBe('standard');
+    expect(document.getElementById('header').textContent).toContain('ローカル設定: デフォルトデッキ');
+    expect(body.querySelector('.deck-builder-notice').textContent).toBe('保存スロット 1（理論デッキ） を削除しました。使用中だったためデフォルトデッキに切り替えました');
+  });
+
+  test('削除の確認は「やめる」と Esc で取り消せ、空きスロットを保存先にすると押せない', () => {
+    const body = document.getElementById('body');
+    const overlay = document.getElementById('overlay');
+    const savedDeck = createThirtyCardDeck(0);
+    const presetState = buildPresetState('preset_1', '保存デッキ', savedDeck.deckCode);
+    presetState.activePresetId = '';
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(presetState));
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+
+    body.querySelector('.deck-builder-delete-btn').click();
+    expect(body.querySelector('.deck-builder-delete-confirm').textContent).not.toContain('使用中のデッキです');
+    // スマホ縦画面の画面全体の Esc 処理（document で受ける）へ届かせず、確認だけを取り消す。
+    const documentEscape = jest.fn();
+    document.addEventListener('keydown', documentEscape);
+    try {
+      document.activeElement.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    } finally {
+      document.removeEventListener('keydown', documentEscape);
+    }
+    expect(documentEscape).not.toHaveBeenCalled();
+    expect(overlay.classList.contains('is-open')).toBe(true);
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+    expect(document.activeElement).toBe(body.querySelector('.deck-builder-delete-btn'));
+
+    // 編集画面の外にフォーカスがあっても、Esc は確認の取り消しを優先して画面を閉じない。
+    body.querySelector('.deck-builder-delete-btn').click();
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(overlay.classList.contains('is-open')).toBe(true);
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+
+    body.querySelector('.deck-builder-delete-btn').click();
+    body.querySelector('.deck-builder-delete-cancel-btn').click();
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+
+    // 削除は保存先のスロットに対して働くので、選び直すと確認を閉じ、空きスロットでは押せない。
+    body.querySelector('.deck-builder-delete-btn').click();
+    let destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    destinationSelect.focus();
+    destinationSelect.value = 'preset_2';
+    destinationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(body.querySelector('.deck-builder-delete-confirm')).toBeNull();
+    expect(body.querySelector('.deck-builder-delete-btn').disabled).toBe(true);
+    expect(body.querySelector('.deck-builder-delete-btn').title).toBe('保存先のスロットは空です');
+    destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    expect(document.activeElement).toBe(destinationSelect);
+
+    destinationSelect.value = 'preset_1';
+    destinationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    body.querySelector('.deck-builder-delete-btn').click();
+    body.querySelector('.deck-builder-delete-confirm-btn').click();
+
+    expect(JSON.parse(localStorage.getItem('deck_builder_presets_v1')).presets[0].deckCode).toBe('');
+    expect(controller.getActiveLocalChoice().source).toBe('standard');
+    expect(body.querySelector('.deck-builder-notice').textContent).toBe('保存スロット 1（保存デッキ） を削除しました');
+  });
+
+  test('削除を保存できない時は編集画面に残り、スロットを消さない', () => {
+    const body = document.getElementById('body');
+    const savedDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '保存デッキ', savedDeck.deckCode)));
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+    const controller = createController();
+
+    controller.open();
+    openEditor(body);
+    const before = controller.getActiveLocalChoice();
+    body.querySelector('.deck-builder-delete-btn').click();
+    const setter = jest.spyOn(dom.window.Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    try {
+      body.querySelector('.deck-builder-delete-confirm-btn').click();
+    } finally { setter.mockRestore(); }
+
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+    expect(controller.getActiveLocalChoice()).toEqual(before);
+    expect(body.querySelector('.deck-builder-view-editor')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-delete-btn').disabled).toBe(false);
+    expect(body.querySelector('.deck-builder-notice.is-error').textContent).toContain('保存できませんでした');
+  });
+
   test('デッキコード入力をコードコピーの右側へ1行で表示する', () => {
     const body = document.getElementById('body');
 
@@ -459,7 +681,8 @@ describe('deck builder controller', () => {
     expect(randomizeButton.textContent).toBe('ランダム生成');
     expect(randomizeButton.getAttribute('aria-label')).toBe('ランダムな30枚デッキを生成');
     expect(randomizeButton.querySelector('.deck-builder-randomize-die')?.getAttribute('aria-hidden')).toBe('true');
-    expect(randomizeButton.previousElementSibling).toBe(destinationSelect);
+    // 保存先を選び直すと削除ボタンの対象を合わせるため描き直すので、描き直し後の選択欄と比べる。
+    expect(randomizeButton.previousElementSibling).toBe(body.querySelector('.deck-builder-preset-destination-select'));
     randomizeButton.click();
 
     const refreshedNameInput = body.querySelector('.deck-builder-name-row input');
@@ -837,9 +1060,9 @@ describe('deck builder controller', () => {
       const controller = createController();
       controller.open();
 
-      const presetUseButton = Array.from(document.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid .deck-builder-preset-card button'))
-        .find((button) => button.textContent === '使用');
+      const presetUseButton = document.querySelector('.deck-builder-save-slot-card.is-active .deck-builder-actions-row button') as HTMLButtonElement;
       expect(presetUseButton).toBeTruthy();
+      expect(presetUseButton.textContent).toBe('使用中');
       presetUseButton.click();
 
       expect(updateDeckSelection).toHaveBeenCalledTimes(1);

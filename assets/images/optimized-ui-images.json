@@ -12,7 +12,7 @@
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
       "candidateOutput": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
       "output": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -64,7 +64,7 @@
       "source": "assets/images/background/デフォルト25.png",
       "candidateOutput": "assets/images/background/デフォルト25.webp",
       "output": "assets/images/background/デフォルト25.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -142,7 +142,7 @@
       "source": "assets/images/ui/card-area-table-player-v6.png",
       "candidateOutput": "assets/images/ui/card-area-table-player-v6.webp",
       "output": "assets/images/ui/card-area-table-player-v6.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -168,7 +168,7 @@
       "source": "assets/images/ui/card-area-table-opponent-v6.png",
       "candidateOutput": "assets/images/ui/card-area-table-opponent-v6.webp",
       "output": "assets/images/ui/card-area-table-opponent-v6.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -269,9 +269,9 @@
       "visiblePixelsEqual": false
     },
     {
-      "source": "assets/images/other/turn-banner-your-v1.png",
-      "candidateOutput": "assets/images/other/turn-banner-your-v1.webp",
-      "output": "assets/images/other/turn-banner-your-v1.webp",
+      "source": "assets/images/other/turn-banner-your-obsidian-v2.png",
+      "candidateOutput": "assets/images/other/turn-banner-your-obsidian-v2.webp",
+      "output": "assets/images/other/turn-banner-your-obsidian-v2.webp",
       "criticalPath": true,
       "codec": "webp-lossy",
       "quality": 90,
@@ -283,21 +283,21 @@
         "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       },
-      "width": 720,
-      "height": 139,
+      "width": 1080,
+      "height": 150,
       "hasAlpha": true,
-      "sourceBytes": 170701,
-      "outputBytes": 30226,
-      "savedBytes": 140475,
-      "savingsRatio": 0.8229301527231826,
-      "sourceSha256": "c9e9461a5fa5b9327e72d095a0eed42826c2b9d2ac6f3df0f6445c1e8e730634",
-      "outputSha256": "2dfe7e6bb25934e893a44fc9493c53632025eb8160326cbf216330308e119f9b",
+      "sourceBytes": 289475,
+      "outputBytes": 41416,
+      "savedBytes": 248059,
+      "savingsRatio": 0.8569271957854737,
+      "sourceSha256": "a18a687b90d70f97b80ead5e9db4a229a0691085603f01b02a5b076d0720314a",
+      "outputSha256": "c5b34beca4f78ba60cea5ede82097e72437bed0e6e592ec9f215a069d263b9d1",
       "visiblePixelsEqual": false
     },
     {
-      "source": "assets/images/other/turn-banner-your-white-v1.png",
-      "candidateOutput": "assets/images/other/turn-banner-your-white-v1.webp",
-      "output": "assets/images/other/turn-banner-your-white-v1.webp",
+      "source": "assets/images/other/turn-banner-your-ivory-v2.png",
+      "candidateOutput": "assets/images/other/turn-banner-your-ivory-v2.webp",
+      "output": "assets/images/other/turn-banner-your-ivory-v2.webp",
       "criticalPath": true,
       "codec": "webp-lossy",
       "quality": 90,
@@ -309,21 +309,21 @@
         "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       },
-      "width": 720,
-      "height": 139,
+      "width": 1080,
+      "height": 150,
       "hasAlpha": true,
-      "sourceBytes": 158934,
-      "outputBytes": 24586,
-      "savedBytes": 134348,
-      "savingsRatio": 0.845306856934325,
-      "sourceSha256": "7bc9a18acdf5ae17858dae0ddd6662b0abede04862c8f6be712690543ba51be6",
-      "outputSha256": "40c3e35b6daf03a1de1d8dcc1227492d3d52e15aa0b99d8dff9a1b70ec9feb5c",
+      "sourceBytes": 365922,
+      "outputBytes": 42134,
+      "savedBytes": 323788,
+      "savingsRatio": 0.8848552423740579,
+      "sourceSha256": "4c31f5ba3ad914ca22ff27d0c8256a712effa773c821ff61d03b693cc90b50f2",
+      "outputSha256": "88ffaf041682b6b0b005ad0738936fc7d9d66474f5a154a8783ff913871aea4f",
       "visiblePixelsEqual": false
     },
     {
-      "source": "assets/images/other/turn-banner-enemy-v1.png",
-      "candidateOutput": "assets/images/other/turn-banner-enemy-v1.webp",
-      "output": "assets/images/other/turn-banner-enemy-v1.webp",
+      "source": "assets/images/other/turn-banner-enemy-ivory-v2.png",
+      "candidateOutput": "assets/images/other/turn-banner-enemy-ivory-v2.webp",
+      "output": "assets/images/other/turn-banner-enemy-ivory-v2.webp",
       "criticalPath": true,
       "codec": "webp-lossy",
       "quality": 90,
@@ -335,21 +335,21 @@
         "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       },
-      "width": 720,
-      "height": 158,
+      "width": 1080,
+      "height": 150,
       "hasAlpha": true,
-      "sourceBytes": 182587,
-      "outputBytes": 29158,
-      "savedBytes": 153429,
-      "savingsRatio": 0.8403062649586225,
-      "sourceSha256": "8f9d64aceb11340f07811d4a94431e9eda224a0c2a0e06f8921f8e8ac077ed7a",
-      "outputSha256": "bd016173c179183f8c6e1513262d1891a2821cc0167a4df70dc62f643879a04c",
+      "sourceBytes": 317477,
+      "outputBytes": 38480,
+      "savedBytes": 278997,
+      "savingsRatio": 0.8787943693558904,
+      "sourceSha256": "108fa58f088591da171648d17aff851b01eadab48211fd45337ffa4f4c54fa1e",
+      "outputSha256": "f17034cf735306369ecf6a855a0be49a2d2a61a2f4be460ad28ac467a6293f84",
       "visiblePixelsEqual": false
     },
     {
-      "source": "assets/images/other/turn-banner-enemy-black-v1.png",
-      "candidateOutput": "assets/images/other/turn-banner-enemy-black-v1.webp",
-      "output": "assets/images/other/turn-banner-enemy-black-v1.webp",
+      "source": "assets/images/other/turn-banner-enemy-obsidian-v2.png",
+      "candidateOutput": "assets/images/other/turn-banner-enemy-obsidian-v2.webp",
+      "output": "assets/images/other/turn-banner-enemy-obsidian-v2.webp",
       "criticalPath": true,
       "codec": "webp-lossy",
       "quality": 90,
@@ -361,15 +361,535 @@
         "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
         "hardwareDecode": null
       },
-      "width": 720,
-      "height": 158,
+      "width": 1080,
+      "height": 150,
       "hasAlpha": true,
-      "sourceBytes": 182110,
-      "outputBytes": 35214,
-      "savedBytes": 146896,
-      "savingsRatio": 0.8066333534676844,
-      "sourceSha256": "4b87688dc79d22c5ca5795f35fa89d11771f6f624f8e3a21eb98f9ecdbcb2bb6",
-      "outputSha256": "144f8e3a1ec5c4e48ef1f8c5fa43aaf696e0608c33a88874bd4301923aeff719",
+      "sourceBytes": 326060,
+      "outputBytes": 41364,
+      "savedBytes": 284696,
+      "savingsRatio": 0.8731399128994664,
+      "sourceSha256": "5cc8f8770f94e978ca92b68f22558ed0f95fe50e940c21f0e13469ef22836451",
+      "outputSha256": "214988c1e2f40a8fd46db7f684b0dfd2c73602353037e951f3f6ab3b81b686fb",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-default-midnight-teal-v1.png",
+      "candidateOutput": "assets/images/background/background-default-midnight-teal-v1.webp",
+      "output": "assets/images/background/background-default-midnight-teal-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 940,
+      "hasAlpha": false,
+      "sourceBytes": 2686314,
+      "outputBytes": 266002,
+      "savedBytes": 2420312,
+      "savingsRatio": 0.9009788133479556,
+      "sourceSha256": "975699340918f9452535ae3b7553013008af665ce79b2072a82b775ce1496391",
+      "outputSha256": "c53f7ec067ccdd44781e99f1c62a38293586d596a2d4de6903b67e0e1d300331",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-default-midnight-teal-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+      "output": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 728139,
+      "outputBytes": 110028,
+      "savedBytes": 618111,
+      "savingsRatio": 0.848891489125016,
+      "sourceSha256": "787a0758ef4f36ee1cac0107779a67ad3ee09ec4c8eb62b7cc178d3011e5bba4",
+      "outputSha256": "795fc4cb5b5bfbbd4a28c34f53611d075467eacf3735ecd8820037a21cbd544b",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-default-classic-walnut-v1.png",
+      "candidateOutput": "assets/images/background/background-default-classic-walnut-v1.webp",
+      "output": "assets/images/background/background-default-classic-walnut-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 2205704,
+      "outputBytes": 208624,
+      "savedBytes": 1997080,
+      "savingsRatio": 0.9054161392462452,
+      "sourceSha256": "4cdfcc0533c7f56513dddea94f74fb169194eae46b075c6b0e6d60d9a24ca5a2",
+      "outputSha256": "ec8ef9aa49a89246e23713d250f5bd5c608dde9120a827da25f24bdf9807ca9a",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-default-classic-walnut-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+      "output": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 677591,
+      "outputBytes": 125524,
+      "savedBytes": 552067,
+      "savingsRatio": 0.8147496055880317,
+      "sourceSha256": "5103aa777224e3391e2b7db1aa1e4268a0f9fa240687779fec09cc412c9a95af",
+      "outputSha256": "b2c680d51e38b0296ef861428b31cc995b0de000f6197e35e392c8b392aa8408",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-default-quiet-slate-v1.png",
+      "candidateOutput": "assets/images/background/background-default-quiet-slate-v1.webp",
+      "output": "assets/images/background/background-default-quiet-slate-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 2825144,
+      "outputBytes": 332140,
+      "savedBytes": 2493004,
+      "savingsRatio": 0.8824343113129809,
+      "sourceSha256": "35c4a768e52141c32e101a2f2a6e7b0810d3fb6dc1a8d9d71b71113e44817aaf",
+      "outputSha256": "f4cd38f8f117e3f99894d9506dfd704c297f071c24b9260b00783bd320e7e5c5",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-default-quiet-slate-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+      "output": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1065962,
+      "outputBytes": 191068,
+      "savedBytes": 874894,
+      "savingsRatio": 0.8207553364941714,
+      "sourceSha256": "8deda02721c8849d507082c29dd8ada3b2357685d3b95db64d12c0b9b6dd181e",
+      "outputSha256": "72306a1bbc36449ffe3bfc9bd197f9a8621d1d78eacf0373b689fdea86fdb0d0",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-classic-game-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-classic-game-v1.webp",
+      "output": "assets/images/background/background-desk-classic-game-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1886934,
+      "outputBytes": 123618,
+      "savedBytes": 1763316,
+      "savingsRatio": 0.9344873747571457,
+      "sourceSha256": "a4ac1739237409909b78352b6d0131e4019fec8207e14def7a8b32c68c37a93f",
+      "outputSha256": "a03b9793481a1a6c4dfb3e9ab2e4c354c8a160f0351c8f68f5190304e07e1290",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-minimal-strategy-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+      "output": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1904363,
+      "outputBytes": 133764,
+      "savedBytes": 1770599,
+      "savingsRatio": 0.9297591898183277,
+      "sourceSha256": "be08ce65529a1b69a497e92c896e1fe4de319860265f43eb2e44e85e8288eebd",
+      "outputSha256": "69a559cde3e8e2206cc40d6b1b9d0664ebb7e92cf4471dc0faebd8153138f41d",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-quiet-fantasy-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+      "output": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "default background referenced by the startup stylesheet and skin catalog; q90 reduces first-load transfer"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1977703,
+      "outputBytes": 173176,
+      "savedBytes": 1804527,
+      "savingsRatio": 0.9124357904093789,
+      "sourceSha256": "2228b62283172fc951dc963699c71424bf37fb15ae8b9a356985d67cdd3c717e",
+      "outputSha256": "73319b03c473d2185dd4faa0aa76621b6cdf95fce036413fb4a6c3a30fe5b7c2",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-midnight-game-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-midnight-game-v1.webp",
+      "output": "assets/images/background/background-desk-midnight-game-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1814256,
+      "outputBytes": 116648,
+      "savedBytes": 1697608,
+      "savingsRatio": 0.9357047737474755,
+      "sourceSha256": "b9f4f3b9873ff0f477b1532b6f9b26428ee1bbe12fa9a4432668d66cc81e2daf",
+      "outputSha256": "de72d601d3adfdbec7297f662b492144e7cb9cf6ea26e2b65e2cfe37409fc397",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-espresso-leather-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-espresso-leather-v1.webp",
+      "output": "assets/images/ui/card-area-espresso-leather-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional espresso leather hand mat; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
+        "hardwareDecode": null
+      },
+      "width": 2098,
+      "height": 637,
+      "hasAlpha": true,
+      "sourceBytes": 2478111,
+      "outputBytes": 356660,
+      "savedBytes": 2121451,
+      "savingsRatio": 0.8560758577803819,
+      "sourceSha256": "239a994c8941747f5d955a27e6caa737daa4bc966c7ba65052bd934166c4ced8",
+      "outputSha256": "de92b603d2567aea806fb6051ff7cf29f95b0fc7adafef7226252354e4d3219d",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-study-walnut-brass-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
+      "output": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study frame; q90 preserves alpha and reduces transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify alignment and decoding in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1548799,
+      "outputBytes": 158164,
+      "savedBytes": 1390635,
+      "savingsRatio": 0.8978795828251439,
+      "sourceSha256": "33cb0187ae5089c6a83e979a001cdaf4004f25be9e05c7bf8d8dbf4e53585f73",
+      "outputSha256": "cb7895a0279add1d7557a8a5b7bc38ea364e3d59ad42578d060446c0c4cf35fd",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-study-ebony-jade-v2.png",
+      "candidateOutput": "assets/images/board/board-frame-study-ebony-jade-v2.webp",
+      "output": "assets/images/board/board-frame-study-ebony-jade-v2.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study frame; q90 preserves alpha and reduces transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify alignment and decoding in browser",
+        "hardwareDecode": null
+      },
+      "width": 1120,
+      "height": 1120,
+      "hasAlpha": true,
+      "sourceBytes": 588493,
+      "outputBytes": 62776,
+      "savedBytes": 525717,
+      "savingsRatio": 0.8933275332077018,
+      "sourceSha256": "476371424a77f57a5c870cf81a42a0c46546a7852626efb02f16d86da0d1aaee",
+      "outputSha256": "78beecd219315b12381f83b83b182cab1b8c73d9353bcd1dea128054ec88d54e",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-study-grimoire-leather-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
+      "output": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study frame; q90 preserves alpha and reduces transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify alignment and decoding in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1522955,
+      "outputBytes": 207112,
+      "savedBytes": 1315843,
+      "savingsRatio": 0.8640064873880056,
+      "sourceSha256": "e2960855f497cbea9c27b198200c68d11782c25cc950abba655a9c7626febf2c",
+      "outputSha256": "5763af87e5fc14a3d1e3f0bbe8e27575ea0e7aa5a263561a7a53e6febc4657c6",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-surface-study-forest-baize-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-study-forest-baize-v1.webp",
+      "output": "assets/images/board/board-surface-study-forest-baize-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study playing surface; q90 reduces texture transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify stone and grid readability in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sourceBytes": 3395939,
+      "outputBytes": 606876,
+      "savedBytes": 2789063,
+      "savingsRatio": 0.8212936098086567,
+      "sourceSha256": "5d0f079cea6db5c29d83120a077223562d245b0dc24e6e1a5d18afdbd99a1661",
+      "outputSha256": "a35e5d3f4d0e245c7316933aa2a1164d74f5040f2729f2dd60d79fca4079e0a1",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-surface-study-jade-slate-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-study-jade-slate-v1.webp",
+      "output": "assets/images/board/board-surface-study-jade-slate-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study playing surface; q90 reduces texture transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify stone and grid readability in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sourceBytes": 3010960,
+      "outputBytes": 427582,
+      "savedBytes": 2583378,
+      "savingsRatio": 0.8579914711587002,
+      "sourceSha256": "ad72a07804bf2d6d880c546274ddc5f0a811c47a81d572fbc2cd914b026d2cde",
+      "outputSha256": "18f3e428a39d543bb4fdf7ffe9ae85bb5883b17636abe9b6463bdabb3c1ada31",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-surface-study-olive-leather-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+      "output": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study playing surface; q90 reduces texture transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify stone and grid readability in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sourceBytes": 2939214,
+      "outputBytes": 440988,
+      "savedBytes": 2498226,
+      "savingsRatio": 0.8499639699593157,
+      "sourceSha256": "787749f9d2dba1f3726fcb2b698b71e3eb6f73e85200d06312c1ca973ab78ab2",
+      "outputSha256": "d58b79ab84e42711f149680847ca0e8c197526069dffbd64c3d2342e2e323cbe",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-walnut-felt-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-walnut-felt-v1.webp",
+      "output": "assets/images/ui/card-area-walnut-felt-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      },
+      "width": 2134,
+      "height": 582,
+      "hasAlpha": true,
+      "sourceBytes": 2154069,
+      "outputBytes": 308324,
+      "savedBytes": 1845745,
+      "savingsRatio": 0.8568643808531667,
+      "sourceSha256": "354ae5f3c838a89910b1d2b472118aa136505c2e247a6e90e4d61857d34d189a",
+      "outputSha256": "8ce9cfe35f7b1e284602765c1d2d381d74111f7de2bd661b74335b4b93ad9e87",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-scholars-oxblood-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+      "output": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      },
+      "width": 2123,
+      "height": 633,
+      "hasAlpha": true,
+      "sourceBytes": 2711032,
+      "outputBytes": 398944,
+      "savedBytes": 2312088,
+      "savingsRatio": 0.8528442305365632,
+      "sourceSha256": "644e1b8738db3ce1118f2994099620c557d8be657574e9eb3e80430d62274036",
+      "outputSha256": "6cdd3a77612b194b2b2597c35987a7c0b072530c2cfdc20f1596a4b8c2846a12",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-midnight-bookcloth-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-midnight-bookcloth-v1.webp",
+      "output": "assets/images/ui/card-area-midnight-bookcloth-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      },
+      "width": 2108,
+      "height": 600,
+      "hasAlpha": true,
+      "sourceBytes": 2458447,
+      "outputBytes": 390962,
+      "savedBytes": 2067485,
+      "savingsRatio": 0.840971963194651,
+      "sourceSha256": "5473f9f769ea66089e414daaeb56933e69cc69eb9fa61f3475151d84b29ce95f",
+      "outputSha256": "93744c1cee4f24915a1436f4346cb04ab30b4171550fb07121cbddaab064d030",
       "visiblePixelsEqual": false
     }
   ],
@@ -384,9 +904,29 @@
     "assets/images/other/charge-counter-wafu-v1.png": "assets/images/other/charge-counter-wafu-v1.webp",
     "assets/images/other/charge-delta-increase-wafu-v1.png": "assets/images/other/charge-delta-increase-wafu-v1.webp",
     "assets/images/other/charge-delta-decrease-wafu-v1.png": "assets/images/other/charge-delta-decrease-wafu-v1.webp",
-    "assets/images/other/turn-banner-your-v1.png": "assets/images/other/turn-banner-your-v1.webp",
-    "assets/images/other/turn-banner-your-white-v1.png": "assets/images/other/turn-banner-your-white-v1.webp",
-    "assets/images/other/turn-banner-enemy-v1.png": "assets/images/other/turn-banner-enemy-v1.webp",
-    "assets/images/other/turn-banner-enemy-black-v1.png": "assets/images/other/turn-banner-enemy-black-v1.webp"
+    "assets/images/other/turn-banner-your-obsidian-v2.png": "assets/images/other/turn-banner-your-obsidian-v2.webp",
+    "assets/images/other/turn-banner-your-ivory-v2.png": "assets/images/other/turn-banner-your-ivory-v2.webp",
+    "assets/images/other/turn-banner-enemy-ivory-v2.png": "assets/images/other/turn-banner-enemy-ivory-v2.webp",
+    "assets/images/other/turn-banner-enemy-obsidian-v2.png": "assets/images/other/turn-banner-enemy-obsidian-v2.webp",
+    "assets/images/background/background-default-midnight-teal-v1.png": "assets/images/background/background-default-midnight-teal-v1.webp",
+    "assets/images/board/board-frame-default-midnight-teal-v1.png": "assets/images/board/board-frame-default-midnight-teal-v1.webp",
+    "assets/images/background/background-default-classic-walnut-v1.png": "assets/images/background/background-default-classic-walnut-v1.webp",
+    "assets/images/board/board-frame-default-classic-walnut-v1.png": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
+    "assets/images/background/background-default-quiet-slate-v1.png": "assets/images/background/background-default-quiet-slate-v1.webp",
+    "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+    "assets/images/background/background-desk-classic-game-v1.png": "assets/images/background/background-desk-classic-game-v1.webp",
+    "assets/images/background/background-desk-minimal-strategy-v1.png": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+    "assets/images/background/background-desk-quiet-fantasy-v1.png": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+    "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp",
+    "assets/images/ui/card-area-espresso-leather-v1.png": "assets/images/ui/card-area-espresso-leather-v1.webp",
+    "assets/images/board/board-frame-study-walnut-brass-v1.png": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
+    "assets/images/board/board-frame-study-ebony-jade-v2.png": "assets/images/board/board-frame-study-ebony-jade-v2.webp",
+    "assets/images/board/board-frame-study-grimoire-leather-v1.png": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
+    "assets/images/board/board-surface-study-forest-baize-v1.png": "assets/images/board/board-surface-study-forest-baize-v1.webp",
+    "assets/images/board/board-surface-study-jade-slate-v1.png": "assets/images/board/board-surface-study-jade-slate-v1.webp",
+    "assets/images/board/board-surface-study-olive-leather-v1.png": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+    "assets/images/ui/card-area-walnut-felt-v1.png": "assets/images/ui/card-area-walnut-felt-v1.webp",
+    "assets/images/ui/card-area-scholars-oxblood-v1.png": "assets/images/ui/card-area-scholars-oxblood-v1.webp",
+    "assets/images/ui/card-area-midnight-bookcloth-v1.png": "assets/images/ui/card-area-midnight-bookcloth-v1.webp"
   }
 }

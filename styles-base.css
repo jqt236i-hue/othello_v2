@@ -6216,7 +6216,7 @@
 }
 
 body {
-    --app-background-image: url("assets/images/background/デフォルト25.webp");
+    --app-background-image: url("assets/images/background/background-desk-quiet-fantasy-v1.webp");
     --selected-app-font-family: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif;
     --selected-app-font-accent-family: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif;
     --selected-app-font-readable-family: "CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif;
@@ -6313,7 +6313,7 @@ body[data-font-skin-id="dot-gothic"] :is(
     .background-skin-option,
     .board-skin-option,
     .board-frame-skin-option,
-    .font-skin-option,
+    .hand-mat-skin-option, .font-skin-option,
     .stone-skin-option,
     .appearance-preset-name,
     .appearance-preset-use,
@@ -6359,8 +6359,8 @@ body[data-font-skin-id="dot-gothic"] :is(
     .rules-help-counter-summary-note,
     .rules-help-counter-cell--note,
     .rules-help-counter-meaning,
-    .font-skin-option-copy,
-    .font-skin-option-note,
+    .hand-mat-skin-option-copy, .font-skin-option-copy,
+    .hand-mat-skin-option-note, .font-skin-option-note,
     .board-skin-option-copy,
     .board-skin-option-note,
     .board-frame-skin-option-copy,

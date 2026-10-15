@@ -46,7 +46,7 @@ describe('optimized UI image policy and lossless pipeline', () => {
     const policy = JSON.parse(fs.readFileSync(
       path.join(root, 'scripts', 'assets', 'optimized-ui-images.policy.json'), 'utf8'
     ));
-    expect(manifest.images).toHaveLength(14);
+    expect(manifest.images).toHaveLength(34);
     expect(manifest.images.map((image: any) => image.source).sort())
       .toEqual(policy.images.map((image: any) => image.source).sort());
     manifest.images.forEach((image: any) => {
@@ -68,6 +68,11 @@ describe('optimized UI image policy and lossless pipeline', () => {
       expect(fs.existsSync(path.join(root, image.output))).toBe(true);
     });
 
+    const defaultBackground = manifest.images.find((image: any) => (
+      image.source === 'assets/images/background/background-desk-quiet-fantasy-v1.png'
+    ));
+    expect(defaultBackground).toMatchObject({ criticalPath: true, codec: 'webp-lossy', quality: 90 });
+
     const frame = manifest.images.find((image: any) => (
       image.source === 'assets/images/board/board-frame-submerged-wood-v1.png'
     ));
@@ -83,7 +88,7 @@ describe('optimized UI image policy and lossless pipeline', () => {
 
     // Start-up textures ship as lossy WebP: transfer size dominates first load.
     const felt = manifest.images.find((image: any) => (
-      image.source === 'assets/images/board/board-surface-bluegreen-felt-v1.png'
+      image.source === 'assets/images/board/board-surface-study-forest-baize-v1.png'
     ));
     expect(felt).toMatchObject({ criticalPath: true, codec: 'webp-lossy', quality: 90 });
     expect(felt.savingsRatio).toBeGreaterThan(0.5);

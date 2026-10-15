@@ -43,7 +43,10 @@ function browserPath(filePath: string): string {
 
 async function getCandidates(): Promise<string[]> {
   const candidates: string[] = [];
+  const uiPolicyOutputs = readUiImagePolicyOutputs();
   for (const filePath of walkPngFiles(BACKGROUND_DIR)) {
+    // The UI policy owns these WebP outputs (including optional skin candidates).
+    if (uiPolicyOutputs.has(path.resolve(filePath.replace(/\.png$/i, '.webp')).toLowerCase())) continue;
     if (fs.statSync(filePath).size < MIN_SOURCE_BYTES) continue;
     const imageMetadata = await sharp(filePath).metadata();
     if (imageMetadata.hasAlpha) continue;

@@ -1292,9 +1292,11 @@ function updateCpuCharacter(): void {
         const defaultName = hasNamedProfileOverride
             ? String(cpuProfile.name)
             : ((CPU_LEVEL_NAMES as any)[level] || ('レベル ' + level));
-        const displayName = level === 12 || level === 13
-            ? defaultName.replace('エンペラービースト', '\nエンペラービースト')
-            : defaultName;
+        const displayName = level === 11
+            ? defaultName.replace('サクリファイスドラゴン', '\nサクリファイスドラゴン')
+            : level === 12 || level === 13
+                ? defaultName.replace('エンペラービースト', '\nエンペラービースト')
+                : defaultName;
         if (specialPresentation) {
             applyCpuLevelLabelInteractivity(levelLabel, false, String(specialPresentation.label));
             setHeroLabelText(heroLabel, HERO_DEFAULT_LABEL);

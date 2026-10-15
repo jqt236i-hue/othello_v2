@@ -1160,14 +1160,14 @@
     align-items: center;
     justify-content: center;
     width: calc(188px * var(--layout-stage-scale));
-    height: calc(42px * var(--layout-stage-scale));
+    height: calc(26px * var(--layout-stage-scale));
     min-width: 0;
     max-width: calc(100vw - calc(16px * var(--layout-stage-scale)));
     min-height: 0;
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: center / 100% 100% no-repeat;
+    background: center / contain no-repeat;
     filter:
         drop-shadow(0 calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55))
         drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(238, 196, 94, 0.18));
@@ -1201,20 +1201,20 @@
 
 .turn-arrival-toast.is-self,
 .turn-arrival-toast.is-self.is-black-turn {
-    background-image: url("assets/images/other/turn-banner-your-v1.webp");
+    background-image: url("assets/images/other/turn-banner-your-obsidian-v2.webp");
 }
 
 .turn-arrival-toast.is-self.is-white-turn {
-    background-image: url("assets/images/other/turn-banner-your-white-v1.webp");
+    background-image: url("assets/images/other/turn-banner-your-ivory-v2.webp");
 }
 
 .turn-arrival-toast.is-enemy,
 .turn-arrival-toast.is-enemy.is-white-turn {
-    background-image: url("assets/images/other/turn-banner-enemy-v1.webp");
+    background-image: url("assets/images/other/turn-banner-enemy-ivory-v2.webp");
 }
 
 .turn-arrival-toast.is-enemy.is-black-turn {
-    background-image: url("assets/images/other/turn-banner-enemy-black-v1.webp");
+    background-image: url("assets/images/other/turn-banner-enemy-obsidian-v2.webp");
 }
 
 @keyframes turn-arrival-toast-enter {
@@ -1668,7 +1668,7 @@
 #backgroundSkinOptions,
 #boardSkinOptions,
 #boardFrameSkinOptions,
-#fontSkinOptions,
+#handMatSkinOptions, #fontSkinOptions,
 #stoneSkinOptions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1886,7 +1886,7 @@
 .background-skin-option,
 .board-skin-option,
 .board-frame-skin-option,
-.font-skin-option,
+.hand-mat-skin-option, .font-skin-option,
 .stone-skin-option {
     width: 100%;
     height: var(--appearance-option-row-height);
@@ -1913,8 +1913,8 @@
 .board-skin-option:focus-visible,
 .board-frame-skin-option:hover,
 .board-frame-skin-option:focus-visible,
-.font-skin-option:hover,
-.font-skin-option:focus-visible,
+.hand-mat-skin-option:hover, .font-skin-option:hover,
+.hand-mat-skin-option:focus-visible, .font-skin-option:focus-visible,
 .stone-skin-option:hover,
 .stone-skin-option:focus-visible {
     border-color: #d7b47a;
@@ -1926,13 +1926,14 @@
 .background-skin-option.is-selected,
 .board-skin-option.is-selected,
 .board-frame-skin-option.is-selected,
-.font-skin-option.is-selected,
+.hand-mat-skin-option.is-selected, .font-skin-option.is-selected,
 .stone-skin-option.is-selected {
     border-color: #d7b47a;
     background: rgba(255, 236, 179, 0.16);
     box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 236, 179, 0.2);
 }
 
+.hand-mat-skin-option-preview,
 .hand-skin-option-preview {
     width: calc(86px * var(--layout-stage-scale));
     height: calc(64px * var(--layout-stage-scale));
@@ -2004,7 +2005,7 @@
 .background-skin-option-copy,
 .board-skin-option-copy,
 .board-frame-skin-option-copy,
-.font-skin-option-copy,
+.hand-mat-skin-option-copy, .font-skin-option-copy,
 .stone-skin-option-copy {
     display: flex;
     flex-direction: column;
@@ -2016,7 +2017,7 @@
 .background-skin-option-label,
 .board-skin-option-label,
 .board-frame-skin-option-label,
-.font-skin-option-label,
+.hand-mat-skin-option-label, .font-skin-option-label,
 .stone-skin-option-label {
     font-size: calc(14px * var(--layout-stage-scale));
     font-weight: 700;
@@ -2027,7 +2028,7 @@
 .background-skin-option-note,
 .board-skin-option-note,
 .board-frame-skin-option-note,
-.font-skin-option-note,
+.hand-mat-skin-option-note, .font-skin-option-note,
 .stone-skin-option-note {
     font-size: calc(11px * var(--layout-stage-scale));
     color: rgba(255, 240, 204, 0.78);
@@ -2178,20 +2179,20 @@
     padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages) {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #handMatSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages) {
     scrollbar-width: thin;
     scrollbar-color: rgba(83, 214, 209, 0.48) rgba(0, 0, 0, 0.22);
 }
 
-:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #handMatSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar {
     width: calc(8px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #handMatSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.18);
 }
 
-:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
+:is(#networkPanel, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #handMatSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
     border-radius: calc(999px * var(--layout-stage-scale));
     background: linear-gradient(180deg, rgba(83, 214, 209, 0.66), rgba(126, 215, 255, 0.32));
 }
@@ -2261,7 +2262,7 @@
         inset calc(3px * var(--layout-stage-scale)) 0 0 rgba(242, 201, 95, 0.28);
 }
 
-:is(.hand-skin-option, .background-skin-option, .board-skin-option, .board-frame-skin-option, .font-skin-option, .stone-skin-option, .deck-builder-preset-card, .deck-builder-effective-summary, .deck-builder-notice, #networkBoardSizeRow, #leaderboardList, #gachaDetailsPanel) {
+:is(.hand-skin-option, .background-skin-option, .board-skin-option, .board-frame-skin-option, .hand-mat-skin-option, .font-skin-option, .stone-skin-option, .deck-builder-preset-card, .deck-builder-effective-summary, .deck-builder-notice, #networkBoardSizeRow, #leaderboardList, #gachaDetailsPanel) {
     border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.16);
     border-radius: calc(7px * var(--layout-stage-scale));
     background:

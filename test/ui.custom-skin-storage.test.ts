@@ -59,6 +59,7 @@ describe('custom skin storage and catalogs', () => {
       getCustomSkinDefinitions: (_root: Window, kind: keyof typeof customDefinitions) => customDefinitions[kind] || []
     };
 
+    (window as any).GachaProgressStorageModule = require('../ui/storage/gacha-progress.ts');
     const backgroundCatalog = require('../ui/background-skin/catalog.ts');
     const boardCatalog = require('../ui/board-skin/catalog.ts');
     const stoneCatalog = require('../ui/stone-skin/catalog.ts');
@@ -80,15 +81,17 @@ describe('custom skin storage and catalogs', () => {
       blackImagePath: 'blob:black',
       whiteImagePath: 'blob:white'
     }));
-    expect(backgroundCatalog.BASE_BACKGROUND_SKINS).toHaveLength(1);
-    expect(boardCatalog.BASE_BOARD_SKINS).toHaveLength(1);
-    expect(boardCatalog.BASE_BOARD_FRAME_SKINS).toHaveLength(1);
+    expect(backgroundCatalog.BASE_BACKGROUND_SKINS).toHaveLength(8);
+    expect(boardCatalog.BASE_BOARD_SKINS).toHaveLength(4);
+    expect(boardCatalog.BASE_BOARD_FRAME_SKINS).toHaveLength(7);
     expect(backgroundCatalog.getOwnedBackgroundSkins(window).map((skin: { id: string }) => skin.id))
-      .toEqual(['default-25', 'custom:background:1']);
+      .toEqual(['default-25', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate',
+        'desk-classic-game', 'desk-minimal-strategy', 'desk-quiet-fantasy', 'desk-midnight-game', 'custom:background:1']);
     expect(boardCatalog.getAllBoardSkins(window).map((skin: { id: string }) => skin.id))
-      .toEqual(['bluegreen-felt', 'custom:board:1']);
+      .toEqual(['bluegreen-felt', 'study-forest-baize', 'study-jade-slate', 'study-olive-leather', 'custom:board:1']);
     expect(boardCatalog.getAllBoardFrameSkins(window).map((skin: { id: string }) => skin.id))
-      .toEqual(['submerged-wood', 'custom:board-frame:1']);
+      .toEqual(['submerged-wood', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate',
+        'study-walnut-brass', 'study-ebony-jade', 'study-grimoire-leather', 'custom:board-frame:1']);
 
     const backgroundSelection = require('../ui/background-skin/selection.ts');
     const boardSelection = require('../ui/board-skin/selection.ts');

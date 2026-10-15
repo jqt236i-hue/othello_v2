@@ -590,6 +590,9 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/game-visual-effects-map-compat": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/game-visual-effects-map-compat.js"),
   "ui/hand-animation-preferences": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-animation-preferences.js"),
   "ui/hand-animation/fade-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-animation/fade-state.js"),
+  "ui/hand-mat-skin/catalog": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-mat-skin/catalog.js"),
+  "ui/hand-mat-skin/runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-mat-skin/runtime.js"),
+  "ui/hand-mat-skin/selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-mat-skin/selection.js"),
   "ui/hand-skin/catalog": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-skin/catalog.js"),
   "ui/hand-skin/runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-skin/runtime.js"),
   "ui/hand-skin/selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/hand-skin/selection.js"),
@@ -1386,6 +1389,9 @@ installBootModuleMetadata({
     "ui/game-visual-effects-map-compat",
     "ui/hand-animation-preferences",
     "ui/hand-animation/fade-state",
+    "ui/hand-mat-skin/catalog",
+    "ui/hand-mat-skin/runtime",
+    "ui/hand-mat-skin/selection",
     "ui/hand-skin/catalog",
     "ui/hand-skin/runtime",
     "ui/hand-skin/selection",
@@ -1599,6 +1605,7 @@ installBootModuleMetadata({
     "ui/gacha/gacha-reveal-scene",
     "ui/gacha/gacha-reveal-stage",
     "ui/gacha/gacha-transaction",
+    "ui/hand-mat-skin/controller",
     "ui/hand-skin/controller",
     "ui/leaderboard-client"
   ],
@@ -1615,6 +1622,7 @@ installBootModuleMetadata({
     "ui/debug",
     "ui/font-skin/",
     "ui/gacha/",
+    "ui/hand-mat-skin/controller",
     "ui/hand-skin/",
     "ui/leaderboard",
     "ui/storage/gacha"
@@ -1639,6 +1647,7 @@ installBootModuleMetadata({
       "ui/font-skin/controller",
       "ui/font-skin/runtime",
       "ui/font-skin/selection",
+      "ui/hand-mat-skin/controller",
       "ui/hand-skin/controller"
     ],
     "leaderboard": [
@@ -1659,4 +1668,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 774;
+export const startupModuleCount = 777;

@@ -574,6 +574,29 @@ describe('mobile command surface', () => {
     controller.destroy(); fixture.dom.window.close();
   });
 
+  test('lets inline editors that own Escape cancel themselves without closing the panel', () => {
+    const fixture = createFixture();
+    const controller = setupMobileCommandSurface({ root: fixture.windowRef, document: fixture.documentRef })!;
+    controller.openDrawer();
+    fixture.documentRef.getElementById('mobile-command-menu-deck')!.click();
+    const overlay = fixture.documentRef.getElementById('deckBuilderOverlay')!;
+    expect(overlay.getAttribute('aria-hidden')).toBe('false');
+    const renameInput = fixture.documentRef.createElement('input');
+    renameInput.dataset.ownsEscape = 'true';
+    overlay.appendChild(renameInput);
+    const handleEditorKey = jest.fn((event: KeyboardEvent) => event.stopPropagation());
+    renameInput.addEventListener('keydown', handleEditorKey);
+
+    renameInput.dispatchEvent(new fixture.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(handleEditorKey).toHaveBeenCalledTimes(1);
+    expect(overlay.getAttribute('aria-hidden')).toBe('false');
+
+    overlay.removeChild(renameInput);
+    fixture.documentRef.dispatchEvent(new fixture.dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(overlay.getAttribute('aria-hidden')).toBe('true');
+    controller.destroy(); fixture.dom.window.close();
+  });
+
   test('does not move focus when a native panel was opened outside the mobile menu', () => {
     const fixture = createFixture();
     const controller = setupMobileCommandSurface({

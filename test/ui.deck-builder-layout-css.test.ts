@@ -102,4 +102,29 @@ describe('deck builder layout CSS', () => {
     expect(finalSection).toMatch(/@media\s*\(min-width:\s*901px\)[\s\S]*grid-template-columns:\s*repeat\(3,[\s\S]*grid-template-rows:\s*repeat\(2,/);
     expect(finalSection).toMatch(/\.deck-builder-save-slot-card\.is-empty[\s\S]*border-style:\s*dashed\s*!important/);
   });
+
+  test('obsidian brass theme frames the modal and cards with the generated brass frames', () => {
+    const featureCssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
+    const featureCss = fs.readFileSync(featureCssPath, 'utf8');
+    const obsidianSection = featureCss.split('Obsidian Brass — デッキ構築の最終デザイン')[1] || '';
+    const assetNames = ['modal-frame', 'panel-frame', 'divider-line', 'divider-gem', 'texture'];
+
+    expect(obsidianSection).not.toBe('');
+    for (const name of assetNames) {
+      const relativePath = `assets/images/ui/deck-obsidian-brass-${name}.webp`;
+      expect(fs.existsSync(path.join(__dirname, '..', relativePath))).toBe(true);
+      expect(obsidianSection).toContain(`url('${relativePath}')`);
+    }
+
+    // The overlay is fixed to the viewport, so its size must not follow the stage scale,
+    // which can exceed the viewport when the desktop browser chrome is compensated.
+    expect(obsidianSection).toMatch(/--deck-u:\s*min\(max\(calc\(100vw \/ 2700\), calc\(100dvh \/ 1500\)\), calc\(\(100vw - 40px\) \/ 1944\), calc\(100dvh \/ 1280\)\)/);
+    expect(obsidianSection.match(/--deck-u:[^;]*;/)?.[0]).not.toMatch(/--layout-stage-scale/);
+    expect(obsidianSection).toMatch(/#deckBuilderModal::before\s*\{[\s\S]*?border-image-source:\s*var\(--deck-ob-modal-frame\)[\s\S]*?pointer-events:\s*none\s*!important;/);
+    expect(obsidianSection).toMatch(/\.deck-builder-workshop-grid > \.deck-builder-save-slot-card\s*\{[\s\S]*?border-image-source:\s*var\(--deck-ob-panel-frame\)/);
+    // The archive must keep its content height so the body scrolls on short screens.
+    expect(obsidianSection).toMatch(/\.deck-builder-atelier-shell\s*\{\s*flex:\s*0 0 auto\s*!important;/);
+    // Raising the selection list must not push the taller editor view off screen.
+    expect(obsidianSection).toMatch(/#deckBuilderModal:has\(\.deck-builder-view-presets\)\s*\{[\s\S]*?margin-bottom:[\s\S]*?max-height:\s*calc\(100dvh - 32px - 57 \* var\(--deck-u\)\)/);
+  });
 });

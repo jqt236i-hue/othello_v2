@@ -37,7 +37,7 @@
         data-card-reversi-feature-style-href="styles-feature-network-layout-controls.css?v=207648095638469"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
     <meta data-card-reversi-feature-style-slot="deck-builder"
-        data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=99690069154092"
+        data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=156916697737166"
         data-card-reversi-feature-style-after="styles-layout-controls.css">
     <meta data-card-reversi-feature-style-slot="network"
         data-card-reversi-feature-style-href="styles-feature-network.css?v=41267236501823"
@@ -61,25 +61,25 @@
         data-card-reversi-feature-style-href="styles-feature-rules-help-responsive.css?v=71396489629988"
         data-card-reversi-feature-style-after="styles-responsive.css">
     <meta data-card-reversi-feature-style-slot="board-dom-compat"
-        data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=36234041226082">
+        data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=53800939622738">
     <meta data-card-reversi-feature-style-slot="profile"
         data-card-reversi-feature-style-href="styles-profile.css?v=66011374102458"
         data-card-reversi-feature-style-after="styles-stone-shadows.css">
     <base href="../">
     <meta name="card-reversi-classic-style" content="styles-variables.css?v=27450893054797">
-    <meta name="card-reversi-classic-style" content="styles-base.css?v=222492527358876">
-    <meta name="card-reversi-classic-style" content="styles-layout.css?v=5532437212688">
+    <meta name="card-reversi-classic-style" content="styles-base.css?v=196676480425447">
+    <meta name="card-reversi-classic-style" content="styles-layout.css?v=164243841171746">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=202479173618870">
     <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=53621162346781">
-    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=216265661492938">
+    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=90170948869760">
     <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=113058248959745">
-    <meta name="card-reversi-classic-style" content="styles-board.css?v=239463805794209">
+    <meta name="card-reversi-classic-style" content="styles-board.css?v=109693109434949">
     <meta name="card-reversi-classic-style" content="styles-cards.css?v=18235662347235">
     <meta name="card-reversi-classic-style" content="styles-animations.css?v=268796206019380">
-    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=2711830940386">
+    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=49337384862403">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=50154902815750">
-    <meta name="card-reversi-classic-style" content="styles-mobile-command-surface.css?v=161330156685431">
-    <meta name="card-reversi-startup-version" content="146955699602989">
+    <meta name="card-reversi-classic-style" content="styles-mobile-command-surface.css?v=58791877608886">
+    <meta name="card-reversi-startup-version" content="9928771078259">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -98,7 +98,7 @@
         })();
     </script>
     <meta name="card-reversi-browser-lane" content="vite">
-  <script type="module" crossorigin src="./vite-dist/assets/index.vite-DhMmO7oG.js"></script>
+  <script type="module" crossorigin src="./vite-dist/assets/index.vite-CfZb63ku.js"></script>
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/rolldown-runtime-DaJ6WEGw.js">
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/modulepreload-polyfill-Dezn_h7o.js">
   <link rel="modulepreload" crossorigin href="./vite-dist/assets/preload-helper-HclGiUj8.js">
@@ -308,6 +308,7 @@
             <button id="appearanceTabBackground" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="backgroundSkinSection">背景</button>
             <button id="appearanceTabBoard" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardSkinSection">盤面デザイン</button>
             <button id="appearanceTabBoardFrame" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardFrameSkinSection">盤面フレーム</button>
+            <button id="appearanceTabHandMat" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="handMatSkinSection">手札置き</button>
             <button id="appearanceTabFont" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="fontSkinSection">フォント</button>
             <button id="appearanceTabStone" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="stoneSkinSection">石</button>
             <button id="appearanceTabMySkin" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="mySkinSection">マイスキン</button>
@@ -324,6 +325,9 @@
         </div>
         <div id="boardFrameSkinSection" class="appearance-panel-section" data-appearance-section="board-frame" hidden>
             <div id="boardFrameSkinOptions" role="radiogroup" aria-label="盤面フレーム"></div>
+        </div>
+        <div id="handMatSkinSection" class="appearance-panel-section" data-appearance-section="hand-mat" hidden>
+            <div id="handMatSkinOptions" role="radiogroup" aria-label="手札置きスキン"></div>
         </div>
         <div id="fontSkinSection" class="appearance-panel-section" data-appearance-section="font" hidden>
             <div id="fontSkinOptions" role="radiogroup" aria-label="文字フォント"></div>

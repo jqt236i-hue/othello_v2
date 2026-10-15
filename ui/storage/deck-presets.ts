@@ -120,6 +120,7 @@ export = {
   PRESET_LIMIT,
   PRESET_IDS,
   createDefaultState,
+  normalizePresetName,
   normalizeState,
   loadState,
     saveState,

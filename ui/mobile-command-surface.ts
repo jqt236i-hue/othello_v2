@@ -518,6 +518,8 @@ function setupMobileCommandSurface(
     // The active observation theatre owns Escape and Tab until its reveal settles.
     const eventTarget = event.target as HTMLElement | null;
     if (eventTarget?.closest?.('#gachaRevealStage.is-active')) return;
+    // Inline editors inside a panel (deck rename, delete confirmation) cancel themselves on Escape.
+    if (event.key === 'Escape' && eventTarget?.closest?.('[data-owns-escape]')) return;
     if (event.key === 'Escape' && closeTop()) {
       event.preventDefault();
       event.stopPropagation();

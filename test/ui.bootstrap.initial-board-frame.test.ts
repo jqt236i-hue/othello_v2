@@ -8,27 +8,95 @@ describe('UIBootstrap initial board frame preparation', () => {
     delete (global as any).document;
   });
 
-  test('reads the stored frame and delegates preparation to BoardSkinRuntime', async () => {
+  test('restores the stored surface before preparing the frame without opening SKIN', async () => {
     jest.resetModules();
     const dom = new JSDOM('<!doctype html><html><body></body></html>', {
       url: 'https://example.test/'
     });
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
-    const readStoredBoardFrameSkinId = jest.fn(() => 'submerged-wood');
-    const prepareBoardFrameSkin = jest.fn(async () => ({ id: 'submerged-wood' }));
+    const calls: string[] = [];
+    const readStoredBoardFrameSkinId = jest.fn(() => 'study-grimoire-leather');
+    const readStoredBoardSkinId = jest.fn(() => 'study-olive-leather');
+    const syncDisplayedBoardSkin = jest.fn(() => { calls.push('surface'); });
+    const prepareBoardFrameSkin = jest.fn(async () => {
+      calls.push('frame');
+      return { id: 'study-grimoire-leather' };
+    });
     jest.doMock('../ui/board-skin/selection', () => ({
-      readStoredBoardFrameSkinId
+      readStoredBoardFrameSkinId,
+      readStoredBoardSkinId
     }));
     jest.doMock('../ui/board-skin/runtime', () => ({
-      prepareBoardFrameSkin
+      prepareBoardFrameSkin,
+      syncDisplayedBoardSkin
     }));
     const bootstrap = require('../ui/bootstrap.ts');
 
     await expect(bootstrap.prepareInitialBoardFrameSkin(dom.window))
-      .resolves.toEqual({ id: 'submerged-wood' });
+      .resolves.toEqual({ id: 'study-grimoire-leather' });
+    expect(readStoredBoardSkinId).toHaveBeenCalledWith(dom.window);
+    expect(syncDisplayedBoardSkin).toHaveBeenCalledWith(dom.window, 'study-olive-leather');
     expect(readStoredBoardFrameSkinId).toHaveBeenCalledWith(dom.window);
-    expect(prepareBoardFrameSkin).toHaveBeenCalledWith(dom.window, 'submerged-wood');
+    expect(prepareBoardFrameSkin).toHaveBeenCalledWith(dom.window, 'study-grimoire-leather');
+    expect(calls).toEqual(['surface', 'frame']);
     dom.window.close();
   });
+
+  test.each(['espresso-leather', 'walnut-felt', 'scholars-oxblood', 'midnight-bookcloth'])(
+    'restores hand mat %s before opening the skin panel', async (id) => {
+      jest.resetModules();
+      const dom = new JSDOM('<!doctype html><html><body><div id="board-frame"></div><div id="board"></div></body></html>', { url: 'https://example.test/' });
+      (global as any).window = dom.window;
+      (global as any).document = dom.window.document;
+      dom.window.localStorage.setItem('reversi.handMatSkin', id);
+      const bootstrap = require('../ui/bootstrap.ts');
+      await bootstrap.prepareInitialBoardFrameSkin(dom.window);
+      expect(dom.window.document.documentElement.dataset.handMatSkinId).toBe(id);
+      expect(dom.window.document.documentElement.style.getPropertyValue('--hand-mat-image'))
+        .toBe(`url("assets/images/ui/card-area-${id}-v1.webp")`);
+      expect(dom.window.document.getElementById('handMatSkinOptions')).toBeNull();
+      dom.window.close();
+    }
+  );
+
+  test.each([null, 'bluegreen-felt'])(
+    'uses forest baize when unsaved and preserves previous surface %s', async (saved) => {
+      jest.resetModules();
+      const dom = new JSDOM('<!doctype html><html><body><div id="board-frame"></div><div id="board"></div></body></html>', { url: 'https://example.test/' });
+      (global as any).window = dom.window;
+      (global as any).document = dom.window.document;
+      if (saved) dom.window.localStorage.setItem('reversi.boardSkin', saved);
+      const bootstrap = require('../ui/bootstrap.ts');
+      await bootstrap.prepareInitialBoardFrameSkin(dom.window);
+      const expected = saved || 'study-forest-baize';
+      expect(dom.window.document.documentElement.dataset.boardSkinId).toBe(expected);
+      expect(dom.window.document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
+        .toBe(`url("assets/images/board/board-surface-${expected}-v1.webp")`);
+      expect(dom.window.localStorage.getItem('reversi.boardSkin')).toBe(saved);
+      expect(dom.window.document.documentElement.dataset.boardFrameSkinId).toBe('submerged-wood');
+      dom.window.close();
+    }
+  );
+
+  test.each(['forest-baize', 'jade-slate', 'olive-leather'])(
+    'restores study surface %s through the real startup runtime', async (name) => {
+      jest.resetModules();
+      const dom = new JSDOM('<!doctype html><html><body><div id="board-frame"></div><div id="board"></div></body></html>', {
+        url: 'https://example.test/'
+      });
+      (global as any).window = dom.window;
+      (global as any).document = dom.window.document;
+      dom.window.localStorage.setItem('reversi.boardSkin', `study-${name}`);
+      dom.window.localStorage.setItem('reversi.boardFrameSkin', 'study-ebony-jade');
+      const bootstrap = require('../ui/bootstrap.ts');
+      await bootstrap.prepareInitialBoardFrameSkin(dom.window);
+      expect(dom.window.document.documentElement.dataset.boardSkinId).toBe(`study-${name}`);
+      expect(dom.window.document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
+        .toBe(`url("assets/images/board/board-surface-study-${name}-v1.webp")`);
+      expect(dom.window.document.documentElement.dataset.boardFrameSkinId).toBe('study-ebony-jade');
+      expect(dom.window.document.querySelector('#boardSkinOptions')).toBeNull();
+      dom.window.close();
+    }
+  );
 });

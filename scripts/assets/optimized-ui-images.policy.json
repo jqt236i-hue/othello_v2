@@ -4,7 +4,7 @@
   "images": [
     {
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -36,7 +36,7 @@
     },
     {
       "source": "assets/images/background/デフォルト25.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -84,7 +84,7 @@
     },
     {
       "source": "assets/images/ui/card-area-table-player-v6.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -100,7 +100,7 @@
     },
     {
       "source": "assets/images/ui/card-area-table-opponent-v6.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -163,7 +163,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-your-v1.png",
+      "source": "assets/images/other/turn-banner-your-obsidian-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -179,7 +179,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-your-white-v1.png",
+      "source": "assets/images/other/turn-banner-your-ivory-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -195,7 +195,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-enemy-v1.png",
+      "source": "assets/images/other/turn-banner-enemy-ivory-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -211,7 +211,7 @@
       }
     },
     {
-      "source": "assets/images/other/turn-banner-enemy-black-v1.png",
+      "source": "assets/images/other/turn-banner-enemy-obsidian-v2.png",
       "criticalPath": true,
       "encoding": {
         "codec": "webp-lossy",
@@ -223,6 +223,272 @@
       },
       "measurement": {
         "investigation": "start-up transfer audit 2026-09-29: PNG download size dominated first load; lossy WebP at q90 keeps the texture visually unchanged at a fraction of the bytes",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-default-midnight-teal-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-default-midnight-teal-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-default-classic-walnut-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-default-classic-walnut-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-default-quiet-slate-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-default-quiet-slate-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional default UI candidate selected from the skin panel; q90 reduces transfer while preserving transparent frame openings"
+      },
+      "measurement": {
+        "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-classic-game-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-minimal-strategy-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-quiet-fantasy-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "default background referenced by the startup stylesheet and skin catalog; q90 reduces first-load transfer"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-midnight-game-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-espresso-leather-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional espresso leather hand mat; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-frame-study-walnut-brass-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-frame-study-ebony-jade-v2.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-frame-study-grimoire-leather-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-surface-study-forest-baize-v1.png",
+      "criticalPath": true,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-surface-study-jade-slate-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-surface-study-olive-leather-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/ui/card-area-walnut-felt-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-scholars-oxblood-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-midnight-bookcloth-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional hand mat skin; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "four-way hand mat skin selection with unchanged card geometry",
         "hardwareDecode": null
       }
     }

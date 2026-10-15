@@ -176,6 +176,7 @@ const OPTIONAL_BOOT_MODULE_PREFIXES = [
     'ui/cosmetics/',
     'ui/debug',
     'ui/font-skin/',
+    'ui/hand-mat-skin/controller',
     'ui/gacha/',
     'ui/hand-skin/',
     'ui/leaderboard',
@@ -199,6 +200,7 @@ const OPTIONAL_GROUP_PREFIXES: Record<OptionalRuntimeGroup, readonly string[]> =
     cosmetic: Object.freeze([
         'ui/background-skin/',
         'ui/font-skin/',
+        'ui/hand-mat-skin/controller',
         'ui/hand-skin/controller'
     ]),
     leaderboard: Object.freeze(['ui/leaderboard']),

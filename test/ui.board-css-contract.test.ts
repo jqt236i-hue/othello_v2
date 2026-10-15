@@ -1,6 +1,13 @@
 import { readDomCompatBoardCssSurface } from './helpers/css-test-helpers';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('board CSS rendering contract', () => {
+  test.each(['styles-board.css', 'styles-board-dom-compat.css'])('%s starts with forest baize before runtime selection', (file) => {
+    const css = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    expect(css).toContain('--board-surface-texture-image: url("assets/images/board/board-surface-study-forest-baize-v1.webp");');
+    expect(css).not.toContain('--board-surface-texture-image: url("assets/images/board/board-surface-bluegreen-felt-v1');
+  });
   test('board root keeps geometry open for expansion cells', () => {
     const css = readDomCompatBoardCssSurface();
 
@@ -38,7 +45,7 @@ describe('board CSS rendering contract', () => {
     const css = readDomCompatBoardCssSurface();
 
     expect(css).toMatch(/--board-surface-base-color:\s*#[0-9a-fA-F]{6};/);
-    expect(css).toMatch(/--board-surface-texture-image:\s*url\("assets\/images\/board\/board-surface-bluegreen-felt-v1\.webp"\);/);
+    expect(css).toMatch(/--board-surface-texture-image:\s*url\("assets\/images\/board\/board-surface-study-forest-baize-v1\.webp"\);/);
     expect(css).toMatch(/--board-cell-base-color:\s*var\(--board-surface-base-color\);/);
     expect(css).toMatch(/--board-cell-base-image:\s*var\(--board-surface-base-image\);/);
     expect(css).toMatch(/--board-cell-base-size:\s*var\(--board-surface-base-size\);/);

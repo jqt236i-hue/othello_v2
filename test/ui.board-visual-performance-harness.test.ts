@@ -112,12 +112,12 @@ describe('board visual performance harness contract', () => {
     expect(alternate.imagePath).toMatch(/^data:image\/svg\+xml,/);
     expect(alternate.imagePath).not.toBe(standard.imagePath);
     expect(root.BoardSkinCatalogModule.normalizeBoardSkinId(fixture.id, root)).toBe(fixture.id);
-    expect(root.BoardSkinCatalogModule.getAllBoardSkins(root)).toHaveLength(1);
+    expect(root.BoardSkinCatalogModule.getAllBoardSkins(root)).toEqual(catalog.getAllBoardSkins(root));
     expect(root.localStorage.length).toBe(savedBefore);
     expect(root.localStorage.setItem).not.toHaveBeenCalled();
     fixture.restore();
     expect(root.BoardSkinCatalogModule).toBe(catalog);
-    expect(catalog.normalizeBoardSkinId(fixture.id, root)).toBe('bluegreen-felt');
+    expect(catalog.normalizeBoardSkinId(fixture.id, root)).toBe('study-forest-baize');
   });
 
   test('removes the temporary catalog override when no global catalog existed', () => {

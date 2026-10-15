@@ -23,7 +23,7 @@ interface BackgroundSkinCatalogModule {
   getBackgroundSkinDefinition?: (skinId: string, rootRef: Window) => BackgroundSkinDefinition | null;
 }
 
-const FALLBACK_BACKGROUND_SKIN_ID = 'default-25';
+const FALLBACK_BACKGROUND_SKIN_ID = 'desk-quiet-fantasy';
 
 function resolveRootRef(rootRef: Window | null | undefined): Window | null {
   if (rootRef && typeof rootRef === 'object') return rootRef;

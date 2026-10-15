@@ -92,7 +92,7 @@ function summarizeBackgroundRequests(
 
 async function runBackgroundSuccessProbe(browser: Browser, baseUrl: string): Promise<BackgroundProbe> {
   const runtime = await openDefaultPage(browser, baseUrl);
-  const sourcePath = 'assets/images/background/デフォルト25.png';
+  const sourcePath = 'assets/images/background/background-desk-quiet-fantasy-v1.png';
   try {
     const finalStyle = await applyBackground(runtime.page, sourcePath);
     // The sole default is already loaded at boot; codec reuse must not require
@@ -106,7 +106,7 @@ async function runBackgroundSuccessProbe(browser: Browser, baseUrl: string): Pro
 
 async function runBackgroundFallbackProbe(browser: Browser, baseUrl: string): Promise<BackgroundProbe> {
   const runtime = await openDefaultPage(browser, baseUrl);
-  const sourcePath = 'assets/images/background/デフォルト25.png';
+  const sourcePath = 'assets/images/background/background-desk-quiet-fantasy-v1.png';
   const webpPattern = /\/assets\/images\/background\/[^/]+\.webp(?:\?.*)?$/;
   await runtime.page.route(webpPattern, (route) => route.abort('failed'));
   try {

@@ -106,10 +106,16 @@ describe('left info stack layout contract', () => {
   test('turn arrival art follows both local perspective and actual turn color', () => {
     const layoutCss = readLayoutCssSurface();
 
-    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-self\.is-black-turn[\s\S]*turn-banner-your-v1\.webp/);
-    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-self\.is-white-turn[\s\S]*turn-banner-your-white-v1\.webp/);
-    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-enemy\.is-white-turn[\s\S]*turn-banner-enemy-v1\.webp/);
-    expect(layoutCss).toMatch(/\.turn-arrival-toast\.is-enemy\.is-black-turn[\s\S]*turn-banner-enemy-black-v1\.webp/);
+    expect(readCssBlock(layoutCss, '.turn-arrival-toast.is-self.is-black-turn'))
+      .toContain('turn-banner-your-obsidian-v2.webp');
+    expect(readCssBlock(layoutCss, '.turn-arrival-toast.is-self.is-white-turn'))
+      .toContain('turn-banner-your-ivory-v2.webp');
+    expect(readCssBlock(layoutCss, '.turn-arrival-toast.is-enemy.is-white-turn'))
+      .toContain('turn-banner-enemy-ivory-v2.webp');
+    expect(readCssBlock(layoutCss, '.turn-arrival-toast.is-enemy.is-black-turn'))
+      .toContain('turn-banner-enemy-obsidian-v2.webp');
+    expect(readCssBlock(layoutCss, '.turn-arrival-toast'))
+      .toMatch(/background:\s*center\s*\/\s*contain\s+no-repeat/);
   });
 
   test('persistent game log uses themed readable panel treatment', () => {

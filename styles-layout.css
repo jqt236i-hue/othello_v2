@@ -130,6 +130,57 @@
     --board-contour-shadow: rgba(12, 8, 5, 0.98);
 }
 
+/* 候補画像の透過余白には既定の茶色い下地を出さない。 */
+#board-frame[data-board-frame-skin-id="default-midnight-teal"],
+#board-frame[data-board-frame-skin-id="default-classic-walnut"],
+#board-frame[data-board-frame-skin-id="default-quiet-slate"],
+#board-frame[data-board-frame-skin-id="study-walnut-brass"],
+#board-frame[data-board-frame-skin-id="study-ebony-jade"],
+#board-frame[data-board-frame-skin-id="study-grimoire-leather"] {
+    --board-frame-fill-background: transparent;
+    box-shadow: none;
+}
+
+#board-frame[data-board-frame-skin-id="default-midnight-teal"] {
+    --board-contour-highlight: rgba(111, 181, 179, 0.86);
+    --board-contour-metal: rgba(29, 58, 62, 0.98);
+    --board-contour-shadow: rgba(5, 14, 18, 0.98);
+}
+
+/* 直線型の黒檀枠は余白を除去済みなので、装飾画像を枠外へ拡大しない。 */
+#board-frame[data-board-frame-skin-id="study-ebony-jade"] {
+    --board-frame-art-overhang: 0px;
+    --board-contour-highlight: rgba(188, 147, 94, 0.86);
+    --board-contour-metal: rgba(43, 31, 22, 0.98);
+    --board-contour-shadow: rgba(7, 10, 9, 0.98);
+}
+
+#board-frame[data-board-frame-skin-id="default-classic-walnut"],
+#board-frame[data-board-frame-skin-id="study-walnut-brass"] {
+    --board-contour-highlight: rgba(188, 147, 74, 0.86);
+    --board-contour-metal: rgba(83, 48, 28, 0.98);
+    --board-contour-shadow: rgba(19, 10, 6, 0.98);
+}
+
+#board-frame[data-board-frame-skin-id="default-quiet-slate"] {
+    --board-contour-highlight: rgba(116, 179, 183, 0.86);
+    --board-contour-metal: rgba(54, 66, 78, 0.98);
+    --board-contour-shadow: rgba(12, 18, 25, 0.98);
+}
+
+#board-frame[data-board-frame-skin-id="study-grimoire-leather"] {
+    --board-contour-highlight: rgba(204, 164, 88, 0.88);
+    --board-contour-metal: rgba(99, 43, 34, 0.98);
+    --board-contour-shadow: rgba(24, 9, 8, 0.98);
+}
+
+/* 書斎枠の装飾はスマホ縦画面では枠内へ収め、左右の見切れを防ぐ。 */
+html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-walnut-brass"],
+html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-ebony-jade"],
+html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-grimoire-leather"] {
+    --board-frame-art-overhang: 0px;
+}
+
 /* Occupancy Indicators */
 .occupancy-badge {
     position: fixed;
@@ -272,7 +323,7 @@
     top: calc(var(--layout-size-hand-min-height-top) - var(--card-area-panel-height) - calc(5px * var(--layout-stage-scale)) - 10px);
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-table-opponent-v6.webp");
+    background-image: var(--hand-mat-image, url("assets/images/ui/card-area-midnight-bookcloth-v1.webp"));
     background-position: bottom center;
     background-size: 100% 100%;
     background-repeat: no-repeat;
@@ -292,7 +343,7 @@
     top: calc(-13px * var(--layout-stage-scale));
     width: var(--card-area-panel-width);
     height: var(--card-area-panel-height);
-    background-image: url("assets/images/ui/card-area-table-player-v6.webp");
+    background-image: var(--hand-mat-image, url("assets/images/ui/card-area-midnight-bookcloth-v1.webp"));
     background-position: top center;
     background-size: 100% 100%;
     background-repeat: no-repeat;

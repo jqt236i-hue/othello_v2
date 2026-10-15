@@ -83,7 +83,14 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 nameValue: '',
                 draft: DeckBuilderStateModule.createEmptyDraft(),
                 codeInputValue: '',
-                detailCardId: ''
+                detailCardId: '',
+                // 削除の確認を出している保存先スロット
+                deleteConfirmPresetId: ''
+            },
+            // 一覧画面で名前を変更中の保存スロットと入力途中の名前
+            rename: {
+                presetId: '',
+                value: ''
             }
         };
         let surfaceReadyPromise: Promise<any> | null = null;
@@ -1122,9 +1129,16 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                     };
                 }
 
+                const isRenaming = state.rename.presetId === preset.id;
+                const renameFields = {
+                    canRename: true,
+                    isRenaming,
+                    renameValue: isRenaming ? state.rename.value : '',
+                    renamePlaceholder: `保存スロット ${index + 1}`
+                };
                 const deckSpec = decodeDeckSpecOrNull(preset.deckCode);
                 if (!deckSpec) {
-                    return {
+                    return Object.assign({
                         id: preset.id,
                         displayName: getPresetDisplayName(preset, index),
                         summaryText: '読み込み不可',
@@ -1136,13 +1150,13 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                         typeBreakdown: [],
                         slotNumberLabel,
                         isEmpty: false
-                    };
+                    }, renameFields);
                 }
 
                 const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
                 const breakdown = summarizeDeckTypeBreakdown(deckSpec);
                 const isActive = preset.id === state.presetState.activePresetId;
-                return {
+                return Object.assign({
                     id: preset.id,
                     displayName: getPresetDisplayName(preset, index),
                     summaryText: `${summary.deckSize}枚 / ${summary.distinctCount}種`,
@@ -1156,7 +1170,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                     distinctCount: summary.distinctCount,
                     slotNumberLabel,
                     isEmpty: false
-                };
+                }, renameFields);
             });
         }
 
@@ -1201,9 +1215,17 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
             });
         }
 
+        function isPresetInUse(presetId: any) {
+            if (!presetId) return false;
+            const choice = state.activeLocalChoice;
+            return state.presetState.activePresetId === presetId
+                || !!(choice && choice.source === 'preset' && choice.presetId === presetId);
+        }
+
         function buildEditorViewModel() {
             const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
             const editorPreset = findPresetById(state.editor.presetId);
+            const canDelete = !!(editorPreset && editorPreset.deckCode);
             const presetOptions = state.presetState.presets.map((preset: any, index: any) => ({
                 id: preset.id,
                 label: getPresetSlotLabel(preset, index)
@@ -1249,6 +1271,10 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 canSave: true,
                 canUse: true,
                 canCopy: true,
+                canDelete,
+                deleteTargetLabel: editorPreset ? getPresetSlotLabel(editorPreset, getPresetIndex(editorPreset)) : '',
+                deleteTargetIsActive: canDelete && isPresetInUse(editorPreset.id),
+                isConfirmingDelete: canDelete && state.editor.deleteConfirmPresetId === editorPreset.id,
                 codeInputValue: state.editor.codeInputValue,
                 detailCard: resolveDeckBuilderCardDetail(detailCardDef),
                 selectedCards,
@@ -1303,8 +1329,17 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 onEditorDestinationChange: function (presetId: any) {
                     if (findPresetById(presetId)) {
                         state.editor.presetId = String(presetId || '').trim();
+                        resetDeleteConfirm();
+                        // 削除ボタンは保存先のスロットに対して働くので、選び直したら表示を合わせる。
+                        renderPreservingEditorScroll();
                     }
                 },
+                onStartRenamePreset: startRenamePreset,
+                onRenamePresetInput: function (value: any) {
+                    state.rename.value = String(value || '');
+                },
+                onCommitRenamePreset: commitRenamePreset,
+                onCancelRenamePreset: cancelRenamePreset,
                 onEditorBack: backToPresetList,
                 onEditorNameInput: function (value: any) {
                     state.editor.nameValue = String(value || '');
@@ -1320,7 +1355,10 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 onEditorRandomize: randomizeEditorDraft,
                 onEditorSave: saveEditorPreset,
                 onEditorUse: useEditorDraft,
-                onEditorCopyCode: copyEditorCode
+                onEditorCopyCode: copyEditorCode,
+                onEditorRequestDelete: requestDeleteEditorPreset,
+                onEditorConfirmDelete: confirmDeleteEditorPreset,
+                onEditorCancelDelete: cancelDeleteEditorPreset
             }, renderOptions);
             renderBoardSizeControls();
         }
@@ -1354,6 +1392,8 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
 
         function openReadySurface() {
             clearNotice();
+            resetRenameState();
+            resetDeleteConfirm();
             state.overlayOpen = true;
             state.view = 'presets';
             render();
@@ -1392,6 +1432,8 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
         function close() {
             const wasOpen = state.overlayOpen;
             state.overlayOpen = false;
+            resetRenameState();
+            resetDeleteConfirm();
             render();
             if (wasOpen && refs.openBtn && typeof refs.openBtn.focus === 'function') {
                 try { refs.openBtn.focus({ preventScroll: true }); } catch (_error) { /* detached/legacy host */ }
@@ -1455,7 +1497,63 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
             render();
         }
 
+        function resetRenameState() {
+            state.rename = { presetId: '', value: '' };
+        }
+
+        function startRenamePreset(presetId: any) {
+            const preset = findPresetById(presetId);
+            if (!preset || !preset.deckCode) return;
+            state.rename = { presetId: preset.id, value: String(preset.name || '') };
+            clearNotice();
+            render();
+        }
+
+        function cancelRenamePreset() {
+            resetRenameState();
+            render();
+        }
+
+        // 一覧画面から保存スロットの名前だけを変える。空欄なら `保存スロット N` 表示に戻る。
+        function commitRenamePreset(presetId: any, value: any) {
+            if (!state.rename.presetId || state.rename.presetId !== presetId) return;
+            resetRenameState();
+            const preset = findPresetById(presetId);
+            if (!preset || !preset.deckCode) {
+                render();
+                return;
+            }
+
+            const nextName = DeckPresetStorage.normalizePresetName(value);
+            if (nextName === DeckPresetStorage.normalizePresetName(preset.name)) {
+                render();
+                return;
+            }
+
+            state.presetState.presets = state.presetState.presets.map((candidate: any) => (
+                candidate.id === preset.id
+                    ? Object.assign({}, candidate, { name: nextName, updatedAt: Date.now() })
+                    : candidate
+            ));
+            // 変わった名前がその場で見えるので成功の通知は出さず、失敗だけ知らせる。
+            if (savePresetState()) {
+                refreshActivePresetChoiceName(preset.id);
+            }
+            render();
+        }
+
+        // 使用中デッキの名前はヘッダーや左の操作欄にも出るので、保存した名前に合わせる。
+        function refreshActivePresetChoiceName(presetId: any) {
+            const choice = state.activeLocalChoice;
+            if (!choice || choice.source !== 'preset' || choice.presetId !== presetId) return;
+            const preset = findPresetById(presetId);
+            if (!preset) return;
+            state.activeLocalChoice = Object.assign({}, choice, { name: getPresetChoiceName(preset) });
+        }
+
         function editPreset(presetId: any) {
+            resetRenameState();
+            resetDeleteConfirm();
             const preset = findPresetById(presetId);
             state.editor.presetId = presetId;
             state.editor.sourceName = '';
@@ -1501,6 +1599,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 return;
             }
 
+            resetDeleteConfirm();
             state.editor.presetId = findFirstEmptyPresetId();
             state.editor.sourceName = displayName;
             state.editor.nameValue = displayName;
@@ -1512,6 +1611,66 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
         }
 
         function backToPresetList() {
+            state.editor.detailCardId = '';
+            state.editor.sourceName = '';
+            resetDeleteConfirm();
+            state.view = 'presets';
+            render();
+        }
+
+        function resetDeleteConfirm() {
+            state.editor.deleteConfirmPresetId = '';
+        }
+
+        // 消したデッキは戻せないので、いきなり消さずに確認を挟む。
+        function requestDeleteEditorPreset() {
+            const preset = findPresetById(state.editor.presetId);
+            if (!preset || !preset.deckCode) return;
+            state.editor.deleteConfirmPresetId = preset.id;
+            clearNotice();
+            renderPreservingEditorScroll();
+        }
+
+        function cancelDeleteEditorPreset() {
+            resetDeleteConfirm();
+            renderPreservingEditorScroll();
+        }
+
+        // 保存先のスロットを空きスロットに戻して一覧へ戻る。使用中だった場合はデフォルトデッキに切り替える。
+        function confirmDeleteEditorPreset() {
+            const presetId = state.editor.deleteConfirmPresetId;
+            resetDeleteConfirm();
+            const preset = findPresetById(presetId);
+            if (!preset || !preset.deckCode || preset.id !== state.editor.presetId) {
+                renderPreservingEditorScroll();
+                return;
+            }
+
+            const deletedLabel = getPresetSlotLabel(preset, getPresetIndex(preset));
+            const wasInUse = isPresetInUse(preset.id);
+            state.presetState.presets = state.presetState.presets.map((candidate: any) => (
+                candidate.id === preset.id
+                    ? Object.assign({}, candidate, { name: '', deckCode: '', updatedAt: 0 })
+                    : candidate
+            ));
+            if (state.presetState.activePresetId === preset.id) {
+                state.presetState.activePresetId = '';
+            }
+            if (!savePresetState()) {
+                renderPreservingEditorScroll();
+                return;
+            }
+
+            if (wasInUse) {
+                setLocalActiveChoice(createStandardChoice({ source: 'standard' }), { persistActivePreset: false });
+            }
+            emitNotice(
+                wasInUse
+                    ? `${deletedLabel} を削除しました。使用中だったためデフォルトデッキに切り替えました`
+                    : `${deletedLabel} を削除しました`,
+                false,
+                false
+            );
             state.editor.detailCardId = '';
             state.editor.sourceName = '';
             state.view = 'presets';
@@ -1585,6 +1744,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 });
             });
             if (!savePresetState()) return null;
+            refreshActivePresetChoiceName(state.editor.presetId);
             return deckCode;
         }
 
@@ -1732,6 +1892,11 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                     }
                     if (!state.overlayOpen) return;
                     event.preventDefault();
+                    if (state.view === 'editor' && state.editor.deleteConfirmPresetId) {
+                        // 削除の確認中は確認だけを取り消し、構築画面は閉じない。
+                        cancelDeleteEditorPreset();
+                        return;
+                    }
                     close();
                 });
                 rootRef.__deckBuilderEscBound = true;

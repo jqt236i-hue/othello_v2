@@ -41,14 +41,32 @@ interface CustomSkinStorageModule {
 const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'bluegreen-felt',
-    label: '既定',
+    label: '青緑フェルト',
     note: '青みを帯びた静かな布目の下地',
     imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp'
+  }),
+  Object.freeze({
+    id: 'study-forest-baize',
+    label: 'S1 深緑フェルト（既定）',
+    note: '書斎に合う、落ち着いた深緑の布地',
+    imagePath: 'assets/images/board/board-surface-study-forest-baize-v1.webp'
+  }),
+  Object.freeze({
+    id: 'study-jade-slate',
+    label: 'S2 翡翠スレート',
+    note: '石が見分けやすい、少し明るい青緑の石肌',
+    imagePath: 'assets/images/board/board-surface-study-jade-slate-v1.webp'
+  }),
+  Object.freeze({
+    id: 'study-olive-leather',
+    label: 'S3 オリーブレザー',
+    note: '木机になじむ、暖かみのあるオリーブ色の革地',
+    imagePath: 'assets/images/board/board-surface-study-olive-leather-v1.webp'
   })
 ]);
 
 const BOARD_SKINS = BASE_BOARD_SKINS.slice();
-const DEFAULT_BOARD_SKIN_ID = 'bluegreen-felt';
+const DEFAULT_BOARD_SKIN_ID = 'study-forest-baize';
 
 function resolveCustomSkinStorageModule(rootRef?: Window | null): CustomSkinStorageModule | null {
   try {
@@ -102,6 +120,67 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
       paddingBottom: 20,
       paddingLeft: 20,
       artOffsetY: 2
+    })
+  }),
+  Object.freeze({
+    id: 'default-midnight-teal',
+    label: '青緑ミニマル枠',
+    note: '青緑の内縁と落ち着いた金属の枠',
+    imagePath: 'assets/images/board/board-frame-default-midnight-teal-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 50, paddingRight: 50, paddingBottom: 50, paddingLeft: 50,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'default-classic-walnut',
+    label: 'クラシック木枠',
+    note: '胡桃材に細い真鍮の縁を添えた定番の木枠',
+    imagePath: 'assets/images/board/board-frame-default-classic-walnut-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 36, paddingRight: 36, paddingBottom: 36, paddingLeft: 36,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'default-quiet-slate',
+    label: '静かな石枠',
+    note: '青灰色の石に控えめな青緑の細縁',
+    imagePath: 'assets/images/board/board-frame-default-quiet-slate-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 38, paddingRight: 38, paddingBottom: 38, paddingLeft: 38,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'study-walnut-brass',
+    label: 'F1 胡桃真鍮枠',
+    note: '温かい胡桃材に、細い真鍮の縁取り',
+    imagePath: 'assets/images/board/board-frame-study-walnut-brass-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 28, paddingRight: 28, paddingBottom: 28, paddingLeft: 28,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'study-ebony-jade',
+    label: 'F2 黒檀翡翠枠',
+    note: '黒檀に細い真鍮の縁を添えた、ほどよい幅の直線枠',
+    imagePath: 'assets/images/board/board-frame-study-ebony-jade-v2.webp',
+    layout: Object.freeze({
+      paddingTop: 28, paddingRight: 28, paddingBottom: 28, paddingLeft: 28,
+      artOverhangTop: 0, artOverhangBottom: 0,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'study-grimoire-leather',
+    label: 'F3 古書レザー枠',
+    note: '古書の革表紙に、金色の蔓葉装飾',
+    imagePath: 'assets/images/board/board-frame-study-grimoire-leather-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 25, paddingRight: 25, paddingBottom: 25, paddingLeft: 25,
+      artOffsetY: 0
     })
   })
 ]);

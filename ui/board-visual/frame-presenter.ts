@@ -189,7 +189,7 @@ function resolveBoardAppearanceDescriptor(
   const stoneCatalog = resolveModule(root, 'StoneSkinCatalogModule', '../stone-skin/catalog');
   const requestedBoardSkinId = datasetValue(host, 'boardSkinId')
     || datasetValue(rootElement, 'boardSkinId')
-    || String(boardCatalog && boardCatalog.DEFAULT_BOARD_SKIN_ID || 'bluegreen-felt');
+    || String(boardCatalog && boardCatalog.DEFAULT_BOARD_SKIN_ID || 'study-forest-baize');
   const requestedFrameSkinId = datasetValue(boardFrame, 'boardFrameSkinId')
     || datasetValue(rootElement, 'boardFrameSkinId')
     || String(boardCatalog && boardCatalog.DEFAULT_BOARD_FRAME_SKIN_ID || 'submerged-wood');
