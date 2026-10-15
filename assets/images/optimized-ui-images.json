@@ -142,7 +142,7 @@
       "source": "assets/images/ui/card-area-table-player-v6.png",
       "candidateOutput": "assets/images/ui/card-area-table-player-v6.webp",
       "output": "assets/images/ui/card-area-table-player-v6.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -168,7 +168,7 @@
       "source": "assets/images/ui/card-area-table-opponent-v6.png",
       "candidateOutput": "assets/images/ui/card-area-table-opponent-v6.webp",
       "output": "assets/images/ui/card-area-table-opponent-v6.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -631,6 +631,32 @@
       "sourceSha256": "b9f4f3b9873ff0f477b1532b6f9b26428ee1bbe12fa9a4432668d66cc81e2daf",
       "outputSha256": "de72d601d3adfdbec7297f662b492144e7cb9cf6ea26e2b65e2cfe37409fc397",
       "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/ui/card-area-espresso-leather-v1.png",
+      "candidateOutput": "assets/images/ui/card-area-espresso-leather-v1.webp",
+      "output": "assets/images/ui/card-area-espresso-leather-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "shared default leather hand mat referenced directly by the stylesheet; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
+        "hardwareDecode": null
+      },
+      "width": 2098,
+      "height": 637,
+      "hasAlpha": true,
+      "sourceBytes": 2478111,
+      "outputBytes": 356660,
+      "savedBytes": 2121451,
+      "savingsRatio": 0.8560758577803819,
+      "sourceSha256": "239a994c8941747f5d955a27e6caa737daa4bc966c7ba65052bd934166c4ced8",
+      "outputSha256": "de92b603d2567aea806fb6051ff7cf29f95b0fc7adafef7226252354e4d3219d",
+      "visiblePixelsEqual": false
     }
   ],
   "admittedMapping": {
@@ -657,6 +683,7 @@
     "assets/images/background/background-desk-classic-game-v1.png": "assets/images/background/background-desk-classic-game-v1.webp",
     "assets/images/background/background-desk-minimal-strategy-v1.png": "assets/images/background/background-desk-minimal-strategy-v1.webp",
     "assets/images/background/background-desk-quiet-fantasy-v1.png": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
-    "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp"
+    "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp",
+    "assets/images/ui/card-area-espresso-leather-v1.png": "assets/images/ui/card-area-espresso-leather-v1.webp"
   }
 }

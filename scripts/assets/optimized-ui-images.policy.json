@@ -84,7 +84,7 @@
     },
     {
       "source": "assets/images/ui/card-area-table-player-v6.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -100,7 +100,7 @@
     },
     {
       "source": "assets/images/ui/card-area-table-opponent-v6.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -383,6 +383,22 @@
       },
       "measurement": {
         "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/ui/card-area-espresso-leather-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "shared default leather hand mat referenced directly by the stylesheet; preserve alpha while reducing transfer"
+      },
+      "measurement": {
+        "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
         "hardwareDecode": null
       }
     }
