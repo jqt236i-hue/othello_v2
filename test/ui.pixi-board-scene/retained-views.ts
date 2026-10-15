@@ -20,7 +20,7 @@ describe('Pixi static retained views', () => {
     const cellView = CellView.createPixiCellView(fixture.runtime);
     const stoneView = StoneView.createPixiStoneView(fixture.runtime);
     const markers = [
-      { kind: 'special', owner: 'black', value: null, data: { type: 'ZOMBIE' } },
+      { kind: 'special', owner: 'black', value: null, data: { type: 'TIME_STOP' } },
       { kind: 'guard', owner: 'black', value: null, data: { remainingOwnerTurns: 4 } },
       { kind: 'breeding-sprout', owner: 'black', value: true, data: { active: true } },
       { kind: 'board-bonus', owner: null, value: 12, data: {} },
@@ -31,7 +31,7 @@ describe('Pixi static retained views', () => {
       stone: {
         owner: 'black',
         value: 1,
-        specialType: 'ZOMBIE',
+        specialType: 'TIME_STOP',
         status: { remainingOwnerTurns: 10, regenRemaining: 2 }
       },
       markers
@@ -39,7 +39,7 @@ describe('Pixi static retained views', () => {
     const cell = materializedCell(raw);
     const blackTexture = { id: 'black-texture' };
     const context = viewContext({
-      textures: new Map([['special-stone:ZOMBIE:black', { texture: blackTexture }]])
+      textures: new Map([['special-stone:TIME_STOP:black', { texture: blackTexture }]])
     });
 
     expect(cellView.update(cell, context)).toBe(true);
@@ -69,7 +69,7 @@ describe('Pixi static retained views', () => {
     expect(poisonCorner.commands.some((command: any) => command.op === 'stroke')).toBe(false);
     expect(stoneView.getDiagnostics()).toMatchObject({
       owner: 'black',
-      specialType: 'ZOMBIE',
+      specialType: 'TIME_STOP',
       timerLabel: '10',
       badgeLabel: '2',
       statusLabels: [
@@ -78,7 +78,7 @@ describe('Pixi static retained views', () => {
         { kind: 'guard', value: '4' }
       ],
       textureBacked: true,
-      texturePurpose: 'special-stone:ZOMBIE:black',
+      texturePurpose: 'special-stone:TIME_STOP:black',
       renderedMarkerKinds: ['special', 'guard', 'breeding-sprout']
     });
     const overlap = cellView.getDiagnostics().renderedMarkerKinds.filter((kind) => (
@@ -609,7 +609,7 @@ describe('Pixi static retained views', () => {
       stone: {
         owner: 'black',
         value: 1,
-        specialType: 'ZOMBIE',
+        specialType: 'TIME_STOP',
         status: {
           remainingOwnerTurns: 12,
           regenRemaining: 11,
@@ -618,7 +618,7 @@ describe('Pixi static retained views', () => {
         }
       },
       markers: [
-        { kind: 'special', owner: 'black', value: null, data: { type: 'ZOMBIE' } },
+        { kind: 'special', owner: 'black', value: null, data: { type: 'TIME_STOP' } },
         { kind: 'bomb', owner: 'black', value: null, data: { remainingOwnerTurns: 8 } },
         { kind: 'guard', owner: 'black', value: null, data: { remainingTurns: 7 } },
         { kind: 'poisoned', owner: 'black', value: null, data: { countdown: 6 } },
@@ -684,19 +684,18 @@ describe('Pixi static retained views', () => {
     update(materializedCell(makeCell('1,2', {
       stone: {
         owner: 'white', value: -1, specialType: 'ZOMBIE',
-        status: { remainingOwnerTurns: 3, regenRemaining: 1 }
+        status: { regenRemaining: 1 }
       },
       markers: [{
         kind: 'special', owner: 'white', value: null,
-        data: { type: 'ZOMBIE', remainingOwnerTurns: 3, regenRemaining: 1 }
+        data: { type: 'ZOMBIE', regenRemaining: 1 }
       }]
     })));
     expect(stoneView.getDiagnostics().statusLabels).toEqual([
-      { kind: 'countdown', value: '3' },
       { kind: 'regen', value: '1' }
     ]);
-    expect(statusText('countdown').position).toMatchObject({ x: 17, y: 27.2 });
-    expect(fillColors()).toEqual(expect.arrayContaining(['#ac1c1c', '#8739d6']));
+    expect(fillColors()).toContain('#8739d6');
+    expect(fillColors()).not.toContain('#ac1c1c');
 
     update(materializedCell(makeCell('1,3', {
       stone: { owner: 'black', value: 1, specialType: 'TIME_STOP', status: { remainingOwnerTurns: 12 } },
@@ -705,6 +704,7 @@ describe('Pixi static retained views', () => {
       }]
     })));
     expect(stoneView.getDiagnostics().statusLabels).toEqual([{ kind: 'countdown', value: '12' }]);
+    expect(statusText('countdown').position).toMatchObject({ x: 17, y: 27.2 });
     expect(fillColors()).toContain('#ac1c1c');
 
     update(materializedCell(makeCell('2,1', {
