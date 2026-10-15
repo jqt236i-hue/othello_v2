@@ -103,17 +103,26 @@ describe('assets manifest', () => {
     assert.deepStrictEqual(manifest.files
       .map((file) => file.path)
       .filter((assetPath) => /^assets\/images\/background\/[^/]+\.(png|webp)$/.test(assetPath))
-      .sort(), ['assets/images/background/デフォルト25.png', 'assets/images/background/デフォルト25.webp']);
+      .sort(), [
+        'デフォルト25', 'background-default-midnight-teal-v1',
+        'background-default-classic-walnut-v1', 'background-default-quiet-slate-v1',
+        'background-desk-classic-game-v1', 'background-desk-minimal-strategy-v1',
+        'background-desk-quiet-fantasy-v1', 'background-desk-midnight-game-v1'
+      ].flatMap((name) => [`assets/images/background/${name}.png`, `assets/images/background/${name}.webp`]).sort());
     // Board textures are served directly and are not part of the gacha manifest.
     assert.deepStrictEqual(Array.from(fs.readdirSync(path.join(repoRoot, 'assets/images/board')))
       .filter((fileName) => /^board-(surface|frame)-.*\.(png|webp)$/.test(fileName))
       .map((fileName) => `assets/images/board/${fileName}`)
       .sort(), [
+      ...['midnight-teal', 'classic-walnut', 'quiet-slate'].flatMap((name) => [
+        `assets/images/board/board-frame-default-${name}-v1.png`,
+        `assets/images/board/board-frame-default-${name}-v1.webp`
+      ]),
       'assets/images/board/board-frame-submerged-wood-v1.png',
       'assets/images/board/board-frame-submerged-wood-v1.webp',
       'assets/images/board/board-surface-bluegreen-felt-v1.png',
       'assets/images/board/board-surface-bluegreen-felt-v1.webp'
-    ]);
+    ].sort());
     const gachaFiles = collectFiles(path.resolve(repoRoot, 'assets', 'images', 'Gacha'), repoRoot);
     assert.ok(gachaFiles.length > 0, 'gacha asset directory should contain at least one file');
     gachaFiles.forEach((assetPath) => {

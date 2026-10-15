@@ -1,7 +1,8 @@
 import { JSDOM } from 'jsdom';
 
 const DEFAULT_BACKGROUND_SKIN_IDS = [
-  'default-25', 'default-classic-walnut', 'default-midnight-teal', 'default-quiet-slate'
+  'default-25', 'default-classic-walnut', 'default-midnight-teal', 'default-quiet-slate',
+  'desk-classic-game', 'desk-midnight-game', 'desk-minimal-strategy', 'desk-quiet-fantasy'
 ];
 
 describe('gacha progress storage', () => {
@@ -33,6 +34,24 @@ describe('gacha progress storage', () => {
     expect(mod.listOwnedHandSkinIds(window).sort()).toEqual(['default']);
     expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual(DEFAULT_BACKGROUND_SKIN_IDS);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual(['default']);
+  });
+
+  test('adds decorated desk backgrounds to existing progress without losing unlocks', () => {
+    const mod = require('../ui/storage/gacha-progress.js');
+    window.localStorage.setItem('reversi.gacha.progress.v1', JSON.stringify({
+      version: 3,
+      observationStones: 250,
+      ownedBackgroundSkinIds: {
+        'default-25': true,
+        'gacha__n__background_skin__観測できなかった夜': true
+      }
+    }));
+
+    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual([
+      ...DEFAULT_BACKGROUND_SKIN_IDS,
+      'gacha__n__background_skin__観測できなかった夜'
+    ]);
+    expect(mod.getObservationStones(window)).toBe(250);
   });
 
   test('awards, spends, and applies mixed pull results with duplicate tracking', () => {

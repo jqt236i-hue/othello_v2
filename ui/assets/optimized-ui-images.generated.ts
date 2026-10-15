@@ -19,7 +19,11 @@ export const OPTIMIZED_UI_IMAGES = Object.freeze({
   "assets/images/background/background-default-classic-walnut-v1.png": "assets/images/background/background-default-classic-walnut-v1.webp",
   "assets/images/board/board-frame-default-classic-walnut-v1.png": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
   "assets/images/background/background-default-quiet-slate-v1.png": "assets/images/background/background-default-quiet-slate-v1.webp",
-  "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp"
+  "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+  "assets/images/background/background-desk-classic-game-v1.png": "assets/images/background/background-desk-classic-game-v1.webp",
+  "assets/images/background/background-desk-minimal-strategy-v1.png": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+  "assets/images/background/background-desk-quiet-fantasy-v1.png": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+  "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp"
 } as const);
 
 export type OptimizedUiImageSource = keyof typeof OPTIMIZED_UI_IMAGES;

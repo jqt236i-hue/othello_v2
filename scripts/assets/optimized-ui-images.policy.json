@@ -36,7 +36,7 @@
     },
     {
       "source": "assets/images/background/デフォルト25.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -319,6 +319,70 @@
       },
       "measurement": {
         "investigation": "default UI candidate asset integration; geometry and selection checked in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-classic-game-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-minimal-strategy-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-quiet-fantasy-v1.png",
+      "criticalPath": true,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "default background referenced by the startup stylesheet and skin catalog; q90 reduces first-load transfer"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/background-desk-midnight-game-v1.png",
+      "criticalPath": false,
+      "encoding": {
+        "codec": "webp-lossy",
+        "quality": 90
+      },
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
         "hardwareDecode": null
       }
     }

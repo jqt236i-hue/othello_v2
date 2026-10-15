@@ -41,7 +41,7 @@ interface CosmeticCatalogSharedModule {
 const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'default-25',
-    label: '既定',
+    label: '深緑の水辺',
     note: '初期所持',
     imagePath: 'assets/images/background/デフォルト25.webp'
   }),
@@ -62,6 +62,30 @@ const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
     label: '静かな石造り',
     note: '初期所持',
     imagePath: 'assets/images/background/background-default-quiet-slate-v1.webp'
+  }),
+  Object.freeze({
+    id: 'desk-classic-game',
+    label: '定番の机',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-desk-classic-game-v1.webp'
+  }),
+  Object.freeze({
+    id: 'desk-minimal-strategy',
+    label: 'すっきりした机',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-desk-minimal-strategy-v1.webp'
+  }),
+  Object.freeze({
+    id: 'desk-quiet-fantasy',
+    label: '幻想世界の書斎（既定）',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-desk-quiet-fantasy-v1.webp'
+  }),
+  Object.freeze({
+    id: 'desk-midnight-game',
+    label: '青緑の静かな机',
+    note: '初期所持',
+    imagePath: 'assets/images/background/background-desk-midnight-game-v1.webp'
   })
 ]);
 
@@ -96,7 +120,7 @@ if (!sharedModule || typeof sharedModule.createOwnedCosmeticCatalogApi !== 'func
 const catalogApi = sharedModule.createOwnedCosmeticCatalogApi({
   kind: 'background_skin',
   baseItems: BASE_BACKGROUND_SKINS,
-  defaultId: 'default-25',
+  defaultId: 'desk-quiet-fantasy',
   listOwnedMethodName: 'listOwnedBackgroundSkinIds',
   isOwnedMethodName: 'isBackgroundSkinOwned'
 });

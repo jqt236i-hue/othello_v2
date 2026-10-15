@@ -81,11 +81,12 @@ describe('custom skin storage and catalogs', () => {
       blackImagePath: 'blob:black',
       whiteImagePath: 'blob:white'
     }));
-    expect(backgroundCatalog.BASE_BACKGROUND_SKINS).toHaveLength(4);
+    expect(backgroundCatalog.BASE_BACKGROUND_SKINS).toHaveLength(8);
     expect(boardCatalog.BASE_BOARD_SKINS).toHaveLength(1);
     expect(boardCatalog.BASE_BOARD_FRAME_SKINS).toHaveLength(4);
     expect(backgroundCatalog.getOwnedBackgroundSkins(window).map((skin: { id: string }) => skin.id))
-      .toEqual(['default-25', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate', 'custom:background:1']);
+      .toEqual(['default-25', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate',
+        'desk-classic-game', 'desk-minimal-strategy', 'desk-quiet-fantasy', 'desk-midnight-game', 'custom:background:1']);
     expect(boardCatalog.getAllBoardSkins(window).map((skin: { id: string }) => skin.id))
       .toEqual(['bluegreen-felt', 'custom:board:1']);
     expect(boardCatalog.getAllBoardFrameSkins(window).map((skin: { id: string }) => skin.id))

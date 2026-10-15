@@ -11,7 +11,8 @@ const LEGACY_STORAGE_KEY = 'othello.gacha.progress.v1';
 const STATE_VERSION = 3;
 const DEFAULT_OWNED_HAND_SKIN_IDS = Object.freeze(['default']);
 const DEFAULT_OWNED_BACKGROUND_SKIN_IDS = Object.freeze([
-  'default-25', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate'
+  'default-25', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate',
+  'desk-classic-game', 'desk-minimal-strategy', 'desk-quiet-fantasy', 'desk-midnight-game'
 ]);
 const DEFAULT_OWNED_PLACEMENT_SOUND_IDS = Object.freeze(['default']);
 const OWNED_KIND_CONFIG = Object.freeze({

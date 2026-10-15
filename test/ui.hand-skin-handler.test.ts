@@ -172,8 +172,13 @@ describe('hand skin handler', () => {
     expect(document.getElementById('handSkinBtn').getAttribute('data-lazy-load-state')).toBe('loaded');
   });
 
-  test.each(['reversi.backgroundSkin', 'othello.backgroundSkin'])('restores saved background through lazy cosmetics at startup: %s', async (key) => {
-    window.localStorage.setItem(key, 'default-midnight-teal');
+  test.each([
+    ['reversi.backgroundSkin', 'default-midnight-teal'],
+    ['othello.backgroundSkin', 'default-midnight-teal'],
+    ['reversi.backgroundSkin', 'default-25'],
+    ['othello.backgroundSkin', 'default-25']
+  ])('restores saved background through lazy cosmetics at startup: %s %s', async (key, skinId) => {
+    window.localStorage.setItem(key, skinId);
     let optionalLoaded = false;
     const openPanel = jest.fn();
     const setup = jest.fn(() => {

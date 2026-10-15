@@ -64,7 +64,7 @@
       "source": "assets/images/background/デフォルト25.png",
       "candidateOutput": "assets/images/background/デフォルト25.webp",
       "output": "assets/images/background/デフォルト25.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -527,6 +527,110 @@
       "sourceSha256": "8deda02721c8849d507082c29dd8ada3b2357685d3b95db64d12c0b9b6dd181e",
       "outputSha256": "72306a1bbc36449ffe3bfc9bd197f9a8621d1d78eacf0373b689fdea86fdb0d0",
       "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-classic-game-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-classic-game-v1.webp",
+      "output": "assets/images/background/background-desk-classic-game-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1886934,
+      "outputBytes": 123618,
+      "savedBytes": 1763316,
+      "savingsRatio": 0.9344873747571457,
+      "sourceSha256": "a4ac1739237409909b78352b6d0131e4019fec8207e14def7a8b32c68c37a93f",
+      "outputSha256": "a03b9793481a1a6c4dfb3e9ab2e4c354c8a160f0351c8f68f5190304e07e1290",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-minimal-strategy-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+      "output": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1904363,
+      "outputBytes": 133764,
+      "savedBytes": 1770599,
+      "savingsRatio": 0.9297591898183277,
+      "sourceSha256": "be08ce65529a1b69a497e92c896e1fe4de319860265f43eb2e44e85e8288eebd",
+      "outputSha256": "69a559cde3e8e2206cc40d6b1b9d0664ebb7e92cf4471dc0faebd8153138f41d",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-quiet-fantasy-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+      "output": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+      "criticalPath": true,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "default background referenced by the startup stylesheet and skin catalog; q90 reduces first-load transfer"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1977703,
+      "outputBytes": 173176,
+      "savedBytes": 1804527,
+      "savingsRatio": 0.9124357904093789,
+      "sourceSha256": "2228b62283172fc951dc963699c71424bf37fb15ae8b9a356985d67cdd3c717e",
+      "outputSha256": "73319b03c473d2185dd4faa0aa76621b6cdf95fce036413fb4a6c3a30fe5b7c2",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/background/background-desk-midnight-game-v1.png",
+      "candidateOutput": "assets/images/background/background-desk-midnight-game-v1.webp",
+      "output": "assets/images/background/background-desk-midnight-game-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional decorated tabletop skin; q90 reduces transfer for a dark photographic background"
+      },
+      "measurement": {
+        "investigation": "decorated tabletop background integration; selected and decoded in the browser",
+        "hardwareDecode": null
+      },
+      "width": 1672,
+      "height": 941,
+      "hasAlpha": false,
+      "sourceBytes": 1814256,
+      "outputBytes": 116648,
+      "savedBytes": 1697608,
+      "savingsRatio": 0.9357047737474755,
+      "sourceSha256": "b9f4f3b9873ff0f477b1532b6f9b26428ee1bbe12fa9a4432668d66cc81e2daf",
+      "outputSha256": "de72d601d3adfdbec7297f662b492144e7cb9cf6ea26e2b65e2cfe37409fc397",
+      "visiblePixelsEqual": false
     }
   ],
   "admittedMapping": {
@@ -549,6 +653,10 @@
     "assets/images/background/background-default-classic-walnut-v1.png": "assets/images/background/background-default-classic-walnut-v1.webp",
     "assets/images/board/board-frame-default-classic-walnut-v1.png": "assets/images/board/board-frame-default-classic-walnut-v1.webp",
     "assets/images/background/background-default-quiet-slate-v1.png": "assets/images/background/background-default-quiet-slate-v1.webp",
-    "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp"
+    "assets/images/board/board-frame-default-quiet-slate-v1.png": "assets/images/board/board-frame-default-quiet-slate-v1.webp",
+    "assets/images/background/background-desk-classic-game-v1.png": "assets/images/background/background-desk-classic-game-v1.webp",
+    "assets/images/background/background-desk-minimal-strategy-v1.png": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+    "assets/images/background/background-desk-quiet-fantasy-v1.png": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+    "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp"
   }
 }

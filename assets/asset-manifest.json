@@ -1,6 +1,6 @@
 {
   "version": "2026-10-15",
-  "generatedAt": "2026-10-15T12:29:46.485Z",
+  "generatedAt": "2026-10-15T13:04:17.769Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -717,6 +717,38 @@
     {
       "path": "assets/images/background/background-default-quiet-slate-v1.webp",
       "sha256": "f4cd38f8f117e3f99894d9506dfd704c297f071c24b9260b00783bd320e7e5c5"
+    },
+    {
+      "path": "assets/images/background/background-desk-classic-game-v1.png",
+      "sha256": "a4ac1739237409909b78352b6d0131e4019fec8207e14def7a8b32c68c37a93f"
+    },
+    {
+      "path": "assets/images/background/background-desk-classic-game-v1.webp",
+      "sha256": "a03b9793481a1a6c4dfb3e9ab2e4c354c8a160f0351c8f68f5190304e07e1290"
+    },
+    {
+      "path": "assets/images/background/background-desk-midnight-game-v1.png",
+      "sha256": "b9f4f3b9873ff0f477b1532b6f9b26428ee1bbe12fa9a4432668d66cc81e2daf"
+    },
+    {
+      "path": "assets/images/background/background-desk-midnight-game-v1.webp",
+      "sha256": "de72d601d3adfdbec7297f662b492144e7cb9cf6ea26e2b65e2cfe37409fc397"
+    },
+    {
+      "path": "assets/images/background/background-desk-minimal-strategy-v1.png",
+      "sha256": "be08ce65529a1b69a497e92c896e1fe4de319860265f43eb2e44e85e8288eebd"
+    },
+    {
+      "path": "assets/images/background/background-desk-minimal-strategy-v1.webp",
+      "sha256": "69a559cde3e8e2206cc40d6b1b9d0664ebb7e92cf4471dc0faebd8153138f41d"
+    },
+    {
+      "path": "assets/images/background/background-desk-quiet-fantasy-v1.png",
+      "sha256": "2228b62283172fc951dc963699c71424bf37fb15ae8b9a356985d67cdd3c717e"
+    },
+    {
+      "path": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
+      "sha256": "73319b03c473d2185dd4faa0aa76621b6cdf95fce036413fb4a6c3a30fe5b7c2"
     },
     {
       "path": "assets/images/background/manifest-worlds/執行の世界.png",

@@ -209,7 +209,7 @@ function createLazyHandSkinControls(options: Record<string, unknown>, rootRef: a
       rootRef.localStorage.getItem('reversi.backgroundSkin')
       || rootRef.localStorage.getItem('othello.backgroundSkin')
     );
-    if (storedBackground && storedBackground !== 'default-25' && storedBackground !== 'default') {
+    if (storedBackground && storedBackground !== 'desk-quiet-fantasy' && storedBackground !== 'default') {
       void ensureDelegate().catch((error) => {
         console.error('[hand-skin] saved appearance restore failed', error && error.message ? error.message : error);
       });

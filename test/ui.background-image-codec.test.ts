@@ -201,6 +201,11 @@ describe('background image codec fallback', () => {
     expect(mappedOutputs.size).toBe(0);
     expect(fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
       .filter((name) => /\.(png|webp)$/i.test(name)).sort())
-      .toEqual(['デフォルト25.png', 'デフォルト25.webp']);
+      .toEqual([
+        'デフォルト25', 'background-default-midnight-teal-v1',
+        'background-default-classic-walnut-v1', 'background-default-quiet-slate-v1',
+        'background-desk-classic-game-v1', 'background-desk-minimal-strategy-v1',
+        'background-desk-quiet-fantasy-v1', 'background-desk-midnight-game-v1'
+      ].flatMap((name) => [`${name}.png`, `${name}.webp`]).sort());
   });
 });

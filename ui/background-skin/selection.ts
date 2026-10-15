@@ -27,7 +27,7 @@ const BACKGROUND_SKIN_STORAGE_KEY = 'reversi.backgroundSkin';
 const LEGACY_BACKGROUND_SKIN_STORAGE_KEY = 'othello.backgroundSkin';
 const BACKGROUND_SKIN_STORAGE_VERSION_KEY = 'reversi.backgroundSkin.version';
 const BACKGROUND_SKIN_STORAGE_VERSION = '2';
-const FALLBACK_BACKGROUND_SKIN_ID = 'default-25';
+const FALLBACK_BACKGROUND_SKIN_ID = 'desk-quiet-fantasy';
 const LEGACY_DEFAULT_BACKGROUND_SKIN_ID = 'default';
 
 function requireBackgroundSkinCatalogModuleOrNull(): BackgroundSkinCatalogModule | null {

@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const BACKGROUNDS = [
-  { id: 'default-25', label: '既定', note: '初期所持', imagePath: 'assets/images/background/デフォルト25.webp' },
+  { id: 'default-25', label: '深緑の水辺', note: '初期所持', imagePath: 'assets/images/background/デフォルト25.webp' },
   ...[
     ['midnight-teal', '青緑ミニマル'],
     ['classic-walnut', 'クラシック木製'],
@@ -11,6 +11,15 @@ const BACKGROUNDS = [
   ].map(([name, label]) => ({
     id: `default-${name}`, label, note: '初期所持',
     imagePath: `assets/images/background/background-default-${name}-v1.webp`
+  })),
+  ...[
+    ['classic-game', '定番の机'],
+    ['minimal-strategy', 'すっきりした机'],
+    ['quiet-fantasy', '幻想世界の書斎（既定）'],
+    ['midnight-game', '青緑の静かな机']
+  ].map(([name, label]) => ({
+    id: `desk-${name}`, label, note: '初期所持',
+    imagePath: `assets/images/background/background-desk-${name}-v1.webp`
   }))
 ];
 
@@ -31,14 +40,14 @@ describe('background skin catalog', () => {
     delete (global as any).localStorage;
   });
 
-  test('keeps the current default and adds three initially owned backgrounds', () => {
+  test('keeps the current default and includes all initially owned background candidates', () => {
     const storage = require('../ui/storage/gacha-progress.ts');
     (window as any).GachaProgressStorage = storage;
     (window as any).GachaProgressStorageModule = storage;
     const catalog = require('../ui/background-skin/catalog.ts');
     const expected = BACKGROUNDS;
 
-    expect(catalog.DEFAULT_BACKGROUND_SKIN_ID).toBe('default-25');
+    expect(catalog.DEFAULT_BACKGROUND_SKIN_ID).toBe('desk-quiet-fantasy');
     expect(catalog.BASE_BACKGROUND_SKINS).toEqual(expected);
     expect(catalog.BACKGROUND_SKINS).toEqual(expected);
     expect(catalog.getOwnedBackgroundSkins(window)).toEqual(expected);
@@ -97,10 +106,10 @@ describe('background skin catalog', () => {
     };
     const catalog = require('../ui/background-skin/catalog.ts');
 
-    expect(catalog.normalizeBackgroundSkinId(skinId, window)).toBe('default-25');
+    expect(catalog.normalizeBackgroundSkinId(skinId, window)).toBe('desk-quiet-fantasy');
     storage.applyPullResults(window, [{ item: { id: skinId, kind: 'background_skin' } }]);
 
-    expect(catalog.BASE_BACKGROUND_SKINS).toHaveLength(4);
+    expect(catalog.BASE_BACKGROUND_SKINS).toHaveLength(8);
     expect(catalog.getOwnedBackgroundSkins(window).map((skin: { id: string }) => skin.id))
       .toEqual([...BACKGROUNDS.map((skin) => skin.id), skinId]);
     expect(catalog.normalizeBackgroundSkinId(skinId, window)).toBe(skinId);
