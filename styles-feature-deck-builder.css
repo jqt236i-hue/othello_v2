@@ -3625,3 +3625,57 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+
+/* Current deck — proposal A: a calm teal frame and a readable check label.
+   Keep the archive layout and all existing use/edit actions unchanged. */
+#deckBuilderModal .deck-builder-default-hero.is-active,
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card.is-active,
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-active {
+    border-color: #69bfb4 !important;
+    background: linear-gradient(145deg, #0b2935, #061723) !important;
+    box-shadow: inset 0 0 0 1px rgba(105, 191, 180, 0.2), 0 0 0 1px rgba(105, 191, 180, 0.12) !important;
+}
+
+#deckBuilderModal .deck-builder-active-indicator {
+    position: absolute;
+    top: max(8px, calc(10px * var(--layout-stage-scale)));
+    right: max(8px, calc(12px * var(--layout-stage-scale)));
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    color: #bce9df;
+    font-family: 'Noto Sans JP', 'Yu Gothic', sans-serif;
+    font-size: max(11px, calc(12px * var(--layout-stage-scale)));
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 3;
+}
+
+#deckBuilderModal .deck-builder-active-check {
+    color: #83d7c7;
+    font-weight: 700;
+}
+
+#deckBuilderModal .deck-builder-default-hero.is-active .deck-builder-hero-cta,
+#deckBuilderModal .deck-builder-preset-card.is-active > .deck-builder-actions-row .btn-small:first-child {
+    color: #c2e4de !important;
+    border-color: rgba(105, 191, 180, 0.4) !important;
+    background: #12343c !important;
+}
+
+/* Reserve the former seal area for text without covering deck names. */
+#deckBuilderModal .deck-builder-default-hero.is-active .deck-builder-hero-sigil {
+    padding-right: max(62px, calc(68px * var(--layout-stage-scale)));
+}
+
+#deckBuilderModal .deck-builder-builtin-card.is-active .deck-builder-builtin-meta {
+    padding-top: 18px;
+}
+
+#deckBuilderModal .deck-builder-builtin-card .deck-builder-active-indicator {
+    top: 4px;
+    right: 7px;
+    font-size: 11px;
+}

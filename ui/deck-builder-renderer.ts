@@ -416,28 +416,20 @@ function createSlotBadgeElement(slotIndex: any): HTMLElement | null {
   return badge;
 }
 
-function createActiveStripElement(): HTMLElement {
-  // Kept as alias for callers that still need a "this is active" marker;
-  // visually the wax seal is now the primary active indicator via createActiveSealElement.
-  const strip = document.createElement('div');
-  strip.className = 'deck-builder-active-strip';
-  strip.setAttribute('aria-hidden', 'true');
-  strip.textContent = 'IN USE';
-  return strip;
-}
-
-function createActiveSealElement(deckName: any): HTMLElement {
-  const seal = document.createElement('div');
-  seal.className = 'deck-builder-active-seal';
-  seal.setAttribute('role', 'img');
-  seal.setAttribute('aria-label', `${String(deckName || 'このデッキ')} は現在使用中です`);
-  seal.setAttribute('aria-hidden', 'false');
-  const inner = document.createElement('div');
-  inner.className = 'deck-builder-active-seal-inner';
-  inner.setAttribute('aria-hidden', 'true');
-  inner.textContent = 'IN USE';
-  seal.appendChild(inner);
-  return seal;
+function createActiveIndicatorElement(deckName: any): HTMLElement {
+  const indicator = document.createElement('div');
+  indicator.className = 'deck-builder-active-indicator';
+  indicator.setAttribute('role', 'img');
+  indicator.setAttribute('aria-label', `${String(deckName || 'このデッキ')} は現在使用中です`);
+  const check = document.createElement('span');
+  check.className = 'deck-builder-active-check';
+  check.setAttribute('aria-hidden', 'true');
+  check.textContent = '✓';
+  indicator.appendChild(check);
+  const label = document.createElement('span');
+  label.textContent = '使用中';
+  indicator.appendChild(label);
+  return indicator;
 }
 
 function createSlotLabelEnElement(label: any): HTMLElement | null {
@@ -555,19 +547,16 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
     return presetCard;
   }
 
-  // Filled slot — wax seal (active) + meta column + count orb + swatch bar + actions
-  if (preset.isActive && slotState === 'active') {
-    presetCard.appendChild(createActiveSealElement(preset.displayName));
-  } else if (preset.isActive) {
-    // Active but canUse === false (rare) — fall back to strip for accessibility
-    presetCard.appendChild(createActiveStripElement());
+  // Filled slot — current-deck check + meta column + count orb + swatch bar + actions
+  if (preset.isActive) {
+    presetCard.appendChild(createActiveIndicatorElement(preset.displayName));
   }
 
   // Meta column (label-en + title + summary)
   const meta = document.createElement('div');
   meta.className = 'deck-builder-slot-meta';
 
-  const labelEnText = `${preset.slotNumberLabel || ''}${preset.isActive ? ' · IN USE' : ''}`;
+  const labelEnText = preset.slotNumberLabel || '';
   const labelEn = createSlotLabelEnElement(labelEnText);
   if (labelEn) meta.appendChild(labelEn);
 
@@ -629,7 +618,7 @@ function createBuiltInPresetCard(preset: any, actions: HTMLElement): HTMLElement
   card.dataset.slotState = slotState;
 
   if (preset.isActive) {
-    card.appendChild(createActiveSealElement(preset.displayName));
+    card.appendChild(createActiveIndicatorElement(preset.displayName));
   }
 
   const gem = document.createElement('div');
@@ -661,7 +650,7 @@ function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): H
   card.dataset.slotState = 'standard';
 
   if (isActive) {
-    card.appendChild(createActiveSealElement('デフォルトデッキ'));
+    card.appendChild(createActiveIndicatorElement('デフォルトデッキ'));
   }
 
   const sigil = document.createElement('div');
@@ -692,7 +681,7 @@ function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): H
   metaRow.appendChild(metaText);
   card.appendChild(metaRow);
 
-  const cta = createButton('使 用', 'btn-small deck-builder-hero-cta', typeof onUse === 'function' ? onUse : undefined);
+  const cta = createButton(isActive ? '使用中' : '使 用', 'btn-small deck-builder-hero-cta', typeof onUse === 'function' ? onUse : undefined);
   card.appendChild(cta);
 
   return card;
@@ -775,7 +764,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
     builtInPresets.forEach((preset: any) => {
       const actions = document.createElement('div');
       actions.className = 'deck-builder-actions-row';
-      actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUseBuiltInPreset(preset.id), { disabled: !preset.canUse }));
+      actions.appendChild(createButton(preset.isActive ? '使用中' : '使用', 'btn-small', () => handlers.onUseBuiltInPreset(preset.id), { disabled: !preset.canUse }));
       actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditBuiltInPreset(preset.id), { disabled: !preset.canUse }));
       builtInGrid.appendChild(createBuiltInPresetCard(preset, actions));
     });
@@ -806,7 +795,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
       actions.classList.add('is-single');
       actions.appendChild(createButton('構築', 'btn-small deck-builder-build-btn', () => handlers.onEditPreset(preset.id)));
     } else {
-      actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
+      actions.appendChild(createButton(preset.isActive ? '使用中' : '使用', 'btn-small', () => handlers.onUsePreset(preset.id), { disabled: !preset.canUse }));
       actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditPreset(preset.id)));
     }
 

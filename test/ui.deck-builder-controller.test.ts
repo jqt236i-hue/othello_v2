@@ -186,7 +186,12 @@ describe('deck builder controller', () => {
     const activeCard = body.querySelector('.deck-builder-save-slot-card.is-active');
     expect(activeCard).toBeTruthy();
     expect(activeCard.textContent).toContain('理論デッキ');
-    expect(activeCard.textContent).toContain('IN USE');
+    expect(activeCard.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
+    expect(activeCard.querySelector('.deck-builder-active-indicator').getAttribute('aria-label')).toBe('理論デッキ は現在使用中です');
+    expect(activeCard.querySelector('button').textContent).toBe('使用中');
+    expect(body.querySelectorAll('.deck-builder-active-indicator')).toHaveLength(1);
+    expect(body.querySelector('.deck-builder-active-seal')).toBeNull();
+    expect(body.textContent).not.toContain('IN USE');
 
     expect(body.querySelector('.deck-builder-workspace')).toBeTruthy();
     expect(body.querySelector('.deck-builder-loadout-column')).toBeTruthy();
@@ -202,7 +207,24 @@ describe('deck builder controller', () => {
 
     const defaultCard = body.querySelector('.deck-builder-default-hero');
     expect(defaultCard.classList.contains('is-active')).toBe(true);
-    expect(defaultCard.textContent).toContain('IN USE');
+    expect(defaultCard.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
+    expect(defaultCard.querySelector('button').textContent).toBe('使用中');
+    expect(body.querySelector('.deck-builder-active-seal')).toBeNull();
+    expect(body.textContent).not.toContain('IN USE');
+
+    const builtIn = body.querySelector('.deck-builder-builtin-card');
+    builtIn.querySelector('button').click();
+    const activeBuiltIn = body.querySelector('.deck-builder-builtin-card.is-active');
+    expect(activeBuiltIn).toBeTruthy();
+    expect(activeBuiltIn.querySelector('.deck-builder-active-indicator').textContent).toBe('✓使用中');
+    expect(activeBuiltIn.querySelector('button').textContent).toBe('使用中');
+    expect(body.querySelectorAll('.deck-builder-active-indicator')).toHaveLength(1);
+    expect(body.querySelector('.deck-builder-default-hero.is-active')).toBeNull();
+
+    body.querySelector('.deck-builder-default-hero button').click();
+    expect(body.querySelectorAll('.deck-builder-active-indicator')).toHaveLength(1);
+    expect(body.querySelector('.deck-builder-default-hero.is-active')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-builtin-card.is-active')).toBeNull();
   });
 
   test('デッキ構築画面には全カードデッキの選択肢を置かない', () => {
@@ -837,9 +859,9 @@ describe('deck builder controller', () => {
       const controller = createController();
       controller.open();
 
-      const presetUseButton = Array.from(document.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid .deck-builder-preset-card button'))
-        .find((button) => button.textContent === '使用');
+      const presetUseButton = document.querySelector('.deck-builder-save-slot-card.is-active .deck-builder-actions-row button') as HTMLButtonElement;
       expect(presetUseButton).toBeTruthy();
+      expect(presetUseButton.textContent).toBe('使用中');
       presetUseButton.click();
 
       expect(updateDeckSelection).toHaveBeenCalledTimes(1);
