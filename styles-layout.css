@@ -133,18 +133,23 @@
 /* 候補画像の透過余白には既定の茶色い下地を出さない。 */
 #board-frame[data-board-frame-skin-id="default-midnight-teal"],
 #board-frame[data-board-frame-skin-id="default-classic-walnut"],
-#board-frame[data-board-frame-skin-id="default-quiet-slate"] {
+#board-frame[data-board-frame-skin-id="default-quiet-slate"],
+#board-frame[data-board-frame-skin-id="study-walnut-brass"],
+#board-frame[data-board-frame-skin-id="study-ebony-jade"],
+#board-frame[data-board-frame-skin-id="study-grimoire-leather"] {
     --board-frame-fill-background: transparent;
     box-shadow: none;
 }
 
-#board-frame[data-board-frame-skin-id="default-midnight-teal"] {
+#board-frame[data-board-frame-skin-id="default-midnight-teal"],
+#board-frame[data-board-frame-skin-id="study-ebony-jade"] {
     --board-contour-highlight: rgba(111, 181, 179, 0.86);
     --board-contour-metal: rgba(29, 58, 62, 0.98);
     --board-contour-shadow: rgba(5, 14, 18, 0.98);
 }
 
-#board-frame[data-board-frame-skin-id="default-classic-walnut"] {
+#board-frame[data-board-frame-skin-id="default-classic-walnut"],
+#board-frame[data-board-frame-skin-id="study-walnut-brass"] {
     --board-contour-highlight: rgba(188, 147, 74, 0.86);
     --board-contour-metal: rgba(83, 48, 28, 0.98);
     --board-contour-shadow: rgba(19, 10, 6, 0.98);
@@ -154,6 +159,19 @@
     --board-contour-highlight: rgba(116, 179, 183, 0.86);
     --board-contour-metal: rgba(54, 66, 78, 0.98);
     --board-contour-shadow: rgba(12, 18, 25, 0.98);
+}
+
+#board-frame[data-board-frame-skin-id="study-grimoire-leather"] {
+    --board-contour-highlight: rgba(204, 164, 88, 0.88);
+    --board-contour-metal: rgba(99, 43, 34, 0.98);
+    --board-contour-shadow: rgba(24, 9, 8, 0.98);
+}
+
+/* 書斎枠の装飾はスマホ縦画面では枠内へ収め、左右の見切れを防ぐ。 */
+html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-walnut-brass"],
+html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-ebony-jade"],
+html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-grimoire-leather"] {
+    --board-frame-art-overhang: 0px;
 }
 
 /* Occupancy Indicators */

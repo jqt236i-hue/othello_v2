@@ -82,15 +82,16 @@ describe('custom skin storage and catalogs', () => {
       whiteImagePath: 'blob:white'
     }));
     expect(backgroundCatalog.BASE_BACKGROUND_SKINS).toHaveLength(8);
-    expect(boardCatalog.BASE_BOARD_SKINS).toHaveLength(1);
-    expect(boardCatalog.BASE_BOARD_FRAME_SKINS).toHaveLength(4);
+    expect(boardCatalog.BASE_BOARD_SKINS).toHaveLength(4);
+    expect(boardCatalog.BASE_BOARD_FRAME_SKINS).toHaveLength(7);
     expect(backgroundCatalog.getOwnedBackgroundSkins(window).map((skin: { id: string }) => skin.id))
       .toEqual(['default-25', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate',
         'desk-classic-game', 'desk-minimal-strategy', 'desk-quiet-fantasy', 'desk-midnight-game', 'custom:background:1']);
     expect(boardCatalog.getAllBoardSkins(window).map((skin: { id: string }) => skin.id))
-      .toEqual(['bluegreen-felt', 'custom:board:1']);
+      .toEqual(['bluegreen-felt', 'study-forest-baize', 'study-jade-slate', 'study-olive-leather', 'custom:board:1']);
     expect(boardCatalog.getAllBoardFrameSkins(window).map((skin: { id: string }) => skin.id))
-      .toEqual(['submerged-wood', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate', 'custom:board-frame:1']);
+      .toEqual(['submerged-wood', 'default-midnight-teal', 'default-classic-walnut', 'default-quiet-slate',
+        'study-walnut-brass', 'study-ebony-jade', 'study-grimoire-leather', 'custom:board-frame:1']);
 
     const backgroundSelection = require('../ui/background-skin/selection.ts');
     const boardSelection = require('../ui/board-skin/selection.ts');

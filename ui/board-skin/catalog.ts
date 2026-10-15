@@ -44,6 +44,24 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
     label: '既定',
     note: '青みを帯びた静かな布目の下地',
     imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp'
+  }),
+  Object.freeze({
+    id: 'study-forest-baize',
+    label: 'S1 深緑フェルト',
+    note: '書斎に合う、落ち着いた深緑の布地',
+    imagePath: 'assets/images/board/board-surface-study-forest-baize-v1.webp'
+  }),
+  Object.freeze({
+    id: 'study-jade-slate',
+    label: 'S2 翡翠スレート',
+    note: '石が見分けやすい、少し明るい青緑の石肌',
+    imagePath: 'assets/images/board/board-surface-study-jade-slate-v1.webp'
+  }),
+  Object.freeze({
+    id: 'study-olive-leather',
+    label: 'S3 オリーブレザー',
+    note: '木机になじむ、暖かみのあるオリーブ色の革地',
+    imagePath: 'assets/images/board/board-surface-study-olive-leather-v1.webp'
   })
 ]);
 
@@ -131,6 +149,36 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
     imagePath: 'assets/images/board/board-frame-default-quiet-slate-v1.webp',
     layout: Object.freeze({
       paddingTop: 38, paddingRight: 38, paddingBottom: 38, paddingLeft: 38,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'study-walnut-brass',
+    label: 'F1 胡桃真鍮枠',
+    note: '温かい胡桃材に、細い真鍮の縁取り',
+    imagePath: 'assets/images/board/board-frame-study-walnut-brass-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 28, paddingRight: 28, paddingBottom: 28, paddingLeft: 28,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'study-ebony-jade',
+    label: 'F2 黒檀翡翠枠',
+    note: '黒檀と青緑の象嵌が引き締める静かな木枠',
+    imagePath: 'assets/images/board/board-frame-study-ebony-jade-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 18, paddingRight: 18, paddingBottom: 18, paddingLeft: 18,
+      artOffsetY: 0
+    })
+  }),
+  Object.freeze({
+    id: 'study-grimoire-leather',
+    label: 'F3 古書レザー枠',
+    note: '古書の革表紙に、金色の蔓葉装飾',
+    imagePath: 'assets/images/board/board-frame-study-grimoire-leather-v1.webp',
+    layout: Object.freeze({
+      paddingTop: 25, paddingRight: 25, paddingBottom: 25, paddingLeft: 25,
       artOffsetY: 0
     })
   })

@@ -1732,8 +1732,8 @@ emainingOwnerTurns など持続情報は、複製元の値をそのまま引き�
 - `HELP` ボタンの下にある `SKIN` ボタンから、自分側の手の見た目スキン・背景画像・盤面下地・盤面フレーム・文字フォント・通常石スキンを切り替えられる
 - 手の見た目スキンの初期所持は `既定` (`assets/images/hand-skin/勇者の手.png`) のみとし、選択は次回起動後も保持してよい
 - 背景画像の標準スキン・初期所持は `幻想世界の書斎（既定）` (`desk-quiet-fantasy`、`assets/images/background/background-desk-quiet-fantasy-v1.webp`)、`深緑の水辺` (`default-25`)、`青緑ミニマル` (`default-midnight-teal`)、`クラシック木製` (`default-classic-walnut`)、`静かな石造り` (`default-quiet-slate`)、`定番の机` (`desk-classic-game`)、`すっきりした机` (`desk-minimal-strategy`)、`青緑の静かな机` (`desk-midnight-game`) とする。装飾付きの暗い木製机背景 `幻想世界の書斎（既定）` を既定に採用する。保存済みの有効な背景選択は変更せず、選択は次回起動後も保持してよい
-- 盤面下地の標準スキン・初期所持は `既定` (`bluegreen-felt`) のみとする。選択は次回起動後も保持してよい
-- 盤面フレームの標準スキン・初期所持は現在のデフォルト `沈木枠` (`submerged-wood`)、`青緑ミニマル枠` (`default-midnight-teal`)、`クラシック木枠` (`default-classic-walnut`)、`静かな石枠` (`default-quiet-slate`) とする。追加3種はデフォルトUIの比較候補であり、既定の選択は変更しない。欠けマスのない通常盤面ではフレーム画像を表示し、特殊盤面では同じ選択をCSS外周フレームの色・質感プリセットとして扱って盤面形状に追従させる。選択は次回起動後も保持してよい
+- 盤面下地の標準スキン・初期所持は `既定` (`bluegreen-felt`)、`S1 深緑フェルト` (`study-forest-baize`)、`S2 翡翠スレート` (`study-jade-slate`)、`S3 オリーブレザー` (`study-olive-leather`) とする。S1〜S3は「幻想世界の書斎」背景に合わせた比較候補で、既定の選択は変更しない。マス線は画像へ含めず、従来どおりゲーム側で描画する。選択は次回起動後も保持してよい
+- 盤面フレームの標準スキン・初期所持は現在のデフォルト `沈木枠` (`submerged-wood`)、`青緑ミニマル枠` (`default-midnight-teal`)、`クラシック木枠` (`default-classic-walnut`)、`静かな石枠` (`default-quiet-slate`)、`F1 胡桃真鍮枠` (`study-walnut-brass`)、`F2 黒檀翡翠枠` (`study-ebony-jade`)、`F3 古書レザー枠` (`study-grimoire-leather`) とする。追加スキンはデフォルトUIの比較候補であり、既定の選択は変更しない。欠けマスのない通常盤面ではフレーム画像を表示し、特殊盤面では同じ選択をCSS外周フレームの色・質感プリセットとして扱って盤面形状に追従させる。選択は次回起動後も保持してよい
 - 削除された背景・盤面下地・盤面フレームの標準スキンIDが保存済み選択やプリセットに残っている場合は、各カテゴリの現在のデフォルトへ戻す。個人用カスタムスキンの作成・保存と選択は引き続き利用できる
 - 文字フォントの初期所持は `既定` (`shippori-mincho`) と `DotGothic16` とし、初期選択は `既定` とする。選択は次回起動後も保持してよい
 - 通常石スキンの初期所持は `クラシック石` (`assets/images/stone-skin/default/black.png` / `assets/images/stone-skin/default/white.png`) と `既定` (`assets/images/stone-skin/o-stone/black.png` / `assets/images/stone-skin/o-stone/white.png`) と `真珠黒曜石` (`assets/images/stone-skin/pearl-obsidian/black.png` / `assets/images/stone-skin/pearl-obsidian/white.png`) とし、選択は次回起動後も保持してよい

@@ -46,7 +46,7 @@ describe('optimized UI image policy and lossless pipeline', () => {
     const policy = JSON.parse(fs.readFileSync(
       path.join(root, 'scripts', 'assets', 'optimized-ui-images.policy.json'), 'utf8'
     ));
-    expect(manifest.images).toHaveLength(25);
+    expect(manifest.images).toHaveLength(31);
     expect(manifest.images.map((image: any) => image.source).sort())
       .toEqual(policy.images.map((image: any) => image.source).sort());
     manifest.images.forEach((image: any) => {

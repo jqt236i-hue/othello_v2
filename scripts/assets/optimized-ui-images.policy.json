@@ -401,6 +401,48 @@
         "investigation": "espresso leather hand mat replacement with existing hand and deck geometry preserved",
         "hardwareDecode": null
       }
+    },
+    {
+      "source": "assets/images/board/board-frame-study-walnut-brass-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-frame-study-ebony-jade-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-frame-study-grimoire-leather-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-surface-study-forest-baize-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-surface-study-jade-slate-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
+    },
+    {
+      "source": "assets/images/board/board-surface-study-olive-leather-v1.png",
+      "criticalPath": false,
+      "encoding": { "codec": "webp-lossy", "quality": 90 },
+      "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
+      "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }
     }
   ]
 }

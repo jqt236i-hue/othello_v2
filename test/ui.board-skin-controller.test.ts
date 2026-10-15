@@ -11,9 +11,29 @@ const ADDED_FRAMES = [
   id: `default-${name}`, label,
   imagePath: `assets/images/board/board-frame-default-${name}-v1.webp`
 }));
+const STUDY_FRAMES = [
+  ['walnut-brass', 'F1 胡桃真鍮枠', 28],
+  ['ebony-jade', 'F2 黒檀翡翠枠', 18],
+  ['grimoire-leather', 'F3 古書レザー枠', 25]
+].map(([name, label, padding]) => ({
+  id: `study-${name}`, label, padding,
+  imagePath: `assets/images/board/board-frame-study-${name}-v1.webp`
+}));
+const SURFACES = [
+  { id: 'bluegreen-felt', label: '既定', imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp' },
+  ...[
+    ['forest-baize', 'S1 深緑フェルト'],
+    ['jade-slate', 'S2 翡翠スレート'],
+    ['olive-leather', 'S3 オリーブレザー']
+  ].map(([name, label]) => ({
+    id: `study-${name}`, label,
+    imagePath: `assets/images/board/board-surface-study-${name}-v1.webp`
+  }))
+];
 const FRAMES = [
   { id: 'submerged-wood', label: '沈木枠', imagePath: 'assets/images/board/board-frame-submerged-wood-v1.webp' },
-  ...ADDED_FRAMES
+  ...ADDED_FRAMES,
+  ...STUDY_FRAMES.map(({ id, label, imagePath }) => ({ id, label, imagePath }))
 ];
 
 const REMOVED_BOARD_SKIN_IDS = [
@@ -50,25 +70,25 @@ describe('board skin controller', () => {
     delete (global as any).document;
   });
 
-  test('keeps the standard board and renders all four initially owned frames', () => {
+  test('keeps defaults and renders all initially owned surfaces and frames', () => {
     const catalog = require('../ui/board-skin/catalog.ts');
     const controller = require('../ui/board-skin/controller.ts');
     controller.setupBoardSkinControls({ root: window });
 
     expect(catalog.DEFAULT_BOARD_SKIN_ID).toBe('bluegreen-felt');
-    expect(catalog.BASE_BOARD_SKINS).toHaveLength(1);
-    expect(catalog.BOARD_SKINS).toHaveLength(1);
-    expect(catalog.getAllBoardSkins(window)).toEqual([
-      expect.objectContaining({ id: 'bluegreen-felt', label: '既定' })
-    ]);
+    expect(catalog.BASE_BOARD_SKINS).toHaveLength(SURFACES.length);
+    expect(catalog.BOARD_SKINS).toHaveLength(SURFACES.length);
+    expect(catalog.getAllBoardSkins(window)).toEqual(SURFACES.map((skin) => expect.objectContaining(skin)));
+    expect(catalog.getOwnedBoardSkins(window)).toEqual(SURFACES.map((skin) => expect.objectContaining(skin)));
+    SURFACES.forEach((skin) => expect(catalog.isBoardSkinOwned(window, skin.id)).toBe(true));
     expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('submerged-wood');
-    expect(catalog.BASE_BOARD_FRAME_SKINS).toHaveLength(4);
-    expect(catalog.BOARD_FRAME_SKINS).toHaveLength(4);
+    expect(catalog.BASE_BOARD_FRAME_SKINS).toHaveLength(FRAMES.length);
+    expect(catalog.BOARD_FRAME_SKINS).toHaveLength(FRAMES.length);
     expect(catalog.getAllBoardFrameSkins(window)).toEqual(FRAMES.map((skin) => expect.objectContaining(skin)));
     expect(catalog.getOwnedBoardFrameSkins(window)).toEqual(FRAMES.map((skin) => expect.objectContaining(skin)));
     FRAMES.forEach((skin) => expect(catalog.isBoardFrameSkinOwned(window, skin.id)).toBe(true));
     expect(Array.from(document.querySelectorAll('.board-skin-option'))
-      .map((button) => button.getAttribute('data-board-skin-id'))).toEqual(['bluegreen-felt']);
+      .map((button) => button.getAttribute('data-board-skin-id'))).toEqual(SURFACES.map((skin) => skin.id));
     expect(Array.from(document.querySelectorAll('.board-frame-skin-option'))
       .map((button) => button.getAttribute('data-board-frame-skin-id'))).toEqual(FRAMES.map((skin) => skin.id));
   });
@@ -111,6 +131,39 @@ describe('board skin controller', () => {
       .toBe(`url("${skin.imagePath}")`);
     expect(document.querySelector(`[data-board-frame-skin-id="${skin.id}"].board-frame-skin-option`)
       ?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  test.each(SURFACES)('saves and restores surface $id after reinitialization', (skin) => {
+    const api = require('../ui/board-skin/controller.ts').setupBoardSkinControls({ root: window });
+    (document.querySelector(`[data-board-skin-id="${skin.id}"].board-skin-option`) as HTMLButtonElement).click();
+    expect(api.getSelectedSkinId()).toBe(skin.id);
+    ['reversi.boardSkin', 'othello.boardSkin'].forEach((key) => {
+      expect(window.localStorage.getItem(key)).toBe(skin.id);
+    });
+    document.documentElement.removeAttribute('data-board-skin-id');
+    document.getElementById('board')!.style.removeProperty('--board-surface-texture-image');
+    document.getElementById('boardSkinOptions')!.innerHTML = '';
+    jest.resetModules();
+
+    const restored = require('../ui/board-skin/controller.ts').setupBoardSkinControls({ root: window });
+    expect(restored.getSelectedSkinId()).toBe(skin.id);
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe(skin.id);
+    expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
+      .toBe(`url("${skin.imagePath}")`);
+    expect(document.querySelector(`[data-board-skin-id="${skin.id}"].board-skin-option`)
+      ?.getAttribute('aria-checked')).toBe('true');
+    expect(fs.existsSync(path.join(__dirname, '..', skin.imagePath))).toBe(true);
+  });
+
+  test.each(STUDY_FRAMES)('applies measured layout for study frame $id', (skin) => {
+    const api = require('../ui/board-skin/controller.ts').setupBoardSkinControls({ root: window });
+    api.selectFrameSkin(skin.id);
+    const frameEl = document.getElementById('board-frame')!;
+    ['top', 'right', 'bottom', 'left'].forEach((side) => {
+      expect(frameEl.style.getPropertyValue(`--board-frame-padding-${side}`))
+        .toBe(`calc(${skin.padding}px * var(--layout-stage-scale))`);
+    });
+    expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(0px * var(--layout-stage-scale))');
   });
 
   test('uses the retained defaults at startup without writing a saved selection', () => {

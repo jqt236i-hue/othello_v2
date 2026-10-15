@@ -657,6 +657,162 @@
       "sourceSha256": "239a994c8941747f5d955a27e6caa737daa4bc966c7ba65052bd934166c4ced8",
       "outputSha256": "de92b603d2567aea806fb6051ff7cf29f95b0fc7adafef7226252354e4d3219d",
       "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-study-walnut-brass-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
+      "output": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study frame; q90 preserves alpha and reduces transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify alignment and decoding in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1548799,
+      "outputBytes": 158164,
+      "savedBytes": 1390635,
+      "savingsRatio": 0.8978795828251439,
+      "sourceSha256": "33cb0187ae5089c6a83e979a001cdaf4004f25be9e05c7bf8d8dbf4e53585f73",
+      "outputSha256": "cb7895a0279add1d7557a8a5b7bc38ea364e3d59ad42578d060446c0c4cf35fd",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-study-ebony-jade-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-study-ebony-jade-v1.webp",
+      "output": "assets/images/board/board-frame-study-ebony-jade-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study frame; q90 preserves alpha and reduces transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify alignment and decoding in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1201312,
+      "outputBytes": 105818,
+      "savedBytes": 1095494,
+      "savingsRatio": 0.911914639993607,
+      "sourceSha256": "f8b4fc630883fdc34762622f3c212c85efc26f362b2776e16fec07951a5ece41",
+      "outputSha256": "0ab741f2e2a0b9252f2c9389af63f2410ec0a5dda343bb65cde93f7c2b644532",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-frame-study-grimoire-leather-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
+      "output": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study frame; q90 preserves alpha and reduces transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify alignment and decoding in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1522955,
+      "outputBytes": 207112,
+      "savedBytes": 1315843,
+      "savingsRatio": 0.8640064873880056,
+      "sourceSha256": "e2960855f497cbea9c27b198200c68d11782c25cc950abba655a9c7626febf2c",
+      "outputSha256": "5763af87e5fc14a3d1e3f0bbe8e27575ea0e7aa5a263561a7a53e6febc4657c6",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-surface-study-forest-baize-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-study-forest-baize-v1.webp",
+      "output": "assets/images/board/board-surface-study-forest-baize-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study playing surface; q90 reduces texture transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify stone and grid readability in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sourceBytes": 3395939,
+      "outputBytes": 606876,
+      "savedBytes": 2789063,
+      "savingsRatio": 0.8212936098086567,
+      "sourceSha256": "5d0f079cea6db5c29d83120a077223562d245b0dc24e6e1a5d18afdbd99a1661",
+      "outputSha256": "a35e5d3f4d0e245c7316933aa2a1164d74f5040f2729f2dd60d79fca4079e0a1",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-surface-study-jade-slate-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-study-jade-slate-v1.webp",
+      "output": "assets/images/board/board-surface-study-jade-slate-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study playing surface; q90 reduces texture transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify stone and grid readability in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sourceBytes": 3010960,
+      "outputBytes": 427582,
+      "savedBytes": 2583378,
+      "savingsRatio": 0.8579914711587002,
+      "sourceSha256": "ad72a07804bf2d6d880c546274ddc5f0a811c47a81d572fbc2cd914b026d2cde",
+      "outputSha256": "18f3e428a39d543bb4fdf7ffe9ae85bb5883b17636abe9b6463bdabb3c1ada31",
+      "visiblePixelsEqual": false
+    },
+    {
+      "source": "assets/images/board/board-surface-study-olive-leather-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+      "output": "assets/images/board/board-surface-study-olive-leather-v1.webp",
+      "criticalPath": false,
+      "codec": "webp-lossy",
+      "quality": 90,
+      "admission": {
+        "status": "admitted",
+        "reason": "optional study playing surface; q90 reduces texture transfer"
+      },
+      "measurement": {
+        "investigation": "generated study skin candidate integration; verify stone and grid readability in browser",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sourceBytes": 2939214,
+      "outputBytes": 440988,
+      "savedBytes": 2498226,
+      "savingsRatio": 0.8499639699593157,
+      "sourceSha256": "787749f9d2dba1f3726fcb2b698b71e3eb6f73e85200d06312c1ca973ab78ab2",
+      "outputSha256": "d58b79ab84e42711f149680847ca0e8c197526069dffbd64c3d2342e2e323cbe",
+      "visiblePixelsEqual": false
     }
   ],
   "admittedMapping": {
@@ -684,6 +840,12 @@
     "assets/images/background/background-desk-minimal-strategy-v1.png": "assets/images/background/background-desk-minimal-strategy-v1.webp",
     "assets/images/background/background-desk-quiet-fantasy-v1.png": "assets/images/background/background-desk-quiet-fantasy-v1.webp",
     "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp",
-    "assets/images/ui/card-area-espresso-leather-v1.png": "assets/images/ui/card-area-espresso-leather-v1.webp"
+    "assets/images/ui/card-area-espresso-leather-v1.png": "assets/images/ui/card-area-espresso-leather-v1.webp",
+    "assets/images/board/board-frame-study-walnut-brass-v1.png": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
+    "assets/images/board/board-frame-study-ebony-jade-v1.png": "assets/images/board/board-frame-study-ebony-jade-v1.webp",
+    "assets/images/board/board-frame-study-grimoire-leather-v1.png": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
+    "assets/images/board/board-surface-study-forest-baize-v1.png": "assets/images/board/board-surface-study-forest-baize-v1.webp",
+    "assets/images/board/board-surface-study-jade-slate-v1.png": "assets/images/board/board-surface-study-jade-slate-v1.webp",
+    "assets/images/board/board-surface-study-olive-leather-v1.png": "assets/images/board/board-surface-study-olive-leather-v1.webp"
   }
 }

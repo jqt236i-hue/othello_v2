@@ -2488,11 +2488,16 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             if (
                 !selection
                 || typeof selection.readStoredBoardFrameSkinId !== 'function'
+                || typeof selection.readStoredBoardSkinId !== 'function'
                 || !runtime
                 || typeof runtime.prepareBoardFrameSkin !== 'function'
+                || typeof runtime.syncDisplayedBoardSkin !== 'function'
             ) {
                 throw new Error('board_frame_skin_runtime_unavailable');
             }
+            // Restore the surface before the first render, without waiting for the lazy SKIN panel.
+            // Previously the only standard surface was the default, masking this missing boot step.
+            runtime.syncDisplayedBoardSkin(root, selection.readStoredBoardSkinId(root));
             const selectedFrameSkinId = selection.readStoredBoardFrameSkinId(root);
             return Promise.resolve(runtime.prepareBoardFrameSkin(root, selectedFrameSkinId));
         } catch (error: any) {
