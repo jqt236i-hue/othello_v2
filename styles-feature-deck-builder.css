@@ -3878,6 +3878,37 @@
     scrollbar-gutter: auto !important;
 }
 
+/* 保存失敗などの通知: 本文の先頭に細い帯で出す */
+#deckBuilderOverlay #deckBuilderModal #deckBuilderBody > .deck-builder-notice {
+    flex: 0 0 auto;
+    margin: calc(14 * var(--deck-u)) calc(48 * var(--deck-u)) 0 !important;
+    padding: calc(8 * var(--deck-u)) calc(16 * var(--deck-u)) !important;
+    color: #d8eadf !important;
+    border: 1px solid rgba(108, 199, 176, 0.45) !important;
+    border-radius: 0 !important;
+    background: rgba(8, 22, 20, 0.86) !important;
+    box-shadow: none !important;
+    font-family: var(--deck-ob-serif) !important;
+    font-size: max(11px, calc(17 * var(--deck-u))) !important;
+    letter-spacing: 0.06em;
+    line-height: 1.45;
+}
+
+#deckBuilderOverlay #deckBuilderModal #deckBuilderBody > .deck-builder-notice:has(+ .deck-builder-atelier-shell) {
+    margin-left: calc(146 * var(--deck-u)) !important;
+}
+
+/* 構築画面は従来どおりステージ拡大率の余白なので、通知帯もその端にそろえる */
+#deckBuilderOverlay #deckBuilderModal #deckBuilderBody > .deck-builder-notice:has(+ .deck-builder-view-editor) {
+    margin: calc(14 * var(--deck-u)) calc(18px * var(--layout-stage-scale)) 0 !important;
+}
+
+#deckBuilderOverlay #deckBuilderModal #deckBuilderBody > .deck-builder-notice.is-error {
+    color: #ffe2dc !important;
+    border-color: rgba(220, 112, 100, 0.6) !important;
+    background: rgba(38, 13, 11, 0.88) !important;
+}
+
 /* 本文が収まらない画面では縮めずに本文ごとスクロールさせる */
 #deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-shell {
     flex: 0 0 auto !important;
@@ -4762,6 +4793,11 @@
 
     #deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage {
         padding: 22px 16px 22px !important;
+    }
+
+    #deckBuilderOverlay #deckBuilderModal #deckBuilderBody > .deck-builder-notice,
+    #deckBuilderOverlay #deckBuilderModal #deckBuilderBody > .deck-builder-notice:has(+ .deck-builder-atelier-shell) {
+        margin: 12px 16px 0 !important;
     }
 
     #deckBuilderOverlay #deckBuilderModal .deck-builder-atelier-stage .deck-builder-intro {

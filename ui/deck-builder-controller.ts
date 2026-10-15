@@ -1513,9 +1513,9 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                     ? Object.assign({}, candidate, { name: nextName, updatedAt: Date.now() })
                     : candidate
             ));
+            // 変わった名前がその場で見えるので成功の通知は出さず、失敗だけ知らせる。
             if (savePresetState()) {
                 refreshActivePresetChoiceName(preset.id);
-                emitNotice('デッキ名を変更しました', false, false);
             }
             render();
         }

@@ -475,7 +475,7 @@ describe('deck builder controller', () => {
     expect(body.querySelector('.deck-builder-save-slot-card[data-preset-id="preset_1"] .deck-builder-preset-title').textContent).toBe('新しい 名前');
     expect(document.getElementById('header').textContent).toBe('ローカル設定: 新しい 名前 / 30枚');
     expect(document.getElementById('summary').textContent).toBe('新しい 名前 / 30枚');
-    expect(body.querySelector('.deck-builder-notice').textContent).toBe('デッキ名を変更しました');
+    expect(body.querySelector('.deck-builder-notice')).toBeNull();
   });
 
   test('名前変更は Esc で取り消してもデッキ構築画面を閉じず、空欄で確定すると既定名に戻る', () => {

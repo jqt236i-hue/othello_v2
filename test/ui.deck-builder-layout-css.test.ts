@@ -119,7 +119,7 @@ describe('deck builder layout CSS', () => {
     // The overlay is fixed to the viewport, so its size must not follow the stage scale,
     // which can exceed the viewport when the desktop browser chrome is compensated.
     expect(obsidianSection).toMatch(/--deck-u:\s*min\(max\(calc\(100vw \/ 2700\), calc\(100dvh \/ 1500\)\), calc\(\(100vw - 40px\) \/ 1944\), calc\(100dvh \/ 1280\)\)/);
-    expect(obsidianSection).not.toMatch(/--layout-stage-scale/);
+    expect(obsidianSection.match(/--deck-u:[^;]*;/)?.[0]).not.toMatch(/--layout-stage-scale/);
     expect(obsidianSection).toMatch(/#deckBuilderModal::before\s*\{[\s\S]*?border-image-source:\s*var\(--deck-ob-modal-frame\)[\s\S]*?pointer-events:\s*none\s*!important;/);
     expect(obsidianSection).toMatch(/\.deck-builder-workshop-grid > \.deck-builder-save-slot-card\s*\{[\s\S]*?border-image-source:\s*var\(--deck-ob-panel-frame\)/);
     // The archive must keep its content height so the body scrolls on short screens.
