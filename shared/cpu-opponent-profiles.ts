@@ -150,19 +150,19 @@ const CPU_OPPONENT_PROFILES: CpuOpponentProfile[] = [
         id: '12-strategy-cpu',
         level: 12,
         decisionLevel: 12,
-        name: '理論カオスロジカルエンペラービースト',
-        menuLabel: 'Lv12: 理論カオスロジカルエンペラービースト',
+        name: '執行エグゼキューションサクリファイスドラゴン',
+        menuLabel: 'Lv12: 執行エグゼキューションサクリファイスドラゴン',
         portraitSrc: 'assets/images/cpu/theory-chaos-logical-emperor-beast.png',
         ...ENDING_ASH_GAME_CONDITIONS
     },
     {
-        // Provisional name; the portrait reuses Lv12 until a dedicated one exists.
+        // Keep the persisted profile ID stable when changing its display name.
         id: '13-truth-chaos-emperor-beast',
         level: 13,
         decisionLevel: 13,
-        name: '真理カオスロジカルエンペラービースト',
-        menuLabel: 'Lv13: 真理カオスロジカルエンペラービースト',
-        portraitSrc: 'assets/images/cpu/theory-chaos-logical-emperor-beast.png',
+        name: '宇宙',
+        menuLabel: 'Lv13: 宇宙',
+        portraitSrc: 'assets/images/cpu/universe-transparent.png',
         ...ENDING_ASH_GAME_CONDITIONS
     }
 ];

@@ -638,7 +638,7 @@ describe('match-mode shared leaderboard panel', () => {
     expect(levelBtn?.textContent).toContain(`Lv${level}`);
     expect(document.getElementById('leaderboardPodium').textContent).toContain(level === 12 ? '戦略家' : level === 11 ? '執行者' : '分岐');
     if (level === 11) expect(lv6Option?.textContent).toContain('執行エグゼキューションカオスドラゴン');
-    if (level === 12) expect(lv6Option?.textContent).toContain('理論カオスロジカルエンペラービースト');
+    if (level === 12) expect(lv6Option?.textContent).toContain('執行エグゼキューションサクリファイスドラゴン');
   });
 
   test('タイムアタックタブではタイム列と短時間記録を表示する', async () => {

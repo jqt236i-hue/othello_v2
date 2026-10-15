@@ -109,8 +109,8 @@ function createLeaderboardController(context: any) {
         '終焉の冥灰',
         '観測ダークドラゴン',
         '執行エグゼキューションカオスドラゴン',
-        '理論カオスロジカルエンペラービースト',
-        '真理カオスロジカルエンペラービースト'
+        '執行エグゼキューションサクリファイスドラゴン',
+        '宇宙'
     ];
 
     let leaderboardRefreshToken = 0;

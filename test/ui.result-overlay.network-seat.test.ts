@@ -379,7 +379,7 @@ describe('result overlay seat perspective', () => {
 
   test.each([[10, 'black'], [10, 'white'], [12, 'black'], [12, 'white']])('Lv%sが%s側でもプロフィールIDをレベル別記録と名前へ反映する', (level, cpuSide) => {
     const id = level === 12 ? '12-strategy-cpu' : '10-observed-dark-dragon';
-    const expectedName = level === 12 ? '理論カオスロジカルエンペラービースト' : '観測ダークドラゴン';
+    const expectedName = level === 12 ? '執行エグゼキューションサクリファイスドラゴン' : '観測ダークドラゴン';
     const expectedImage = level === 12 ? 'theory-chaos-logical-emperor-beast.png' : 'observed-dark-dragon-transparent.png';
     delete global.cpuSmartness;
     const viewer = cpuSide === 'white' ? 'black' : 'white';

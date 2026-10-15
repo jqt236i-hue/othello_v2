@@ -13,8 +13,8 @@
 //   8-theory-incarnation: Lv8 理論の化身
 //   10-observed-dark-dragon: Lv10 観測ダークドラゴン
 //   11-execution-chaos-dragon: Lv11 執行エグゼキューションカオスドラゴン
-//   12-strategy-cpu: Lv12 理論カオスロジカルエンペラービースト
-//   13-truth-chaos-emperor-beast: Lv13 真理カオスロジカルエンペラービースト
+//   12-strategy-cpu: Lv12 執行エグゼキューションサクリファイスドラゴン
+//   13-truth-chaos-emperor-beast: Lv13 宇宙
 const CPU_OPPONENT_DECK_DATA: Record<string, string[] | null> = /* cpu-decks:begin */{
     "1": null,
     "2": null,

@@ -1601,7 +1601,7 @@ function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     label.className = 'result-character-label';
     if (cpuLevel === 10) label.append('観測', document.createElement('br'), 'ダークドラゴン');
     else if (cpuLevel === 11) label.append('執行', document.createElement('br'), 'エグゼキューション', document.createElement('br'), 'カオスドラゴン');
-    else if (cpuLevel === 12) label.append('理論', document.createElement('br'), 'カオスロジカル', document.createElement('br'), 'エンペラービースト');
+    else if (cpuLevel === 12) label.append('執行', document.createElement('br'), 'エグゼキューション', document.createElement('br'), 'サクリファイスドラゴン');
     else if (cpuLevel === 13) label.append('真理', document.createElement('br'), 'カオスロジカル', document.createElement('br'), 'エンペラービースト');
     else label.textContent = profile.name;
     name.appendChild(label);
