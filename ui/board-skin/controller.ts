@@ -144,6 +144,15 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
     });
   }
 
+  function requestAppearanceRender(reason: string): void {
+    const scheduler = rootRef && rootRef.RenderScheduler;
+    if (scheduler && typeof scheduler.requestBoardRender === 'function') {
+      // CSS alone cannot update Pixi's retained surface texture. Submit through
+      // the normal scheduler/controller so playback keeps its single writer.
+      scheduler.requestBoardRender({ source: 'board-skin', reason });
+    }
+  }
+
   function applySelection(skinId: string, persist: boolean): SkinDefinition | null {
     const definition = catalogModule.getBoardSkinDefinition(skinId, rootRef);
     if (!definition) return null;
@@ -154,6 +163,7 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
       customSkinUploader.refreshSelectedState();
     }
     if (persist === true) selectionModule.writeStoredBoardSkinId(rootRef, definition.id);
+    requestAppearanceRender('surface-change');
     return definition;
   }
 
@@ -172,6 +182,7 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
     if (persist === true && typeof selectionModule.writeStoredBoardFrameSkinId === 'function') {
       selectionModule.writeStoredBoardFrameSkinId(rootRef, definition.id);
     }
+    requestAppearanceRender('frame-change');
     return definition;
   }
 
