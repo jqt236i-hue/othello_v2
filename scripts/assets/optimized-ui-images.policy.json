@@ -410,7 +410,7 @@
       "measurement": { "investigation": "generated study skin candidate integration; verify alignment and decoding in browser", "hardwareDecode": null }
     },
     {
-      "source": "assets/images/board/board-frame-study-ebony-jade-v1.png",
+      "source": "assets/images/board/board-frame-study-ebony-jade-v2.png",
       "criticalPath": false,
       "encoding": { "codec": "webp-lossy", "quality": 90 },
       "admission": { "status": "admitted", "reason": "optional study frame; q90 preserves alpha and reduces transfer" },

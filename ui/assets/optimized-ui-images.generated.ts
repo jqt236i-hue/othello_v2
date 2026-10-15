@@ -26,7 +26,7 @@ export const OPTIMIZED_UI_IMAGES = Object.freeze({
   "assets/images/background/background-desk-midnight-game-v1.png": "assets/images/background/background-desk-midnight-game-v1.webp",
   "assets/images/ui/card-area-espresso-leather-v1.png": "assets/images/ui/card-area-espresso-leather-v1.webp",
   "assets/images/board/board-frame-study-walnut-brass-v1.png": "assets/images/board/board-frame-study-walnut-brass-v1.webp",
-  "assets/images/board/board-frame-study-ebony-jade-v1.png": "assets/images/board/board-frame-study-ebony-jade-v1.webp",
+  "assets/images/board/board-frame-study-ebony-jade-v2.png": "assets/images/board/board-frame-study-ebony-jade-v2.webp",
   "assets/images/board/board-frame-study-grimoire-leather-v1.png": "assets/images/board/board-frame-study-grimoire-leather-v1.webp",
   "assets/images/board/board-surface-study-forest-baize-v1.png": "assets/images/board/board-surface-study-forest-baize-v1.webp",
   "assets/images/board/board-surface-study-jade-slate-v1.png": "assets/images/board/board-surface-study-jade-slate-v1.webp",

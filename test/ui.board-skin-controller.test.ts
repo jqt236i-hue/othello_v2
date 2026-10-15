@@ -13,11 +13,11 @@ const ADDED_FRAMES = [
 }));
 const STUDY_FRAMES = [
   ['walnut-brass', 'F1 胡桃真鍮枠', 28],
-  ['ebony-jade', 'F2 黒檀翡翠枠', 18],
+  ['ebony-jade', 'F2 黒檀翡翠枠', 28],
   ['grimoire-leather', 'F3 古書レザー枠', 25]
 ].map(([name, label, padding]) => ({
   id: `study-${name}`, label, padding,
-  imagePath: `assets/images/board/board-frame-study-${name}-v1.webp`
+  imagePath: `assets/images/board/board-frame-study-${name}-${name === 'ebony-jade' ? 'v2' : 'v1'}.webp`
 }));
 const SURFACES = [
   { id: 'bluegreen-felt', label: '既定', imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp' },
@@ -164,6 +164,34 @@ describe('board skin controller', () => {
         .toBe(`calc(${skin.padding}px * var(--layout-stage-scale))`);
     });
     expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(0px * var(--layout-stage-scale))');
+  });
+
+  test('keeps the straight ebony frame moderate-width with no enlarged artwork or baked-in board', () => {
+    const api = require('../ui/board-skin/controller.ts').setupBoardSkinControls({ root: window });
+    api.selectFrameSkin('study-ebony-jade');
+    const frameEl = document.getElementById('board-frame')!;
+    ['top', 'bottom'].forEach((side) => {
+      expect(frameEl.style.getPropertyValue(`--board-frame-art-overhang-${side}`))
+        .toBe('calc(0px * var(--layout-stage-scale))');
+    });
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout.css'), 'utf8');
+    expect(css).toMatch(/#board-frame\[data-board-frame-skin-id="study-ebony-jade"\]\s*\{\s*--board-frame-art-overhang: 0px;/);
+
+    const png = PNG.sync.read(fs.readFileSync(path.join(__dirname, '..',
+      'assets/images/board/board-frame-study-ebony-jade-v2.png')));
+    const alphaAt = (x: number, y: number) => png.data[((y * png.width + x) * 4) + 3];
+    const middle = Math.floor(png.height / 2);
+    const opaqueXs = Array.from({ length: png.width }, (_, x) => x).filter((x) => alphaAt(x, middle) > 0);
+    const leftRail = opaqueXs.filter((x) => x < png.width / 2);
+    const outerWidth = opaqueXs[opaqueXs.length - 1] - opaqueXs[0] + 1;
+    expect(leftRail.length / outerWidth).toBeGreaterThan(0.04);
+    expect(leftRail.length / outerWidth).toBeLessThan(0.065);
+    // The entire playable opening is transparent, not just the center sample.
+    for (let y = 61; y < 1060; y += 1) {
+      for (let x = 59; x < 1060; x += 1) {
+        if (alphaAt(x, y) !== 0) throw new Error(`Baked-in board pixel at ${x},${y}`);
+      }
+    }
   });
 
   test('uses the retained defaults at startup without writing a saved selection', () => {

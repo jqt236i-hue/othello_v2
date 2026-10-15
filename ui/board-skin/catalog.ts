@@ -165,10 +165,11 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'study-ebony-jade',
     label: 'F2 黒檀翡翠枠',
-    note: '黒檀と青緑の象嵌が引き締める静かな木枠',
-    imagePath: 'assets/images/board/board-frame-study-ebony-jade-v1.webp',
+    note: '黒檀に細い真鍮の縁を添えた、ほどよい幅の直線枠',
+    imagePath: 'assets/images/board/board-frame-study-ebony-jade-v2.webp',
     layout: Object.freeze({
-      paddingTop: 18, paddingRight: 18, paddingBottom: 18, paddingLeft: 18,
+      paddingTop: 28, paddingRight: 28, paddingBottom: 28, paddingLeft: 28,
+      artOverhangTop: 0, artOverhangBottom: 0,
       artOffsetY: 0
     })
   }),

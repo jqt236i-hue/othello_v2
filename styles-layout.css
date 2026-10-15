@@ -141,11 +141,18 @@
     box-shadow: none;
 }
 
-#board-frame[data-board-frame-skin-id="default-midnight-teal"],
-#board-frame[data-board-frame-skin-id="study-ebony-jade"] {
+#board-frame[data-board-frame-skin-id="default-midnight-teal"] {
     --board-contour-highlight: rgba(111, 181, 179, 0.86);
     --board-contour-metal: rgba(29, 58, 62, 0.98);
     --board-contour-shadow: rgba(5, 14, 18, 0.98);
+}
+
+/* 直線型の黒檀枠は余白を除去済みなので、装飾画像を枠外へ拡大しない。 */
+#board-frame[data-board-frame-skin-id="study-ebony-jade"] {
+    --board-frame-art-overhang: 0px;
+    --board-contour-highlight: rgba(188, 147, 94, 0.86);
+    --board-contour-metal: rgba(43, 31, 22, 0.98);
+    --board-contour-shadow: rgba(7, 10, 9, 0.98);
 }
 
 #board-frame[data-board-frame-skin-id="default-classic-walnut"],
