@@ -87,10 +87,10 @@ describe('appearance default fallbacks without catalog globals', () => {
     });
     const selection = require('../ui/board-skin/selection.ts');
 
-    expect(selection.readStoredBoardSkinId(window)).toBe('bluegreen-felt');
+    expect(selection.readStoredBoardSkinId(window)).toBe('study-forest-baize');
     expect(selection.writeStoredBoardSkinId(window, 'missing')).toBe(true);
-    expect(window.localStorage.getItem(selection.BOARD_SKIN_STORAGE_KEY)).toBe('bluegreen-felt');
-    expect(window.localStorage.getItem(selection.LEGACY_BOARD_SKIN_STORAGE_KEY)).toBe('bluegreen-felt');
+    expect(window.localStorage.getItem(selection.BOARD_SKIN_STORAGE_KEY)).toBe('study-forest-baize');
+    expect(window.localStorage.getItem(selection.LEGACY_BOARD_SKIN_STORAGE_KEY)).toBe('study-forest-baize');
 
     expect(selection.readStoredBoardFrameSkinId(window)).toBe('submerged-wood');
     expect(selection.writeStoredBoardFrameSkinId(window, 'missing')).toBe(true);

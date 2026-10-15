@@ -4,7 +4,7 @@
   "images": [
     {
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
-      "criticalPath": true,
+      "criticalPath": false,
       "encoding": {
         "codec": "webp-lossy",
         "quality": 90
@@ -425,7 +425,7 @@
     },
     {
       "source": "assets/images/board/board-surface-study-forest-baize-v1.png",
-      "criticalPath": false,
+      "criticalPath": true,
       "encoding": { "codec": "webp-lossy", "quality": 90 },
       "admission": { "status": "admitted", "reason": "optional study playing surface; q90 reduces texture transfer" },
       "measurement": { "investigation": "generated study skin candidate integration; verify stone and grid readability in browser", "hardwareDecode": null }

@@ -41,13 +41,13 @@ interface CustomSkinStorageModule {
 const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'bluegreen-felt',
-    label: '既定',
+    label: '青緑フェルト',
     note: '青みを帯びた静かな布目の下地',
     imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp'
   }),
   Object.freeze({
     id: 'study-forest-baize',
-    label: 'S1 深緑フェルト',
+    label: 'S1 深緑フェルト（既定）',
     note: '書斎に合う、落ち着いた深緑の布地',
     imagePath: 'assets/images/board/board-surface-study-forest-baize-v1.webp'
   }),
@@ -66,7 +66,7 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
 ]);
 
 const BOARD_SKINS = BASE_BOARD_SKINS.slice();
-const DEFAULT_BOARD_SKIN_ID = 'bluegreen-felt';
+const DEFAULT_BOARD_SKIN_ID = 'study-forest-baize';
 
 function resolveCustomSkinStorageModule(rootRef?: Window | null): CustomSkinStorageModule | null {
   try {

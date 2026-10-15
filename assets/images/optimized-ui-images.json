@@ -12,7 +12,7 @@
       "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
       "candidateOutput": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
       "output": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
-      "criticalPath": true,
+      "criticalPath": false,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {
@@ -740,7 +740,7 @@
       "source": "assets/images/board/board-surface-study-forest-baize-v1.png",
       "candidateOutput": "assets/images/board/board-surface-study-forest-baize-v1.webp",
       "output": "assets/images/board/board-surface-study-forest-baize-v1.webp",
-      "criticalPath": false,
+      "criticalPath": true,
       "codec": "webp-lossy",
       "quality": 90,
       "admission": {

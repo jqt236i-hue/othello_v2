@@ -60,6 +60,25 @@ describe('UIBootstrap initial board frame preparation', () => {
     }
   );
 
+  test.each([null, 'bluegreen-felt'])(
+    'uses forest baize when unsaved and preserves previous surface %s', async (saved) => {
+      jest.resetModules();
+      const dom = new JSDOM('<!doctype html><html><body><div id="board-frame"></div><div id="board"></div></body></html>', { url: 'https://example.test/' });
+      (global as any).window = dom.window;
+      (global as any).document = dom.window.document;
+      if (saved) dom.window.localStorage.setItem('reversi.boardSkin', saved);
+      const bootstrap = require('../ui/bootstrap.ts');
+      await bootstrap.prepareInitialBoardFrameSkin(dom.window);
+      const expected = saved || 'study-forest-baize';
+      expect(dom.window.document.documentElement.dataset.boardSkinId).toBe(expected);
+      expect(dom.window.document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
+        .toBe(`url("assets/images/board/board-surface-${expected}-v1.webp")`);
+      expect(dom.window.localStorage.getItem('reversi.boardSkin')).toBe(saved);
+      expect(dom.window.document.documentElement.dataset.boardFrameSkinId).toBe('submerged-wood');
+      dom.window.close();
+    }
+  );
+
   test.each(['forest-baize', 'jade-slate', 'olive-leather'])(
     'restores study surface %s through the real startup runtime', async (name) => {
       jest.resetModules();

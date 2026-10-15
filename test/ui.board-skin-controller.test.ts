@@ -20,9 +20,9 @@ const STUDY_FRAMES = [
   imagePath: `assets/images/board/board-frame-study-${name}-${name === 'ebony-jade' ? 'v2' : 'v1'}.webp`
 }));
 const SURFACES = [
-  { id: 'bluegreen-felt', label: '既定', imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp' },
+  { id: 'bluegreen-felt', label: '青緑フェルト', imagePath: 'assets/images/board/board-surface-bluegreen-felt-v1.webp' },
   ...[
-    ['forest-baize', 'S1 深緑フェルト'],
+    ['forest-baize', 'S1 深緑フェルト（既定）'],
     ['jade-slate', 'S2 翡翠スレート'],
     ['olive-leather', 'S3 オリーブレザー']
   ].map(([name, label]) => ({
@@ -75,7 +75,7 @@ describe('board skin controller', () => {
     const controller = require('../ui/board-skin/controller.ts');
     controller.setupBoardSkinControls({ root: window });
 
-    expect(catalog.DEFAULT_BOARD_SKIN_ID).toBe('bluegreen-felt');
+    expect(catalog.DEFAULT_BOARD_SKIN_ID).toBe('study-forest-baize');
     expect(catalog.BASE_BOARD_SKINS).toHaveLength(SURFACES.length);
     expect(catalog.BOARD_SKINS).toHaveLength(SURFACES.length);
     expect(catalog.getAllBoardSkins(window)).toEqual(SURFACES.map((skin) => expect.objectContaining(skin)));
@@ -198,11 +198,13 @@ describe('board skin controller', () => {
     const controller = require('../ui/board-skin/controller.ts');
     const api = controller.setupBoardSkinControls({ root: window });
 
-    expect(api.getSelectedSkinId()).toBe('bluegreen-felt');
+    expect(api.getSelectedSkinId()).toBe('study-forest-baize');
     expect(api.getSelectedFrameSkinId()).toBe('submerged-wood');
     ['othello.boardSkin', 'reversi.boardSkin', 'othello.boardFrameSkin', 'reversi.boardFrameSkin']
       .forEach((key) => expect(window.localStorage.getItem(key)).toBeNull());
-    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+    expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('study-forest-baize');
+    expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
+      .toBe('url("assets/images/board/board-surface-study-forest-baize-v1.webp")');
     expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
   });
 
@@ -213,13 +215,13 @@ describe('board skin controller', () => {
       window.localStorage.setItem(key, skinId);
       const api = controller.setupBoardSkinControls({ root: window });
 
-      expect(api.getSelectedSkinId()).toBe('bluegreen-felt');
-      expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('bluegreen-felt');
+      expect(api.getSelectedSkinId()).toBe('study-forest-baize');
+      expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('study-forest-baize');
       expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
-        .toBe('url("assets/images/board/board-surface-bluegreen-felt-v1.webp")');
+        .toBe('url("assets/images/board/board-surface-study-forest-baize-v1.webp")');
       api.selectSkin(skinId);
-      expect(window.localStorage.getItem('reversi.boardSkin')).toBe('bluegreen-felt');
-      expect(window.localStorage.getItem('othello.boardSkin')).toBe('bluegreen-felt');
+      expect(window.localStorage.getItem('reversi.boardSkin')).toBe('study-forest-baize');
+      expect(window.localStorage.getItem('othello.boardSkin')).toBe('study-forest-baize');
     });
   });
 
