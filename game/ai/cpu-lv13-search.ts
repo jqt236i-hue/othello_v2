@@ -22,7 +22,7 @@ export { createLv13DecisionMemory as createCpuDecisionMemory,
     LV13_DECISION_MEMORY_PROTOCOL as CPU_DECISION_MEMORY_PROTOCOL } from './cpu-lv13-turn-memory';
 
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-late-cards', maxTransitions: 6144, maxMs: 4700,
+    version: 'lv13-keep-draws', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -38,6 +38,13 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
     cardUseMarginByType: Object.freeze({}) as Readonly<Record<string, number>>,
     // Score margin a root that destroys a hand card must win by over a root that does not.
     destroyHandMargin: .08,
+    // The turn-start draw fails while the hand holds drawHandLimit cards
+    // (01-rulebook.md 4.3). With keepDraws a chosen turn that would end with
+    // a full hand while the deck still has cards first destroys the hand card
+    // it does not use with the least potential, and a destroy that keeps the
+    // next draw does not pay destroyHandMargin. Neither applies once at most
+    // lateCardOpenPlacements placements remain.
+    drawHandLimit: 5, keepDraws: true,
     // Root placement priors on the comparison scale: a corner of the current
     // shape gains cornerRootBonus; a cell next to an empty corner loses
     // dangerRootPenalty. Zero keeps the search's own judgment.
@@ -421,14 +428,17 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     // expansion mostly reshuffle stones the opponent can answer. Before the last
     // placements they are kept for a corner: a turn using or destroying one is
     // compared only when its corner balance (own minus opponent corners, on the
-    // shape after the turn) beats every turn without them.
+    // shape after the turn) beats every turn without them. Without a placement
+    // the turn without them is a pass, which can end the game: these cards may
+    // then be what makes a placement or changes the final count, so they are
+    // compared normally.
     const cornerOnly=new Set(cfg.cornerOnlyCardTypes);
     const cornerOnlyCard=(id:string|undefined)=>!!id&&cornerOnly.has(String(lv13CardDefinition(id)?.type));
     const touchesCornerOnlyCard=(plan:Plan)=>plan.actions.some(action=>
         (action.type==='use_card'&&cornerOnlyCard(action.useCardId))
         ||(action.type==='destroy_hand_card'&&cornerOnlyCard(action.destroyCardId)));
     if(cornerOnly.size&&resolveSearchRemainingPlacements(initialEmpty,readSearchStoneSupply(initial.cardState,player))>cfg.cornerOnlyOpenPlacements
-        &&plans.some(touchesCornerOnlyCard)){
+        &&canPlace(player)&&plans.some(touchesCornerOnlyCard)){
         const sign=player==='black'?1:-1;
         const cornerBalance=(state:Lv10Position)=>{
             const context=Board.prepareBoardForSearch(Board.createBoardContext(state.gameState,state.cardState));
@@ -680,11 +690,18 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     // When every compared line ends the game, the values are final stone
     // margins: the cards are spent on whatever loses least or wins most.
     const allTerminal=comparable.every(candidate=>candidate.replies.every(value=>value===null||Math.abs(value)>=100000));
-    if(!allTerminal&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='use_card')){
+    // Both margins look at the whole turn, not only its first operation: a
+    // hand card destroyed before a card use is paid for as well, instead of
+    // replacing the card margin by the smaller destroy margin. With a full
+    // hand that destroy was free in the comparison but lost the card (the
+    // used card already frees the slot for the next draw).
+    const usedCard=(plan:Plan)=>plan.actions.find(action=>action.type==='use_card');
+    const destroysHandCard=(plan:Plan)=>plan.actions.some(action=>action.type==='destroy_hand_card');
+    if(!allTerminal&&comparable.some(candidate=>!usedCard(candidate.plan))){
         for(const candidate of comparable){
-            const first=candidate.plan.actions[0];
-            if(first?.type!=='use_card')continue;
-            const type=lv13CardDefinition(first.useCardId)?.type;
+            const used=usedCard(candidate.plan);
+            if(used?.type!=='use_card')continue;
+            const type=lv13CardDefinition(used.useCardId)?.type;
             candidate.value-=cardMargin+((type&&cfg.cardUseMarginByType[type])||0);
         }
     }
@@ -698,8 +715,19 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
             else if(emptyCorners.some((cell:any)=>Math.abs(cell.row-first.row)<=1&&Math.abs(cell.col-first.col)<=1))candidate.value-=cfg.dangerRootPenalty;
         }
     }
-    if(!allTerminal&&cfg.destroyHandMargin>0&&comparable.some(candidate=>candidate.plan.actions[0]?.type!=='destroy_hand_card')){
-        for(const candidate of comparable)if(candidate.plan.actions[0]?.type==='destroy_hand_card')candidate.value-=cfg.destroyHandMargin;
+    // A turn that ends with a full hand throws the next draw away. The
+    // evaluation counts a fifth card at almost nothing, so it cannot see this:
+    // without keepDraws the hand stayed full after about a quarter of the
+    // turns. Without a stone left on either side no card is drawn (7.3).
+    const lateGame=resolveSearchRemainingPlacements(initialEmpty,readSearchStoneSupply(initial.cardState,player))<=cfg.lateCardOpenPlacements;
+    const drawsNext=(plan:Plan)=>{
+        const supply=readSearchStoneSupply(plan.state.cardState,player);
+        return !lateGame&&(plan.state.cardState.decks?.[player]?.length||0)>0&&!(supply&&supply.own<=0&&supply.opp<=0);
+    };
+    const endHand=(plan:Plan)=>(plan.state.cardState.hands?.[player]||[]).length;
+    const keepsDraw=(plan:Plan)=>destroysHandCard(plan)&&endHand(plan)===cfg.drawHandLimit-1&&drawsNext(plan);
+    if(!allTerminal&&cfg.destroyHandMargin>0&&comparable.some(candidate=>!destroysHandCard(candidate.plan))){
+        for(const candidate of comparable)if(destroysHandCard(candidate.plan)&&!keepsDraw(candidate.plan))candidate.value-=cfg.destroyHandMargin;
     }
     comparable.sort((a,b)=>b.value-a.value);
     // A terminal win caused by this immediate action is known, unlike a
@@ -707,8 +735,32 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     const proven = allScored.find(candidate => candidate.plan.actions.length === 1
         && Core.isGameOver(candidate.plan.state.gameState) && candidate.plan.value >= 100000);
     const best=proven || comparable.find(candidate=>!wasted.has(candidate.plan)) || comparable[0];
+    // Keep the next draw: a chosen turn that would end with a full hand starts
+    // by destroying the hand card it does not use with the least potential
+    // (the root's own cycling choice). The turn is replayed on the same
+    // sampled world (the replay is counted) and changed only when every
+    // action still applies.
+    let chosen=best?.plan.actions;
+    if(cfg.keepDraws&&best&&best!==proven&&!allTerminal&&chosen&&!destroysHandCard(best.plan)
+        &&endHand(best.plan)>=cfg.drawHandLimit&&drawsNext(best.plan)){
+        const used=new Set(chosen.flatMap(action=>action.type==='use_card'?[action.useCardId]:[]));
+        const destroy=enumerateLv10Actions(initial,{allowDestroy:true})
+            .filter(action=>action.type==='destroy_hand_card'&&!used.has(action.destroyCardId))
+            .sort((a,b)=>lv13CardPotential(a.destroyCardId!)-lv13CardPotential(b.destroyCardId!))[0];
+        if(destroy){
+            let state:Lv10Position|null=initial;
+            for(const action of [destroy,...chosen]){
+                transitions++;
+                const result=applyLv10Action(state,action);
+                state=result.ok&&!result.selectionFailed?result.state:null;
+                if(!state)break;
+            }
+            if(state&&completed(state,initialOwner,initialTurn)&&(state.cardState.hands?.[player]||[]).length<cfg.drawHandLimit)
+                chosen=[destroy,...chosen];
+        }
+    }
     return {
-        version:cfg.version,action:best?.plan.actions[0] || fallback,continuation:best?.plan.actions.slice(1) || [],
+        version:cfg.version,action:chosen?.[0] || fallback,continuation:chosen?.slice(1) || [],
         value:best?.value ?? null,transitions,elapsedMs:started !== undefined && options.now ? options.now()-started:null,
         stopped:best?stopped:'no_completed_plan',rejectedCount,rejected,evaluatedCandidates:examined.length,
         comparisonScenarioSeeds: comparison.scenarios.map(index => cfg.scenarioSeeds[index]), scenarioTimeCuts, scenarioNodeCuts,
