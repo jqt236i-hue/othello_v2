@@ -496,7 +496,7 @@ function createSpecialStoneRegistry(
         TIME_STOP_GOD: Object.freeze({ cardId: 'time_stop_god_01', cardNameJa: '時間停石', cardType: 'TIME_STOP_GOD', markerType: 'TIME_STOP' }),
         TIME_STOP_DEITY: Object.freeze({ cardId: 'time_stop_deity_01', cardNameJa: '時間停神', cardType: 'TIME_STOP_DEITY', markerType: 'TIME_STOP_DEITY' }),
         REGEN_WILL: Object.freeze({ cardId: 'regen_01', cardNameJa: '復活の意志', cardType: 'REGEN_WILL', markerType: 'REGEN' }),
-        ZOMBIE_WILL: Object.freeze({ cardId: 'zombie_will_01', cardNameJa: 'ゾンビの意志', cardType: 'ZOMBIE_WILL', markerType: 'ZOMBIE' }),
+        ZOMBIE_WILL: Object.freeze({ cardId: 'zombie_will_01', cardNameJa: '屍の意志', cardType: 'ZOMBIE_WILL', markerType: 'ZOMBIE' }),
         ULTIMATE_REVERSE_DRAGON: Object.freeze({ cardId: 'udr_01', cardNameJa: '究極反転龍', cardType: 'ULTIMATE_REVERSE_DRAGON', markerType: 'DRAGON' }),
         BREEDING_WILL: Object.freeze({ cardId: 'breeding_01', cardNameJa: '繁殖の意志', cardType: 'BREEDING_WILL', markerType: 'BREEDING' }),
         PROLIFERATION_WILL: Object.freeze({ cardId: 'proliferation_01', cardNameJa: '増殖の意志', cardType: 'PROLIFERATION_WILL', markerType: 'PROLIFERATION' }),

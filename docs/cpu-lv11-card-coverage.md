@@ -25,7 +25,7 @@
 | 弱い意志 | `PROTECTED_NEXT_STONE` | 29/29 | [hard_01](../data/cpu-lv11/card-browser-v3/hard_01-black.json.gz) |
 | 幽霊の意志 | `GHOST_WILL` | 29/29 | [ghost_01](../data/cpu-lv11/card-browser-v3/ghost_01-black.json.gz) |
 | 犠牲の意志 | `SACRIFICE_WILL` | 29/29 | [sacrifice_will_01](../data/cpu-lv11/card-browser-v3/sacrifice_will_01-black.json.gz) |
-| ゾンビの意志 | `ZOMBIE_WILL` | 29/29 | [zombie_will_01](../data/cpu-lv11/card-browser-v3/zombie_will_01-black.json.gz) |
+| 屍の意志 | `ZOMBIE_WILL` | 29/29 | [zombie_will_01](../data/cpu-lv11/card-browser-v3/zombie_will_01-black.json.gz) |
 | 避ける意志 | `AFTERIMAGE_WILL` | 29/29 | [afterimage_will_01](../data/cpu-lv11/card-browser-v3/afterimage_will_01-black.json.gz) |
 | 交換の意志 | `SWAP_WITH_ENEMY` | 29/29 | [swap_01](../data/cpu-lv11/card-browser-v3/swap_01-black.json.gz) |
 | 入替の意志 | `POSITION_SWAP_WILL` | 31/31 | [position_swap_01](../data/cpu-lv11/card-browser-v3/position_swap_01-black.json.gz) |

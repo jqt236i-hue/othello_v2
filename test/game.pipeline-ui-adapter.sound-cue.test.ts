@@ -1129,7 +1129,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
   });
 
-  test('通常の復活石にはゾンビの意志の復活音を追加しない', () => {
+  test('通常の復活石には屍の意志の復活音を追加しない', () => {
     const base = [{
       type: 'flip',
       phase: 9,

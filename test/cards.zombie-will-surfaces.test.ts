@@ -4,7 +4,7 @@ const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-cat
 
 const EXPECTED_BASE_CARD = Object.freeze({
   id: 'zombie_will_01',
-  name_ja: 'ゾンビの意志',
+  name_ja: '屍の意志',
   type: 'ZOMBIE_WILL',
   cost: 19,
   desc_ja: '次に置く石を屍石化。自ターン開始時に一番近い敵通常石へ1マス寄り、隣に敵通常石がいれば20%の確率で1個噛んで自色の屍石に変える。噛まれた石も同じ能力を持つ。反転・破壊されても1回だけ元に戻る。',
@@ -13,7 +13,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
-  name: 'ゾンビの意志',
+  name: '屍の意志',
   desc: '次に置く石を屍石化。自ターン開始時に一番近い敵通常石へ1マス寄り、隣に敵通常石がいれば20%の確率で1個噛んで自色の屍石に変える。噛まれた石も同じ能力を持つ。反転・破壊されても1回だけ元に戻る。'
 });
 
@@ -93,7 +93,7 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
       type: EXPECTED_BASE_CARD.type,
       cost: EXPECTED_BASE_CARD.cost
     }));
-    expect(rulebook).toContain('### 10.20.5 ZOMBIE_WILL（ゾンビの意志）');
+    expect(rulebook).toContain('### 10.20.5 ZOMBIE_WILL（屍の意志）');
     expect(rulebook).toContain('次に置く石を屍石化する');
     expect(rulebook).toContain('盤面上で最も近い獲物');
     expect(rulebook).toContain('20%の確率で噛みつく');

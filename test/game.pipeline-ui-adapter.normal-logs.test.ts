@@ -150,6 +150,6 @@ describe('pipeline_ui_adapter normal logs', () => {
     const out = Adapter.mapEffectLogsFromPipeline([
       { type: 'zombie_infected_start', source: { row: 1, col: 1 }, details: [{ row: 0, col: 1 }, { row: 2, col: 2 }] }
     ], [], 'black');
-    expect(out).toEqual(['黒: ゾンビの意志: 屍石が2個を噛んで屍石にした']);
+    expect(out).toEqual(['黒: 屍の意志: 屍石が2個を噛んで屍石にした']);
   });
 });
