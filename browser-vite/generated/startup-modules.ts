@@ -741,6 +741,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/stone-skin/selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-skin/selection.js"),
   "ui/stone-visuals": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-visuals.js"),
   "ui/storage/action-log": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/storage/action-log.js"),
+  "ui/storage/appearance-default-migration": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/storage/appearance-default-migration.js"),
   "ui/storage/deck-presets": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/storage/deck-presets.js"),
   "ui/storage/gacha-progress": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/storage/gacha-progress.js"),
   "ui/text-term-highlighter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/text-term-highlighter.js"),
@@ -1540,6 +1541,7 @@ installBootModuleMetadata({
     "ui/stone-skin/selection",
     "ui/stone-visuals",
     "ui/storage/action-log",
+    "ui/storage/appearance-default-migration",
     "ui/storage/deck-presets",
     "ui/storage/gacha-progress",
     "ui/text-term-highlighter",
@@ -1668,4 +1670,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 777;
+export const startupModuleCount = 778;
