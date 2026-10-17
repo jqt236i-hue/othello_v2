@@ -104,13 +104,13 @@
 
 #charge-black {
     left: 50%;
-    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset) - 3px);
+    bottom: calc(var(--layout-size-charge-offset) + var(--layout-charge-own-offset) - 4.5px);
     transform: translateX(-50%);
 }
 
 #charge-white {
     left: 50%;
-    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 19px);
+    top: calc(var(--layout-size-charge-offset) + var(--layout-charge-opponent-offset) - 17.5px);
     transform: translateX(-50%);
 }
 
