@@ -717,7 +717,7 @@ S.stone_salvation_god_01 = async (rec, page) => {
         return t.filter((x) => board[x.row][x.col] === 1 && !(x.row === m.row && x.col === m.col)).sort((a, b) => cd(a.row, a.col) - cd(b.row, b.col))[0] || t[0];
     }, '破壊された石が復活する');
 };
-S.zombie_will_01 = async (rec) => { await nextStone(rec, 'zombie_will_01', { follow: 1, followCaption: '自ターン開始時に移動' }); };
+S.zombie_will_01 = async (rec) => { await nextStone(rec, 'zombie_will_01', { follow: 1, followCaption: '自ターン開始時に一番近い敵石へ寄る' }); };
 S.udr_01 = async (rec) => { await nextStone(rec, 'udr_01', { score: freeNear, follow: 1 }); };
 S.udg_01 = async (rec) => { await nextStone(rec, 'udg_01', { score: freeNear, follow: 1 }); };
 S.breeding_01 = async (rec) => { await nextStone(rec, 'breeding_01', { score: roomy, follow: 1 }); };
