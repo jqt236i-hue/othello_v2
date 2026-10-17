@@ -2,6 +2,7 @@ import {searchLv13,LV13_SEARCH_CONFIG} from '../game/ai/cpu-lv13-search';
 const SharedConstants=require('../shared-constants');
 const held=require('./fixtures/cpu-lv13-keep-relocation-held.json');
 const corner=require('./fixtures/cpu-lv13-keep-relocation-corner.json');
+const passRelocation=require('./fixtures/cpu-lv13-pass-relocation.json');
 
 const typeOf=(id:string)=>SharedConstants.CARD_DEFS.find((card:any)=>card.id===id)?.type;
 const kept=new Set(LV13_SEARCH_CONFIG.cornerOnlyCardTypes);
@@ -24,6 +25,21 @@ test('a relocation card that gains no corner is kept, neither used nor destroyed
     const result=searchLv13(held.observation,options);
     expect(touchesKept(result)).toBe(false);
     expect(JSON.stringify(held.observation)).toBe(before);
+},120000);
+
+// Human-condition development game (turn 17): white cannot place and holds
+// Super Buoyancy and Board Expansion. Passing ends the game lost by one stone
+// in most sampled worlds; Super Buoyancy changes the count so the same double
+// pass wins. The kept cards were not compared at all and white passed.
+test('without a placement the kept cards are compared instead of a forced pass',()=>{
+    const Core=require('../game/logic/core');
+    const {getCardContext}=require('../game/logic/cards');
+    const {gameState,cardState}=passRelocation.observation;
+    expect(Core.getLegalMoves(gameState,-1,{...getCardContext(cardState),cardState})).toHaveLength(0);
+    const result=searchLv13(passRelocation.observation,{publicRecipes:passRelocation.publicRecipes});
+    expect(typeOf(result.action!.useCardId!)).toBe('SUPER_BUOYANCY_WILL');
+    const pass=result.candidates!.find(candidate=>candidate.action.type==='pass')!;
+    expect(pass.score).toBeLessThan(result.value!);
 },120000);
 
 // Self-play position (turn 19): white's stone on (4,0) floats up the empty
