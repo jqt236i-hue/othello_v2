@@ -81,7 +81,7 @@ describe('board skin controller', () => {
     expect(catalog.getAllBoardSkins(window)).toEqual(SURFACES.map((skin) => expect.objectContaining(skin)));
     expect(catalog.getOwnedBoardSkins(window)).toEqual(SURFACES.map((skin) => expect.objectContaining(skin)));
     SURFACES.forEach((skin) => expect(catalog.isBoardSkinOwned(window, skin.id)).toBe(true));
-    expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('submerged-wood');
+    expect(catalog.DEFAULT_BOARD_FRAME_SKIN_ID).toBe('study-ebony-jade');
     expect(catalog.BASE_BOARD_FRAME_SKINS).toHaveLength(FRAMES.length);
     expect(catalog.BOARD_FRAME_SKINS).toHaveLength(FRAMES.length);
     expect(catalog.getAllBoardFrameSkins(window)).toEqual(FRAMES.map((skin) => expect.objectContaining(skin)));
@@ -199,13 +199,13 @@ describe('board skin controller', () => {
     const api = controller.setupBoardSkinControls({ root: window });
 
     expect(api.getSelectedSkinId()).toBe('study-forest-baize');
-    expect(api.getSelectedFrameSkinId()).toBe('submerged-wood');
+    expect(api.getSelectedFrameSkinId()).toBe('study-ebony-jade');
     ['othello.boardSkin', 'reversi.boardSkin', 'othello.boardFrameSkin', 'reversi.boardFrameSkin']
       .forEach((key) => expect(window.localStorage.getItem(key)).toBeNull());
     expect(document.documentElement.getAttribute('data-board-skin-id')).toBe('study-forest-baize');
     expect(document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
       .toBe('url("assets/images/board/board-surface-study-forest-baize-v1.webp")');
-    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
+    expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('study-ebony-jade');
   });
 
   test.each(REMOVED_BOARD_SKIN_IDS)('falls back from removed saved board %s for either storage key', (skinId) => {
@@ -232,13 +232,13 @@ describe('board skin controller', () => {
       window.localStorage.setItem(key, skinId);
       const api = controller.setupBoardSkinControls({ root: window });
 
-      expect(api.getSelectedFrameSkinId()).toBe('submerged-wood');
-      expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('submerged-wood');
+      expect(api.getSelectedFrameSkinId()).toBe('study-ebony-jade');
+      expect(document.documentElement.getAttribute('data-board-frame-skin-id')).toBe('study-ebony-jade');
       expect(document.getElementById('board-frame')!.style.getPropertyValue('--board-frame-image'))
-        .toBe('url("assets/images/board/board-frame-submerged-wood-v1.webp")');
+        .toBe('url("assets/images/board/board-frame-study-ebony-jade-v2.webp")');
       api.selectFrameSkin(skinId);
-      expect(window.localStorage.getItem('reversi.boardFrameSkin')).toBe('submerged-wood');
-      expect(window.localStorage.getItem('othello.boardFrameSkin')).toBe('submerged-wood');
+      expect(window.localStorage.getItem('reversi.boardFrameSkin')).toBe('study-ebony-jade');
+      expect(window.localStorage.getItem('othello.boardFrameSkin')).toBe('study-ebony-jade');
     });
   });
 

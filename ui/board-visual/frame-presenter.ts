@@ -192,7 +192,7 @@ function resolveBoardAppearanceDescriptor(
     || String(boardCatalog && boardCatalog.DEFAULT_BOARD_SKIN_ID || 'study-forest-baize');
   const requestedFrameSkinId = datasetValue(boardFrame, 'boardFrameSkinId')
     || datasetValue(rootElement, 'boardFrameSkinId')
-    || String(boardCatalog && boardCatalog.DEFAULT_BOARD_FRAME_SKIN_ID || 'submerged-wood');
+    || String(boardCatalog && boardCatalog.DEFAULT_BOARD_FRAME_SKIN_ID || 'study-ebony-jade');
   const requestedStoneSkinId = datasetValue(rootElement, 'stoneSkinId')
     || String(stoneCatalog && stoneCatalog.DEFAULT_STONE_SKIN_ID || 'o-stone');
   const board = resolveDefinition(boardCatalog, 'getBoardSkinDefinition', requestedBoardSkinId, root);

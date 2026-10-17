@@ -19,6 +19,27 @@ describe('appearance default fallbacks without catalog globals', () => {
     jest.dontMock('../ui/stone-skin/catalog');
   });
 
+  test('matches the complete requested standard appearance set', () => {
+    const board = require('../ui/board-skin/catalog.ts');
+    expect({
+      handSkinId: require('../ui/hand-skin/catalog.ts').DEFAULT_HAND_SKIN_ID,
+      backgroundSkinId: require('../ui/background-skin/catalog.ts').DEFAULT_BACKGROUND_SKIN_ID,
+      boardSkinId: board.DEFAULT_BOARD_SKIN_ID,
+      boardFrameSkinId: board.DEFAULT_BOARD_FRAME_SKIN_ID,
+      handMatSkinId: require('../ui/hand-mat-skin/catalog.ts').DEFAULT_HAND_MAT_SKIN_ID,
+      fontSkinId: require('../ui/font-skin/catalog.ts').DEFAULT_FONT_SKIN_ID,
+      stoneSkinId: require('../ui/stone-skin/catalog.ts').DEFAULT_STONE_SKIN_ID
+    }).toEqual({
+      handSkinId: 'default',
+      backgroundSkinId: 'desk-quiet-fantasy',
+      boardSkinId: 'study-forest-baize',
+      boardFrameSkinId: 'study-ebony-jade',
+      handMatSkinId: 'midnight-bookcloth',
+      fontSkinId: 'shippori-mincho',
+      stoneSkinId: 'o-stone'
+    });
+  });
+
   test('uses the configured background default when the background catalog is unavailable', () => {
     jest.doMock('../ui/background-skin/catalog', () => {
       throw new Error('catalog unavailable');
@@ -92,10 +113,10 @@ describe('appearance default fallbacks without catalog globals', () => {
     expect(window.localStorage.getItem(selection.BOARD_SKIN_STORAGE_KEY)).toBe('study-forest-baize');
     expect(window.localStorage.getItem(selection.LEGACY_BOARD_SKIN_STORAGE_KEY)).toBe('study-forest-baize');
 
-    expect(selection.readStoredBoardFrameSkinId(window)).toBe('submerged-wood');
+    expect(selection.readStoredBoardFrameSkinId(window)).toBe('study-ebony-jade');
     expect(selection.writeStoredBoardFrameSkinId(window, 'missing')).toBe(true);
-    expect(window.localStorage.getItem(selection.BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('submerged-wood');
-    expect(window.localStorage.getItem(selection.LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('submerged-wood');
+    expect(window.localStorage.getItem(selection.BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('study-ebony-jade');
+    expect(window.localStorage.getItem(selection.LEGACY_BOARD_FRAME_SKIN_STORAGE_KEY)).toBe('study-ebony-jade');
   });
 
   test('uses the configured stone default when the stone catalog is unavailable', () => {

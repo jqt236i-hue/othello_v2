@@ -74,7 +74,7 @@ describe('UIBootstrap initial board frame preparation', () => {
       expect(dom.window.document.getElementById('board')!.style.getPropertyValue('--board-surface-texture-image'))
         .toBe(`url("assets/images/board/board-surface-${expected}-v1.webp")`);
       expect(dom.window.localStorage.getItem('reversi.boardSkin')).toBe(saved);
-      expect(dom.window.document.documentElement.dataset.boardFrameSkinId).toBe('submerged-wood');
+      expect(dom.window.document.documentElement.dataset.boardFrameSkinId).toBe('study-ebony-jade');
       dom.window.close();
     }
   );
