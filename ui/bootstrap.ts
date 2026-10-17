@@ -2621,6 +2621,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         if (uiBootstrapRuntimeInitialized) return false;
         ensureOwnerHelpersGlobal();
         const target = runtimeRoot || (typeof window !== 'undefined' ? window : null);
+        // Adopt the standard set before game systems or lazy cosmetic controls restore old keys.
+        _require('./storage/appearance-default-migration').migrateStandardAppearance(target);
         try {
             if (target) {
                 (target as { UIBootstrap?: typeof UIBootstrap }).UIBootstrap = UIBootstrap;
