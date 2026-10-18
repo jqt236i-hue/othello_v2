@@ -230,4 +230,19 @@ describe('network room list style', () => {
     expect(spectateBlock).toMatch(/linear-gradient\(180deg,\s*rgba\(48,\s*51,\s*52,\s*0\.92\),\s*rgba\(9,\s*11,\s*13,\s*0\.99\)\)/);
     expect(css).not.toMatch(/#networkJoinBtn,\s*\.network-room-entry-join,\s*\.network-room-entry-spectate/);
   });
+
+  test('表示領域が低い画面ではルームカードを圧縮して参加・退出ボタンを初期表示に収める', () => {
+    const css = readNetworkResponsiveCssSurface();
+
+    expect(css).toMatch(
+      /html:not\(\.layout-profile-phone-portrait\)\s+#networkRoomListViewport\s*\{[^}]*container:\s*network-room-viewport\s*\/\s*size/
+    );
+    const compact = css.match(/@container network-room-viewport \(max-height: 236px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const tight = css.match(/@container network-room-viewport \(max-height: 190px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(compact).toMatch(/\.network-room-list-entry\s*\{[^}]*min-height:\s*0/);
+    expect(compact).toMatch(/\.network-room-list-entry > \.btn-small\s*\{[^}]*min-height:\s*36px/);
+    expect(compact).toMatch(/is-current-room \.network-room-entry-body::before\s*\{[^}]*top:\s*-10px/);
+    expect(tight).toMatch(/\.network-room-list-entry > \.btn-small\s*\{[^}]*min-height:\s*28px/);
+  });
 });

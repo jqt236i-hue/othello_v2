@@ -254,3 +254,117 @@ html.layout-profile-phone-portrait .network-room-list-entry {
         display: none;
     }
 }
+
+/* ルーム一覧: 表示領域の高さが足りない小さな画面でも、カード下端の参加・退出ボタンまで初期表示に収める */
+html:not(.layout-profile-phone-portrait) #networkRoomListViewport {
+    container: network-room-viewport / size;
+}
+
+@container network-room-viewport (max-height: 236px) {
+    .network-room-list-entry {
+        padding: 12px 14px 8px;
+        row-gap: 6px;
+        min-height: 0;
+    }
+
+    .network-room-list-entry.is-current-room .network-room-entry-body::before {
+        top: -10px;
+        min-width: 80px;
+        padding: 5px 22px 5px 16px;
+        font-size: 14px;
+    }
+
+    .network-room-list-entry.is-current-room .network-room-entry-main {
+        margin-top: 22px;
+    }
+
+    .network-room-entry-body {
+        gap: 4px;
+    }
+
+    .network-room-entry-name {
+        font-size: 17px;
+    }
+
+    .network-room-entry-versus {
+        margin-top: 4px;
+        padding: 5px 0;
+        gap: 10px;
+    }
+
+    .network-room-entry-mark {
+        font-size: 19px;
+    }
+
+    .network-room-entry-mark.is-long-name {
+        font-size: 13px;
+    }
+
+    .network-room-entry-vs {
+        font-size: 20px;
+    }
+
+    .network-room-entry-counts {
+        margin-top: 0;
+    }
+
+    .network-room-entry-count {
+        gap: 2px;
+    }
+
+    .network-room-entry-count-value {
+        font-size: 18px;
+    }
+
+    .network-room-list-entry > .btn-small {
+        min-height: 36px;
+        font-size: 15px;
+    }
+}
+
+@container network-room-viewport (max-height: 190px) {
+    .network-room-list-entry {
+        padding: 10px 12px 6px;
+        row-gap: 4px;
+    }
+
+    .network-room-list-entry.is-current-room .network-room-entry-body::before {
+        top: -8px;
+        padding: 3px 20px 3px 14px;
+        font-size: 12px;
+    }
+
+    .network-room-list-entry.is-current-room .network-room-entry-main {
+        margin-top: 12px;
+    }
+
+    .network-room-entry-body {
+        gap: 2px;
+    }
+
+    .network-room-entry-name {
+        font-size: 15px;
+    }
+
+    .network-room-entry-versus {
+        margin-top: 2px;
+        padding: 3px 0;
+    }
+
+    .network-room-entry-mark {
+        font-size: 16px;
+    }
+
+    .network-room-entry-vs {
+        font-size: 17px;
+    }
+
+    .network-room-entry-count-value {
+        font-size: 15px;
+    }
+
+    .network-room-list-entry > .btn-small {
+        min-height: 28px;
+        font-size: 13px;
+    }
+}
