@@ -166,16 +166,21 @@ describe('board skin controller', () => {
     expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(0px * var(--layout-stage-scale))');
   });
 
-  test('keeps the straight ebony frame moderate-width with no enlarged artwork or baked-in board', () => {
+  test('widens only the ebony frame top and bottom rails for both charge counters without a baked-in board', () => {
     const api = require('../ui/board-skin/controller.ts').setupBoardSkinControls({ root: window });
     api.selectFrameSkin('study-ebony-jade');
     const frameEl = document.getElementById('board-frame')!;
     ['top', 'bottom'].forEach((side) => {
       expect(frameEl.style.getPropertyValue(`--board-frame-art-overhang-${side}`))
-        .toBe('calc(0px * var(--layout-stage-scale))');
+        .toBe('calc(18px * var(--layout-stage-scale))');
     });
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout.css'), 'utf8');
     expect(css).toMatch(/#board-frame\[data-board-frame-skin-id="study-ebony-jade"\]\s*\{\s*--board-frame-art-overhang: 0px;/);
+
+    expect(css).toMatch(/border-image-source: var\(--board-frame-image\);/);
+    expect(css).toMatch(/border-image-slice: 56;/);
+    expect(css).toContain('calc(var(--board-frame-padding-top) + var(--board-frame-art-overhang-top))');
+    expect(css).toContain('calc(var(--board-frame-padding-bottom) + var(--board-frame-art-overhang-bottom))');
 
     const png = PNG.sync.read(fs.readFileSync(path.join(__dirname, '..',
       'assets/images/board/board-frame-study-ebony-jade-v2.png')));
