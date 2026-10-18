@@ -22,7 +22,7 @@ export { createLv13DecisionMemory as createCpuDecisionMemory,
     LV13_DECISION_MEMORY_PROTOCOL as CPU_DECISION_MEMORY_PROTOCOL } from './cpu-lv13-turn-memory';
 
 export const LV13_SEARCH_CONFIG = Object.freeze({
-    version: 'lv13-keep-draws', maxTransitions: 6144, maxMs: 4700,
+    version: 'lv13-no-corner-gift', maxTransitions: 6144, maxMs: 4700,
     maxRetainedPlans: 32, maxRetainedPartialPlans: 64, continuationBeam: 3, selectionBeam: 6, maxActionsPerTurn: 12,
     maxRootCandidates: 6, replyCandidates: 2, scenarioSeeds: Object.freeze([100901, 100909, 100913]), maxStageCandidates: 16,
     maxFreePlacementCandidates:32,
@@ -50,6 +50,12 @@ export const LV13_SEARCH_CONFIG = Object.freeze({
     // dangerRootPenalty. Zero keeps the search's own judgment.
     cornerRootBonus: 0,
     dangerRootPenalty: 0,
+    // A turn that newly lets the opponent place on a corner (a corner they
+    // could not place on before the turn) loses cornerGiftPenalty on the raw
+    // evaluation while the turn is being completed, and at the final
+    // comparison must beat the best compared turn that gives no corner by
+    // cornerGiftMargin. A human opponent takes an offered corner every time.
+    cornerGiftPenalty: 8, cornerGiftMargin: .08,
     // Stone-relocation and board-expansion cards are kept (neither used nor
     // destroyed) unless the turn gains corners over every turn without them:
     // taking a corner, or taking back / removing one the opponent holds. The
@@ -228,6 +234,22 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     const initialBoard = Board.prepareBoardForSearch(Board.createBoardContext(initial.gameState,initial.cardState));
     const initialEmpty = Board.collectBoardCoordinates(initialBoard).filter((cell:any)=>Board.hasPlayableCell(initialBoard,cell.row,cell.col)).length
         -initialCounts.black-initialCounts.white;
+    // Corners the opponent can newly place on after our turn (shape after the turn).
+    const opponentOf: Lv10Player = player==='black'?'white':'black';
+    const opponentCornerMoves=(state:Lv10Position)=>{
+        const context=Board.prepareBoardForSearch(Board.createBoardContext(state.gameState,state.cardState));
+        const corners=new Set(Board.getCornerCells(context).map((cell:any)=>`${cell.row},${cell.col}`));
+        return new Set(lv10PlacementMoves(state,opponentOf).map((move:any)=>`${move.row},${move.col}`).filter(key=>corners.has(key)));
+    };
+    const initialOpponentCorners=opponentCornerMoves(initial);
+    const giftCache=new WeakMap<Lv10Position,boolean>();
+    const giftsCorner=(state:Lv10Position)=>{
+        const cached=giftCache.get(state);
+        if(cached!==undefined)return cached;
+        const gift=!Core.isGameOver(state.gameState)&&[...opponentCornerMoves(state)].some(key=>!initialOpponentCorners.has(key));
+        giftCache.set(state,gift);
+        return gift;
+    };
     // Legal-line count can be high immediately before a multi-placement card
     // wipes out a small army. Read the opponent's next card turn as well as
     // their first attack when the public army is sparse.
@@ -235,6 +257,12 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
         lv10PlacementMoves(initial,'black').length+lv10PlacementMoves(initial,'white').length, cfg);
     const completed = (state: Lv10Position, owner: Lv10Player, turn: number) => Core.isGameOver(state.gameState)
         || currentLv10Player(state) !== owner || state.gameState.turnNumber > turn;
+    // Value of a completed own turn while the turn is being built (root turn only).
+    const turnValue=(state:Lv10Position,owner:Lv10Player,turn:number)=>{
+        const value=evaluate(state,player);
+        return cfg.cornerGiftPenalty>0&&owner===player&&turn===initialTurn&&owner===initialOwner
+            &&completed(state,owner,turn)&&giftsCorner(state)?value-cfg.cornerGiftPenalty:value;
+    };
     const rank = (plans: Plan[], owner: Lv10Player, limit: number) => plans.sort((a,b) => (
         owner === player ? b.value - a.value : a.value - b.value
     ) || (a.rootTie || 0)-(b.rootTie || 0)).slice(0,limit);
@@ -285,7 +313,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
                     if (transitions-from>=quota || !available()) break;
                     const after=apply(plan.state,action);
                     if(after) {
-                        const candidate={state:after,actions:[...plan.actions,action],value:evaluate(after,player),rootTie:partialRootTie(action)};
+                        const candidate={state:after,actions:[...plan.actions,action],value:turnValue(after,owner,turn),rootTie:partialRootTie(action)};
                         if(completed(after,owner,turn)) {
                             done.push(candidate);
                             done.splice(0,done.length,...rank(done,decisionPlayer,cfg.maxRetainedPlans));
@@ -349,7 +377,7 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
         const after=apply(initial,action);
         if(!after)continue;
         fallback ||= action;
-        const plan={state:after,actions:[action],value:evaluate(after,player),rootTie:partialRootTie(action)};
+        const plan={state:after,actions:[action],value:turnValue(after,initialOwner,initialTurn),rootTie:partialRootTie(action)};
         const list=completed(after,initialOwner,initialTurn)?plans:unfinished;
         list.push(plan);
         if (list === unfinished) {
@@ -728,6 +756,9 @@ function searchLv13Scoped(observation: Lv10Observation, options: Lv13SearchOptio
     const keepsDraw=(plan:Plan)=>destroysHandCard(plan)&&endHand(plan)===cfg.drawHandLimit-1&&drawsNext(plan);
     if(!allTerminal&&cfg.destroyHandMargin>0&&comparable.some(candidate=>!destroysHandCard(candidate.plan))){
         for(const candidate of comparable)if(destroysHandCard(candidate.plan)&&!keepsDraw(candidate.plan))candidate.value-=cfg.destroyHandMargin;
+    }
+    if(!allTerminal&&cfg.cornerGiftMargin>0&&comparable.some(candidate=>!giftsCorner(candidate.plan.state))){
+        for(const candidate of comparable)if(giftsCorner(candidate.plan.state))candidate.value-=cfg.cornerGiftMargin;
     }
     comparable.sort((a,b)=>b.value-a.value);
     // A terminal win caused by this immediate action is known, unlike a

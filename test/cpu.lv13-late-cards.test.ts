@@ -16,15 +16,18 @@ test('a sampled terminal keeps its final stone margin as a tie-break',()=>{
 });
 
 // Human-condition development game: white (Lv13) is behind with 12 placements
-// left and holds a bomb. With the earlier card-use margin it kept the bomb and
+// left and holds a bomb. With the earlier card-use margin it kept its cards and
 // placed; at the end of the game an unused card is worth nothing.
 test('with few placements left a card is used without the card-use margin',()=>{
     const options={publicRecipes:lateCard.publicRecipes,maxTransitions:2048};
     const before=JSON.stringify(lateCard.observation);
     expect(LV13_SEARCH_CONFIG.cardUseMarginLate).toBeLessThan(LV13_SEARCH_CONFIG.cardUseMargin);
     const result=searchLv13(lateCard.observation,options);
-    expect(result.action).toMatchObject({type:'use_card',useCardId:'bomb_01'});
-    const earlier=searchLv13(lateCard.observation,{...options,tuning:{cardUseMarginLate:LV13_SEARCH_CONFIG.cardUseMargin}});
+    // Which card is chosen has changed with later rules (bomb, then super buoyancy
+    // under the corner-gift rule); the point is that a card is spent. The earlier
+    // margin is compared without the corner-gift rule, which alone also changes this turn.
+    expect(result.action?.type).toBe('use_card');
+    const earlier=searchLv13(lateCard.observation,{...options,tuning:{cardUseMarginLate:LV13_SEARCH_CONFIG.cardUseMargin,cornerGiftPenalty:0,cornerGiftMargin:0}});
     expect(earlier.action?.type).toBe('place');
     expect(JSON.stringify(lateCard.observation)).toBe(before);
 },120000);
