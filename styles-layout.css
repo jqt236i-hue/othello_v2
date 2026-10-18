@@ -149,7 +149,8 @@
 
 /* 黒檀枠は四辺を同じ幅だけ広げ、正方形を保って両者の布石表示を収める。 */
 #board-frame[data-board-frame-skin-id="study-ebony-jade"] {
-    --board-frame-art-overhang: calc(18px * var(--layout-stage-scale));
+    /* 布石位置には固定pxの補正があるため、小さいPC画面でも余裕を残す。 */
+    --board-frame-art-overhang: max(24px, calc(18px * var(--layout-stage-scale)));
     --board-contour-highlight: rgba(188, 147, 94, 0.86);
     --board-contour-metal: rgba(43, 31, 22, 0.98);
     --board-contour-shadow: rgba(7, 10, 9, 0.98);

@@ -175,7 +175,7 @@ describe('board skin controller', () => {
         .toBe('');
     });
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout.css'), 'utf8');
-    expect(css).toMatch(/#board-frame\[data-board-frame-skin-id="study-ebony-jade"\]\s*\{\s*--board-frame-art-overhang: calc\(18px \* var\(--layout-stage-scale\)\);/);
+    expect(css).toContain('--board-frame-art-overhang: max(24px, calc(18px * var(--layout-stage-scale)));');
     ['right', 'left'].forEach((side) => {
       expect(css).toContain(`calc(var(--board-frame-padding-${side}) + var(--board-frame-art-overhang))`);
     });
