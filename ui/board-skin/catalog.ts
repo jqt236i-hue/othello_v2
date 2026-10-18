@@ -169,7 +169,6 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
     imagePath: 'assets/images/board/board-frame-study-ebony-jade-v2.webp',
     layout: Object.freeze({
       paddingTop: 28, paddingRight: 28, paddingBottom: 28, paddingLeft: 28,
-      artOverhangTop: 18, artOverhangBottom: 18,
       artOffsetY: 0
     })
   }),

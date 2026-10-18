@@ -147,15 +147,15 @@
     --board-contour-shadow: rgba(5, 14, 18, 0.98);
 }
 
-/* 黒檀枠は左右幅を保ち、上下だけを広げて両者の布石表示を収める。 */
+/* 黒檀枠は四辺を同じ幅だけ広げ、正方形を保って両者の布石表示を収める。 */
 #board-frame[data-board-frame-skin-id="study-ebony-jade"] {
-    --board-frame-art-overhang: 0px;
+    --board-frame-art-overhang: calc(18px * var(--layout-stage-scale));
     --board-contour-highlight: rgba(188, 147, 94, 0.86);
     --board-contour-metal: rgba(43, 31, 22, 0.98);
     --board-contour-shadow: rgba(7, 10, 9, 0.98);
 }
 
-/* 9分割で内縁を盤面に合わせたまま上下の桟を太くする。画像全体の拡大では
+/* 9分割で内縁を盤面に合わせたまま四辺の桟を均等に太くする。画像全体の拡大では
    透明な開口部まで伸びて、盤面と枠の間に隙間ができる。56px は原画像の桟幅。 */
 #board-frame[data-board-frame-skin-id="study-ebony-jade"]::before {
     background: none;
@@ -163,9 +163,9 @@
     border-color: transparent;
     border-width:
         calc(var(--board-frame-padding-top) + var(--board-frame-art-overhang-top))
-        var(--board-frame-padding-right)
+        calc(var(--board-frame-padding-right) + var(--board-frame-art-overhang))
         calc(var(--board-frame-padding-bottom) + var(--board-frame-art-overhang-bottom))
-        var(--board-frame-padding-left);
+        calc(var(--board-frame-padding-left) + var(--board-frame-art-overhang));
     border-image-source: var(--board-frame-image);
     border-image-slice: 56;
     border-image-repeat: stretch;

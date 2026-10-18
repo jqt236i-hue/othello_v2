@@ -166,16 +166,19 @@ describe('board skin controller', () => {
     expect(frameEl.style.getPropertyValue('--board-frame-art-offset-y')).toBe('calc(0px * var(--layout-stage-scale))');
   });
 
-  test('widens only the ebony frame top and bottom rails for both charge counters without a baked-in board', () => {
+  test('widens all four ebony frame rails equally for both charge counters without a baked-in board', () => {
     const api = require('../ui/board-skin/controller.ts').setupBoardSkinControls({ root: window });
     api.selectFrameSkin('study-ebony-jade');
     const frameEl = document.getElementById('board-frame')!;
     ['top', 'bottom'].forEach((side) => {
       expect(frameEl.style.getPropertyValue(`--board-frame-art-overhang-${side}`))
-        .toBe('calc(18px * var(--layout-stage-scale))');
+        .toBe('');
     });
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout.css'), 'utf8');
-    expect(css).toMatch(/#board-frame\[data-board-frame-skin-id="study-ebony-jade"\]\s*\{\s*--board-frame-art-overhang: 0px;/);
+    expect(css).toMatch(/#board-frame\[data-board-frame-skin-id="study-ebony-jade"\]\s*\{\s*--board-frame-art-overhang: calc\(18px \* var\(--layout-stage-scale\)\);/);
+    ['right', 'left'].forEach((side) => {
+      expect(css).toContain(`calc(var(--board-frame-padding-${side}) + var(--board-frame-art-overhang))`);
+    });
 
     expect(css).toMatch(/border-image-source: var\(--board-frame-image\);/);
     expect(css).toMatch(/border-image-slice: 56;/);
