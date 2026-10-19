@@ -199,7 +199,7 @@ html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-
 }
 
 /* Physical reserve trays are frame chrome, independent of the board backend.
-   White stays on the left and black on the right, including network white seats. */
+   Black stays on the left and white on the right, including network white seats. */
 .board-stone-supply {
     --supply-side-padding: var(--board-frame-padding-left);
     --supply-tray-width: min(calc(32px * var(--layout-stage-scale)), calc((var(--supply-side-padding) + var(--board-frame-art-overhang)) * 0.74));
@@ -230,12 +230,12 @@ html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-
     display: none;
 }
 
-.board-stone-supply--white {
+.board-stone-supply--black {
     left: calc((var(--supply-side-padding) - var(--board-frame-art-overhang)) / 2);
     transform: translateX(-50%);
 }
 
-.board-stone-supply--black {
+.board-stone-supply--white {
     --supply-side-padding: var(--board-frame-padding-right);
     right: calc((var(--supply-side-padding) - var(--board-frame-art-overhang)) / 2);
     transform: translateX(50%);
