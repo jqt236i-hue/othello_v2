@@ -43,7 +43,6 @@ import {
     applyIsTeleportWillScore,
     applyIsHyperactiveInheritWillScore,
     applyIsRobotVacuumWillScore,
-    applyIsEqualityWillScore,
     applyIsReinforcementWillScore,
     applyIsGluttonousWillScore,
     applyIsExtremeHyperactiveWillScore
@@ -104,7 +103,6 @@ const CARD_USE_SCORE_RULES = Object.freeze([
     applyIsTeleportWillScore,
     applyIsHyperactiveInheritWillScore,
     applyIsRobotVacuumWillScore,
-    applyIsEqualityWillScore,
     applyIsReinforcementWillScore,
     applyIsGluttonousWillScore,
     applyIsExtremeHyperactiveWillScore,

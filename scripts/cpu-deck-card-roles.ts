@@ -39,7 +39,7 @@ export const CARD_ROLE_DEFINITIONS: readonly CardRoleDefinition[] = Object.freez
         'METEOR_WILL', 'METEOR_GOD', 'CAUSAL_REPLAY_WILL', 'BLOCKADE_WILL', 'BOARD_EXECUTOR', 'POISON_WILL', 'FIRE_WILL'] },
     { key: 'charge', label: '布石', types: [
         'TREASURE_BOX', 'WORK_WILL', 'ULTIMATE_WORK_GOD', 'RIBO_WILL', 'GOLD_STONE', 'SILVER_STONE', 'RAINBOW_STONE',
-        'CRYSTAL_STONE', 'EQUALITY_WILL', 'TRAP_WILL'] },
+        'CRYSTAL_STONE', 'TRAP_WILL'] },
     { key: 'hand', label: '手札・カード妨害', types: [
         'HEAVEN_BLESSING', 'REBUILD_WILL', 'CAPTURE_WILL', 'REVEAL_HAND_WILL', 'OBSERVER_WILL', 'CONDEMN_WILL', 'EXECUTION_WILL',
         'TRAP_WILL', 'LOSS_WILL', 'GLUTTONOUS_WILL', 'SACRIFICE_WILL', 'BOARD_EXECUTOR'] },

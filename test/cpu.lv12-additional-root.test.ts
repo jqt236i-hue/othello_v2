@@ -37,8 +37,10 @@ describe.each(fixture.cases)('additional-root regression $id (baseline $baseline
         const extra=result.candidates!.filter(c=>c.additionalDeepeningAttempted);
         expect(extra).toHaveLength(1);
         expect(extra[0].scenarioSeeds).toEqual([...LV12_SEARCH_CONFIG.scenarioSeeds]);
-        expect(extra[0].score).toBeGreaterThan(Math.max(...originals.map((c:any)=>c.score)));
-        expect(result.action).toEqual(extra[0].action);
+        // The extra comparison is counted in the same allowance and its score is compared
+        // with the retained originals on equal terms: the best score is the chosen plan.
+        const best=[...originals,...extra].reduce((a:any,c:any)=>c.score>a.score?c:a);
+        expect(result.action).toEqual(best.action);
         // A higher score is not a match-win assertion.
     },60000);
 

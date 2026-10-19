@@ -76,6 +76,8 @@ describe('bounded canonical Lv10 development search', () => {
         observation.gameState.board=Array.from({length:8},()=>Array(8).fill(1));
         observation.gameState.board[0][0]=-1;
         observation.gameState.consecutivePasses=1;
+        // White must have no way to act, otherwise the final pass does not end the game.
+        observation.cardState.charge.white=0;
         const result=searchLv10(observation,{maxTransitions:128});
         expect(result.action).toEqual({type:'pass'});
         const terminal=applyLv10Action(sampleLv10Position(observation,100901),result.action!);

@@ -26,8 +26,8 @@ describe('card runtime Gate B characterization', () => {
     const directCount = Object.values(DIRECT_RUNTIME_FUNCTION_EXPORTS)
       .reduce((total, names) => total + names.length, 0);
 
-    expect(facadeFunctions).toHaveLength(264);
-    expect(manifest).toHaveLength(264 + directCount);
+    expect(facadeFunctions).toHaveLength(261);
+    expect(manifest).toHaveLength(261 + directCount);
     expect(new Set(manifest.map((entry) => entry.entryId)).size).toBe(manifest.length);
 
     for (const entry of manifest) {

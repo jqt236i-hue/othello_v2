@@ -191,7 +191,6 @@ const {
     const RIBO_WILL_SHORTAGE_DESTROY_COUNT = 4;
     const REINFORCEMENT_WILL_SPAWN_COUNT = 1;
     const SUPPORT_TROOPS_WILL_SPAWN_COUNT = 3;
-    const EQUALITY_WILL_STEAL_MAX = 10;
     const FLIP_CHARGE_MULTIPLIER_EFFECTS = Object.freeze({
         GOLD_STONE: { multiplier: 4, effectFlag: 'goldStoneUsed', destroyReason: 'gold_stone_sacrifice' },
         RAINBOW_STONE: { multiplier: 6, effectFlag: 'rainbowStoneUsed', destroyReason: 'rainbow_stone_sacrifice' },
@@ -739,69 +738,6 @@ const {
         );
     }
 
-    function normalizeEqualityWillPlayerKey(playerKey: any) {
-        return playerKey === 'white' || playerKey === WHITE ? 'white' : 'black';
-    }
-
-    function readEqualityWillCharge(cardState: any, playerKey: any) {
-        const normalized = normalizeEqualityWillPlayerKey(playerKey);
-        const raw = Number(cardState && cardState.charge && cardState.charge[normalized]);
-        return Number.isFinite(raw) ? Math.max(0, Math.floor(raw)) : 0;
-    }
-
-    function resolveEqualityWillUsage(cardState: any, gameState: any, playerKey: any) {
-        void gameState;
-        if (!cardState || typeof cardState !== 'object') {
-            return { applied: false, reason: 'invalid_state' };
-        }
-        const ownerKey = normalizeEqualityWillPlayerKey(playerKey);
-        const opponentKey = ownerKey === 'white' ? 'black' : 'white';
-        const playerChargeBefore = readEqualityWillCharge(cardState, ownerKey);
-        const opponentChargeBefore = readEqualityWillCharge(cardState, opponentKey);
-        if (playerChargeBefore !== 0) {
-            return {
-                applied: false,
-                reason: 'own_charge_not_zero',
-                player: ownerKey,
-                opponent: opponentKey,
-                requestedAmount: EQUALITY_WILL_STEAL_MAX,
-                stolenAmount: 0,
-                playerChargeBefore,
-                playerChargeAfter: playerChargeBefore,
-                opponentChargeBefore,
-                opponentChargeAfter: opponentChargeBefore
-            };
-        }
-        const playerRoom = Math.max(0, (Number(CHARGE_MAX) || 99) - playerChargeBefore);
-        const requestedAmount = EQUALITY_WILL_STEAL_MAX;
-        const movable = Math.min(requestedAmount, opponentChargeBefore, playerRoom);
-        let stolenAmount = 0;
-
-        if (movable > 0) {
-            const gainRes = addChargeValueWithDelta(cardState, ownerKey, movable, 'equality_will_gain');
-            stolenAmount = Math.max(0, Number(gainRes && gainRes.delta) || 0);
-            if (stolenAmount > 0) {
-                if (!cardState.chargeGainedTotal || typeof cardState.chargeGainedTotal !== 'object') {
-                    cardState.chargeGainedTotal = { black: 0, white: 0 };
-                }
-                cardState.chargeGainedTotal[ownerKey] = (Number(cardState.chargeGainedTotal[ownerKey]) || 0) + stolenAmount;
-                addChargeValueWithDelta(cardState, opponentKey, -stolenAmount, 'equality_will_loss');
-            }
-        }
-
-        return {
-            applied: true,
-            player: ownerKey,
-            opponent: opponentKey,
-            requestedAmount,
-            stolenAmount,
-            playerChargeBefore,
-            playerChargeAfter: readEqualityWillCharge(cardState, ownerKey),
-            opponentChargeBefore,
-            opponentChargeAfter: readEqualityWillCharge(cardState, opponentKey)
-        };
-    }
-
     function isInnerPlayableCellForReinforcement(cardState: any, gameState: any, row: any, col: any) {
         if (!hasBoardShapeCellForCard(cardState, gameState, row, col)) return false;
         const orthogonal = [
@@ -1013,7 +949,6 @@ const {
             helpers: {
                 hasStandardLegalMoveForPlayer,
                 canUseLastResortForPlayer,
-                canUseEqualityWillForPlayer,
                 canUseReinforcementWillForPlayer,
                 canUseSupportTroopsWillForPlayer,
                 canUseTimeStopGodForPlayer,
@@ -2141,20 +2076,8 @@ const {
         return false;
     }
 
-    function getEqualityWillBoardCounts(cardState: any, gameState: any) {
-        return requireCardAvailability().getEqualityWillBoardCounts(cardState, gameState);
-    }
-
-    function getEqualityWillChargeState(cardState: any, playerKey: any) {
-        return requireCardAvailability().getEqualityWillChargeState(cardState, playerKey);
-    }
-
     function canUseLastResortForPlayer(cardState: any, gameState: any, playerKey: any) {
         return requireCardAvailability().canUseLastResortForPlayer(cardState, gameState, playerKey);
-    }
-
-    function canUseEqualityWillForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return requireCardAvailability().canUseEqualityWillForPlayer(cardState, gameState, playerKey);
     }
 
     function getReinforcementWillTargetCount(cardState: any, gameState: any, playerKey: any) {
@@ -2264,7 +2187,6 @@ const {
             applyBoardExecutorUsage,
             hasStandardLegalMoveForPlayer,
             canUseLastResortForPlayer,
-            canUseEqualityWillForPlayer,
             canUseReinforcementWillForPlayer,
             canUseSupportTroopsWillForPlayer,
             canUseTimeStopGodForPlayer,
@@ -5101,8 +5023,6 @@ const cardsApi: any = {
         applyFreezeWill,
         applySeedWill,
         applySeedMarker,
-        getEqualityWillBoardCounts,
-        getEqualityWillChargeState,
         getReinforcementWillTargets,
         getSupportTroopsWillTargets,
         getReinforcementWillTargetCount,
@@ -5127,7 +5047,6 @@ const cardsApi: any = {
         applySuperGravityWill,
         applySuperAttractionWill,
         armRiboWillEffect,
-        resolveEqualityWillUsage,
         resolveReinforcementWillUsage,
         resolveSupportTroopsWillUsage,
         getTimeStopGodDestroyableCount,

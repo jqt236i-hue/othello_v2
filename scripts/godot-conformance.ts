@@ -268,7 +268,6 @@ export function assertCoverage(cases: ConformanceCase[], outputs: CaseOutput[]):
     const chest = map.get('card/chest_01/basic')!.steps[0].state.cardState.charge.black;
     assert.ok(chest >= 12 && chest <= 22 && chest % 2 === 0, 'Treasure grants 1..6 times the fixture multiplier 2');
     assert.equal(map.get('card/ribo_01/basic')!.steps[0].state.cardState.charge.black, 70, 'Ribo grants 30 times multiplier 2');
-    assert.equal(map.get('card/equality_will_01/basic')!.steps[0].state.cardState.charge.black, 10, 'Equality transfers ten without multiplying');
     const count = (state: any) => state.gameState.board.flat().filter((value: number) => value !== 0).length;
     for (const [id, increment] of [['reinforcement_01', 1], ['support_troops_01', 3], ['salvation_01', 2]] as const) {
         const input = cases.find(item => item.id === `card/${id}/basic`)!;

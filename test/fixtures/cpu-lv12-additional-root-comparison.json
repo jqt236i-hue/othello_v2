@@ -552,7 +552,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -646,7 +646,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -654,15 +654,15 @@
         ]
       },
       "baselineFixed": {
-        "version": "lv12-sparse-threats-dev10c",
+        "version": "lv12-a04-additional-complete-root",
         "action": {
           "type": "place",
           "row": 5,
           "col": 3
         },
         "continuation": [],
-        "value": -0.34068351104507294,
-        "transitions": 1621,
+        "value": -0.282341584851989,
+        "transitions": 1746,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
@@ -676,9 +676,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          3591970872,
-          3006015072,
-          761893076
+          1211736190,
+          625780390,
+          332802490
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -689,7 +689,7 @@
           5,
           5
         ],
-        "evaluationCalls": 1657,
+        "evaluationCalls": 1782,
         "evaluationCacheHits": 36,
         "candidates": [
           {
@@ -699,20 +699,20 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": 8.8889580402601,
+            "immediate": 8.54658928595661,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -12.246942982371703,
-              -4.775116258182687,
-              -65.24851572672061
+              -2.5084347081481226,
+              -4.27309295791247,
+              -65.41700059796233
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.4081886694475939
+            "score": -0.3639746749318111
           },
           {
             "action": {
@@ -721,20 +721,20 @@
               "col": 3
             },
             "continuation": [],
-            "immediate": 2.1418702600948407,
+            "immediate": 1.7995015057913495,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -1.3940078459861902,
-              -0.6401716142041396,
-              -64.5860766020286
+              5.86590959360761,
+              5.41431729907693,
+              -64.75456147327031
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.34068351104507294
+            "score": -0.282341584851989
           },
           {
             "action": {
@@ -743,16 +743,16 @@
               "col": 2
             },
             "continuation": [],
-            "immediate": 1.1532702965894428,
+            "immediate": 0.8109015422859516,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -56.6530585470323
+              -57.36040622758694
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7090168248059624
+            "score": -0.714470128027383
           },
           {
             "action": {
@@ -761,20 +761,20 @@
               "col": 2
             },
             "continuation": [],
-            "immediate": -1.1962847231912104,
+            "immediate": -1.5386534774947007,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -7.135830013118982,
-              -3.535892839823835,
-              -65.24851572672061
+              -2.598812645347591,
+              5.830702533228048,
+              -65.41700059796233
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.38062040945295744
+            "score": -0.31974304501082484
           },
           {
             "action": {
@@ -783,28 +783,28 @@
               "col": 2
             },
             "continuation": [],
-            "immediate": -4.712951366591765,
+            "immediate": -5.055320120895256,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -49.00697493408493
+              -50.13873122297235
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6444419874845332
+            "score": -0.6546639887989988
           }
         ]
       },
       "baselineSlow": {
-        "version": "lv12-sparse-threats-dev10c",
+        "version": "lv12-a04-additional-complete-root",
         "action": {
           "type": "place",
           "row": 5,
           "col": 3
         },
         "continuation": [],
-        "value": 0.045515378753541634,
+        "value": 0.03299401193317886,
         "transitions": 800,
         "elapsedMs": 4800,
         "stopped": "time_budget",
@@ -816,12 +816,12 @@
           100909,
           100913
         ],
-        "scenarioTimeCuts": 2,
+        "scenarioTimeCuts": 4,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          3591970872,
-          3006015072,
-          761893076
+          1211736190,
+          625780390,
+          332802490
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -842,20 +842,20 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": 8.8889580402601,
+            "immediate": 8.54658928595661,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              2.7667641920260833,
-              0.21663800862389238,
-              -4.150189281950915
+              1.311648963456535,
+              -0.839340855028841,
+              -4.367905386225526
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.014860776308431547
+            "score": -0.0274381795129834
           },
           {
             "action": {
@@ -864,20 +864,20 @@
               "col": 3
             },
             "continuation": [],
-            "immediate": 2.1418702600948407,
+            "immediate": 1.7995015057913495,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              6.6411668069912055,
-              4.0910406235890155,
-              -0.275786666985792
+              5.186051578421659,
+              3.0350617599362817,
+              -0.49350277126040254
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": 0.045515378753541634
+            "score": 0.03299401193317886
           },
           {
             "action": {
@@ -886,16 +886,16 @@
               "col": 2
             },
             "continuation": [],
-            "immediate": 1.1532702965894428,
+            "immediate": 0.8109015422859516,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -56.6530585470323
+              -57.36040622758694
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.7090168248059624
+            "score": -0.714470128027383
           },
           {
             "action": {
@@ -904,20 +904,20 @@
               "col": 2
             },
             "continuation": [],
-            "immediate": -1.1962847231912104,
+            "immediate": -1.5386534774947007,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              4.989759902859201,
-              2.439633719457011,
-              -1.927193571117797
+              3.5346446742896527,
+              1.3836548558042763,
+              -2.1449096753924075
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": 0.01979590257907255
+            "score": 0.007239485924965945
           },
           {
             "action": {
@@ -926,16 +926,16 @@
               "col": 2
             },
             "continuation": [],
-            "immediate": -4.712951366591765,
+            "immediate": -5.055320120895256,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -49.00697493408493
+              -50.13873122297235
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6444419874845332
+            "score": -0.6546639887989988
           }
         ]
       }

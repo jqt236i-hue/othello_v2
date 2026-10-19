@@ -233,26 +233,6 @@ export function applyIsRobotVacuumWillScore(context: Pick<CardUseScoreContext, "
     return score;
 }
 
-export function applyIsEqualityWillScore(context: Pick<CardUseScoreContext, "isEqualityWill" | "ctx" | "getEqualityWillStealableAmount">, score: number): number {
-    const { isEqualityWill, ctx, getEqualityWillStealableAmount } = context;
-    if (isEqualityWill) {
-        score -= 10;
-        if (ctx.ownCharge <= 0) {
-            const stealableAmount = getEqualityWillStealableAmount(ctx.ownCharge, ctx.oppCharge);
-            if (stealableAmount > 0) {
-                score += 76 + (stealableAmount * 7);
-                if (ctx.handSize >= 3) score += 20;
-            } else if (!ctx.forceUseCard) {
-                score -= 130;
-            }
-        } else if (!ctx.forceUseCard) {
-            score -= 220;
-        }
-        if (ctx.empties <= 8) score -= 18;
-    }
-    return score;
-}
-
 export function applyIsReinforcementWillScore(context: Pick<CardUseScoreContext, "isReinforcementWill" | "cornerEmergency" | "ctx" | "hasCornerMoveNow" | "endgamePhase">, score: number): number {
     const { isReinforcementWill, cornerEmergency, ctx, hasCornerMoveNow, endgamePhase } = context;
     if (isReinforcementWill) {

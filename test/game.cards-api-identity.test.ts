@@ -61,7 +61,7 @@ describe('CardLogic facade identity contract', () => {
     const schemaHash = crypto.createHash('sha256')
       .update(JSON.stringify(descriptorSchema(first)))
       .digest('hex');
-    expect(schemaHash).toBe('083d1944dbc53dfa959198e9534daee5f45e1b6095557411dcaec47910307058');
+    expect(schemaHash).toBe('359910e26cef40e2ae948e1a62606de0c502bc9d0969edac55d7a7bcdc3e2da2');
   });
 
   test('fresh module reconstruction is a new facade with the same schema and no function alias drift', () => {

@@ -979,41 +979,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(9);
   });
 
-  test('breeding spawn を保ちつつ Equality Will の旧 spawn phase には breeding_spawn を重ねない', () => {
-    const base = [
-      {
-        type: 'spawn',
-        phase: 2,
-        targets: [{ r: 1, col: 1, cause: 'BREEDING', reason: 'breeding_spawn_immediate' }]
-      },
-      {
-        type: 'spawn',
-        phase: 4,
-        targets: [{ r: 2, col: 2, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
-      },
-      {
-        type: 'spawn',
-        phase: 5,
-        targets: [{ r: 2, col: 3, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
-      },
-      {
-        type: 'spawn',
-        phase: 6,
-        targets: [{ r: 2, col: 4, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }]
-      }
-    ];
-    const raw = [{ type: 'breeding_spawned_start', details: [{ row: 1, col: 1 }] }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const breedingCues = out
-      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'breeding_spawn')
-      .map((ev) => ({ phase: ev.phase, sourceType: ev.meta && ev.meta.sourceType }));
-
-    expect(breedingCues).toEqual([
-      { phase: 2, sourceType: 'breeding_spawned' }
-    ]);
-  });
-
   test('屍石を置いた phase に通常配置音と重ねる専用 sound_effect を追加する', () => {
     const base = [{
       type: 'status_applied',

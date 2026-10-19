@@ -29,7 +29,6 @@
 
 - 最後の切り札 (`LAST_RESORT`)
 - リボ払いの意志 (`RIBO_WILL`)
-- 平等の意志 (`EQUALITY_WILL`)
 - 腐食の意志 (`CORROSION_WILL`)
 - 救済の意志 (`SALVATION_WILL`)
 

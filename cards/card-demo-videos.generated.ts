@@ -91,7 +91,6 @@ export const CARD_DEMO_VIDEO_IDS: readonly string[] = Object.freeze([
     "living_will_01",
     "reinforcement_01",
     "support_troops_01",
-    "equality_will_01",
     "fate_will_01",
     "meteor_god_01",
     "chaos_summon_01",

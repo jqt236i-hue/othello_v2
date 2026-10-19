@@ -1371,7 +1371,7 @@ describe('card use source element selection', () => {
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
       global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
       global.CardLogic = {
-        getCardDef: (id) => ({ id, type: 'EQUALITY_WILL', name: '平等の意志', desc: 'd', cost: 1 })
+        getCardDef: (id) => ({ id, type: 'REINFORCEMENT_WILL', name: '増援の意志', desc: 'd', cost: 1 })
       };
       global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
         ok: true,
@@ -1379,7 +1379,7 @@ describe('card use source element selection', () => {
         nextGameState: global.gameState,
         playbackEvents: [
           { type: 'card_use_animation', targets: [{ player: 'black', owner: 'black', cardId: 'dup_card' }] },
-          { type: 'spawn', targets: [{ r: 2, col: 2, cause: 'EQUALITY_WILL', reason: 'equality_will_spawn' }] }
+          { type: 'spawn', targets: [{ r: 2, col: 2, cause: 'REINFORCEMENT_WILL', reason: 'reinforcement_will_spawn' }] }
         ]
       }));
 
@@ -1658,7 +1658,7 @@ describe('card use source element selection', () => {
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
       global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
       global.CardLogic = {
-        getCardDef: (id) => ({ id, type: 'EQUALITY_WILL', name: '平等の意志', desc: 'd', cost: 1 })
+        getCardDef: (id) => ({ id, type: 'REINFORCEMENT_WILL', name: '増援の意志', desc: 'd', cost: 1 })
       };
       global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
         ok: true,
@@ -1691,7 +1691,7 @@ describe('card use source element selection', () => {
       const playbackPromise = new Promise((resolve) => { resolvePlayback = resolve; });
       global.waitForPlaybackIdle = jest.fn(() => playbackPromise);
       global.CardLogic = {
-        getCardDef: (id) => ({ id, type: 'EQUALITY_WILL', name: '平等の意志', desc: 'd', cost: 1 })
+        getCardDef: (id) => ({ id, type: 'REINFORCEMENT_WILL', name: '増援の意志', desc: 'd', cost: 1 })
       };
       global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
         ok: true,

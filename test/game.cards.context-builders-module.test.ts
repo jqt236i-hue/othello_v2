@@ -58,7 +58,6 @@ describe('CardContextBuilders module', () => {
       helpers: {
         hasStandardLegalMoveForPlayer: jest.fn(),
         canUseLastResortForPlayer: jest.fn(),
-        canUseEqualityWillForPlayer: jest.fn(),
         canUseReinforcementWillForPlayer: jest.fn(),
         canUseTimeStopGodForPlayer: jest.fn(),
         countOpponentOccupiedCornersForPlayer: jest.fn(),

@@ -146,7 +146,7 @@
 - CPUの固有デッキ: `Lv9: 終焉の冥灰` を除く各CPUは、それぞれ固有の固定デッキを持てる。固有デッキはカードの種類ごとの枚数制限（同一カード3枚・特殊カード1枚）とデッキ枚数の制限（0〜30枚）を受けず、有効カードを何枚でも入れられる（探索の内部上限により1〜512枚）。固有デッキを設定していないCPUはデフォルトデッキを使う。固有デッキの正本は `shared/cpu-opponent-decks.ts` で、開発用のCPUデッキ調整ツール（`npm run cpu-decks:editor`、`http://127.0.0.1:8095/`）で編集し、`反映` で正本の保存と通常配信のビルドまで行う。初期状態は、Lv1〜Lv5がデフォルトデッキ、Lv6〜Lv8が下記の従来の固定デッキ、Lv10〜Lv13が `Lv9: 終焉の冥灰` と同じ全種デッキの構成
 - CPU のカード使用判断、手札破壊サイクル、カード使用後の対象選択はLv1〜Lv9で `Lv6: 盤理の観測者` 相当の共有カード方針を使う。通常配置の強さ、表示レベル、CPU専用デッキ、Lv8/Lv9 のカード使用解禁ターンは従来どおり各レベル/各プロフィールの設定を使う
 - CPU対戦で黒または白に `Lv6: 盤理の観測者` を選んだ場合、その側は固有デッキを使う。固有デッキの初期構成は従来の `D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.breeding_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.observer_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.reinforcement_01.support_troops_01` と同じ
-- CPU対戦で黒または白に `Lv7: 盤界の執行者` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使い、その側は固有デッキを使う。固有デッキの初期構成は従来の `D1C1:sniper_01.ghost_01.afterimage_will_01.swap_01.strong_wind_01.super_buoyancy_01.super_gravity_01.super_attraction_01.trap_01.tempt_01.capture_01.regen_01.destroy_01.proliferation_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.double_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.equality_will_01` と同じ
+- CPU対戦で黒または白に `Lv7: 盤界の執行者` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使い、その側は固有デッキを使う。固有デッキの初期構成は従来の `D1C1:sniper_01.ghost_01.afterimage_will_01.swap_01.strong_wind_01.super_buoyancy_01.super_gravity_01.super_attraction_01.trap_01.tempt_01.capture_01.regen_01.destroy_01.proliferation_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.double_01.board_executor_01.condemn_01.execution_01.guard_01.destroy_dragon_01.lightning_01.udg_01.board_shrink_01.blockade_01.meteor_01.chest_01` と同じ
 - CPU対戦で黒または白に `Lv8: 理論の化身` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使う。その側の初期所持布石は50とし、`turnNumber >= 8` になるまでカード使用を行わず通常の石配置だけを行う。その側は固有デッキを使う。固有デッキの初期構成は従来の `D1C1:ghost_01.perma_01.tempt_01.regen_01.udr_01.breeding_01.proliferation_01.clone_01.hyperactive_01.escape_01.robot_vacuum_01.will_hunter_king_01.instant_hyperactive_01.heaven_01.theory_incarnation_01.gold_stone.rainbow_stone.crystal_stone.extend_life_01.extend_life_god_01.guard_01.guardian_god_01.stone_salvation_god_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.meteor_god_01.chaos_summon_01*2` と同じ
 - CPU対戦で黒または白に `Lv9: 終焉の冥灰` を選んだ場合、CPU思考ロジックは `Lv6: 盤理の観測者` と同じものを使う。その側の初期所持布石は99とし、`turnNumber >= 6` になるまでカード使用を行わず通常の石配置だけを行う。その側はデフォルトデッキの代わりに、使用可能カード全種から `三連鎖の意志` / `四連鎖の意志` / `無限連鎖の意志` / `三連投石` / `四連投石` / `無限投石` を除いた専用デッキを使う。その側が対局中に生成・反転・数字マス・カード効果・ラウンドボーナスなどで布石を獲得する場合、既存のカード倍率や数字マス補正などを反映した最終獲得量へ常時2倍をかける。ただし初期所持布石、カード使用コスト、返金、返済、損失、相手から奪取・移動した布石は2倍にしない。布石上限は通常どおり99とする
 - CPU対戦で黒または白に `Lv10: 観測ダークドラゴン` を選んだ場合、初期布石・獲得倍率・上限・カード使用解禁ターンは `Lv9: 終焉の冥灰` と同じ共有設定を使い、デッキは固有デッキを使う。名前による観測特典や追加の優遇は設けず、通常配置・カード使用/見送り・手札破壊・対象選択はLv10専用の判断経路を使う。公開ルールにより見える情報だけを使い、相手の未公開手札、山札順、未来の乱数を参照しない
@@ -973,19 +973,6 @@ emainingOwnerTurns など持続情報は、複製元の値をそのまま引き�
 - 返済時に布石が4未満なら返済は行わず、代わりに自分の石をランダム4個破壊する
 - 破壊対象が4個未満なら、破壊できる分だけ破壊する
 - 完全保護付きの自石はこの破壊対象に含めない
-
-### 10.20.3 EQUALITY_WILL（平等の意志）
-
-- コスト0
-- 表示タイプ: 採掘
-- 使用条件: 自分の布石が0の時のみ使用可能
-- カード詳細パネルでは、選択中の `平等の意志` に対して `（自分布石N／相手布石M）` を常時表示し、現在の布石をすぐ比較できるようにする
-- 選択不要の即時効果として解決する
-- 使用時、相手の布石を最大10奪い、奪った分を自分へ加算する
-- 相手の布石が10未満なら、存在する布石数ぶんだけ奪う
-- 自分側の加算は布石上限99でクランプし、実際に増えた量だけ相手から減らす
-- 相手の布石が0でも使用条件を満たしていれば使用でき、奪取量0として解決する
-- 盤面の石生成・反転は発生しない
 
 ### 10.20.3 REINFORCEMENT_WILL（増援の意志）
 

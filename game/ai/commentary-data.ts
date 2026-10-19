@@ -112,7 +112,6 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   SALVATION_WILL: '破壊された石を救済する',
   REINFORCEMENT_WILL: '空きマスへ増援する',
   SUPPORT_TROOPS_WILL: '空きマスへ援軍を出す',
-  EQUALITY_WILL: '相手の布石を奪う'
 });
 
 function summarizeCardEffect(type: string, card: any): string {

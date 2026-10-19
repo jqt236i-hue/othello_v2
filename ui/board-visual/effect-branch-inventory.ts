@@ -312,7 +312,7 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     source: 'game/turn/pipeline-ui/board-event-playback.ts#planSpawnPlayback',
     eventTypes: ['spawn'],
     rawTypes: ['SPAWN'],
-    causes: ['BREEDING', 'REINFORCEMENT_WILL', 'SUPPORT_TROOPS_WILL', 'EQUALITY_WILL', 'SALVATION_WILL', 'STONE_SALVATION_GOD', 'SEED_WILL', 'GRASS_WILL'],
+    causes: ['BREEDING', 'REINFORCEMENT_WILL', 'SUPPORT_TROOPS_WILL', 'SALVATION_WILL', 'STONE_SALVATION_GOD', 'SEED_WILL', 'GRASS_WILL'],
     metaVariants: ['normal_spawn', 'breeding_spawn', 'salvation_spawn'],
     effectBlockPolicy: 'preserve-playback-base',
     effectFamilies: ['spawn'],

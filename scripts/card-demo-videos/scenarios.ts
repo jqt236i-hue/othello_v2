@@ -13,10 +13,10 @@ export const CROP_BOARD: Crop = { x: 420, y: 150, w: 440, h: 555 };
 export const CROP_WIDE: Crop = { x: 355, y: 90, w: 570, h: 610 };
 export const SPECIAL_CARD_IDS = new Set(['theory_incarnation_01', 'board_executor_01', 'observer_will_01']);
 // Cards whose effect shows in the opponent hand or a centered overlay need the wider crop.
-const WIDE_CROP_CARDS = new Set(['condemn_01', 'execution_01', 'reveal_hand_01', 'heaven_01', 'trap_01', 'rebuild_01', 'gluttonous_will_01', 'loss_will_01', 'equality_will_01']);
+const WIDE_CROP_CARDS = new Set(['condemn_01', 'execution_01', 'reveal_hand_01', 'heaven_01', 'trap_01', 'rebuild_01', 'gluttonous_will_01', 'loss_will_01']);
 // Cards whose effect happens during the card use animation, so that animation stays in the clip.
 export const SHOW_USE_CARD_IDS = new Set([
-    'chest_01', 'ribo_01', 'equality_will_01', 'rebuild_01', 'reveal_hand_01', 'execution_01', 'gluttonous_will_01',
+    'chest_01', 'ribo_01', 'rebuild_01', 'reveal_hand_01', 'execution_01', 'gluttonous_will_01',
     'reinforcement_01', 'support_troops_01', 'chaos_summon_01', 'salvation_01', 'loss_will_01', 'mass_freeze_will_01',
     'time_stop_god_01', 'time_stop_deity_01'
 ]);
@@ -566,7 +566,6 @@ S.board_shrink_god_01 = async (rec, page) => {
 const flipScore: MoveScore = (m) => m.flips * 2 - cd(m.row, m.col) * 0.2;
 S.chest_01 = (rec) => chargeDemo(rec, 'chest_01', { chargeBlack: 24 });
 S.ribo_01 = (rec) => chargeDemo(rec, 'ribo_01', { chargeBlack: 10 });
-S.equality_will_01 = async (rec, page) => { await setHands(page, { chargeWhite: 40 }); await chargeDemo(rec, 'equality_will_01', { chargeBlack: 0 }); };
 S.gold_stone = (rec) => chargeDemo(rec, 'gold_stone', { place: true, chargeBlack: 20, score: flipScore });
 S.silver_stone = (rec) => chargeDemo(rec, 'silver_stone', { place: true, chargeBlack: 20, score: flipScore });
 S.rainbow_stone = (rec) => chargeDemo(rec, 'rainbow_stone', { place: true, chargeBlack: 20, score: flipScore });

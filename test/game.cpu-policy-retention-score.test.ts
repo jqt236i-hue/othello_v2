@@ -1,108 +1,6 @@
 import { createCpuPolicyRetentionScore } from '../game/ai/cpu-policy-retention-score';
 
 describe('cpu-policy retention score module', () => {
-  test('keeps equality when own charge is zero', () => {
-    const helpers = createCpuPolicyRetentionScore();
-    const baseParams = {
-      ctx: {
-        discDiff: 0,
-        empties: 18,
-        legalMovesCount: 3,
-        handSize: 3,
-        ownCharge: 12
-      },
-      state: {
-        ownCorners: 1,
-        oppCorners: 1,
-        hasCornerMoveNow: false,
-        hasEdgeMoveNow: false,
-        cornerEmergency: false,
-        whiteLv6Mode: false,
-        recoveryCostGap: 0,
-        maxLegalFlips: 2,
-        maxLegalGain: 2,
-        maxLegalBoardBonus: 0,
-        highBonusMoveAvailable: false,
-        oppHandSize: 0,
-        ownSpecialCount: 0,
-        oppSpecialCount: 0,
-        ownCornerResetCount: 0,
-        oppCornerResetCount: 0,
-        ownEdgeResetCount: 0,
-        oppEdgeResetCount: 0,
-        ownAnchorResetWeight: 0,
-        oppAnchorResetWeight: 0
-      },
-      flags: {
-        cardType: 'EQUALITY_WILL',
-        isRecoveryCard: false,
-        isHoldCard: false,
-        isChargeRampCard: false,
-        isWorkWill: false,
-        isTimeBomb: false,
-        isTimeStopGod: false,
-        isLastResort: false,
-        isEqualityWill: true,
-        isReinforcementWill: false,
-        isHeavenBlessing: false,
-        isRevealHandWill: false,
-        isCondemnWill: false,
-        isExecutionWill: false,
-        isProtectedNextStone: false,
-        isAfterimageWill: false,
-        isGhostWill: false,
-        isPermaProtectNextStone: false,
-        isGuardWill: false,
-        isGuardianGod: false,
-        isRegenWill: false,
-        isLightningWill: false,
-        isHyperactiveWill: false,
-        isInstantHyperactiveWill: false,
-        isTabooReverseWill: false,
-        isCrossBomb: false,
-        isXBomb: false,
-        isUltimateDestroyGod: false,
-        isUltimateHyperactiveGod: false,
-        isThrowChainCard: false,
-        isChainWill: false,
-        isGoldStone: false,
-        isCrystalStone: false,
-        isRainbowStone: false,
-        isSilverStone: false,
-        isLossWill: false,
-        isCorrosionWill: false,
-        isTrapWill: false,
-        isTemptWill: false,
-        isExtendLifeWill: false,
-        isExtendLifeGod: false,
-        isExtendLifeCard: false,
-        isBlockadeWill: false,
-        isMeteorWill: false,
-        isBoardShrinkCard: false,
-        isDestroyDragonWill: false,
-        isGluttonousWill: false,
-        isTeleportWill: false,
-        isBuoyancyWill: false,
-        isGravityWill: false,
-        isSuperCrushWill: false,
-        isDefensiveCard: false,
-        isHighVarianceCard: false
-      },
-      cardCost: 0
-    } as const;
-
-    const hasCharge = helpers.computeCpuPolicyCardRetentionScore(baseParams as any);
-    const emptyCharge = helpers.computeCpuPolicyCardRetentionScore({
-      ...baseParams,
-      ctx: {
-        ...baseParams.ctx,
-        ownCharge: 0
-      }
-    } as any);
-
-    expect(emptyCharge).toBeGreaterThan(hasCharge);
-  });
-
   test('keeps teleport more strongly during corner emergency', () => {
     const helpers = createCpuPolicyRetentionScore();
     const safe = helpers.computeCpuPolicyCardRetentionScore({
@@ -144,7 +42,6 @@ describe('cpu-policy retention score module', () => {
         isTimeBomb: false,
         isTimeStopGod: false,
         isLastResort: false,
-        isEqualityWill: false,
         isReinforcementWill: false,
         isHeavenBlessing: false,
         isRevealHandWill: false,
@@ -231,7 +128,6 @@ describe('cpu-policy retention score module', () => {
         isTimeBomb: false,
         isTimeStopGod: false,
         isLastResort: false,
-        isEqualityWill: false,
         isReinforcementWill: false,
         isHeavenBlessing: false,
         isRevealHandWill: false,

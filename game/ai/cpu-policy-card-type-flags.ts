@@ -41,7 +41,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isThrowChainCard = throwChainCardTypes.includes(cardType);
         const isChainWill = chainWillCardTypes.includes(cardType);
         const isLastResort = cardType === 'LAST_RESORT';
-        const isEqualityWill = cardType === 'EQUALITY_WILL';
         const isReinforcementWill = (cardType === 'REINFORCEMENT_WILL' || cardType === 'SUPPORT_TROOPS_WILL');
         const isFreePlacement = (cardType === 'FREE_PLACEMENT' || cardType === 'LAST_RESORT');
         const isSniperWill = cardType === 'SNIPER_WILL';
@@ -118,7 +117,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isUltimateHyperactiveGod
         );
         const isChargeSwingCard = (
-            cardType === 'EQUALITY_WILL' ||
             cardType === 'GOLD_STONE' ||
             cardType === 'CRYSTAL_STONE' ||
             cardType === 'RAINBOW_STONE' ||
@@ -145,7 +143,6 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isThrowChainCard,
             isChainWill,
             isLastResort,
-            isEqualityWill,
             isReinforcementWill,
             isFreePlacement,
             isSniperWill,

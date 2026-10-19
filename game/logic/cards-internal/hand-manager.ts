@@ -1066,11 +1066,6 @@ function analyzeCardUsability(
         );
         if (usagePreconditionsChecked && !passesUsagePreconditionsForUsableList(cardState, gameState, playerKey, cardId, type, context, scope)) continue;
 
-        if (type === 'EQUALITY_WILL' && !usagePreconditionsChecked) {
-            if (typeof helpers.canUseEqualityWillForPlayer !== 'function') continue;
-            if (!helpers.canUseEqualityWillForPlayer(cardState, gameState, playerKey)) continue;
-        }
-
         if (type === 'CONDEMN_WILL') {
             const opponentKey = playerKey === 'black' ? 'white' : 'black';
             const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey]))

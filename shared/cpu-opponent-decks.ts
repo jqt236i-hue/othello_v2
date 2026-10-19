@@ -29,11 +29,11 @@ const CPU_OPPONENT_DECK_DATA: Record<string, string[] | null> = /* cpu-decks:beg
         "lightning_01", "ultimate_hyperactive_01", "board_expand_01", "board_shrink_01", "reinforcement_01", "support_troops_01"
     ],
     "7-board-executor": [
-        "sniper_01", "ghost_01", "afterimage_will_01", "swap_01", "strong_wind_01", "super_buoyancy_01",
-        "super_gravity_01", "super_attraction_01", "trap_01", "tempt_01", "capture_01", "regen_01",
-        "destroy_01", "proliferation_01", "teleport_01", "hyperactive_01", "will_hunter_king_01", "loss_will_01",
-        "double_01", "board_executor_01", "condemn_01", "execution_01", "guard_01", "destroy_dragon_01",
-        "lightning_01", "udg_01", "board_shrink_01", "blockade_01", "meteor_01", "equality_will_01"
+        "chest_01", "sniper_01", "ghost_01", "afterimage_will_01", "swap_01", "strong_wind_01",
+        "super_buoyancy_01", "super_gravity_01", "super_attraction_01", "trap_01", "tempt_01", "capture_01",
+        "regen_01", "destroy_01", "proliferation_01", "teleport_01", "hyperactive_01", "will_hunter_king_01",
+        "loss_will_01", "double_01", "board_executor_01", "condemn_01", "execution_01", "guard_01",
+        "destroy_dragon_01", "lightning_01", "udg_01", "board_shrink_01", "blockade_01", "meteor_01"
     ],
     "8-theory-incarnation": [
         "ghost_01", "perma_01", "tempt_01", "regen_01", "udr_01", "breeding_01",
@@ -57,8 +57,8 @@ const CPU_OPPONENT_DECK_DATA: Record<string, string[] | null> = /* cpu-decks:beg
         "stone_salvation_god_01", "destroy_dragon_01", "lightning_01", "udg_01", "ultimate_hyperactive_01", "board_expand_01",
         "board_expand_god_01", "board_shrink_01", "board_shrink_god_01", "blockade_01", "poison_will_01", "fire_will_01",
         "water_will_01", "grass_will_01", "meteor_01", "causal_replay_01", "freeze_01", "salvation_01",
-        "living_will_01", "reinforcement_01", "support_troops_01", "equality_will_01", "fate_will_01", "meteor_god_01",
-        "chaos_summon_01", "time_stop_deity_01", "reincarnation_will_01"
+        "living_will_01", "reinforcement_01", "support_troops_01", "fate_will_01", "meteor_god_01", "chaos_summon_01",
+        "time_stop_deity_01", "reincarnation_will_01"
     ],
     "11-execution-chaos-dragon": [
         "chest_01", "free_01", "last_resort_01", "sniper_01", "hard_01", "ghost_01",
@@ -75,8 +75,8 @@ const CPU_OPPONENT_DECK_DATA: Record<string, string[] | null> = /* cpu-decks:beg
         "stone_salvation_god_01", "destroy_dragon_01", "lightning_01", "udg_01", "ultimate_hyperactive_01", "board_expand_01",
         "board_expand_god_01", "board_shrink_01", "board_shrink_god_01", "blockade_01", "poison_will_01", "fire_will_01",
         "water_will_01", "grass_will_01", "meteor_01", "causal_replay_01", "freeze_01", "salvation_01",
-        "living_will_01", "reinforcement_01", "support_troops_01", "equality_will_01", "fate_will_01", "meteor_god_01",
-        "chaos_summon_01", "time_stop_deity_01", "reincarnation_will_01"
+        "living_will_01", "reinforcement_01", "support_troops_01", "fate_will_01", "meteor_god_01", "chaos_summon_01",
+        "time_stop_deity_01", "reincarnation_will_01"
     ],
     "12-strategy-cpu": [
         "sniper_01", "sniper_01", "sniper_01", "hard_01", "ghost_01", "ghost_01",

@@ -2272,7 +2272,7 @@
       },
       "publicRecipes": null,
       "config": {
-        "version": "lv13-keep-relocation",
+        "version": "lv13-no-corner-gift",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -2299,10 +2299,16 @@
         "shallowBudgetFraction": 0.3,
         "repairBudgetFraction": 0.25,
         "cardUseMargin": 0.1,
+        "cardUseMarginLate": 0,
+        "lateCardOpenPlacements": 12,
         "cardUseMarginByType": {},
         "destroyHandMargin": 0.08,
+        "drawHandLimit": 5,
+        "keepDraws": true,
         "cornerRootBonus": 0,
         "dangerRootPenalty": 0,
+        "cornerGiftPenalty": 8,
+        "cornerGiftMargin": 0.08,
         "cornerOnlyCardTypes": [
           "TELEPORT_WILL",
           "SWAP_WITH_ENEMY",
@@ -2322,7 +2328,7 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-keep-relocation",
+        "version": "lv13-no-corner-gift",
         "action": {
           "type": "place",
           "row": 2,
@@ -2654,7 +2660,7 @@
             "cross_bomb_01",
             "work_01",
             "guard_01",
-            "equality_will_01",
+            "teleport_01",
             "mass_freeze_will_01"
           ],
           "initialDeckSize": 93,
@@ -3202,7 +3208,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -3297,7 +3303,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -3615,7 +3621,7 @@
             "cross_bomb_01",
             "work_01",
             "guard_01",
-            "equality_will_01",
+            "teleport_01",
             "mass_freeze_will_01"
           ],
           "initialDeckSize": 93,
@@ -4163,7 +4169,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -4258,7 +4264,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -4618,7 +4624,7 @@
             "cross_bomb_01",
             "work_01",
             "guard_01",
-            "equality_will_01",
+            "teleport_01",
             "mass_freeze_will_01"
           ],
           "initialDeckSize": 93,
@@ -5166,7 +5172,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -5261,7 +5267,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -5320,8 +5326,8 @@
             "type": "pass"
           }
         ],
-        "value": -0.37877482895913506,
-        "transitions": 125,
+        "value": -0.37949243147668765,
+        "transitions": 121,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
@@ -5334,9 +5340,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          3528102667,
-          4114058467,
-          2649168967
+          3969081399,
+          260069903,
+          2504191899
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -5346,28 +5352,28 @@
           2,
           2
         ],
-        "evaluationCalls": 133,
-        "evaluationCacheHits": 14,
+        "evaluationCalls": 128,
+        "evaluationCacheHits": 13,
         "candidates": [
           {
             "action": {
               "type": "pass"
             },
             "continuation": [],
-            "immediate": -12.358788533681405,
+            "immediate": -11.932639756394114,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -25.050469759548168,
-              -23.788505518521173,
-              -27.17806320754549
+              -24.455772280722268,
+              -23.949823425757454,
+              -27.75613452159968
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.3888325644514657
+            "score": -0.38976315332074163
           },
           {
             "action": {
@@ -5388,18 +5394,18 @@
                 "type": "pass"
               }
             ],
-            "immediate": -12.591389561560861,
+            "immediate": -12.16524078427357,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -24.838429619029707,
-              -26.01371377783551
+              -24.243732140203807,
+              -26.55652790102594
             ],
             "scenarioSeeds": [
               100901,
               100913
             ],
-            "score": -0.37877482895913506
+            "score": -0.37949243147668765
           },
           {
             "action": {
@@ -5413,20 +5419,20 @@
                 "type": "pass"
               }
             ],
-            "immediate": -15.367905811655053,
+            "immediate": -14.941757034367761,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -28.91240755335802,
-              -27.579708544275565,
-              -58.39945761222167
+              -28.227684006097892,
+              -27.779609052269368,
+              -58.64641069684161
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.5952576372876421
+            "score": -0.5925668491395487
           }
         ]
       },
@@ -5638,7 +5644,7 @@
             "cross_bomb_01",
             "work_01",
             "guard_01",
-            "equality_will_01",
+            "teleport_01",
             "mass_freeze_will_01"
           ],
           "initialDeckSize": 93,
@@ -6186,7 +6192,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -6281,7 +6287,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -6289,7 +6295,7 @@
         ]
       },
       "config": {
-        "version": "lv13-keep-relocation",
+        "version": "lv13-no-corner-gift",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -6316,10 +6322,16 @@
         "shallowBudgetFraction": 0.3,
         "repairBudgetFraction": 0.25,
         "cardUseMargin": 0.1,
+        "cardUseMarginLate": 0,
+        "lateCardOpenPlacements": 12,
         "cardUseMarginByType": {},
         "destroyHandMargin": 0.08,
+        "drawHandLimit": 5,
+        "keepDraws": true,
         "cornerRootBonus": 0,
         "dangerRootPenalty": 0,
+        "cornerGiftPenalty": 8,
+        "cornerGiftMargin": 0.08,
         "cornerOnlyCardTypes": [
           "TELEPORT_WILL",
           "SWAP_WITH_ENEMY",
@@ -6339,13 +6351,13 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-keep-relocation",
+        "version": "lv13-no-corner-gift",
         "action": {
           "type": "pass"
         },
         "continuation": [],
-        "value": -0.3790157434107932,
-        "transitions": 125,
+        "value": -0.37988098876843246,
+        "transitions": 121,
         "elapsedMs": null,
         "stopped": "complete",
         "rejectedCount": 0,
@@ -6358,9 +6370,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          3528102667,
-          4114058467,
-          2649168967
+          3969081399,
+          260069903,
+          2504191899
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -6370,28 +6382,28 @@
           2,
           2
         ],
-        "evaluationCalls": 133,
-        "evaluationCacheHits": 14,
+        "evaluationCalls": 128,
+        "evaluationCacheHits": 13,
         "candidates": [
           {
             "action": {
               "type": "pass"
             },
             "continuation": [],
-            "immediate": -10.768788533681406,
+            "immediate": -10.342639756394114,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -23.35046975954817,
-              -22.088505518521174,
-              -27.17806320754549
+              -22.75577228072227,
+              -22.249823425757455,
+              -27.75613452159968
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.3790157434107932
+            "score": -0.37988098876843246
           },
           {
             "action": {
@@ -6412,18 +6424,18 @@
                 "type": "pass"
               }
             ],
-            "immediate": -11.001389561560861,
+            "immediate": -10.57524078427357,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -23.138429619029708,
-              -24.31371377783551
+              -22.543732140203808,
+              -24.85652790102594
             ],
             "scenarioSeeds": [
               100901,
               100913
             ],
-            "score": -0.4557991417232581
+            "score": -0.45653566241720367
           },
           {
             "action": {
@@ -6437,20 +6449,20 @@
                 "type": "pass"
               }
             ],
-            "immediate": -13.777905811655053,
+            "immediate": -13.351757034367761,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -27.21240755335802,
-              -25.879708544275566,
-              -56.91945761222167
+              -26.527684006097893,
+              -26.07960905226937,
+              -57.166410696841616
             ],
             "scenarioSeeds": [
               100901,
               100909,
               100913
             ],
-            "score": -0.6794226074441573
+            "score": -0.6766854058969392
           }
         ]
       },
@@ -7147,7 +7159,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -7242,7 +7254,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -8053,7 +8065,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -8148,7 +8160,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -8989,7 +9001,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -9084,7 +9096,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -9126,19 +9138,12 @@
       "result": {
         "version": "lv12-a04-additional-complete-root",
         "action": {
-          "type": "use_card",
-          "useCardId": "udg_01",
-          "useCardHandIndex": 3,
-          "useCardOwnerKey": "black"
+          "type": "place",
+          "row": 4,
+          "col": 4
         },
-        "continuation": [
-          {
-            "type": "place",
-            "row": 4,
-            "col": 4
-          }
-        ],
-        "value": -0.5111173479721002,
+        "continuation": [],
+        "value": -0.4168674278152572,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -9151,9 +9156,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          1457523166,
-          871567366,
-          578589466
+          1455344834,
+          2041300634,
+          2334278534
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -9162,8 +9167,8 @@
         "comparisonDepths": [
           3
         ],
-        "evaluationCalls": 138,
-        "evaluationCacheHits": 10,
+        "evaluationCalls": 137,
+        "evaluationCacheHits": 11,
         "candidates": [
           {
             "action": {
@@ -9179,16 +9184,18 @@
                 "col": 4
               }
             ],
-            "immediate": -24.433976820183723,
+            "immediate": -23.56586830313939,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -36.11142836610511
+              -43.794476497620856,
+              -23.120928739814218
             ],
             "scenarioSeeds": [
-              100901
+              100901,
+              100909
             ],
-            "score": -0.5111173479721002
+            "score": -0.5943004247420698
           },
           {
             "action": {
@@ -9197,16 +9204,16 @@
               "col": 6
             },
             "continuation": [],
-            "immediate": -30.42861942493973,
-            "retainedForDeepening": true,
+            "immediate": -29.300078352782098,
+            "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -77.31429565911976
+              -69.74201119310709
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.8360893448925182
+            "score": -0.7967755329633498
           },
           {
             "action": {
@@ -9229,16 +9236,16 @@
                 "col": 6
               }
             ],
-            "immediate": -31.08595248979361,
+            "immediate": -29.957411417635978,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -42.623469369102104
+              -70.38344483446065
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.5823370521799884
+            "score": -0.8004060863116375
           },
           {
             "action": {
@@ -9247,16 +9254,16 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": -31.466539178453612,
-            "retainedForDeepening": false,
+            "immediate": -30.207781828739332,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -51.35598807106538
+              -28.409251837399637
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6653971586012605
+            "score": -0.4168674278152572
           },
           {
             "action": {
@@ -9272,16 +9279,16 @@
                 "col": 2
               }
             ],
-            "immediate": -24.74543636188462,
-            "retainedForDeepening": false,
+            "immediate": -23.877327844840288,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -45.79021967510097
+              -41.303115446682455
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6140968322067406
+            "score": -0.5685388612359737
           },
           {
             "action": {
@@ -9304,16 +9311,16 @@
                 "col": 6
               }
             ],
-            "immediate": -31.08595248979361,
-            "retainedForDeepening": true,
+            "immediate": -29.957411417635978,
+            "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -77.51439464927348
+              -69.94426752075444
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.837027837188547
+            "score": -0.7979265939505447
           }
         ]
       },
@@ -10010,7 +10017,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -10105,7 +10112,7 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
+          "teleport_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -10113,7 +10120,7 @@
         ]
       },
       "config": {
-        "version": "lv13-keep-relocation",
+        "version": "lv13-no-corner-gift",
         "maxTransitions": 6144,
         "maxMs": 4700,
         "maxRetainedPlans": 32,
@@ -10140,10 +10147,16 @@
         "shallowBudgetFraction": 0.3,
         "repairBudgetFraction": 0.25,
         "cardUseMargin": 0.1,
+        "cardUseMarginLate": 0,
+        "lateCardOpenPlacements": 12,
         "cardUseMarginByType": {},
         "destroyHandMargin": 0.08,
+        "drawHandLimit": 5,
+        "keepDraws": true,
         "cornerRootBonus": 0,
         "dangerRootPenalty": 0,
+        "cornerGiftPenalty": 8,
+        "cornerGiftMargin": 0.08,
         "cornerOnlyCardTypes": [
           "TELEPORT_WILL",
           "SWAP_WITH_ENEMY",
@@ -10163,21 +10176,14 @@
         "milliseconds": null
       },
       "result": {
-        "version": "lv13-keep-relocation",
+        "version": "lv13-no-corner-gift",
         "action": {
-          "type": "use_card",
-          "useCardId": "udg_01",
-          "useCardHandIndex": 3,
-          "useCardOwnerKey": "black"
+          "type": "place",
+          "row": 4,
+          "col": 4
         },
-        "continuation": [
-          {
-            "type": "place",
-            "row": 4,
-            "col": 4
-          }
-        ],
-        "value": -0.6227384300798688,
+        "continuation": [],
+        "value": -0.43198299667637574,
         "transitions": 128,
         "elapsedMs": null,
         "stopped": "node_budget",
@@ -10190,9 +10196,9 @@
         "scenarioTimeCuts": 0,
         "scenarioNodeCuts": 0,
         "scenarioSampleSeeds": [
-          1457523166,
-          871567366,
-          578589466
+          1455344834,
+          2041300634,
+          2334278534
         ],
         "alternatePlanRepairs": 0,
         "additionalDeepeningAttempts": 0,
@@ -10201,8 +10207,8 @@
         "comparisonDepths": [
           3
         ],
-        "evaluationCalls": 138,
-        "evaluationCacheHits": 10,
+        "evaluationCalls": 137,
+        "evaluationCacheHits": 11,
         "candidates": [
           {
             "action": {
@@ -10218,16 +10224,18 @@
                 "col": 4
               }
             ],
-            "immediate": -25.393976820183724,
+            "immediate": -24.52586830313939,
             "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -37.12642836610511
+              -43.794476497620856,
+              -23.860928739814216
             ],
             "scenarioSeeds": [
-              100901
+              100901,
+              100909
             ],
-            "score": -0.6227384300798688
+            "score": -0.6943004247420698
           },
           {
             "action": {
@@ -10236,16 +10244,16 @@
               "col": 6
             },
             "continuation": [],
-            "immediate": -31.49861942493973,
-            "retainedForDeepening": true,
+            "immediate": -30.370078352782098,
+            "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -77.31429565911976
+              -70.4820111931071
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.8360893448925182
+            "score": -0.800958839345429
           },
           {
             "action": {
@@ -10268,16 +10276,16 @@
                 "col": 6
               }
             ],
-            "immediate": -32.15595248979361,
+            "immediate": -31.027411417635978,
             "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -43.638469369102104
+              -71.12344483446066
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.5927214763703498
+            "score": -0.8045227895197021
           },
           {
             "action": {
@@ -10286,16 +10294,16 @@
               "col": 4
             },
             "continuation": [],
-            "immediate": -32.591539178453615,
-            "retainedForDeepening": false,
+            "immediate": -31.332781828739332,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -52.315988071065384
+              -29.589251837399637
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6736726400417938
+            "score": -0.43198299667637574
           },
           {
             "action": {
@@ -10311,16 +10319,16 @@
                 "col": 2
               }
             ],
-            "immediate": -25.705436361884622,
-            "retainedForDeepening": false,
+            "immediate": -24.83732784484029,
+            "retainedForDeepening": true,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -46.53021967510097
+              -40.56311544668245
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.6212478465396668
+            "score": -0.6606623555130835
           },
           {
             "action": {
@@ -10343,16 +10351,16 @@
                 "col": 6
               }
             ],
-            "immediate": -32.15595248979361,
-            "retainedForDeepening": true,
+            "immediate": -31.027411417635978,
+            "retainedForDeepening": false,
             "additionalDeepeningAttempted": false,
             "replies": [
-              -77.51439464927348
+              -70.68426752075445
             ],
             "scenarioSeeds": [
               100901
             ],
-            "score": -0.937027837188547
+            "score": -0.802088816002461
           }
         ]
       },
@@ -10774,7 +10782,7 @@
           "board_shrink_01",
           "blockade_01",
           "meteor_01",
-          "equality_will_01"
+          "chest_01"
         ],
         "initialCharge": null,
         "chargeGainMultiplier": null,
@@ -10814,7 +10822,7 @@
           "board_shrink_01",
           "blockade_01",
           "meteor_01",
-          "equality_will_01"
+          "chest_01"
         ],
         "initialCharge": null,
         "chargeGainMultiplier": null,
@@ -11022,7 +11030,6 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -11125,7 +11132,6 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -11244,7 +11250,6 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -11347,7 +11352,6 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -11364,8 +11368,8 @@
       "id": "11-execution-chaos-dragon",
       "level": 11,
       "decisionLevel": 11,
-      "name": "執行エグゼキューションカオスドラゴン",
-      "menuLabel": "Lv11: 執行エグゼキューションカオスドラゴン",
+      "name": "執行エグゼキューションサクリファイスドラゴン",
+      "menuLabel": "Lv11: 執行エグゼキューションサクリファイスドラゴン",
       "portraitSrc": "assets/images/cpu/execution-chaos-dragon.png",
       "deckProfile": "lv9-ending-ash-all-enabled",
       "initialCharge": 99,
@@ -11466,7 +11470,6 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -11569,7 +11572,6 @@
           "living_will_01",
           "reinforcement_01",
           "support_troops_01",
-          "equality_will_01",
           "fate_will_01",
           "meteor_god_01",
           "chaos_summon_01",
@@ -11846,9 +11848,9 @@
       "id": "13-truth-chaos-emperor-beast",
       "level": 13,
       "decisionLevel": 13,
-      "name": "真理カオスロジカルエンペラービースト",
-      "menuLabel": "Lv13: 真理カオスロジカルエンペラービースト",
-      "portraitSrc": "assets/images/cpu/theory-chaos-logical-emperor-beast.png",
+      "name": "宇宙",
+      "menuLabel": "Lv13: 宇宙",
+      "portraitSrc": "assets/images/cpu/universe-transparent.png",
       "deckProfile": "lv9-ending-ash-all-enabled",
       "initialCharge": 99,
       "initialChargeByPlayer": {

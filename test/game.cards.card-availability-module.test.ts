@@ -51,7 +51,7 @@ describe('card availability module', () => {
     });
   });
 
-  test('applies last resort threshold and equality charge condition with canonical counts', () => {
+  test('applies last resort threshold with canonical counts', () => {
     const availability = createAvailability({
       hasStandardLegalMoveForPlayer: jest.fn((_cardState, _gameState, playerKey) => playerKey === 'white')
     });
@@ -63,13 +63,6 @@ describe('card availability module', () => {
 
     expect(availability.canUseLastResortForPlayer(cardState, gameState, 'black')).toBe(true);
     expect(availability.canUseLastResortForPlayer(cardState, gameState, 'white')).toBe(false);
-    expect(availability.canUseEqualityWillForPlayer(cardState, gameState, 'black')).toBe(false);
-    expect(availability.canUseEqualityWillForPlayer(
-      { charge: { black: 0, white: 25 }, markers: [] },
-      gameState,
-      'black'
-    )).toBe(true);
-    expect(availability.getEqualityWillChargeState(cardState, 'black')).toEqual({ own: 1, opponent: 25 });
   });
 
   test('forwards reinforcement target counts and disc disadvantage helpers', () => {
@@ -84,7 +77,6 @@ describe('card availability module', () => {
     const cardState = { markers: [] };
 
     expect(availability.getDiscDisadvantageForPlayer(cardState, gameState, 'white')).toBe(1);
-    expect(availability.getEqualityWillBoardCounts(cardState, gameState)).toEqual({ black: 2, white: 1 });
     expect(availability.hasFewerDiscsThanOpponentForPlayer(cardState, gameState, 'white')).toBe(true);
     expect(availability.getReinforcementWillTargetCount(cardState, gameState, 'black')).toBe(3);
     expect(availability.getSupportTroopsWillTargetCount(cardState, gameState, 'black')).toBe(3);

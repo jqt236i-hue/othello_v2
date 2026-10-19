@@ -43,7 +43,6 @@ type CpuPolicyRetentionFlags = {
     isTimeBomb: boolean;
     isTimeStopGod: boolean;
     isLastResort: boolean;
-    isEqualityWill: boolean;
     isReinforcementWill: boolean;
     isHeavenBlessing: boolean;
     isRevealHandWill: boolean;
@@ -130,7 +129,6 @@ export function createCpuPolicyRetentionScore() {
             isTimeBomb,
             isTimeStopGod,
             isLastResort,
-            isEqualityWill,
             isReinforcementWill,
             isHeavenBlessing,
             isRevealHandWill,
@@ -208,16 +206,6 @@ export function createCpuPolicyRetentionScore() {
             if (ctx.legalMovesCount > 0) score -= 220;
             if (ctx.discDiff >= 0) score -= 260;
             if (ctx.legalMovesCount <= 0 && ctx.discDiff < 0) score += 40;
-        }
-
-        if (isEqualityWill) {
-            if (ctx.ownCharge <= 0) {
-                score += 180;
-                if (ctx.handSize >= 3) score += 30;
-            } else {
-                score -= 180;
-            }
-            if (ctx.empties <= 8) score -= 24;
         }
 
         if (isReinforcementWill) {

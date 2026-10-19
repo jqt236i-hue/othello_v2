@@ -65,17 +65,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         return Math.max(0, Math.floor(maxLegalBoardBonus || 0)) - Math.max(0, Number(cardCost) || 0);
     }
 
-    function getEqualityWillStealableAmount(ownCharge: unknown, oppCharge: unknown): number {
-        const normalizedOwnCharge = Number.isFinite(Number(ownCharge))
-            ? Math.max(0, Math.floor(Number(ownCharge)))
-            : 0;
-        const availableOpponentCharge = Number.isFinite(Number(oppCharge))
-            ? Math.max(0, Math.floor(Number(oppCharge)))
-            : 0;
-        const playerChargeRoom = Math.max(0, 99 - normalizedOwnCharge);
-        return Math.min(10, availableOpponentCharge, playerChargeRoom);
-    }
-
     function getMovementCornerSwingTargetCount(context: any, cardType: string): number {
         const counts = context && context.movementCornerSwingTargetCounts;
         if (counts && typeof counts === 'object' && Object.prototype.hasOwnProperty.call(counts, cardType)) {
@@ -116,7 +105,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isThrowChainCard,
             isChainWill,
             isLastResort,
-            isEqualityWill,
             isReinforcementWill,
             isFreePlacement,
             isSniperWill,
@@ -587,8 +575,6 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isTeleportWill,
             isHyperactiveInheritWill,
             isRobotVacuumWill,
-            isEqualityWill,
-            getEqualityWillStealableAmount,
             isReinforcementWill,
             isGluttonousWill,
             highVarianceInHandCount,

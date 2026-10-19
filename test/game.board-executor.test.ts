@@ -70,7 +70,6 @@ const PREVIOUS_BOARD_EXECUTOR_FLIP_GAIN_SOURCE_TYPES = [
   'proliferation_immediate',
   'stone_salvation_god_immediate',
   'generated_spawn_immediate',
-  'equality_will_immediate',
   'reinforcement_will_immediate',
   'support_troops_will_immediate',
   'salvation_will_immediate'

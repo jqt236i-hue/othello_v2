@@ -36,7 +36,7 @@
 ## 石を置く / 増やす系
 
 **代表カード**
-- 繁殖の意志 (`BREEDING_WILL`), 増殖の意志 (`PROLIFERATION_WILL`), 複製の意志 (`CLONE_WILL`), 平等の意志 (`EQUALITY_WILL`), 増援の意志 (`REINFORCEMENT_WILL`), 種まきの意志 (`SEED_WILL` 芽生え), 救済神 (`STONE_SALVATION_GOD` revive)。
+- 繁殖の意志 (`BREEDING_WILL`), 増殖の意志 (`PROLIFERATION_WILL`), 複製の意志 (`CLONE_WILL`), 増援の意志 (`REINFORCEMENT_WILL`), 種まきの意志 (`SEED_WILL` 芽生え), 救済神 (`STONE_SALVATION_GOD` revive)。
 
 **仕様上の説明**
 - `01-rulebook.md` では、繁殖・増殖・複製・平等・増援・種・救済神が盤面に石を追加する。各生成石、種の芽生え石、救済神 revive 石で挟める列があれば通常反転する。
@@ -45,9 +45,9 @@
 **実装上の処理順**
 - `BoardOps.spawnAt()` が空き/封鎖を確認し、着地点の `SEED` を `_invalidateSeedMarkerAt()` で `STATUS_REMOVED` にしてから、盤面値・`stoneId` を設定し `SPAWN` を emit する。
 - 複数生成は `BoardOps.spawnMany()` が `runSpawnBlock()` 内で順に `spawnAt()` を呼ぶ。
-- `CardLogic.resolveEqualityWillUsage()` / `resolveReinforcementWillUsage()` は `spawnAt()` 後に通常反転を処理する経路を持つ。
+- `CardLogic.resolveReinforcementWillUsage()` は `spawnAt()` 後に通常反転を処理する経路を持つ。
 - `game/logic/cards/breeding.ts` は `deps.BoardOps.spawnAt()` を使う。
-- `BoardOps._inferSpawnIntent()` は `BREEDING`, `PROLIFERATION_WILL`, `CLONE_WILL`, `EQUALITY_WILL`, `REINFORCEMENT_WILL`, `STONE_SALVATION_GOD` などから `spawnIntent` を補完する。
+- `BoardOps._inferSpawnIntent()` は `BREEDING`, `PROLIFERATION_WILL`, `CLONE_WILL`, `REINFORCEMENT_WILL`, `STONE_SALVATION_GOD` などから `spawnIntent` を補完する。
 
 **主な BoardOps API**
 - `spawnAt()`, `spawnMany()`, `runSpawnBlock()`, `emitPresentationEvent()`。
@@ -70,19 +70,6 @@
 **効果音の扱い**
 - `pipeline_ui_adapter.ts`: `_planCoreSoundCues()` と `_pushRepeatedCueForCardEffectSpawnProfiles()` が `breeding_spawn` を追加する。救済神 revive も `soundSourceType: stone_salvation_god_revive` だが sound key は `breeding_spawn`。
 - 種の芽生えは `seed_sprout` と `breeding_spawn` が使われることが `test/game.pipeline-ui-adapter.sound-cue.test.ts` で確認されている。
-
-**Event Sequence 例: 平等の意志**
-1. `SPAWN`
-   - cause: `EQUALITY_WILL`
-   - reason: `equality_will_spawn`
-2. `CHANGE`（挟めた場合）
-   - reason: `equality_will_flip`
-3. playback:
-   - `spawn` phase
-   - `flip` phase
-4. sound:
-   - spawn phase に `breeding_spawn`
-   - flip phase に `card_effect_flip`
 
 **関連コード参照**
 - `game/logic/board_ops.ts`: `spawnAt()`, `spawnMany()`, `_inferSpawnIntent()`, `_invalidateSeedMarkerAt()`。

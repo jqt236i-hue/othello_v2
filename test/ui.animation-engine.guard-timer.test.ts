@@ -2556,46 +2556,6 @@ describe('animation-engine guard timer rendering', () => {
     sleepSpy.mockRestore();
   });
 
-  test('Equality Will spawn keeps purple cell highlight visible briefly', async () => {
-    const engine = require('../ui/animation-engine');
-    const board = document.getElementById('board')!;
-
-    const targetCell = document.createElement('div');
-    targetCell.className = 'cell';
-    targetCell.dataset.row = '2';
-    targetCell.dataset.col = '5';
-    board.appendChild(targetCell);
-
-    const addSpy = jest.spyOn(targetCell.classList, 'add');
-    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = setAnimationEngineDomBackendSleepControl();
-
-    await engine.handleSpawn({
-      type: 'spawn',
-      targets: [{
-        r: 2,
-        col: 5,
-        cause: 'EQUALITY_WILL',
-        reason: 'equality_will_spawn',
-        ownerAfter: 'black',
-        after: { color: 1, special: null, timer: null, owner: 'black' }
-      }]
-    });
-
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
-    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
-    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(sleepSpy).toHaveBeenCalled();
-    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
-
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
-    sleepSpy.mockRestore();
-  });
-
   test('Salvation Will spawn keeps purple cell highlight visible briefly', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;

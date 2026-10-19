@@ -146,14 +146,6 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
-    if (cardType === 'EQUALITY_WILL') {
-        if (!context || typeof context.canUseEqualityWillForPlayer !== 'function') {
-            return buildFailureResult();
-        }
-        return context.canUseEqualityWillForPlayer(context.cardState, context.gameState, context.playerKey)
-            ? result
-            : buildFailureResult();
-    }
     if (cardType === 'REINFORCEMENT_WILL') {
         if (!context || !context.gameState || typeof context.canUseReinforcementWillForPlayer !== 'function') {
             return buildFailureResult();

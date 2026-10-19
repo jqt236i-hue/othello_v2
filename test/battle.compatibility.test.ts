@@ -16,7 +16,7 @@ test('historical pre-Reincarnation save is explicitly incompatible and remains a
         players: { black: { controller: 'human', profile: '10' }, white: { controller: 'cpu', profile: '10' } } });
     const after = now.startTurn()!.after;
     expect(baseline.records[0].prng.calls).toBe(273);
-    expect(after.prngState.calls).toBe(273);
+    expect(after.prngState.calls).toBe(271);
     expect(Hash.computeStableHash(comparableProductionState(after))).not.toBe(baseline.records[0].hash);
 });
 

@@ -59,8 +59,7 @@ describe('card detail effect tags', () => {
         cost: 30,
         desc: '反転0でも空きマスに配置可能。次に置く石を龍化。置いた時に周囲1マス（8方向）を反転。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）を反転。移動先が無いときはその場で反転。8ターン持続。反転無効を持つ特殊石。'
       }),
-      getSalvationWillTargetCount: () => 0,
-      getEqualityWillChargeState: () => ({ own: 0, opponent: 0 })
+      getSalvationWillTargetCount: () => 0
     };
 
     global.renderCardUI = jest.fn();
@@ -471,30 +470,6 @@ describe('card detail effect tags', () => {
 
     expect(document.getElementById('card-detail-live-state').style.display).toBe('none');
     expect(document.getElementById('card-detail-more').textContent).toContain('自ターン開始ごとに4布石を返済する');
-  });
-
-  test('EQUALITY_WILL detail panel shows current charge counts as live state', () => {
-    require('../cards/card-interaction.js');
-
-    const cardDef = {
-      id: 'equality_will_01',
-      name: '平等の意志',
-      type: 'EQUALITY_WILL',
-      cost: 0,
-      desc: '相手の布石を最大10奪う。自分の布石が0のときに使用可能。'
-    };
-
-    global.cardState.selectedCardId = cardDef.id;
-    global.cardState.hands.black = [cardDef.id];
-    global.CardLogic.getCardDef = () => cardDef;
-    global.CardLogic.getEqualityWillChargeState = () => ({ own: 0, opponent: 25 });
-
-    window.updateCardDetailPanel();
-
-    const stateEl = document.getElementById('card-detail-live-state');
-    expect(stateEl).not.toBeNull();
-    expect(stateEl.textContent).toBe('（自分布石0／相手布石25）');
-    expect(stateEl.style.display).toBe('block');
   });
 
   test('REINFORCEMENT_WILL detail panel shows current candidate count as live state', () => {

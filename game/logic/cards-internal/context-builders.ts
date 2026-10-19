@@ -25,7 +25,6 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
             return requireResolverMethod(contextDeps.CardEffectResolverModule, 'getCardHandManagerContext')({
                 hasStandardLegalMoveForPlayer: helpers.hasStandardLegalMoveForPlayer,
                 canUseLastResortForPlayer: helpers.canUseLastResortForPlayer,
-                canUseEqualityWillForPlayer: helpers.canUseEqualityWillForPlayer,
                 canUseReinforcementWillForPlayer: helpers.canUseReinforcementWillForPlayer,
                 canUseSupportTroopsWillForPlayer: helpers.canUseSupportTroopsWillForPlayer,
                 canUseTimeStopGodForPlayer: helpers.canUseTimeStopGodForPlayer,

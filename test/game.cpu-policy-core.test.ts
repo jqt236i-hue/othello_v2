@@ -231,34 +231,6 @@ describe('cpu-policy-core', () => {
         }));
     });
 
-    test('chooseHandDestroyTargetForCycle destroys EQUALITY_WILL when own charge is available', () => {
-        const selected = core.chooseHandDestroyTargetForCycle(
-            ['equality_01'],
-            [],
-            () => 15,
-            () => ({ id: 'equality_01', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                ownCharge: 20,
-                handSize: 1,
-                empties: 24,
-                discDiff: -8,
-                ownCorners: 0,
-                oppCorners: 1,
-                ownEdges: 2,
-                oppEdges: 4,
-                hasCornerMoveNow: false,
-                cornerEmergency: true
-            }
-        );
-        expect(selected).toEqual(expect.objectContaining({
-            cardId: 'equality_01',
-            reason: 'bucket3_currently_unusable'
-        }));
-    });
-
     test('chooseHandDestroyTargetForCycle immediately destroys REVEAL_HAND_WILL while charge is 50 or lower', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['reveal_01'],
@@ -2195,90 +2167,6 @@ describe('cpu-policy-core', () => {
         expect(trailing.score).toBeGreaterThan(aheadEndgame.score);
     });
 
-    test('scoreCardUseDecision treats EQUALITY_WILL as a zero-charge swing option', () => {
-        const emptyCharge = core.scoreCardUseDecision(
-            'equality',
-            () => 0,
-            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                discDiff: 0,
-                empties: 26,
-                ownCharge: 0,
-                oppCharge: 25,
-                handSize: 3,
-                ownDiscs: 14,
-                oppDiscs: 14,
-                ownCorners: 0,
-                oppCorners: 1,
-                ownEdges: 2,
-                oppEdges: 5,
-                usableCardIds: ['equality'],
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: true,
-                cornerEmergency: true
-            }
-        );
-        const hasCharge = core.scoreCardUseDecision(
-            'equality',
-            () => 0,
-            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 4,
-                discDiff: -12,
-                empties: 26,
-                ownCharge: 12,
-                oppCharge: 25,
-                handSize: 3,
-                ownDiscs: 8,
-                oppDiscs: 20,
-                ownCorners: 1,
-                oppCorners: 1,
-                ownEdges: 4,
-                oppEdges: 4,
-                usableCardIds: [],
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: true,
-                cornerEmergency: false
-            }
-        );
-        const noOpponentCharge = core.scoreCardUseDecision(
-            'equality',
-            () => 0,
-            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                discDiff: 0,
-                empties: 26,
-                ownCharge: 0,
-                oppCharge: 0,
-                handSize: 3,
-                ownDiscs: 14,
-                oppDiscs: 14,
-                ownCorners: 0,
-                oppCorners: 1,
-                ownEdges: 2,
-                oppEdges: 5,
-                usableCardIds: ['equality'],
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: true,
-                cornerEmergency: true
-            }
-        );
-
-        expect(emptyCharge.shouldUse).toBe(true);
-        expect(hasCharge.shouldUse).toBe(false);
-        expect(noOpponentCharge.shouldUse).toBe(false);
-        expect(emptyCharge.score).toBeGreaterThan(hasCharge.score);
-        expect(emptyCharge.score).toBeGreaterThan(noOpponentCharge.score);
-    });
-
     test('scoreCardUseDecision treats REINFORCEMENT_WILL as a recovery option under pressure', () => {
         const pressured = core.scoreCardUseDecision(
             'reinforcement',
@@ -2589,48 +2477,6 @@ describe('cpu-policy-core', () => {
         );
         expect(selected).toBeTruthy();
         expect(selected.cardId).toBe('last');
-    });
-
-    test('scoreCardRetentionPriority keeps EQUALITY_WILL when own charge is zero', () => {
-        const emptyCharge = core.scoreCardRetentionPriority(
-            'equality',
-            () => 0,
-            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                handSize: 4,
-                discDiff: 0,
-                empties: 24,
-                ownCorners: 0,
-                oppCorners: 1,
-                hasCornerMoveNow: false,
-                cornerEmergency: true,
-                ownCharge: 0
-            }
-        );
-        const hasCharge = core.scoreCardRetentionPriority(
-            'equality',
-            () => 0,
-            () => ({ id: 'equality', type: 'EQUALITY_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                handSize: 4,
-                discDiff: -12,
-                empties: 24,
-                ownCorners: 0,
-                oppCorners: 1,
-                hasCornerMoveNow: false,
-                cornerEmergency: true,
-                ownCharge: 12
-            }
-        );
-
-        expect(emptyCharge.score).toBeGreaterThan(hasCharge.score);
-        expect(hasCharge.score).toBeLessThan(0);
     });
 
     test('scoreCardRetentionPriority devalues REINFORCEMENT_WILL when corner recovery pressure is absent', () => {
@@ -3022,16 +2868,6 @@ describe('cpu-policy-core', () => {
         expect(core.hasUsageStyleForCardType('THEORY_INCARNATION')).toBe(true);
         expect(core.hasMovePlanProfileForCardType('THEORY_INCARNATION')).toBe(true);
         expect(core.getMovePlanProfileForCardType('THEORY_INCARNATION')).toEqual(expect.objectContaining({
-            archetype: 'economyCycle',
-            placementWeight: 0
-        }));
-    });
-
-    test('EQUALITY_WILL keeps an explicit economy profile without free-placement recovery classification', () => {
-        expect(core.isCornerRecoveryCardType('EQUALITY_WILL')).toBe(false);
-        expect(core.hasUsageStyleForCardType('EQUALITY_WILL')).toBe(true);
-        expect(core.hasMovePlanProfileForCardType('EQUALITY_WILL')).toBe(true);
-        expect(core.getMovePlanProfileForCardType('EQUALITY_WILL')).toEqual(expect.objectContaining({
             archetype: 'economyCycle',
             placementWeight: 0
         }));

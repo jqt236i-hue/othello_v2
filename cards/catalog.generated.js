@@ -758,14 +758,6 @@ window.CardCatalog = {
       "display_type_ja": "繁栄"
     },
     {
-      "id": "equality_will_01",
-      "name_ja": "平等の意志",
-      "type": "EQUALITY_WILL",
-      "cost": 0,
-      "desc_ja": "相手の布石を最大10奪う。自分の布石が0のときに使用可能。",
-      "display_type_ja": "採掘"
-    },
-    {
       "id": "fate_will_01",
       "name_ja": "運命の意志",
       "type": "FATE_WILL",

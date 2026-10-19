@@ -128,21 +128,6 @@ describe('PresentationEffectProfiles', () => {
     )).toBeNull();
   });
 
-  test('equality will is treated as a positive normal spawn profile', () => {
-    const profile = profiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.find((one) => one && one.cause === 'EQUALITY_WILL');
-    expect(profile).toEqual(expect.objectContaining({
-      cause: 'EQUALITY_WILL',
-      reasonPrefix: 'equality_will_spawn',
-      spawnIntent: 'normal_spawn'
-    }));
-
-    expect(profiles.matchesSpawnProfileTarget({
-      cause: 'EQUALITY_WILL',
-      reason: 'equality_will_spawn',
-      meta: { spawnIntent: 'normal_spawn' }
-    }, 'EQUALITY_WILL', 'equality_will_spawn', profile)).toBe(true);
-  });
-
   test('card-effect spawn playback profiles centralize cause and reason matching', () => {
     expect(profiles.CARD_EFFECT_SPAWN_PLAYBACK_PROFILES).toEqual([
       { spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' },
@@ -166,7 +151,7 @@ describe('PresentationEffectProfiles', () => {
     expect(profiles.inferSpawnIntent('SALVATION_WILL', 'salvation_spawn')).toBe('salvation_spawn');
     expect(profiles.inferSpawnIntent('STONE_SALVATION_GOD', 'stone_salvation_god_revive')).toBe('salvation_spawn');
     expect(profiles.inferSpawnIntent('LIVING_WILL', 'living_will_restored')).toBe('restore_spawn');
-    expect(profiles.inferSpawnIntent('EQUALITY_WILL', 'not_a_reason')).toBe(null);
+    expect(profiles.inferSpawnIntent('FATE_WILL', 'not_a_reason')).toBe(null);
     expect(profiles.inferSpawnIntent('REINFORCEMENT_WILL', 'also_not_a_spawn_reason')).toBe('normal_spawn');
     expect(profiles.inferSpawnIntent('SUPPORT_TROOPS_WILL', 'support_troops_will_spawn')).toBe('normal_spawn');
     expect(profiles.inferSpawnIntent('SYSTEM', 'standard_spawn')).toBe('normal_spawn');

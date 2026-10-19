@@ -30,7 +30,6 @@
 | type | 実装上の条件 |
 | --- | --- |
 | `LAST_RESORT` | `canUseLastResortForPlayer` が真。catalog 上は「石数負けかつ合法手0」。 |
-| `EQUALITY_WILL` | `canUseEqualityWillForPlayer` が真。catalog 上は「石数が10個以上負け」。 |
 | `REINFORCEMENT_WILL` | `canUseReinforcementWillForPlayer` が真。増援配置できる対象が必要。 |
 | `RIBO_WILL` | `turnIndex >= RIBO_WILL_UNLOCK_TURN_INDEX`。現行定数は19。 |
 | `TIME_STOP_GOD` | `canUseTimeStopGodForPlayer` が真。使用時に自分石3つを破壊し、次に置く石を時間停石化する。 |
@@ -50,7 +49,6 @@
 | --- | --- | --- |
 | `TREASURE_BOX` | deterministic PRNG で1〜3布石を得る。 | pending を即 clear。rulebook 上、宝箱使用では `card_use_button` を再生しない。 |
 | `RIBO_WILL` | 布石を30得て、9ターン返済 entry を積む。 | pending を即 clear。ターン開始時に4返済し、不足時は自石4個を破壊する。 |
-| `EQUALITY_WILL` | 空きマスへ最大3個ランダム生成し、生成後に挟める場合は反転処理も行う。 | pending を即 clear。生成/反転は playback event 化される。 |
 | `REINFORCEMENT_WILL` | 石に隣接する内側空きマスへ1個ランダム生成し、生成後に挟める場合は反転処理も行う。 | pending を即 clear。生成/反転は playback event 化される。 |
 | `TIME_STOP_GOD` | 使用解決時に自石破壊コスト相当の処理結果を raw event へ出す。 | `hand-manager.ts` では手札追加時に自動で捨て札へ移す。配置型として残った場合は時間停石 marker を置く処理もある。 |
 | `REBUILD_WILL` | 残り手札を全破壊し、最大3枚 draw する。 | pending を即 clear。手札破壊は `HAND_CLEAR` -> `hand_remove`。 |
@@ -147,7 +145,7 @@
 | `ROBOT_VACUUM` | `robot_vacuum_suck` は吸い込み演出を使い、対象破壊後の cell clear も専用扱い。 |
 | `GLUTTONOUS_WILL` / `GLUTTONOUS` | 捕食破壊は専用 profile があり、捕食破壊と進入移動を同一フェーズで扱う仕様。 |
 | `WILL_HUNTER_KING` | `will_hunter_king_slash` は斬撃演出 profile。 |
-| `BREEDING` / `EQUALITY_WILL` / `REINFORCEMENT_WILL` / `SALVATION_WILL` / `STONE_SALVATION_GOD` / `CLONE_WILL` / `PROLIFERATION_WILL` | spawn 系ポジティブ強調 profile。 |
+| `BREEDING` / `REINFORCEMENT_WILL` / `SALVATION_WILL` / `STONE_SALVATION_GOD` / `CLONE_WILL` / `PROLIFERATION_WILL` | spawn 系ポジティブ強調 profile。 |
 | `TIME_BOMB` / `CROSS_BOMB` / `X_BOMB` / `ESCAPE_HYPERACTIVE` | batch/bomb destroy cause としてまとめて破壊フェーズ化される。 |
 | `BUOYANCY_WILL` / `SUPER_BUOYANCY_WILL` / `GRAVITY_WILL` / `SUPER_GRAVITY_WILL` / `SUPER_ATTRACTION_WILL` | pipeline adapter の移動系 cause set に含まれる。通常の浮力/重力は縦方向 slide、超浮力/超重力/超引力は movement 実装側で経路上または到達先の石を破壊する。 |
 | `TABOO_REVERSE_WILL` / 龍 / 連鎖 / 復活 / 繁殖 / 躍動 / 交換 / 誘惑などのカード効果反転 | `card_effect_flip` 音の対象。 |
@@ -238,7 +236,6 @@
 | 救済の意志 | `SALVATION_WILL` | 17 | 有効 | 直前の相手ターンで破壊された全ての石を救済し、自分の通常石として空きマスにランダム配置。 | 対象選択なし/配置時または即時処理 | 専用の特殊石画像マップなし / 救済配置は spawn 系のポジティブ強調対象。 |
 | 生きる意志 | `LIVING_WILL` | 20 | 有効 | 自分の石1つに生きる意志を付与。失われる時に1回だけ、付与時点の石状態で復活する。元マスが使えない時は別の空きマスへ復活。 | 対象選択あり | 専用の特殊石画像マップなし / 復活時は対応する復活イベントとして再生される。 |
 | 増援の意志 | `REINFORCEMENT_WILL` | 4 | 有効 | 石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)配置先が未消費の数字マスでも、数字マスは通常配置と同じく消費されるが、その数字マス由来の布石と理論の化身の数字マス獲得進捗は獲得しない。 | 対象選択なし/配置時または即時処理 | 専用の特殊石画像マップなし / 増援配置は spawn 系のポジティブ強調対象。 |
-| 平等の意志 | `EQUALITY_WILL` | 15 | 有効 | 空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。 | 対象選択なし/配置時または即時処理 | 専用の特殊石画像マップなし / ランダム配置は spawn 系のポジティブ強調対象。 |
 | 運命の意志 | `FATE_WILL` | 50 | 有効 | 次の相手のターンを自分が操作できる。 | 対象選択なし/配置時または即時処理 | 専用の特殊石画像マップなし / カード共通の使用/手札/盤面イベント再生のみ確認。 |
 
 ## 根拠ファイル

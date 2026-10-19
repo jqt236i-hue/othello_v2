@@ -26,7 +26,6 @@ export function createProductionCardFixture(cardId: string, player: Lv10Player, 
         [player]: [{ row: 0, col: 1, owner: player, wasSpecial: false }, { row: 0, col: 2, owner: opponent, wasSpecial: false }],
         [opponent]: []
     };
-    if (cardId === 'equality_will_01') cs.charge[player] = 0;
     if (cardId === 'last_resort_01') {
         gs.board = Array.from({ length: 8 }, (_, row) => Array.from({ length: 8 }, (_, col) =>
             row >= 3 && row <= 5 && col >= 3 && col <= 5 ? -sign : 0));

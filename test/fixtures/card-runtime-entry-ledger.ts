@@ -103,7 +103,7 @@ const FACADE_COLD_CACHE_QUERY = Object.freeze([
   'getCardContext', 'buildCondemnOffers', 'getCardDef', 'getCardType', 'getCardDisplayName',
   'getCardCodeName', 'getCardCost', 'buildHeavenBlessingSeedHint', 'getHandCopyIdAt',
   'getHandCopyIds', 'isCardCopyIdRevealedToViewer', 'getEffectiveCardCostForCopy',
-  'getEqualityWillBoardCounts', 'getEqualityWillChargeState', 'getReinforcementWillTargetCount',
+  'getReinforcementWillTargetCount',
   'getSupportTroopsWillTargetCount', 'getLossWillRemovableCount', 'collectMassFreezeWillTargets',
   'getMassFreezeWillTargetCount', 'getSalvationWillTargetCount', 'getExecutionWillTargetCount',
   'getFateWillControllerForTurnOwner'
@@ -138,7 +138,7 @@ const FACADE_CANONICAL_EVENT_MUTATION = Object.freeze([
   'syncHazardContacts', 'processPoisonTurnEnd', 'processStatusCellTurnEnd', 'applyFreezeWill',
   'applySeedWill', 'applySeedMarker', 'applyMassFreezeWill',
   'applyBuoyancyWill', 'applySuperBuoyancyWill', 'applyGravityWill', 'applySuperGravityWill',
-  'armRiboWillEffect', 'resolveEqualityWillUsage', 'consumeTimeStopConsecutiveTurn', 'applyRegenWill',
+  'armRiboWillEffect', 'consumeTimeStopConsecutiveTurn', 'applyRegenWill',
   'applyRegenAfterFlips', 'processTimeStopEffectsAtTurnStartAnchor', 'cancelPendingSelection',
   'transferCellMarkerOwnership', 'applyTrapWill', 'processTrapEffects', 'applyCausalReplayWill'
 ]);

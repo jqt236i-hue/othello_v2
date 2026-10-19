@@ -96,13 +96,6 @@ describe('pipeline_ui_adapter normal logs', () => {
     expect(out).toEqual(['黒: 意志の凍結: 特殊石4個を5ターン凍結']);
   });
 
-  test('maps equality resolution to player-facing effect log', () => {
-    const out = Adapter.mapEffectLogsFromPipeline([
-      { type: 'equality_will_resolved', player: 'black', stolenAmount: 10 }
-    ], [], 'black');
-    expect(out).toEqual(['黒: 平等の意志: 布石を10奪取']);
-  });
-
   test('maps reinforcement resolution to player-facing effect log', () => {
     const out = Adapter.mapEffectLogsFromPipeline([
       { type: 'reinforcement_will_resolved', player: 'black', spawnedCount: 1, flippedCount: 2 }

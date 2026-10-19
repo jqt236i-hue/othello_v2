@@ -90,8 +90,6 @@ export interface CardUseScoreContext {
     readonly isTeleportWill: boolean;
     readonly isHyperactiveInheritWill: boolean | undefined;
     readonly isRobotVacuumWill: boolean;
-    readonly isEqualityWill: boolean;
-    readonly getEqualityWillStealableAmount: (ownCharge: unknown, oppCharge: unknown) => number;
     readonly isReinforcementWill: boolean;
     readonly isGluttonousWill: boolean;
     readonly highVarianceInHandCount: number;

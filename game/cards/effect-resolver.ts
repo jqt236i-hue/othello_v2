@@ -70,7 +70,6 @@ function getCardHandManagerContext(deps: any) {
   const {
     hasStandardLegalMoveForPlayer,
     canUseLastResortForPlayer,
-    canUseEqualityWillForPlayer,
     canUseReinforcementWillForPlayer,
     canUseSupportTroopsWillForPlayer,
     canUseTimeStopGodForPlayer,
@@ -139,7 +138,6 @@ function getCardHandManagerContext(deps: any) {
     helpers: {
       hasStandardLegalMoveForPlayer,
       canUseLastResortForPlayer,
-      canUseEqualityWillForPlayer,
       canUseReinforcementWillForPlayer,
       canUseSupportTroopsWillForPlayer,
       canUseTimeStopGodForPlayer,
