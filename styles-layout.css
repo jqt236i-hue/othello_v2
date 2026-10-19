@@ -279,18 +279,30 @@ html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-
     left: 0;
     bottom: calc(var(--supply-index) * min(var(--supply-disc-size) * 0.58, (100% - var(--supply-disc-size)) / max(1, var(--supply-slots) - 1)));
     width: var(--supply-disc-size);
-    height: var(--supply-disc-size);
+    /* A shallow face and shaded rim suggest resting, slightly tilted discs.
+       Reserve stones stay matte and dimmer than the stones in play. */
+    height: calc(var(--supply-disc-size) * 0.88);
     box-sizing: border-box;
     border-radius: 50%;
-    background: radial-gradient(circle at 32% 24%, #5b5e60 0, #222526 16%, #090b0c 53%, #010202 82%);
-    border: calc(0.7px * var(--layout-stage-scale)) solid #4e5050;
-    box-shadow: inset 0 calc(-2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) #000, 0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+    background:
+        radial-gradient(ellipse at 36% 24%, rgba(141, 147, 131, 0.13), transparent 64%),
+        linear-gradient(155deg, #30342f 0%, #1c201c 46%, #0d100e 82%);
+    border: calc(0.7px * var(--layout-stage-scale)) solid #383d35;
+    box-shadow:
+        inset 0 calc(0.8px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(169, 173, 150, 0.12),
+        inset 0 calc(-2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72),
+        0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.7);
 }
 
 .board-stone-supply--white .board-stone-supply-disc {
-    background: radial-gradient(circle at 32% 24%, #fff 0, #faf9f3 30%, #deded6 68%, #a7aaa4 100%);
-    border-color: #e5e4d9;
-    box-shadow: inset 0 calc(-2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(90, 92, 84, 0.7), 0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+    background:
+        radial-gradient(ellipse at 36% 24%, rgba(230, 225, 208, 0.16), transparent 64%),
+        linear-gradient(155deg, #bcb8aa 0%, #a6a598 46%, #7f8276 82%);
+    border-color: #777b6d;
+    box-shadow:
+        inset 0 calc(0.8px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) rgba(233, 226, 201, 0.18),
+        inset 0 calc(-2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(59, 64, 52, 0.68),
+        0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.7);
 }
 
 /* Narrow phone rails keep their stones and count inside the existing frame. */
