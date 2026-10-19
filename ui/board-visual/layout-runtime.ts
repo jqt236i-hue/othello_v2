@@ -396,10 +396,23 @@ export function createBoardLayoutRuntime(dependencies: BoardLayoutRuntimeDepende
       };
   }
 
-  function _applyBoardFramePixelSizing(frameMetrics: any, outerWidth: any, outerHeight: any, shape: any) {
+  // The standard frame is sized for an 8x8 board. When the board covers clearly
+  // less than that on an axis (a 4-column board, 8 rows under 9 columns), the
+  // frame follows the board so no empty band remains between them. Slack below
+  // half a cell is cell-size flooring, not a gap, so the standard frame is kept.
+  function _resolveBoardFrameFitOuterSize(baseOuter: number, contentOuter: number, padding: number, cellSize: number) {
+      const fitted = contentOuter + padding;
+      return (baseOuter - fitted) >= Math.max(BOARD_FRAME_OVERSIZE_TOLERANCE_PX, cellSize / 2)
+          ? fitted
+          : null;
+  }
+
+  function _applyBoardFramePixelSizing(frameMetrics: any, outerWidth: any, outerHeight: any, shape: any, cellSize: number) {
       if (!frameMetrics || !frameMetrics.frameElement || !frameMetrics.frameElement.style) return;
       const frameWidth = Math.max(frameMetrics.baseOuterWidth, outerWidth + frameMetrics.paddingX);
       const frameHeight = Math.max(frameMetrics.baseOuterHeight, outerHeight + frameMetrics.paddingY);
+      const fitWidth = _resolveBoardFrameFitOuterSize(frameMetrics.baseOuterWidth, outerWidth, frameMetrics.paddingX, cellSize);
+      const fitHeight = _resolveBoardFrameFitOuterSize(frameMetrics.baseOuterHeight, outerHeight, frameMetrics.paddingY, cellSize);
       const allowFrameExpansion = _isBoardShapeOversizeForPixelSizing(shape);
       const oversizeActive = allowFrameExpansion && (
           frameWidth > (frameMetrics.baseOuterWidth + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)
@@ -407,15 +420,32 @@ export function createBoardLayoutRuntime(dependencies: BoardLayoutRuntimeDepende
       );
       if (allowFrameExpansion && frameWidth > (frameMetrics.baseOuterWidth + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)) {
           frameMetrics.frameElement.style.setProperty('--board-frame-outer-width', `${frameWidth}px`);
+      } else if (fitWidth !== null) {
+          frameMetrics.frameElement.style.setProperty('--board-frame-outer-width', `${fitWidth}px`);
       } else {
           frameMetrics.frameElement.style.removeProperty('--board-frame-outer-width');
       }
       if (allowFrameExpansion && frameHeight > (frameMetrics.baseOuterHeight + BOARD_FRAME_OVERSIZE_TOLERANCE_PX)) {
           frameMetrics.frameElement.style.setProperty('--board-frame-outer-height', `${frameHeight}px`);
+      } else if (fitHeight !== null) {
+          frameMetrics.frameElement.style.setProperty('--board-frame-outer-height', `${fitHeight}px`);
       } else {
           frameMetrics.frameElement.style.removeProperty('--board-frame-outer-height');
       }
       _setBoardOversizeLayoutState(frameMetrics.frameElement, oversizeActive);
+  }
+
+  // Pixi keeps the frame at the physical viewport: it never grows with
+  // expansion, but still shrinks to a base board smaller than the standard one.
+  function _applyPixiBoardFrameFit(frameMetrics: any, viewportOuterWidth: number, viewportOuterHeight: number, cellSize: number) {
+      const frameElement = frameMetrics && frameMetrics.frameElement;
+      if (!frameElement || !frameElement.style) return;
+      const fitWidth = _resolveBoardFrameFitOuterSize(frameMetrics.baseOuterWidth, viewportOuterWidth, frameMetrics.paddingX, cellSize);
+      const fitHeight = _resolveBoardFrameFitOuterSize(frameMetrics.baseOuterHeight, viewportOuterHeight, frameMetrics.paddingY, cellSize);
+      if (fitWidth !== null) frameElement.style.setProperty('--board-frame-outer-width', `${fitWidth}px`);
+      else frameElement.style.removeProperty('--board-frame-outer-width');
+      if (fitHeight !== null) frameElement.style.setProperty('--board-frame-outer-height', `${fitHeight}px`);
+      else frameElement.style.removeProperty('--board-frame-outer-height');
   }
 
   // PR2 v2: page-state listeners (visibilitychange / pageshow). Visible-tab
@@ -652,7 +682,7 @@ export function createBoardLayoutRuntime(dependencies: BoardLayoutRuntimeDepende
       boardElement.style.setProperty('--board-disc-size-px', `${discSize}px`);
       boardElement.style.setProperty('--board-rows', String(viewportShape.rows));
       boardElement.style.setProperty('--board-cols', String(viewportShape.cols));
-      _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, viewportShape);
+      _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, viewportShape, cellSize);
 
       const anchorOffset = _getBoardAnchorOffsetForPixelSizing(viewportShape, cellSize);
       boardElement.style.left = anchorOffset.x ? `${anchorOffset.x}px` : '';
@@ -746,6 +776,15 @@ export function createBoardLayoutRuntime(dependencies: BoardLayoutRuntimeDepende
 
       const frameElement = _getBoardFrameElementForPixelSizing(host);
       _clearBoardFramePixelSizingVars(frameElement);
+      const frameMetrics = measurement && measurement.baseSize && measurement.baseSize.frameMetrics;
+      if (frameMetrics && frameMetrics.frameElement === frameElement) {
+          _applyPixiBoardFrameFit(
+              frameMetrics,
+              baseContentWidth + borderWidth,
+              baseContentHeight + borderHeight,
+              cellSize
+          );
+      }
       _setBoardOversizeLayoutState(frameElement, false);
 
       if (typeof host.getBoundingClientRect === 'function') {

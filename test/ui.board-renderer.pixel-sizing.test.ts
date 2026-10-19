@@ -42,7 +42,7 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.getPropertyValue('--board-disc-inset-px')).toBe('4px');
     expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('69px');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
-    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('666px');
     expect(document.body.classList.contains('board-oversize-active')).toBe(false);
   });
 
@@ -93,6 +93,24 @@ describe('board renderer pixel sizing', () => {
     expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
     expect(document.body.classList.contains('board-oversize-active')).toBe(false);
+  });
+
+  test('syncBoardPixelSizing shrinks the frame to a narrow 4x8 board without entering oversize mode', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 4 });
+
+    expect(boardEl.style.width).toBe('348px');
+    expect(boardEl.style.height).toBe('696px');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('398px');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
+    expect(document.body.classList.contains('board-oversize-active')).toBe(false);
+
+    boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 8 });
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
   });
 
   test('syncBoardPixelSizing keeps standard 8x8 out of oversize mode even when border-box rounding would expand the frame', () => {
@@ -280,7 +298,7 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.width).toBe('701px');
     expect(boardEl.style.height).toBe('624px');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
-    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('674px');
   });
 
   test('syncBoardPixelSizing clears stale inline sizing when the board cannot be measured', () => {
