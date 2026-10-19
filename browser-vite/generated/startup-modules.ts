@@ -739,6 +739,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/stone-skin/controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-skin/controller.js"),
   "ui/stone-skin/runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-skin/runtime.js"),
   "ui/stone-skin/selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-skin/selection.js"),
+  "ui/stone-supply-display": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-supply-display.js"),
   "ui/stone-visuals": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-visuals.js"),
   "ui/storage/action-log": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/storage/action-log.js"),
   "ui/storage/appearance-default-migration": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/storage/appearance-default-migration.js"),
@@ -1539,6 +1540,7 @@ installBootModuleMetadata({
     "ui/stone-skin/controller",
     "ui/stone-skin/runtime",
     "ui/stone-skin/selection",
+    "ui/stone-supply-display",
     "ui/stone-visuals",
     "ui/storage/action-log",
     "ui/storage/appearance-default-migration",
@@ -1670,4 +1672,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 778;
+export const startupModuleCount = 779;

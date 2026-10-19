@@ -198,6 +198,122 @@ html.layout-profile-phone-portrait #board-frame[data-board-frame-skin-id="study-
     --board-frame-art-overhang: 0px;
 }
 
+/* Physical reserve trays are frame chrome, independent of the board backend.
+   White stays on the left and black on the right, including network white seats. */
+.board-stone-supply {
+    --supply-side-padding: var(--board-frame-padding-left);
+    --supply-tray-width: min(calc(32px * var(--layout-stage-scale)), calc((var(--supply-side-padding) + var(--board-frame-art-overhang)) * 0.74));
+    --supply-disc-size: calc(var(--supply-tray-width) - 6px * var(--layout-stage-scale));
+    position: absolute;
+    top: calc(var(--board-frame-padding-top) + 5px * var(--layout-stage-scale));
+    bottom: calc(var(--board-frame-padding-bottom) + 5px * var(--layout-stage-scale));
+    width: var(--supply-tray-width);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(4px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    border: calc(1px * var(--layout-stage-scale)) solid #9b753d;
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.88), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.88)),
+        repeating-linear-gradient(92deg, #21150e 0, #21150e 2px, #1b120d 3px, #1b120d 6px);
+    box-shadow: inset 0 0 calc(5px * var(--layout-stage-scale)) #000, 0 0 0 calc(1px * var(--layout-stage-scale)) #19130d;
+    color: #e3c17b;
+    z-index: 2;
+    pointer-events: none;
+    user-select: none;
+}
+
+.board-stone-supply[hidden] {
+    display: none;
+}
+
+.board-stone-supply--white {
+    left: calc((var(--supply-side-padding) - var(--board-frame-art-overhang)) / 2);
+    transform: translateX(-50%);
+}
+
+.board-stone-supply--black {
+    --supply-side-padding: var(--board-frame-padding-right);
+    right: calc((var(--supply-side-padding) - var(--board-frame-art-overhang)) / 2);
+    transform: translateX(50%);
+}
+
+.board-stone-supply-label {
+    flex: none;
+    font-size: calc(8px * var(--layout-stage-scale));
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    text-shadow: 0 1px 1px #000;
+}
+
+.board-stone-supply-count {
+    flex: none;
+    width: 100%;
+    border-top: calc(1px * var(--layout-stage-scale)) solid rgba(173, 132, 67, 0.6);
+    padding-top: calc(3px * var(--layout-stage-scale));
+    font-size: calc(16px * var(--layout-stage-scale));
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px #000;
+}
+
+.board-stone-supply.has-large-count .board-stone-supply-count {
+    font-size: calc(12px * var(--layout-stage-scale));
+}
+
+.board-stone-supply-stack {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: var(--supply-disc-size);
+}
+
+.board-stone-supply-disc {
+    position: absolute;
+    left: 0;
+    bottom: calc(var(--supply-index) * min(var(--supply-disc-size) * 0.58, (100% - var(--supply-disc-size)) / max(1, var(--supply-slots) - 1)));
+    width: var(--supply-disc-size);
+    height: var(--supply-disc-size);
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 24%, #5b5e60 0, #222526 16%, #090b0c 53%, #010202 82%);
+    border: calc(0.7px * var(--layout-stage-scale)) solid #4e5050;
+    box-shadow: inset 0 calc(-2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) #000, 0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+}
+
+.board-stone-supply--white .board-stone-supply-disc {
+    background: radial-gradient(circle at 32% 24%, #fff 0, #faf9f3 30%, #deded6 68%, #a7aaa4 100%);
+    border-color: #e5e4d9;
+    box-shadow: inset 0 calc(-2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(90, 92, 84, 0.7), 0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+}
+
+/* Narrow phone rails keep their stones and count inside the existing frame. */
+html.layout-profile-phone-portrait .board-stone-supply {
+    gap: calc(2px * var(--layout-stage-scale));
+    padding: calc(3px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale));
+    --supply-disc-size: calc(var(--supply-tray-width) - 4px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .board-stone-supply-label {
+    writing-mode: vertical-rl;
+    font-size: calc(7px * var(--layout-stage-scale));
+    letter-spacing: 0.05em;
+}
+
+html.layout-profile-phone-portrait .board-stone-supply-count {
+    font-size: calc(10px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait .board-stone-supply.has-large-count .board-stone-supply-count {
+    font-size: calc(8px * var(--layout-stage-scale));
+}
+
 /* Occupancy Indicators */
 .occupancy-badge {
     position: fixed;

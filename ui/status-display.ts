@@ -1,4 +1,5 @@
 import type { PlayerKey } from '../src/types';
+import { renderStoneSupplyTrays } from './stone-supply-display';
 import {
     setLogicalImageSourceIfChanged
 } from './assets/logical-image-source';
@@ -821,6 +822,9 @@ function renderBattleStatusStoneSupply(el: any): void {
 }
 
 function updateBattleStatusPanel(): void {
+    if (typeof document !== 'undefined') {
+        renderStoneSupplyTrays(document.getElementById('board-frame'), getCardStateForStatusDisplay());
+    }
     const panel = ensureBattleStatusPanel();
     if (!panel) return;
     const roundEl = panel.querySelector('.battle-status-round');
