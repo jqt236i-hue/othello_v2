@@ -209,6 +209,41 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('shows the public remaining deck count when the network snapshot carries no deck contents', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    delete window.cardState.decks;
+    window.cardState.deckRemainingByPlayer = { black: 80, white: 75 };
+    window.cardState.initialDeckSizeByPlayer = { black: 92, white: 92 };
+    window.renderCardUI();
+
+    const bottomDeckEl = window.document.getElementById('deck-black');
+    const topDeckEl = window.document.getElementById('deck-white');
+
+    expect(bottomDeckEl.querySelector('.deck-count')?.textContent).toBe('75/92');
+    expect(bottomDeckEl.style.getPropertyValue('--deck-ratio')).toBe(String(75 / 92));
+    expect(topDeckEl.querySelector('.deck-count')?.textContent).toBe('80/92');
+    expect(topDeckEl.style.getPropertyValue('--deck-ratio')).toBe(String(80 / 92));
+
+    dom.window.close();
+  });
+
+  test('shows 0 once the public remaining deck count reaches 0', () => {
+    const dom = createRendererContext({ seatKey: 'black' });
+    const { window } = dom;
+
+    delete window.cardState.decks;
+    window.cardState.deckRemainingByPlayer = { black: 0, white: 4 };
+    window.cardState.initialDeckSizeByPlayer = { black: 92, white: 92 };
+    window.renderCardUI();
+
+    expect(window.document.getElementById('deck-black').querySelector('.deck-count')?.textContent).toBe('0/92');
+    expect(window.document.getElementById('deck-white').querySelector('.deck-count')?.textContent).toBe('4/92');
+
+    dom.window.close();
+  });
+
   test('shows the time stop active badge near the top HUD for the controlling viewer', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;

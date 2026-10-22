@@ -1891,6 +1891,22 @@ function _resolveTurnWithoutPlacementForRender(cardState: any, gameState: any, t
     catch (e) { /* 判定できない時は暗くしない */ }
     return false;
 }
+// ネット対戦の公開スナップショットは山札の中身を持たず、残り枚数だけを deckRemainingByPlayer で渡す。
+function _resolveDeckCountForRender(cardState: any, ownerKey: PlayerOwnerKey): number {
+    const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
+    const ownDeck = (decks && Array.isArray(decks[ownerKey])) ? decks[ownerKey] : null;
+    if (ownDeck && ownDeck.length > 0)
+        return ownDeck.length;
+    const publicCounts = (cardState && cardState.deckRemainingByPlayer && typeof cardState.deckRemainingByPlayer === 'object')
+        ? cardState.deckRemainingByPlayer
+        : null;
+    const publicCount = publicCounts ? Number(publicCounts[ownerKey]) : NaN;
+    if (Number.isFinite(publicCount))
+        return Math.max(0, Math.trunc(publicCount));
+    if (ownDeck)
+        return ownDeck.length;
+    return Array.isArray(cardState.deck) ? cardState.deck.length : 0;
+}
 function renderCardUI() {
     const gameState = _resolveCardRendererGameState();
     const cardState = _normalizeCardStateForRender(_resolveCardRendererCardState());
@@ -1922,13 +1938,8 @@ function _renderCardUIWithPrefetchedLayout(gameState: any, cardState: any, slotE
     const chargeWhiteEl = document.getElementById('charge-white');
     renderVisibleChargeDisplays(cardState, { matchMode });
     _drainChargeDeltaPopups(cardState, { matchMode });
-    const decks = (cardState && cardState.decks && typeof cardState.decks === 'object') ? cardState.decks : null;
-    const deckCountBlack = (decks && Array.isArray(decks.black))
-        ? decks.black.length
-        : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
-    const deckCountWhite = (decks && Array.isArray(decks.white))
-        ? decks.white.length
-        : (Array.isArray(cardState.deck) ? cardState.deck.length : 0);
+    const deckCountBlack = _resolveDeckCountForRender(cardState, 'black');
+    const deckCountWhite = _resolveDeckCountForRender(cardState, 'white');
     const initialByPlayer = (cardState && cardState.initialDeckSizeByPlayer && typeof cardState.initialDeckSizeByPlayer === 'object')
         ? cardState.initialDeckSizeByPlayer
         : null;

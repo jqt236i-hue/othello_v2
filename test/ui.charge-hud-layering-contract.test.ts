@@ -37,4 +37,23 @@ describe('charge HUD layering contract', () => {
     expect(animationsCss).toMatch(/\.special-card-cinematic-overlay\s*\{[\s\S]*z-index:\s*24000/);
     expect(variablesCss).toMatch(/--layout-z-charge-delta:\s*24020/);
   });
+
+  test('hand pick overlay (condemn / observer / heaven blessing) sits above the charge HUD and board toasts but below chat and modals', () => {
+    const variablesCss = readRepoTextFile('styles-variables.css');
+    const cardsCss = readRepoTextFile('styles-cards.css');
+
+    expectCssBlockToContain(cardsCss, '.heaven-blessing-overlay', /z-index:\s*var\(--layout-z-hand-pick-overlay\)/);
+
+    const readZ = (name: string) => {
+      const match = variablesCss.match(new RegExp(`--${name}:\\s*(\\d+)`));
+      expect(match).not.toBeNull();
+      return Number(match?.[1]);
+    };
+    const handPickZ = readZ('layout-z-hand-pick-overlay');
+    expect(handPickZ).toBeGreaterThan(readZ('layout-z-charge-hud'));
+    expect(handPickZ).toBeGreaterThan(readZ('layout-z-board-expansion-layer'));
+    expect(handPickZ).toBeGreaterThan(readZ('layout-z-hand-animation'));
+    expect(handPickZ).toBeGreaterThan(readZ('layout-z-board-toast'));
+    expect(handPickZ).toBeLessThan(readZ('z-network-chat'));
+  });
 });

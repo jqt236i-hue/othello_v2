@@ -2887,10 +2887,11 @@
     overflow: visible;
 }
 
+/* 手札から1枚を選ぶパネルは布石表示・盤面トーストより前に出し、選択中の文字を隠さない。 */
 .heaven-blessing-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1800;
+    z-index: var(--layout-z-hand-pick-overlay);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
