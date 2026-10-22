@@ -6,11 +6,12 @@ const folder=path.resolve(__dirname,'../browser-vite/forest-plaza/lines-data');
 const legacy={greet:12,pet:16,petMore:12,idle:12};
 const added=['sleepIn','sleep','wake','eat','eatFavorite','play','listen','pianoPlay','chatOpen','chatReply'];
 const untiered=['pianoPlay','chatOpen','chatReply'];
+const addedCounts:Record<string,number>={sleepIn:6,sleep:6,wake:6,eat:6,eatFavorite:6,play:6,listen:6,pianoPlay:12,chatOpen:20,chatReply:20};
 describe('森の広場 セリフJSON',()=>{
  for(const file of fs.readdirSync(folder).filter(f=>f.endsWith('.json'))) test(file,()=>{
   const set=JSON.parse(fs.readFileSync(path.join(folder,file),'utf8'));
   for(const [key,count] of Object.entries(legacy)) {expect(set[key]).toHaveLength(6);set[key].forEach((tier:string[],i:number)=>{expect(tier).toHaveLength(key==='petMore'&&i===0?0:count);for(const line of tier){expect(typeof line).toBe('string');expect(line.trim().length).toBeGreaterThan(0);expect(line).not.toMatch(/[\r\n{}]/);}});}
-  for(const key of added) if(set[key]!==undefined) {expect(set[key]).toHaveLength(untiered.includes(key)?1:6);for(const tier of set[key]){expect(Array.isArray(tier)).toBe(true);expect(tier.length).toBeGreaterThan(0);for(const line of tier){expect(typeof line).toBe('string');expect(line.trim().length).toBeGreaterThan(0);expect(line).not.toMatch(/[\r\n]/);const tokens=line.match(/\{[^}]+\}/g)??[];for(const token of tokens)expect(key==='eat'||key==='eatFavorite'?['{food}']:key==='chatOpen'||key==='chatReply'?['{partner}']:[]).toContain(token);}}}
+  for(const key of added) {expect(set[key]).toBeDefined();expect(set[key]).toHaveLength(untiered.includes(key)?1:6);for(const tier of set[key]){expect(Array.isArray(tier)).toBe(true);expect(tier).toHaveLength(addedCounts[key]);for(const line of tier){expect(typeof line).toBe('string');expect(line.trim().length).toBeGreaterThan(0);expect(line).not.toMatch(/[\r\n]/);const tokens=line.match(/\{[^}]+\}/g)??[];for(const token of tokens)expect(key==='eat'||key==='eatFavorite'?['{food}']:key==='chatOpen'||key==='chatReply'?['{partner}']:[]).toContain(token);}}}
  });
  test('catalog の全キャラに loader がある',()=>{const catalog=JSON.parse(fs.readFileSync(path.resolve(folder,'../../../assets/forest-plaza/catalog.json'),'utf8'));for(const c of catalog.characters)expect(PLAZA_LINE_LOADERS[lineKeyFor(c.id)]).toBeDefined();});
  test('段階なしは常に先頭を使い、未置換候補を除外する',async()=>{
