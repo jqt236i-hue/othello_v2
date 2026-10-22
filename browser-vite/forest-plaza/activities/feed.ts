@@ -18,7 +18,7 @@ export function createFeedActivity(ctx: ActivityContext): PlazaActivity {
     model.rotation.x=-Math.PI/2;
     const pose=heldPropPose(ctx.player.view,ctx.isTouch,false);
     model.position.set(pose.x,pose.y,pose.z); model.scale.setScalar(pose.scale);
-    ctx.hand.equip({id,icon:FOODS[kind].icon,model,onUnequip:()=>disposeProp(model),use({character:c}) {
+    ctx.hand.equip({id,icon:FOODS[kind].icon,label:FOODS[kind].name,model,onUnequip:()=>disposeProp(model),use({character:c}) {
       if(!c || c.isBusy || meals.has(c) || c.position.distanceTo(ctx.player.position)>ctx.reach || !c.claim(owner,()=>finish(c)))return;
       const received=foodModel(kind),scale=Math.min(1,c.height/.8); received.scale.setScalar(scale);
       meals.set(c,{model:received,time:0,kind,scale}); c.attachments.mouth.add(received);

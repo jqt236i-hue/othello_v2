@@ -1,5 +1,5 @@
 import { canReward, nearestAvailable, outsidePlaza, stepBall, type BallState } from '../browser-vite/forest-plaza/activities/ballPhysics';
-import { favoriteFood } from '../browser-vite/forest-plaza/activities/foodLogic';
+import { FOODS, favoriteFood } from '../browser-vite/forest-plaza/activities/foodLogic';
 import { heldPropPose } from '../browser-vite/forest-plaza/activities/heldPropPose';
 const ground = (p:{x:number;y:number;z:number},d:{x:number;y:number;z:number},distance:number) => {
   if(d.y>=0)return null;
@@ -12,6 +12,20 @@ describe('森の広場 ごはんとボール',()=>{
       expect(heldPropPose('third',touch,ball)).toEqual({scale:1,x:.14,y:ball?-.08:-.05,z:-.10});
       expect(heldPropPose('first',touch,ball).z).toBeGreaterThan(-.10);
     }
+  });
+  test.each([
+    ['observer','観測おにぎり'],['executor','執行パン'],['theory','理論クッキー'],
+    ['CPU_LV2','反転りんご'],['cpu_lv2','反転りんご'],
+  ])('%sの好物はモチーフの%sを最優先にする',(id,name)=>{
+    expect(FOODS[favoriteFood(id)].name).toBe(name);
+  });
+  test('既存の並び・絵文字を保ち、4種すべて正式名にする',()=>{
+    expect(FOODS.map(f=>f.name)).toEqual(['反転りんご','執行パン','観測おにぎり','理論クッキー']);
+    expect(FOODS.map(f=>f.icon)).toEqual(['🍎','🥖','🍙','🍪']);
+  });
+  test('モチーフ以外のキャラは従来のIDハッシュを保つ',()=>{
+    const hash=(id:string)=>{let h=2166136261;for(const c of id)h=Math.imul(h^c.charCodeAt(0),16777619);return(h>>>0)%4;};
+    for(const id of ['trap_stone','gold_stone','fire_will','water_will','zombie','CPU_LV1'])expect(favoriteFood(id)).toBe(hash(id));
   });
   test('好物はIDごとに固定され4種類に分かれる',()=>{
     const ids=['trap_stone','observer','gold_stone','fire_will','water_will','zombie'];

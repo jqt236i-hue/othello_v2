@@ -77,7 +77,7 @@ GLBの親ノードと材質別メッシュを `Box3.setFromObject`、上面を�
 | 歩行 | `character.walkPath(path, speedMps=1, done?: (arrived:boolean)=>void)`。成功true、障害・置換・解除false。`stopPath(false)`。コールバックは同期する場合があるので状態を先に設定する |
 | 姿勢 | `character.setPose({posture:'stand'\|'sit'\|'lie', offsetY?, breathing?, chew?, bounce?, rhythm?})`。offsetYは足元からのm、座ると身長×0.28沈む。rhythmはHz。`setPose({})` で解除。`lookAt(Vector3\|null)`。前はローカル+Z。姿勢は身長に比例する手続き動作。横臥では実際の模型奥行きから求めた `lyingClearance` を自動加算して背中を足場に合わせる（root.position.yは寝床上面を指定）。0.4675mの罠石と1.85mの観測者で横臥の模型下端が床+約0.02mであることを実機確認 |
 | 小物枠 | `character.attachments.mouth / overhead / front` はGroup（キャラの大きさで位置を調整済み）。小物の生成・寸法・破棄は活動が管理 |
-| 吹き出し | `say(c, situation, {food:'りんご',partner:'表示名'})` / `sayText(c,text,ms=2800)`。`spawnHearts(c,count)`, `addAffection(c,amount)`（保存される。段階増加をbooleanで返す）, `hearts(c)`（0〜5） |
+| 吹き出し | `say(c, situation, {food:'反転りんご',partner:'表示名'})` / `sayText(c,text,ms=2800)`。`spawnHearts(c,count)`, `addAffection(c,amount)`（保存される。段階増加をbooleanで返す）, `hearts(c)`（0〜5） |
 | 照準 | `addInteractable({id,label,action,proxy,reach?,enabled?,interact})` → `{dispose()}`。proxyは不可視材質のMesh/Group（Object3D.visibleはtrue）。シーンにまだ親が無ければ追加する。家具本体より少し外へ判定を広げ、家具に遮られないようにする。handleは登録解除だけであり、資源・proxy削除は活動が行う |
 | 手持ち | `hand.equip({id,icon:'🍎',model,use({character,direction,point}),onUnequip?})`。一人称の籠手／三人称の右手に同じmodelが移る。modelの原点は手、小さな実寸で作る。対象なしでもuseが呼ばれ、他の操作は遮断。`hand.current`、`hand.equip(null)`。Q/チップでしまった時もonUnequipが呼ばれる。モデルの破棄は所有活動の責任 |
 | 寝姿勢 | `player.setPose({position:Vector3,yaw,pitch?,eyeHeight?,lying?,yawLimit?,pitchLimit?})`。移動・ジャンプ停止、見回し制限、三人称の勇者を横にする。`setPose(null)` で元の位置・向きへ戻る。`player.isFixed`。暗転中に呼ぶ。`director.sleeping=true/false` は活動で必ず対にする |
@@ -150,7 +150,7 @@ const unregister = ctx.director.register({
 
 - 1 キャラあたり 304 本。キャラごとのファイル（`lines-data/<キー>.json`）の既存キー（`greet` / `pet` / `petMore` / `idle`）はそのまま残し、新しいキーを足す。
 - セリフ内の `{food}`（食べ物の名前）と `{partner}`（会話の相手の表示名）は、使う時に置き換える。置き換えられない行は選ばない。`{food}` は `eat` / `eatFavorite` だけ、`{partner}` は `chatOpen` / `chatReply` だけで使える。使うのは全体の 3 割以下。
-- 食べ物は `りんご` / `パン` / `おにぎり` / `クッキー` の 4 種類。
+- 食べ物は `反転りんご` / `執行パン` / `観測おにぎり` / `理論クッキー` の 4 種類（`activities/foodLogic.ts` の `FOODS`）。
 - セリフが無い・読めない時のために、`lines.ts` に場面ごとの短い共通セリフ（フォールバック）を持つ。
 - 段階なしの場面は、仲良し度によらず常に同じリストから選ぶ（ひとつ前の段階に戻る処理も使わない）。
 
@@ -177,10 +177,10 @@ const unregister = ctx.director.register({
 
 ### 2. ごはん（`activities/feed.ts`）
 
-- キッチンのテーブルの上に食べ物を4種類（りんご・パン・おにぎり・クッキー）置く。三次元の基本形状で、一目でわかる見た目にする。押すと1つ手に取る（取った物はテーブルに残り、何度でも取れる）。
+- キッチンのテーブルの上に、ゲームモチーフの食べ物を4種類（反転りんご＝赤白の半分ずつ、執行パン＝剣と秤の焼き印、観測おにぎり＝白ごまと光る一つ目の海苔、理論クッキー＝8×8のチョコ格子と黒白の石）置く。三次元の基本形状と手続きテクスチャで、一目でわかる見た目にする。押すと1つ手に取る（取った物はテーブルに残り、何度でも取れる）。
 - 手に持つと、一人称では画面右下の手に、三人称では勇者の手に食べ物が見える。
 - キャラに照準を合わせて左クリック/タップすると渡せる（届く距離は既存の `REACH`）。渡されたキャラはこちらを向き、食べ物を受け取って約3秒かけて小さくなるまでもぐもぐ（伸び縮み）。食べ終わると `eat` を言い、ハートを出し、仲良し度 +2。
-- キャラごとに好物が1つ決まっている（ID から決まる固定の割り当て）。好物なら `eatFavorite` を言い、ハートがたくさん出て、仲良し度 +5。好物は画面に表示しない（反応で気づく）。
+- キャラごとに好物が1つ決まっている（ID から決まる固定の割り当て。観測者＝観測おにぎり、執行者＝執行パン、理論の化身＝理論クッキー、反転の影＝反転りんごだけは名前に合わせて固定）。好物なら `eatFavorite` を言い、ハートがたくさん出て、仲良し度 +5。好物は画面に表示しない（反応で気づく）。
 - 食べている間そのキャラは動かない。食べ終わるまで次は渡せない。
 - 食べ物を持ったまま、キャラ以外をクリックしても何も起きない。しまうのはチップの `×` か Q。
 

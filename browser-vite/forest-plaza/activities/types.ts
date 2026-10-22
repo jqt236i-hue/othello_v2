@@ -26,6 +26,8 @@ export interface Interactable {
 export interface InteractableHandle { dispose(): void }
 export interface HeldItem {
   id: string; icon: string; model: THREE.Object3D;
+  /** 絵だけのチップにも、ツールチップと読み上げでは正式名を渡す。 */
+  label?: string;
   use(target: InteractionTarget): void;
   onUnequip?(): void;
 }

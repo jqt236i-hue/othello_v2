@@ -700,6 +700,7 @@ async function boot(): Promise<void> {
     if (item === held) return;
     const old = held; held = null; activePlayer.setHeldModel(null); old?.onUnequip?.();
     held = item; activePlayer.setHeldModel(item?.model ?? null); chip.textContent = item ? item.icon + ' ×' : ''; chip.hidden = !item;
+    chip.title = item?.label ?? ''; chip.setAttribute('aria-label', item?.label ? item.label + 'をしまう' : '持ち物をしまう');
   };
   chip.addEventListener('click', () => equip(null));
   window.addEventListener('keydown', event => { if (event.code === 'KeyQ' && !event.repeat) equip(null); });
@@ -1135,7 +1136,7 @@ async function boot(): Promise<void> {
     const now = performance.now();
     if (now > nextChatter) {
       nextChatter = now + 12000 + Math.random() * 14000;
-      const list = Array.from(visitors.values()).filter(character => !character.isBusy);
+      const list = Array.from(visitors.values()).filter(character => !character.isBusy && (bubbles.get(character.info.id)?.until ?? 0) <= now);
       const speaker = list[Math.floor(Math.random() * list.length)];
       if (speaker) say(speaker, 'idle');
     }
