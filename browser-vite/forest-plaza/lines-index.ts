@@ -6,6 +6,7 @@
 export type PlazaLineLoader = () => Promise<{ default: unknown }>;
 
 export const PLAZA_LINE_LOADERS: Readonly<Record<string, PlazaLineLoader>> = {
+  work_stone: () => import('./lines-data/work_stone.json'),
   fire_will: () => import('./lines-data/fire_will.json'),
   water_will: () => import('./lines-data/water_will.json'),
   grass_will: () => import('./lines-data/grass_will.json'),

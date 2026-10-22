@@ -1,3 +1,8 @@
+import { createActivities } from './activities';
+import { ActivityDirector } from './activities/director';
+import { PlazaAudio } from './activities/audio';
+import { findPath } from './activities/pathing';
+import type { ActivityContext, HeldItem, Interactable, PlazaActivity } from './activities/types';
 import * as THREE from 'three';
 import { PlazaCharacter, type PlazaCharacterInfo, type WalkArea } from './characters';
 import { PlazaPlayer, type PlayerWorld } from './player';
@@ -29,7 +34,7 @@ interface PlazaCatalog {
 }
 
 const CLOSE_MESSAGE = 'card-reversi:forest-plaza:close';
-const MAX_VISITORS = 6;
+const MAX_VISITORS = (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches) ? 3 : 6;
 /** 広場に入った時に最初からいるキャラの数（入るたびにランダムに選び直す） */
 const RANDOM_VISITOR_COUNT = 4;
 /** 最初からいるキャラのうち、観測者・執行者・理論の化身（容量が大きい）は 1 体まで */
@@ -151,9 +156,17 @@ async function boot(): Promise<void> {
   $('plazaRosterMax').textContent = String(MAX_VISITORS);
 
   /** マウスを捕まえられない環境での操作中か（ドラッグで見回す） */
+  const escapeHandlers = new Set<() => boolean>();
+  const inputHandlers = new Set<(kind: 'move' | 'click') => boolean>();
+  const activities: PlazaActivity[] = [];
+  const audio = new PlazaAudio();
+  let disposed = false;
+  let cleanup = () => {};
+  const consumeInput = (kind: 'move' | 'click') => [...inputHandlers].reverse().some(fn => fn(kind));
   let freeMode = false;
   let exitFreeMode = () => { freeMode = false; };
   const closePlaza = () => {
+    cleanup();
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: CLOSE_MESSAGE }, window.location.origin);
     } else {
@@ -162,7 +175,11 @@ async function boot(): Promise<void> {
   };
   $('plazaCloseBtn').addEventListener('click', closePlaza);
   window.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
+    if (event.key !== 'Escape') {
+      if (/^(Key[WASD]|Arrow(Up|Down|Left|Right)|Space)$/.test(event.code) && consumeInput('move')) { event.preventDefault(); event.stopImmediatePropagation(); }
+      return;
+    }
+    if ([...escapeHandlers].reverse().some(handler => handler())) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     // マウスを捕まえている間の Esc はブラウザがマウスを戻すのに使う（広場は閉じない）
     if (document.pointerLockElement) return;
     if (freeMode) { exitFreeMode(); return; }
@@ -170,7 +187,7 @@ async function boot(): Promise<void> {
     if (comfortOpen && !comfortOpen.hidden) { comfortOpen.hidden = true; $('plazaComfortBtn').setAttribute('aria-expanded', 'false'); }
     else if (!roster.hidden) setRosterOpen(false);
     else closePlaza();
-  });
+  }, true);
 
   const renderer = new THREE.WebGLRenderer({ antialias: !IS_TOUCH, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 1.25 : 1.5));
@@ -258,8 +275,17 @@ async function boot(): Promise<void> {
     let floor = 0;
     const floorHits = raycaster.intersectObjects(plaza.floorMeshes, false);
     if (floorHits.length) floor = floorHits[0].point.y;
-    const obstacleHits = raycaster.intersectObjects(plaza.obstacleMeshes, false);
-    const blocked = obstacleHits.some((hit) => hit.point.y > floor + 0.12 && hit.point.y < floor + 2.6);
+    const obstacleHits = raycaster.intersectObjects(plaza.playerSolidMeshes, false);
+    let blocked = obstacleHits.some((hit) => hit.point.y > floor + 0.12 && hit.point.y < floor + 2.6);
+    // 幹や壁は上面が光線の出発点より高い。格子の境界を横切る水平線でも塞ぐ。
+    if (!blocked) {
+      const gx = Math.round(x * 4) / 4, gz = Math.round(z * 4) / 4;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        rayOrigin.set(gx - dx * 0.26, floor + 0.65, gz - dz * 0.26);
+        raycaster.set(rayOrigin, new THREE.Vector3(dx, 0, dz)); raycaster.far = 0.52;
+        if (raycaster.intersectObjects(plaza.playerSolidMeshes, false).length) { blocked = true; break; }
+      }
+    }
     const value = blocked ? null : floor;
     standCache.set(key, value);
     return value;
@@ -368,7 +394,7 @@ async function boot(): Promise<void> {
       return true;
     },
     standHeight(x, z, self) {
-      if (x < WALK_BOUNDS.minX || x > WALK_BOUNDS.maxX || z < WALK_BOUNDS.minZ || z > WALK_BOUNDS.maxZ) return null;
+      if (x < PLAYER_BOUNDS.minX || x > PLAYER_BOUNDS.maxX || z < PLAYER_BOUNDS.minZ || z > PLAYER_BOUNDS.maxZ) return null;
       const r = self ? self.radius * 0.8 : 0.3;
       // キャラの足元の中心と、まわり 4 点で家具が無いか確かめる
       const samples: [number, number][] = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]];
@@ -431,7 +457,7 @@ async function boot(): Promise<void> {
   };
 
   const bubbles = new Map<string, Bubble>();
-  const say = (character: PlazaCharacter, situation: PlazaLineSituation) => {
+  const sayText = (character: PlazaCharacter, text: string, ms = 2800) => {
     let bubble = bubbles.get(character.info.id);
     if (!bubble) {
       const element = document.createElement('div');
@@ -440,10 +466,11 @@ async function boot(): Promise<void> {
       bubble = { element, until: 0 };
       bubbles.set(character.info.id, bubble);
     }
-    bubble.element.textContent = pickLine(character.info.id, situation, affectionHearts(affection[character.info.id] ?? 0));
+    bubble.element.textContent = text;
     bubble.element.classList.remove('is-hidden');
-    bubble.until = performance.now() + 2800;
+    bubble.until = performance.now() + ms;
   };
+  const say = (character: PlazaCharacter, situation: PlazaLineSituation, vars?: Record<string, string>) => sayText(character, pickLine(character.info.id, situation, affectionHearts(affection[character.info.id] ?? 0), vars));
   const projected = new THREE.Vector3();
   const updateBubbles = () => {
     const now = performance.now();
@@ -483,7 +510,7 @@ async function boot(): Promise<void> {
     showInfo(character);
     return affectionHearts(after) > affectionHearts(before);
   };
-  window.setInterval(() => {
+  const affectionTimer = window.setInterval(() => {
     if (!affectionDirty) return;
     affectionDirty = false;
     saveAffection(affection);
@@ -583,6 +610,7 @@ async function boot(): Promise<void> {
   const removeVisitor = (id: string) => {
     const character = visitors.get(id);
     if (character) {
+      for (const activity of activities) activity.onCharacterRemoved?.(character);
       character.dispose();
       visitors.delete(id);
     }
@@ -624,6 +652,78 @@ async function boot(): Promise<void> {
     player.position.y = startFloor ?? 0;
   }
   const activePlayer = player;
+
+
+  // 活動共通口。登録プロキシのGPU資源は所有する活動が破棄する。
+  const interactables = new Map<string, Interactable>();
+  const director = new ActivityDirector(visitors);
+  let held: HeldItem | null = null;
+  const chip = document.createElement('button'); chip.className = 'plaza-held-chip plaza-btn'; chip.hidden = true; chip.setAttribute('aria-label', '持ち物をしまう'); document.body.appendChild(chip);
+  const equip = (item: HeldItem | null) => {
+    if (item === held) return;
+    const old = held; held = null; activePlayer.setHeldModel(null); old?.onUnequip?.();
+    held = item; activePlayer.setHeldModel(item?.model ?? null); chip.textContent = item ? item.icon + ' ×' : ''; chip.hidden = !item;
+  };
+  chip.addEventListener('click', () => equip(null));
+  window.addEventListener('keydown', event => { if (event.code === 'KeyQ' && !event.repeat) equip(null); });
+  const fadeLayer = document.createElement('div'); fadeLayer.className = 'plaza-fade'; document.body.appendChild(fadeLayer);
+  const context: ActivityContext = {
+    scene, camera, player: activePlayer, renderer, visitors, walkArea, plaza, director, audio, isTouch: IS_TOUCH, reach: REACH,
+    pathing: {
+      groundAt,
+      find: (from, to, self) => findPath(from, to, { groundAt, bounds: PLAYER_BOUNDS, radius: self ? self.radius * 0.8 : 0.3,
+        blocked: (x, z) => {
+          // 出発点ですでに重なる時だけは離脱を許す。
+          if (Math.hypot(x - from.x, z - from.z) < 0.4) return false;
+          const r = self?.radius ?? 0.3;
+          if (Math.hypot(x - activePlayer.position.x, z - activePlayer.position.z) < r + activePlayer.radius + 0.1) return true;
+          return [...visitors.values()].some(other => other !== self && Math.hypot(x - other.position.x, z - other.position.z) < r + other.radius + 0.1);
+        } }),
+    },
+    say, sayText, spawnHearts, addAffection, hearts: character => affectionHearts(affection[character.info.id] ?? 0),
+    addInteractable: spec => {
+      if (interactables.has(spec.id)) throw new Error('duplicate interactable: ' + spec.id);
+      if (!spec.proxy.parent) scene.add(spec.proxy);
+      spec.proxy.updateWorldMatrix(true, true); interactables.set(spec.id, spec);
+      return { dispose: () => { if (interactables.get(spec.id) === spec) interactables.delete(spec.id); } };
+    },
+    hand: { equip, get current() { return held; } },
+    setTime: name => plaza.setTime(name ?? timeOfDay),
+    fade: (opacity, seconds = 0.4) => { fadeLayer.style.transition = 'opacity ' + seconds + 's'; fadeLayer.style.opacity = String(THREE.MathUtils.clamp(opacity, 0, 1)); return new Promise(resolve => window.setTimeout(resolve, seconds * 1000)); },
+    onEscape: handler => { escapeHandlers.add(handler); return () => { escapeHandlers.delete(handler); }; },
+    onInput: handler => { inputHandlers.add(handler); return () => { inputHandlers.delete(handler); }; },
+  };
+  activities.push(...createActivities(context));
+  const aimedInteractable = (ndc: THREE.Vector2): Interactable | null => {
+    hitRaycaster.setFromCamera(ndc, camera);
+    const candidates = [...interactables.values()].filter(spec => !spec.enabled || spec.enabled());
+    const hits = hitRaycaster.intersectObjects(candidates.map(spec => spec.proxy), true);
+    for (const hit of hits) {
+      const spec = candidates.find(candidate => { let obj: THREE.Object3D | null = hit.object; while (obj) { if (obj === candidate.proxy) return true; obj = obj.parent; } return false; });
+      if (!spec || hit.point.distanceTo(activePlayer.eye) > (spec.reach ?? REACH)) continue;
+      solidRay.set(hitRaycaster.ray.origin, hitRaycaster.ray.direction); solidRay.far = Math.max(0, hit.distance - 0.12);
+      const obstruction = solidRay.intersectObjects(plaza.playerSolidMeshes, false)[0];
+      if (obstruction) continue;
+      return spec;
+    }
+    return null;
+  };
+  const clickActivity = (ndc: THREE.Vector2): boolean => {
+    if (consumeInput('click')) return true;
+    if (activePlayer.isFixed) return true;
+    if (held) {
+      hitRaycaster.setFromCamera(ndc, camera);
+      const character = aimedCharacter(ndc);
+      held.use({ character, direction: hitRaycaster.ray.direction.clone(), point: character?.position.clone() ?? null }); return true;
+    }
+    const spec = aimedInteractable(ndc); if (spec) { spec.interact(); return true; }
+    return false;
+  };
+  const reservedClick = (ndc: THREE.Vector2) => Boolean(held || activePlayer.isFixed || aimedInteractable(ndc));
+  const soundButton = document.createElement('button'); soundButton.className = 'plaza-btn plaza-btn-small'; soundButton.textContent = '♪'; soundButton.setAttribute('aria-label', '音');
+  document.querySelector('.plaza-topbar-actions')?.prepend(soundButton);
+  const syncSound = () => soundButton.setAttribute('aria-pressed', String(audio.enabled)); syncSound();
+  soundButton.addEventListener('click', () => { audio.setEnabled(!audio.enabled); syncSound(); });
 
   // ------------------------------------------------------------ 酔い対策
   const comfortPanel = $('plazaComfort');
@@ -690,6 +790,7 @@ async function boot(): Promise<void> {
   };
   const lastTap = new Map<string, number>();
   const doTap = (character: PlazaCharacter) => {
+    if (activities.some(activity => activity.onCharacterTouched?.(character, 'tap') === true)) return;
     activePlayer.playGesture('wave', 0.9);
     character.react(activePlayer.eye);
     spawnHearts(character, 2);
@@ -704,6 +805,7 @@ async function boot(): Promise<void> {
   };
 
   const doPet = (character: PlazaCharacter, count: number) => {
+    if (activities.some(activity => activity.onCharacterTouched?.(character, 'pet') === true)) return;
     activePlayer.playGesture('pet', 0.6);
     character.pet(activePlayer.eye);
     spawnHearts(character, 1);
@@ -726,12 +828,12 @@ async function boot(): Promise<void> {
     const rect = canvas.getBoundingClientRect();
     pointerNdc.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
   };
-  const aimPoint = () => (isLocked() ? screenCenter : pointerNdc);
+  const aimPoint = () => (IS_TOUCH ? pointerNdc : (isLocked() ? screenCenter : pointerNdc));
   const syncLock = () => {
     const locked = isLocked();
     const active = isActive();
     startPanel.hidden = active;
-    crosshair.hidden = !locked;
+    crosshair.hidden = !active;
     hint.classList.toggle('is-faded', !active);
     if (!active) {
       activePlayer.releaseKeys();
@@ -762,7 +864,7 @@ async function boot(): Promise<void> {
   };
   document.addEventListener('pointerlockchange', syncLock);
   document.addEventListener('pointerlockerror', enterFreeMode);
-  $('plazaStartBtn').addEventListener('click', () => (IS_TOUCH ? enterFreeMode() : lockPointer()));
+  $('plazaStartBtn').addEventListener('click', () => { audio.unlock(); if (IS_TOUCH) enterFreeMode(); else lockPointer(); });
 
   interface Press { since: number; lastPet: number; pets: number; character: PlazaCharacter | null; dragged: number }
   let press: Press | null = null;
@@ -783,19 +885,20 @@ async function boot(): Promise<void> {
     if (event.button !== 0) return;
     setPointerNdc(event);
     if (!isActive()) { lockPointer(); return; }
-    press = { since: performance.now(), lastPet: 0, pets: 0, character: aimedCharacter(aimPoint()), dragged: 0 };
+    press = { since: performance.now(), lastPet: 0, pets: 0, character: reservedClick(aimPoint()) ? null : aimedCharacter(aimPoint()), dragged: 0 };
   });
   window.addEventListener('mouseup', (event) => {
     if (event.button !== 0 || !press) return;
     // 短く押して離した時はあいさつ（長押しでなでていた時・見回していた時は何もしない）
     if (press.pets === 0 && press.dragged <= 12) {
       const character = aimedCharacter(aimPoint()) ?? press.character;
-      if (character) doTap(character);
+      if (!clickActivity(aimPoint()) && character) doTap(character);
     }
     press = null;
   });
   const updatePress = (now: number) => {
     if (!press || press.dragged > 12 || now - press.since < PET_HOLD_MS || now - press.lastPet < PET_INTERVAL_MS) return;
+    if (reservedClick(aimPoint())) return;
     const character = aimedCharacter(aimPoint());
     if (!character) return;
     press.lastPet = now;
@@ -849,7 +952,7 @@ async function boot(): Promise<void> {
         lookLast.x = event.clientX;
         lookLast.y = event.clientY;
         setPointerNdc(event);
-        press = { since: performance.now(), lastPet: 0, pets: 0, character: aimedCharacter(pointerNdc), dragged: 0 };
+        press = { since: performance.now(), lastPet: 0, pets: 0, character: reservedClick(pointerNdc) ? null : aimedCharacter(pointerNdc), dragged: 0 };
       }
       canvas.setPointerCapture(event.pointerId);
     });
@@ -861,7 +964,7 @@ async function boot(): Promise<void> {
         const length = Math.hypot(dx, dy);
         if (length > STICK_RADIUS) { dx *= STICK_RADIUS / length; dy *= STICK_RADIUS / length; }
         setStickVisual(dx, dy);
-        activePlayer.setStick(dx / STICK_RADIUS, -dy / STICK_RADIUS);
+        if (!consumeInput('move')) activePlayer.setStick(dx / STICK_RADIUS, -dy / STICK_RADIUS);
       } else if (event.pointerId === lookPointer) {
         const dx = event.clientX - lookLast.x;
         const dy = event.clientY - lookLast.y;
@@ -881,7 +984,7 @@ async function boot(): Promise<void> {
         lookPointer = null;
         if (press && press.pets === 0 && press.dragged <= 12 && event.type === 'pointerup') {
           const character = aimedCharacter(pointerNdc) ?? press.character;
-          if (character) doTap(character);
+          if (!clickActivity(pointerNdc) && character) doTap(character);
         }
         press = null;
       }
@@ -907,20 +1010,43 @@ async function boot(): Promise<void> {
   });
   setViewLabel();
 
-  let aimed: PlazaCharacter | null = null;
   const updateAim = () => {
-    const next = isActive() ? aimedCharacter(aimPoint()) : null;
-    canvas.style.cursor = freeMode && next ? 'pointer' : '';
-    if (next === aimed) return;
-    aimed = next;
-    crosshair.classList.toggle('is-target', Boolean(next));
-    aimLabel.textContent = next ? `${next.info.label}　クリック：あいさつ／長押し：なでる` : '';
+    const spec = isActive() && !held && !activePlayer.isFixed ? aimedInteractable(aimPoint()) : null;
+    const next = isActive() && !activePlayer.isFixed ? aimedCharacter(aimPoint()) : null;
+    canvas.style.cursor = freeMode && (spec || next) ? 'pointer' : '';
+    crosshair.classList.toggle('is-target', Boolean(spec || next));
+    aimLabel.textContent = activePlayer.isFixed ? '' : spec ? spec.label + '　' + (IS_TOUCH ? 'タップ：' : 'クリック：') + spec.action : next ? next.info.label + '　' + (IS_TOUCH ? 'タップ：あいさつ／長押し：なでる' : 'クリック：あいさつ／長押し：なでる') : '';
     if (next) showInfo(next);
   };
   // 確認用（?debug=1 の時だけ）：キャラの画面上の位置、プレイヤーの位置、マウスを捕まえずに歩く操作
   let debugInput = false;
   if (new URLSearchParams(window.location.search).get('debug') === '1') {
     (window as unknown as { __forestPlazaDebug?: unknown }).__forestPlazaDebug = {
+      context,
+      pause: (value = true) => renderer.setAnimationLoop(value ? null : frame),
+      renderQuality: (ratio = 1, shadows = true) => { renderer.setPixelRatio(ratio); renderer.shadowMap.enabled = shadows; },
+      surface: (x: number, z: number) => { const ray = new THREE.Raycaster(new THREE.Vector3(x, 5, z), down, 0, 8); return ray.intersectObjects(plaza.playerSolidMeshes, false).map(hit => ({ name: hit.object.name, y: hit.point.y, material: ((hit.object as THREE.Mesh).material as THREE.Material).name })); },
+      teleport: (x: number, y: number, z: number, yaw?: number, pitch?: number) => activePlayer.teleport(new THREE.Vector3(x, y, z), yaw, pitch),
+      setTime: (name: PlazaTimeOfDay | null) => context.setTime(name),
+      setSleeping: (value: boolean) => { director.sleeping = value; },
+      setPlayerPose: (pose: { x: number; y: number; z: number; yaw: number; pitch?: number; lying?: boolean } | null) => activePlayer.setPose(pose ? { ...pose, position: new THREE.Vector3(pose.x, pose.y, pose.z) } : null),
+      toggleVisitor,
+      toggleView,
+      setAffection: (id: string, value: number) => { affection[id] = Math.max(0, Math.min(100, value)); affectionDirty = true; },
+      advance: (seconds: number) => { for (let t = 0; t < Math.min(300, seconds); t += 0.05) { director.update(0.05); for (const activity of activities) activity.update(0.05); for (const c of visitors.values()) c.update(0.05, walkArea); } },
+      interactables: () => [...interactables.values()].map(spec => { const p = new THREE.Box3().setFromObject(spec.proxy).getCenter(new THREE.Vector3()).project(camera); return { id: spec.id, label: spec.label, enabled: !spec.enabled || spec.enabled(), x: (p.x+1)*innerWidth/2, y: (1-p.y)*innerHeight/2, visible: p.z < 1 && Math.abs(p.x)<1 && Math.abs(p.y)<1 }; }),
+      interact: (id: string) => { const spec = interactables.get(id); if (!spec || spec.enabled?.() === false) return false; spec.interact(); return true; },
+      click: (x?: number, y?: number) => { const ndc = x === undefined || y === undefined ? screenCenter : new THREE.Vector2(x / innerWidth * 2 - 1, 1 - y / innerHeight * 2); if (!clickActivity(ndc)) { const c = aimedCharacter(ndc); if (c) doTap(c); } },
+      hand: () => held?.id ?? null,
+      unequip: () => equip(null),
+      groundAt,
+      path: (x: number, z: number, tx: number, tz: number, id?: string) => context.pathing.find({x,z},{x:tx,z:tz}, id ? visitors.get(id) : undefined),
+      measure: (pattern = 'Bed|Rug|Nightstand|Piano|Kitchen|Stump') => {
+        const results: unknown[] = []; const regex = new RegExp(pattern);
+        plaza.root.traverse(obj => { if (!regex.test(obj.name)) return; const box = new THREE.Box3().setFromObject(obj); if (box.isEmpty()) return;
+          results.push({name: obj.name, material: (obj as THREE.Mesh).isMesh ? (Array.isArray((obj as THREE.Mesh).material) ? ((obj as THREE.Mesh).material as THREE.Material[]).map(m => m.name) : ((obj as THREE.Mesh).material as THREE.Material).name) : null, position: obj.getWorldPosition(new THREE.Vector3()).toArray(), quaternion: obj.getWorldQuaternion(new THREE.Quaternion()).toArray(), min: box.min.toArray(), max: box.max.toArray(), size: box.getSize(new THREE.Vector3()).toArray()}); }); return results;
+      },
+      characterControl: (id: string, command: string, value?: unknown) => { const c = visitors.get(id); if (!c) return false; if (command === 'claim') return c.claim('debug'); if (command === 'release') c.release('debug'); if (command === 'place') { const p = value as [number, number, number]; c.placeAt(...p); } if (command === 'walk') { const p = value as [number, number]; const route = context.pathing.find(c.position, {x:p[0],z:p[1]}, c); if (!route) return false; c.walkPath(route, 1.2); } if (command === 'pose') c.setPose(value as import('./characters').CharacterPose); if (command === 'react') doTap(c); if (command === 'pet') doPet(c, 1); return true; },
       player: () => ({ x: activePlayer.position.x, y: activePlayer.position.y, z: activePlayer.position.z, yaw: activePlayer.yaw, pitch: activePlayer.pitch, view: activePlayer.view }),
       setInput: (enabled: boolean) => { debugInput = enabled; },
       look: (yaw: number, pitch: number) => { activePlayer.yaw = yaw; activePlayer.pitch = pitch; },
@@ -932,7 +1058,7 @@ async function boot(): Promise<void> {
         point.y += character.height * 0.5;
         point.project(camera);
         return {
-          id: character.info.id,
+          id: character.info.id, label: character.info.label, position: character.position.toArray(), height: character.height, radius: character.radius, busy: character.isBusy, state: character.activityState,
           x: ((point.x + 1) / 2) * window.innerWidth,
           y: ((1 - point.y) / 2) * window.innerHeight,
         };
@@ -951,6 +1077,8 @@ async function boot(): Promise<void> {
   const clock = new THREE.Clock();
   const frame = () => {
     const dt = Math.min(clock.getDelta(), 0.05);
+    director.update(dt);
+    for (const activity of activities) activity.update(dt);
     for (const character of visitors.values()) character.update(dt, walkArea);
     updateHearts(dt);
     activePlayer.update(dt, (isActive() || debugInput) && roster.hidden === true && comfortPanel.hidden === true);
@@ -962,7 +1090,7 @@ async function boot(): Promise<void> {
     const now = performance.now();
     if (now > nextChatter) {
       nextChatter = now + 12000 + Math.random() * 14000;
-      const list = Array.from(visitors.values());
+      const list = Array.from(visitors.values()).filter(character => !character.isBusy);
       const speaker = list[Math.floor(Math.random() * list.length)];
       if (speaker) say(speaker, 'idle');
     }
@@ -971,6 +1099,7 @@ async function boot(): Promise<void> {
 
   // 見えていない間（別タブ・最小化）は描画を止める
   document.addEventListener('visibilitychange', () => {
+    if (disposed) return;
     if (document.hidden) {
       renderer.setAnimationLoop(null);
       saveAffection(affection);
@@ -980,14 +1109,20 @@ async function boot(): Promise<void> {
     }
   });
 
-  window.addEventListener('pagehide', () => {
+  cleanup = () => {
+    if (disposed) return; disposed = true;
+    window.clearInterval(affectionTimer);
     renderer.setAnimationLoop(null);
+    for (const activity of activities) activity.dispose();
+    director.dispose(); equip(null); audio.dispose(); escapeHandlers.clear(); inputHandlers.clear(); interactables.clear();
+    saveAffection(affection);
     for (const id of Array.from(visitors.keys())) removeVisitor(id);
     activePlayer.dispose();
     plaza.dispose();
     heartTexture.dispose();
     renderer.dispose();
-  });
+  };
+  window.addEventListener('pagehide', cleanup);
 }
 
 boot().catch((error: unknown) => {

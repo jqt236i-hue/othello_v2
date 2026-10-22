@@ -8,6 +8,10 @@ import { buildFirstPersonArm, buildKnight, type FirstPersonArm, type KnightRig }
  * 当たり判定は main.ts から渡す standAt（その地点の床の高さ。立てなければ null）で行う。
  */
 
+export interface PlayerPose {
+  position: THREE.Vector3; yaw: number; pitch?: number; eyeHeight?: number;
+  lying?: boolean; yawLimit?: number; pitchLimit?: number;
+}
 export type PlayerView = 'first' | 'third';
 export type PlayerGesture = 'none' | 'wave' | 'pet';
 
@@ -58,6 +62,10 @@ export class PlazaPlayer {
   private readonly world: PlayerWorld;
   private readonly knight: KnightRig;
   private readonly arm: FirstPersonArm;
+  private fixedPose: PlayerPose | null = null;
+  private savedPose: { position: THREE.Vector3; yaw: number; pitch: number } | null = null;
+  private heldModel: THREE.Object3D | null = null;
+  readonly heldAnchor = new THREE.Group();
   private readonly keys = new Set<string>();
   /** スマホのスティック（x: 右が +、y: 前が +。長さ 1 まで） */
   private readonly stick = new THREE.Vector2();
@@ -96,6 +104,7 @@ export class PlazaPlayer {
     this.setView('first');
 
     this.onKeyDown = (event) => {
+      if (this.fixedPose) return;
       if (event.code in MOVE_KEYS || event.code === 'ShiftLeft' || event.code === 'ShiftRight') this.keys.add(event.code);
       if (event.code === 'Space') {
         event.preventDefault();
@@ -109,8 +118,35 @@ export class PlazaPlayer {
     window.addEventListener('blur', this.onBlur);
   }
 
+  get isFixed(): boolean { return this.fixedPose !== null; }
+  teleport(position: THREE.Vector3, yaw = this.yaw, pitch = this.pitch): void {
+    this.position.copy(position); this.yaw = yaw; this.pitch = pitch; this.eyeY = position.y + EYE_HEIGHT;
+    this.moveVelocity.set(0, 0); this.velocityY = 0; this.grounded = true;
+  }
+  setPose(pose: PlayerPose | null): void {
+    if (pose) {
+      if (!this.savedPose) this.savedPose = { position: this.position.clone(), yaw: this.yaw, pitch: this.pitch };
+      this.fixedPose = { ...pose, position: pose.position.clone() };
+      this.teleport(pose.position, pose.yaw, pose.pitch ?? 0.65); this.releaseKeys();
+    } else {
+      this.fixedPose = null;
+      if (this.savedPose) this.teleport(this.savedPose.position, this.savedPose.yaw, this.savedPose.pitch);
+      this.savedPose = null; this.knight.root.rotation.x = 0; this.releaseKeys();
+    }
+  }
+  setHeldModel(model: THREE.Object3D | null): void {
+    this.heldModel?.removeFromParent(); this.heldModel = model;
+    if (model) this.heldAnchor.add(model);
+    this.syncHeldAnchor();
+  }
+  private syncHeldAnchor(): void {
+    const parent = this.view === 'first' ? this.arm.root.getObjectByName('hand') : this.knight.root.getObjectsByProperty('name', 'hand')[1];
+    if (parent && this.heldAnchor.parent !== parent) { parent.add(this.heldAnchor); this.heldAnchor.position.set(0, -0.05, 0.06); }
+  }
+
   /** 目の位置（キャラの向き先・届く距離の基準） */
   get eye(): THREE.Vector3 {
+    if (this.fixedPose) return this.position.clone().add(new THREE.Vector3(0, this.fixedPose.eyeHeight ?? 0.22, 0));
     return new THREE.Vector3(
       this.position.x - Math.sin(this.yaw) * EYE_FORWARD,
       this.position.y + EYE_HEIGHT,
@@ -123,13 +159,19 @@ export class PlazaPlayer {
     // 上下は左右より少し遅くし、見上げ・見下ろしすぎないようにする（急な上下の動きは酔いやすい）
     this.yaw -= dx * k;
     this.pitch = THREE.MathUtils.clamp(this.pitch - dy * k * 0.8, -1.1, 1.0);
+    if (this.fixedPose) {
+      const pose = this.fixedPose;
+      this.yaw = pose.yaw + THREE.MathUtils.clamp(Math.atan2(Math.sin(this.yaw - pose.yaw), Math.cos(this.yaw - pose.yaw)), -(pose.yawLimit ?? 0.55), pose.yawLimit ?? 0.55);
+      this.pitch = THREE.MathUtils.clamp(this.pitch, (pose.pitch ?? 0.65) - (pose.pitchLimit ?? 0.3), (pose.pitch ?? 0.65) + (pose.pitchLimit ?? 0.3));
+    }
     this.turnThisFrame += Math.hypot(dx * k, dy * k * 0.8);
   }
 
   setView(view: PlayerView): void {
     this.view = view;
     this.knight.setFirstPerson(view === 'first');
-    this.arm.root.visible = view === 'first';
+    this.arm.root.visible = view === 'first' && !this.fixedPose;
+    this.syncHeldAnchor();
   }
 
   toggleView(): PlayerView {
@@ -155,6 +197,7 @@ export class PlazaPlayer {
   }
 
   jump(): void {
+    if (this.fixedPose) return;
     if (this.grounded) { this.velocityY = JUMP_SPEED; this.grounded = false; }
   }
 
@@ -180,6 +223,18 @@ export class PlazaPlayer {
   }
 
   update(dt: number, inputEnabled: boolean): void {
+    if (this.fixedPose) {
+      this.speed = 0; this.moveVelocity.set(0, 0);
+      this.knight.animate(dt, 0, true);
+      this.knight.root.position.copy(this.position);
+      this.knight.root.rotation.set(this.fixedPose.lying ? -Math.PI / 2 : 0, this.fixedPose.yaw + Math.PI, 0, 'YXZ');
+      this.arm.root.visible = false;
+      this.camera.rotation.order = 'YXZ';
+      if (this.view === 'first') { this.camera.position.copy(this.eye); this.camera.rotation.set(this.pitch, this.yaw, 0); }
+      else { const target = this.position.clone().add(new THREE.Vector3(0, 0.3, 0)); this.camera.position.copy(target).add(new THREE.Vector3(0, 1.6, 2.5).applyAxisAngle(new THREE.Vector3(0,1,0), this.yaw)); this.camera.lookAt(target); }
+      return;
+    }
+    this.arm.root.visible = this.view === 'first';
     let ix = 0;
     let iz = 0;
     if (inputEnabled) {

@@ -51,6 +51,7 @@ function getLoader(): GLTFLoader {
   return sharedLoader;
 }
 
+export interface CharacterPose { posture?: 'stand' | 'sit' | 'lie'; offsetY?: number; breathing?: boolean; chew?: boolean; bounce?: boolean; rhythm?: number }
 type CharacterState = 'idle' | 'walk' | 'react' | 'petted';
 
 export interface WalkArea {
@@ -69,6 +70,8 @@ export class PlazaCharacter {
   readonly hitProxy: THREE.Mesh;
   readonly height: number;
   readonly radius: number;
+  /** 横になった時、模型の背中が足場に埋まらないための高さ（m）。 */
+  readonly lyingClearance: number;
   private readonly body = new THREE.Group();
   private readonly mixer: THREE.AnimationMixer;
   private readonly model: THREE.Object3D;
@@ -91,6 +94,12 @@ export class PlazaCharacter {
   private reactJump = 0;
   private faceTarget: THREE.Vector3 | null = null;
   private disposed = false;
+  private owner: unknown = null;
+  private interrupted: (() => void) | undefined;
+  private route: { points: THREE.Vector3[]; speed: number; done?: (arrived: boolean) => void } | null = null;
+  private pose: CharacterPose = {};
+  private poseTime = 0;
+  readonly attachments = { mouth: new THREE.Group(), overhead: new THREE.Group(), front: new THREE.Group() };
 
   private constructor(info: PlazaCharacterInfo, gltfScene: THREE.Object3D, clips: THREE.AnimationClip[]) {
     this.info = info;
@@ -150,8 +159,13 @@ export class PlazaCharacter {
     gltfScene.scale.setScalar(scale);
     gltfScene.position.y = -measured.minY * scale;
     this.radius = THREE.MathUtils.clamp(measured.width * scale * 0.5, 0.25, 0.9);
+    this.lyingClearance = box.isEmpty() ? this.height * 0.2 : Math.max(0.02, -box.min.z * scale + 0.02);
     this.playClip('idle', 0);
 
+    this.attachments.mouth.position.set(0, this.height * 0.72, this.radius * 0.8);
+    this.attachments.overhead.position.set(0, this.height + 0.15, 0);
+    this.attachments.front.position.set(0, this.height * 0.45, this.radius + 0.12);
+    this.body.add(...Object.values(this.attachments));
     this.body.add(gltfScene);
     this.root.add(this.body);
 
@@ -175,8 +189,37 @@ export class PlazaCharacter {
     return this.root.position;
   }
 
+  get isBusy(): boolean { return this.owner !== null; }
+  get activityState(): string { return this.route ? 'path' : this.pose.posture ?? this.state; }
+  claim(owner: unknown, onInterrupted?: () => void): boolean {
+    if (owner == null || (this.owner !== null && this.owner !== owner)) return false;
+    this.owner = owner; this.interrupted = onInterrupted; this.enterIdle(2); return true;
+  }
+  release(owner: unknown): void {
+    if (this.owner !== owner) return;
+    this.owner = null; this.interrupted = undefined; this.stopPath(false); this.setPose({}); this.enterIdle(2);
+  }
+  setPose(pose: CharacterPose): void { this.pose = { ...pose }; }
+  lookAt(point: THREE.Vector3 | null): void { this.faceTarget = point?.clone() ?? null; }
+  walkPath(points: readonly { x: number; y: number; z: number }[], speed = 1, done?: (arrived: boolean) => void): void {
+    this.stopPath(false); this.enterIdle(2);
+    if (!points.length) { done?.(false); return; }
+    this.route = { points: points.map(p => new THREE.Vector3(p.x, p.y, p.z)), speed: Math.max(0.1, speed), done };
+    this.playClip('move', 0.2);
+  }
+  stopPath(arrived = false): void { const old = this.route; this.route = null; if (old) { this.playClip('idle', 0.2); old.done?.(arrived); } }
+  private interruptActivity(): void {
+    const callback = this.interrupted; callback?.();
+    if (this.owner !== null) this.release(this.owner);
+    this.stopPath(false);
+  }
+
   /** 頭の上（吹き出しやハートを出す位置） */
   headPosition(out: THREE.Vector3): THREE.Vector3 {
+    if (this.pose.posture === 'lie' || this.pose.posture === 'sit') {
+      this.root.updateWorldMatrix(true, true);
+      return this.attachments.overhead.getWorldPosition(out);
+    }
     return out.copy(this.root.position).setY(this.root.position.y + this.height * (1 + this.squash * 0.2) + 0.15);
   }
 
@@ -241,6 +284,7 @@ export class PlazaCharacter {
 
   /** タップされた：振り向いて跳ねる */
   react(camera: THREE.Vector3): void {
+    this.interruptActivity();
     this.state = 'react';
     this.stateTime = 0;
     this.stateDuration = 2.4;
@@ -258,6 +302,7 @@ export class PlazaCharacter {
 
   /** なでられている：その場で止まり、こちらを向いて伸び縮みする */
   pet(camera: THREE.Vector3): void {
+    this.interruptActivity();
     if (this.state !== 'petted') {
       this.state = 'petted';
       this.playClip('idle', 0.25);
@@ -270,12 +315,25 @@ export class PlazaCharacter {
 
   update(dt: number, area: WalkArea): void {
     if (this.disposed) return;
-    this.mixer.update(dt);
+    // 待機の代わりに踊る素材も、着座・横臥中は骨格を静止して手続き動作だけを重ねる。
+    if (this.pose.posture !== 'lie' && this.pose.posture !== 'sit') this.mixer.update(dt);
     this.stateTime += dt;
 
+    this.poseTime += dt;
+    const route = this.route;
+    if (route) {
+      const point = route.points[0];
+      const distance = this.position.distanceTo(point);
+      if (distance < 0.04) { this.position.copy(point); route.points.shift(); if (!route.points.length) this.stopPath(true); }
+      else {
+        const next = this.position.clone().lerp(point, Math.min(1, route.speed * dt / distance));
+        if (!area.isFree(next.x, next.z, this)) this.stopPath(false);
+        else { this.desiredYaw = Math.atan2(point.x - this.position.x, point.z - this.position.z); this.position.copy(next); this.hopPhase += dt * 9; }
+      }
+    }
     switch (this.state) {
       case 'idle':
-        if (this.stateTime >= this.stateDuration) this.tryStartWalk(area);
+        if (!this.isBusy && !this.route && this.stateTime >= this.stateDuration) this.tryStartWalk(area);
         break;
       case 'walk': {
         const speed = 0.55 + this.height * 0.18;
@@ -335,12 +393,17 @@ export class PlazaCharacter {
       if (done >= 1) this.reactSpin = 0;
     }
     this.root.rotation.y = this.yaw + spin;
-    this.body.position.y = lift;
-    const s = THREE.MathUtils.clamp(this.squash, -0.35, 0.35);
+    const pose = this.pose, t = this.poseTime;
+    if (pose.bounce) lift += Math.abs(Math.sin(t * 9)) * this.height * 0.12;
+    this.body.rotation.x = pose.posture === 'lie' ? -Math.PI / 2 : 0;
+    this.body.rotation.z = pose.rhythm ? Math.sin(t * pose.rhythm * Math.PI * 2) * 0.055 : 0;
+    this.body.position.y = lift + (pose.offsetY ?? 0) + (pose.posture === 'sit' ? -this.height * 0.28 : pose.posture === 'lie' ? this.lyingClearance : 0);
+    const s = THREE.MathUtils.clamp(this.squash + (pose.chew ? Math.sin(t * 14) * 0.035 : 0) + (pose.breathing ? Math.sin(t * 1.8) * 0.012 : 0), -0.35, 0.35);
     this.body.scale.set(1 + s * 0.5, 1 - s, 1 + s * 0.5);
   }
 
   dispose(): void {
+    this.interruptActivity();
     this.disposed = true;
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.model);

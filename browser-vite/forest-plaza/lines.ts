@@ -6,13 +6,18 @@ import { PLAZA_LINE_LOADERS } from './lines-index';
 
 export type PlazaCharacterKind = 'stone' | 'cpu' | 'manifest';
 
-export type PlazaLineSituation = 'greet' | 'pet' | 'petMore' | 'idle';
+export type LegacySituation = 'greet' | 'pet' | 'petMore' | 'idle';
+export type PlazaLineSituation = LegacySituation | 'sleepIn' | 'sleep' | 'wake' | 'eat' | 'eatFavorite' | 'play' | 'listen' | 'pianoPlay' | 'chatOpen' | 'chatReply';
+const UNTIERED = new Set<PlazaLineSituation>(['pianoPlay', 'chatOpen', 'chatReply']);
 
 /** 1 キャラ分のセリフ。各場面とも添字が仲良し度の段階（ハートの数 0〜5） */
-export type PlazaLineSet = Record<PlazaLineSituation, readonly (readonly string[])[]>;
+export type PlazaLineSet = Record<LegacySituation, readonly (readonly string[])[]> & Partial<Record<Exclude<PlazaLineSituation, LegacySituation>, readonly (readonly string[])[]>>;
 
 /** セリフを読み込めなかった時だけ使う、段階によらない最小限のセリフ */
 const FALLBACK_LINES: Record<PlazaLineSituation, readonly string[]> = {
+  sleepIn: ['おやすみ'], sleep: ['すう…すう…'], wake: ['おはよう！'],
+  eat: ['もぐもぐ、おいしい'], eatFavorite: ['これ、だいすき！'], play: ['楽しいね！'],
+  listen: ['いい音だね'], pianoPlay: ['一曲、弾くね'], chatOpen: ['いい日だね'], chatReply: ['そうだね'],
   greet: ['やあ！', 'こんにちは！'],
   pet: ['えへへ…', 'くすぐったい！'],
   petMore: ['だいすき！', 'ありがとう'],
@@ -61,15 +66,20 @@ function chooseTier(hearts: number): number {
   return tier > 0 && Math.random() < 0.2 ? tier - 1 : tier;
 }
 
-export function pickLine(id: string, situation: PlazaLineSituation, hearts = 0): string {
+export function pickLine(id: string, situation: PlazaLineSituation, hearts = 0, vars: Record<string, string> = {}): string {
   const set = lineSets.get(lineKeyFor(id));
   const previous = lastLines.get(id);
   let line = '';
   if (set) {
-    const tier = chooseTier(hearts);
+    const tier = UNTIERED.has(situation) ? 0 : chooseTier(hearts);
     // 段階 0 の petMore は無いので、なでる時のセリフで代える
     const own = set[situation]?.[tier] ?? [];
-    line = pick(own.length > 0 ? own : set.pet?.[tier] ?? [], previous);
+    const legacy = situation === 'greet' || situation === 'pet' || situation === 'petMore' || situation === 'idle';
+    const candidates = own.length > 0 ? own : (legacy ? set.pet?.[tier] ?? [] : []);
+    const resolved = candidates
+      .map(text => text.replace(/\{([^}]+)\}/g, (all, name) => vars[name] ?? all))
+      .filter(text => !/\{[^}]+\}/.test(text));
+    line = pick(resolved, previous);
   }
   if (!line) line = pick(FALLBACK_LINES[situation], previous);
   lastLines.set(id, line);
