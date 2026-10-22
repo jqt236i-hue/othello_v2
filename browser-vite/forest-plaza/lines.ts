@@ -2,63 +2,78 @@
  * 森の広場でキャラが話すセリフと、仲良し度（なでた回数などで上がる）の保存。
  */
 
+import { PLAZA_LINE_LOADERS } from './lines-index';
+
 export type PlazaCharacterKind = 'stone' | 'cpu' | 'manifest';
 
 export type PlazaLineSituation = 'greet' | 'pet' | 'petMore' | 'idle';
 
-const COMMON_LINES: Record<PlazaLineSituation, readonly string[]> = {
-  greet: ['やあ！', 'あそびに来てくれたの？', 'こんにちは！', '今日もいい天気だね', '盤の上より、ここが好き'],
-  pet: ['えへへ…', 'くすぐったい！', 'もっとなでて', 'ふふっ', 'ころころ…'],
-  petMore: ['だいすき！', 'ずっとここにいたいな', '次の対局もがんばるね', 'きみの手、あったかい'],
-  idle: ['ふんふーん♪', 'ピアノ、だれか弾かないかな', '木漏れ日がきもちいい', 'おなかすいたなあ', 'ひなたぼっこ中…'],
+/** 1 キャラ分のセリフ。各場面とも添字が仲良し度の段階（ハートの数 0〜5） */
+export type PlazaLineSet = Record<PlazaLineSituation, readonly (readonly string[])[]>;
+
+/** セリフを読み込めなかった時だけ使う、段階によらない最小限のセリフ */
+const FALLBACK_LINES: Record<PlazaLineSituation, readonly string[]> = {
+  greet: ['やあ！', 'こんにちは！'],
+  pet: ['えへへ…', 'くすぐったい！'],
+  petMore: ['だいすき！', 'ありがとう'],
+  idle: ['ふんふーん♪', '木漏れ日がきもちいい'],
 };
 
-const KIND_LINES: Partial<Record<PlazaCharacterKind, Partial<Record<PlazaLineSituation, readonly string[]>>>> = {
-  cpu: {
-    greet: ['ここでは勝負はなしだ', '…休戦だ。今日だけな', 'ふん、なれ合いは好かん…が、悪くない'],
-    pet: ['な、なにをする！', '…別に嫌ではない', 'こ、子ども扱いするな'],
-    petMore: ['次の対局、手加減はしないぞ', '…また来い'],
-  },
-};
+const lineSets = new Map<string, PlazaLineSet | null>();
+const lineLoads = new Map<string, Promise<void>>();
+const lastLines = new Map<string, string>();
 
-const CHARACTER_LINES: Record<string, Partial<Record<PlazaLineSituation, readonly string[]>>> = {
-  observer: {
-    greet: ['あなたの一手を、ここでも観測している', '盤の外の世界も、悪くない'],
-    pet: ['…観測対象に触れられるのは、初めて', '不思議な感覚…'],
-    petMore: ['この記録は、消さずにおく', 'あなたとの時間は、計算できない'],
-    idle: ['風の揺らぎを観測中', '木々の枝分かれは、盤面の分岐に似ている'],
-  },
-  executor: {
-    greet: ['執行の時ではない。くつろげ', '今日は剣を置いてきた'],
-    pet: ['…む', '執行者をなでる者など、お前くらいだ'],
-    petMore: ['お前の盤は、私が守ろう', '悪くない休息だ'],
-  },
-  theory: {
-    greet: ['休息もまた、理論の一部', 'ようこそ。ここは計算の外側だ'],
-    pet: ['その手の動き…規則性がない', '理論では説明できない心地よさ'],
-    petMore: ['きみとの仲良し度、すでに最適解', '証明終了。きみが好きだ'],
-  },
-  'fire-will': { greet: ['ぽかぽかしてる？'], pet: ['あちち…じゃなくて、うれしい！'] },
-  'water-will': { greet: ['しっとり、いい空気'], pet: ['ぷるぷる…'] },
-  'grass-will': { greet: ['ここ、草がいっぱいで最高！'], pet: ['葉っぱがそよそよする〜'] },
-  'TIME_BOMB': { pet: ['あ、あんまり揺らさないで…！'] },
-  'CROSS_BOMB': { pet: ['ドキドキしちゃう…'] },
-  'X_BOMB': { pet: ['ドキドキしちゃう…'] },
-  'ZOMBIE': { greet: ['うぅ…こんにちは…'], pet: ['あったかい手…生き返る…'] },
-  'ROBOT_VACUUM_WILL': { idle: ['落ち葉、ぜんぶ吸っちゃうぞ'], pet: ['ピピッ、なでなで検知'] },
-};
-
-function pick(list: readonly string[]): string {
-  return list[Math.floor(Math.random() * list.length)] ?? '';
+/** キャラ ID（`-black` / `-white` の色違いは同じキャラ）からセリフファイルの名前を作る */
+export function lineKeyFor(id: string): string {
+  return id.replace(/-(black|white)$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
 }
 
-export function pickLine(id: string, kind: PlazaCharacterKind, situation: PlazaLineSituation): string {
-  const own = CHARACTER_LINES[id]?.[situation];
-  const byKind = KIND_LINES[kind]?.[situation];
-  // 固有のセリフ・種類ごとのセリフを優先して選ぶ（観測者たちは固有のセリフだけ）
-  if (own && (kind === 'manifest' || Math.random() < 0.7)) return pick(own);
-  if (byKind && Math.random() < 0.7) return pick(byKind);
-  return pick(COMMON_LINES[situation]);
+/** そのキャラのセリフを読み込む（キャラごとに別ファイルなので、呼んだキャラの分だけ読む）。失敗しても例外は出さない */
+export function preloadLines(id: string): Promise<void> {
+  const key = lineKeyFor(id);
+  let task = lineLoads.get(key);
+  if (!task) {
+    const loader = PLAZA_LINE_LOADERS[key];
+    task = loader
+      ? loader().then(
+        (module) => { lineSets.set(key, module.default as PlazaLineSet); },
+        () => { lineSets.set(key, null); },
+      )
+      : Promise.resolve().then(() => { lineSets.set(key, null); });
+    lineLoads.set(key, task);
+  }
+  return task;
+}
+
+function pick(list: readonly string[], previous: string | undefined): string {
+  if (list.length === 0) return '';
+  let line = list[Math.floor(Math.random() * list.length)] ?? '';
+  // 同じセリフが続かないようにする
+  for (let attempt = 0; attempt < 4 && line === previous && list.length > 1; attempt += 1) {
+    line = list[Math.floor(Math.random() * list.length)] ?? '';
+  }
+  return line;
+}
+
+/** 仲良し度の段階（ハート 0〜5）から、今回選ぶ段階を決める。ときどきひとつ前の段階の態度に戻る */
+function chooseTier(hearts: number): number {
+  const tier = Math.min(5, Math.max(0, Math.floor(hearts)));
+  return tier > 0 && Math.random() < 0.2 ? tier - 1 : tier;
+}
+
+export function pickLine(id: string, situation: PlazaLineSituation, hearts = 0): string {
+  const set = lineSets.get(lineKeyFor(id));
+  const previous = lastLines.get(id);
+  let line = '';
+  if (set) {
+    const tier = chooseTier(hearts);
+    // 段階 0 の petMore は無いので、なでる時のセリフで代える
+    const own = set[situation]?.[tier] ?? [];
+    line = pick(own.length > 0 ? own : set.pet?.[tier] ?? [], previous);
+  }
+  if (!line) line = pick(FALLBACK_LINES[situation], previous);
+  lastLines.set(id, line);
+  return line;
 }
 
 const AFFECTION_STORAGE_KEY = 'cardReversi.forestPlaza.affection.v1';

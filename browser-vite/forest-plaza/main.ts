@@ -11,6 +11,7 @@ import {
   DEFAULT_COMFORT,
   type PlazaComfortSettings,
   pickLine,
+  preloadLines,
   saveAffection,
   saveTimeOfDay,
   type PlazaLineSituation,
@@ -439,7 +440,7 @@ async function boot(): Promise<void> {
       bubble = { element, until: 0 };
       bubbles.set(character.info.id, bubble);
     }
-    bubble.element.textContent = pickLine(character.info.id, character.info.kind, situation);
+    bubble.element.textContent = pickLine(character.info.id, situation, affectionHearts(affection[character.info.id] ?? 0));
     bubble.element.classList.remove('is-hidden');
     bubble.until = performance.now() + 2800;
   };
@@ -552,7 +553,7 @@ async function boot(): Promise<void> {
     loadingIds.add(id);
     syncRoster();
     try {
-      const character = await PlazaCharacter.load(entry, assetBase);
+      const [character] = await Promise.all([PlazaCharacter.load(entry, assetBase), preloadLines(id)]);
       if (!visitorOrder.includes(id)) {
         character.dispose();
         return;

@@ -1,0 +1,53 @@
+/**
+ * キャラごとのセリフファイル（lines-data/）の読み込み口。キャラを呼んだ時だけ、そのキャラの分を読み込む。
+ * キー名は lines.ts の lineKeyFor() で ID から作る。
+ */
+
+export type PlazaLineLoader = () => Promise<{ default: unknown }>;
+
+export const PLAZA_LINE_LOADERS: Readonly<Record<string, PlazaLineLoader>> = {
+  fire_will: () => import('./lines-data/fire_will.json'),
+  water_will: () => import('./lines-data/water_will.json'),
+  grass_will: () => import('./lines-data/grass_will.json'),
+  gold_stone: () => import('./lines-data/gold_stone.json'),
+  silver_stone: () => import('./lines-data/silver_stone.json'),
+  rainbow_stone: () => import('./lines-data/rainbow_stone.json'),
+  trap_stone: () => import('./lines-data/trap_stone.json'),
+  time_bomb: () => import('./lines-data/time_bomb.json'),
+  cross_bomb: () => import('./lines-data/cross_bomb.json'),
+  x_bomb: () => import('./lines-data/x_bomb.json'),
+  shinra_bansho_god: () => import('./lines-data/shinra_bansho_god.json'),
+  ultimate_work_god: () => import('./lines-data/ultimate_work_god.json'),
+  protected_next_stone: () => import('./lines-data/protected_next_stone.json'),
+  perma_protect_next_stone: () => import('./lines-data/perma_protect_next_stone.json'),
+  regen_stone: () => import('./lines-data/regen_stone.json'),
+  rakurai: () => import('./lines-data/rakurai.json'),
+  zan: () => import('./lines-data/zan.json'),
+  sna: () => import('./lines-data/sna.json'),
+  time_stop: () => import('./lines-data/time_stop.json'),
+  proliferation_will: () => import('./lines-data/proliferation_will.json'),
+  breeding_will: () => import('./lines-data/breeding_will.json'),
+  hyperactive_will: () => import('./lines-data/hyperactive_will.json'),
+  escape_will: () => import('./lines-data/escape_will.json'),
+  sacrifice_will: () => import('./lines-data/sacrifice_will.json'),
+  gluttonous_will: () => import('./lines-data/gluttonous_will.json'),
+  zombie: () => import('./lines-data/zombie.json'),
+  ghost_will: () => import('./lines-data/ghost_will.json'),
+  robot_vacuum_will: () => import('./lines-data/robot_vacuum_will.json'),
+  extreme_hyperactive_will: () => import('./lines-data/extreme_hyperactive_will.json'),
+  will_hunter_king: () => import('./lines-data/will_hunter_king.json'),
+  destroy_dragon: () => import('./lines-data/destroy_dragon.json'),
+  ultimate_reverse_dragon: () => import('./lines-data/ultimate_reverse_dragon.json'),
+  time_stop_deity: () => import('./lines-data/time_stop_deity.json'),
+  meteor_god: () => import('./lines-data/meteor_god.json'),
+  stone_salvation_god: () => import('./lines-data/stone_salvation_god.json'),
+  ultimate_hyperactive_god: () => import('./lines-data/ultimate_hyperactive_god.json'),
+  ultimate_destroy_god: () => import('./lines-data/ultimate_destroy_god.json'),
+  cpu_lv1: () => import('./lines-data/cpu_lv1.json'),
+  cpu_lv2: () => import('./lines-data/cpu_lv2.json'),
+  cpu_lv4: () => import('./lines-data/cpu_lv4.json'),
+  cpu_lv5: () => import('./lines-data/cpu_lv5.json'),
+  observer: () => import('./lines-data/observer.json'),
+  executor: () => import('./lines-data/executor.json'),
+  theory: () => import('./lines-data/theory.json'),
+};
