@@ -31,6 +31,17 @@ describe('森の広場 おにごっこの寿命と役交代',()=>{
     Object.assign(s.ctx.hand,{current:null});s.ctx.player.position.x=10;expect(s.spec.eligible!(s.c)).toBe(false);
     s.ctx.director.sleeping=true;expect(s.start()).toBe(false);expect(s.finish).toHaveBeenCalledTimes(1);
   });
+  test('接近先は通常mainのプレイヤー余白と格子丸めの外に置く',()=>{
+    const s=setup();
+    s.ctx.pathing.find=jest.fn((from,to)=>{
+      const x=Math.round(to.x*4)/4,z=Math.round(to.z*4)/4;
+      if(Math.hypot(x-s.ctx.player.position.x,z-s.ctx.player.position.z)<s.c.radius+s.ctx.player.radius+.3)return null;
+      return [{x:from.x,y:0,z:from.z},{x,y:0,z}];
+    });
+    expect(s.start()).toBe(true);
+    expect(s.c.walkPath).toHaveBeenCalled();
+    s.activity.dispose();
+  });
   test('誘いから捕獲を消費し、追跡・再捕獲を経て満足し+3する',()=>{
     const s=setup();expect(s.start()).toBe(true);s.activity.update(.05);s.activity.update(3);s.activity.update(.05);
     s.ctx.player.position.copy(s.c.position).add(new THREE.Vector3(0,0,1.1));

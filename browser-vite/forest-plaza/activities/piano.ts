@@ -115,6 +115,8 @@ export function createPianoActivity(ctx: ActivityContext): PlazaActivity {
         const path = ctx.pathing.find(c.position, item.home, c) ?? ctx.pathing.find(c.position, { x: 0, z: -2 }, c);
         // プレイヤー等で出口がふさがれている間は、家具の脇で待つ。通路が空けば再探索。
         if (!path) { item.waiting = 2; continue; }
+        // 出発格子へ数cm戻ると、隣の聴き手との余白を再び狭めてしまう。
+        if (path.length > 1 && Math.hypot(path[0].x-c.position.x, path[0].z-c.position.z) < 0.2) path.shift();
         item.walking = true;
         c.walkPath(path, 1, arrived => { if (returning.get(c) !== item) return; item.walking = false; if (arrived) { returning.delete(c); c.release(item.owner); } else item.waiting = 2; });
       }

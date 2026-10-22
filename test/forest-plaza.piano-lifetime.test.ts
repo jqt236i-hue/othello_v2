@@ -58,6 +58,15 @@ describe('森の広場 ピアノの寿命',()=>{
   test('完奏だけに演奏者+2と聴き手+1、帰路を終えると両者を解放',()=>{
     const s=setup(),a=s.character('favorite'),b=s.character('listener');s.specs[0].interact();a.arrive();b.arrive();s.activity.update(70);expect(s.ctx.addAffection).toHaveBeenCalledWith(a.c,2);expect(s.ctx.addAffection).toHaveBeenCalledWith(b.c,1);s.activity.update(2);s.activity.update(1);a.arrive();b.arrive();expect(a.c.isBusy).toBe(false);expect(b.c.isBusy).toBe(false);expect(s.fill.intensity).toBe(0);s.activity.dispose();
   });
+  test('なで割込みは3秒待ち、帰路の近い出発格子へ逆戻りしない',()=>{
+    const s=setup(),a=s.character('favorite');s.specs[0].interact();a.arrive();
+    s.activity.onCharacterTouched!(a.c,'pet');
+    const before=(a.c.walkPath as jest.Mock).mock.calls.length;
+    s.activity.update(2.9);expect(a.c.walkPath).toHaveBeenCalledTimes(before);
+    s.activity.update(.2);expect(a.c.walkPath).toHaveBeenCalledTimes(before+1);
+    expect((a.c.walkPath as jest.Mock).mock.calls.at(-1)[0]).toHaveLength(1);
+    a.arrive();expect(a.c.isBusy).toBe(false);s.activity.dispose();
+  });
   test('演奏者の帰還で聴衆も片付き報酬なし、disposeは二重呼出し安全',()=>{
     const s=setup(),a=s.character('favorite'),b=s.character('listener');s.specs[0].interact();a.arrive();b.arrive();s.activity.onCharacterRemoved!(a.c);expect(a.c.isBusy).toBe(false);expect(b.c.isBusy).toBe(false);expect(s.ctx.addAffection).not.toHaveBeenCalled();s.activity.dispose();s.activity.dispose();expect(s.unregister).toHaveBeenCalledTimes(1);for(const h of s.handles)expect(h).toHaveBeenCalledTimes(1);expect(s.ctx.scene.getObjectByName('PianoNotes')).toBeUndefined();
   });

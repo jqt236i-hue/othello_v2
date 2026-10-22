@@ -17,7 +17,9 @@ export function createTagActivity(ctx: ActivityContext): PlazaActivity {
   const plan = (g: Game, chase: boolean): boolean => {
     const c = g.character, player = ctx.player.position;
     const distance = socialDistance(c.position, player);
-    const stop = Math.max(0.8, c.radius + ctx.player.radius + 0.1);
+    // 共通経路のプレイヤー余白0.3mと格子丸め（最大約0.18m）の外へ接近する。
+    // 内側を目的地にすると、通常mainの動的障害判定で誘いが毎回失敗する。
+    const stop = Math.max(0.8, c.radius + ctx.player.radius + 0.5);
     const direction = c.position.clone().sub(player).setY(0).normalize();
     const candidates = chase
       ? [0, 0.6, -0.6, 1.2, -1.2].map(angle => player.clone().add(direction.clone().applyAxisAngle(c.root.up, angle).multiplyScalar(stop)))

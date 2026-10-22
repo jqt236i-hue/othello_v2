@@ -1,7 +1,8 @@
 import { createActivities } from './activities';
 import { ActivityDirector } from './activities/director';
 import { PlazaAudio } from './activities/audio';
-import { findPath } from './activities/pathing';
+import { clearsDynamicObstacle, createStaticPathHeights, findPath } from './activities/pathing';
+import { createBudgetedWarmup } from './activities/warmup';
 import type { ActivityContext, HeldItem, Interactable, PlazaActivity } from './activities/types';
 import * as THREE from 'three';
 import { PlazaCharacter, type PlazaCharacterInfo, type WalkArea } from './characters';
@@ -129,6 +130,7 @@ function createHeartTexture(): THREE.CanvasTexture {
 }
 
 interface HeartParticle {
+  characterId: string;
   sprite: THREE.Sprite;
   velocity: THREE.Vector3;
   life: number;
@@ -264,32 +266,59 @@ async function boot(): Promise<void> {
   const down = new THREE.Vector3(0, -1, 0);
   const rayOrigin = new THREE.Vector3();
   const standCache = new Map<string, number | null>();
+  // 静的なAABBで候補を絞るだけ。床・家具の最終判定は従来どおり実メッシュのraycast。
+  plaza.root.updateWorldMatrix(true, true);
+  const meshBounds = (meshes: THREE.Mesh[]) => meshes.map(mesh => ({mesh, box: new THREE.Box3().setFromObject(mesh)}));
+  const floorBounds = meshBounds(plaza.floorMeshes), solidBounds = meshBounds(plaza.playerSolidMeshes);
+  const nearbyMeshes = (items: typeof floorBounds, x: number, z: number, margin: number) => items.filter(({box}) => x >= box.min.x-margin && x <= box.max.x+margin && z >= box.min.z-margin && z <= box.max.z+margin).map(({mesh}) => mesh);
 
   /** 家具を除いた足元の高さ（0.25m 格子でキャッシュ）。家具の上なら null */
   const groundAt = (x: number, z: number): number | null => {
     const key = `${Math.round(x * 4)},${Math.round(z * 4)}`;
     if (standCache.has(key)) return standCache.get(key) ?? null;
-    rayOrigin.set(Math.round(x * 4) / 4, 3.5, Math.round(z * 4) / 4);
+    const gx = Math.round(x * 4) / 4, gz = Math.round(z * 4) / 4;
+    const solids = nearbyMeshes(solidBounds, gx, gz, 0.27);
+    rayOrigin.set(gx, 3.5, gz);
     raycaster.set(rayOrigin, down);
     raycaster.far = 6;
     let floor = 0;
-    const floorHits = raycaster.intersectObjects(plaza.floorMeshes, false);
+    raycaster.firstHitOnly = true;
+    const floorHits = raycaster.intersectObjects(nearbyMeshes(floorBounds, gx, gz, 0), false);
     if (floorHits.length) floor = floorHits[0].point.y;
-    const obstacleHits = raycaster.intersectObjects(plaza.playerSolidMeshes, false);
+    raycaster.firstHitOnly = false; // 高い家具の上面だけでなく中段・下面も従来どおり調べる。
+    const obstacleHits = raycaster.intersectObjects(solids, false);
     let blocked = obstacleHits.some((hit) => hit.point.y > floor + 0.12 && hit.point.y < floor + 2.6);
     // 幹や壁は上面が光線の出発点より高い。格子の境界を横切る水平線でも塞ぐ。
     if (!blocked) {
-      const gx = Math.round(x * 4) / 4, gz = Math.round(z * 4) / 4;
+      raycaster.firstHitOnly = true;
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         rayOrigin.set(gx - dx * 0.26, floor + 0.65, gz - dz * 0.26);
         raycaster.set(rayOrigin, new THREE.Vector3(dx, 0, dz)); raycaster.far = 0.52;
-        if (raycaster.intersectObjects(plaza.playerSolidMeshes, false).length) { blocked = true; break; }
+        if (raycaster.intersectObjects(solids, false).length) { blocked = true; break; }
       }
     }
     const value = blocked ? null : floor;
     standCache.set(key, value);
     return value;
   };
+
+  const pathHeights = createStaticPathHeights(groundAt, PLAYER_BOUNDS);
+  const warmCells: {x: number; z: number}[] = [];
+  for (let z = PLAYER_BOUNDS.minZ; z <= PLAYER_BOUNDS.maxZ; z += 0.25) for (let x = PLAYER_BOUNDS.minX; x <= PLAYER_BOUNDS.maxX; x += 0.25) warmCells.push({x,z});
+  // 敷石・ピアノ周辺から予熱し、その後に森側を含む活動範囲を埋める。
+  warmCells.sort((a,b) => (a.x*a.x+(a.z+4)**2) - (b.x*b.x+(b.z+4)**2));
+  function* warmTasks(): Generator<{get: typeof groundAt; x: number; z: number}> {
+    for (const cell of warmCells) yield {get: groundAt, ...cell};
+    const radii = new Set([0.3, ...[...visitors.values()].map(c => c.radius * 0.8)]);
+    for (const radius of radii) {
+      const get = pathHeights.forRadius(radius);
+      for (const cell of warmCells) yield {get, ...cell};
+    }
+    // 小さい探索も分散して実行し、最初の長距離要求に作業配列確保とVMの初回実行を重ねない。
+    const primeSearch = () => { findPath({x:0,z:0}, {x:0,z:-0.5}, {groundAt, bounds:PLAYER_BOUNDS, radius:0.3, staticHeightAt:pathHeights.forRadius(0.3), blocked:()=>false}); return 0; };
+    for (let i=0;i<32;i++) yield {get:primeSearch, x:0, z:0};
+  }
+  const groundWarmup = createBudgetedWarmup(warmTasks(), ({get,x,z}) => { get(x,z); });
 
   // ------------------------------------------------------------ プレイヤー（リバーシの勇者）
   const allSolid = [...new Set([...plaza.floorMeshes, ...plaza.playerSolidMeshes])];
@@ -405,11 +434,12 @@ async function boot(): Promise<void> {
         if (ox === 0 && oz === 0) height = y;
       }
       if (self) {
-        if (player && (player.position.x - x) ** 2 + (player.position.z - z) ** 2 < (self.radius + player.radius + 0.3) ** 2) return null;
+        // 活動終了で隣同士になった時も、離れる方向へは歩ける（通常移動と同じ）。
+        if (player && !clearsDynamicObstacle(self.position, {x,z}, player.position, self.radius + player.radius + 0.3)) return null;
         for (const other of visitors.values()) {
           if (other === self) continue;
           const minDistance = self.radius + other.radius + 0.25;
-          if ((other.position.x - x) ** 2 + (other.position.z - z) ** 2 < minDistance * minDistance) return null;
+          if (!clearsDynamicObstacle(self.position, {x,z}, other.position, minDistance)) return null;
         }
       }
       return height;
@@ -433,11 +463,17 @@ async function boot(): Promise<void> {
       sprite.scale.setScalar(0.18 + Math.random() * 0.08);
       scene.add(sprite);
       hearts.push({
-        sprite,
+        characterId: character.info.id, sprite,
         velocity: new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.55 + Math.random() * 0.3, (Math.random() - 0.5) * 0.3),
         life: 0,
         maxLife: 1.1 + Math.random() * 0.4,
       });
+    }
+  };
+  const clearHearts = (id?: string) => {
+    for (let i = hearts.length - 1; i >= 0; i--) {
+      if (id !== undefined && hearts[i].characterId !== id) continue;
+      hearts[i].sprite.removeFromParent(); hearts[i].sprite.material.dispose(); hearts.splice(i, 1);
     }
   };
   const updateHearts = (dt: number) => {
@@ -614,6 +650,7 @@ async function boot(): Promise<void> {
       character.dispose();
       visitors.delete(id);
     }
+    clearHearts(id);
     const bubble = bubbles.get(id);
     if (bubble) {
       bubble.element.remove();
@@ -671,15 +708,18 @@ async function boot(): Promise<void> {
     scene, camera, player: activePlayer, renderer, visitors, walkArea, plaza, director, audio, isTouch: IS_TOUCH, reach: REACH,
     pathing: {
       groundAt,
-      find: (from, to, self) => findPath(from, to, { groundAt, bounds: PLAYER_BOUNDS, radius: self ? self.radius * 0.8 : 0.3,
-        blocked: (x, z) => {
-          // 出発点ですでに重なる時だけは離脱を許す。
-          if (Math.hypot(x - from.x, z - from.z) < 0.4) return false;
-          const r = self?.radius ?? 0.3;
-          if (Math.hypot(x - activePlayer.position.x, z - activePlayer.position.z) < r + activePlayer.radius + 0.3) return true;
-          // 実歩行のstandHeightと同じ余白。狭い経路を採用して活動の帰路で止まるのを防ぐ。
-          return [...visitors.values()].some(other => other !== self && Math.hypot(x - other.position.x, z - other.position.z) < r + other.radius + 0.25);
-        } }),
+      find: (from, to, self) => {
+        const r = self?.radius ?? 0.3;
+        // 探索中に動かない障害は要求ごとに一度だけ採取。各格子でMap配列や平方根を作らない。
+        const obstacles = [{x: activePlayer.position.x, z: activePlayer.position.z, clearance: (r + activePlayer.radius + 0.3) ** 2}];
+        for (const other of visitors.values()) if (other !== self) obstacles.push({x: other.position.x, z: other.position.z, clearance: (r + other.radius + 0.25) ** 2});
+        return findPath(from, to, { groundAt, bounds: PLAYER_BOUNDS, radius: self ? self.radius * 0.8 : 0.3, staticHeightAt: pathHeights.forRadius(self ? self.radius * 0.8 : 0.3),
+          blocked: (x, z) => {
+            // 出発点ですでに重なる時だけは離脱を許す。
+            if ((x-from.x)**2 + (z-from.z)**2 < 0.16) return false;
+            return obstacles.some(o => (x-o.x)**2 + (z-o.z)**2 < o.clearance);
+          } });
+      },
     },
     say, sayText, spawnHearts, addAffection, hearts: character => affectionHearts(affection[character.info.id] ?? 0),
     addInteractable: spec => {
@@ -1024,6 +1064,8 @@ async function boot(): Promise<void> {
   if (new URLSearchParams(window.location.search).get('debug') === '1') {
     (window as unknown as { __forestPlazaDebug?: unknown }).__forestPlazaDebug = {
       context,
+      prewarm: () => ({...groundWarmup.status(), standCells: standCache.size, radiusCaches: pathHeights.size}),
+      resources: () => ({inputHandlers:inputHandlers.size, escapeHandlers:escapeHandlers.size, interactables:interactables.size, hearts:hearts.length, bubbles:bubbles.size}),
       pause: (value = true) => renderer.setAnimationLoop(value ? null : frame),
       renderQuality: (ratio = 1, shadows = true) => { renderer.setPixelRatio(ratio); renderer.shadowMap.enabled = shadows; },
       surface: (x: number, z: number) => { const ray = new THREE.Raycaster(new THREE.Vector3(x, 5, z), down, 0, 8); return ray.intersectObjects(plaza.playerSolidMeshes, false).map(hit => ({ name: hit.object.name, y: hit.point.y, material: ((hit.object as THREE.Mesh).material as THREE.Material).name })); },
@@ -1087,6 +1129,8 @@ async function boot(): Promise<void> {
     updatePress(performance.now());
     updateAim();
     renderer.render(scene, camera);
+    // 初回描画より後。同期の経路要求は止めず、予熱は1フレームPC3ms/タッチ2msだけ。
+    groundWarmup.tick(IS_TOUCH ? 2 : 3);
     updateBubbles();
     const now = performance.now();
     if (now > nextChatter) {
@@ -1113,6 +1157,7 @@ async function boot(): Promise<void> {
   cleanup = () => {
     if (disposed) return; disposed = true;
     window.clearInterval(affectionTimer);
+    groundWarmup.stop();
     renderer.setAnimationLoop(null);
     for (const activity of activities) activity.dispose();
     director.dispose(); equip(null); audio.dispose(); escapeHandlers.clear(); inputHandlers.clear(); interactables.clear();
@@ -1120,7 +1165,8 @@ async function boot(): Promise<void> {
     for (const id of Array.from(visitors.keys())) removeVisitor(id);
     activePlayer.dispose();
     plaza.dispose();
-    heartTexture.dispose();
+    clearHearts(); heartTexture.dispose();
+    chip.remove(); fadeLayer.remove();
     renderer.dispose();
   };
   window.addEventListener('pagehide', cleanup);
