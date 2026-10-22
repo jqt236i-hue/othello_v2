@@ -676,8 +676,9 @@ async function boot(): Promise<void> {
           // 出発点ですでに重なる時だけは離脱を許す。
           if (Math.hypot(x - from.x, z - from.z) < 0.4) return false;
           const r = self?.radius ?? 0.3;
-          if (Math.hypot(x - activePlayer.position.x, z - activePlayer.position.z) < r + activePlayer.radius + 0.1) return true;
-          return [...visitors.values()].some(other => other !== self && Math.hypot(x - other.position.x, z - other.position.z) < r + other.radius + 0.1);
+          if (Math.hypot(x - activePlayer.position.x, z - activePlayer.position.z) < r + activePlayer.radius + 0.3) return true;
+          // 実歩行のstandHeightと同じ余白。狭い経路を採用して活動の帰路で止まるのを防ぐ。
+          return [...visitors.values()].some(other => other !== self && Math.hypot(x - other.position.x, z - other.position.z) < r + other.radius + 0.25);
         } }),
     },
     say, sayText, spawnHearts, addAffection, hearts: character => affectionHearts(affection[character.info.id] ?? 0),

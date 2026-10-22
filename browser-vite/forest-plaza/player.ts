@@ -11,6 +11,8 @@ import { buildFirstPersonArm, buildKnight, type FirstPersonArm, type KnightRig }
 export interface PlayerPose {
   position: THREE.Vector3; yaw: number; pitch?: number; eyeHeight?: number;
   lying?: boolean; yawLimit?: number; pitchLimit?: number;
+  /** 身体を回さず、寝床で顔だけ相手側へ向ける。 */
+  lookYaw?: number;
 }
 export type PlayerView = 'first' | 'third';
 export type PlayerGesture = 'none' | 'wave' | 'pet';
@@ -63,6 +65,7 @@ export class PlazaPlayer {
   private readonly knight: KnightRig;
   private readonly arm: FirstPersonArm;
   private fixedPose: PlayerPose | null = null;
+  private fixedPoseTime = 0;
   private savedPose: { position: THREE.Vector3; yaw: number; pitch: number } | null = null;
   private heldModel: THREE.Object3D | null = null;
   readonly heldAnchor = new THREE.Group();
@@ -127,9 +130,9 @@ export class PlazaPlayer {
     if (pose) {
       if (!this.savedPose) this.savedPose = { position: this.position.clone(), yaw: this.yaw, pitch: this.pitch };
       this.fixedPose = { ...pose, position: pose.position.clone() };
-      this.teleport(pose.position, pose.yaw, pose.pitch ?? 0.65); this.releaseKeys();
+      this.teleport(pose.position, pose.lookYaw ?? pose.yaw, pose.pitch ?? 0.65); this.releaseKeys();
     } else {
-      this.fixedPose = null;
+      this.fixedPose = null; this.fixedPoseTime = 0; this.knight.root.scale.setScalar(1); this.knight.root.visible = true;
       if (this.savedPose) this.teleport(this.savedPose.position, this.savedPose.yaw, this.savedPose.pitch);
       this.savedPose = null; this.knight.root.rotation.x = 0; this.releaseKeys();
     }
@@ -146,7 +149,12 @@ export class PlazaPlayer {
 
   /** 目の位置（キャラの向き先・届く距離の基準） */
   get eye(): THREE.Vector3 {
-    if (this.fixedPose) return this.position.clone().add(new THREE.Vector3(0, this.fixedPose.eyeHeight ?? 0.22, 0));
+    if (this.fixedPose) {
+      const pose = this.fixedPose;
+      // 横臥では足元でなく頭側から天蓋を見る。身体の向きは見回しに追従しない。
+      const head = pose.lying ? 1.45 : 0;
+      return this.position.clone().add(new THREE.Vector3(-Math.sin(pose.yaw) * head, pose.eyeHeight ?? 0.22, -Math.cos(pose.yaw) * head));
+    }
     return new THREE.Vector3(
       this.position.x - Math.sin(this.yaw) * EYE_FORWARD,
       this.position.y + EYE_HEIGHT,
@@ -161,7 +169,8 @@ export class PlazaPlayer {
     this.pitch = THREE.MathUtils.clamp(this.pitch - dy * k * 0.8, -1.1, 1.0);
     if (this.fixedPose) {
       const pose = this.fixedPose;
-      this.yaw = pose.yaw + THREE.MathUtils.clamp(Math.atan2(Math.sin(this.yaw - pose.yaw), Math.cos(this.yaw - pose.yaw)), -(pose.yawLimit ?? 0.55), pose.yawLimit ?? 0.55);
+      const lookYaw = pose.lookYaw ?? pose.yaw;
+      this.yaw = lookYaw + THREE.MathUtils.clamp(Math.atan2(Math.sin(this.yaw - lookYaw), Math.cos(this.yaw - lookYaw)), -(pose.yawLimit ?? 0.55), pose.yawLimit ?? 0.55);
       this.pitch = THREE.MathUtils.clamp(this.pitch, (pose.pitch ?? 0.65) - (pose.pitchLimit ?? 0.3), (pose.pitch ?? 0.65) + (pose.pitchLimit ?? 0.3));
     }
     this.turnThisFrame += Math.hypot(dx * k, dy * k * 0.8);
@@ -224,14 +233,28 @@ export class PlazaPlayer {
 
   update(dt: number, inputEnabled: boolean): void {
     if (this.fixedPose) {
-      this.speed = 0; this.moveVelocity.set(0, 0);
+      this.speed = 0; this.moveVelocity.set(0, 0); this.turnRate = 0; this.turnThisFrame = 0;
       this.knight.animate(dt, 0, true);
+      // 横になって隣を見る一人称では、自分の胴やマントで相手を覆わない。
+      this.knight.root.visible = !this.fixedPose.lying || this.view === 'third';
+      this.fixedPoseTime += dt;
+      this.knight.root.scale.y = this.fixedPose.lying ? 1 + Math.sin(this.fixedPoseTime * 1.8) * 0.004 : 1;
       this.knight.root.position.copy(this.position);
-      this.knight.root.rotation.set(this.fixedPose.lying ? -Math.PI / 2 : 0, this.fixedPose.yaw + Math.PI, 0, 'YXZ');
+      if (this.fixedPose.lying) this.knight.root.position.y += 0.22;
+      this.knight.root.rotation.set(this.fixedPose.lying ? -Math.PI / 2 : 0, this.fixedPose.yaw + (this.fixedPose.lying ? 0 : Math.PI), 0, 'YXZ');
       this.arm.root.visible = false;
       this.camera.rotation.order = 'YXZ';
       if (this.view === 'first') { this.camera.position.copy(this.eye); this.camera.rotation.set(this.pitch, this.yaw, 0); }
-      else { const target = this.position.clone().add(new THREE.Vector3(0, 0.3, 0)); this.camera.position.copy(target).add(new THREE.Vector3(0, 1.6, 2.5).applyAxisAngle(new THREE.Vector3(0,1,0), this.yaw)); this.camera.lookAt(target); }
+      else {
+        const lying = this.fixedPose.lying;
+        const target = this.position.clone().add(new THREE.Vector3(lying ? -Math.sin(this.fixedPose.yaw) * 0.75 : 0, 0.3, lying ? -Math.cos(this.fixedPose.yaw) * 0.75 : 0));
+        // 縦画面でも布団と脇で休む大柄な相手が一緒に見える俯瞰距離。
+        const distance = lying ? Math.min(7, 4 / Math.min(1, this.camera.aspect)) : 2.5;
+        const height = lying ? 2.6 + (distance - 4) * 0.25 : 1.6;
+        const orbitYaw = this.yaw - (this.fixedPose.lookYaw ?? this.fixedPose.yaw) + this.fixedPose.yaw;
+        this.camera.position.copy(target).add(new THREE.Vector3(0, height, distance).applyAxisAngle(new THREE.Vector3(0,1,0), orbitYaw));
+        this.camera.lookAt(target);
+      }
       return;
     }
     this.arm.root.visible = this.view === 'first';
