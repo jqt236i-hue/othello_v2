@@ -313,7 +313,21 @@ function resolveCardDecision(input: PlannerInput, playerKey: string): any {
   return null;
 }
 
-function planCardUse(input: PlannerInput, playerKey: string, options?: { allowFallback?: boolean }): any {
+const PLACEMENT_CARD_TYPES = new Set(['DOUBLE_PLACE', 'TRIPLE_PLACE', 'QUAD_PLACE', 'INFINITE_PLACE', 'LAST_RESORT']);
+
+function isPlacementCard(input: PlannerInput, cardId: string): boolean {
+  const logic = input && input.CardLogic;
+  if (!logic || typeof logic.getCardDef !== 'function') return false;
+  try {
+    const def = logic.getCardDef(cardId);
+    return !!def && PLACEMENT_CARD_TYPES.has(String(def.type || '').toUpperCase());
+  } catch (e) {
+    rethrowCardRuntimeUnavailable(e);
+    return false;
+  }
+}
+
+function planCardUse(input: PlannerInput, playerKey: string, options?: { allowFallback?: boolean; excludePlacementCards?: boolean }): any {
   if (!hasUsableCard(input, playerKey)) return null;
   const decision = resolveCardDecision(input, playerKey);
   const type = String(decision && (decision.type || decision.actionType) || '').trim();
@@ -322,7 +336,8 @@ function planCardUse(input: PlannerInput, playerKey: string, options?: { allowFa
     decision && (decision.handIndex ?? decision.useCardHandIndex)
   );
   const allowFallback = !options || options.allowFallback !== false;
-  const usableSelections = getUsableCardSelections(input, playerKey);
+  const usableSelections = getUsableCardSelections(input, playerKey)
+    .filter((item) => !(options && options.excludePlacementCards) || !isPlacementCard(input, item.cardId));
   let selected = (
     (type === 'useCard' || type === 'use_card')
     && requestedCardId
@@ -447,6 +462,32 @@ function planHandOverlayPending(input: PlannerInput, playerKey: string, pending:
   return { actionType: 'place', action };
 }
 
+const MAX_TRACKED_PENDING_ATTEMPTS = 64;
+const attemptedPendingTargets = new Map<string, Set<string>>();
+
+/** Identity of one selection step. The same key reappearing means the previous target changed nothing. */
+function pendingAttemptKey(input: PlannerInput, playerKey: string, pending: any, pendingType: string): string {
+  const cardState = input.cardState || {};
+  const gameState = input.gameState || {};
+  return JSON.stringify([
+    playerKey, pendingType, pending.pendingEffectId || null, pending.stage || null,
+    pending.selectedCount ?? null, pending.selectedTargets || null, pending.firstTarget || null,
+    cardState.turnIndex ?? null, gameState.turnNumber ?? null
+  ]);
+}
+
+function rememberPendingAttempt(key: string, target: any): void {
+  let tried = attemptedPendingTargets.get(key);
+  if (!tried) {
+    if (attemptedPendingTargets.size >= MAX_TRACKED_PENDING_ATTEMPTS) {
+      attemptedPendingTargets.delete(attemptedPendingTargets.keys().next().value as string);
+    }
+    tried = new Set<string>();
+    attemptedPendingTargets.set(key, tried);
+  }
+  tried.add(target.row + ':' + target.col + ':' + (target.directionKey || ''));
+}
+
 function planPendingSelection(input: PlannerInput, playerKey: string): any {
   const pending = readPending(input.cardState, playerKey);
   const pendingType = normalizePendingType(pending && pending.type);
@@ -455,20 +496,39 @@ function planPendingSelection(input: PlannerInput, playerKey: string): any {
   if (overlay) return overlay;
   const field = resolvePendingField(input, pendingType);
   if (!field) return null;
-  const target = cloneTarget(collectPendingTargets(input, playerKey, pending, pendingType)[0]);
-  if (!target) return null;
-  const action: any = {
-    type: 'place',
-    player: playerKey,
-    row: target.row,
-    col: target.col,
-    pendingSelectionState: buildPendingSelectionState(pending, pendingType)
+  const targets = collectPendingTargets(input, playerKey, pending, pendingType)
+    .map(cloneTarget)
+    .filter(Boolean);
+  if (!targets.length) return null;
+  const buildAction = (target: any): any => {
+    const action: any = {
+      type: 'place',
+      player: playerKey,
+      row: target.row,
+      col: target.col,
+      pendingSelectionState: buildPendingSelectionState(pending, pendingType)
+    };
+    action[field] = target;
+    if (Number.isFinite(Number(input.cardState && input.cardState.turnIndex))) {
+      action.turnIndex = Math.trunc(Number(input.cardState.turnIndex));
+    }
+    return action;
   };
-  action[field] = target;
-  if (Number.isFinite(Number(input.cardState && input.cardState.turnIndex))) {
-    action.turnIndex = Math.trunc(Number(input.cardState.turnIndex));
+  // The target list can contain cells the effect cannot act on. Selecting one is
+  // accepted but leaves this same selection step pending, so AUTO would repeat it
+  // forever. Planning the same step again means the last target made no progress.
+  const attemptKey = pendingAttemptKey(input, playerKey, pending, pendingType);
+  const tried = attemptedPendingTargets.get(attemptKey);
+  const targetId = (t: any) => t.row + ':' + t.col + ':' + (t.directionKey || '');
+  const untried = tried ? targets.filter((t: any) => !tried.has(targetId(t))) : targets;
+  if (!untried.length) {
+    attemptedPendingTargets.delete(attemptKey);
+    return planPendingSelectionFallback(input, pending, pendingType)
+      || { actionType: 'place', action: buildAction(targets[0]) };
   }
-  return { actionType: 'place', action };
+  rememberPendingAttempt(attemptKey, untried[0]);
+  const chosen = buildAction(untried[0]);
+  return { actionType: 'place', action: chosen };
 }
 
 function planPendingSelectionFallback(input: PlannerInput, pending: any, pendingType: string): any {
@@ -498,14 +558,21 @@ function planCpuNetworkCommand(inputValue: PlannerInput): any {
   }
   if (isSubPlacementTurnActive(input, playerKey)) {
     const continuationMoves = getLegalMoves(input, playerKey, unresolvedPendingType);
-    if (continuationMoves.length === 0) return null;
+    if (continuationMoves.length === 0) {
+      // A placement card whose placements cannot be made leaves its pending effect
+      // behind; only a manual pass (not the auto no-action pass) ends the turn.
+      return unresolvedPending ? createPassAction(playerKey, { autoNoActionPass: false }) : null;
+    }
     return createPlaceAction(selectMove(input, continuationMoves, playerKey));
   }
   const selectedCard = planCardUse(input, playerKey, { allowFallback: false });
-  if (selectedCard) return selectedCard;
-  const moves = getLegalMoves(input, playerKey, unresolvedPendingType);
+  const moves = selectedCard && !isPlacementCard(input, selectedCard.action.useCardId)
+    ? []
+    : getLegalMoves(input, playerKey, unresolvedPendingType);
+  // A placement card cannot be used when there is nowhere to place.
+  if (selectedCard && (moves.length > 0 || !isPlacementCard(input, selectedCard.action.useCardId))) return selectedCard;
   if (moves.length > 0) return createPlaceAction(selectMove(input, moves, playerKey));
-  const card = planCardUse(input, playerKey);
+  const card = planCardUse(input, playerKey, { excludePlacementCards: true });
   if (card) return card;
   if (hasUsableCard(input, playerKey)) return createPassAction(playerKey, { autoNoActionPass: false });
   if (unresolvedPending) return createPassAction(playerKey, { autoNoActionPass: false });

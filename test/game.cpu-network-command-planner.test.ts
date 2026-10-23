@@ -749,4 +749,40 @@ describe('CpuNetworkCommandPlanner', () => {
       }
     });
   });
+  test('passes manually when a pending throw-chain card has no placement left', () => {
+    const input = createInput({
+      cardState: {
+        turnIndex: 10,
+        hands: { black: ['triple_01'], white: [] },
+        pendingEffectByPlayer: { black: { type: 'DOUBLE_PLACE', cardId: 'double_01', stage: null }, white: null },
+        hasUsedCardThisTurnByPlayer: { black: true, white: false }
+      },
+      getLegalMoves: jest.fn().mockReturnValue([]),
+      SubPlacementContinuation: { isSubPlacementTurnActive: jest.fn().mockReturnValue(true) }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toEqual({
+      actionType: 'pass',
+      action: { type: 'pass', playerKey: 'black' }
+    });
+  });
+
+  test('does not fall back to a placement card when there is nowhere to place', () => {
+    const input = createInput({
+      cardState: {
+        turnIndex: 10,
+        hands: { black: ['double_01', 'work_01'], white: [] },
+        pendingEffectByPlayer: { black: null, white: null },
+        hasUsedCardThisTurnByPlayer: { black: false, white: false }
+      },
+      getLegalMoves: jest.fn().mockReturnValue([]),
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(true),
+        getUsableCardIds: jest.fn().mockReturnValue(['double_01', 'work_01']),
+        getCardDef: (id: string) => ({ type: id === 'double_01' ? 'DOUBLE_PLACE' : 'WORK' })
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input).action.useCardId).toBe('work_01');
+  });
 });
