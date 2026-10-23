@@ -114,22 +114,65 @@ describe('STRONG_WIND_WILL', () => {
     expect(cardState.charge.black).toBe(0);
   });
 
-  test('chooses the only available side when one horizontal direction is blocked', () => {
+  test('resolves without moving when the randomly chosen left side is blocked', () => {
     const { cardState, gameState } = makeState();
 
     gameState.board[3][3] = 1;
     gameState.board[3][2] = -1;
-    // Right side is open. The selected target remains valid and should still move.
+    // Right is open, but the left-first random draw must not fall back to it.
 
     const targets = CardLogic.getStrongWindTargets(cardState, gameState);
     expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 3 }]));
 
     const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.0 });
     expect(res && res.applied).toBe(true);
-    expect(res.to).toEqual({ row: 3, col: 7 });
+    expect(res).toMatchObject({ completed: true, reason: 'direction_blocked', direction: [0, -1], movedDistance: 0 });
+    expect(res.to).toEqual({ row: 3, col: 3 });
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(gameState.board[3][3]).toBe(0);
-    expect(gameState.board[3][7]).toBe(1);
+    expect(gameState.board[3][3]).toBe(1);
+    expect(gameState.board[3][7]).toBe(0);
+    expect((cardState._presentationEventsPersist || []).filter(e => e.type === 'MOVE')).toEqual([]);
+  });
+
+  test('does not fall back left when the chosen right direction is blocked', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[3][3] = 1;
+    gameState.board[3][4] = -1;
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.99 });
+    expect(res).toMatchObject({ applied: true, completed: true, reason: 'direction_blocked', direction: [0, 1], movedDistance: 0 });
+    expect(gameState.board[3][3]).toBe(1);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('blocked wind keeps the card consumed, settles selection, and allows normal placement in the same turn', () => {
+    const Core = require('../game/logic/core.js');
+    const TurnPipeline = require('../game/turn/turn_pipeline.js');
+    const prng = { shuffle: (cards) => cards, random: jest.fn(() => 0) };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+    gameState.board[0][0] = 1;
+    cardState.hands.black = ['strong_wind_01'];
+    cardState.charge.black = 20;
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'strong_wind_01')).toBe(true);
+    const charged = cardState.charge.black;
+    expect(charged).toBe(11);
+    const selection = TurnPipeline.applyTurnSafe(cardState, gameState, 'black',
+      { type: 'place', strongWindTarget: { row: 0, col: 0 } }, prng,
+      { skipTurnStart: true, currentStateVersion: 0 });
+    expect(selection.ok).toBe(true);
+    expect(selection.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(selection.cardState.hands.black).toEqual([]);
+    expect(selection.cardState.charge.black).toBe(charged);
+    expect(selection.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+    expect(selection.gameState.board[0][0]).toBe(1);
+    expect(selection.gameState.currentPlayer).toBe(1);
+    expect(selection.gameState.turnNumber).toBe(gameState.turnNumber);
+    const placement = TurnPipeline.applyTurnSafe(selection.cardState, selection.gameState, 'black',
+      { type: 'place', row: 2, col: 3 }, prng,
+      { skipTurnStart: true, currentStateVersion: selection.nextStateVersion });
+    expect(placement.ok).toBe(true);
+    expect(placement.gameState.board[2][3]).toBe(1);
+    expect(placement.gameState.currentPlayer).toBe(-1);
   });
 
   test('can push a main-board stone into an empty expansion cell', () => {

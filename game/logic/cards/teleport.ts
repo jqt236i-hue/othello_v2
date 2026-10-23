@@ -7,6 +7,7 @@ import { CardState, GameState } from '../../../src/types';
 import SharedConstantsImport = require('../../../shared-constants');
 import RandomSourceImport = require('../cards-internal/random-source');
 import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
+import SelectorsCoreUtils = require('./selectors-core-utils');
 
 const SharedConstants: any = SharedConstantsImport;
 const RandomSourceModule: any = RandomSourceImport;
@@ -92,6 +93,9 @@ function applyTeleportWill(cardState: CardState, gameState: GameState, playerKey
     const cellValue = getCellValueForCard(gameState, row, col);
     if (cellValue === null) return { applied: false, reason: 'out_of_board' };
     if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, row, col)) {
+        return { applied: false, reason: 'movement_protected' };
+    }
 
     const targets = getTeleportTargets(cardState, gameState);
     const allowed = Array.isArray(targets) && targets.some((target) => target && target.row === row && target.col === col);

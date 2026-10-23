@@ -181,6 +181,10 @@ function isMultiCellSpecialStoneCell(cardState: CardState, row: number, col: num
     return false;
 }
 
+function isCardMovementProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    return SelectorsCoreUtils.isCardMovementProtectedCell(cardState, row, col);
+}
+
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
     if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isPositionSwapProtectedCell === 'function') {
         if (SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col)) return true;
@@ -549,7 +553,7 @@ function getStrongWindTargets(cardState: CardState, gameState: GameState): Targe
     const res: TargetCell[] = [];
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isInviolableCell(cardState, r, c)) return;
+        if (isCardMovementProtectedCell(cardState, r, c)) return;
         if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         let movable = false;
         for (const d of [[0, -1], [0, 1]]) {
@@ -652,7 +656,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
     if (first && Number.isInteger(first.row) && Number.isInteger(first.col)) {
         const firstOwner = getCellValue(cardState, gameState, first.row, first.col);
         if (firstOwner === null || firstOwner === P_EMPTY) return res;
-        if (isInviolableCell(cardState, first.row, first.col)) return res;
+        if (isCardMovementProtectedCell(cardState, first.row, first.col)) return res;
         if (isMultiCellSpecialStoneCell(cardState, first.row, first.col)) return res;
     forEachBoardShapeCell(cardState, gameState, (r, c) => {
             if (r === first.row && c === first.col) return;
@@ -665,7 +669,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
 
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isInviolableCell(cardState, r, c)) return;
+        if (isCardMovementProtectedCell(cardState, r, c)) return;
         if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         if (hasSuperAttractionDestination(cardState, gameState, r, c)) {
             res.push({ row: r, col: c });
@@ -741,7 +745,7 @@ function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr
     const res: TargetCell[] = [];
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isInviolableCell(cardState, r, c)) return;
+        if (isCardMovementProtectedCell(cardState, r, c)) return;
         if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
@@ -755,7 +759,7 @@ function _getVerticalSlideTargets(cardState: CardState, gameState: GameState, dr
     const res: TargetCell[] = [];
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isInviolableCell(cardState, r, c)) return;
+        if (isCardMovementProtectedCell(cardState, r, c)) return;
         if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         const destination = _collectVerticalSlideDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
@@ -933,8 +937,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     const res: TargetCell[] = [];
     forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
-        if (isFrozenCell(cardState, r, c)) return;
-        if (isInviolableCell(cardState, r, c)) return;
+        if (isCardMovementProtectedCell(cardState, r, c)) return;
         if (isMultiCellSpecialStoneCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });

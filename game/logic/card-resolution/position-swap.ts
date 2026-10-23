@@ -1,5 +1,6 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import SharedConstants = require('../../../shared-constants');
+import SelectorsCoreUtils = require('../cards/selectors-core-utils');
 
 const { EMPTY } = SharedConstants || {};
 
@@ -27,7 +28,8 @@ function applyPositionSwapWill(cardState: CardState, gameState: GameState, playe
     const cellValue = getCellValueForCard(gameState, row, col);
     if (cellValue === null) return { applied: false, reason: 'out_of_board' };
     if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-    if (isPositionSwapProtectedCell(cardState, row, col)) return { applied: false, reason: 'swap_protected' };
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, row, col)
+        || isPositionSwapProtectedCell(cardState, row, col)) return { applied: false, reason: 'swap_protected' };
 
     const first = pending.firstTarget ? { row: pending.firstTarget.row, col: pending.firstTarget.col } : null;
     if (!first) {
@@ -37,6 +39,9 @@ function applyPositionSwapWill(cardState: CardState, gameState: GameState, playe
 
     if (first.row === row && first.col === col) {
         return { applied: false, reason: 'same_target' };
+    }
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, first.row, first.col)) {
+        return { applied: false, reason: 'swap_protected' };
     }
     const firstValue = getCellValueForCard(gameState, first.row, first.col);
     if (firstValue === null) {

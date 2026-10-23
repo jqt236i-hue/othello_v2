@@ -135,8 +135,16 @@ function isInviolableCell(cardState: CardState, row: number, col: number): boole
     ));
 }
 
+// Card-forced movement is not an owner's strengthening/maintenance effect.
+// GUARD therefore protects either colour, unlike a stone's own movement ability.
+function isCardMovementProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    return isFrozenCell(cardState, row, col)
+        || isGuardProtectedCell(cardState, row, col)
+        || isInviolableCell(cardState, row, col);
+}
+
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
-    if (isFrozenCell(cardState, row, col)) return true;
+    if (isCardMovementProtectedCell(cardState, row, col)) return true;
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     const marker = markers.find((m: any) => (
@@ -297,5 +305,6 @@ export = {
     isGuardProtectedCell,
     isInviolableCell,
     isPositionSwapProtectedCell,
+    isCardMovementProtectedCell,
     getSuperAttractionPathCandidates
 };

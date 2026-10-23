@@ -329,15 +329,33 @@ function applyStrongWindWill(cardState: any, gameState: GameState, playerKey: st
         return { applied: false, reason: 'out_of_board' };
     if (cellValue === EMPTY)
         return { applied: false, reason: 'empty' };
-    const randomSource = resolveRandomSource(prng);
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, row, col))
+        return { applied: false, reason: 'movement_protected' };
     const availableOptions = getStrongWindMoveOptions(cardState, gameState, row, col, deps);
     if (availableOptions.length === 0)
         return { applied: false, reason: 'no_move_options' };
+    const randomSource = resolveRandomSource(prng);
     let randomValue = Number(randomSource.random());
     if (!Number.isFinite(randomValue)) randomValue = 0;
     if (randomValue < 0) randomValue = 0;
     if (randomValue >= 1) randomValue = 0.999999;
-    const selected = availableOptions[Math.min(availableOptions.length - 1, Math.floor(randomValue * availableOptions.length))];
+    const direction = randomValue < 0.5 ? STRONG_WIND_LEFT_DIRECTION : STRONG_WIND_RIGHT_DIRECTION;
+    const selected = getStrongWindMoveOptionForDirection(cardState, gameState, row, col, direction, deps);
+    if (!selected) {
+        // The selection/card use resolves, but the chosen wind causes no movement.
+        // Do not leave a selection pending or let the player retry the random draw.
+        cs.pendingEffectByPlayer[playerKey] = null;
+        return {
+            applied: true,
+            completed: true,
+            reason: 'direction_blocked',
+            from: { row, col },
+            to: { row, col },
+            direction,
+            movedDistance: 0,
+            chargeGained: 0
+        };
+    }
     const to = selected.target;
     const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
     if (typeof moveAt === 'function') {
@@ -392,6 +410,8 @@ function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey:
         return { applied: false, reason: 'out_of_board' };
     if (cellValue === EMPTY)
         return { applied: false, reason: 'empty' };
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, row, col))
+        return { applied: false, reason: 'movement_protected' };
     const targets = targetGetter(cardState, gameState);
     const allowed = Array.isArray(targets) && targets.some((target: any) => target && target.row === row && target.col === col);
     if (!allowed)
@@ -492,6 +512,9 @@ function applySuperAttractionWill(cardState: any, gameState: GameState, playerKe
     if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
         return { applied: false, reason: 'not_pending' };
     }
+    const source = pending.firstTarget || { row, col };
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, source.row, source.col))
+        return { applied: false, reason: 'movement_protected' };
     const targets = targetGetter(cardState, gameState, playerKey, pending);
     const allowed = Array.isArray(targets) && targets.some((target: any) => target && target.row === row && target.col === col);
     if (!allowed)
@@ -638,6 +661,8 @@ function applyVerticalSlideWill(cardState: any, gameState: GameState, playerKey:
         return { applied: false, reason: 'out_of_board' };
     if (cellValue === EMPTY)
         return { applied: false, reason: 'empty' };
+    if (SelectorsCoreUtils.isCardMovementProtectedCell(cardState, row, col))
+        return { applied: false, reason: 'movement_protected' };
     const targets = targetGetter(cardState, gameState);
     const allowed = Array.isArray(targets) && targets.some((target: any) => target && target.row === row && target.col === col);
     if (!allowed)

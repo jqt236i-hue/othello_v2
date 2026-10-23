@@ -299,6 +299,7 @@ const Flips = CardFlips || {};
     function isPositionSwapProtectedCell(cardState: any, row: number, col: number) {
         return !!(
             isFrozenCell(cardState, row, col) ||
+            isGuardProtectedCell(cardState, row, col) ||
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
             isMultiCellSpecialStoneCell(cardState, row, col) ||
             isInviolableCell(cardState, row, col)
