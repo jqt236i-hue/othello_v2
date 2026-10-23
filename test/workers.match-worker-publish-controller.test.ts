@@ -170,7 +170,9 @@ describe('match worker publish controller', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
+    // The room is loaded once to find its publish lane and again inside the lane.
     expect(order).toEqual([
+      'loadRoom',
       'loadRoom',
       'applyExpiredTurnTimeoutIfNeeded',
       'applyCommandPublishToSnapshot',

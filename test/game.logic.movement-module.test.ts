@@ -61,14 +61,12 @@ describe('CardMovement module', () => {
     expect(cardState.markers[0]).toMatchObject({ row: 3, col: 5 });
   });
 
-  test('applyStrongWindWill uses the only available horizontal direction', () => {
-    const cardState = {
+  test('applyStrongWindWill does not fall back to the open side when the drawn side is blocked', () => {
+    const makeCardState = () => ({
       pendingEffectByPlayer: { black: { type: 'STRONG_WIND_WILL', stage: 'selectTarget', cardId: 'wind_01' } },
       markers: []
-    };
-    const gameState = {};
-
-    const result = CardMovement.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.0 }, {
+    });
+    const makeDeps = () => ({
       getCellValueForCard: (state, row, col) => {
         if (row === 3 && col === 3) return 1;
         if (row === 3 && (col === 4 || col === 5 || col === 6 || col === 7)) return 0;
@@ -82,13 +80,29 @@ describe('CardMovement module', () => {
       getMarkers: () => []
     });
 
-    expect(result).toMatchObject({
+    // Left is drawn first and blocked: the wind resolves without moving.
+    const blockedCardState = makeCardState();
+    const blockedDeps = makeDeps();
+    const blocked = CardMovement.applyStrongWindWill(blockedCardState, {}, 'black', 3, 3, { random: () => 0.0 }, blockedDeps);
+    expect(blocked).toMatchObject({
+      applied: true,
+      reason: 'direction_blocked',
+      to: { row: 3, col: 3 },
+      movedDistance: 0
+    });
+    expect(blockedDeps.moveAt).not.toHaveBeenCalled();
+    expect(blockedCardState.pendingEffectByPlayer.black).toBeNull();
+
+    // Right is drawn: the stone moves as far as possible.
+    const movedCardState = makeCardState();
+    const moved = CardMovement.applyStrongWindWill(movedCardState, {}, 'black', 3, 3, { random: () => 0.9 }, makeDeps());
+    expect(moved).toMatchObject({
       applied: true,
       from: { row: 3, col: 3 },
       to: { row: 3, col: 7 },
       movedDistance: 4
     });
-    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(movedCardState.pendingEffectByPlayer.black).toBeNull();
   });
 
   test('applySuperBuoyancyWill destroys collisions, moves the stone, and clears pending', () => {
