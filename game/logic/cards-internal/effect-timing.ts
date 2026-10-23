@@ -596,11 +596,17 @@ function processWorkTurnStartEffects(cardState: any, gameState: any, playerKey: 
     if (!workMod || typeof workMod[method] !== 'function') return { processed: false, expired: [] };
     const deps = typeof helpers.addChargeWithTotal === 'function'
         ? { addChargeWithTotal: helpers.addChargeWithTotal }
-        : {};
+        : null;
     const res = marker
-        ? workMod.processWorkEffectsAtAnchor(cardState, gameState, playerKey, marker, deps)
-        : workMod.processWorkEffects(cardState, gameState, playerKey, deps);
-    for (const entry of Array.isArray(res && res.entries) ? res.entries : []) {
+        ? workMod.processWorkEffectsAtAnchor(cardState, gameState, playerKey, marker, deps || {})
+        : (deps
+            ? workMod.processWorkEffects(cardState, gameState, playerKey, deps)
+            : workMod.processWorkEffects(cardState, gameState, playerKey));
+    // Older CardWork modules return a single result instead of entries.
+    const entries = Array.isArray(res && res.entries) && res.entries.length > 0
+        ? res.entries
+        : (res && typeof res === 'object' ? [res] : []);
+    for (const entry of entries) {
         const removedReason = entry.removedReason || null;
         const incomeStep = Number.isFinite(Number(entry.incomeStep)) ? Number(entry.incomeStep) : null;
         if (typeof helpers.emitPresentationEvent !== 'function') continue;

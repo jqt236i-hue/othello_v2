@@ -57,7 +57,8 @@ describe('match worker turn timer helpers', () => {
       active: true,
       turnSeatKey: 'white',
       turnStartedAt: 5000,
-      turnDeadlineAt: 125000
+      turnDeadlineAt: 125000,
+      turnIdentity: '[null,null,null]'
     });
   });
 

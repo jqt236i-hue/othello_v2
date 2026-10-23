@@ -502,7 +502,7 @@ describe('expansion fallback helpers', () => {
     });
   });
 
-  test('WORK fallback clears a top expansion anchor on expiry without BoardOps', () => {
+  test('WORK fallback keeps a top expansion anchor as a normal stone on expiry without BoardOps', () => {
     const CardWork = loadWithoutBoardOps('../game/logic/cards/work_will', [
       ['../game/logic/cards/utils', () => ({ isFrozenCell: () => false })]
     ]);
@@ -529,10 +529,10 @@ describe('expansion fallback helpers', () => {
     const out = CardWork.processWorkEffects(cardState, gameState, 'black');
 
     expect(out).toMatchObject({ gained: 1, removed: true, row: -1, col: 0, removedReason: 'duration_end' });
-    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.EMPTY);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0).owner).toBe(Shared.BLACK);
   });
 
-  test('WORK fallback clears a right expansion anchor on 10x10 without BoardOps', () => {
+  test('WORK fallback keeps a right expansion anchor as a normal stone on 10x10 without BoardOps', () => {
     const CardWork = loadWithoutBoardOps('../game/logic/cards/work_will', [
       ['../game/logic/cards/utils', () => ({ isFrozenCell: () => false })]
     ]);
@@ -559,6 +559,6 @@ describe('expansion fallback helpers', () => {
     const out = CardWork.processWorkEffects(cardState, gameState, 'black');
 
     expect(out).toMatchObject({ gained: 1, removed: true, row: 0, col: 10, removedReason: 'duration_end' });
-    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.EMPTY);
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.BLACK);
   });
 });
