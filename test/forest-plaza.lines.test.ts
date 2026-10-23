@@ -15,6 +15,13 @@ describe('森の広場 セリフJSON',()=>{
   for(const key of added) {expect(set[key]).toBeDefined();expect(set[key]).toHaveLength(untiered.includes(key)?1:6);for(const tier of set[key]){expect(Array.isArray(tier)).toBe(true);expect(tier).toHaveLength(addedCounts[key]);for(const line of tier){expect(typeof line).toBe('string');expect(line.trim().length).toBeGreaterThan(0);expect(line).not.toMatch(/[\r\n]/);const tokens=line.match(/\{[^}]+\}/g)??[];for(const token of tokens)expect(key==='eat'||key==='eatFavorite'?['{food}']:key==='chatOpen'||key==='chatReply'?['{partner}']:[]).toContain(token);}}}
  });
  test('catalog の全キャラに loader がある',()=>{const catalog=JSON.parse(fs.readFileSync(path.resolve(folder,'../../../assets/forest-plaza/catalog.json'),'utf8'));for(const c of catalog.characters)expect(PLAZA_LINE_LOADERS[lineKeyFor(c.id)]).toBeDefined();});
+ test('一巡するまで同じセリフを繰り返さない',async()=>{
+  const lines=Array.from({length:12},(_,i)=>`idle${i}`);
+  (PLAZA_LINE_LOADERS as Record<string, () => Promise<{default:unknown}>>).bag_fixture=async()=>({default:{greet:[['a']],pet:[['p']],petMore:[[]],idle:[lines]}});
+  await preloadLines('bag_fixture');
+  let previous='';
+  for(let round=0;round<5;round++){const seen=new Set<string>();for(let i=0;i<12;i++){const line=pickLine('bag_fixture','idle',0);expect(line).not.toBe(previous);seen.add(line);previous=line;pickLine('bag_fixture','greet',0);}expect(seen.size).toBe(12);}
+ });
  test('段階なしは常に先頭を使い、未置換候補を除外する',async()=>{
   (PLAZA_LINE_LOADERS as Record<string, () => Promise<{default:unknown}>>).foundation_fixture=async()=>({default:{greet:[['a']],pet:[['p']],petMore:[[]],idle:[['i']],chatOpen:[['先頭 {partner}','変数なし'],['選ばない']],eat:[['{food}だけ']],eatFavorite:[['大好物の{food}！']]}});
   await preloadLines('foundation_fixture');

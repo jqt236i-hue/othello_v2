@@ -50,13 +50,23 @@ export function preloadLines(id: string): Promise<void> {
   return task;
 }
 
-function pick(list: readonly string[], previous: string | undefined): string {
+/** キャラ・場面・段階ごとの、まだ言っていないセリフの山 */
+const lineBags = new Map<string, string[]>();
+
+/** 山から引くように選ぶ。一巡するまで同じセリフは出ず、山の切れ目でも直前のセリフを避ける */
+function pick(list: readonly string[], previous: string | undefined, bagKey: string): string {
   if (list.length === 0) return '';
-  let line = list[Math.floor(Math.random() * list.length)] ?? '';
-  // 同じセリフが続かないようにする
-  for (let attempt = 0; attempt < 4 && line === previous && list.length > 1; attempt += 1) {
-    line = list[Math.floor(Math.random() * list.length)] ?? '';
+  let bag = (lineBags.get(bagKey) ?? []).filter(line => list.includes(line));
+  if (bag.length === 0) {
+    bag = [...list];
+    for (let i = bag.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    if (bag.length > 1 && bag[bag.length - 1] === previous) [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]];
   }
+  const line = bag.pop() ?? '';
+  lineBags.set(bagKey, bag);
   return line;
 }
 
@@ -79,9 +89,9 @@ export function pickLine(id: string, situation: PlazaLineSituation, hearts = 0, 
     const resolved = candidates
       .map(text => text.replace(/\{([^}]+)\}/g, (all, name) => vars[name] ?? all))
       .filter(text => !/\{[^}]+\}/.test(text));
-    line = pick(resolved, previous);
+    line = pick(resolved, previous, `${id}|${situation}|${tier}`);
   }
-  if (!line) line = pick(FALLBACK_LINES[situation], previous);
+  if (!line) line = pick(FALLBACK_LINES[situation], previous, `${id}|${situation}|fallback`);
   lastLines.set(id, line);
   return line;
 }
