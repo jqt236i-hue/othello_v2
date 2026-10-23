@@ -33,7 +33,7 @@ function setup() {
   const ctx = { scene: new THREE.Scene(), player, visitors, hand: { current: null }, director: { sleeping: false },
     addInteractable: (s: Interactable) => { spec = s; return { dispose: unregister }; },
     onInput: (f: () => boolean) => { input = f; return unInput; }, onEscape: (f: () => boolean) => { escape = f; return unEscape; },
-    fade: jest.fn(async () => {}), setTime: jest.fn(), hearts: () => 2,
+    fade: jest.fn(async () => {}), setTime: jest.fn(), affection: () => 40, hearts: () => 2,
     pathing: { groundAt: () => 0, find: jest.fn((from, to) => [{ x: from.x, y: 0, z: from.z }, { x: to.x, y: 0, z: to.z }]) },
     walkArea: { standHeight: () => 0 }, say: jest.fn(), spawnHearts: jest.fn(), addAffection: jest.fn(),
   } as unknown as ActivityContext;
@@ -126,9 +126,30 @@ describe('森の広場 添い寝の寿命と復元', () => {
     expect(s.activity.onCharacterTouched!(a.c as unknown as PlazaCharacter, 'pet')).toBe(true);
     s.activity.dispose();
   });
+  test('同じハート数でも仲良し度の生値が最大の相手を選ぶ', async () => {
+    const s = setup(), low = s.character('low21'), high = s.character('high39');
+    s.ctx.affection = c => c === low.c ? 21 : 39;
+    s.ctx.hearts = () => 1;
+    // ハートで同点扱いすると低い相手が選ばれる順序に固定する。
+    const random = jest.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0.9);
+    try {
+      s.start(); await flush();
+      expect(low.c.claim).not.toHaveBeenCalled(); expect(high.c.claim).toHaveBeenCalledTimes(1);
+    } finally { s.activity.dispose(); random.mockRestore(); }
+  });
+  test.each([[[0, 0.9], 'a'], [[0.9, 0], 'b']] as const)('仲良し度が同点なら乱数 %j に従い %s を選ぶ', async (ties, expected) => {
+    const s = setup(), a = s.character('a'), b = s.character('b');
+    s.ctx.affection = () => 39;
+    const random = jest.spyOn(Math, 'random').mockReturnValueOnce(ties[0]).mockReturnValueOnce(ties[1]);
+    try {
+      s.start(); await flush();
+      expect(expected === 'a' ? a.c.claim : b.c.claim).toHaveBeenCalledTimes(1);
+      expect(expected === 'a' ? b.c.claim : a.c.claim).not.toHaveBeenCalled();
+    } finally { s.activity.dispose(); random.mockRestore(); }
+  });
   test('仲良し順に到達可能な相手を選びクリックを起床だけに消費する', async () => {
     const s = setup(), a = s.character('unreachable'), b = s.character('reachable');
-    s.ctx.hearts = c => c.info.id === 'unreachable' ? 5 : 1;
+    s.ctx.affection = c => c.info.id === 'unreachable' ? 100 : 20;
     (s.ctx.pathing.find as jest.Mock).mockImplementation((from, to, c) => c === a.c ? null : [{x:to.x,y:0,z:to.z}]);
     s.start(); await flush(); expect(a.c.claim).not.toHaveBeenCalled(); expect(b.c.claim).toHaveBeenCalled();
     expect(s.input()).toBe(true); await flush(); expect(s.player.isFixed).toBe(false); s.activity.dispose();

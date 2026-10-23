@@ -184,7 +184,7 @@ export function createSleepActivity(ctx: ActivityContext): PlazaActivity {
       lying: true, eyeHeight: 0.36, yawLimit: 0.38, pitchLimit: 0.2 });
     ctx.setTime('夜');
     // 同点は無作為順。占有中・経路のない相手は次点へ。
-    const candidates = [...ctx.visitors.values()].map(character => ({ character, rank: ctx.hearts(character), tie: Math.random() }))
+    const candidates = [...ctx.visitors.values()].map(character => ({ character, rank: ctx.affection(character), tie: Math.random() }))
       .sort((a, b) => b.rank - a.rank || a.tie - b.tie);
     for (const { character } of candidates) {
       if (character.isBusy) continue;

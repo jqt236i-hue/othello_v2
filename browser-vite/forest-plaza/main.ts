@@ -722,7 +722,8 @@ async function boot(): Promise<void> {
           } });
       },
     },
-    say, sayText, spawnHearts, addAffection, hearts: character => affectionHearts(affection[character.info.id] ?? 0),
+    say, sayText, spawnHearts, addAffection, affection: character => affection[character.info.id] ?? 0,
+    hearts: character => affectionHearts(affection[character.info.id] ?? 0),
     addInteractable: spec => {
       if (interactables.has(spec.id)) throw new Error('duplicate interactable: ' + spec.id);
       if (!spec.proxy.parent) scene.add(spec.proxy);

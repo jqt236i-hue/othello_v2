@@ -45,6 +45,7 @@ export interface ActivityContext {
   sayText(character: PlazaCharacter, text: string, ms?: number): void;
   spawnHearts(character: PlazaCharacter, count: number): void;
   addAffection(character: PlazaCharacter, amount: number): boolean;
+  affection(character: PlazaCharacter): number;
   hearts(character: PlazaCharacter): number;
   addInteractable(spec: Interactable): InteractableHandle;
   hand: { equip(item: HeldItem | null): void; readonly current: HeldItem | null };
