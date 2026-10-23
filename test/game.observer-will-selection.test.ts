@@ -105,6 +105,41 @@ describe('OBSERVER_WILL pending selection', () => {
     expect(CardLogic.getEffectiveCardCostForCopy(cardState, 'gold_stone', goldCopyId)).toBe(CardLogic.getCardCost('gold_stone') + 5);
   });
 
+  test.each([
+    { position: 'first', hand: ['chest_01', 'theory_incarnation_01', 'guard_01', 'board_executor_01', 'gold_stone'], targetIndex: 0 },
+    { position: 'middle', hand: ['theory_incarnation_01', 'chest_01', 'guard_01', 'board_executor_01', 'gold_stone'], targetIndex: 2 },
+    { position: 'last', hand: ['theory_incarnation_01', 'chest_01', 'board_executor_01', 'guard_01', 'gold_stone'], targetIndex: 4 }
+  ])('stealing the $position card taxes the correct copies in a mixed normal/special hand', ({ hand, targetIndex }) => {
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: 1,
+      turnNumber: 18
+    };
+    const cardState = CardLogic.createCardState(createPrng(), { plainReversi: true });
+    cardState.turnIndex = 18;
+    CardLogic.addCardToHand(cardState, 'black', 'observer_will_01');
+    for (const cardId of hand) CardLogic.addCardToHand(cardState, 'white', cardId);
+    const copyIds = CardLogic.getHandCopyIds(cardState, 'white').slice();
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'observer_will_01')).toBe(true);
+
+    const res = CardLogic.applyObserverWillChoice(cardState, gameState, 'black', targetIndex);
+
+    expect(res.applied).toBe(true);
+    expect(cardState.hands.white).toEqual(hand.filter((_, index) => index !== targetIndex));
+    for (let index = 0; index < hand.length; index += 1) {
+      const cardId = hand[index];
+      const copyId = copyIds[index];
+      const special = cardId === 'theory_incarnation_01' || cardId === 'board_executor_01';
+      const stolen = index === targetIndex;
+      const expectedCost = stolen ? 0 : CardLogic.getCardCost(cardId) + (special ? 0 : 5);
+      expect(CardLogic.getEffectiveCardCostForCopy(cardState, cardId, copyId)).toBe(expectedCost);
+      const taxes = (cardState.cardCostModifiersByCopyId[String(copyId)] || [])
+        .filter((entry) => entry && entry.sourceType === 'OBSERVER_WILL');
+      expect(taxes).toHaveLength(stolen || special ? 0 : 1);
+      expect(CardLogic.isCardCopyIdRevealedToViewer(cardState, 'black', copyId)).toBe(true);
+    }
+  });
+
   test('selection applies observed cost tax only once and clears it from the stolen copy', () => {
     const { gameState, cardState } = createState(18);
     CardLogic.applyCardUsage(cardState, gameState, 'black', 'observer_will_01');

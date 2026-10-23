@@ -67,9 +67,12 @@ function applyObserverWillObservedCostTax(cardState: CardState, ownerKey: Player
     let appliedCount = 0;
     let skippedSpecialCount = 0;
     for (let i = 0; i < observedCopyIds.length; i += 1) {
-        const copyId = normalizePositiveCopyId(observedCopyIds[i]);
+        // Selection passes immutable card/copy pairs; live observation still passes IDs.
+        const observedCopy = observedCopyIds[i];
+        const snapshot = observedCopy && typeof observedCopy === 'object' ? observedCopy : null;
+        const copyId = normalizePositiveCopyId(snapshot ? snapshot.cardCopyId : observedCopy);
         if (!copyId || (exempt && copyId === exempt)) continue;
-        const cardId = hand[i];
+        const cardId = snapshot ? snapshot.cardId : hand[i];
         if (typeof (deps && deps.isInviolableSpecialCardId) === 'function' && deps.isInviolableSpecialCardId(cardId)) {
             skippedSpecialCount += 1;
             continue;

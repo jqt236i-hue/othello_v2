@@ -1,5 +1,6 @@
 import * as SharedConstants from '../shared-constants.js';
-import * as CardWork from '../game/logic/cards/work_will.js';
+// Exercise the root source without requiring a generated dist build.
+const CardWork = require('../game/logic/cards/work_will.ts');
 
 function createStates() {
   const cardState = {
@@ -65,7 +66,7 @@ describe('WORK_WILL on expansion cells', () => {
     expect(res.gained).toBe(2);
   });
 
-  test('processWorkEffects clears an expansion anchor cell when duration ends', () => {
+  test('processWorkEffects leaves a normal stone on a right expansion cell when duration ends', () => {
     const { cardState, gameState } = createStates();
     cardState.workAnchorPosByPlayer.black = { row: 7, col: 8 };
     cardState.markers.push({
@@ -82,10 +83,10 @@ describe('WORK_WILL on expansion cells', () => {
     expect(res.removed).toBe(true);
     expect(cardState.workAnchorPosByPlayer.black).toBeNull();
     expect(cardState.markers.find((m) => m && m.row === 7 && m.col === 8 && m.data && m.data.type === 'WORK')).toBeUndefined();
-    expect(gameState.boardExpansion.cells[0].owner).toBe(SharedConstants.EMPTY);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(SharedConstants.BLACK);
   });
 
-  test('processWorkEffects clears a bottom expansion anchor cell when duration ends', () => {
+  test('processWorkEffects leaves a normal stone on a bottom expansion cell when duration ends', () => {
     const cardState = {
       markers: [],
       workAnchorPosByPlayer: { black: { row: 8, col: 3 }, white: null },
@@ -116,7 +117,28 @@ describe('WORK_WILL on expansion cells', () => {
     expect(res.removed).toBe(true);
     expect(cardState.workAnchorPosByPlayer.black).toBeNull();
     expect(cardState.markers.find((m) => m && m.row === 8 && m.col === 3 && m.data && m.data.type === 'WORK')).toBeUndefined();
-    expect(gameState.boardExpansion.cells[0].owner).toBe(SharedConstants.EMPTY);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(SharedConstants.BLACK);
+  });
+
+  test.each([SharedConstants.EMPTY, SharedConstants.WHITE])('anchor loss preserves the current expansion owner %s', (owner) => {
+    const { cardState, gameState } = createStates();
+    gameState.boardExpansion.cells[0].owner = owner;
+    cardState.workAnchorPosByPlayer.black = { row: 7, col: 8 };
+    cardState.markers.push({
+      id: 5007,
+      kind: 'specialStone',
+      row: 7,
+      col: 8,
+      owner: 'black',
+      data: { type: 'WORK', ownerColor: 'black', workStage: 4, remainingOwnerTurns: 1 }
+    });
+
+    const res = CardWork.processWorkEffects(cardState, gameState, 'black');
+
+    expect(res).toMatchObject({ gained: 0, removed: true, removedReason: 'anchor_lost' });
+    expect(cardState.markers).toEqual([]);
+    expect(cardState.workAnchorPosByPlayer.black).toBeNull();
+    expect(gameState.boardExpansion.cells[0].owner).toBe(owner);
   });
 
   test('processWorkEffects treats an expansion meteor hole as a lost anchor', () => {

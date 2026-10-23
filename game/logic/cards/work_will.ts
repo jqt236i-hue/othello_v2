@@ -82,18 +82,6 @@ function createWorkBoardContext(cardState: CardState, gameState: GameState): any
   return SharedBoardUtils.createBoardContext(gameState, cardState);
 }
 
-function clearExpansionCellOwner(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
-  const context = createWorkBoardContext(cardState, gameState);
-  const view = SharedBoardUtils.createBoardView(context.gameState, {
-    cardState: context.cardState,
-    strict: false
-  });
-  if (!view.topology.expansionKeys.has(SharedBoardUtils.toBoardCellKey(row, col))) return false;
-  const before = SharedBoardUtils.getCellValue(context, row, col);
-  if (before === null || before === EMPTY) return false;
-  return SharedBoardUtils.setCellValue(context, row, col, EMPTY);
-}
-
 function getCellValue(cardState: CardState, gameState: GameState, row: number, col: number): BoardValue {
   return SharedBoardUtils.getCellValue(createWorkBoardContext(cardState, gameState), row, col);
 }
@@ -137,7 +125,7 @@ function placeWorkStone(cardState: CardState, _gameState: GameState, playerKey: 
   return { placed: true };
 }
 
-function revertAnchorStone(cardState: CardState, gameState: GameState, row: number, col: number, ownerKey: PlayerKey, reason?: string): boolean {
+function revertAnchorStone(cardState: CardState, row: number, col: number, ownerKey: PlayerKey): boolean {
   const beforeCount = (cardState.markers || []).length;
   cardState.markers = (cardState.markers || []).filter((marker) => !(marker.kind === 'specialStone'
     && marker.row === row
@@ -145,7 +133,7 @@ function revertAnchorStone(cardState: CardState, gameState: GameState, row: numb
     && marker.owner === ownerKey
     && marker.data?.type === 'WORK'));
   const removed = (cardState.markers || []).length !== beforeCount;
-  if (removed && (reason || 'duration_end') === 'duration_end') clearExpansionCellOwner(cardState, gameState, row, col);
+  // Expiry removes only the work effect, including on expansion cells.
   return removed;
 }
 
@@ -208,7 +196,7 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
     const expectedValue = ownerColor === 'black' ? BLACK : ownerColor === 'white' ? WHITE : ownerValue;
     const cellValue = getCellValue(cardState, gameState, row, col);
     if (cellValue === null || cellValue === EMPTY || cellValue !== expectedValue) {
-      revertAnchorStone(cardState, gameState, row, col, playerKey, 'anchor_lost');
+      revertAnchorStone(cardState, row, col, playerKey);
       entries.push({ gained: 0, removed: true, row, col, removedReason: 'anchor_lost', incomeStep: null });
       continue;
     }
@@ -218,7 +206,7 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
     const rawRemaining = typeof marker.data?.remainingOwnerTurns === 'number' ? marker.data.remainingOwnerTurns : 5 - stage;
     const remainingBefore = Math.max(0, Math.trunc(rawRemaining));
     if (remainingBefore <= 0) {
-      revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
+      revertAnchorStone(cardState, row, col, playerKey);
       entries.push({ gained: 0, removed: true, row, col, removedReason: 'duration_end', incomeStep: null });
       continue;
     }
@@ -243,7 +231,7 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
 
     const removed = remainingAfter <= 0;
     if (removed) {
-      revertAnchorStone(cardState, gameState, row, col, playerKey, 'duration_end');
+      revertAnchorStone(cardState, row, col, playerKey);
     }
     entries.push({
       gained: normalizedActualGain,

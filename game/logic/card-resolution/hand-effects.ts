@@ -253,6 +253,11 @@ function applyObserverWillChoice(cardState: CardState, gameState: any, playerKey
     }
 
     const observedCopyIds = revealCurrentHandToViewer(cardState, playerKey, opponentKey) || [];
+    // Keep the card identity paired with its copy before removal shifts hand indexes.
+    const observedCopies = observedCopyIds.map((cardCopyId: any, index: number) => ({
+        cardCopyId,
+        cardId: opponentHand[index]
+    }));
     const removed = removeHandCardAt(cardState, opponentKey, targetIndex);
     if (!removed || !removed.cardId || !removed.cardCopyId) {
         return { applied: false, reason: 'invalid_target' };
@@ -267,7 +272,7 @@ function applyObserverWillChoice(cardState: CardState, gameState: any, playerKey
 
     clearObserverWillObservationCost(cardState, removed.cardCopyId);
     setCardCostOverrideForCopyId(cardState, removed.cardCopyId, 0, 'OBSERVER_WILL');
-    applyObserverWillObservedCostTax(cardState, opponentKey, observedCopyIds, removed.cardCopyId);
+    applyObserverWillObservedCostTax(cardState, opponentKey, observedCopies, removed.cardCopyId);
 
     ensureObserverWillState(cardState);
     const baseCost = Math.max(0, Math.floor(Number(getCardCost(removed.cardId)) || 0));
