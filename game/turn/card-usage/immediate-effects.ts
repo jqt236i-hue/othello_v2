@@ -36,12 +36,6 @@ function applyImmediateFlipResolutionFollowups(options: ResolveImmediateCardUsag
         if (typeof options.CardLogic.clearHyperactiveAtPositions === 'function') {
             options.CardLogic.clearHyperactiveAtPositions(options.cardState, regenRes.captureFlips);
         }
-        const firstCapture = regenRes.captureFlips[0] || {};
-        options.awardBoardChargeGain(options.CardLogic, options.cardState, options.playerKey, regenRes.captureFlips.length, {
-            targetRow: firstCapture.row,
-            targetCol: firstCapture.col,
-            sourceType: 'regen_capture_immediate'
-        });
         options.events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
     }
     if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {

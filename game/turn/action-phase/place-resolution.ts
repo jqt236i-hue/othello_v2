@@ -338,8 +338,8 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
             opts.events.push({ type: 'regen_triggered', details: regenRes.regened });
         }
         if (regenRes.captureFlips && regenRes.captureFlips.length) {
-            flips.push(...regenRes.captureFlips.map((pos: any) => [pos.row, pos.col]));
-            flipCount = flips.length;
+            // Revival captures belong to the reviving stone, not this placement.
+            // REGEN credits them itself; do not seed the attacker's chain with them.
             opts.events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
         }
         if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
@@ -363,8 +363,6 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
                 opts.events.push({ type: 'regen_triggered', details: regenRes2.regened });
             }
             if (regenRes2.captureFlips && regenRes2.captureFlips.length) {
-                flips.push(...regenRes2.captureFlips.map((pos: any) => [pos.row, pos.col]));
-                flipCount = flips.length;
                 opts.events.push({ type: 'regen_capture_flipped', details: regenRes2.captureFlips });
             }
             if (livingWillRes2 && livingWillRes2.restored && livingWillRes2.restored.length) {

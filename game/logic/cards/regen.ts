@@ -8,6 +8,8 @@ import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
 import CardMarkersImport = require('./markers');
 import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
 import ProtectionContextImport = require('../cards-internal/protection-context');
+import ChargeLedger = require('../cards-internal/charge-ledger');
+import CardUtils = require('./utils');
 
 const CardRegen = (function (
     SharedConstants: any,
@@ -306,6 +308,33 @@ const CardRegen = (function (
         const captureFlips = skipCapture
             ? []
             : _captureFromRegenOrigin(cardState, gameState, row, col, regen.owner, ownerColor, ctx, deps);
+        // Credit the owner at the reaction that actually produced these flips, not the
+        // original attacker (or the final cell colour after subsequent revivals).
+        // This also covers destroy-triggered REGEN/ZOMBIE reactions through BoardOps.
+        if (captureFlips.length) {
+            const meta = {
+                popupKind: 'board',
+                sourceType: 'regen_capture_flip_gain',
+                anchorRow: row,
+                anchorCol: col
+            };
+            const gained = typeof deps.addChargeWithTotal === 'function'
+                ? deps.addChargeWithTotal(cardState, regen.owner, captureFlips.length, meta)
+                : ChargeLedger.addChargeWithTotal(cardState, regen.owner, captureFlips.length, {
+                    helpers: { addChargeWithDelta: CardUtils.addChargeWithDelta }
+                }, meta);
+            if (gained > 0 && deps.BoardOps && typeof deps.BoardOps.emitPresentationEvent === 'function') {
+                deps.BoardOps.emitPresentationEvent(cardState, {
+                    type: 'CHARGE_BUBBLE',
+                    player: regen.owner,
+                    row,
+                    col,
+                    gained,
+                    text: null,
+                    meta: { owner: regen.owner, sourceType: meta.sourceType }
+                });
+            }
+        }
 
         if ((regen.data.regenRemaining || 0) <= 0 && markerType === 'REGEN') {
             const key = `${row},${col}`;

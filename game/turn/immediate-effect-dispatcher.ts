@@ -50,12 +50,6 @@ function pushOwnershipChangeReactionEvents(ctx: ImmediateEffectContext, flips: a
         ctx.events.push({ type: 'regen_triggered', details: regenRes.regened });
     }
     if (regenRes && Array.isArray(regenRes.captureFlips) && regenRes.captureFlips.length) {
-        const firstCapture = regenRes.captureFlips[0] || {};
-        awardCharge(ctx, regenRes.captureFlips.length, {
-            targetRow: firstCapture.row,
-            targetCol: firstCapture.col,
-            sourceType: `${sourceType}_regen_capture`
-        });
         ctx.events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
     }
     if (livingWillRes && Array.isArray(livingWillRes.restored) && livingWillRes.restored.length) {

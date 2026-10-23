@@ -50,7 +50,6 @@ function flushTurnStartPostFlipRevives(options: FlushTurnStartPostFlipRevivesOpt
     const regenTriggered: any[] = [];
     const regenCaptureFlips: any[] = [];
     const livingWillTriggered: any[] = [];
-    const regenCaptureByOwner: Record<string, any[]> = { black: [], white: [] };
 
     for (const ownerKey of ['black', 'white']) {
         const flips = flippedByOwner[ownerKey] || [];
@@ -61,8 +60,6 @@ function flushTurnStartPostFlipRevives(options: FlushTurnStartPostFlipRevivesOpt
         if (regenRes && regenRes.regened && regenRes.regened.length) regenTriggered.push(...regenRes.regened);
         if (regenRes && regenRes.captureFlips && regenRes.captureFlips.length) {
             regenCaptureFlips.push(...regenRes.captureFlips);
-            regenCaptureByOwner[ownerKey] = regenCaptureByOwner[ownerKey] || [];
-            regenCaptureByOwner[ownerKey].push(...regenRes.captureFlips);
         }
         if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
             livingWillTriggered.push(...livingWillRes.restored);
@@ -79,24 +76,13 @@ function flushTurnStartPostFlipRevives(options: FlushTurnStartPostFlipRevivesOpt
         opts.events.push({ type: 'living_will_triggered_start', details: livingWillTriggered });
     }
     if (regenCaptureFlips.length) {
-        for (const ownerKey of ['black', 'white']) {
-            const captures = regenCaptureByOwner[ownerKey] || [];
-            if (!captures.length) continue;
-            const firstCapture = captures[0] || {};
-            opts.awardBoardChargeGain(opts.CardLogic, opts.cardState, ownerKey, captures.length, {
-                anchorRow: firstCapture.row,
-                anchorCol: firstCapture.col,
-                sourceType: 'regen_capture_turn_start'
-            });
-        }
         opts.events.push({ type: 'regen_capture_flipped_start', details: regenCaptureFlips });
     }
 
     return {
         regenTriggered,
         regenCaptureFlips,
-        livingWillTriggered,
-        regenCaptureByOwner
+        livingWillTriggered
     };
 }
 

@@ -139,12 +139,6 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                 if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
                     CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
                 }
-                const firstCapture = regenRes.captureFlips[0] || {};
-                awardBoardChargeGain(CardLogic, cardState, ownerKey, regenRes.captureFlips.length, {
-                    targetRow: firstCapture.row,
-                    targetCol: firstCapture.col,
-                    sourceType: 'regen_capture_immediate'
-                });
                 events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
             }
             if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {
@@ -175,12 +169,6 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
                 if (typeof CardLogic.clearHyperactiveAtPositions === 'function') {
                     CardLogic.clearHyperactiveAtPositions(cardState, regenRes.captureFlips);
                 }
-                const firstCapture = regenRes.captureFlips[0] || {};
-                awardBoardChargeGain(CardLogic, cardState, ownerKey, regenRes.captureFlips.length, {
-                    targetRow: firstCapture.row,
-                    targetCol: firstCapture.col,
-                    sourceType: 'regen_capture_turn_start'
-                });
                 events.push({ type: 'regen_capture_flipped_start', details: regenRes.captureFlips });
             }
             if (livingWillRes && livingWillRes.restored && livingWillRes.restored.length) {

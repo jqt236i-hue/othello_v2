@@ -3356,15 +3356,6 @@ const {
         const postFlipRevives = appliedFlips.length > 0
             ? applyPostFlipRevives(cardState, gameState, appliedFlips, reverse.ownerKey)
             : { regenRes: { regened: [], captureFlips: [] }, livingWillRes: { restored: [] }, batches: [] };
-        if (postFlipRevives.regenRes.captureFlips.length) {
-            const firstCapture = postFlipRevives.regenRes.captureFlips[0] || {};
-            addChargeWithTotal(cardState, reverse.ownerKey, postFlipRevives.regenRes.captureFlips.length, {
-                popupKind: 'board',
-                sourceType: 'reverse_will_regen_capture',
-                anchorRow: firstCapture.row,
-                anchorCol: firstCapture.col
-            });
-        }
         clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
@@ -3642,7 +3633,8 @@ const {
             getCardContext,
             clearBombAt,
             removeMarkersAt,
-            BoardOps: BoardOpsModule
+            BoardOps: BoardOpsModule,
+            addChargeWithTotal
         });
     }
 
@@ -4738,16 +4730,6 @@ const {
         });
         if (r && r.swapped && Array.isArray(r.flipped) && r.flipped.length) {
             r.postFlipRevives = applyPostFlipRevives(cardState, gameState, r.flipped, playerKey);
-            const captureFlips = r.postFlipRevives && r.postFlipRevives.regenRes && r.postFlipRevives.regenRes.captureFlips;
-            if (Array.isArray(captureFlips) && captureFlips.length) {
-                const firstCapture = captureFlips[0] || {};
-                addChargeWithTotal(cardState, playerKey, captureFlips.length, {
-                    popupKind: 'board',
-                    sourceType: 'swap_regen_capture',
-                    anchorRow: firstCapture.row,
-                    anchorCol: firstCapture.col
-                });
-            }
         }
         return r;
     }
