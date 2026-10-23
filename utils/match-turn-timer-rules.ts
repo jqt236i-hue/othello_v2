@@ -20,6 +20,7 @@ export type MatchTurnTimerRefreshOptions = {
     /** Adapter decision: both seats present and the game is not over. */
     shouldBeActive: boolean;
     nowMs?: unknown;
+    /** Adapter hint; accepted inputs within the same canonical turn do not replenish its timer. */
     forceRestart?: boolean;
 };
 
@@ -63,6 +64,18 @@ export function createMatchTurnTimerRules(config: MatchTurnTimerRulesConfig) {
         };
     }
 
+    function resolveTurnIdentity(room: MatchTurnTimerRoom): string {
+        const roomRecord = asRecord(room);
+        const snapshot = asRecord(roomRecord.snapshot);
+        const gameState = asRecord(snapshot.gameState);
+        const cardState = asRecord(snapshot.cardState);
+        const counter = (value: unknown) => value !== null && typeof value !== 'undefined' && Number.isFinite(Number(value))
+            ? Math.trunc(Number(value)) : null;
+        // room.seed is replaced on reset_game/rematch, unlike the per-match counters which
+        // return to their opening values. stateVersion changes for card/selection inputs too.
+        return JSON.stringify([counter(roomRecord.seed), counter(gameState.turnNumber), counter(cardState.turnIndex)]);
+    }
+
     function createActiveTurnTimer(room: MatchTurnTimerRoom, nowMs: unknown): Record<string, unknown> {
         const startedAt = Number.isFinite(Number(nowMs)) ? Math.max(0, Math.trunc(Number(nowMs))) : now();
         const limitSeconds = resolveLimitSeconds(room);
@@ -71,7 +84,8 @@ export function createMatchTurnTimerRules(config: MatchTurnTimerRulesConfig) {
             active: true,
             turnSeatKey: cfg.resolveTurnSeatKey(room),
             turnStartedAt: startedAt,
-            turnDeadlineAt: startedAt + (limitSeconds * 1000)
+            turnDeadlineAt: startedAt + (limitSeconds * 1000),
+            turnIdentity: resolveTurnIdentity(room)
         };
     }
 
@@ -83,6 +97,7 @@ export function createMatchTurnTimerRules(config: MatchTurnTimerRulesConfig) {
             && (cfg.parseSeatKeyOptional(left.turnSeatKey) || 'black') === (cfg.parseSeatKeyOptional(right.turnSeatKey) || 'black')
             && finiteOrNull(left.turnStartedAt) === finiteOrNull(right.turnStartedAt)
             && finiteOrNull(left.turnDeadlineAt) === finiteOrNull(right.turnDeadlineAt)
+            && left.turnIdentity === right.turnIdentity
             && Number(left.limitSeconds) === Number(right.limitSeconds)
         );
     }
@@ -104,8 +119,8 @@ export function createMatchTurnTimerRules(config: MatchTurnTimerRulesConfig) {
         };
     }
 
-    // Mutates room.turnTimer: pauses it, keeps a running timer for the same seat (refreshing only its
-    // limit), or restarts it for the current seat.
+    // Keep the deadline within one canonical turn. A new turn gets a full allowance even
+    // when its owner is unchanged (opponent pass/time stop), as does a new match seed.
     function applyTurnTimerRefresh(room: any, options: MatchTurnTimerRefreshOptions): MatchTurnTimerRefreshResult {
         const opts = options || { shouldBeActive: false };
         if (!opts.shouldBeActive) {
@@ -116,10 +131,21 @@ export function createMatchTurnTimerRules(config: MatchTurnTimerRulesConfig) {
         }
 
         const timer = readTimer(room);
-        if (!opts.forceRestart && timer && timer.active === true) {
+        // Publish adapters request forceRestart for card use and pending selections too.
+        // Compare the saved turn identity, not that broad hint or the seat alone.
+        if (timer && timer.active === true) {
             const timerSeatKey = cfg.parseSeatKeyOptional(timer.turnSeatKey);
-            if (timerSeatKey === cfg.resolveTurnSeatKey(room) && Number.isFinite(Number(timer.turnDeadlineAt))) {
+            const turnIdentity = resolveTurnIdentity(room);
+            const legacyTimer = typeof timer.turnIdentity !== 'string';
+            if (timerSeatKey === cfg.resolveTurnSeatKey(room)
+                && (legacyTimer || timer.turnIdentity === turnIdentity)
+                && timer.turnDeadlineAt !== null && typeof timer.turnDeadlineAt !== 'undefined'
+                && Number.isFinite(Number(timer.turnDeadlineAt))) {
                 timer.limitSeconds = resolveLimitSeconds(room);
+                // Adopt persisted timers created before turnIdentity existed without granting
+                // extra time. The pre-command refresh adopts before applying input; the next
+                // ordinary room save persists it. Public timing has not changed.
+                if (legacyTimer) timer.turnIdentity = turnIdentity;
                 return { changed: false, replaced: false };
             }
         }
