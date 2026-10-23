@@ -72,4 +72,26 @@ describe('special-effects UDG UI boundary', () => {
     expect(global.emitBoardUpdate).toHaveBeenCalled();
     expect(global.emitGameStateChange).toHaveBeenCalled();
   });
+
+  test('empty pipeline events is a normal case and does not log an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const m = require('../game/special-effects/udg.js');
+      await m.processUltimateDestroyGodsAtTurnStart(global.BLACK, null, []);
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('missing (non-array) pipeline events is still reported as an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const m = require('../game/special-effects/udg.js');
+      await m.processUltimateDestroyGodsAtTurnStart(global.BLACK, null, null);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[UDG] No precomputed'));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

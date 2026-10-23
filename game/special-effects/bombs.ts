@@ -31,11 +31,13 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
         bombOwnerValByPos.set(String(b.row) + ',' + String(b.col), ownerVal);
     }
 
-    const events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
-    if (events.length === 0) {
+    // 配列で渡されない場合だけ異常。空配列は「この手番開始に演出対象なし」の正常ケース。
+    if (!Array.isArray(precomputedEvents)) {
         console.error('[PROCESS-BOMBS] No precomputed pipeline events provided; skipping bomb presentation');
         return;
     }
+    const events = precomputedEvents.slice();
+    if (events.length === 0) return;
 
     const bombEvents = events.filter((e: any) => e.type === 'bombs_exploded');
     if (!bombEvents || bombEvents.length === 0) {

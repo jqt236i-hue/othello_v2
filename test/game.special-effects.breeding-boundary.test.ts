@@ -58,4 +58,26 @@ describe('special-effects breeding UI boundary', () => {
     expect(global.emitBoardUpdate).toHaveBeenCalled();
     expect(global.emitGameStateChange).toHaveBeenCalled();
   });
+
+  test('empty pipeline events is a normal case and does not log an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const m = require('../game/special-effects/breeding.js');
+      await m.processBreedingEffectsAtTurnStart(global.BLACK, []);
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('missing (non-array) pipeline events is still reported as an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const m = require('../game/special-effects/breeding.js');
+      await m.processBreedingEffectsAtTurnStart(global.BLACK, null);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[BREEDING] No precomputed'));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

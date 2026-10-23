@@ -87,4 +87,26 @@ describe('special-effects bombs fallback animation batching', () => {
       })
     ]);
   });
+
+  test('empty pipeline events is a normal case and does not log an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const m = require('../game/special-effects/bombs.js');
+      await m.processBombs([]);
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('missing (non-array) pipeline events is still reported as an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const m = require('../game/special-effects/bombs.js');
+      await m.processBombs(null);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[PROCESS-BOMBS]'));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

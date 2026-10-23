@@ -60,7 +60,9 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
     // Prefer precomputed result (from pipeline). If not provided, try to extract from events.
     let result = precomputedResult;
     if (!result) {
-        if (Array.isArray(precomputedEvents) && precomputedEvents.length) {
+        // 空配列は「演出対象なし」の正常ケースなので黙って戻る。配列でない場合だけ異常。
+        if (Array.isArray(precomputedEvents) && precomputedEvents.length === 0) return;
+        if (Array.isArray(precomputedEvents)) {
             // Build result from events
             result = { destroyed: [], expired: [], anchors: [] };
             for (const ev of precomputedEvents) {
