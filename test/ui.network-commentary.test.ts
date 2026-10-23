@@ -102,6 +102,19 @@ describe('NetworkCommentaryController', () => {
       );
     });
 
+    test('観戦者には黒の手の解説も出る（席の既定値 black と同じ側でも飛ばさない）', () => {
+      stateObj.viewerRole = 'spectator';
+      controller.emitSnapshotCommentary({ ok: true, playerKey: 'black', actionType: 'pass' }, createSnapshot(1), false, []);
+      expect(mockBroker.requestCommentaryAndShow).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: 'pass', playerKey: 'black' })
+      );
+    });
+
+    test('席のプレイヤーは自分の手の解説を出さない', () => {
+      controller.emitSnapshotCommentary({ ok: true, playerKey: 'black', actionType: 'pass' }, createSnapshot(1), false, []);
+      expect(mockBroker.requestCommentaryAndShow).not.toHaveBeenCalled();
+    });
+
     test('パスアクションで正しいイベントタイプを発行する', () => {
       const payload = {
         ok: true,

@@ -175,7 +175,8 @@ function createNetworkCommentaryController(config?: any): any {
 
     const actorKey = normalizePlayerKey(payload.playerKey || '');
     const state = resolveState();
-    if (!actorKey || actorKey === state.seatKey) return;
+    const isSpectator = String(state.viewerRole || '').trim().toLowerCase() === 'spectator';
+    if (!actorKey || (!isSpectator && actorKey === state.seatKey)) return;
 
     const gameStateSnapshot = snapshot && snapshot.gameState ? snapshot.gameState : null;
     if (!gameStateSnapshot || !Array.isArray(gameStateSnapshot.board)) return;

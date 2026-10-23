@@ -32,6 +32,15 @@ function createNetworkRoomEventsController(config?: any): any {
     return normalized === 'white' ? 'white' : 'black';
   }
 
+  // A spectator holds no seat: state.seatKey is only a default there, so it must not mean "me".
+  function isSpectatorViewer(): boolean {
+    return String(readState().viewerRole || '').trim().toLowerCase() === 'spectator';
+  }
+
+  function isSelfSeat(seatKey: string): boolean {
+    return !isSpectatorViewer() && seatKey === readState().seatKey;
+  }
+
   function normalizeChatText(value: any): string {
     return NetworkContract.normalizeNetworkChatText(value);
   }
@@ -105,7 +114,6 @@ function createNetworkRoomEventsController(config?: any): any {
   }
 
   function handlePresencePayload(payload: any): void {
-    const state = readState();
     if (!payload || payload.ok !== true) return;
 
     if (typeof cfg.applyPayloadSessionState === 'function') {
@@ -114,8 +122,9 @@ function createNetworkRoomEventsController(config?: any): any {
 
     const type = String(payload.type || 'join');
     if (type === 'rematch_request') {
+      if (isSpectatorViewer()) return;
       const fromSeatKey = normalizePlayerKey(payload.seatKey);
-      if (fromSeatKey === state.seatKey) {
+      if (isSelfSeat(fromSeatKey)) {
         if (typeof cfg.emitStatusAndEffectLog === 'function') {
           cfg.emitStatusAndEffectLog('ネット対戦: 再戦申請を送信しました', false);
         }
@@ -134,7 +143,7 @@ function createNetworkRoomEventsController(config?: any): any {
     if (type === 'rematch_response') {
       const fromSeatKey = normalizePlayerKey(payload.seatKey);
       const accepted = payload.accepted === true;
-      if (fromSeatKey !== state.seatKey && typeof cfg.emitStatusAndEffectLog === 'function') {
+      if (!isSelfSeat(fromSeatKey) && typeof cfg.emitStatusAndEffectLog === 'function') {
         const seatName = typeof cfg.getSeatDisplayName === 'function'
           ? cfg.getSeatDisplayName(fromSeatKey)
           : fromSeatKey;
@@ -145,6 +154,7 @@ function createNetworkRoomEventsController(config?: any): any {
           false
         );
       }
+      if (isSpectatorViewer()) return;
       emitRematchRequestEvent({
         type: 'response',
         requestId: String(payload.requestId || ''),
@@ -158,7 +168,7 @@ function createNetworkRoomEventsController(config?: any): any {
     if (type !== 'join' && type !== 'leave') return;
 
     const joinedSeatKey = normalizePlayerKey(payload.seatKey);
-    if (joinedSeatKey === state.seatKey) return;
+    if (isSelfSeat(joinedSeatKey)) return;
 
     const seatName = typeof cfg.getSeatDisplayName === 'function'
       ? cfg.getSeatDisplayName(joinedSeatKey)
@@ -174,12 +184,11 @@ function createNetworkRoomEventsController(config?: any): any {
   }
 
   function handleTimeoutPassPayload(payload: any): void {
-    const state = readState();
     if (!payload || payload.ok !== true) return;
     if (String(payload.actionType || '') !== 'timeout_pass') return;
 
     const timedOutSeatKey = normalizePlayerKey(payload.playerKey);
-    if (timedOutSeatKey === state.seatKey) {
+    if (isSelfSeat(timedOutSeatKey)) {
       if (typeof cfg.emitStatusAndEffectLog === 'function') {
         cfg.emitStatusAndEffectLog('ネット対戦: あなたの手番が時間切れになりました', false);
       }
