@@ -589,6 +589,37 @@ function isAnchorScopedStatusDurationType(dataType: any): boolean {
     return ANCHOR_SCOPED_STATUS_DURATION_TYPES.has(String(dataType || '').toUpperCase());
 }
 
+function processWorkTurnStartEffects(cardState: any, gameState: any, playerKey: string, context: Context, marker?: any): any {
+    const helpers = getHelpers(context);
+    const workMod = getWorkModule(context);
+    const method = marker ? 'processWorkEffectsAtAnchor' : 'processWorkEffects';
+    if (!workMod || typeof workMod[method] !== 'function') return { processed: false, expired: [] };
+    const deps = typeof helpers.addChargeWithTotal === 'function'
+        ? { addChargeWithTotal: helpers.addChargeWithTotal }
+        : {};
+    const res = marker
+        ? workMod.processWorkEffectsAtAnchor(cardState, gameState, playerKey, marker, deps)
+        : workMod.processWorkEffects(cardState, gameState, playerKey, deps);
+    for (const entry of Array.isArray(res && res.entries) ? res.entries : []) {
+        const removedReason = entry.removedReason || null;
+        const incomeStep = Number.isFinite(Number(entry.incomeStep)) ? Number(entry.incomeStep) : null;
+        if (typeof helpers.emitPresentationEvent !== 'function') continue;
+        if (entry.gained > 0) {
+            helpers.emitPresentationEvent(cardState, {
+                type: 'WORK_INCOME', player: playerKey, row: entry.row, col: entry.col,
+                gained: entry.gained, removed: !!entry.removed, reason: removedReason,
+                meta: { reason: removedReason, incomeStep }
+            });
+        } else if (entry.removed) {
+            helpers.emitPresentationEvent(cardState, {
+                type: 'WORK_REMOVED', player: playerKey, row: entry.row, col: entry.col,
+                removed: true, reason: removedReason, meta: { reason: removedReason }
+            });
+        }
+    }
+    return { processed: true, expired: [] };
+}
+
 function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, playerKey: string, marker: any, context: Context): any {
     const helpers = getHelpers(context);
     const constants = getConstants(context);
@@ -597,6 +628,9 @@ function processTurnStartStatusMarkerAnchor(cardState: any, gameState: any, play
     const dataType = String(data && data.type ? data.type : '').toUpperCase();
     const expired: any[] = [];
 
+    if (marker && dataType === 'WORK' && marker.owner === playerKey) {
+        return processWorkTurnStartEffects(cardState, gameState, playerKey, context, marker);
+    }
     if (!marker || !data || !isAnchorScopedStatusDurationType(dataType)) {
         return { processed: false, expired };
     }
@@ -913,54 +947,10 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
         }
     }
 
-    const workMod = getWorkModule(context);
-    if (workMod && typeof workMod.processWorkEffects === 'function') {
-        try {
-            const workDeps = typeof helpers.addChargeWithTotal === 'function'
-                ? { addChargeWithTotal: helpers.addChargeWithTotal }
-                : null;
-            const res = workDeps
-                ? workMod.processWorkEffects(cardState, gameState, playerKey, workDeps)
-                : workMod.processWorkEffects(cardState, gameState, playerKey);
-            if (!cardState.presentationEvents) (cardState as any).presentationEvents = [];
-            const workEntries = Array.isArray(res && res.entries) && res.entries.length > 0
-                ? res.entries
-                : (res ? [res] : []);
-            for (const entry of workEntries) {
-                const row = Number.isInteger(entry && entry.row) ? entry.row : null;
-                const col = Number.isInteger(entry && entry.col) ? entry.col : null;
-                const removedReason = (entry && typeof entry.removedReason === 'string' && entry.removedReason)
-                    ? entry.removedReason
-                    : null;
-                const incomeStep = Number.isFinite(Number(entry && entry.incomeStep))
-                    ? Number(entry.incomeStep)
-                    : null;
-                if (entry && entry.gained && entry.gained > 0 && typeof helpers.emitPresentationEvent === 'function') {
-                    helpers.emitPresentationEvent(cardState, {
-                        type: 'WORK_INCOME',
-                        player: playerKey,
-                        row,
-                        col,
-                        gained: entry.gained,
-                        removed: !!entry.removed,
-                        reason: removedReason,
-                        meta: { reason: removedReason, incomeStep }
-                    });
-                } else if (entry && entry.removed && typeof helpers.emitPresentationEvent === 'function') {
-                    helpers.emitPresentationEvent(cardState, {
-                        type: 'WORK_REMOVED',
-                        player: playerKey,
-                        row,
-                        col,
-                        removed: true,
-                        reason: removedReason,
-                        meta: { reason: removedReason }
-                    });
-                }
-            }
-        } catch (e) {
-            // swallow to avoid breaking turn start in environments without module
-        }
+    // Pipeline callers resolve WORK in the fixed creation-order queue, after healing.
+    // Keep the standalone timing API's legacy bulk processing for its direct callers.
+    if (!(context && (context as any).deferStatusDurationUntilTurnStartMarkers === true)) {
+        processWorkTurnStartEffects(cardState, gameState, playerKey, context);
     }
 
     return summary;

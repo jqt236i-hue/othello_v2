@@ -169,7 +169,7 @@ function isFrozenAtTurnStart(cardState: CardState, row: number, col: number): bo
   return !!(frozenCells && typeof frozenCells.has === 'function' && frozenCells.has(`${row},${col}`));
 }
 
-function processWorkEffects(cardState: CardState, gameState: GameState, playerKey: PlayerKey, deps: WorkDeps = {}): {
+function processWorkMarkers(cardState: CardState, gameState: GameState, playerKey: PlayerKey, markers: Marker[], deps: WorkDeps = {}): {
   gained: number;
   removed: boolean;
   row: number | null;
@@ -180,7 +180,6 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
 } {
   const ownerValue = playerKey === 'black' ? BLACK : WHITE;
   const entries: WorkEffectEntry[] = [];
-  const markers = getWorkMarkers(cardState, playerKey);
 
   if (!markers.length) {
     syncPrimaryAnchor(cardState, playerKey);
@@ -262,7 +261,20 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
   };
 }
 
+function processWorkEffects(cardState: CardState, gameState: GameState, playerKey: PlayerKey, deps: WorkDeps = {}) {
+  return processWorkMarkers(cardState, gameState, playerKey, getWorkMarkers(cardState, playerKey), deps);
+}
+
+/** The caller resolves the fixed turn-start identity before processing this individual. */
+function processWorkEffectsAtAnchor(cardState: CardState, gameState: GameState, playerKey: PlayerKey, marker: Marker, deps: WorkDeps = {}) {
+  const markers = isWorkMarkerForPlayer(marker, playerKey) && (cardState.markers || []).includes(marker)
+    ? [marker]
+    : [];
+  return processWorkMarkers(cardState, gameState, playerKey, markers, deps);
+}
+
 export = {
   placeWorkStone,
-  processWorkEffects
+  processWorkEffects,
+  processWorkEffectsAtAnchor
 };
