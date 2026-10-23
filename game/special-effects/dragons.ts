@@ -133,11 +133,13 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
     // Consume pipeline-produced events only; this presentation layer must not re-run rule phases.
     let result: any = null;
     let regenRes = { regened: [] as any[], captureFlips: [] as any[] };
-    const events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
-    if (!events.length) {
+    // 配列で渡されない場合だけ異常。空配列は「この手番開始に演出対象なし」の正常ケース。
+    if (!Array.isArray(precomputedEvents)) {
         console.error('[DRAGONS] No precomputed pipeline events provided; skipping dragon presentation');
         return;
     }
+    const events = precomputedEvents.slice();
+    if (!events.length) return;
     if (events.length) {
 
         // Build result shape from events

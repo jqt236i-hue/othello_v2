@@ -1056,6 +1056,11 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         gap: calc(8px * var(--layout-stage-scale));
     }
 
+    /* 左のひし形アイコン（styles-layout-result.css の ::before/::after）の幅を残す */
+    .result-score-breakdown-row {
+        padding-left: calc(46px * var(--layout-stage-scale));
+    }
+
     .result-score-breakdown-value {
         font-size: calc(15px * var(--layout-stage-scale));
     }

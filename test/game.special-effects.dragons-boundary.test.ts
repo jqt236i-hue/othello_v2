@@ -213,4 +213,28 @@ describe('special-effects dragons UI boundary', () => {
       ownerAfter: 'black'
     });
   });
+
+  test('empty pipeline events on a turn start is a normal case and does not log an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const dragons = require('../game/special-effects/dragons.js');
+      await dragons.processUltimateReverseDragonsAtTurnStart(global.BLACK, []);
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+      expect(global.emitCardStateChange).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('missing (non-array) pipeline events is still reported as an error', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const dragons = require('../game/special-effects/dragons.js');
+      await dragons.processUltimateReverseDragonsAtTurnStart(global.BLACK, null);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[DRAGONS] No precomputed pipeline events provided'));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });
