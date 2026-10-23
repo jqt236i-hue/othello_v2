@@ -207,6 +207,8 @@ export async function loadPlaza(
         if (m.name === 'Fern' && !m.userData.tinted) { m.color.multiplyScalar(0.42); m.userData.tinted = true; }
         if (m.name === 'BroadLeaf' && !m.userData.tinted) { m.color.multiplyScalar(0.6); m.userData.tinted = true; }
         if (m.name === 'PianoInside' && !m.userData.tinted) { m.envMapIntensity = 0.4; m.metalness = 0.55; m.roughness = 0.6; m.color.multiplyScalar(0.7); m.userData.tinted = true; }
+        // 内張りは黒い外装と同じ面に重なっているので、手前に寄せて視点移動時のちらつきを防ぐ
+        if (m.name === 'PianoInside') { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -4; }
         if (m.name === 'ReversiBoard') { m.clearcoat = 0; m.envMapIntensity = 0.4; }
         if (/^(LanternGlow|FlameCore|Flame|Embers|LampShade|WindowGlow)$/.test(m.name) && !glowMaterials.has(m)) {
           m.emissiveIntensity *= EMIT_SCALE[m.name] ?? 0.4;
