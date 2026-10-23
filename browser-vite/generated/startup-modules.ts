@@ -759,6 +759,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-authority/journal": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/journal.js"),
   "utils/match-authority/operations": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/operations.js"),
   "utils/match-authority/pending-selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/pending-selection.js"),
+  "utils/match-authority/playback-visibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/playback-visibility.js"),
   "utils/match-authority/presentation-journal": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/presentation-journal.js"),
   "utils/match-authority/projection": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/projection.js"),
   "utils/match-authority/publish": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/publish.js"),
@@ -1560,6 +1561,7 @@ installBootModuleMetadata({
     "utils/match-authority/journal",
     "utils/match-authority/operations",
     "utils/match-authority/pending-selection",
+    "utils/match-authority/playback-visibility",
     "utils/match-authority/presentation-journal",
     "utils/match-authority/projection",
     "utils/match-authority/publish",
@@ -1672,4 +1674,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 779;
+export const startupModuleCount = 780;
