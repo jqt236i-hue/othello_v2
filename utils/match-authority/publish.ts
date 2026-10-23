@@ -27,6 +27,7 @@ interface MatchAuthorityPublishResponseOptionInput extends MatchAuthorityPublish
 }
 
 interface MatchAuthorityPublishApiDeps {
+    maskPlaybackEventsForSeat: (events: unknown, viewerSeat: unknown, projectedSnapshot: unknown) => unknown[];
     versionRejectionReasons: Readonly<Record<'AHEAD' | 'BEHIND' | 'GAP' | 'MISMATCH', string>>;
     normalizeOperationId: (value: unknown) => string;
     normalizePlayerKey: (value: unknown, fallback?: unknown) => MatchAuthoritySeatKey;
@@ -368,8 +369,12 @@ export function createMatchAuthorityPublishApi(deps: MatchAuthorityPublishApiDep
         if (Object.prototype.hasOwnProperty.call(opts, 'networkAutoEnabled')) payload.networkAutoEnabled = opts.networkAutoEnabled === true;
         if (Object.prototype.hasOwnProperty.call(opts, 'turnTimer')) payload.turnTimer = (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null;
         if (Object.prototype.hasOwnProperty.call(opts, 'playbackEvents')) {
-            payload.playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-            payload.playbackDigest = resolvePlaybackDigest(payload.playbackEvents, opts.playbackDigest);
+            const sourceEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+            const snapshotMeta = asRecord(asRecord(opts.snapshot)._meta);
+            // The projected snapshot names the receiving seat; hidden-hand events follow its projection.
+            const viewerEvents = deps.maskPlaybackEventsForSeat(sourceEvents, snapshotMeta.projectedForSeat, opts.snapshot);
+            payload.playbackEvents = viewerEvents;
+            payload.playbackDigest = resolvePlaybackDigest(viewerEvents, viewerEvents === sourceEvents ? opts.playbackDigest : undefined);
         } else if (Object.prototype.hasOwnProperty.call(opts, 'playbackDigest')) {
             payload.playbackDigest = normalizePlaybackDigestValue(opts.playbackDigest);
         }

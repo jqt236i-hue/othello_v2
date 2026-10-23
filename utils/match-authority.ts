@@ -65,6 +65,7 @@ import { createMatchAuthorityJournalApi } from './match-authority/journal';
 import { createMatchAuthorityPresentationJournalApi } from './match-authority/presentation-journal';
 import { createMatchAuthoritySnapshotStateApi } from './match-authority/snapshot-state';
 import { createMatchAuthorityHandProjectionApi } from './match-authority/hand-projection';
+import { createMatchAuthorityPlaybackVisibilityApi } from './match-authority/playback-visibility';
 import { createMatchAuthorityRoomLifecycleApi } from './match-authority/room-lifecycle';
 import { createTrapVisibilityApi } from './match-authority/trap-visibility';
 import { createMatchAuthorityProjectionApi } from './match-authority/projection';
@@ -230,6 +231,11 @@ const matchAuthorityHandProjection = createMatchAuthorityHandProjectionApi({
     hiddenHandTokenRe: HIDDEN_HAND_TOKEN_RE,
     normalizePlayerKey
 });
+const matchAuthorityPlaybackVisibility = createMatchAuthorityPlaybackVisibilityApi({
+    makeHiddenHandToken: (ownerKey, handIndex) => matchAuthorityHandProjection.makeHiddenHandToken(ownerKey, handIndex),
+    isHiddenHandTokenLike: (value) => matchAuthorityHandProjection.isHiddenHandTokenLike(value),
+    parseSeatKeyOptional: (value) => parseSeatKeyOptional(value)
+});
 const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
     maxSpectators: MAX_SPECTATORS,
     seatTokenChars: SEAT_TOKEN_CHARS,
@@ -255,6 +261,7 @@ const matchAuthorityOperations = createMatchAuthorityOperationsApi({
     normalizeStateVersion
 });
 const matchAuthorityPublish = createMatchAuthorityPublishApi({
+    maskPlaybackEventsForSeat: matchAuthorityPlaybackVisibility.maskPlaybackEventsForSeat,
     versionRejectionReasons: VERSION_REJECTION_REASONS,
     normalizeOperationId,
     normalizePlayerKey,
@@ -1493,6 +1500,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     normalizePublishResponseMode,
     shouldUseAckOnlyPublishResponse,
     makeHiddenHandToken,
+    maskPlaybackEventsForSeat: matchAuthorityPlaybackVisibility.maskPlaybackEventsForSeat,
     parseHiddenHandToken,
     addSpectatorToRoom,
     removeSpectatorFromRoom,

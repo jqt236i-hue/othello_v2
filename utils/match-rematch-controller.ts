@@ -1,3 +1,45 @@
+const REMATCH_AGREEMENT_TTL_MS = 120000;
+const REMATCH_REQUEST_LIMIT = 4;
+
+type RematchRequestRecord = { fromSeat: string; accepted: boolean; createdAt: number; acceptedAt: number | null };
+
+function readRematchRequests(room: any): Record<string, RematchRequestRecord> {
+  if (!room.rematchRequests || typeof room.rematchRequests !== 'object') room.rematchRequests = {};
+  return room.rematchRequests;
+}
+
+/** Server-side record of a rematch request; `reset_game` is only accepted after the opponent accepts one. */
+export function recordRematchRequest(room: any, requestId: string, fromSeat: string, nowMs: number = Date.now()): void {
+  const requests = readRematchRequests(room);
+  requests[requestId] = { fromSeat, accepted: false, createdAt: nowMs, acceptedAt: null };
+  const ids = Object.keys(requests).sort((a, b) => requests[a].createdAt - requests[b].createdAt);
+  for (const id of ids.slice(0, Math.max(0, ids.length - REMATCH_REQUEST_LIMIT))) delete requests[id];
+}
+
+export function recordRematchResponse(room: any, requestId: string, responderSeat: string, accepted: boolean, nowMs: number = Date.now()): boolean {
+  const request = readRematchRequests(room)[requestId];
+  if (!request || request.fromSeat === responderSeat) return false;
+  if (!accepted) {
+    delete readRematchRequests(room)[requestId];
+    return false;
+  }
+  request.accepted = true;
+  request.acceptedAt = nowMs;
+  return true;
+}
+
+export function hasRematchAgreement(room: any, nowMs: number = Date.now()): boolean {
+  const requests = readRematchRequests(room);
+  return Object.keys(requests).some((id) => {
+    const request = requests[id];
+    return request.accepted === true && Number.isFinite(request.acceptedAt) && nowMs - Number(request.acceptedAt) <= REMATCH_AGREEMENT_TTL_MS;
+  });
+}
+
+export function clearRematchRequests(room: any): void {
+  room.rematchRequests = {};
+}
+
 export function createMatchRematchController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
 
@@ -36,7 +78,9 @@ export function createMatchRematchController(config?: any): any {
     }
 
     const requestId = cfg.makeRematchRequestId();
+    recordRematchRequest(room, requestId, seatKey);
     cfg.touchRoom(room);
+    if (typeof cfg.saveRoom === 'function') await cfg.saveRoom();
     await publishPresence({
       type: 'rematch_request',
       seatKey,
@@ -53,7 +97,9 @@ export function createMatchRematchController(config?: any): any {
     const requestId = String(body.requestId || '').trim();
     const accepted = body.accepted === true;
 
+    recordRematchResponse(room, requestId, seatKey, accepted);
     cfg.touchRoom(room);
+    if (typeof cfg.saveRoom === 'function') await cfg.saveRoom();
     await publishPresence({
       type: 'rematch_response',
       seatKey,

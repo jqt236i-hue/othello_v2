@@ -1,6 +1,7 @@
 import { compactNetworkPresentationEnvelope } from '../shared/network-presentation-envelope';
 import PassTurnReturn = require('../shared/pass-turn-return');
 import StoneSupply = require('../shared/stone-supply');
+import { clearRematchRequests, hasRematchAgreement } from './match-rematch-controller';
 
 // Adapters may construct a controller per request (local server), so the lane is
 // keyed by the canonical room, not by the controller instance. A failed publish
@@ -285,6 +286,27 @@ export function createMatchPublishController(config?: any): any {
       return respond(409, cfg.buildPublishPayload(room, seatKey, versionRejectedOptions));
     }
 
+    if (isRematchResetAction && !hasRematchAgreement(room)) {
+      cfg.MatchAuthority.appendAuthorityLog(room, {
+        kind: 'publish_rejected',
+        operationId,
+        actionType,
+        baseVersion,
+        committedVersion: room.stateVersion,
+        stateHashBefore: room.authoritativeStateHash,
+        rejectedReason: 'REMATCH_NOT_AGREED'
+      }, undefined);
+      return respond(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        ok: false,
+        rejectedReason: 'REMATCH_NOT_AGREED',
+        publishKind: 'rejected',
+        operationId,
+        actionType,
+        receivedBaseVersion: baseVersion,
+        authoritativeStateVersion: room.stateVersion
+      })));
+    }
+
     const expectedPlayerKey = cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState);
     if (
       !isRematchResetAction
@@ -463,6 +485,7 @@ export function createMatchPublishController(config?: any): any {
     const committedStateVersion = previousStateVersion + 1;
     room.stateVersion = committedStateVersion;
     if (rematchSeed !== null) room.seed = rematchSeed;
+    if (isRematchResetAction) clearRematchRequests(room);
     nextSnapshot.stateVersion = committedStateVersion;
     const snapshotUpdatedAt = Date.now();
     nextSnapshot.updatedAt = snapshotUpdatedAt;

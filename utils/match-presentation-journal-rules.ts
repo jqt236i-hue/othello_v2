@@ -9,6 +9,7 @@ export type MatchPresentationJournalAuthority = {
     appendPresentationFrame: (room: any, options: Record<string, unknown>) => unknown;
     normalizeEffectLogMessages: (value: unknown) => unknown;
     toPublicPresentationFrame: (entry: unknown, viewer: unknown, room: any) => unknown;
+    maskPlaybackEventsForSeat: (events: unknown, viewerSeat: unknown, projectedSnapshot: unknown) => unknown[];
 };
 
 export type MatchPresentationJournalRulesConfig = {
@@ -75,8 +76,16 @@ export function createMatchPresentationJournalRules(config: MatchPresentationJou
         const effectLogs = authority.normalizeEffectLogMessages(options.effectLogs);
         const playbackDiagnostics = options.playbackDiagnostics || null;
         const artifactSnapshots = asRecord(asRecord(options.publishViewerArtifacts).projectedSnapshots);
-        // Each viewer gets its own payload object; the authority may attach viewer-specific data.
-        const viewerPayload = () => ({ playbackEvents, effectLogs, playbackDiagnostics });
+        const snapshotAfterByViewer = projectForEachViewer(room, artifactSnapshots);
+        // Each viewer gets its own payload object; seats never receive the identity of cards
+        // entering the opponent's hand.
+        const viewerPayload = (viewerKey: 'black' | 'white' | 'spectator') => ({
+            playbackEvents: viewerKey === 'spectator'
+                ? playbackEvents
+                : authority.maskPlaybackEventsForSeat(playbackEvents, viewerKey, snapshotAfterByViewer[viewerKey]),
+            effectLogs,
+            playbackDiagnostics
+        });
         return authority.appendPresentationFrame(room, {
             stateVersionFrom: options.previousStateVersion,
             stateVersionTo: options.nextStateVersion,
@@ -84,11 +93,11 @@ export function createMatchPresentationJournalRules(config: MatchPresentationJou
             actorSeatKey: options.actorSeatKey,
             actionType: options.actionType,
             payloadByViewer: {
-                black: viewerPayload(),
-                white: viewerPayload(),
-                spectator: viewerPayload()
+                black: viewerPayload('black'),
+                white: viewerPayload('white'),
+                spectator: viewerPayload('spectator')
             },
-            snapshotAfterByViewer: projectForEachViewer(room, artifactSnapshots),
+            snapshotAfterByViewer,
             createdAt: options.createdAt
         });
     }

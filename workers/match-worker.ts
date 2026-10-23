@@ -2040,6 +2040,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             buildOpponentRequiredPayload: () => ({ ok: false, reason: 'OPPONENT_REQUIRED' }),
             makeRematchRequestId,
             touchRoom: () => undefined,
+            saveRoom: () => this.saveRoom(),
             broadcastPresence: (meta: MatchWorkerPresencePayloadMeta | null | undefined) => this.broadcastPresence(meta),
             awaitBroadcastPresence: true,
             buildRequestPayload: (room: MatchWorkerRoomState, value: any) => {

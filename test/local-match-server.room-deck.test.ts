@@ -390,6 +390,19 @@ describe('local match server room deck', () => {
       });
       expect(patched).toBe(true);
 
+      const rematchRequest = await requestJson(port, 'POST', '/api/match/rematch-request', {
+        roomId,
+        seatKey: 'black',
+        seatToken: blackSeatToken
+      });
+      await requestJson(port, 'POST', '/api/match/rematch-response', {
+        roomId,
+        seatKey: 'white',
+        seatToken: joined.data.seatToken,
+        requestId: rematchRequest.data.requestId,
+        accepted: true
+      });
+
       const reset = await requestJson(port, 'POST', '/api/match/publish', {
         roomId,
         seatKey: 'white',

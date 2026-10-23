@@ -324,6 +324,9 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         delete cardState.decks;
         delete cardState.deck;
         delete cardState.prngState;
+        // The initial shuffle seed reproduces both decks' order; never ship it to viewers.
+        delete cardState._defaultRandomSource;
+        delete cardState._boardOpsRandomSource;
         delete asRecord(shot).prngState;
         delete asRecord(shot.gameState).prngState;
         delete cardState._nextCardCopySeq;

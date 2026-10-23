@@ -162,6 +162,18 @@ async function collectLocalCharacterization() {
         cardState: {}
       };
     })).toBe(true);
+    const emptyRematchRequest = await requestJson(port, 'POST', '/api/match/rematch-request', {
+      roomId: emptyCreated.data.roomId,
+      seatKey: 'black',
+      seatToken: emptyCreated.data.seatToken
+    });
+    await requestJson(port, 'POST', '/api/match/rematch-response', {
+      roomId: emptyCreated.data.roomId,
+      seatKey: 'white',
+      seatToken: emptyJoined.data.seatToken,
+      requestId: emptyRematchRequest.data.requestId,
+      accepted: true
+    });
     const emptyReset = await requestJson(port, 'POST', '/api/match/publish', {
       roomId: emptyCreated.data.roomId,
       seatKey: 'white',
@@ -316,6 +328,18 @@ function collectWorkerCharacterization() {
         cardState: {}
       };
       await emptyRoom.saveRoom();
+      const emptyRematchRequest = await request('/api/match/rematch-request', 'POST', {
+        roomId: emptyCreated.data.roomId,
+        seatKey: 'black',
+        seatToken: emptyCreated.data.seatToken
+      });
+      await request('/api/match/rematch-response', 'POST', {
+        roomId: emptyCreated.data.roomId,
+        seatKey: 'white',
+        seatToken: emptyJoined.data.seatToken,
+        requestId: emptyRematchRequest.data.requestId,
+        accepted: true
+      });
       const emptyReset = await request('/api/match/publish', 'POST', {
         roomId: emptyCreated.data.roomId,
         seatKey: 'white',

@@ -4,6 +4,7 @@ function createRules() {
   const appended: any[] = [];
   const projections: any[] = [];
   const cacheKeys: string[] = [];
+  const maskCalls: any[] = [];
   const rules = createMatchPresentationJournalRules({
     authority: {
       buildPublicSnapshotForViewer: (room: any, viewer: any) => {
@@ -15,7 +16,11 @@ function createRules() {
         return { visualSeq: 1 };
       },
       normalizeEffectLogMessages: (value: unknown) => (Array.isArray(value) ? value.map(String) : []),
-      toPublicPresentationFrame: (entry: any, viewer: any) => ({ entry, viewer })
+      toPublicPresentationFrame: (entry: any, viewer: any) => ({ entry, viewer }),
+      maskPlaybackEventsForSeat: (events: unknown[], viewerSeat: unknown, snapshot: unknown) => {
+        maskCalls.push({ viewerSeat, snapshot });
+        return events;
+      }
     },
     parseSeatKeyOptional: (value: unknown) => (value === 'black' || value === 'white' ? String(value) : null),
     getPublishPresentationFrames: (_options, viewerKey, build) => {
@@ -23,7 +28,7 @@ function createRules() {
       return build();
     }
   });
-  return { rules, appended, projections, cacheKeys };
+  return { rules, appended, projections, cacheKeys, maskCalls };
 }
 
 describe('shared match presentation-journal rules', () => {
@@ -44,7 +49,7 @@ describe('shared match presentation-journal rules', () => {
   });
 
   test('accepted-frame materials keep per-viewer payload objects and prefer prepared viewer artifacts', () => {
-    const { rules, appended } = createRules();
+    const { rules, appended, maskCalls } = createRules();
     const room: any = { stateVersion: 5, initialSnapshotByViewer: {} };
     const prepared = { stateVersion: 5, viewer: 'prepared-white' };
     rules.appendPresentationFrameForAcceptedPublish(room, {
@@ -64,6 +69,11 @@ describe('shared match presentation-journal rules', () => {
     expect(options.payloadByViewer.black).not.toBe(options.payloadByViewer.white);
     expect(options.payloadByViewer.white).not.toBe(options.payloadByViewer.spectator);
     expect(options.snapshotAfterByViewer.white).toBe(prepared);
+    // Seat payloads are masked against that seat's own projected snapshot; spectators are not masked.
+    expect(maskCalls).toEqual([
+      { viewerSeat: 'black', snapshot: { stateVersion: 5, viewer: 'black' } },
+      { viewerSeat: 'white', snapshot: prepared }
+    ]);
     expect(options.snapshotAfterByViewer.black).toEqual({ stateVersion: 5, viewer: 'black' });
   });
 

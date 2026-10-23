@@ -82,6 +82,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'makeSpectatorId',
   'makeSpectatorToken',
   'makeSseStreamId',
+  'maskPlaybackEventsForSeat',
   'mergeWithDefaultShape',
   'mixTurnStartSeed',
   'normalizeEffectLogMessages',
