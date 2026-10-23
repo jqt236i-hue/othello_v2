@@ -102,16 +102,6 @@ const CardZombieWill = (function (
         return null;
     }
 
-    function markerAtPosition(cardState: any, row: number, col: number) {
-        const markers = getMarkers(cardState);
-        for (let i = 0; i < markers.length; i += 1) {
-            const marker = markers[i];
-            if (!marker) continue;
-            if (marker.row === row && marker.col === col) return marker;
-        }
-        return null;
-    }
-
     function isEnemyNormalStone(cardState: any, gameState: any, row: number, col: number, ownerKey: string) {
         const cell = getCell(cardState, gameState, row, col);
         if (cell !== ownerValue(ownerKey === 'black' ? 'white' : 'black')) return false;
@@ -130,19 +120,16 @@ const CardZombieWill = (function (
         ) {
             return false;
         }
-        const existing = markerAtPosition(cardState, row, col);
-        if (!existing) return true;
-        if (existing.kind !== 'specialStone') return true;
-        const data = existing.data || {};
-        const type = String(data.type || '').toUpperCase();
-        if (type === 'GUARD') return false;
-        if (reg && typeof reg.isStoneStatusMarker === 'function' && reg.isStoneStatusMarker(existing)) {
-            return false;
-        }
-        if (reg && typeof reg.countsAsSpecialStone === 'function' && reg.countsAsSpecialStone(type, data)) {
-            return false;
-        }
-        return true;
+        // Board markers and non-GUARD statuses do not turn a normal stone into
+        // a special body. Inspect every marker: an older healing cell must not
+        // hide a later special stone, and a bite removes ordinary statuses below.
+        return !getMarkers(cardState).some((marker: any) => {
+            if (!marker || marker.row !== row || marker.col !== col || marker.kind !== 'specialStone') return false;
+            const data = marker.data || {};
+            const type = String(data.type || '').toUpperCase();
+            if (type === 'GUARD') return true;
+            return !!(reg && typeof reg.countsAsSpecialStone === 'function' && reg.countsAsSpecialStone(type, data));
+        });
     }
 
     function findAdjacentInfectionCandidates(cardState: any, gameState: any, row: number, col: number, ownerKey: string) {

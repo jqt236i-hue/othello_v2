@@ -386,6 +386,44 @@ function applyStrongWindWill(cardState: any, gameState: GameState, playerKey: st
     };
 }
 
+// Revival/ghost protection can leave a collision target occupied. Resolve the
+// landing on the post-destruction board, without attacking the survivor again.
+// Like passing a ghost, surviving stones do not block transit, only landing.
+function settleCrushDestination(plan: MovePlan, cardState: any, gameState: GameState, deps: any): void {
+    const getCellValueForCard = deps.getCellValueForCard || (() => null);
+    const isBlockedCell = deps.isBlockedCell || (() => false);
+    const path = plan.pathCells || Array.from({ length: plan.movedDistance }, (_, index) => ({
+        row: plan.from.row + plan.direction[0] * (index + 1),
+        col: plan.from.col + plan.direction[1] * (index + 1)
+    }));
+    let landingIndex = path.length - 1;
+    while (landingIndex >= 0) {
+        const point = path[landingIndex];
+        if (getCellValueForCard(gameState, point.row, point.col) === EMPTY
+            && !isBlockedCell(cardState, point.row, point.col, gameState)) break;
+        landingIndex -= 1;
+    }
+    if (landingIndex === path.length - 1) return;
+    plan.to = landingIndex >= 0 ? { ...path[landingIndex] } : { ...plan.from };
+    plan.movedDistance = landingIndex + 1;
+    if (plan.pathCells) plan.pathCells = path.slice(0, landingIndex + 1);
+    if (plan.segments) {
+        let remaining = plan.movedDistance;
+        const shortened: NonNullable<MovePlan['segments']> = [];
+        for (const segment of plan.segments) {
+            const length = Math.min(segment.length, remaining);
+            if (length <= 0) break;
+            shortened.push({ ...segment, length, to: {
+                row: segment.from.row + segment.dr * length,
+                col: segment.from.col + segment.dc * length
+            } });
+            remaining -= length;
+        }
+        plan.segments = shortened;
+        plan.waypoints = shortened.map((segment) => ({ ...segment.to }));
+    }
+}
+
 function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, config: any, deps: any = {}): MovementResult {
     const cfg = config || {};
     const pendingType = String(cfg.pendingType || '');
@@ -454,10 +492,14 @@ function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey:
             }
             destroyed.push({ row: target.row, col: target.col });
         }
+        settleCrushDestination(plan, cardState, gameState, deps);
+        // All collisions have resolved even if revival leaves no landing cell.
+        // Complete this card once, retaining the moving stone at its origin.
+        if (plan.movedDistance === 0) return;
         if (typeof moveAt === 'function') {
             const result = moveAt(cardState, gameState, row, col, plan.to.row, plan.to.col, pendingType, moveReason, {
                 collisionCount: destroyed.length,
-                travelDistance: totalTravelDistance
+                travelDistance: plan.movedDistance
             });
             if (!result || !result.moved) {
                 blockFailure = { applied: false, reason: 'move_failed' };
@@ -578,10 +620,12 @@ function applySuperAttractionWill(cardState: any, gameState: GameState, playerKe
             }
             destroyed.push({ row: target.row, col: target.col });
         }
+        settleCrushDestination(plan, cardState, gameState, deps);
+        if (plan.movedDistance === 0) return;
         if (typeof moveAt === 'function') {
             const result = moveAt(cardState, gameState, first.row, first.col, plan.to.row, plan.to.col, pendingType, 'super_attraction_move', {
                 collisionCount: destroyed.length,
-                travelDistance: totalTravelDistance,
+                travelDistance: plan.movedDistance,
                 selectedPathVariant: plan.selectedPathVariant,
                 pathCells: Array.isArray(plan.pathCells) ? plan.pathCells.map((point) => ({ row: point.row, col: point.col })) : [],
                 segments: Array.isArray(plan.segments) ? plan.segments.map((segment) => ({

@@ -515,6 +515,43 @@ describe('ZOMBIE bite roll', () => {
   });
 });
 
+describe('ZOMBIE overlapping target markers', () => {
+  function targetMarker(type: string, id: number) {
+    return { id, createdSeq: id, kind: 'specialStone', row: 1, col: 2, owner: 'white', data: { type, remainingOwnerTurns: 6 } };
+  }
+
+  test.each(['SNIPER', 'GHOST', 'REGEN', 'TRAP', 'TIME_BOMB'])('never bites %s underneath an earlier healing-cell marker', (type) => {
+    const { cardState, gameState } = createState(0, null, {
+      markers: [zombieMarker('source', 1, 1), targetMarker('HEALING_CELL', 2), targetMarker(type, 3)]
+    });
+    const random = createCountingPrng([0]);
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, random);
+    expect(result.infected).toEqual([]);
+    expect(gameState.board[1][2]).toBe(Shared.WHITE);
+    expect(cardState.markers).toContainEqual(expect.objectContaining({ data: expect.objectContaining({ type }) }));
+    expect(random.calls).toBe(0);
+  });
+
+  test.each(['LIVING_WILL', 'POISONED', 'SCORCHED'])('bites normal stones with %s and removes the old status', (type) => {
+    const { cardState, gameState } = createState(0, null, {
+      markers: [zombieMarker('source', 1, 1), targetMarker(type, 2)]
+    });
+    const result = CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, createPrng(0));
+    expect(result.infected).toEqual([{ row: 1, col: 2 }]);
+    expect(gameState.board[1][2]).toBe(Shared.BLACK);
+    expect(cardState.markers.some((m) => m.row === 1 && m.col === 2 && m.data.type === type)).toBe(false);
+    expect(cardState.markers).toContainEqual(expect.objectContaining({ row: 1, col: 2, owner: 'black', data: expect.objectContaining({ type: 'ZOMBIE', regenRemaining: 1 }) }));
+  });
+
+  test('GUARD still blocks bites when a healing-cell marker precedes it', () => {
+    const { cardState, gameState } = createState(0, null, {
+      markers: [zombieMarker('source', 1, 1), targetMarker('HEALING_CELL', 2), targetMarker('GUARD', 3)]
+    });
+    expect(CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, createPrng(0)).infected).toEqual([]);
+    expect(gameState.board[1][2]).toBe(Shared.WHITE);
+  });
+});
+
 describe('ZOMBIE movement toward prey', () => {
   test('moves one step toward the nearest prey, then bites from the new position', () => {
     const board = emptyBoard(4);
