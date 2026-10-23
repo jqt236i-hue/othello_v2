@@ -2,6 +2,11 @@ import { compactNetworkPresentationEnvelope } from '../shared/network-presentati
 import PassTurnReturn = require('../shared/pass-turn-return');
 import StoneSupply = require('../shared/stone-supply');
 
+// Adapters may construct a controller per request (local server), so the lane is
+// keyed by the canonical room, not by the controller instance. A failed publish
+// must release the lane too; the next request re-loads and validates authority.
+const publishTailByRoom = new WeakMap<object, Promise<void>>();
+
 export function createMatchPublishController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const preCommandHousekeepingKeys = Object.freeze([
@@ -89,6 +94,20 @@ export function createMatchPublishController(config?: any): any {
   }
 
   async function handlePublish(body: Record<string, unknown>): Promise<any> {
+    await cfg.loadRoom(body);
+    const room = cfg.getRoom();
+    if (!room) return handlePublishNow(body);
+    const previous = publishTailByRoom.get(room) || Promise.resolve();
+    const result = previous.then(() => handlePublishNow(body));
+    const tail = result.then(() => undefined, () => undefined);
+    publishTailByRoom.set(room, tail);
+    void tail.then(() => {
+      if (publishTailByRoom.get(room) === tail) publishTailByRoom.delete(room);
+    });
+    return result;
+  }
+
+  async function handlePublishNow(body: Record<string, unknown>): Promise<any> {
     const respond = (statusCode: number, payload: unknown): any => cfg.jsonResponse(
       statusCode,
       compactNetworkPresentationEnvelope(payload, body && body.presentationEnvelopeVersion)
@@ -121,6 +140,17 @@ export function createMatchPublishController(config?: any): any {
     const isRematchResetAction = actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
     const isNetworkDebugAction = cfg.isNetworkDebugFillHandPayload(body);
     const viewerSeatKey = cfg.resolveAuthenticatedSeatKey(room, seatKey, seatToken);
+    const preparedStateVersion = room.stateVersion;
+    const preparedAuthoritySnapshot = room.snapshot;
+    const preparedTurnPlayer = cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState);
+    // Timeout/leave/reset can run outside the publish lane. Like the timeout
+    // resolver, discard asynchronous preparation if its authority inputs changed.
+    const commandContextChanged = () => cfg.getRoom() !== room
+      || room.stateVersion !== preparedStateVersion
+      || room.snapshot !== preparedAuthoritySnapshot
+      || cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState) !== preparedTurnPlayer
+      || !cfg.asRecord(room.seats)[seatKey]
+      || cfg.asRecord(room.seatTokens)[seatKey] !== seatToken;
     const acceptedOperationsBySeat = cfg.ensureAcceptedOperationsBySeat(room);
     if (!Array.isArray(room.authorityLog)) room.authorityLog = [];
     if (!Array.isArray(room.sseEventBuffer)) room.sseEventBuffer = [];
@@ -321,6 +351,7 @@ export function createMatchPublishController(config?: any): any {
       )
     );
 
+    if (commandContextChanged()) return handlePublishNow(body);
     const stateHashBefore = cfg.MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
     const snapshotBeforeCommand = room.snapshot;
     let nextSnapshot: any = null;
@@ -329,15 +360,14 @@ export function createMatchPublishController(config?: any): any {
     let serverPlaybackDiagnostics: unknown = null;
     let commandAction: unknown = null;
     let pendingEffectId: unknown = null;
+    let rematchSeed: number | null = null;
     if (isRematchResetAction) {
-      const rematchSeed = Date.now();
+      rematchSeed = Date.now();
       if (cfg.catchRematchResetErrors === false) {
         nextSnapshot = await cfg.makeInitialSnapshot(rematchSeed, cfg.buildInitialDeckSnapshotOptions(room));
-        room.seed = rematchSeed;
       } else {
         try {
           nextSnapshot = await cfg.makeInitialSnapshot(rematchSeed, cfg.buildInitialDeckSnapshotOptions(room));
-          room.seed = rematchSeed;
         } catch (e) {
           return respond(500, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
             ok: false,
@@ -352,6 +382,7 @@ export function createMatchPublishController(config?: any): any {
       }
     } else if (hasCommandPayload) {
       const commandResult = await cfg.applyCommandPublishToSnapshot(room, body, playerKey);
+      if (commandContextChanged()) return handlePublishNow(body);
       if (!commandResult.ok) {
         if (commandResult.rejectedReason === 'RUNTIME_UNAVAILABLE') {
           restorePreCommandHousekeeping(room, preCommandHousekeeping);
@@ -396,6 +427,7 @@ export function createMatchPublishController(config?: any): any {
       })));
     }
 
+    if (commandContextChanged()) return handlePublishNow(body);
     if (typeof cfg.MatchAuthority.normalizeSnapshotBoardContract === 'function') {
       const boardContractInspection = cfg.MatchAuthority.normalizeSnapshotBoardContract(nextSnapshot, {
         allowLegacy: true,
@@ -428,8 +460,10 @@ export function createMatchPublishController(config?: any): any {
       cfg.ensureInitialPresentationSnapshots(room);
     }
     const previousStateVersion = room.stateVersion;
-    room.stateVersion += 1;
-    nextSnapshot.stateVersion = room.stateVersion;
+    const committedStateVersion = previousStateVersion + 1;
+    room.stateVersion = committedStateVersion;
+    if (rematchSeed !== null) room.seed = rematchSeed;
+    nextSnapshot.stateVersion = committedStateVersion;
     const snapshotUpdatedAt = Date.now();
     nextSnapshot.updatedAt = snapshotUpdatedAt;
 
@@ -451,7 +485,7 @@ export function createMatchPublishController(config?: any): any {
     if (operationId) {
       const acceptedEntry: any = {
         operationId,
-        stateVersion: room.stateVersion,
+        stateVersion: committedStateVersion,
         updatedAt: Number.isFinite(Number(room.updatedAt)) ? Number(room.updatedAt) : null
       };
       if (autoPassNotice) {
@@ -464,7 +498,7 @@ export function createMatchPublishController(config?: any): any {
     const presentationFrameEntry = typeof cfg.appendPresentationFrameForAcceptedPublish === 'function'
       ? cfg.appendPresentationFrameForAcceptedPublish(room, {
         previousStateVersion,
-        nextStateVersion: room.stateVersion,
+        nextStateVersion: committedStateVersion,
         operationId,
         actorSeatKey: playerKey,
         actionType: body.actionType ? String(body.actionType) : actionType,
@@ -500,7 +534,7 @@ export function createMatchPublishController(config?: any): any {
       operationId,
       actionType,
       receivedBaseVersion: baseVersion,
-      authoritativeStateVersion: room.stateVersion
+      authoritativeStateVersion: committedStateVersion
     });
     publishResponseOptions.presentationFrameEntry = presentationFrameEntry;
     publishResponseOptions.__publishViewerArtifacts = publishViewerArtifacts;
@@ -511,7 +545,7 @@ export function createMatchPublishController(config?: any): any {
       operationId,
       actionType: actionType || (commandAction && cfg.asRecord(commandAction).type ? String(cfg.asRecord(commandAction).type) : null),
       baseVersion,
-      committedVersion: room.stateVersion,
+      committedVersion: committedStateVersion,
       stateHashBefore,
       stateHashAfter: room.authoritativeStateHash,
       pendingEffectId,
@@ -533,7 +567,7 @@ export function createMatchPublishController(config?: any): any {
       cfg.deferSnapshotBroadcast(broadcastPromise, {
         roomId: room.roomId || null,
         operationId: operationId || null,
-        stateVersion: room.stateVersion
+        stateVersion: committedStateVersion
       });
     } else {
       await broadcastPromise;
