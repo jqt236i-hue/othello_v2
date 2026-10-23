@@ -1686,4 +1686,41 @@ describe('deck builder controller', () => {
     const stored = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
     expect(stored.activePresetId).toBe('');
   });
+  test('使用中の保存スロットを保存すると、対局に渡る使用中デッキも保存した内容に変わる', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const DeckCodecModule = require('../shared/deck-codec.js');
+    const a = createThirtyCardDeck(0);
+    const b = createThirtyCardDeck(10);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', 'A', a.deckCode)));
+    const body = document.getElementById('body');
+    const controller = createController();
+    controller.open();
+    openEditor(body);
+
+    const input = body.querySelector('.deck-builder-code-input');
+    input.value = b.deckCode;
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    Array.from(body.querySelectorAll('button')).find((x) => x.textContent === 'コード読込').click();
+    Array.from(body.querySelectorAll('button')).find((x) => x.textContent === '保存').click();
+
+    const inPlay = controller.buildCardInitOptions().initialDeckSpecByPlayer.black;
+    expect(DeckCodecModule.encodeDeckSpec(inPlay)).toBe(b.deckCode);
+    expect(controller.getActiveLocalChoice().deckCode).toBe(b.deckCode);
+    expect(new URL(window.location.href).searchParams.get('deck')).toBe(b.deckCode);
+    expect(DeckSpecHelpers).toBeTruthy();
+  });
+
+  test('使用中の保存スロットと同じ内容の ?deck= で再読み込みしても保存スロット扱いを保つ', () => {
+    const a = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', 'マイデッキ', a.deckCode)));
+    createController();
+    expect(new URL(window.location.href).searchParams.get('deck')).toBe(a.deckCode);
+
+    jest.resetModules();
+    const reloaded = createController();
+    const choice = reloaded.getActiveLocalChoice();
+    expect(choice.source).toBe('preset');
+    expect(choice.name).toBe('マイデッキ');
+    expect(choice.presetId).toBe('preset_1');
+  });
 });

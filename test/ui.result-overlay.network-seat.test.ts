@@ -1363,4 +1363,24 @@ describe('showResult __resultToken race condition', () => {
     jest.advanceTimersByTime(300);
     expect(document.getElementById('result-overlay')).not.toBeNull();
   });
+  test('観測石の付与は __resultToken が消えても、リザルトを開き直しても1回だけ', () => {
+    jest.useFakeTimers();
+    global.GachaProgressStorageModule = require('../ui/storage/gacha-progress.js');
+    window.GachaProgressStorageModule = global.GachaProgressStorageModule;
+    global.GachaHelpersModule = require('../shared/gacha-helpers.js');
+    const mod = require('../ui/result-overlay.js');
+    const progress = global.GachaProgressStorageModule;
+
+    mod.showResult();
+    jest.advanceTimersByTime(2500);
+    const first = progress.getObservationStones(window);
+    expect(first).toBeGreaterThanOrEqual(100);
+
+    delete global.gameState.__resultToken; // 後続スナップショットによる置換
+    mod.showResultOverlay({ replay: true });
+    mod.showResultOverlay();
+    expect(progress.getObservationStones(window)).toBe(first);
+    delete global.GachaProgressStorageModule;
+    delete global.GachaHelpersModule;
+  });
 });

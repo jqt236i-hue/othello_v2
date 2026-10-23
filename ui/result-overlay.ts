@@ -850,6 +850,10 @@ function getObservationStoneBalanceForResult(modules?: any) {
 }
 
 function resolveObservationStoneRewardToken(counts: any, viewerKey: any, localOutcomeKey: any) {
+    // _pendingResultToken はスナップショット置換で消える gameState と違い、終局ごとに showResult が1回だけ設定する。
+    if (Number.isFinite(Number(_pendingResultToken)) && _pendingResultToken !== null) {
+        return `result:${Math.trunc(Number(_pendingResultToken))}`;
+    }
     if (typeof gameState !== 'undefined' && gameState && Number.isFinite(Number(gameState.__resultToken))) {
         return `result:${Math.trunc(Number(gameState.__resultToken))}`;
     }
@@ -860,7 +864,7 @@ function resolveObservationStoneRewardToken(counts: any, viewerKey: any, localOu
     return `fallback:${resolveCurrentMatchMode()}:${String(viewerKey || 'black')}:${String(localOutcomeKey || 'draw')}:${blackCount}:${whiteCount}:${turnCount}`;
 }
 
-function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, localOutcomeKey: any) {
+function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, localOutcomeKey: any, replay?: boolean) {
     const modules = resolveObservationStoneModules();
     const baseSummary = {
         visible: false,
@@ -885,6 +889,11 @@ function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, local
         return Object.assign({}, cached, {
             balance: getObservationStoneBalanceForResult(modules)
         });
+    }
+
+    // リザルトの再表示では付与しない（初回表示のキャッシュだけを使う）。
+    if (replay === true) {
+        return baseSummary;
     }
 
     const rootRef = (typeof window !== 'undefined' && window)
@@ -1350,7 +1359,7 @@ function showResultOverlay(options?: any) {
     const othelloMode = resolveCurrentMatchMode() === 'reversi';
     const observationStoneSummary = othelloMode
         ? null
-        : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey);
+        : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey, opts.replay === true);
     const timeAttackSummary = othelloMode
         ? null
         : resolveTimeAttackSummary(localOutcomeKey);

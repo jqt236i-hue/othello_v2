@@ -685,6 +685,12 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
                 return;
             }
 
+            const activeChoice = state.activeLocalChoice;
+            if (activeChoice && activeChoice.source === 'preset' && activeChoice.deckCode === urlChoice.deckCode) {
+                // URL は使用中の保存スロットと同じ内容（このコントローラが書いた URL の再読み込み）なので preset 扱いを保つ。
+                syncUrlFromLocalChoice();
+                return;
+            }
             setLocalActiveChoice(urlChoice, { persistActivePreset: false, syncNetworkDeck: false });
             emitNotice('URL の deckCode を読み込みました', false, false);
         }
@@ -1551,6 +1557,20 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
             state.activeLocalChoice = Object.assign({}, choice, { name: getPresetChoiceName(preset) });
         }
 
+        // 使用中のスロットを保存したら、対局に渡る使用中デッキも保存した内容に合わせる（URL・ネット同期を含む）。
+        function refreshActivePresetChoiceDeck(presetId: any, deckCode: string) {
+            if (!isPresetInUse(presetId)) return;
+            const preset = findPresetById(presetId);
+            if (!preset) return;
+            const choice = createChoiceFromDeckCode(deckCode, {
+                source: 'preset',
+                name: getPresetChoiceName(preset),
+                presetId
+            });
+            if (!choice) return;
+            setLocalActiveChoice(choice);
+        }
+
         function editPreset(presetId: any) {
             resetRenameState();
             resetDeleteConfirm();
@@ -1745,6 +1765,7 @@ function normalizeCpuDeckRule(value: any): CpuDeckRule {
             });
             if (!savePresetState()) return null;
             refreshActivePresetChoiceName(state.editor.presetId);
+            refreshActivePresetChoiceDeck(state.editor.presetId, deckCode);
             return deckCode;
         }
 
