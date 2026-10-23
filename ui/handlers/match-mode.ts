@@ -1581,6 +1581,7 @@ const MODE_OTHELLO = 'othello';
     }
 
     function markTimeAttackFirstMoveForMatchMode() {
+        if (currentMode !== MODE_CPU) return false;
         try {
             const mod = root && root.ResultOverlayModule;
             if (mod && typeof mod.markTimeAttackStarted === 'function') {

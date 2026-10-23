@@ -751,7 +751,9 @@ function handleCellClick(row: number, col: number, directionKey?: string) {
     }
 
     clearLegalMoveHintsForTurnManager();
-    callTurnManagerRuntimeFunction('onTimeAttackFirstMove', { row, col, playerKey });
+    if (!isNetworkModeForTurnManager() && !isOthelloModeForTurnManager() && !isHumanVsHumanModeEnabled()) {
+        callTurnManagerRuntimeFunction('onTimeAttackFirstMove', { row, col, playerKey });
+    }
 
     if (isNetworkModeForTurnManager()) {
         const executeMoveFn = readTurnManagerRuntimeFunction('executeMove') || (MoveExecutorModule && MoveExecutorModule.executeMove) || (typeof executeMove === 'function' ? executeMove : null);

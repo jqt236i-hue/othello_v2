@@ -341,6 +341,19 @@ describe('match-mode shared leaderboard panel', () => {
     }));
   });
 
+  test('速攻の初手通知をCPUモードでのみ結果モジュールへ渡す', async () => {
+    const matchMode = require('../ui/handlers/match-mode.ts');
+    const turnManager = require('../game/turn-manager.js');
+    const markTimeAttackStarted = jest.fn(() => 1000);
+    window.ResultOverlayModule = { markTimeAttackStarted };
+    const hook = turnManager.getUIImpl().onTimeAttackFirstMove;
+    hook();
+    expect(markTimeAttackStarted).toHaveBeenCalledTimes(1);
+    await matchMode.setMode('reversi', { skipReset: true });
+    hook();
+    expect(markTimeAttackStarted).toHaveBeenCalledTimes(1);
+  });
+
   test('ランキングパネルを開くと上位100件を取得する', async () => {
     document.getElementById('leaderboardOpenBtn').click();
     await Promise.resolve();

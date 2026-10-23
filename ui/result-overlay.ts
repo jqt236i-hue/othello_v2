@@ -29,19 +29,22 @@ const RESULT_STYLE_FALLBACK_CLASS = 'result-style-fallback';
 let _pendingResultToken: any = null;
 let _resultPresentationActive = false;
 let _timeAttackStartedAt: number | null = null;
+let _timeAttackResultSummary: any = null;
 let _leaderboardClientLoadPromise: Promise<any> | null = null;
 let battleResultConsumer: (() => void) | null = null;
 function setBattleResultConsumer(consumer: (() => void) | null): void { battleResultConsumer = consumer; }
 
 function markTimeAttackStarted(startedAt?: any) {
     if (_timeAttackStartedAt !== null) return _timeAttackStartedAt;
-    const value = Number.isFinite(Number(startedAt)) ? Math.trunc(Number(startedAt)) : Date.now();
+    if (_timeAttackResultSummary !== null || !isTimeAttackMatchEligible()) return null;
+    const value = startedAt !== null && Number.isFinite(Number(startedAt)) ? Math.trunc(Number(startedAt)) : Date.now();
     _timeAttackStartedAt = Math.max(0, value);
     return _timeAttackStartedAt;
 }
 
 function resetTimeAttackStarted() {
     _timeAttackStartedAt = null;
+    _timeAttackResultSummary = null;
 }
 
 function formatTimeAttackDuration(ms: any): string {
@@ -758,20 +761,32 @@ function createScoreMetaLine(scoreSummary: any, leaderboardState: any) {
     return line;
 }
 
+function isTimeAttackMatchEligible(): boolean {
+    const boardConfig = resolveResultBoardConfig();
+    return isCpuMatchMode()
+        && !isDebugScoreSuppressed()
+        && !!boardConfig
+        && boardConfig.shape === 'rectangle'
+        && boardConfig.standard8x8 === true
+        && boardConfig.rows === 8 && boardConfig.cols === 8;
+}
+
 function resolveTimeAttackSummary(localOutcomeKey: any, options?: any) {
     const opts = options || {};
-    const startedAt = Number.isFinite(Number(opts.startedAt))
+    const startedAt = opts.startedAt !== null && typeof opts.startedAt !== 'undefined' && Number.isFinite(Number(opts.startedAt))
         ? Math.max(0, Math.trunc(Number(opts.startedAt)))
         : _timeAttackStartedAt;
     const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.trunc(Number(opts.nowMs)) : Date.now();
     const debugSuppressed = isDebugScoreSuppressed();
     const elapsedMs = startedAt !== null ? Math.max(0, Math.trunc(nowMs - Number(startedAt))) : null;
     const won = localOutcomeKey === 'win';
-    const overLimit = Number.isFinite(Number(elapsedMs)) && Number(elapsedMs) > TIME_ATTACK_LIMIT_MS;
-    const eligible = won && !debugSuppressed && elapsedMs !== null && elapsedMs > 0 && !overLimit;
+    const overLimit = elapsedMs !== null && elapsedMs > TIME_ATTACK_LIMIT_MS;
+    const displayEligible = won && opts.retired !== true && isTimeAttackMatchEligible() && elapsedMs !== null && elapsedMs > 0;
+    const eligible = displayEligible && !overLimit;
 
     return {
         eligible,
+        displayEligible,
         elapsedMs: eligible ? elapsedMs : null,
         rawElapsedMs: elapsedMs,
         overLimit,
@@ -780,7 +795,15 @@ function resolveTimeAttackSummary(localOutcomeKey: any, options?: any) {
     };
 }
 
+function finalizeTimeAttackSummary(localOutcomeKey: any, options?: any) {
+    if (_timeAttackResultSummary === null) {
+        _timeAttackResultSummary = resolveTimeAttackSummary(localOutcomeKey, options);
+    }
+    return _timeAttackResultSummary;
+}
+
 function createTimeAttackLine(summary: any) {
+    if (!summary || (!summary.eligible && !(summary.displayEligible && summary.overLimit))) return null;
     const line = document.createElement('div');
     line.className = 'result-time-attack';
     const elapsedText = summary && summary.eligible
@@ -1274,7 +1297,7 @@ function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals:
  * 結果を表示
  * Show game result in log and overlay
  */
-function showResult() {
+function showResult(options?: any) {
     if (battleResultConsumer) { battleResultConsumer(); return; }
     if (_resultPresentationActive) {
         if (gameState) gameState.__resultShown = true;
@@ -1293,6 +1316,8 @@ function showResult() {
 
     const counts = countDiscs(gameState);
     const resultContext = resolveResultWinnerContext(gameState, counts);
+    // Freeze at victory confirmation, before the result/pass-notice presentation delay.
+    finalizeTimeAttackSummary(getLocalOutcomeKeyForResult(resultContext, resolveResultViewerKey(), counts), options);
 
     let result;
     if (resultContext && resultContext.winner === 'black') {
@@ -1360,9 +1385,9 @@ function showResultOverlay(options?: any) {
     const observationStoneSummary = othelloMode
         ? null
         : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey, opts.replay === true);
-    const timeAttackSummary = othelloMode
-        ? null
-        : resolveTimeAttackSummary(localOutcomeKey);
+    const timeAttackSummary = isTimeAttackMatchEligible()
+        ? (opts.replay === true ? _timeAttackResultSummary : finalizeTimeAttackSummary(localOutcomeKey, opts))
+        : null;
 
     const scoreSummary = computeScoreSummaryForViewer({
         counts,
@@ -1415,7 +1440,7 @@ function showResultOverlay(options?: any) {
         panel.appendChild(scoreMeta);
 
         const timeAttackLine = createTimeAttackLine(timeAttackSummary);
-        panel.appendChild(timeAttackLine);
+        if (timeAttackLine) panel.appendChild(timeAttackLine);
 
         const timeDefenseLine = createTimeDefenseLine(timeDefenseSummary);
         if (timeDefenseLine) panel.appendChild(timeDefenseLine);

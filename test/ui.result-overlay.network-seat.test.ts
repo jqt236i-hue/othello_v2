@@ -971,6 +971,7 @@ describe('result overlay seat perspective', () => {
       submitTimeAttack,
       resolveServerBaseUrl: () => 'http://127.0.0.1:8788'
     };
+    global.gameState.boardConfig = { rows: 8, cols: 8, standard8x8: true };
     global.countDiscs.mockReturnValue({ black: 44, white: 20 });
 
     const mod = require('../ui/result-overlay.js');

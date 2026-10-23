@@ -218,6 +218,18 @@ describe('turn-manager scheduling', () => {
     delete global.showResult;
   });
 
+  test.each(['cpu', 'network', 'reversi'])('速攻の初手通知はCPU対戦にだけ送る: %s', (mode) => {
+    global.MATCH_MODE = mode;
+    global.NetworkMatchClient = { getSeatKey: () => 'black' };
+    global.LOCAL_PLAYER_KEY = 'black';
+    const onTimeAttackFirstMove = jest.fn();
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({ ...buildTurnManagerUIBridge(), onTimeAttackFirstMove });
+    rm.handleCellClick(0, 0);
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
+    expect(onTimeAttackFirstMove).toHaveBeenCalledTimes(mode === 'cpu' ? 1 : 0);
+  });
+
   test('handleCellClick executes move immediately and leaves hand animation to pipeline playback', async () => {
     // Spy on internal timers module to ensure no settle-delay wait is used
     const timersModule = require('../game/timers.js');
