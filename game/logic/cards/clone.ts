@@ -3,9 +3,17 @@
 import { CardState, GameState } from '../../../src/types';
 import SharedConstantsImport = require('../../../shared-constants');
 import RandomSourceImport = require('../cards-internal/random-source');
+import SpecialStoneRegistryImport = require('../../../shared/special-stone-registry-static');
 
 const SharedConstants: any = SharedConstantsImport;
 const RandomSourceModule: any = RandomSourceImport;
+const SpecialStoneRegistry: any = SpecialStoneRegistryImport;
+
+// 凍結・毒・灼熱・治癒・封鎖・種などのマス効果は石の属性ではないので複製しない
+function isCellEffectMarker(marker: any): boolean {
+    const type = marker && marker.data ? marker.data.type : null;
+    return !!type && SpecialStoneRegistry.isBoardMarkerType(type) === true;
+}
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
@@ -123,7 +131,7 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     const playerValue = getPlayerValue(playerKey);
     if (sourceValue !== playerValue)
         return { applied: false, reason: 'not_owner_stone' };
-    const sourceSpecials = getSpecialMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col);
+    const sourceSpecials = getSpecialMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col && !isCellEffectMarker(marker));
     const sourceBombs = getBombMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col);
     const spawnTargets = collectCloneSpawnCellsForCard(cardState, gameState, row, col);
     if (!spawnTargets.length)

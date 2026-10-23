@@ -193,4 +193,38 @@ describe('CLONE_WILL（複製の意志）', () => {
       expect.objectContaining({ row: 3, col: 0, owner: 'black', data: expect.objectContaining({ type: 'DRAGON', remainingOwnerTurns: 2 }) })
     ]));
   });
+
+  test('凍結・毒・灼熱・治癒などのマス効果は複製先に写さず、石の属性だけを写す', () => {
+    for (const type of ['FREEZE', 'POISON_CELL', 'SCORCHED_CELL', 'HEALING_CELL']) {
+      const cardState = CardLogic.createCardState(createPrng());
+      const gameState = Core.createGameState();
+      gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+      gameState.board[3][3] = Core.BLACK;
+      cardState.markers.push({
+        id: 301,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: null,
+        data: { type, remainingTurns: 5, remainingOwnerTurns: 5, sourcePlayer: 'white' }
+      });
+      cardState.markers.push({
+        id: 302,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'DRAGON', remainingOwnerTurns: 2 }
+      });
+      cardState.pendingEffectByPlayer.black = { type: 'CLONE_WILL', stage: 'selectTarget', cardId: 'clone_01' };
+
+      const res = CardLogic.applyCloneWill(cardState, gameState, 'black', 3, 3, createPrng(0));
+
+      expect(res && res.applied).toBe(true);
+      const spawned = res.spawned[0];
+      const atSpawn = cardState.markers.filter(m => m.row === spawned.row && m.col === spawned.col).map(m => m.data.type);
+      expect(atSpawn).toEqual(['DRAGON']);
+      expect(cardState.markers.filter(m => m.data.type === type)).toHaveLength(1);
+    }
+  });
 });

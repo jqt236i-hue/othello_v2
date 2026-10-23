@@ -627,4 +627,28 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(gameState.board[3][3]).toBe(-1);
     expect(cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE')).toBeUndefined();
   });
+
+  test('反転は各移動ステップの着地後の盤面で判定し、移動前の位置を挟み相手にしない', () => {
+    const { cardState, gameState } = makeState();
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) gameState.board[r][c] = Core.WHITE;
+    gameState.board[0][0] = Core.BLACK;
+    gameState.board[0][3] = Core.EMPTY;
+    cardState.markers.push({
+      id: 201,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 0, destroyEvadeRemaining: 0 }
+    });
+
+    // 候補は (0,3) だけ。1歩目で (0,0)→(0,3)、2歩目で (0,3)→(0,0) に戻る。どちらの着地後も挟める列は無い
+    const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 0, 0, { random: () => 0 }, {
+      currentTurnPlayerKey: 'black'
+    });
+
+    expect(res.moved.map(m => [m.from.col, m.to.col])).toEqual([[0, 3], [3, 0]]);
+    expect(res.flipped).toEqual([]);
+    expect(gameState.board[0].slice(0, 4)).toEqual([Core.BLACK, Core.WHITE, Core.WHITE, Core.EMPTY]);
+  });
 });

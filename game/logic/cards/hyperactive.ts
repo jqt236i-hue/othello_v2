@@ -956,6 +956,23 @@ function resolveOwnerFromBoardValue(value: any): { ownerKey: PlayerKey; ownerVal
     return null;
 }
 
+function getFlipsAfterLanding(
+    cardState: CardState,
+    gameState: GameState,
+    landing: Position,
+    ownerVal: number,
+    getFlipsWithContext: NonNullable<HyperactiveDeps['getFlipsWithContext']>,
+    deps: HyperactiveDeps
+): any[] {
+    if (getBoardCell(cardState, gameState, landing.row, landing.col) !== ownerVal) return [];
+    setBoardCell(cardState, gameState, landing.row, landing.col, EMPTY);
+    try {
+        return getFlipsWithContext(gameState, landing.row, landing.col, ownerVal, getExplicitCardContext(cardState, deps));
+    } finally {
+        setBoardCell(cardState, gameState, landing.row, landing.col, ownerVal);
+    }
+}
+
 function resolveEvasionMoveFlips(
     cardState: CardState,
     gameState: GameState,
@@ -1567,9 +1584,6 @@ function moveHyperactiveOnce(
     logHyperactiveDebug('[HYPERACTIVE] selected target', { target, candidatesLen: candidates.length, markerType });
 
     let flipCells: any[] = [];
-    if (!isExtremeHyperactive) {
-        flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, getExplicitCardContext(cardState, deps));
-    }
 
     const sourceRow = usedExtremeSwapFallback && swapSource ? swapSource.row : entry.row;
     const sourceCol = usedExtremeSwapFallback && swapSource ? swapSource.col : entry.col;
@@ -1610,17 +1624,9 @@ function moveHyperactiveOnce(
     if (isExtremeHyperactive) {
         const repelResults = applyExtremeHyperactiveRepel(cardState, gameState, entry, deps);
         if (repelResults && repelResults.length) repelled.push(...repelResults);
-
-        const targetCell = getBoardCell(cardState, gameState, target.row, target.col);
-        if (targetCell === ownerVal) {
-            setBoardCell(cardState, gameState, target.row, target.col, EMPTY);
-            try {
-                flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, getExplicitCardContext(cardState, deps));
-            } finally {
-                setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
-            }
-        }
     }
+    // 反転は着地後の盤面（移動元は空き）で判定する
+    flipCells = getFlipsAfterLanding(cardState, gameState, target, ownerVal, getFlipsWithContext, deps);
 
     if (flipCells.length > 0) {
         const flipResult = applyFlipCellsWithEvasion(
@@ -1849,13 +1855,6 @@ function processUltimateHyperactiveMoveAtAnchor(
         const sourceRow = entry.row;
         const sourceCol = entry.col;
         const from: Position = { row: sourceRow, col: sourceCol };
-        const flipCells = getFlipsWithContext(
-            gameState,
-            target.row,
-            target.col,
-            ownerVal,
-            getExplicitCardContext(cardState, deps)
-        );
         let movedRes = false;
         let usedBoardOpsMove = false;
         if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
@@ -1886,6 +1885,8 @@ function processUltimateHyperactiveMoveAtAnchor(
         entry.col = target.col;
         moved.push({ from, to: { row: target.row, col: target.col }, step, distance: target.distance });
 
+        // 反転は着地後の盤面（移動元は空き）で判定する
+        const flipCells = getFlipsAfterLanding(cardState, gameState, target, ownerVal, getFlipsWithContext, deps);
         if (flipCells.length > 0) {
             const flipResult = applyFlipCellsWithEvasion(
                 cardState,
