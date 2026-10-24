@@ -167,4 +167,72 @@ describe('browser player identity client', () => {
     });
     expect(JSON.parse(storage.get('card_reversi_player_identity_v1') || '{}').recoveryCode).toBe('CR-ZYXWV-UTSRQ-PNMKJ-HGFED-CBA32');
   });
+
+  function issuedIdentity(n: number) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        playerId: `p_ABCDEFGHIJKLMNOPQRSTUV000${n}`,
+        playerToken: `pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12${n}`.slice(0, 46),
+        recoveryCode: 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23'
+      })
+    };
+  }
+
+  test('concurrent ensurePlayerIdentity calls share one created identity', async () => {
+    let created = 0;
+    fetchMock.mockImplementation(async () => {
+      created += 1;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return issuedIdentity(created);
+    });
+
+    const client = require('../ui/player-identity.js');
+    const [first, second] = await Promise.all([client.ensurePlayerIdentity(), client.ensurePlayerIdentity()]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+    expect(JSON.parse(storage.get('card_reversi_player_identity_v1') || '{}').playerId).toBe(first.playerId);
+  });
+
+  test('a failed create releases the shared promise so the next call retries', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ ok: false, reason: 'BOOM' }) })
+      .mockResolvedValueOnce(issuedIdentity(1));
+
+    const client = require('../ui/player-identity.js');
+    const [a, b] = await Promise.allSettled([client.ensurePlayerIdentity(), client.ensurePlayerIdentity()]);
+    expect(a.status).toBe('rejected');
+    expect(b.status).toBe('rejected');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const retried = await client.ensurePlayerIdentity();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(retried.playerId).toBe('p_ABCDEFGHIJKLMNOPQRSTUV0001');
+  });
+
+  test('concurrent ensure after a rejected stored identity creates only one replacement', async () => {
+    storage.set('card_reversi_player_identity_v1', JSON.stringify({
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0009',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno19',
+      recoveryCode: 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23'
+    }));
+    let creates = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith('/verify')) {
+        return { ok: false, status: 403, json: async () => ({ ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' }) };
+      }
+      creates += 1;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return issuedIdentity(creates);
+    });
+
+    const client = require('../ui/player-identity.js');
+    const [first, second] = await Promise.all([client.ensurePlayerIdentity(), client.ensurePlayerIdentity()]);
+
+    expect(creates).toBe(1);
+    expect(second.playerId).toBe(first.playerId);
+  });
 });

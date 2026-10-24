@@ -133,13 +133,25 @@ async function requestJson(method: string, path: string, payload?: any, options?
   }
 }
 
-async function createPlayerIdentity(options?: any): Promise<StoredPlayerIdentity> {
+async function requestNewPlayerIdentity(options?: any): Promise<StoredPlayerIdentity> {
   const res = await requestJson('POST', '/api/player/identity/create', {}, options);
   const identity = res.ok ? writeStoredIdentity(res.data) : null;
   if (!identity) {
     throw new Error(String(res.reason || 'PLAYER_IDENTITY_CREATE_FAILED'));
   }
   return identity;
+}
+
+// 同時に呼ばれても ID を二重に作らないよう、進行中の作成を共有する。
+let pendingCreate: Promise<StoredPlayerIdentity> | null = null;
+
+function createPlayerIdentity(options?: any): Promise<StoredPlayerIdentity> {
+  if (pendingCreate) return pendingCreate;
+  const current: Promise<StoredPlayerIdentity> = requestNewPlayerIdentity(options).finally(() => {
+    if (pendingCreate === current) pendingCreate = null;
+  });
+  pendingCreate = current;
+  return current;
 }
 
 async function verifyPlayerIdentity(identity: StoredPlayerIdentity, options?: any): Promise<VerifyPlayerIdentityResult> {
@@ -159,6 +171,11 @@ async function ensurePlayerIdentity(options?: any): Promise<StoredPlayerIdentity
     if (verifyResult === 'valid') return stored;
     if (verifyResult === 'unavailable') {
       throw new Error('PLAYER_IDENTITY_VERIFY_UNAVAILABLE');
+    }
+    // 検証中に他の呼び出し／他タブが保存した ID があれば、それを使う。
+    const latest = readStoredIdentity();
+    if (latest && (latest.playerId !== stored.playerId || latest.playerToken !== stored.playerToken)) {
+      return latest;
     }
     clearStoredIdentity();
   }
