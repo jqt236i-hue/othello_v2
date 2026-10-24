@@ -1,10 +1,10 @@
 {
   "fixtureVersion": "card-runtime-parity-v1",
-  "overallDigest": "61610cf8ab8a140021b46e0d88c10c788753af4b9c2da3baab1a9affe98118bd",
-  "canonicalDigest": "924fa6147bcd9c1a282f739fee785189357eb5b2291e90357e93c03a1e76a576",
+  "overallDigest": "20062027e270d64cf90db7423fb125bb2524f45dad73addd8f7645f6dc1143b5",
+  "canonicalDigest": "733418d5b607965357572f18bec93c05f173f29e6b18bbfcdf403a438554e848",
   "prngLedgerDigest": "7689826231285861f7c2f042574eff906a4b5fb1516aca81a89120e15e4fdd18",
   "resultDigest": "d43490fd0a8945bbf8b41abf4777924095173362bfdbb6b5ef32c326abfb02fb",
-  "pendingDigest": "96348d55f0d98ae52bab59586cb7a449eba8eac13e1cfdc4461021d106aa0c5d",
+  "pendingDigest": "6174fd28b595c6300bbceaff6cd381fd45385b0feb326a86e9882851b6acb405",
   "scenarioDigest": "fe345ae29e81254a2c4dedac02b9fb2e8f8f5dd3bae3472d06d763161447ab34",
   "runtimeProjectionInventory": [
     { "path": "$cardState._defaultRandomSource.getLedger", "kind": "function", "projection": "name-only" },
@@ -24,6 +24,8 @@
     "cardId": "destroy_01",
     "pendingEffectId": "pending_0_1",
     "sourceHandIndex": 0,
+    "sourceCardCopyId": 7,
+    "paidCharge": 17,
     "stage": "selectTarget"
   }
 }

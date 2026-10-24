@@ -23,7 +23,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:4d69d744",
+      "hash": "fnv1a32:058f4b84",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -936,6 +936,10 @@
             "white": []
           },
           "fateWillControllerByTurnOwner": {
+            "black": null,
+            "white": null
+          },
+          "fateWillPhaseByTurnOwner": {
             "black": null,
             "white": null
           },
@@ -963,7 +967,7 @@
       },
       "ok": false,
       "reason": "ILLEGAL_PASS: Illegal pass: legal moves available",
-      "hash": "fnv1a32:4d69d744",
+      "hash": "fnv1a32:058f4b84",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -1876,6 +1880,10 @@
             "white": []
           },
           "fateWillControllerByTurnOwner": {
+            "black": null,
+            "white": null
+          },
+          "fateWillPhaseByTurnOwner": {
             "black": null,
             "white": null
           },
@@ -1907,7 +1915,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:515a16f0",
+      "hash": "fnv1a32:3369cfc2",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -2823,6 +2831,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -2861,7 +2873,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:a08817c8",
+      "hash": "fnv1a32:e6265b42",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -3779,6 +3791,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -3805,7 +3821,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:e3fdf16c",
+      "hash": "fnv1a32:0b37ce0c",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -4725,6 +4741,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -4773,7 +4793,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:db96e1da",
+      "hash": "fnv1a32:5c383e9a",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -5693,6 +5713,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -5719,7 +5743,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:3fe1824e",
+      "hash": "fnv1a32:b7330142",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -6640,6 +6664,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -6688,7 +6716,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b521ffd6",
+      "hash": "fnv1a32:5c8ae2a8",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -7609,6 +7637,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -7635,7 +7667,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:8f56e835",
+      "hash": "fnv1a32:e6e2d4d5",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -8557,6 +8589,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -8605,7 +8641,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:40629a97",
+      "hash": "fnv1a32:f6fb99e5",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -9527,6 +9563,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -9553,7 +9593,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:3383a5d1",
+      "hash": "fnv1a32:bceb2531",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -10476,6 +10516,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -10524,7 +10568,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:60941e93",
+      "hash": "fnv1a32:810628e5",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -11447,6 +11491,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -11473,7 +11521,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:1a7d71d7",
+      "hash": "fnv1a32:94b8c2a3",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -12396,6 +12444,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -12434,7 +12486,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:fc4a5a0b",
+      "hash": "fnv1a32:9b86e24d",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -13357,6 +13409,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -13383,7 +13439,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:aa52ec0c",
+      "hash": "fnv1a32:46df442c",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -14306,6 +14362,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -14344,7 +14404,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:258bf048",
+      "hash": "fnv1a32:f3fb0f5e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -15267,6 +15327,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -15293,7 +15357,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:c42f36f5",
+      "hash": "fnv1a32:5bc17229",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -16217,6 +16281,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -16265,7 +16333,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:49441dff",
+      "hash": "fnv1a32:dcb018f1",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -17189,6 +17257,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -17215,7 +17287,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:dfeb5e2e",
+      "hash": "fnv1a32:c3f81f9a",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -18139,6 +18211,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -18177,7 +18253,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:7b1219ba",
+      "hash": "fnv1a32:52625784",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -19101,6 +19177,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -19127,7 +19207,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ff9aa634",
+      "hash": "fnv1a32:53375db4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -20052,6 +20132,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -20100,7 +20184,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:e3bf6085",
+      "hash": "fnv1a32:637d65ff",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -21025,6 +21109,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -21051,7 +21139,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:3c416091",
+      "hash": "fnv1a32:4653feab",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -21977,6 +22065,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -22029,7 +22121,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b8584d6f",
+      "hash": "fnv1a32:7da03171",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -22955,6 +23047,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -22981,7 +23077,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:fbece887",
+      "hash": "fnv1a32:f1f81db3",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -23908,6 +24004,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -23956,7 +24056,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:696375ed",
+      "hash": "fnv1a32:85ca8879",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -24883,6 +24983,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -24909,7 +25013,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b2d9dedd",
+      "hash": "fnv1a32:4c0de4dd",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -25837,6 +25941,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -25885,7 +25993,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:3612309d",
+      "hash": "fnv1a32:34f6debd",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -26813,6 +26921,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -26839,7 +26951,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:adbc4512",
+      "hash": "fnv1a32:7df6c128",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -27768,6 +27880,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -27820,7 +27936,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:facf9caa",
+      "hash": "fnv1a32:a34d45a4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -28749,6 +28865,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -28775,7 +28895,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b4870ffe",
+      "hash": "fnv1a32:d2f354ac",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -29704,6 +29824,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -29742,7 +29866,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:1c31cea0",
+      "hash": "fnv1a32:e5ecff86",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -30671,6 +30795,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -30697,7 +30825,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:29e2e217",
+      "hash": "fnv1a32:b5a4b3d9",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -31627,6 +31755,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -31679,7 +31811,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:c14c94c1",
+      "hash": "fnv1a32:c66db373",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -32609,6 +32741,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -32635,7 +32771,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:6e8c43de",
+      "hash": "fnv1a32:a0e15e52",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -33565,6 +33701,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -33603,7 +33743,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:8c13508e",
+      "hash": "fnv1a32:d1edbc8a",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -34533,6 +34673,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -34559,7 +34703,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:df5879a5",
+      "hash": "fnv1a32:831560e7",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -35493,6 +35637,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -35541,7 +35689,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b0dae6b6",
+      "hash": "fnv1a32:5ccde470",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -36472,6 +36620,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -36496,7 +36648,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:8545a8ca",
+      "hash": "fnv1a32:53247fb4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -37428,6 +37580,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -37449,7 +37605,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:9b989f95",
+      "hash": "fnv1a32:945f8c51",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -38381,6 +38537,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -38407,7 +38567,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:20ffb96b",
+      "hash": "fnv1a32:44afca0d",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -39340,6 +39500,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -39388,7 +39552,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f40e8b48",
+      "hash": "fnv1a32:3b80da88",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -40321,6 +40485,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -40345,7 +40513,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:caf01960",
+      "hash": "fnv1a32:03c4d420",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -41278,6 +41446,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -41299,7 +41471,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ce632004",
+      "hash": "fnv1a32:15261de4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -42232,6 +42404,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -42258,7 +42434,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:3e95defe",
+      "hash": "fnv1a32:14c3d420",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -43191,6 +43367,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -43237,7 +43417,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:72bd1858",
+      "hash": "fnv1a32:732d649e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -44170,6 +44350,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -44194,7 +44378,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ae4aee04",
+      "hash": "fnv1a32:e1558f16",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -45127,6 +45311,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -45148,7 +45336,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f7a32e96",
+      "hash": "fnv1a32:f544b0b0",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -46081,6 +46269,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -46107,7 +46299,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:4db1d78e",
+      "hash": "fnv1a32:a6218ae8",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -47041,6 +47233,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -47089,7 +47285,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b4cfe3fa",
+      "hash": "fnv1a32:09254754",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -48023,6 +48219,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -48049,7 +48249,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:83da603d",
+      "hash": "fnv1a32:dfb34a9d",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -48984,6 +49184,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -49032,7 +49236,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:3487d309",
+      "hash": "fnv1a32:f5dd1d69",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -49967,6 +50171,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -49993,7 +50201,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:5cf013f4",
+      "hash": "fnv1a32:c12ca4da",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -50929,6 +51137,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -50977,7 +51189,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:9a2961ce",
+      "hash": "fnv1a32:a538b628",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -51913,6 +52125,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -51939,7 +52155,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:7e9c623a",
+      "hash": "fnv1a32:564c3188",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -52876,6 +53092,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -52924,7 +53144,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:2e4ed3d0",
+      "hash": "fnv1a32:b0d4921e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -53861,6 +54081,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -53887,7 +54111,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:330facb2",
+      "hash": "fnv1a32:6e71c324",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -54824,6 +55048,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -54870,7 +55098,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:8c85e64e",
+      "hash": "fnv1a32:c06a8d50",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -55807,6 +56035,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -55833,7 +56065,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f2d1c956",
+      "hash": "fnv1a32:5a11b096",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -56770,6 +57002,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -56808,7 +57044,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:feaff2f8",
+      "hash": "fnv1a32:b379ad5a",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -57745,6 +57981,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -57771,7 +58011,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ea8ced00",
+      "hash": "fnv1a32:882dfecc",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -58708,6 +58948,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -58746,7 +58990,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:d056f229",
+      "hash": "fnv1a32:240d029f",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -59683,6 +59927,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -59709,7 +59957,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:4f0d9a05",
+      "hash": "fnv1a32:e1dfaccf",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -60647,6 +60895,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -60699,7 +60951,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:c1a961db",
+      "hash": "fnv1a32:a26f7ced",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -61637,6 +61889,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -61663,7 +61919,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:1272245e",
+      "hash": "fnv1a32:d774855e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -62601,6 +62857,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -62639,7 +62899,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:bb4535ce",
+      "hash": "fnv1a32:5d03472e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -63577,6 +63837,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -63603,7 +63867,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:c0fe4088",
+      "hash": "fnv1a32:cb37cbea",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -64541,6 +64805,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -64579,7 +64847,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:52f10dd0",
+      "hash": "fnv1a32:20f504a6",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -65517,6 +65785,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -65543,7 +65815,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:8f5f14ba",
+      "hash": "fnv1a32:cae243f6",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -66482,6 +66754,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -66530,7 +66806,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:fa2fe828",
+      "hash": "fnv1a32:e216942c",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -67469,6 +67745,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -67495,7 +67775,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f2cf9c44",
+      "hash": "fnv1a32:47c8b0c4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -68435,6 +68715,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -68483,7 +68767,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:7460da9a",
+      "hash": "fnv1a32:ed2a7a5a",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -69423,6 +69707,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -69449,7 +69737,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:0e2a075b",
+      "hash": "fnv1a32:b6b82da9",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -70389,6 +70677,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -70427,7 +70719,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:34e0eb13",
+      "hash": "fnv1a32:21033691",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -71367,6 +71659,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -71393,7 +71689,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:6d04c93d",
+      "hash": "fnv1a32:852fc489",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -72334,6 +72630,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -72386,7 +72686,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:0b75338d",
+      "hash": "fnv1a32:6d6f7821",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -73327,6 +73627,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -73353,7 +73657,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:89c022f6",
+      "hash": "fnv1a32:6595eca0",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -74298,6 +74602,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -74354,7 +74662,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:e8ab3b72",
+      "hash": "fnv1a32:5c997b44",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -75296,6 +75604,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -75322,7 +75634,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ff393044",
+      "hash": "fnv1a32:285e41a0",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -76264,6 +76576,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -76302,7 +76618,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b1a3d30b",
+      "hash": "fnv1a32:a9e5aa41",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -77244,6 +77560,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -77270,7 +77590,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:16835375",
+      "hash": "fnv1a32:ee709501",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -78213,6 +78533,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -78269,7 +78593,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:be628a16",
+      "hash": "fnv1a32:064a2aa8",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -79212,6 +79536,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -79238,7 +79566,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:cd156734",
+      "hash": "fnv1a32:6be9e07a",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -80182,6 +80510,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -80246,7 +80578,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:5f92c474",
+      "hash": "fnv1a32:77fdbc36",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -81190,6 +81522,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -81216,7 +81552,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:6b344221",
+      "hash": "fnv1a32:5498ca21",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -82161,6 +82497,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -82213,7 +82553,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f258001b",
+      "hash": "fnv1a32:7ac9e11b",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -83158,6 +83498,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -83184,7 +83528,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:0e4ab7b0",
+      "hash": "fnv1a32:195aea32",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -84129,6 +84473,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -84167,7 +84515,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:49ca311e",
+      "hash": "fnv1a32:dfed0468",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -85112,6 +85460,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -85138,7 +85490,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:11df7908",
+      "hash": "fnv1a32:f6f046bc",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -86083,6 +86435,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -86125,7 +86481,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:e3b14d34",
+      "hash": "fnv1a32:4d192c98",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -87070,6 +87426,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -87096,7 +87456,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:d85a7c91",
+      "hash": "fnv1a32:4192265b",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -88041,6 +88401,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -88079,7 +88443,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:31f2cd8d",
+      "hash": "fnv1a32:8157cfbb",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -89024,6 +89388,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -89050,7 +89418,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b193e542",
+      "hash": "fnv1a32:ce32c44e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -89996,6 +90364,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -90044,7 +90416,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:57b3ee74",
+      "hash": "fnv1a32:73923928",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -90990,6 +91362,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -91016,7 +91392,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:60bc2890",
+      "hash": "fnv1a32:188fe694",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -91963,6 +92339,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -92011,7 +92391,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f29e3f1a",
+      "hash": "fnv1a32:b4e8739e",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -92958,6 +93338,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -92984,7 +93368,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:f3cc9d4e",
+      "hash": "fnv1a32:eb0af9ee",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -93932,6 +94316,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -93980,7 +94368,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:669e69d6",
+      "hash": "fnv1a32:57c7f8d6",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -94928,6 +95316,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -94954,7 +95346,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ca6ca693",
+      "hash": "fnv1a32:455648a7",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -95903,6 +96295,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -95951,7 +96347,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ce9835a5",
+      "hash": "fnv1a32:90ee3c8b",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -96900,6 +97296,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -96926,7 +97326,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:38ed1682",
+      "hash": "fnv1a32:3acc36c2",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -97875,6 +98275,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -97925,7 +98329,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:32f63579",
+      "hash": "fnv1a32:6878725b",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -98874,6 +99278,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -98898,7 +99306,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:b39cf501",
+      "hash": "fnv1a32:3fbea21f",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -99847,6 +100255,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -99868,7 +100280,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:6e326d93",
+      "hash": "fnv1a32:c865ab49",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -100817,6 +101229,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -100843,7 +101259,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:bd9b15df",
+      "hash": "fnv1a32:741da3c9",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -101793,6 +102209,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -101841,7 +102261,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:74e88597",
+      "hash": "fnv1a32:65e81e61",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -102791,6 +103211,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -102817,7 +103241,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:19b0cc86",
+      "hash": "fnv1a32:251ed574",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -103768,6 +104192,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -103836,7 +104264,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:4a76cb3e",
+      "hash": "fnv1a32:d2a17ab0",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -104787,6 +105215,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -104813,7 +105245,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:37164aa8",
+      "hash": "fnv1a32:e0a68dd4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -105764,6 +106196,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -105822,7 +106258,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:a70d34c2",
+      "hash": "fnv1a32:426fa346",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -106773,6 +107209,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -106799,7 +107239,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:1e0126fa",
+      "hash": "fnv1a32:ab491e60",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -107751,6 +108191,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -107803,7 +108247,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:40757a10",
+      "hash": "fnv1a32:d48415c6",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -108755,6 +109199,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -108781,7 +109229,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:09334729",
+      "hash": "fnv1a32:4cc5b009",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -109733,6 +110181,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -109779,7 +110231,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:e4f44981",
+      "hash": "fnv1a32:9b1bf101",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -110731,6 +111183,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -110757,7 +111213,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:6ec919f6",
+      "hash": "fnv1a32:3a238390",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -111710,6 +112166,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -111758,7 +112218,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:1cd9bf1a",
+      "hash": "fnv1a32:f14023f0",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -112711,6 +113171,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -112737,7 +113201,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:c622d5bd",
+      "hash": "fnv1a32:06a9ca3f",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -113694,6 +114158,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -113746,7 +114214,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:6dfbd9f7",
+      "hash": "fnv1a32:8461f285",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -114700,6 +115168,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -114726,7 +115198,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:0dbd7c90",
+      "hash": "fnv1a32:f1f941c2",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -115681,6 +116153,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -115733,7 +116209,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:907e9b0b",
+      "hash": "fnv1a32:edc199ab",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -116688,6 +117164,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -116714,7 +117194,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ab1f2264",
+      "hash": "fnv1a32:ed030aa4",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -117670,6 +118150,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -117718,7 +118202,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:28761f21",
+      "hash": "fnv1a32:95352aef",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -118674,6 +119158,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -118700,7 +119188,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:c09b441f",
+      "hash": "fnv1a32:0a44b9a3",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -119657,6 +120145,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -119713,7 +120205,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:107c020f",
+      "hash": "fnv1a32:4725f4d3",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -120670,6 +121162,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -120696,7 +121192,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:59734818",
+      "hash": "fnv1a32:b0773738",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -121654,6 +122150,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -121706,7 +122206,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:70cdea3a",
+      "hash": "fnv1a32:e8d65eda",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -122664,6 +123164,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -122690,7 +123194,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:057b10d0",
+      "hash": "fnv1a32:83c8dfea",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -123649,6 +124153,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -123709,7 +124217,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:5a1ffada",
+      "hash": "fnv1a32:4de77b84",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -124668,6 +125176,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -124694,7 +125206,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:47ed2f27",
+      "hash": "fnv1a32:a0e12753",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -125654,6 +126166,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -125710,7 +126226,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:530cec13",
+      "hash": "fnv1a32:720282df",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -126670,6 +127186,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -126694,7 +127214,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:ce0a24f3",
+      "hash": "fnv1a32:7c7f2ab7",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -127654,6 +128174,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -127675,7 +128199,7 @@
       "kind": "turn_start",
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:535beb0b",
+      "hash": "fnv1a32:46b85f8f",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -128635,6 +129159,10 @@
             "black": null,
             "white": null
           },
+          "fateWillPhaseByTurnOwner": {
+            "black": null,
+            "white": null
+          },
           "prngState": {
             "seed": 914001,
             "calls": 271
@@ -128659,7 +129187,7 @@
       },
       "ok": true,
       "reason": null,
-      "hash": "fnv1a32:81901442",
+      "hash": "fnv1a32:ba782586",
       "prng": {
         "seed": 914001,
         "calls": 271
@@ -129616,6 +130144,10 @@
             "white": []
           },
           "fateWillControllerByTurnOwner": {
+            "black": null,
+            "white": null
+          },
+          "fateWillPhaseByTurnOwner": {
             "black": null,
             "white": null
           },
