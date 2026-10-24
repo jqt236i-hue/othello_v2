@@ -3,6 +3,22 @@ type FateEffectDeps = {
     clearCardPendingEffect?: (cardState: any, playerKey: any) => any;
 };
 
+/** A reservation survives the controller's extra turns; only the target turn activates it. */
+export function beginFateWillTurn(cardState: any, turnOwnerKey: string): void {
+    if (!cardState?.fateWillControllerByTurnOwner?.[turnOwnerKey]) return;
+    if (!cardState.fateWillPhaseByTurnOwner) cardState.fateWillPhaseByTurnOwner = { black: null, white: null };
+    cardState.fateWillPhaseByTurnOwner[turnOwnerKey] = 'active';
+}
+
+/** Completion is shared by placement, selection-only completion, pass and timeout. */
+export function completeFateWillTurn(cardState: any, turnOwnerKey: string): void {
+    if (!cardState?.fateWillControllerByTurnOwner?.[turnOwnerKey]) return;
+    // Missing phase is an older snapshot of an already controlled turn.
+    if (cardState.fateWillPhaseByTurnOwner?.[turnOwnerKey] === 'waiting') return;
+    cardState.fateWillControllerByTurnOwner[turnOwnerKey] = null;
+    if (cardState.fateWillPhaseByTurnOwner) cardState.fateWillPhaseByTurnOwner[turnOwnerKey] = null;
+}
+
 export function createCardFateEffect(deps?: FateEffectDeps) {
     const readCardPendingEffect = typeof deps?.readCardPendingEffect === 'function'
         ? deps.readCardPendingEffect
@@ -32,6 +48,8 @@ export function createCardFateEffect(deps?: FateEffectDeps) {
         const alreadyActive = opponentAlreadyControlled || currentTurnIsControlled;
         if (!alreadyActive) {
             cardState.fateWillControllerByTurnOwner[opponentKey] = playerKey;
+            if (!cardState.fateWillPhaseByTurnOwner) cardState.fateWillPhaseByTurnOwner = { black: null, white: null };
+            cardState.fateWillPhaseByTurnOwner[opponentKey] = 'waiting';
         }
         clearCardPendingEffect(cardState, playerKey);
         return { applied: true, stacked: alreadyActive, controllerKey: playerKey, turnOwnerKey: opponentKey };

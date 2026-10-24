@@ -14,6 +14,7 @@ type CardUsageConsumptionOptions = {
 
 function consumeCardUsage(options: CardUsageConsumptionOptions): any {
     let removedCard: any = null;
+    let paidCharge = 0;
     if (!options.noConsume) {
         if (typeof options.removeHandCardAt !== 'function') return { ok: false, removedCard: null };
         removedCard = options.removeHandCardAt(options.cardState, options.handKey, options.handIndex);
@@ -22,7 +23,9 @@ function consumeCardUsage(options: CardUsageConsumptionOptions): any {
             options.addCardToDiscard(options.cardState, removedCard.cardId, removedCard.cardCopyId);
         }
         if (typeof options.addChargeValue === 'function') {
+            const chargeBefore = Number(options.cardState.charge[options.chargeOwnerKey]);
             options.addChargeValue(options.cardState, options.chargeOwnerKey, -options.cost, 'card_use_cost');
+            paidCharge = Math.max(0, chargeBefore - Number(options.cardState.charge[options.chargeOwnerKey]));
         }
         options.cardState.hasUsedCardThisTurnByPlayer[options.chargeOwnerKey] = true;
         options.cardState.cardUseCountByPlayer = options.cardState.cardUseCountByPlayer || { black: 0, white: 0 };
@@ -38,7 +41,7 @@ function consumeCardUsage(options: CardUsageConsumptionOptions): any {
     if (typeof options.clearUsedSelectedCard === 'function') {
         options.clearUsedSelectedCard(options.cardState, options.cardId, options.handKey);
     }
-    return { ok: true, removedCard };
+    return { ok: true, removedCard, paidCharge };
 }
 
 export = {

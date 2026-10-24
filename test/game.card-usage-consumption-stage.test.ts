@@ -4,6 +4,7 @@ import * as CardUsageConsumptionStage from '../game/cards/card-usage-consumption
 
 function createCardState() {
     return {
+        charge: { black: 20, white: 0 },
         hasUsedCardThisTurnByPlayer: { black: false, white: false },
         cardUseCountByPlayer: { black: 0, white: 0 },
         lastUsedCardByPlayer: { black: null, white: null },
@@ -25,7 +26,10 @@ describe('card usage consumption stage', () => {
                 return removedCard;
             },
             addCardToDiscard: (_state, cardId, copyId) => calls.push(`discard:${cardId}:${copyId}`),
-            addChargeValue: (_state, playerKey, value, reason) => calls.push(`charge:${playerKey}:${value}:${reason}`),
+            addChargeValue: (state, playerKey, value, reason) => {
+                calls.push(`charge:${playerKey}:${value}:${reason}`);
+                state.charge[playerKey] += value;
+            },
             clearUsedSelectedCard: (state, cardId, ownerKey) => {
                 calls.push(`clear:${cardId}:${ownerKey}`);
                 state.selectedCardId = null;
@@ -33,7 +37,8 @@ describe('card usage consumption stage', () => {
             }
         });
 
-        expect(result).toEqual({ ok: true, removedCard });
+        expect(result).toEqual({ ok: true, removedCard, paidCharge: 4 });
+        expect(cardState.charge.black).toBe(16);
         expect(calls).toEqual(['remove:black:2', 'discard:work_01:copy_01', 'charge:black:-4:card_use_cost', 'clear:work_01:black']);
         expect(cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
         expect(cardState.cardUseCountByPlayer.black).toBe(1);
@@ -50,7 +55,7 @@ describe('card usage consumption stage', () => {
         expect(CardUsageConsumptionStage.consumeCardUsage({
             cardState, handKey: 'black', chargeOwnerKey: 'black', cardId: 'work_01', handIndex: 2, cost: 4, noConsume: true,
             removeHandCardAt, clearUsedSelectedCard
-        })).toEqual({ ok: true, removedCard: null });
+        })).toEqual({ ok: true, removedCard: null, paidCharge: 0 });
         expect(removeHandCardAt).not.toHaveBeenCalled();
         expect(clearUsedSelectedCard).toHaveBeenCalledWith(cardState, 'work_01', 'black');
         expect(cardState.hasUsedCardThisTurnByPlayer.black).toBe(false);

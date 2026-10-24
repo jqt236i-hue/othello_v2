@@ -537,6 +537,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     cardId,
     chargeOwnerKey,
     removedCard,
+    paidCharge: consumption.paidCharge,
     heavenOffers,
     condemnOffers,
     observerWillOffers,
@@ -606,7 +607,9 @@ function cancelPendingSelection(cardState: any, playerKey: string, opts: any, de
   const cardId = pending.cardId;
   const defFn = typeof getCardDefFn === 'function' ? getCardDefFn : getCardDef;
   const cardDef = cardId ? defFn(cardId) : null;
-  const cost = cardDef ? cardDef.cost : 0;
+  const cost = Number.isFinite(pending.paidCharge)
+    ? Math.max(0, pending.paidCharge)
+    : (cardDef ? cardDef.cost : 0);
   const refundCost = !(opts && opts.refundCost === false);
   const resetUsage = !(opts && opts.resetUsage === false);
   const noConsume = !!(opts && opts.noConsume);

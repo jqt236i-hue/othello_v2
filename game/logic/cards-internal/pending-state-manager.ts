@@ -28,6 +28,8 @@ interface PendingEffectState {
     cardId?: string;
     pendingEffectId?: string;
     sourceHandIndex?: number;
+    sourceCardCopyId?: number;
+    paidCharge?: number;
     stage: string | null;
     offers?: string[];
     selectedCount?: number;
@@ -229,6 +231,8 @@ function createPendingEffectState(options?: any): PendingEffectState | null {
         cardId: opts.cardId,
         pendingEffectId: (typeof opts.pendingEffectId === 'string' && opts.pendingEffectId) ? opts.pendingEffectId : undefined,
         sourceHandIndex: Number.isInteger(opts.sourceHandIndex) ? opts.sourceHandIndex : undefined,
+        sourceCardCopyId: Number.isInteger(opts.sourceCardCopyId) ? opts.sourceCardCopyId : undefined,
+        paidCharge: Number.isFinite(opts.paidCharge) ? Math.max(0, opts.paidCharge) : undefined,
         stage: needsSelection ? 'selectTarget' : null,
         offers: opts.offers || undefined,
         selectedCount: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? 0 : undefined,
@@ -252,7 +256,10 @@ function cancelPendingSelection(cardState: any, playerKey: string, opts?: Cancel
     const moveDiscardCardToHandByCardId = helpers.moveDiscardCardToHandByCardId;
     const cardId = pending.cardId;
     const cardDef = (cardId && typeof getCardDef === 'function') ? getCardDef(cardId) : null;
-    const cost = cardDef ? Number(cardDef.cost || 0) : 0;
+    // Older pending snapshots lack a payment receipt; keep their legacy refund fallback.
+    const cost = Number.isFinite(pending.paidCharge)
+        ? Math.max(0, pending.paidCharge)
+        : (cardDef ? Number(cardDef.cost || 0) : 0);
     const refundCost = !(opts && opts.refundCost === false);
     const resetUsage = !(opts && opts.resetUsage === false);
     const noConsume = !!(opts && opts.noConsume);

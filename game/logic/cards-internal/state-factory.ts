@@ -339,6 +339,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },
         pendingStoneSalvationGodRevivesByPlayer: { black: [], white: [] },
         fateWillControllerByTurnOwner: { black: null, white: null },
+        fateWillPhaseByTurnOwner: { black: null, white: null },
         // 持ち石ルール無効時は項目自体を持たず、既存の状態形と一致させる。
         ...(stoneSupply ? { stoneSupply } : {})
     };
@@ -624,6 +625,10 @@ function copyCardState(cs: any, context: Context): any {
             white: Array.isArray(cardState.pendingStoneSalvationGodRevivesByPlayer && cardState.pendingStoneSalvationGodRevivesByPlayer.white)
                 ? cardState.pendingStoneSalvationGodRevivesByPlayer.white.map((entry: any) => ({ ...entry, meta: entry && entry.meta ? { ...entry.meta } : undefined }))
                 : []
+        },
+        fateWillPhaseByTurnOwner: {
+            black: cardState.fateWillPhaseByTurnOwner?.black || null,
+            white: cardState.fateWillPhaseByTurnOwner?.white || null
         },
         fateWillControllerByTurnOwner: (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
             ? {

@@ -1,3 +1,5 @@
+import { completeFateWillTurn } from '../../logic/cards-internal/fate-effect';
+
 type ConsumeTimeStopCompletedTurnOptions = {
     CardLogic: any;
     cardState: any;
@@ -41,6 +43,7 @@ function handOffCompletedTurn(options: HandOffCompletedTurnOptions): any {
     if (opts.CardLogic && typeof opts.CardLogic.processPoisonTurnEnd === 'function') {
         opts.CardLogic.processPoisonTurnEnd(opts.cardState, opts.gameState, Number(opts.gameState.turnNumber || 0));
     }
+    completeFateWillTurn(opts.cardState, opts.playerKey);
     opts.advanceGameRoundAfterCompletedTurn(opts.Core, opts.gameState, opts.playerKey, null);
     const timeStopRes = consumeTimeStopCompletedTurn({
         CardLogic: opts.CardLogic,

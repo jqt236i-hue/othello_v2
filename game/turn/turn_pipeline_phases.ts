@@ -1,3 +1,4 @@
+import { beginFateWillTurn, completeFateWillTurn } from '../logic/cards-internal/fate-effect';
 import MarkersAdapter = require('../logic/markers_adapter');
 import CardUtilsModule = require('../logic/cards/utils');
 import CardContextModule = require('../logic/context');
@@ -389,6 +390,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         if (!endsGame && CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
             CardLogic.processPoisonTurnEnd(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
         }
+        completeFateWillTurn(cardState, playerKey);
         const newState = Core.applyPass(gameState);
         Object.assign(gameState, newState);
         if (!endsGame && normalizeConsecutivePassesForActionPhase(gameState) >= 2) {
@@ -837,11 +839,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         }
         cardState.prevOpponentTurnDestroyedStonesByPlayer[opponentKeyForSalvation] = [];
 
-        if (cardState.fateWillControllerByTurnOwner) {
-            if (cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] === playerKey) {
-                cardState.fateWillControllerByTurnOwner[opponentKeyForSalvation] = null;
-            }
-        }
+        beginFateWillTurn(cardState, playerKey);
         return true;
     }
 

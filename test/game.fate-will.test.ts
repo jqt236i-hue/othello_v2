@@ -247,12 +247,12 @@ describe('FATE_WILL core game support', () => {
     });
 
     // -----------------------------------------------------------------------
-    // Turn start clears FATE_WILL controller after the controlled turn ends
+    // Turn start activates the target turn, but never clears an unspent reservation.
     // -----------------------------------------------------------------------
-    describe('fateWillControllerByTurnOwner cleared at turn start', () => {
-        test('controller entry cleared when the controller starts their next turn', () => {
-            // Simulate: black used FATE_WILL, then white's (controlled) turn ran,
-            // now black's turn starts -> should clear fateWillControllerByTurnOwner.white
+    describe('fateWillControllerByTurnOwner at turn start', () => {
+        test('an unspent reservation survives the controller starting another turn', () => {
+            // Starting the controller's turn is not proof that the target turn completed.
+            // A time-stop continuation can start before the opponent ever acts.
             const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
             const CardLogicModule = require('../game/logic/cards.js');
             const Core = require('../game/logic/core.js');
@@ -288,8 +288,8 @@ describe('FATE_WILL core game support', () => {
             const events = [];
             TurnPipelinePhases.applyTurnStartPhase(CardLogicModule, Core, cs, gs, 'black', events, null);
 
-            // After black's turn starts, fateWillControllerByTurnOwner.white should be cleared
-            expect(cs.fateWillControllerByTurnOwner.white).toBeNull();
+            // Only completing white's controlled turn may clear the reservation.
+            expect(cs.fateWillControllerByTurnOwner.white).toBe('black');
             // black's controller entry should remain unchanged
             expect(cs.fateWillControllerByTurnOwner.black).toBeNull();
         });

@@ -7,6 +7,7 @@ type CardUsagePendingStageOptions = {
     cardId: string;
     chargeOwnerKey: string;
     removedCard: any;
+    paidCharge?: number;
     heavenOffers: any;
     condemnOffers: any;
     observerWillOffers: any;
@@ -36,6 +37,8 @@ function commitCardUsagePendingState(options: CardUsagePendingStageOptions): any
         cardType: options.cardType,
         cardId: options.cardId,
         sourceHandIndex: options.removedCard ? options.removedCard.handIndex : undefined,
+        sourceCardCopyId: options.removedCard ? options.removedCard.cardCopyId : undefined,
+        paidCharge: options.paidCharge,
         needsSelection,
         offers: pendingOffers
     });
