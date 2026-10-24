@@ -6,6 +6,7 @@ import SpecialCardRegistryImport = require('../../../shared/special-card-registr
 import CardMarkersImport = require('../cards/markers');
 import BoardExecutorResolutionImport = require('../card-resolution/board-executor');
 import StoneSupply = require('../../../shared/stone-supply');
+import { getProjectedOpponentHandTargetAvailability, hasTargetableOpponentHandCard } from './offer-builders';
 
 const ManifestStoneRegistry: any = ManifestStoneRegistryImport;
 const SpecialCardRegistry: any = SpecialCardRegistryImport;
@@ -210,11 +211,7 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
     if (cardType === 'EXECUTION_WILL') {
         if (typeof context.getExecutionWillTargetCount !== 'function')
             return buildFailureResult();
-        const opponentKey = context.playerKey === 'black' ? 'white' : 'black';
-        const opponentHand = (context && context.cardState && context.cardState.hands && Array.isArray(context.cardState.hands[opponentKey]))
-            ? context.cardState.hands[opponentKey]
-            : [];
-        const hasDestructibleOpponentCard = opponentHand.some((cardId: any) => !isInviolableSpecialCardId(cardId));
+        const hasDestructibleOpponentCard = hasTargetableOpponentHandCard(context.cardState, context.playerKey);
         return context.getExecutionWillTargetCount(context.cardState, context.playerKey) > 0 && hasDestructibleOpponentCard
             ? result
             : buildFailureResult();
@@ -231,6 +228,8 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
     if (cardType === 'CONDEMN_WILL') {
         if (typeof context.buildCondemnOffers !== 'function')
             return buildFailureResult();
+        const projectedAvailability = getProjectedOpponentHandTargetAvailability(context.cardState, context.playerKey);
+        if (projectedAvailability !== null) return projectedAvailability ? result : buildFailureResult();
         const offers = context.buildCondemnOffers(context.cardState, context.playerKey);
         if (!Array.isArray(offers) || offers.length <= 0)
             return buildFailureResult();
@@ -245,6 +244,8 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return buildFailureResult();
         if (typeof context.buildObserverWillOffers !== 'function')
             return buildFailureResult();
+        const projectedAvailability = getProjectedOpponentHandTargetAvailability(context.cardState, context.playerKey);
+        if (projectedAvailability !== null) return projectedAvailability ? result : buildFailureResult();
         const offers = context.buildObserverWillOffers(context.cardState, context.playerKey);
         if (!Array.isArray(offers) || offers.length <= 0)
             return buildFailureResult();

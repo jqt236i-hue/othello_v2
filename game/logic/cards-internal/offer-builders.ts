@@ -1,3 +1,22 @@
+import SpecialCardRegistry = require('../../../shared/special-card-registry');
+
+/** Seat-scoped authority hint; never infer eligibility from hidden card IDs. */
+export function getProjectedOpponentHandTargetAvailability(cardState: any, playerKey: any): boolean | null {
+    const opponentKey = playerKey === 'white' ? 'black' : 'white';
+    const hand = cardState?.hands?.[opponentKey];
+    if (!Array.isArray(hand) || !hand.some((id: unknown) => typeof id === 'string' && id.startsWith('__hidden_hand__:'))) return null;
+    const hint = cardState.opponentHandTargetAvailability;
+    return hint?.playerKey === playerKey && hint.hasTargetableCard === true;
+}
+
+export function hasTargetableOpponentHandCard(cardState: any, playerKey: any): boolean {
+    const projected = getProjectedOpponentHandTargetAvailability(cardState, playerKey);
+    if (projected !== null) return projected;
+    const opponentKey = playerKey === 'white' ? 'black' : 'white';
+    const hand = cardState?.hands?.[opponentKey];
+    return Array.isArray(hand) && hand.some((id: unknown) => !SpecialCardRegistry.isInviolableSpecialCardId(id));
+}
+
 type OfferBuildersDeps = {
     cardDefs?: any[];
     heavenBlessingOfferCount?: number;

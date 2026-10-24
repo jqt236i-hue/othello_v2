@@ -1,4 +1,5 @@
 import type { GameState, PlayerKey } from '../../src/types';
+import { hasTargetableOpponentHandCard } from '../../game/logic/cards-internal/offer-builders';
 import type {
     MatchAuthorityProjectionMetadata,
     MatchAuthorityPublicSnapshot,
@@ -195,6 +196,15 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         const cardState = (shot.cardState && typeof shot.cardState === 'object') ? asRecord(shot.cardState) : null;
         if (!cardState) return shot;
 
+        // Compute before redacting either hand. Only this seat's perspective is sent;
+        // spectators already receive real IDs and need no private-hand query hint.
+        delete cardState.opponentHandTargetAvailability;
+        if (viewer && !spectatorView) {
+            cardState.opponentHandTargetAvailability = {
+                playerKey: viewer,
+                hasTargetableCard: hasTargetableOpponentHandCard(cardState, viewer)
+            };
+        }
         deps.sanitizeOwnerOnlyTrapState(cardState, viewer);
         const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
         const sourceHands: Record<PlayerKey, unknown[]> = { black: [], white: [] };
