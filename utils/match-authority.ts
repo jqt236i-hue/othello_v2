@@ -190,6 +190,7 @@ const PRIVATE_PUBLIC_PAYLOAD_DECK_FIELDS = Object.freeze([
 ]);
 const SSE_HEARTBEAT_INTERVAL_MS = 10000;
 const MAX_SPECTATORS = 4;
+const SPECTATOR_STALE_AFTER_MS = NetworkContract.NETWORK_SPECTATOR_STALE_AFTER_MS;
 const NETWORK_SPECTATOR_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
 const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 const AUTHORITY_LOG_LIMIT = 64;
@@ -717,11 +718,22 @@ function ensureSpectators(roomValue: MatchAuthorityRoomState | null | undefined)
     return room.spectators;
 }
 
-function getActiveSpectatorEntries(roomValue: MatchAuthorityRoomState | null | undefined): Array<[string, MatchAuthoritySpectatorState]> {
+function getActiveSpectatorEntries(roomValue: MatchAuthorityRoomState | null | undefined, now?: unknown): Array<[string, MatchAuthoritySpectatorState]> {
+    const nowMs = Number.isFinite(Number(now)) ? Number(now) : Date.now();
     const spectators = ensureSpectators(roomValue);
     return Object.keys(spectators)
         .map((id) => [id, spectators[id]] as [string, MatchAuthoritySpectatorState])
-        .filter(([, entry]) => !!(entry && typeof entry === 'object' && String(entry.token || '').trim()));
+        .filter(([, entry]) => !!(entry && typeof entry === 'object' && String(entry.token || '').trim()))
+        .filter(([, entry]) => {
+            const seenAt = Number.isFinite(Number(entry.lastSeenAt)) ? Number(entry.lastSeenAt) : Number(entry.joinedAt);
+            return !Number.isFinite(seenAt) || nowMs - seenAt <= SPECTATOR_STALE_AFTER_MS;
+        });
+}
+
+function touchSpectatorPresence(roomValue: MatchAuthorityRoomState | null | undefined, spectatorId: unknown, nowMs?: unknown): void {
+    const entry = ensureSpectators(roomValue)[normalizeSpectatorId(spectatorId)];
+    if (!entry || typeof entry !== 'object') return;
+    entry.lastSeenAt = Number.isFinite(Number(nowMs)) ? Math.trunc(Number(nowMs)) : Date.now();
 }
 
 function normalizePublicSeats(value: unknown): { black: boolean; white: boolean } {
@@ -1504,6 +1516,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     parseHiddenHandToken,
     addSpectatorToRoom,
     removeSpectatorFromRoom,
+    touchSpectatorPresence,
     resolveAuthenticatedViewer,
     getPayloadKeyForViewer,
     resolveAuthenticatedSeatKey,

@@ -1,6 +1,8 @@
 export const NETWORK_ROOM_ID_LENGTH = 3;
 export const NETWORK_ROOM_ID_PATTERN = /^[A-Z0-9]{3}$/;
 export const NETWORK_PLAYER_NAME_MAX = 7;
+// Server heartbeats refresh a connected spectator's lastSeenAt every 10s; 12 missed beats means the spectator is gone.
+export const NETWORK_SPECTATOR_STALE_AFTER_MS = 120000;
 export const NETWORK_CHAT_MAX_LENGTH = 20;
 export const NETWORK_CHAT_HISTORY_LIMIT = 40;
 export const NETWORK_TURN_LIMIT_SECONDS = 120;

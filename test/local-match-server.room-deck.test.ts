@@ -440,4 +440,80 @@ describe('local match server room deck', () => {
       await closeServer(server);
     }
   });
+
+  test('席を空けて別の人が入ると、前の人のデッキを引き継がず新しい人のデッキで初期局面を作り直す', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const deckInfo = buildDistinctDeckCodes();
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        deckCode: deckInfo.blackDeckCode
+      });
+      const roomId = created.data.roomId;
+      const first = await requestJson(port, 'POST', '/api/match/join', {
+        roomId,
+        playerName: 'しろ1',
+        deckCode: deckInfo.whiteDeckCode
+      });
+      let room: any = null;
+      patchRoomSnapshotForTests(roomId, (one) => { room = one; });
+      expect(countPlayerCopies(room.snapshot.cardState, 'white', deckInfo.whiteMarkerId)).toBe(3);
+      const firstWhiteCards = sortedCards(listPlayerCards(room.snapshot.cardState, 'white'));
+
+      await requestJson(port, 'POST', '/api/match/leave', {
+        roomId, seatKey: 'white', seatToken: first.data.seatToken
+      });
+      // 退出した席のデッキ記録は消える
+      expect(room.roomDeck?.deckCodeByPlayer?.white || '').toBe('');
+
+      // デッキ未選択の人が入る: 前の人のデッキは使われない
+      const second = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: 'しろ2' });
+      expect(second.status).toBe(200);
+      expect(second.data.stateVersion).toBeGreaterThan(first.data.stateVersion);
+      expect(sortedCards(listPlayerCards(room.snapshot.cardState, 'white'))).not.toEqual(firstWhiteCards);
+      expect(countPlayerCopies(room.snapshot.cardState, 'black', deckInfo.blackMarkerId)).toBe(3);
+
+      // 次に入る人がカスタムデッキなら、そのデッキで局面が作られる
+      await requestJson(port, 'POST', '/api/match/leave', {
+        roomId, seatKey: 'white', seatToken: second.data.seatToken
+      });
+      const third = await requestJson(port, 'POST', '/api/match/join', {
+        roomId, playerName: 'しろ3', deckCode: deckInfo.updatedBlackDeckCode
+      });
+      expect(third.status).toBe(200);
+      expect(countPlayerCopies(room.snapshot.cardState, 'white', deckInfo.updatedBlackMarkerId)).toBe(3);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('同じ席トークンでの再入室は手札・山札を作り直さない', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+    const deckInfo = buildDistinctDeckCodes();
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        deckCode: deckInfo.blackDeckCode
+      });
+      const roomId = created.data.roomId;
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId, playerName: 'しろ', deckCode: deckInfo.whiteDeckCode
+      });
+      let before = '';
+      patchRoomSnapshotForTests(roomId, (room) => { before = JSON.stringify(room.snapshot.cardState); });
+      const rejoined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId, playerName: 'しろ', seatKey: 'white', seatToken: joined.data.seatToken
+      });
+      expect(rejoined.status).toBe(200);
+      expect(rejoined.data.rejoined).toBe(true);
+      expect(rejoined.data.stateVersion).toBe(joined.data.stateVersion);
+      patchRoomSnapshotForTests(roomId, (room) => { expect(JSON.stringify(room.snapshot.cardState)).toBe(before); });
+    } finally {
+      await closeServer(server);
+    }
+  });
 });

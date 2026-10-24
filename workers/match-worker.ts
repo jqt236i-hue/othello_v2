@@ -1800,6 +1800,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 buildHeartbeatPayload,
                 saveRoom: () => this.saveRoom(),
                 onStreamCountChanged: async () => { await this.markRoomInactiveIfIdle(); },
+                touchSpectatorPresence: (room, spectatorId, nowMs) => MatchAuthority.touchSpectatorPresence(room as never, spectatorId, nowMs),
                 sseChunk,
                 heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
                 writeTimeoutMs: MATCH_WORKER_SSE_WRITE_TIMEOUT_MS
@@ -1961,6 +1962,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             classifySeatTokenRejectionReason,
             makeSeatToken,
             MatchAuthority,
+            assignRoomDeckSelection,
+            isAllCardsDeckRoom,
             refreshTurnTimer: (_room: MatchWorkerRoomState, options: MatchWorkerTurnTimerOptions | null | undefined) => this.refreshTurnTimer(options),
             awaitRefreshTurnTimer: true,
             closeStreamsForSeat: (_room: MatchWorkerRoomState, seatKey: MatchAuthoritySeatKey) => this.closeStreamsForSeat(seatKey),

@@ -100,7 +100,7 @@ describe('shared match room lobby helpers', () => {
       stateVersion: 8,
       createdAt: 100,
       updatedAt: 200
-    });
+    }, { nowMs: 1000 });
 
     expect(entry).toEqual(expect.objectContaining({
       roomId: 'FUL',
@@ -111,6 +111,26 @@ describe('shared match room lobby helpers', () => {
       canJoin: false,
       canSpectate: true
     }));
+  });
+
+  test('public room list does not count spectators unseen for two minutes', () => {
+    const room = {
+      roomId: 'OLD',
+      seats: { black: true, white: true },
+      spectators: {
+        spec_a: { token: 'a', joinedAt: 1000, lastSeenAt: 1000 },
+        spec_b: { token: 'b', joinedAt: 1000, lastSeenAt: 1000 + 119000 },
+        spec_c: { token: 'c', joinedAt: 1000, lastSeenAt: 1000 + 119000 },
+        spec_d: { token: 'd', joinedAt: 1000, lastSeenAt: 1000 + 119000 }
+      },
+      maxSpectators: 4,
+      stateVersion: 8,
+      createdAt: 100,
+      updatedAt: 200
+    };
+    expect(MatchRoomLobby.toPublicRoomListEntry(room, { nowMs: 1000 + 119000 })).toBeNull();
+    const entry = MatchRoomLobby.toPublicRoomListEntry(room, { nowMs: 1000 + 121000 });
+    expect(entry).toEqual(expect.objectContaining({ spectatorCount: 3, canSpectate: true }));
   });
 
   test('public room list hides full rooms when spectator slots are full', () => {

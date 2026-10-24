@@ -143,4 +143,69 @@ describe('local match server spectator API', () => {
       await closeServer(server);
     }
   });
+
+  test('一定時間見られていない観戦者は枠から外れ、見られている観戦者は外れない', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const create = await requestJson(port, 'POST', '/api/match/create', { playerName: '黒' });
+      const roomId = create.data.roomId;
+      const spectators: any[] = [];
+      for (let i = 0; i < 4; i += 1) {
+        const joined = await requestJson(port, 'POST', '/api/match/spectate', { roomId, spectatorName: '観' + i });
+        expect(joined.status).toBe(200);
+        spectators.push(joined.data);
+      }
+      const full = await requestJson(port, 'POST', '/api/match/spectate', { roomId });
+      expect(full.status).toBe(409);
+      expect(full.data.reason).toBe('SPECTATOR_FULL');
+
+      // 先頭の1人だけ見られている。残り3人は置き去り（タブを閉じた）。
+      patchRoomSnapshotForTests(roomId, (room) => {
+        const longAgo = Date.now() - 10 * 60 * 1000;
+        for (const one of spectators.slice(1)) room.spectators[one.spectatorId].lastSeenAt = longAgo;
+      });
+      const listed = await requestJson(port, 'GET', '/api/match/list');
+      expect(listed.data.rooms[0].spectatorCount).toBe(1);
+
+      const reentered = await requestJson(port, 'POST', '/api/match/spectate', { roomId, spectatorName: '新' });
+      expect(reentered.status).toBe(200);
+      expect(reentered.data.spectatorCount).toBe(2);
+
+      // 生きている観戦者のトークンはそのまま使える。
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${roomId}&viewerRole=spectator&spectatorId=${spectators[0].spectatorId}&spectatorToken=${spectators[0].spectatorToken}`
+      );
+      expect(state.status).toBe(200);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('一度置き去り扱いになった観戦者も、状態取得で見られ直せば枠に戻る', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const create = await requestJson(port, 'POST', '/api/match/create', { playerName: '黒' });
+      const roomId = create.data.roomId;
+      const joined = await requestJson(port, 'POST', '/api/match/spectate', { roomId });
+      patchRoomSnapshotForTests(roomId, (room) => {
+        room.spectators[joined.data.spectatorId].lastSeenAt = Date.now() - 10 * 60 * 1000;
+      });
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${roomId}&viewerRole=spectator&spectatorId=${joined.data.spectatorId}&spectatorToken=${joined.data.spectatorToken}`
+      );
+      expect(state.status).toBe(200);
+      const listed = await requestJson(port, 'GET', '/api/match/list');
+      expect(listed.data.rooms[0].spectatorCount).toBe(1);
+    } finally {
+      await closeServer(server);
+    }
+  });
 });

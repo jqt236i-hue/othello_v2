@@ -126,6 +126,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'stripTransientPresentationState',
   'toDebugPlaybackDiagnostics',
   'toPublicPresentationFrame',
+  'touchSpectatorPresence',
   'validateAuthoritativePendingSelectionResult',
   'validatePendingSelectionPublish'
 ];

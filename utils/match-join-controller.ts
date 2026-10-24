@@ -70,13 +70,18 @@ export function createMatchJoinController(config?: any): any {
     const seatPlayerIds = cfg.normalizeSeatPlayerIds(room.seatPlayerIds);
     seatPlayerIds[seatKey] = playerId;
     room.seatPlayerIds = seatPlayerIds;
-    if (!cfg.isAllCardsDeckRoom(room) && deckSelection.hasCustomDeck) {
+    // A new occupant never inherits the deck the previous occupant of the seat left behind;
+    // a returning player (same seat token) keeps the room's record unless they bring a deck.
+    if (!cfg.isAllCardsDeckRoom(room) && (deckSelection.hasCustomDeck || !rejoined)) {
       cfg.assignRoomDeckSelection(room, seatKey, deckSelection);
     }
 
     const hasTwoSeatsNow = cfg.hasTwoActiveSeats(room);
     let rebasedInitialSnapshot = false;
-    if (!hadTwoSeats && hasTwoSeatsNow && room.stateVersion === 0) {
+    // Until someone moves, the room's version is still the one its initial position was built at
+    // (initialSnapshotVersion), so a new occupant means the initial position is rebuilt from both seats' decks.
+    const canRebuildInitialSnapshot = room.stateVersion === 0 || (!rejoined && room.stateVersion === (room.initialSnapshotVersion || 1));
+    if (!hadTwoSeats && hasTwoSeatsNow && canRebuildInitialSnapshot) {
       try {
         const initialSnapshotResult = cfg.makeInitialSnapshot(
           room.seed,
@@ -100,10 +105,11 @@ export function createMatchJoinController(config?: any): any {
             });
           }
         }
-        room.stateVersion = 1;
+        room.stateVersion = room.stateVersion === 0 ? 1 : room.stateVersion + 1;
         nextSnapshot.stateVersion = room.stateVersion;
         nextSnapshot.updatedAt = Date.now();
         room.snapshot = nextSnapshot;
+        room.initialSnapshotVersion = room.stateVersion;
         room.updatedAt = nextSnapshot.updatedAt;
         rebasedInitialSnapshot = true;
       } catch (error) {

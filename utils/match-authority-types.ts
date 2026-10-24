@@ -501,6 +501,7 @@ export interface MatchAuthorityPublicApi {
     applySeatLeaveToRoom(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, options?: MatchAuthoritySeatLeaveOptions | null): MatchAuthoritySeatLeaveResult | null;
     addSpectatorToRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthoritySpectatorJoinOptions | null): MatchAuthoritySpectatorJoinResult;
     removeSpectatorFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthoritySpectatorLeaveResult;
+    touchSpectatorPresence(roomValue: MatchAuthorityRoomState | null | undefined, spectatorId: unknown, nowMs?: unknown): void;
     resolveAuthenticatedViewer(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthorityViewer | null;
     getPayloadKeyForViewer(viewerValue: unknown): MatchAuthoritySeatKey | 'spectator';
     maskPlaybackEventsForSeat(events: unknown, viewerSeat: unknown, projectedSnapshot: unknown): unknown[];

@@ -29,6 +29,10 @@ export function createMatchLeaveController(config?: any): any {
       makeSeatToken: cfg.makeSeatToken,
       now: Date.now()
     });
+    // The seat's deck choice belongs to the player who left; the next occupant brings their own.
+    if (typeof cfg.assignRoomDeckSelection === 'function' && !(cfg.isAllCardsDeckRoom && cfg.isAllCardsDeckRoom(room))) {
+      cfg.assignRoomDeckSelection(room, seatKey, { ok: true, hasCustomDeck: false, deckSpec: null, deckCode: '', deckSize: null });
+    }
     const refreshResult = cfg.refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: false });
     if (cfg.awaitRefreshTurnTimer === true) await refreshResult;
 

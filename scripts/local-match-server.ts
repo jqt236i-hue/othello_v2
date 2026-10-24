@@ -959,6 +959,9 @@ function safeWriteToStream(room: any, streamId: any, eventName: any, payload: an
             )
             : payload;
         writeSse(streamInfo.res, eventName, wirePayload, eventId);
+        if (streamInfo.viewer && streamInfo.viewer.role === 'spectator') {
+            MatchAuthority.touchSpectatorPresence(room, streamInfo.viewer.spectatorId, Date.now());
+        }
     } catch (e) {
         try { streamInfo.res.end(); } catch (endError) { /* ignore */ }
         removeStream(room, streamId);
@@ -1628,6 +1631,8 @@ function createLocalMatchLeaveController() {
         classifySeatTokenRejectionReason,
         makeSeatToken,
         MatchAuthority,
+        assignRoomDeckSelection,
+        isAllCardsDeckRoom,
         refreshTurnTimer,
         closeStreamsForSeat: (room: any, seatKey: any) => closeSeatStreams(room, seatKey),
         broadcastPresence: (meta: any) => broadcastPresence(activeRoom, meta),

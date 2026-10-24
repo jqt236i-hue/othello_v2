@@ -31,6 +31,7 @@ type MatchWorkerStreamControllerConfig = {
     buildHeartbeatPayload: (room: MatchWorkerRoomState, serverTime: unknown) => Record<string, unknown>;
     saveRoom: () => Promise<void>;
     onStreamCountChanged?: (streamCount: number) => Promise<void> | void;
+    touchSpectatorPresence?: (room: MatchWorkerRoomState, spectatorId: unknown, nowMs: number) => void;
     onStreamClosed?: (stream: MatchWorkerSseStreamInfo, streamId: string) => Promise<void> | void;
     sseChunk: (eventName: unknown, payload: unknown, eventId?: unknown) => string;
     heartbeatIntervalMs: number;
@@ -167,6 +168,11 @@ export function createMatchWorkerStreamController(config: MatchWorkerStreamContr
                 }
             } else {
                 await writePromise;
+            }
+            // A successful write proves the spectator's connection is alive.
+            const room = cfg.getRoom();
+            if (room && stream.viewer && stream.viewer.role === 'spectator' && typeof cfg.touchSpectatorPresence === 'function') {
+                cfg.touchSpectatorPresence(room, stream.viewer.spectatorId, now());
             }
         } catch (e) {
             await closeStream(streamId);

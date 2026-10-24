@@ -19,7 +19,7 @@ interface MatchAuthorityRoomLifecycleDeps {
     normalizeSpectatorId: (value: unknown) => string;
     normalizeSpectatorName: (value: unknown) => string;
     ensureSpectators: (room: MatchAuthorityRoomState) => MatchAuthoritySpectators;
-    getActiveSpectatorEntries: (room: MatchAuthorityRoomState) => Array<[string, any]>;
+    getActiveSpectatorEntries: (room: MatchAuthorityRoomState, now?: unknown) => Array<[string, any]>;
     parseSeatKeyOptional: (value: unknown) => MatchAuthoritySeatKey | null;
     normalizeSeatHandSkins: (value: unknown) => { black: string; white: string };
     normalizeSeatPlayerIds: (value: unknown) => { black: string; white: string };
@@ -43,7 +43,8 @@ export function createMatchAuthorityRoomLifecycleApi(deps: MatchAuthorityRoomLif
     function addSpectatorToRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthoritySpectatorJoinOptions | null): MatchAuthoritySpectatorJoinResult {
         const room = roomValue && typeof roomValue === 'object' ? roomValue : null;
         const opts = options && typeof options === 'object' ? options : {};
-        if (!room || deps.getActiveSpectatorEntries(room).length >= deps.maxSpectators) return { ok: false, reason: 'SPECTATOR_FULL' };
+        const now = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
+        if (!room || deps.getActiveSpectatorEntries(room, now).length >= deps.maxSpectators) return { ok: false, reason: 'SPECTATOR_FULL' };
         const spectators = deps.ensureSpectators(room);
         const makeId = typeof opts.makeSpectatorId === 'function' ? opts.makeSpectatorId : () => `spec_${deps.randomFromChars(deps.seatTokenChars, 12)}`;
         const makeToken = typeof opts.makeSpectatorToken === 'function' ? opts.makeSpectatorToken : deps.makeSeatToken;
@@ -53,12 +54,11 @@ export function createMatchAuthorityRoomLifecycleApi(deps: MatchAuthorityRoomLif
             if (candidate && !spectators[candidate]) { spectatorId = candidate; break; }
         }
         if (!spectatorId) return { ok: false, reason: 'SPECTATOR_ID_COLLISION' };
-        const now = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
         const spectatorName = deps.normalizeSpectatorName(opts.spectatorName) || '観測者';
         const spectatorToken = String(makeToken() || '').trim();
         spectators[spectatorId] = { token: spectatorToken, name: spectatorName, joinedAt: now, lastSeenAt: now };
         room.updatedAt = now;
-        return { ok: true, spectatorId, spectatorToken, spectatorName, spectatorCount: deps.getActiveSpectatorEntries(room).length, maxSpectators: deps.maxSpectators };
+        return { ok: true, spectatorId, spectatorToken, spectatorName, spectatorCount: deps.getActiveSpectatorEntries(room, now).length, maxSpectators: deps.maxSpectators };
     }
 
     function removeSpectatorFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthoritySpectatorLeaveResult {
@@ -71,8 +71,9 @@ export function createMatchAuthorityRoomLifecycleApi(deps: MatchAuthorityRoomLif
         if (!entry || !spectatorToken || entry.token !== spectatorToken) return { ok: false, reason: spectatorToken ? 'SPECTATOR_TOKEN_MISMATCH' : 'SPECTATOR_TOKEN_REQUIRED' };
         const spectatorName = deps.normalizeSpectatorName(entry.name) || '観測者';
         delete deps.ensureSpectators(room)[spectatorId];
-        room.updatedAt = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
-        return { ok: true, spectatorId, spectatorName, spectatorCount: deps.getActiveSpectatorEntries(room).length, maxSpectators: deps.maxSpectators };
+        const now = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
+        room.updatedAt = now;
+        return { ok: true, spectatorId, spectatorName, spectatorCount: deps.getActiveSpectatorEntries(room, now).length, maxSpectators: deps.maxSpectators };
     }
 
     function resolveAuthenticatedViewer(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthorityViewer | null {

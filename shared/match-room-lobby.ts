@@ -5,6 +5,7 @@ const ROOM_NAME_MAX_LENGTH = 20;
 const DEFAULT_ROOM_NAME = '無名部屋';
 const WAITING_ROOM_TTL_MS = 10 * 60 * 1000;
 const INACTIVE_ROOM_TTL_MS = 15 * 60 * 1000;
+const NETWORK_SPECTATOR_STALE_AFTER_MS: number = require('./network-contract').NETWORK_SPECTATOR_STALE_AFTER_MS;
 
 type RoomListEntry = {
   roomId: string;
@@ -113,11 +114,16 @@ function getActiveSeatCount(roomValue: unknown): number {
   return toFiniteInteger(room.seatCount, 0);
 }
 
-function getActiveSpectatorCount(roomValue: unknown): number {
+function getActiveSpectatorCount(roomValue: unknown, nowMs: number = Date.now()): number {
   const room = asRecord(roomValue);
   const spectators = asRecord(room.spectators);
   const activeCount = Object.keys(spectators)
     .filter((id) => !!String(asRecord(spectators[id]).token || '').trim())
+    .filter((id) => {
+      const entry = asRecord(spectators[id]);
+      const seenAt = Number.isFinite(Number(entry.lastSeenAt)) ? Number(entry.lastSeenAt) : Number(entry.joinedAt);
+      return !Number.isFinite(seenAt) || nowMs - seenAt <= NETWORK_SPECTATOR_STALE_AFTER_MS;
+    })
     .length;
   if (activeCount > 0) return activeCount;
   return toFiniteInteger(room.spectatorCount, 0);
@@ -194,7 +200,7 @@ function toPublicRoomListEntry(roomValue: unknown, options?: PublicRoomListEntry
 
   const maxSeats = toFiniteInteger(room.maxSeats, 2);
   const seatCount = getActiveSeatCount(room);
-  const spectatorCount = getActiveSpectatorCount(room);
+  const spectatorCount = getActiveSpectatorCount(room, toFiniteInteger(asRecord(options).nowMs, Date.now()));
   const maxSpectators = getMaxSpectators(room);
   const canJoin = seatCount > 0 && seatCount < maxSeats;
   const canSpectate = seatCount > 0 && spectatorCount < maxSpectators;
