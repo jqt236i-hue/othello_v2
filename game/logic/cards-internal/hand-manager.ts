@@ -7,6 +7,7 @@ import CardMarkersImport = require('../cards/markers');
 import ManifestStoneRegistryImport = require('../../../shared/manifest-stone-registry');
 import SpecialCardRegistryImport = require('../../../shared/special-card-registry');
 import BoardExecutorResolutionImport = require('../card-resolution/board-executor');
+import ObserverWillResolution = require('../card-resolution/observer-will');
 import CardUsagePrechecksImport = require('./card-usage-prechecks');
 import PendingSelectionRegistry = require('./pending-selection-registry');
 
@@ -476,6 +477,14 @@ function addCardToHand(cardState: any, playerKey: string, cardId: string, contex
         : hand.length;
     hand.splice(insertIndex, 0, cardId);
     copyState.handCopyIdsByPlayer[ownerKey].splice(insertIndex, 0, cardCopyId);
+    // Every acquisition is observable, including generated cards and restored copies.
+    // Keep this below copy insertion so visibility and cost ledgers use the same identity.
+    ObserverWillResolution.observeActiveObserverWillHandForOwner(cardState, ownerKey as 'black' | 'white', {
+        getActiveManifestMarkers: CardMarkersModule.getActiveManifestMarkers,
+        revealCurrentHandToViewer,
+        addCardCostModifierForCopyId,
+        isInviolableSpecialCardId: (id: any) => isInviolableSpecialCardId(id, context)
+    });
     return {
         cardId,
         cardCopyId,

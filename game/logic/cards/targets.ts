@@ -7,6 +7,7 @@ import { GameState } from '../../../src/types';
 import SharedConstantsImport = require('../../../shared-constants');
 import BoardUtilsImport = require('../../../shared/shared-board-utils');
 import CardUtilsImport = require('./utils');
+import CaptureSource = require('../cards-internal/capture-source');
 
 const SharedConstants: any = SharedConstantsImport;
 const BoardUtils: any = BoardUtilsImport;
@@ -172,7 +173,11 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
 
 function getCaptureWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
     const targets = getTemptWillTargets(cardState, gameState, playerKey);
-    return targets.filter((target) => !!getCaptureMarkerAt(cardState, target.row, target.col));
+    return targets.filter((target) => {
+        const marker = getCaptureMarkerAt(cardState, target.row, target.col);
+        // Selection must promise the same card restoration required by resolution.
+        return !!(marker && CaptureSource.resolveCaptureSourceInfo(marker));
+    });
 }
 
 export = {
