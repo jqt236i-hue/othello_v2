@@ -143,7 +143,7 @@ function renderDetails(detailsPanel: HTMLElement | null, catalogItems: any[], he
   }
 }
 
-function createResultCard(docRef: Document, pull: any, newlyUnlockedIdSet: Set<string>): HTMLElement | null {
+function createResultCard(docRef: Document, pull: any, isNew: boolean): HTMLElement | null {
   const item = pull && pull.item ? pull.item : null;
   if (!item) return null;
   const rarityId = String(pull.rarity || '').trim().toLowerCase();
@@ -181,7 +181,6 @@ function createResultCard(docRef: Document, pull: any, newlyUnlockedIdSet: Set<s
   card.appendChild(kind);
 
   const status = docRef.createElement('div');
-  const isNew = newlyUnlockedIdSet.has(item.id);
   status.className = `gacha-result-status ${isNew ? 'is-new' : 'is-owned'}`;
   status.textContent = isNew ? 'NEW' : '所持済み';
   card.appendChild(status);
@@ -204,9 +203,9 @@ function renderPullResults(resultsEl: HTMLElement | null, pulls: any[], newlyUnl
     return;
   }
 
-  const newlyUnlockedIdSet = new Set(Array.isArray(newlyUnlockedIds) ? newlyUnlockedIds : []);
-  safePulls.forEach((pull) => {
-    const card = createResultCard(docRef, pull, newlyUnlockedIdSet);
+  const newFlags = resolveGachaItemVisualsModule().resolveNewPullFlags(safePulls, newlyUnlockedIds);
+  safePulls.forEach((pull, index) => {
+    const card = createResultCard(docRef, pull, newFlags[index] === true);
     if (card) resultsEl.appendChild(card);
   });
 }

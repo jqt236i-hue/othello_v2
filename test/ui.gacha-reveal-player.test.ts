@@ -272,4 +272,17 @@ describe('gacha reveal player', () => {
     expect(result.finishedWith).toBe('instant');
     expect(document.getElementById('gachaRevealStage').getAttribute('aria-hidden')).toBe('true');
   });
+  test('ten-pull reveal marks only the first copy of a repeated hand as NEW in the hero and the grid', async () => {
+    jest.resetModules();
+    setDom();
+    window.DISABLE_ANIMATIONS = true;
+    const mod = require('../ui/gacha-reveal-player.js');
+    const player = mod.createGachaRevealPlayer({ root: window, overlay: document.getElementById('gachaOverlay') });
+    const a = createPull('gacha__n__a', 'N', 'a');
+    const b = createPull('gacha__n__b', 'N', 'b');
+    await player.play({ pulls: [a, b, createPull('gacha__n__a', 'N', 'a'), createPull('gacha__n__a', 'N', 'a')], newlyUnlockedIds: ['gacha__n__a'] });
+    const statuses = Array.from(document.querySelectorAll('.gacha-reveal-slot-status')).map((el) => el.textContent);
+    expect(statuses).toEqual(['NEW', '所持済み', '所持済み', '所持済み']);
+    expect(document.querySelector('.gacha-reveal-hero-status').textContent).toBe('NEW');
+  });
 });

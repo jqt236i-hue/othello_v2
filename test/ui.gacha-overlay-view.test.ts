@@ -106,4 +106,15 @@ describe('gacha overlay view', () => {
 
     dom.window.close();
   });
+  test('marks only the first copy of a repeated hand as NEW and keeps the count in step with the summary', () => {
+    const dom = new JSDOM(`<!DOCTYPE html><body><button id="gachaOpenBtn"></button><div id="gachaOverlay"></div><div id="gachaModal"></div><button id="gachaCloseBtn"></button><div id="gachaBalanceValue"></div><div id="gachaDetailsPanel"></div><button id="gachaSinglePullBtn"></button><button id="gachaTenPullBtn"></button><div id="gachaStatusText"></div><div id="gachaResults"></div></body>`);
+    const view = OverlayViewModule.createGachaOverlayView({ document: dom.window.document, root: dom.window });
+    const pull = (id, rarity) => ({ rarity, item: { id, kind: 'hand_skin', label: id, imagePath: 'assets/images/Gacha/N/a.png' } });
+    const pulls = [pull('a', 'N'), pull('b', 'N'), pull('a', 'N'), pull('c', 'R'), pull('a', 'N'), pull('b', 'N')];
+    view.renderPullResults(pulls, ['a', 'c']);
+    const statuses = Array.from(dom.window.document.querySelectorAll('.gacha-result-status')).map((el) => el.textContent);
+    expect(statuses).toEqual(['NEW', '所持済み', '所持済み', 'NEW', '所持済み', '所持済み']);
+    expect(statuses.filter((text) => text === 'NEW')).toHaveLength(2);
+    dom.window.close();
+  });
 });

@@ -211,12 +211,15 @@ function createSlotCard(docRef: Document, pull: any, isNew: boolean, index: numb
   return card;
 }
 
-function populateHero(refs: StageRefs, pull: any, newlyUnlockedIdSet: Set<string>): void {
+function populateHero(refs: StageRefs, pull: any, newlyUnlockedIdSet: Set<string>, pulls?: any[]): void {
   const item = pull && pull.item ? pull.item : null;
   if (!refs || !item) return;
   const rarityId = String(pull.rarity || '').trim().toLowerCase();
-  const isNew = newlyUnlockedIdSet.has(item.id);
   const itemVisuals = resolveGachaItemVisualsModule();
+  const pullIndex = Array.isArray(pulls) ? pulls.indexOf(pull) : -1;
+  const isNew = pullIndex >= 0
+    ? itemVisuals.resolveNewPullFlags(pulls, newlyUnlockedIdSet)[pullIndex] === true
+    : newlyUnlockedIdSet.has(item.id);
   refs.hero!.setAttribute('data-gacha-rarity', rarityId);
   refs.heroRarity!.textContent = String(pull.rarity || '');
   refs.hero!.setAttribute('data-gacha-kind', itemVisuals.normalizeItemKind(item));
@@ -235,9 +238,9 @@ function populateGrid(refs: StageRefs, pulls: any[], newlyUnlockedIdSet: Set<str
   if (!docRef) return;
 
   const spotlightId = spotlightPull && spotlightPull.item ? spotlightPull.item.id : null;
+  const newFlags = resolveGachaItemVisualsModule().resolveNewPullFlags(pulls, newlyUnlockedIdSet);
   pulls.forEach((pull, index) => {
-    const itemId = pull && pull.item ? pull.item.id : '';
-    grid.appendChild(createSlotCard(docRef, pull, newlyUnlockedIdSet.has(itemId), index, spotlightId));
+    grid.appendChild(createSlotCard(docRef, pull, newFlags[index] === true, index, spotlightId));
   });
 }
 

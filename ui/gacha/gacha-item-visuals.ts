@@ -60,7 +60,20 @@ function applyItemPreviewState(item: GachaItem, imageEl: HTMLImageElement | null
   }
 }
 
+// 同じ ID が結果に複数あるとき、並びの最初の1枚だけを NEW にする（2枚目以降は所持済み）
+function resolveNewPullFlags(pulls: any[], newlyUnlockedIds: Iterable<string> | null | undefined): boolean[] {
+  const newIdSet = new Set<string>(newlyUnlockedIds ? Array.from(newlyUnlockedIds) : []);
+  const seenIds = new Set<string>();
+  return (Array.isArray(pulls) ? pulls : []).map((pull: any) => {
+    const itemId = pull && pull.item ? pull.item.id : '';
+    if (!itemId || seenIds.has(itemId)) return false;
+    seenIds.add(itemId);
+    return newIdSet.has(itemId);
+  });
+}
+
 export = {
+  resolveNewPullFlags,
   normalizeItemKind,
   getItemKindLabel,
   getItemPreviewPath,

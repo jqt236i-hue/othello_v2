@@ -267,7 +267,7 @@ function createGachaRevealPlayer(options?: any): any {
       ? '星の向こうに、新しい手が待っている'
       : '星の光を集めています';
     if (refs.progress) refs.progress.textContent = '光を集めています';
-    stageModule.populateHero(refs, spotlightPull, newlyUnlockedIdSet);
+    stageModule.populateHero(refs, spotlightPull, newlyUnlockedIdSet, pulls);
     refs.hero.setAttribute('aria-hidden', 'true');
     stageModule.populateGrid(refs, pulls, newlyUnlockedIdSet, spotlightPull);
 
