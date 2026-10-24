@@ -36,3 +36,53 @@ test.each([
     expect(copy).toContain(`自分の通常石を${count}配置`);
     expect(copy).not.toContain('既存石の近く');
 });
+
+const cardTexts = (id: string) => {
+    const card = CardCatalog.cards.find(entry => entry.id === id);
+    expect(card).toBeDefined();
+    const texts = CardInteractionEffects.resolveCardDescriptionTexts(card);
+    return { card: card as any, texts, last: getLastUsedPanelCopy(id) };
+};
+
+test('火の意志は敵石があるマスだけが灼熱の対象だと説明する', () => {
+    const { card, texts, last } = cardTexts('fire_will_01');
+    for (const text of [card.desc_ja, texts.quickText, texts.detailText, last]) {
+        expect(text).toContain('敵石');
+        expect(text).not.toContain('ランダムなマス');
+    }
+});
+
+test.each(['guard_01', 'guardian_god_01'])('%s は犠牲石の自壊・禁忌の反転・絶対執行が完全保護を貫通すると説明する', (id) => {
+    const { card, texts } = cardTexts(id);
+    expect(card.desc_ja).not.toContain('穴マス以外の全ての効果');
+    for (const text of [card.desc_ja, texts.quickText]) {
+        expect(text).toContain('犠牲石の自壊');
+        expect(text).toContain('禁忌の反転');
+        expect(text).toContain('絶対執行');
+    }
+});
+
+test.each(['super_buoyancy_01', 'super_gravity_01'])('%s は完全保護の石の手前で止まると説明する', (id) => {
+    const { card, texts } = cardTexts(id);
+    for (const text of [card.desc_ja, texts.quickText, texts.detailText]) {
+        expect(text).toContain('完全保護の石の手前で止まる');
+    }
+    expect(texts.detailText).toContain('幽体は破壊されず');
+});
+
+test('意志狩りの王は配置時にも発動すると説明する', () => {
+    const { card, texts, last } = cardTexts('will_hunter_king_01');
+    for (const text of [card.desc_ja, texts.quickText, texts.detailText, last]) {
+        expect(text).toContain('配置時と自ターン開始時');
+    }
+});
+
+test('用語集の時間停止は時間停石2ターン・時間停神4ターンを示し、石マーカー説明に強い石の昇格は無い', () => {
+    const glossary = require('../shared/game-term-glossary');
+    const description = glossary.resolveGameTermDescriptionByLabel('時間停止');
+    expect(description).toContain('時間停石は2ターン');
+    expect(description).toContain('時間停神は4ターン');
+    const template = require('fs').readFileSync(require('path').join(__dirname, '..', 'ui', 'handlers', 'rules-help-template.ts'), 'utf8');
+    expect(template).not.toContain('強い石の昇格');
+    expect(template).not.toContain('発動したプレイヤーが2ターン連続');
+});

@@ -51,7 +51,7 @@ export const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.
   Object.freeze({ id: 'condition-three-special-stones', label: '特殊石3個以上で使用可能', category: 'resource', description: '所有者を問わず、盤面に特殊石が3個以上ある時だけ使える。' }),
   Object.freeze({ id: 'condition-after-18-turns', label: '18手後使用可能', category: 'resource', description: '18手以上経過した後に使える。' }),
   Object.freeze({ id: 'turn-start', label: 'ターン開始', category: 'resource', description: '手番開始時に効果や持続管理を処理するタイミング。' }),
-  Object.freeze({ id: 'time-stop', label: '時間停止', category: 'resource', description: '発動したプレイヤーが2ターン連続で行動する。' }),
+  Object.freeze({ id: 'time-stop', label: '時間停止', category: 'resource', description: '発動したプレイヤーが連続で行動する（時間停石は2ターン、時間停神は4ターン）。' }),
   Object.freeze({ id: 'multi-move-state', label: '躍動状態', category: 'stone', description: '両者ターン開始時マス移動する、基本ランダム移動。' })
 ]);
 

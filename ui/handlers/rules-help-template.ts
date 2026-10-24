@@ -109,7 +109,7 @@ export const RULES_HELP_INNER_HTML = `
                     </div>
                     <div class="rules-help-effect-item">
                         <dt>時間停止</dt>
-                        <dd>発動したプレイヤーが2ターン連続で行動する。</dd>
+                        <dd>発動したプレイヤーが連続で行動する（時間停石は2ターン、時間停神は4ターン）。</dd>
                     </div>
                 </dl>
             </section>
@@ -279,7 +279,7 @@ export const RULES_HELP_INNER_HTML = `
                                 <div class="rules-help-counter-meaning">カウントダウン専用の残り回数</div>
                             </div>
                             <div class="rules-help-counter-cell rules-help-counter-cell--note">
-                                時限爆弾の起爆まで、時間停石の発動まで、強い石の昇格までなどに使われます。
+                                時限爆弾の起爆まで、時間停石・時間停神の発動までなどに使われます。
                             </div>
                         </div>
                         <div class="rules-help-counter-row">

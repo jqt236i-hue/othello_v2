@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '意志狩りの王',
   type: 'WILL_HUNTER_KING',
   cost: 33,
-  desc_ja: '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。',
+  desc_ja: '次に置く石を意志狩り化。配置時と自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。',
   display_type_ja: '戦闘'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '意志狩りの王',
-  desc: '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。'
+  desc: '次に置く石を意志狩り化。配置時と自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。';
-const EXPECTED_DETAIL_TEXT = '次に置く石を意志狩りの王石化する。\n自ターン開始時、敵石を1つ選んでそのマスへ移動しながら破壊する。\n敵の特殊石があればそちらを優先して狙う。\n反転回避2回と破壊回避2回を持ち、回避時は盤面上の最も近い有効な空きマスへ移動する。\n回避移動後、移動先で挟める列があればその石の色で反転する。';
+const EXPECTED_QUICK_TEXT = '次に置く石を意志狩り化。配置時と自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。';
+const EXPECTED_DETAIL_TEXT = '次に置く石を意志狩りの王石化する。\n配置時と自ターン開始時、敵石を1つ選んでそのマスへ移動しながら破壊する。\n敵の特殊石があればそちらを優先して狙う。\n反転回避2回と破壊回避2回を持ち、回避時は盤面上の最も近い有効な空きマスへ移動する。\n回避移動後、移動先で挟める列があればその石の色で反転する。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -93,6 +93,6 @@ describe('WILL_HUNTER_KING catalog/help surfaces', () => {
       desc: EXPECTED_QUICK_TEXT
     }));
     expect(rulebook).toContain('### 10.17.4 WILL_HUNTER_KING（意志狩りの王）');
-    expect(rulebook).toContain(EXPECTED_QUICK_TEXT);
+    expect(rulebook).toContain('配置したターンも、配置直後に1回だけ同じ石狩り効果を即時発動する');
   });
 });
