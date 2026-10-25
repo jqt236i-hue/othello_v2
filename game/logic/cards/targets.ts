@@ -150,15 +150,17 @@ function getCaptureMarkerAt(cardState: any, row: number, col: number): any | nul
     )) || null;
 }
 
-function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
+function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: string, options?: { includeFrozen?: boolean }): Array<{row: number; col: number}> {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const res: Array<{row: number; col: number}> = [];
+    const includeFrozen = !!(options && options.includeFrozen);
     const CardUtils = getCardUtils();
     forEachBoardShapeCell(cardState, gameState, (r, c) => {
         if (blocksTemptAt(CardUtils, cardState, r, c)) return;
         const markersAtCell = getMarkersAtCell(cardState, r, c);
-        // 凍結マス上の石は反転されない（01-rulebook 10.x 凍結）ので、色を変える誘惑の対象にもできない。
-        if (markersAtCell.some((marker: any) => normalizeMarkerType(marker) === 'FREEZE')) return;
+        // 凍結マス上の石は反転されない（01-rulebook 10.32.2）ので、色を変える誘惑の対象にもできない。
+        // 捕獲は石を手札へ戻す効果で反転を伴わないため、includeFrozen でこの除外を外す。
+        if (!includeFrozen && markersAtCell.some((marker: any) => normalizeMarkerType(marker) === 'FREEZE')) return;
         const targetMarker = markersAtCell.find((marker: any) => (
             marker &&
             marker.owner === opponentKey &&
@@ -172,7 +174,7 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
 }
 
 function getCaptureWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
-    const targets = getTemptWillTargets(cardState, gameState, playerKey);
+    const targets = getTemptWillTargets(cardState, gameState, playerKey, { includeFrozen: true });
     return targets.filter((target) => {
         const marker = getCaptureMarkerAt(cardState, target.row, target.col);
         // Selection must promise the same card restoration required by resolution.

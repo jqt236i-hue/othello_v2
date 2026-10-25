@@ -149,7 +149,7 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     ))).toBe(false);
   });
 
-  test('capture target list excludes guarded enemy special stones', () => {
+  test.each([false, true])('capture target list excludes guarded enemy special stones (frozen: %s)', (frozen) => {
     const { cardState, gameState } = makeState();
     gameState.board[4][4] = -1;
     cardState.markers.push(
@@ -170,9 +170,77 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
         data: { type: 'GUARD', remainingOwnerTurns: 3, sourceType: 'GUARD_WILL', sourceCardId: 'guard_01' }
       }
     );
+    if (frozen) {
+      cardState.markers.push({
+        id: 406,
+        kind: 'specialStone',
+        row: 4,
+        col: 4,
+        owner: 'black',
+        data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+      });
+    }
+
+    expect(CardLogic.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([]);
+  });
+
+  test('capture target list keeps a frozen enemy special stone capturable while tempt still excludes it', () => {
+    const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
+    const dragonDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'ULTIMATE_REVERSE_DRAGON');
+    expect(captureDef).toBeTruthy();
+    expect(dragonDef).toBeTruthy();
+
+    const { cardState, gameState } = makeState();
+    gameState.board[3][3] = -1;
+    cardState.hands.black = [captureDef.id];
+    cardState.charge.black = captureDef.cost;
+    cardState.markers.push(
+      {
+        id: 407,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'white',
+        data: {
+          type: 'DRAGON',
+          remainingOwnerTurns: 10,
+          sourceType: 'ULTIMATE_REVERSE_DRAGON',
+          sourceCardId: dragonDef.id
+        }
+      },
+      {
+        id: 408,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'FREEZE', remainingOwnerTurns: 5 }
+      }
+    );
+
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([]);
 
     const targets = CardLogic.getCaptureWillTargets(cardState, gameState, 'black');
-    expect(targets.some((target) => target.row === 4 && target.col === 4)).toBe(false);
+    const used = CardLogic.applyCardUsage(cardState, gameState, 'black', captureDef.id);
+    expect({ targets, used }).toEqual({ targets: [{ row: 3, col: 3 }], used: true });
+
+    expect(cardState.pendingEffectByPlayer.black).toMatchObject({
+      type: 'CAPTURE_WILL',
+      stage: 'selectTarget',
+      sourceHandIndex: 0
+    });
+
+    const res = CardLogic.applyCaptureWill(cardState, gameState, 'black', 3, 3);
+    expect(res).toMatchObject({
+      applied: true,
+      capturedCardId: dragonDef.id,
+      capturedCardType: 'ULTIMATE_REVERSE_DRAGON',
+      insertIndex: 0
+    });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(gameState.board[3][3]).toBe(0);
+    expect((cardState.markers || []).some((marker) => marker && marker.row === 3 && marker.col === 3)).toBe(false);
+    expect(cardState.hands.black).toEqual([dragonDef.id]);
   });
 
   test('capture target list excludes bombs, traps, stone statuses, and placement effects', () => {
