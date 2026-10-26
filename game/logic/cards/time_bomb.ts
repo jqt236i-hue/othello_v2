@@ -8,6 +8,7 @@ import SharedConstantsImport = require('../../../shared-constants');
 import SharedBoardUtilsImport = require('../../../shared/shared-board-utils');
 import BoardOpsImport = require('../board_ops');
 import CardMarkersImport = require('./markers');
+import SpecialStoneRegistry = require('../../../shared/special-stone-registry-static');
 
 const SharedConstants: any = SharedConstantsImport;
 const SharedBoardUtils: any = SharedBoardUtilsImport;
@@ -172,7 +173,11 @@ function applyTimeBombWill(cardState: CardState, gameState: GameState, playerKey
     if (!allowed) return { applied: false, reason: 'invalid_target' };
 
     const removeMarkersAt = deps.removeMarkersAt || (() => { });
-    removeMarkersAt(cardState, row, col, { kind: deps.specialStoneKind || 'specialStone' });
+    // Bomb conversion replaces the stone, not the independent effect on its cell.
+    removeMarkersAt(cardState, row, col, {
+        kind: deps.specialStoneKind || 'specialStone',
+        preserveTypes: Array.from(SpecialStoneRegistry.BOARD_MARKER_TYPES)
+    });
 
     const placement = applyTimeBomb(cardState, playerKey, row, col, {
         addMarker: deps.addMarker

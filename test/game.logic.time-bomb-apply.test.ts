@@ -37,7 +37,10 @@ describe('CardTimeBomb.applyTimeBombWill', () => {
 
     expect(result).toEqual({ applied: true, row: 2, col: 3 });
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(removed).toEqual([[cardState, 2, 3, { kind: 'specialStone' }]]);
+    expect(removed).toEqual([[cardState, 2, 3, {
+      kind: 'specialStone',
+      preserveTypes: Array.from(require('../shared/special-stone-registry-static').BOARD_MARKER_TYPES)
+    }]]);
     expect(added).toHaveLength(1);
     expect(cardState.markers[0]).toMatchObject({
       kind: 'specialStone',
