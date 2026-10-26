@@ -479,13 +479,49 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         return cloned;
     }
 
-    function hydrateDeferredPendingSelectionState(pending: any, action: any) {
+    function hydrateDeferredPendingSelectionState(pending: any, action: any, ctx: TurnPipelinePhaseContext) {
         if (!pending || !action || !action.pendingSelectionState || typeof action.pendingSelectionState !== 'object') {
             return false;
         }
         const transportState = action.pendingSelectionState;
         if (String(transportState.type || '').trim().toUpperCase() !== String(pending.type || '').trim().toUpperCase()) {
             return false;
+        }
+
+        if (pending.type === 'BOARD_SHRINK_WILL') {
+            const { CardLogic, cardState, gameState, playerKey } = ctx;
+            const selectedTargets = transportState.selectedTargets;
+            const maxSelections = pending.maxSelections || 3;
+            const priorTargets = Array.isArray(pending.selectedTargets) ? pending.selectedTargets : [];
+            if (!Array.isArray(selectedTargets) || selectedTargets.length >= maxSelections
+                || selectedTargets.length < priorTargets.length
+                || (transportState.selectedCount !== undefined && transportState.selectedCount !== selectedTargets.length)
+                || (transportState.maxSelections !== undefined && transportState.maxSelections !== maxSelections)
+                || (transportState.stage !== undefined && transportState.stage !== pending.stage)) {
+                throw new Error('Invalid BOARD_SHRINK_WILL deferred selection');
+            }
+            // Rebuild only selection progress. Never import client-supplied rule or identity fields.
+            const validatedPending = { ...pending, selectedTargets: [], selectedCount: 0 };
+            const validationState = {
+                ...cardState,
+                pendingEffectByPlayer: { ...cardState.pendingEffectByPlayer, [playerKey]: validatedPending }
+            };
+            for (let index = 0; index < selectedTargets.length; index += 1) {
+                const target = selectedTargets[index];
+                const prior = priorTargets[index];
+                if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)
+                    || (prior && (prior.row !== target.row || prior.col !== target.col))
+                    || !CardLogic.getBoardShrinkTargets(validationState, gameState, playerKey).some((candidate: any) => (
+                        candidate.row === target.row && candidate.col === target.col
+                    ))) {
+                    throw new Error('Invalid BOARD_SHRINK_WILL deferred target');
+                }
+                validatedPending.selectedTargets.push({ row: target.row, col: target.col });
+                validatedPending.selectedCount += 1;
+            }
+            pending.selectedTargets = validatedPending.selectedTargets;
+            pending.selectedCount = validatedPending.selectedCount;
+            return true;
         }
 
         const keys = Object.keys(transportState);
@@ -1471,7 +1507,7 @@ const DestroyOutcomeContract: any = DestroyOutcomeContractImport;
         const p = ctx.prng;
         const pending = readPendingForActionPhase(cardState, playerKey);
         let handOffRequested = false;
-        hydrateDeferredPendingSelectionState(pending, action);
+        hydrateDeferredPendingSelectionState(pending, action, ctx);
         if (!(ActionPhasePrePlacementSelectionModule && typeof ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction === 'function')) {
             return false;
         }

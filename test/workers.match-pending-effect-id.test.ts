@@ -1188,6 +1188,34 @@ describe('worker pendingEffectId contract', () => {
     expect(result.internalSnapshot.gameState.boardExpansion && result.internalSnapshot.gameState.boardExpansion.cells || []).toHaveLength(0);
   });
 
+  test.each([
+    ['interior cells', { selectedTargets: [{ row: 3, col: 1 }, { row: 3, col: 2 }] }, { row: 3, col: 0 }],
+    ['duplicate cells', { selectedTargets: [{ row: 7, col: 5 }, { row: 7, col: 5 }] }, { row: 7, col: 6 }],
+    ['disconnected cells', { selectedTargets: [{ row: 0, col: 0 }, { row: 7, col: 6 }] }, { row: 7, col: 7 }],
+    ['out-of-bounds cells', { selectedTargets: [{ row: 8, col: 6 }, { row: 7, col: 6 }] }, { row: 7, col: 7 }],
+    ['too many cells', { selectedCount: 3, selectedTargets: [{ row: 7, col: 4 }, { row: 7, col: 5 }, { row: 7, col: 6 }] }, { row: 7, col: 7 }],
+    ['forged selection count', { selectedCount: 1 }, { row: 7, col: 7 }],
+    ['forged selection limit', { maxSelections: 2 }, { row: 7, col: 7 }],
+    ['forged stage', { stage: 'done' }, { row: 7, col: 7 }]
+  ])('board shrink rejects %s in deferred selection without changing the authoritative state', (_name, overrides, target) => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_shrink_01', pendingType: 'BOARD_SHRINK_WILL', actionKey: 'shrinkTarget', target,
+      pendingExtra: { selectedCount: 0, maxSelections: 3, selectedTargets: [] },
+      publishPendingSelectionExtra: Object.assign({ selectedCount: 2, maxSelections: 3,
+        selectedTargets: [{ row: 7, col: 5 }, { row: 7, col: 6 }] }, overrides)
+    });
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.internalSnapshot.stateVersion).toBe(0);
+    expect(result.internalSnapshot.gameState).toEqual(expect.objectContaining({ currentPlayer: 1, turnNumber: 1 }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_SHRINK_WILL', stage: 'selectTarget', selectedCount: 0, maxSelections: 3, selectedTargets: []
+    }));
+    expect(result.internalSnapshot.cardState.markers).toEqual([]);
+    expect(result.internalSnapshot.cardState.charge.black).toBe(80);
+    expect(result.internalSnapshot.cardState.discard).toEqual(['board_shrink_01']);
+  });
+
   test('board shrink final target selection restores prior targets carried by pendingSelectionState', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'board_shrink_01',
